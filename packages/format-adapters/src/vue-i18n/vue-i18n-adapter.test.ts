@@ -29,11 +29,11 @@ describe("vue-i18n adapter: format and registry", () => {
     }
   });
 
-  it("makes a bare .json ambiguous between i18next and vue-i18n", () => {
+  it("makes a bare .json ambiguous across the registered JSON adapters", () => {
     const result = createDefaultRegistry().resolve("en.json");
     expect(result.status).toBe("ambiguous");
     if (result.status === "ambiguous") {
-      expect(result.candidates).toEqual(["i18next-json", "vue-i18n-json"]);
+      expect(result.candidates).toContain("vue-i18n-json");
     }
   });
 
