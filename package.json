@@ -1,0 +1,43 @@
+{
+  "name": "verbatra-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "i18n translation automation tool (monorepo root)",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariokreitz/verbatra.git"
+  },
+  "homepage": "https://github.com/mariokreitz/verbatra",
+  "bugs": {
+    "url": "https://github.com/mariokreitz/verbatra/issues"
+  },
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=11.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "changeset": "changeset",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.16",
+    "@changesets/cli": "2.31.0",
+    "@commitlint/cli": "21.0.2",
+    "@commitlint/config-conventional": "21.0.2",
+    "@vitest/coverage-v8": "4.1.8",
+    "lefthook": "2.1.9",
+    "tsup": "8.5.1",
+    "turbo": "2.9.18",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}

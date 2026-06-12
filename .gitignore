@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Planning
+docs/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Turborepo
+.turbo/
+
+# Test-Coverage
+coverage/
+
+# Environment variables and local overrides
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# pnpm project-local store (normally global)
+.pnpm-store/
+
+# npm/yarn lockfiles (this repo uses pnpm)
+package-lock.json
+yarn.lock

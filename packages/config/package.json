@@ -1,0 +1,27 @@
+{
+  "name": "@verbatra/config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared build, TypeScript and lint configuration for the verbatra monorepo",
+  "license": "MIT",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./biome.json": "./biome.json",
+    "./tsup": "./tsup.base.ts"
+  },
+  "files": [
+    "tsconfig.base.json",
+    "biome.json",
+    "tsup.base.ts"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "biome check .",
+    "test": "exit 0"
+  },
+  "devDependencies": {
+    "tsup": "8.5.1",
+    "typescript": "6.0.3"
+  }
+}
