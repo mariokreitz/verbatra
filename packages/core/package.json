@@ -1,0 +1,52 @@
+{
+  "name": "@verbatra/core",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Pure domain core for verbatra: model, diffing, validation",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/core",
+  "bugs": {
+    "url": "https://github.com/mariokreitz/verbatra/issues"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@verbatra/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}
