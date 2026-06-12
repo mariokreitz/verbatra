@@ -6,7 +6,12 @@ describe("createDefaultRegistry", () => {
     const result = createDefaultRegistry().resolve("locales/en/common.json");
     expect(result.status).toBe("ambiguous");
     if (result.status === "ambiguous") {
-      expect(result.candidates).toEqual(["i18next-json", "vue-i18n-json", "next-intl-json"]);
+      expect(result.candidates).toEqual([
+        "i18next-json",
+        "vue-i18n-json",
+        "next-intl-json",
+        "ngx-translate-json",
+      ]);
     }
   });
 

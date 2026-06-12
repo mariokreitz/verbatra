@@ -6,6 +6,7 @@ describe("SupportedFormat", () => {
     expect(SUPPORTED_FORMATS).toContain("i18next-json");
     expect(SUPPORTED_FORMATS).toContain("vue-i18n-json");
     expect(SUPPORTED_FORMATS).toContain("next-intl-json");
+    expect(SUPPORTED_FORMATS).toContain("ngx-translate-json");
   });
 
   it("accepts a known format", () => {

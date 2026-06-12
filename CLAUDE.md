@@ -54,7 +54,7 @@ Rules that hold the design together:
   and ICU *parsing* are explicitly not core's job — core compares placeholder sets and
   aggregates ICU-validity results it is given.
 - **`format-adapters`** convert files ↔ a format-neutral intermediate representation
-  (Reader/Writer/Parser per format). v1 is JSON only: i18next, vue-i18n, next-intl.
+  (Reader/Writer/Parser per format). v1 is JSON only: i18next, vue-i18n, next-intl, ngx-translate.
 - **`ai-providers`** are Strategy implementations behind a registry. v1 providers: OpenAI,
   Anthropic (`@anthropic-ai/sdk`), Gemini (`@google/genai`), DeepL.
 - **`sdk`** is the public programmatic API; it orchestrates core + adapters + providers.

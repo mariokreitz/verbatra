@@ -3,7 +3,8 @@ export type AdapterErrorCode =
   | "INVALID_JSON"
   | "INVALID_STRUCTURE"
   | "MAX_DEPTH_EXCEEDED"
-  | "INPUT_TOO_LARGE";
+  | "INPUT_TOO_LARGE"
+  | "MIXED_STRUCTURE";
 
 /**
  * A structured error for boundary failures. It deliberately carries only a code
