@@ -1,0 +1,55 @@
+{
+  "name": "@verbatra/ai-providers",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "AI and machine-translation providers for verbatra behind one narrow interface",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "directory": "packages/ai-providers"
+  },
+  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/ai-providers",
+  "bugs": {
+    "url": "https://github.com/mariokreitz/verbatra/issues"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.104.1",
+    "@verbatra/core": "workspace:*",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.21",
+    "@verbatra/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}
