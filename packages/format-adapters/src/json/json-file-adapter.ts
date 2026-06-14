@@ -1,8 +1,8 @@
-import { writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
 import { AdapterError } from "../errors.js";
+import { atomicWriteFile } from "./atomic-write.js";
 import { readBounded } from "./bounded-read.js";
 import { type DeriveEntry, flattenTree } from "./flatten.js";
 import { type JsonRecord, parseJsonObject } from "./json-tree.js";
@@ -127,7 +127,7 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
       const tree = buildWriteTree
         ? await buildWriteTree(resource.entries, filePath)
         : unflattenEntries(resource.entries);
-      await writeFile(filePath, `${JSON.stringify(tree, null, 2)}\n`, "utf8");
+      await atomicWriteFile(filePath, `${JSON.stringify(tree, null, 2)}\n`);
     },
   };
 }
