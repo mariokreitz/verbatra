@@ -1,10 +1,25 @@
 pre-commit:
+  parallel: true
   commands:
     check:
       glob: "*.{js,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      fail_text: |
+        Biome found lint/format issues. Run `pnpm check` to see them,
+        or `pnpm format` to auto-fix formatting, then re-stage.
+    lockfile:
+      glob: "{package.json,packages/*/package.json,pnpm-lock.yaml,pnpm-workspace.yaml}"
+      run: pnpm install --frozen-lockfile --lockfile-only
+      fail_text: |
+        pnpm-lock.yaml is out of sync with a package.json (a dependency was
+        added/changed/removed without updating the lockfile). Run `pnpm install`,
+        then `git add pnpm-lock.yaml` and commit again.
 
 commit-msg:
   commands:
     lint:
       run: pnpm commitlint --edit {1}
+      fail_text: |
+        Commit message must follow Conventional Commits, e.g.
+        `feat(ai-providers): add Gemini provider` or `fix: correct hashing`.
+        See https://www.conventionalcommits.org.
