@@ -144,6 +144,46 @@ importers:
         specifier: 4.1.8
         version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.27.7)(jiti@2.6.1))
 
+  packages/sdk:
+    dependencies:
+      '@verbatra/ai-providers':
+        specifier: workspace:*
+        version: link:../ai-providers
+      '@verbatra/core':
+        specifier: workspace:*
+        version: link:../core
+      '@verbatra/format-adapters':
+        specifier: workspace:*
+        version: link:../format-adapters
+      cosmiconfig:
+        specifier: 9.0.2
+        version: 9.0.2(typescript@6.0.3)
+      cosmiconfig-typescript-loader:
+        specifier: 6.3.0
+        version: 6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@types/node':
+        specifier: 22.19.21
+        version: 22.19.21
+      '@verbatra/config':
+        specifier: workspace:*
+        version: link:../config
+      '@vitest/coverage-v8':
+        specifier: 4.1.8
+        version: 4.1.8(vitest@4.1.8)
+      tsup:
+        specifier: 8.5.1
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.15)(typescript@6.0.3)
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.8
+        version: 4.1.8(@types/node@22.19.21)(@vitest/coverage-v8@4.1.8)(vite@8.0.16(@types/node@22.19.21)(esbuild@0.27.7)(jiti@2.6.1))
+
 packages:
 
   '@anthropic-ai/sdk@0.104.1':

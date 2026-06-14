@@ -1,0 +1,58 @@
+{
+  "name": "@verbatra/sdk",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The verbatra SDK: the central orchestration API composing core, format-adapters and ai-providers into the end-to-end translate flow",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "directory": "packages/sdk"
+  },
+  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/sdk",
+  "bugs": {
+    "url": "https://github.com/mariokreitz/verbatra/issues"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@verbatra/ai-providers": "workspace:*",
+    "@verbatra/core": "workspace:*",
+    "@verbatra/format-adapters": "workspace:*",
+    "cosmiconfig": "9.0.2",
+    "cosmiconfig-typescript-loader": "6.3.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.21",
+    "@verbatra/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}
