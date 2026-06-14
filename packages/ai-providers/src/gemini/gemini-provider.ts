@@ -1,4 +1,4 @@
-import { ProviderError } from "../errors.js";
+import { guardProviderCall } from "../guard.js";
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider } from "../provider.js";
 import { createDefaultClient } from "./client.js";
@@ -47,11 +47,7 @@ function createMechanism(client: GeminiClient, config: GeminiConfig): LlmMechani
   };
 }
 
-/** Call the provider, never re-throwing the raw SDK error (it can carry secrets). */
-async function callClient(client: GeminiClient, request: GeminiRequest): Promise<GeminiResponse> {
-  try {
-    return await client.models.generateContent(request);
-  } catch {
-    throw new ProviderError("PROVIDER_ERROR", "The translation provider request failed.");
-  }
+/** Call the provider through the shared guard so a raw SDK error never leaks. */
+function callClient(client: GeminiClient, request: GeminiRequest): Promise<GeminiResponse> {
+  return guardProviderCall(() => client.models.generateContent(request));
 }

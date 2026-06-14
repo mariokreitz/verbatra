@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { requireApiKey } from "../env.js";
+import { requireAnthropicKey } from "../env.js";
 import type { BuiltRequest } from "./request.js";
 import type { AnthropicMessage, MessagesClient } from "./types.js";
 
@@ -16,7 +16,7 @@ export function createDefaultClient(): MessagesClient {
   // logs request details including the x-api-key header; an explicit logLevel
   // takes precedence over the ANTHROPIC_LOG env var in the SDK, closing that
   // key-leak path structurally rather than by convention.
-  const sdk = new Anthropic({ apiKey: requireApiKey(), logLevel: "off" });
+  const sdk = new Anthropic({ apiKey: requireAnthropicKey(), logLevel: "off" });
   return {
     messages: {
       create: async (body: BuiltRequest): Promise<AnthropicMessage> =>

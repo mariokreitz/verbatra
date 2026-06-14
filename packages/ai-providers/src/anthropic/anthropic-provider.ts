@@ -1,4 +1,4 @@
-import { ProviderError } from "../errors.js";
+import { guardProviderCall } from "../guard.js";
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider, Usage } from "../provider.js";
 import { createDefaultClient } from "./client.js";
@@ -51,13 +51,9 @@ function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMe
   };
 }
 
-/** Call the provider, never re-throwing the raw SDK error (it can carry secrets). */
-async function callClient(client: MessagesClient, body: BuiltRequest): Promise<AnthropicMessage> {
-  try {
-    return await client.messages.create(body);
-  } catch {
-    throw new ProviderError("PROVIDER_ERROR", "The translation provider request failed.");
-  }
+/** Call the provider through the shared guard so a raw SDK error never leaks. */
+function callClient(client: MessagesClient, body: BuiltRequest): Promise<AnthropicMessage> {
+  return guardProviderCall(() => client.messages.create(body));
 }
 
 /** Map Anthropic usage to our Usage shape, or undefined when not fully reported. */

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { requireApiKey } from "./env.js";
+import { requireAnthropicKey } from "./env.js";
 import { ProviderError } from "./errors.js";
 
-describe("requireApiKey", () => {
+describe("requireAnthropicKey", () => {
   let saved: string | undefined;
 
   beforeEach(() => {
@@ -19,13 +19,13 @@ describe("requireApiKey", () => {
 
   it("returns the key when the environment variable is set", () => {
     process.env.ANTHROPIC_API_KEY = "sk-ant-test-key";
-    expect(requireApiKey()).toBe("sk-ant-test-key");
+    expect(requireAnthropicKey()).toBe("sk-ant-test-key");
   });
 
   it("throws a structured, key-free error when the variable is missing", () => {
     delete process.env.ANTHROPIC_API_KEY;
     try {
-      requireApiKey();
+      requireAnthropicKey();
       expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(ProviderError);
@@ -36,6 +36,6 @@ describe("requireApiKey", () => {
 
   it("treats an empty key as missing", () => {
     process.env.ANTHROPIC_API_KEY = "";
-    expect(() => requireApiKey()).toThrow(ProviderError);
+    expect(() => requireAnthropicKey()).toThrow(ProviderError);
   });
 });

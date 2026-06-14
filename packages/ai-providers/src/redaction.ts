@@ -15,8 +15,12 @@ function escapeForRegExp(value: string): string {
 /**
  * Remove anything that looks like a secret from a string before it is logged,
  * thrown, or surfaced. Replaces key-shaped tokens and, when supplied, the exact
- * known secret value (defaults to the Anthropic key from the environment). This
- * is the single redaction path every provider must route error/log text through.
+ * known secret value (defaults to the Anthropic key from the environment).
+ *
+ * The providers do NOT route through this. They stay secret-free by never binding
+ * or embedding raw SDK error text in a thrown error in the first place (the unbound
+ * catch in guardProviderCall throws a static ProviderError). redact is an available
+ * standalone utility, not the active redaction path any provider currently relies on.
  */
 export function redact(text: string, secret = process.env.ANTHROPIC_API_KEY): string {
   let out = text.replace(KEY_LIKE, REDACTED);

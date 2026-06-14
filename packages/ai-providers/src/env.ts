@@ -14,7 +14,7 @@ function readRequiredEnv(name: string): string {
 }
 
 /** The Anthropic API key, read only from ANTHROPIC_API_KEY. */
-export function requireApiKey(): string {
+export function requireAnthropicKey(): string {
   return readRequiredEnv("ANTHROPIC_API_KEY");
 }
 

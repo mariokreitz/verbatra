@@ -1,4 +1,4 @@
-import { ProviderError } from "../errors.js";
+import { guardProviderCall } from "../guard.js";
 import { checkBatchIntegrity } from "../integrity.js";
 import { type TranslateRequest, type TranslationProvider, validateRequest } from "../provider.js";
 import { createDefaultClient } from "./client.js";
@@ -83,17 +83,13 @@ async function translate(
   return { values, integrity, notices };
 }
 
-/** Call DeepL, never re-throwing the raw SDK/axios error (it can carry the auth header). */
-async function callClient(
+/** Call DeepL through the shared guard so a raw SDK/axios error (auth header) never leaks. */
+function callClient(
   client: DeepLTranslateClient,
   texts: readonly string[],
   sourceLang: string,
   targetLang: string,
   options: DeepLTranslateOptions,
 ): Promise<DeepLTextResult[]> {
-  try {
-    return await client.translateText(texts, sourceLang, targetLang, options);
-  } catch {
-    throw new ProviderError("PROVIDER_ERROR", "The translation provider request failed.");
-  }
+  return guardProviderCall(() => client.translateText(texts, sourceLang, targetLang, options));
 }
