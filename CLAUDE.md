@@ -12,12 +12,15 @@ This is a pnpm + Turborepo + Changesets monorepo. The packages implemented today
 - `@verbatra/config` — shared build/TS/lint config (tsconfig base, Biome config, tsup preset).
 - `@verbatra/core` — the pure domain center (model, diffing, hashing, placeholder integrity,
   validation).
-- `@verbatra/format-adapters` — file ↔ neutral-IR adapters for JSON i18n formats.
-- `@verbatra/ai-providers` — translation provider strategies behind a registry.
-
-Planned but **not yet built**: `sdk` and `cli` (v1), then `github-action` (v1.1), and
-`framework-adapters` / editor extensions (post-v1). v1 scope is deliberately lean: `core` +
-`sdk` + `cli`, JSON formats only, the providers listed below.
+- `@verbatra/format-adapters` — file ↔ neutral-IR adapters for JSON i18n formats (i18next,
+  vue-i18n, next-intl, ngx-translate).
+- `@verbatra/ai-providers` — translation provider strategies behind a registry (OpenAI, Anthropic,
+  Gemini, DeepL).
+- `@verbatra/sdk` — the central orchestration API: one-shot `translate()`, long-running `watch()`,
+  and config loading (`loadConfig`, including an explicit `configPath`).
+- `@verbatra/cli` — the `verbatra` binary, a thin wrapper over the SDK (`translate`, `watch`).
+- `@verbatra/github-action` — a composite action that runs the CLI in CI (v1.1). Private (consumed
+  via `uses:`), not published to npm.
 
 Note: any `docs/` directory (specs, architecture notes) is **gitignored, local-only** planning
 material and is not present in a fresh clone — do not rely on it or point instructions at it.
@@ -75,26 +78,31 @@ config  ←  core  ←  format-adapters
   factory and register it — do not reimplement read/write/detection.
 
 - **`ai-providers`** are Strategy implementations behind a registry. The `TranslationProvider`
-  interface (`src/provider.ts`) is resolved through a `ProviderRegistry`. LLM providers
-  (Anthropic, OpenAI, Gemini implemented; DeepL planned) all run through the shared layer
-  `runLlmTranslation(request, mechanism)` (`src/llm/run.ts`). There is one canonical zod schema,
-  `translationsResultSchema`, as the single source of truth; `deriveJsonSchema` feeds it to each
-  SDK's structured-output mechanism (Anthropic tool `input_schema`, OpenAI `json_schema`, Gemini
-  `responseSchema`) so the model constraint and the validation cannot drift. When adding a
-  provider, build an `LlmMechanism` and delegate to `runLlmTranslation` rather than wiring a
-  bespoke flow.
+  interface (`src/provider.ts`) is resolved through a `ProviderRegistry`. The three LLM providers
+  (Anthropic, OpenAI, Gemini) all run through the shared layer `runLlmTranslation(request,
+  mechanism)` (`src/llm/run.ts`). There is one canonical zod schema, `translationsResultSchema`, as
+  the single source of truth; `deriveJsonSchema` feeds it to each SDK's structured-output mechanism
+  (Anthropic tool `input_schema`, OpenAI `json_schema`, Gemini `responseSchema`) so the model
+  constraint and the validation cannot drift. When adding an LLM provider, build an `LlmMechanism`
+  and delegate to `runLlmTranslation` rather than wiring a bespoke flow. DeepL is a
+  machine-translation provider: it implements `translateBatch` directly and does NOT use the LLM
+  layer, reusing only the cross-cutting pieces (request validation, batch integrity, error
+  redaction) — proof the provider interface is shape-agnostic, not over-fit to LLMs.
 
-- **`sdk`, `cli`, `github-action`, `framework-adapters`** (not yet built) are pure consumers of
-  `sdk` and must not reach around it into core/adapters/providers directly.
+- **`sdk`** composes core/adapters/providers into the end-to-end flow and is the central API.
+  **`cli`** and **`github-action`** (and the post-v1 `framework-adapters` / editor extensions) are
+  thin consumers of `sdk`: the cli wraps `translate()`/`watch()`, the action runs the cli in CI.
+  They must not reach around the SDK into core/adapters/providers directly, and they add no
+  orchestration/translation/diff/lock logic of their own.
 
 ## Security invariants
 
 These are properties of the actual code and must be preserved in any change:
 
 - **Secrets come only from environment variables** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-  `GEMINI_API_KEY`) via the readers in `packages/ai-providers/src/env.ts` — never from config
-  files, CLI args, or function arguments. Route any text that could contain a key through
-  `redact()`; never log secrets.
+  `GEMINI_API_KEY`, `DEEPL_API_KEY`) via the readers in `packages/ai-providers/src/env.ts` — never
+  from config files, CLI args, or function arguments. Route any text that could contain a key
+  through `redact()`; never log secrets.
 - **Errors are structured `ProviderError`s**, never raw SDK errors (provider SDK errors can carry
   request headers / keys).
 - **Prompt-injection boundary**: system rules are compile-time constants. All untrusted variable
