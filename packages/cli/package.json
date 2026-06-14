@@ -1,0 +1,46 @@
+{
+  "name": "@verbatra/cli",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "The verbatra command-line interface: a thin wrapper over @verbatra/sdk exposing translate and watch",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/cli",
+  "bugs": {
+    "url": "https://github.com/mariokreitz/verbatra/issues"
+  },
+  "bin": {
+    "verbatra": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "biome check .",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@verbatra/sdk": "workspace:*",
+    "commander": "15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.21",
+    "@verbatra/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  }
+}
