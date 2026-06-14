@@ -1,18 +1,14 @@
-import type { TranslationEntry } from "@verbatra/core";
 import { ProviderError } from "../errors.js";
-import { checkBatchIntegrity, type IntegrityInput } from "../integrity.js";
-import {
-  type TranslateRequest,
-  type TranslateResult,
-  type TranslationProvider,
-  type Usage,
-  validateRequest,
-} from "../provider.js";
+import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
+import type { TranslateRequest, TranslateResult, TranslationProvider, Usage } from "../provider.js";
 import { createDefaultClient } from "./client.js";
 import { type AnthropicConfig, anthropicConfigSchema } from "./config.js";
 import { type BuiltRequest, buildRequest } from "./request.js";
-import { parseTranslations } from "./response.js";
+import { requireToolInput } from "./response.js";
 import type { AnthropicMessage, MessagesClient } from "./types.js";
+
+// Re-exported so existing imports of this path keep resolving after the extraction.
+export { toIntegrityInputs } from "../llm/integrity-inputs.js";
 
 const PROVIDER_ID = "anthropic";
 
@@ -22,9 +18,9 @@ export interface AnthropicDeps {
 }
 
 /**
- * Create the Anthropic LLM provider. The model and max-tokens come from config; the
- * API key is read only from the environment (via the default client). A stub client
- * may be injected for testing. The returned provider satisfies TranslationProvider.
+ * Create the Anthropic LLM provider. Forced tool-use is its mechanism behind the
+ * shared layer's extension point; the model and max-tokens come from config and the
+ * API key is read only from the environment (via the default client).
  */
 export function createAnthropicProvider(
   config: AnthropicConfig,
@@ -32,32 +28,27 @@ export function createAnthropicProvider(
 ): TranslationProvider {
   const validConfig = anthropicConfigSchema.parse(config);
   const client = deps.client ?? createDefaultClient();
+  const mechanism = createMechanism(client, validConfig);
   return {
     id: PROVIDER_ID,
     kind: "llm",
     supportsGlossary: true,
-    translateBatch: (request) => translate(client, validConfig, request),
+    translateBatch: (request: TranslateRequest): Promise<TranslateResult> =>
+      runLlmTranslation(request, mechanism),
   };
 }
 
-async function translate(
-  client: MessagesClient,
-  config: AnthropicConfig,
-  request: TranslateRequest,
-): Promise<TranslateResult> {
-  const data = validateRequest(request);
-  const body = buildRequest(config, data);
-  const message = await callClient(client, body);
-  const values = parseTranslations(
-    message.content,
-    data.entries.map((entry) => entry.key),
-  );
-  const integrity = checkBatchIntegrity(
-    toIntegrityInputs(data.entries, values),
-    request.extractPlaceholders,
-  );
-  const usage = toUsage(message.usage);
-  return usage === undefined ? { values, integrity } : { values, integrity, usage };
+/** Anthropic's mechanism: build the forced-tool-use request, call it, return raw tool input. */
+function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMechanism {
+  return {
+    translate: async ({ payloadJson }): Promise<LlmCompletion> => {
+      const body = buildRequest(config, payloadJson);
+      const message = await callClient(client, body);
+      const raw = requireToolInput(message.content);
+      const usage = toUsage(message.usage);
+      return usage === undefined ? { raw } : { raw, usage };
+    },
+  };
 }
 
 /** Call the provider, never re-throwing the raw SDK error (it can carry secrets). */
@@ -67,23 +58,6 @@ async function callClient(client: MessagesClient, body: BuiltRequest): Promise<A
   } catch {
     throw new ProviderError("PROVIDER_ERROR", "The translation provider request failed.");
   }
-}
-
-/** Pair each source entry with its translated value for the integrity check. */
-export function toIntegrityInputs(
-  entries: readonly TranslationEntry[],
-  values: ReadonlyMap<string, string>,
-): IntegrityInput[] {
-  return entries.map((entry) => {
-    const translatedValue = values.get(entry.key);
-    if (translatedValue === undefined) {
-      throw new ProviderError(
-        "INVALID_RESPONSE",
-        "The provider response is missing one or more keys.",
-      );
-    }
-    return { key: entry.key, sourcePlaceholders: entry.placeholders, translatedValue };
-  });
 }
 
 /** Map Anthropic usage to our Usage shape, or undefined when not fully reported. */

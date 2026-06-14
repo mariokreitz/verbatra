@@ -1,5 +1,4 @@
-import type { TranslationEntry } from "@verbatra/core";
-import type { ValidatedRequestData } from "../provider.js";
+import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
 import type { AnthropicConfig } from "./config.js";
 
 /** The forced tool the model must call to return results. */
@@ -8,10 +7,10 @@ export const SUBMIT_TOOL_NAME = "submit_translations";
 /**
  * INVARIANT: SYSTEM_RULES is a compile-time constant. Nothing variable is ever
  * spliced into it — not entry values, not the glossary, not the tone. Every
- * variable input travels exclusively in the user-turn JSON payload built by
- * buildRequest. This separation is the prompt-injection boundary: an untrusted
- * string can only ever land in the data channel, never in the instruction channel.
- * The moment any variable is interpolated here, that boundary is broken.
+ * variable input travels exclusively in the user-turn JSON payload built by the
+ * shared data-payload builder. This separation is the prompt-injection boundary: an
+ * untrusted string can only ever land in the data channel, never in the instruction
+ * channel. The moment any variable is interpolated here, that boundary is broken.
  */
 export const SYSTEM_RULES = [
   "You are a translation engine for software localization.",
@@ -25,34 +24,16 @@ export const SYSTEM_RULES = [
   `Return results only by calling the ${SUBMIT_TOOL_NAME} tool: exactly one entry per requested key, no commentary, no extra keys, and no key that was not requested.`,
 ].join("\n");
 
+/**
+ * The forced tool. Its input_schema is DERIVED from the canonical per-key schema
+ * (single source of truth), so the constraint imposed on the model and the shared
+ * layer's validation cannot diverge.
+ */
 const SUBMIT_TOOL = {
   name: SUBMIT_TOOL_NAME,
   description: "Submit the translated string for every requested key.",
-  input_schema: {
-    type: "object",
-    properties: {
-      translations: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: { key: { type: "string" }, value: { type: "string" } },
-          required: ["key", "value"],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["translations"],
-    additionalProperties: false,
-  },
-} as const;
-
-/** A single item in the data payload. Untrusted `value` plus trusted metadata. */
-interface ItemPayload {
-  readonly key: string;
-  readonly value: string;
-  readonly description?: string;
-  readonly meaning?: string;
-}
+  input_schema: deriveJsonSchema(translationsResultSchema),
+};
 
 /** The non-streaming Anthropic message-create body, narrowed to the fields used here. */
 export interface BuiltRequest {
@@ -64,34 +45,18 @@ export interface BuiltRequest {
   readonly tool_choice: { readonly type: "tool"; readonly name: string };
 }
 
-function toItem(entry: TranslationEntry): ItemPayload {
-  return {
-    key: entry.key,
-    value: entry.value,
-    ...(entry.description !== undefined ? { description: entry.description } : {}),
-    ...(entry.meaning !== undefined ? { meaning: entry.meaning } : {}),
-  };
-}
-
 /**
- * Build the message-create body. The static system rules carry all instructions;
- * the user turn carries a single JSON payload with every variable input (locales,
- * tone, glossary, and the untrusted item values). The model is forced to answer
- * through the submit_translations tool, so the output channel is schema-bound.
+ * Build the message-create body from the shared data payload (already serialized).
+ * The static system rules carry all instructions; the user turn carries the JSON
+ * payload with every variable input. The model is forced to answer through the
+ * submit_translations tool, so the output channel is schema-bound.
  */
-export function buildRequest(config: AnthropicConfig, data: ValidatedRequestData): BuiltRequest {
-  const payload = {
-    sourceLocale: data.sourceLocale,
-    targetLocale: data.targetLocale,
-    ...(data.tone !== undefined ? { tone: data.tone } : {}),
-    ...(data.glossary !== undefined ? { glossary: data.glossary } : {}),
-    items: data.entries.map(toItem),
-  };
+export function buildRequest(config: AnthropicConfig, payloadJson: string): BuiltRequest {
   return {
     model: config.model,
     max_tokens: config.maxTokens,
     system: SYSTEM_RULES,
-    messages: [{ role: "user", content: JSON.stringify(payload) }],
+    messages: [{ role: "user", content: payloadJson }],
     tools: [SUBMIT_TOOL],
     tool_choice: { type: "tool", name: SUBMIT_TOOL_NAME },
   };

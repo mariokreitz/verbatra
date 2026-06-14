@@ -1,17 +1,24 @@
 import { ProviderError } from "./errors.js";
 
 /**
- * Read the Anthropic API key from the environment only. It is never read from
- * config, function arguments, or files. A missing or empty key yields a structured
- * error whose message contains no key value.
+ * Read a required API key from the environment only. Keys are never read from
+ * config, function arguments, or files. A missing or empty value yields a
+ * structured error that names the variable but contains no key value.
  */
-export function requireApiKey(): string {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (apiKey === undefined || apiKey.length === 0) {
-    throw new ProviderError(
-      "MISSING_API_KEY",
-      "The ANTHROPIC_API_KEY environment variable is not set.",
-    );
+function readRequiredEnv(name: string): string {
+  const value = process.env[name];
+  if (value === undefined || value.length === 0) {
+    throw new ProviderError("MISSING_API_KEY", `The ${name} environment variable is not set.`);
   }
-  return apiKey;
+  return value;
+}
+
+/** The Anthropic API key, read only from ANTHROPIC_API_KEY. */
+export function requireApiKey(): string {
+  return readRequiredEnv("ANTHROPIC_API_KEY");
+}
+
+/** The OpenAI API key, read only from OPENAI_API_KEY. */
+export function requireOpenAiKey(): string {
+  return readRequiredEnv("OPENAI_API_KEY");
 }

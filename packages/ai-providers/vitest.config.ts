@@ -11,6 +11,7 @@ export default defineConfig({
         "src/index.ts",
         "src/**/types.ts",
         "src/anthropic/client.ts",
+        "src/openai/client.ts",
         "src/test-support.ts",
       ],
       thresholds: {

@@ -3,6 +3,7 @@ export type ProviderErrorCode =
   | "MISSING_API_KEY"
   | "INVALID_REQUEST"
   | "INVALID_RESPONSE"
+  | "PROVIDER_REFUSED"
   | "PROVIDER_ERROR";
 
 /**
