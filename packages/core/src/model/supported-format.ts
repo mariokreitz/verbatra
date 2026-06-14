@@ -11,6 +11,8 @@ export const SUPPORTED_FORMATS = [
   "ngx-translate-json",
 ] as const;
 
+/** Zod schema accepting exactly one of {@link SUPPORTED_FORMATS}. */
 export const supportedFormatSchema = z.enum(SUPPORTED_FORMATS);
 
+/** One of the supported source formats; a member of {@link SUPPORTED_FORMATS}. */
 export type SupportedFormat = z.infer<typeof supportedFormatSchema>;

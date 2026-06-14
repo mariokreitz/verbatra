@@ -61,9 +61,21 @@ function collectInvalidIcu(
 }
 
 /**
- * Build a ValidationReport for a target against its source: keys missing from the
- * target, entries whose placeholders do not match the source, and entries flagged
- * as invalid ICU (supplied via options). Never throws on ordinary problems.
+ * Build a {@link ValidationReport} for a target against its source: keys missing from the target,
+ * entries whose placeholders do not match the source, and entries flagged as invalid ICU (supplied
+ * via options). It does not throw; every problem is collected into the returned report.
+ *
+ * @param source - The resource translations are derived from.
+ * @param target - The resource being validated against the source.
+ * @param options - Validation options; `invalidIcuKeys` are target keys flagged invalid by the caller.
+ * @returns The report; `isValid` is true only when all three finding lists are empty.
+ * @example
+ * ```ts
+ * const report = validate(source, target, { invalidIcuKeys: ["broken.icu"] });
+ * if (!report.isValid) {
+ *   // report.missingKeys, report.brokenPlaceholders, report.invalidIcu
+ * }
+ * ```
  */
 export function validate(
   source: LocaleResource,

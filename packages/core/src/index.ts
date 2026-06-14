@@ -1,10 +1,17 @@
-// Domain model
+/**
+ * The pure domain center of verbatra: format-agnostic primitives for diffing, content hashing,
+ * placeholder integrity, and validation. It performs no I/O, no network, and no file-system access,
+ * and knows nothing about specific formats or providers.
+ *
+ * @packageDocumentation
+ */
 
 // Diffing
 export { diffResources } from "./diff/diff-resources.js";
 export type { DiffOptions, DiffResult } from "./diff/types.js";
 // Content hash
 export { contentHash } from "./hash/content-hash.js";
+// Domain model
 export {
   type LocaleResource,
   localeResourceSchema,

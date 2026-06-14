@@ -14,6 +14,7 @@ export interface DiffResult {
   readonly unchanged: readonly string[];
 }
 
+/** Options for {@link diffResources}. */
 export interface DiffOptions {
   /**
    * Map of key to the source content hash the target was last produced from.

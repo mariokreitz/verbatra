@@ -23,6 +23,7 @@ export interface ValidationReport {
   readonly invalidIcu: readonly ValidationFinding[];
 }
 
+/** Options for {@link validate}. */
 export interface ValidateOptions {
   /**
    * Target keys flagged as invalid ICU, determined outside core. core aggregates

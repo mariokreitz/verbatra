@@ -35,7 +35,16 @@ function canonicalize(entry: TranslationEntry): string {
 /**
  * Stable per-entry content hash for cheap change detection. Equal content yields
  * the same hash; different content yields a different hash; placeholder order
- * does not affect the result.
+ * does not affect the result. Pure computation: it does not throw.
+ *
+ * @param entry - The entry whose translatable content is hashed. Identity (key, namespace) is
+ *   excluded, so renaming a key does not change its hash.
+ * @returns A 16-character lowercase hex digest.
+ * @example
+ * ```ts
+ * const a = contentHash(entry);
+ * const unchanged = contentHash(entry) === a; // true for identical content
+ * ```
  */
 export function contentHash(entry: TranslationEntry): string {
   return fnv1a64(canonicalize(entry));
