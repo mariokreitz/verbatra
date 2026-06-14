@@ -1,0 +1,19 @@
+{
+  "name": "@verbatra/github-action",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Composite GitHub Action that runs the verbatra CLI in CI and surfaces results as annotations and a job summary",
+  "license": "MIT",
+  "author": "Mario Kreitz",
+  "scripts": {
+    "build": "exit 0",
+    "lint": "biome check .",
+    "test": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@verbatra/config": "workspace:*",
+    "@vitest/coverage-v8": "4.1.8",
+    "vitest": "4.1.8"
+  }
+}

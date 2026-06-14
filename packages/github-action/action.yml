@@ -1,0 +1,68 @@
+name: verbatra
+description: Run verbatra translations in CI, annotate failures, and write a job summary
+author: Mario Kreitz
+
+inputs:
+  version:
+    description: >-
+      The @verbatra/cli version to run, e.g. 1.2.3. PIN this to an exact version for reproducible,
+      supply-chain-safe CI; do NOT use a floating tag such as "latest" (it pulls whatever is newest at
+      run time, which is non-reproducible and would auto-pull a compromised release). Required.
+    required: true
+  config-path:
+    description: Explicit config file to load (maps to --config). Empty uses the normal config search.
+    required: false
+    default: ""
+  working-directory:
+    description: Directory to resolve config and locale files against (maps to --cwd).
+    required: false
+    default: ""
+  dry-run:
+    description: Report what would change without calling a provider or writing (maps to --dry-run).
+    required: false
+    default: "false"
+  node-version:
+    description: Node.js version to set up for running the CLI.
+    required: false
+    default: "24"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    # Run the CLI and CAPTURE its stdout and exit code WITHOUT failing the step (a composite step aborts
+    # on non-zero, which would skip annotation). Inputs travel via env (data), never spliced into the
+    # command as code, and are passed as a quoted bash array — this is the injection-safe boundary.
+    - name: Run verbatra translate
+      id: run
+      shell: bash
+      env:
+        VERBATRA_VERSION: ${{ inputs.version }}
+        CONFIG_PATH: ${{ inputs.config-path }}
+        WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        SUMMARY_FILE: ${{ runner.temp }}/verbatra-summary.json
+        ERROR_FILE: ${{ runner.temp }}/verbatra-error.txt
+      run: |
+        set +e
+        args=(translate --json)
+        if [ -n "$CONFIG_PATH" ]; then args+=(--config "$CONFIG_PATH"); fi
+        if [ -n "$WORKING_DIRECTORY" ]; then args+=(--cwd "$WORKING_DIRECTORY"); fi
+        if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+        npx --yes "@verbatra/cli@$VERBATRA_VERSION" "${args[@]}" >"$SUMMARY_FILE" 2>"$ERROR_FILE"
+        echo "exit_code=$?" >>"$GITHUB_OUTPUT"
+        exit 0
+
+    # Annotate and summarize, then propagate the CLI's exit code. This step exits with the CLI's code
+    # (via the script's process.exit), so the action fails on 1/2 only AFTER annotations + summary.
+    - name: Annotate and summarize
+      shell: bash
+      env:
+        SUMMARY_FILE: ${{ runner.temp }}/verbatra-summary.json
+        ERROR_FILE: ${{ runner.temp }}/verbatra-error.txt
+        EXIT_CODE: ${{ steps.run.outputs.exit_code }}
+      run: node "$GITHUB_ACTION_PATH/annotate.mjs" "$SUMMARY_FILE" "$ERROR_FILE" "$EXIT_CODE"
