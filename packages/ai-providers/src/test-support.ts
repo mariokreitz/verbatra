@@ -1,6 +1,8 @@
 import type { TranslationEntry } from "@verbatra/core";
 import type { BuiltRequest } from "./anthropic/request.js";
 import type { AnthropicMessage, MessagesClient } from "./anthropic/types.js";
+import type { GeminiRequest } from "./gemini/request.js";
+import type { GeminiClient, GeminiResponse } from "./gemini/types.js";
 import type { OpenAiRequest } from "./openai/request.js";
 import type { OpenAiClient, OpenAiCompletion, OpenAiMessage } from "./openai/types.js";
 import type { PlaceholderExtractor } from "./provider.js";
@@ -94,6 +96,44 @@ export function openAiStubClient(completion: OpenAiCompletion): {
 
 /** Return the first recorded OpenAI request body, or throw if the client was not called. */
 export function firstOpenAiCall(calls: readonly OpenAiRequest[]): OpenAiRequest {
+  const body = calls[0];
+  if (body === undefined) {
+    throw new Error("expected the client to have been called at least once");
+  }
+  return body;
+}
+
+/** A schema-conforming Gemini response carrying the given per-key translations. */
+export function geminiResult(
+  translations: ReadonlyArray<{ key: string; value: string }>,
+  usage?: { promptTokenCount?: number; candidatesTokenCount?: number },
+): GeminiResponse {
+  const base: GeminiResponse = {
+    text: JSON.stringify({ translations }),
+    candidates: [{ finishReason: "STOP" }],
+  };
+  return usage === undefined ? base : { ...base, usageMetadata: usage };
+}
+
+/** An offline Gemini stub client that records every request it receives. */
+export function geminiStubClient(response: GeminiResponse): {
+  client: GeminiClient;
+  calls: GeminiRequest[];
+} {
+  const calls: GeminiRequest[] = [];
+  const client: GeminiClient = {
+    models: {
+      generateContent: async (request) => {
+        calls.push(request);
+        return response;
+      },
+    },
+  };
+  return { client, calls };
+}
+
+/** Return the first recorded Gemini request, or throw if the client was not called. */
+export function firstGeminiCall(calls: readonly GeminiRequest[]): GeminiRequest {
   const body = calls[0];
   if (body === undefined) {
     throw new Error("expected the client to have been called at least once");

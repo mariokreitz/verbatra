@@ -10,6 +10,15 @@ export {
 } from "./anthropic/config.js";
 // Errors
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
+// Gemini provider
+export {
+  type GeminiConfig,
+  geminiConfigSchema,
+} from "./gemini/config.js";
+export {
+  createGeminiProvider,
+  type GeminiDeps,
+} from "./gemini/gemini-provider.js";
 // OpenAI provider
 export {
   type OpenAiConfig,

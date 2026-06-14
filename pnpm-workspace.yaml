@@ -2,5 +2,7 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  '@google/genai': false
   esbuild: true
   lefthook: true
+  protobufjs: false

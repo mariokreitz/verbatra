@@ -4,6 +4,7 @@ export type ProviderErrorCode =
   | "INVALID_REQUEST"
   | "INVALID_RESPONSE"
   | "PROVIDER_REFUSED"
+  | "PROVIDER_BLOCKED"
   | "PROVIDER_ERROR";
 
 /**

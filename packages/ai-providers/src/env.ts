@@ -22,3 +22,8 @@ export function requireApiKey(): string {
 export function requireOpenAiKey(): string {
   return readRequiredEnv("OPENAI_API_KEY");
 }
+
+/** The Gemini API key, read only from GEMINI_API_KEY. */
+export function requireGeminiKey(): string {
+  return readRequiredEnv("GEMINI_API_KEY");
+}
