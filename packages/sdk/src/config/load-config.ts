@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
@@ -32,6 +34,15 @@ export interface LoadConfigOptions {
    * searching the file system. Still validated with zod, exactly like a loaded file.
    */
   readonly configOverride?: unknown;
+  /**
+   * An explicit config file to load instead of searching. A relative path resolves
+   * against `cwd` (an absolute path is used as given), then cosmiconfig's load() parses
+   * it with the same loaders search uses (.json/.yaml/.ts), and it is zod-validated at
+   * the boundary exactly like a searched file. A missing file is CONFIG_NOT_FOUND; a
+   * present-but-unparseable/invalid file is CONFIG_INVALID. Precedence: configOverride
+   * wins over configPath, which wins over search.
+   */
+  readonly configPath?: string;
 }
 
 function formatIssues(error: z.ZodError): string {
@@ -60,6 +71,36 @@ function validate(input: unknown): VerbatraConfig {
 }
 
 /**
+ * Load and validate config from one explicit file via cosmiconfig's load(), which reuses the same
+ * loaders search uses (.json/.yaml/.ts). A relative path resolves against cwd; an absolute path is
+ * used as given. A genuinely missing file is CONFIG_NOT_FOUND. The existsSync pre-check only buys the
+ * nicer not-found message and is not load-bearing: a file that passes the check but then fails to load
+ * (a parse error, or the file vanishing between the check and the load) is caught here and surfaced as
+ * CONFIG_INVALID — a raw fs/ENOENT error never escapes. Validation reuses the same zod boundary as the
+ * search path, so a present-but-invalid (or empty) file is CONFIG_INVALID, identical in shape.
+ */
+async function loadExplicit(
+  explorer: ReturnType<typeof cosmiconfig>,
+  configPath: string,
+  cwd: string | undefined,
+): Promise<VerbatraConfig> {
+  const resolved = resolve(cwd ?? process.cwd(), configPath);
+  if (!existsSync(resolved)) {
+    throw new SdkError("CONFIG_NOT_FOUND", `No verbatra configuration file at ${resolved}.`);
+  }
+
+  let result: Awaited<ReturnType<typeof explorer.load>>;
+  try {
+    result = await explorer.load(resolved);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
+  }
+
+  return validate(result?.config);
+}
+
+/**
  * Load and validate the verbatra configuration. Supports a code-defined
  * verbatra.config.ts and file-based configs (.verbatrarc.json/.yaml, package.json
  * property) through cosmiconfig + cosmiconfig-typescript-loader. Multiple sources ->
@@ -75,6 +116,10 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Verba
     searchPlaces: SEARCH_PLACES,
     loaders: { ".ts": TypeScriptLoader() },
   });
+
+  if (options.configPath !== undefined) {
+    return loadExplicit(explorer, options.configPath, options.cwd);
+  }
 
   let result: Awaited<ReturnType<typeof explorer.search>>;
   try {
