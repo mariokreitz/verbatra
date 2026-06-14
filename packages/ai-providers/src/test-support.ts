@@ -1,6 +1,11 @@
 import type { TranslationEntry } from "@verbatra/core";
 import type { BuiltRequest } from "./anthropic/request.js";
 import type { AnthropicMessage, MessagesClient } from "./anthropic/types.js";
+import type {
+  DeepLTextResult,
+  DeepLTranslateClient,
+  DeepLTranslateOptions,
+} from "./deepl/types.js";
 import type { GeminiRequest } from "./gemini/request.js";
 import type { GeminiClient, GeminiResponse } from "./gemini/types.js";
 import type { OpenAiRequest } from "./openai/request.js";
@@ -139,4 +144,41 @@ export function firstGeminiCall(calls: readonly GeminiRequest[]): GeminiRequest 
     throw new Error("expected the client to have been called at least once");
   }
   return body;
+}
+
+/** A recorded DeepL translateText call. */
+export interface DeepLCall {
+  readonly texts: readonly string[];
+  readonly sourceLang: string | null;
+  readonly targetLang: string;
+  readonly options: DeepLTranslateOptions;
+}
+
+/** Build an ordered DeepL result array from the given translated strings. */
+export function deeplResult(texts: readonly string[]): DeepLTextResult[] {
+  return texts.map((text) => ({ text }));
+}
+
+/** An offline DeepL stub client that records every translateText call it receives. */
+export function deeplStubClient(results: readonly DeepLTextResult[]): {
+  client: DeepLTranslateClient;
+  calls: DeepLCall[];
+} {
+  const calls: DeepLCall[] = [];
+  const client: DeepLTranslateClient = {
+    translateText: async (texts, sourceLang, targetLang, options) => {
+      calls.push({ texts, sourceLang, targetLang, options });
+      return [...results];
+    },
+  };
+  return { client, calls };
+}
+
+/** Return the first recorded DeepL call, or throw if the client was not called. */
+export function firstDeeplCall(calls: readonly DeepLCall[]): DeepLCall {
+  const call = calls[0];
+  if (call === undefined) {
+    throw new Error("expected the client to have been called at least once");
+  }
+  return call;
 }

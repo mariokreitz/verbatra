@@ -8,6 +8,20 @@ export {
   type AnthropicConfig,
   anthropicConfigSchema,
 } from "./anthropic/config.js";
+// DeepL provider
+export {
+  type DeepLConfig,
+  deepLConfigSchema,
+} from "./deepl/config.js";
+export {
+  createDeepLProvider,
+  type DeepLDeps,
+} from "./deepl/deepl-provider.js";
+export type {
+  DeepLTranslateResult,
+  ProviderNotice,
+  ProviderNoticeCode,
+} from "./deepl/types.js";
 // Errors
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
 // Gemini provider

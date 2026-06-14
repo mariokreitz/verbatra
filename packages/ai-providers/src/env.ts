@@ -27,3 +27,8 @@ export function requireOpenAiKey(): string {
 export function requireGeminiKey(): string {
   return readRequiredEnv("GEMINI_API_KEY");
 }
+
+/** The DeepL API key, read only from DEEPL_API_KEY. */
+export function requireDeepLKey(): string {
+  return readRequiredEnv("DEEPL_API_KEY");
+}

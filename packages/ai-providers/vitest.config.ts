@@ -13,6 +13,7 @@ export default defineConfig({
         "src/anthropic/client.ts",
         "src/openai/client.ts",
         "src/gemini/client.ts",
+        "src/deepl/client.ts",
         "src/test-support.ts",
       ],
       thresholds: {
