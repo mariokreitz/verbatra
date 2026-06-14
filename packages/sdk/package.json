@@ -43,6 +43,7 @@
     "@verbatra/ai-providers": "workspace:*",
     "@verbatra/core": "workspace:*",
     "@verbatra/format-adapters": "workspace:*",
+    "chokidar": "5.0.0",
     "cosmiconfig": "9.0.2",
     "cosmiconfig-typescript-loader": "6.3.0",
     "zod": "4.4.3"

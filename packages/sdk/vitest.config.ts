@@ -11,6 +11,7 @@ export default defineConfig({
         "src/index.ts",
         "src/**/types.ts",
         "src/flow/summary.ts",
+        "src/watch/wiring.ts",
         "src/test-support.ts",
       ],
       thresholds: {

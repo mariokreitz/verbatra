@@ -16,3 +16,14 @@ export {
 export type { SdkFs } from "./fs.js";
 // Provider construction seam
 export type { CreateProvider } from "./selection/select-provider.js";
+// Watch mode (slice 2)
+export {
+  type CreateWatcher,
+  type RunTranslate,
+  type WatchController,
+  type WatchDeps,
+  type Watcher,
+  type WatchInput,
+  type WatchRunResult,
+  watch,
+} from "./watch/watch.js";
