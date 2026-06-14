@@ -1,0 +1,55 @@
+import { type FileHandle, open } from "node:fs/promises";
+import { MAX_INPUT_BYTES } from "./limits.js";
+
+/**
+ * The result of a bounded read. `not-a-file` and `too-large` let callers pick their
+ * own policy (the JSON adapter raises a structured error; the ngx-translate write path
+ * silently defaults to nested) without re-checking on a second path resolution.
+ */
+export type BoundedReadOutcome =
+  | { readonly kind: "ok"; readonly content: string }
+  | { readonly kind: "not-a-file" }
+  | { readonly kind: "too-large" };
+
+/**
+ * Read at most `size` bytes from an already-open handle as UTF-8, looping over partial
+ * reads and stopping at EOF. The read never advances past `size`, so even if the file
+ * grows after it was sized the result stays bounded.
+ */
+async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
+  const buffer = Buffer.allocUnsafe(size);
+  let offset = 0;
+  while (offset < size) {
+    const { bytesRead } = await handle.read(buffer, offset, size - offset, offset);
+    if (bytesRead === 0) {
+      break;
+    }
+    offset += bytesRead;
+  }
+  return buffer.toString("utf8", 0, offset);
+}
+
+/**
+ * Read a file through a single handle so a path swap between the size check and the
+ * read cannot bypass the size cap (a stat-then-read TOCTOU). The handle is `fstat`'d
+ * and the read is bounded to that size; both operate on the same inode, so replacing
+ * the path with a larger file in the meantime has no effect.
+ *
+ * A missing path rejects (the underlying `open` throws); callers decide how to treat
+ * that, matching the prior behavior where a missing file propagated from `stat`.
+ */
+export async function readBounded(filePath: string): Promise<BoundedReadOutcome> {
+  const handle = await open(filePath, "r");
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return { kind: "not-a-file" };
+    }
+    if (info.size > MAX_INPUT_BYTES) {
+      return { kind: "too-large" };
+    }
+    return { kind: "ok", content: await readBoundedUtf8(handle, info.size) };
+  } finally {
+    await handle.close();
+  }
+}

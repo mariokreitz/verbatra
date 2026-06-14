@@ -1,8 +1,7 @@
-import { readFile, stat } from "node:fs/promises";
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
+import { readBounded } from "../json/bounded-read.js";
 import type { JsonRecord } from "../json/json-tree.js";
-import { MAX_INPUT_BYTES } from "../json/limits.js";
 import { unflattenEntries } from "../json/unflatten.js";
 
 /** ngx-translate's two file styles: flat dotted keys, or nested objects. */
@@ -41,11 +40,11 @@ export function assertNotMixed(tree: JsonRecord): void {
 async function detectStyle(filePath: string): Promise<Style> {
   let parsed: unknown;
   try {
-    const info = await stat(filePath);
-    if (!info.isFile() || info.size > MAX_INPUT_BYTES) {
+    const outcome = await readBounded(filePath);
+    if (outcome.kind !== "ok") {
       return "nested";
     }
-    parsed = JSON.parse(await readFile(filePath, "utf8"));
+    parsed = JSON.parse(outcome.content);
   } catch {
     return "nested";
   }

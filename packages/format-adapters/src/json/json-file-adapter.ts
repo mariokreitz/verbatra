@@ -1,11 +1,11 @@
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
 import { AdapterError } from "../errors.js";
+import { readBounded } from "./bounded-read.js";
 import { type DeriveEntry, flattenTree } from "./flatten.js";
 import { type JsonRecord, parseJsonObject } from "./json-tree.js";
-import { MAX_INPUT_BYTES } from "./limits.js";
 import { unflattenEntries } from "./unflatten.js";
 
 /** Per-value placeholder extraction, exposed on the adapter for consumers. */
@@ -46,6 +46,17 @@ function canHandle(filePath: string, sample?: string): boolean {
   return sample === undefined || sample.trimStart().startsWith("{");
 }
 
+/**
+ * Rethrow an existing structured `AdapterError` unchanged, or convert any other throw
+ * into one so boundary failures never escape `read` as a raw error.
+ */
+function rethrowStructured(error: unknown, message: string): never {
+  if (error instanceof AdapterError) {
+    throw error;
+  }
+  throw new AdapterError("INVALID_STRUCTURE", message);
+}
+
 function toEntries(
   content: string,
   namespace: string,
@@ -57,10 +68,26 @@ function toEntries(
     validateTree?.(tree);
     return flattenTree(tree, namespace, deriveEntry);
   } catch (error) {
-    if (error instanceof AdapterError) {
-      throw error;
-    }
-    throw new AdapterError("INVALID_STRUCTURE", "The file could not be read as JSON.");
+    rethrowStructured(error, "The file could not be read as JSON.");
+  }
+}
+
+/**
+ * Compute the format's invalid-message keys inside the structured-error wrap. The only
+ * current analyzer (next-intl) is total, but wrapping keeps a future non-total analyzer
+ * from leaking a raw error out of `read`.
+ */
+function computeIcu(
+  entries: ReadonlyMap<string, TranslationEntry>,
+  compute?: ComputeInvalidIcuKeys,
+): readonly string[] {
+  if (!compute) {
+    return [];
+  }
+  try {
+    return compute(entries);
+  } catch (error) {
+    rethrowStructured(error, "The file could not be analyzed for message validity.");
   }
 }
 
@@ -83,18 +110,17 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
     canHandle,
     extractPlaceholders,
     async read(filePath, locale): Promise<ReadResult> {
-      const info = await stat(filePath);
-      if (!info.isFile()) {
+      const outcome = await readBounded(filePath);
+      if (outcome.kind === "not-a-file") {
         throw new AdapterError("INVALID_STRUCTURE", "The path is not a regular file.");
       }
-      if (info.size > MAX_INPUT_BYTES) {
+      if (outcome.kind === "too-large") {
         throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
       }
-      const content = await readFile(filePath, "utf8");
       const namespace = namespaceOf(filePath);
-      const entries = toEntries(content, namespace, deriveEntry, validateTree);
+      const entries = toEntries(outcome.content, namespace, deriveEntry, validateTree);
       const resource: LocaleResource = { locale, namespace, format, entries };
-      const invalidIcuKeys = computeInvalidIcuKeys ? computeInvalidIcuKeys(entries) : [];
+      const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
       return { resource, invalidIcuKeys };
     },
     async write(resource, filePath): Promise<void> {
