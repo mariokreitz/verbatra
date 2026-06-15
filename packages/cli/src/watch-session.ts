@@ -7,10 +7,15 @@ import {
 } from "./render.js";
 import type { CliDeps, Streams, WatchSession } from "./types.js";
 
+/** Inputs for a watch session: the validated config, where to run, the debounce window, and output mode. */
 export interface WatchOptions {
+  /** The validated configuration. */
   readonly config: VerbatraConfig;
+  /** Directory to resolve config and locale files against; defaults to the SDK's cwd. */
   readonly cwd?: string;
+  /** Debounce window in milliseconds; defaults to the SDK's 300ms. */
   readonly debounceMs?: number;
+  /** When true, emit NDJSON records; otherwise human-readable output. */
   readonly json: boolean;
 }
 
@@ -19,6 +24,12 @@ export interface WatchOptions {
  * to stdout (under --json they are the NDJSON stream, so a failure is a record, not noise); the
  * startup line, "stopping" notice, and any startup error go to stderr. The session resolves an exit
  * code: 0 on a clean stop, 130 on a forced second stop, 2 if watch() fails to start.
+ *
+ * @param options - The config, cwd/debounce, and output mode.
+ * @param deps - The SDK entry points (its `watch` is used here).
+ * @param streams - The stdout/stderr sink.
+ * @returns A {@link WatchSession}: `done` resolves the exit code (0 clean stop, 130 forced second stop, 2
+ *   startup failure); `requestStop` is wired to the interrupt signals by the bin shim.
  */
 export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams): WatchSession {
   let resolveDone!: (code: number) => void;

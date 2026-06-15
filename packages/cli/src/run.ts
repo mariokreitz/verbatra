@@ -126,6 +126,18 @@ function buildProgram(
  * The CLI core: parse argv, dispatch to one SDK entry point, render, and RETURN an exit code. It
  * never calls process.exit and never touches process streams — the bin shim wires those. Usage
  * errors (commander) map to 2; --help/--version exit 0.
+ *
+ * @param argv - The user arguments (process.argv without node and the script path).
+ * @param deps - The SDK entry points to call (injected so tests pass offline stubs).
+ * @param streams - The stdout/stderr sink the CLI writes through.
+ * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
+ * @returns The process exit code:
+ *   `0` success (or `--help`/`--version`); `1` `translate` finished but some locales failed (translate
+ *   only — a `watch` per-run failure is a stream record, not an exit code); `2` could not run, covering
+ *   BOTH a whole-run `SdkError` and a commander usage error; `130` `watch` was force-stopped by a second
+ *   interrupt (a single interrupt stops gracefully and resolves `0`).
+ * @throws Re-throws a non-`CommanderError` thrown during parsing (an unexpected error); commander usage
+ *   errors are mapped to an exit code, not thrown.
  */
 export async function run(
   argv: readonly string[],

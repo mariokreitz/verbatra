@@ -2,11 +2,18 @@ import type { LocaleSummary, RunSummary, WatchRunResult } from "@verbatra/sdk";
 
 /** A structured, secret-free error projection (matches the SDK's failed-result shape). */
 export interface RenderableError {
+  /** A preserved error code (the thrown error's `code`, or `"CLI_ERROR"` as a fallback). */
   readonly code: string;
+  /** A one-line, secret-free message; never a stack. */
   readonly message: string;
 }
 
-/** Project an unknown thrown value to a structured, secret-free { code, message } — never a stack. */
+/**
+ * Project an unknown thrown value to a structured, secret-free `{ code, message }` — never a stack.
+ *
+ * @param error - The caught value (an `Error`, an SDK error, or anything thrown).
+ * @returns The projection; `code` is the error's string `code` or `"CLI_ERROR"` when it has none.
+ */
 export function toRenderableError(error: unknown): RenderableError {
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;
@@ -15,7 +22,12 @@ export function toRenderableError(error: unknown): RenderableError {
   return { code: "CLI_ERROR", message: String(error) };
 }
 
-/** Human-readable run summary: one line per locale, then an aggregate. Plain text, no emoji. */
+/**
+ * Human-readable run summary: one line per locale, then an aggregate. Plain text, no emoji.
+ *
+ * @param summary - The SDK run summary to render.
+ * @returns The multi-line human report (no trailing newline).
+ */
 export function renderHuman(summary: RunSummary): string {
   const header = summary.dryRun ? "verbatra translate (dry run)" : "verbatra translate";
   const localeLines = summary.locales.map(renderLocaleLine);
@@ -45,22 +57,44 @@ function renderLocaleLine(locale: LocaleSummary): string {
   return `  ${locale.locale}: ${shown.join(", ")}`;
 }
 
-/** The run summary as compact JSON (a single line). */
+/**
+ * The `translate --json` output contract: the SDK's `RunSummary` as one compact JSON object on a single
+ * line, surfaced verbatim (no CLI-side reshaping).
+ *
+ * @param summary - The SDK run summary.
+ * @returns A single-line JSON object string.
+ */
 export function renderJson(summary: RunSummary): string {
   return JSON.stringify(summary);
 }
 
-/** A single watch run as one NDJSON record (success carries the summary; failure the error). */
+/**
+ * The `watch --json` output contract: one `WatchRunResult` per run as a single NDJSON record (success
+ * carries the summary; failure the error), surfaced verbatim from the SDK.
+ *
+ * @param result - The outcome of one watch run.
+ * @returns A single-line JSON record string (one NDJSON line).
+ */
 export function renderRunResultNdjson(result: WatchRunResult): string {
   return JSON.stringify(result);
 }
 
-/** Human rendering of a single watch run (success -> the summary; failure -> the error line). */
+/**
+ * Human rendering of a single watch run.
+ *
+ * @param result - The outcome of one watch run.
+ * @returns The summary report on success, or the one-line error on failure.
+ */
 export function renderRunResultHuman(result: WatchRunResult): string {
   return result.status === "succeeded" ? renderHuman(result.summary) : renderError(result.error);
 }
 
-/** A structured error as a clear one-line message. Never a raw stack. */
+/**
+ * A structured error as a clear one-line message. Never a raw stack.
+ *
+ * @param error - The structured error to render.
+ * @returns A single line of the form `verbatra: error [CODE] message`.
+ */
 export function renderError(error: RenderableError): string {
   return `verbatra: error [${error.code}] ${error.message}`;
 }
