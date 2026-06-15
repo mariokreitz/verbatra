@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { SdkError } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import { run } from "./run.js";
@@ -136,9 +137,14 @@ describe("run: usage errors, help, version", () => {
     expect(await run(["translate", "--nope"], deps, captureStreams().streams)).toBe(2);
   });
 
-  it("--help and --version exit 0", async () => {
+  it("--help and --version exit 0, and --version reports the package version", async () => {
     const { deps } = recordingDeps();
     expect(await run(["--help"], deps, captureStreams().streams)).toBe(0);
-    expect(await run(["--version"], deps, captureStreams().streams)).toBe(0);
+
+    const cap = captureStreams();
+    expect(await run(["--version"], deps, cap.streams)).toBe(0);
+    const raw = readFileSync(new URL("../package.json", import.meta.url), "utf8");
+    const manifest = JSON.parse(raw) as { version: string };
+    expect(cap.out().trim()).toBe(manifest.version);
   });
 });

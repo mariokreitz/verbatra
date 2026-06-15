@@ -1,10 +1,21 @@
+import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
 import { renderError, renderHuman, renderJson, toRenderableError } from "./render.js";
 import type { CliDeps, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-// Mirrors package.json. A bin is unpublished at 0.0.0; --version content is not load-bearing.
-const CLI_VERSION = "0.0.0";
+// Resolve this package's own version from its package.json at runtime.
+// INVARIANT: package.json sits one directory above the running module. That holds for both
+// src/run.ts (tests) and the bundled dist/index.js (built and published bin), so the same
+// "../package.json" offset resolves in both. If the tsup output depth changes, preserve this
+// offset, or the built bin breaks while the in-process test stays green.
+function readPackageVersion(): string {
+  const manifestUrl = new URL("../package.json", import.meta.url);
+  const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
+  return version;
+}
+
+const CLI_VERSION = readPackageVersion();
 
 interface SharedOpts {
   readonly cwd?: string;
