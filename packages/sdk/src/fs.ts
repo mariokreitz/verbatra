@@ -13,6 +13,7 @@ export type BoundedFileRead =
  * file IO and are not routed through this seam.
  */
 export interface SdkFs {
+  /** Whether a readable file exists at the path. */
   fileExists(path: string): Promise<boolean>;
   /**
    * Read a file as UTF-8 through a single handle, bounded to maxBytes. TOCTOU-safe: the

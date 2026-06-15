@@ -12,10 +12,13 @@ const DEFAULT_DEBOUNCE_MS = 300;
 
 /** A minimal source-change event source. Production wraps chokidar; tests inject a stub. */
 export interface Watcher {
+  /** Register a listener invoked once per coalesced source-change event. */
   onChange(listener: () => void): void;
+  /** Stop watching and release the underlying resources. */
   close(): Promise<void>;
 }
 
+/** Builds a {@link Watcher} for the given paths; the seam production fills with chokidar. */
 export type CreateWatcher = (paths: readonly string[]) => Watcher;
 
 /** The run a watch trigger performs: the slice-1 one-shot translate, unchanged. */
@@ -26,12 +29,20 @@ export type WatchRunResult =
   | { readonly status: "succeeded"; readonly summary: RunSummary }
   | {
       readonly status: "failed";
+      /**
+       * A secret-free projection of the run's failure. `code` is a preserved string (the underlying
+       * error's `code`, or `"WATCH_RUN_FAILED"` as a fallback) — not an {@link SdkErrorCode}.
+       */
       readonly error: { readonly code: string; readonly message: string };
     };
 
+/** Everything watch mode needs: the config, optional cwd/debounce, and the per-run output callback. */
 export interface WatchInput {
+  /** The validated configuration (typically from {@link loadConfig}). */
   readonly config: VerbatraConfig;
+  /** Directory the file pattern and lock-file resolve against; defaults to the current working directory. */
   readonly cwd?: string;
+  /** Quiet period after the last change before a run fires; defaults to 300ms. */
   readonly debounceMs?: number;
   /** Called once per run with its result. The SDK does no logging; this is the only output. */
   readonly onRun: (result: WatchRunResult) => void;
@@ -39,13 +50,19 @@ export interface WatchInput {
 
 /** Composition seam: inject the watcher and the run for deterministic, offline tests. */
 export interface WatchDeps {
+  /** Adapter registry passed through to each run; defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** Provider builder passed through to each run; defaults to constructing the configured provider. */
   readonly createProvider?: CreateProvider;
+  /** File system passed through to each run; defaults to the real file system. */
   readonly fs?: SdkFs;
+  /** Source-change event source; defaults to the chokidar-backed watcher. */
   readonly createWatcher?: CreateWatcher;
+  /** The run a trigger performs; defaults to the one-shot {@link translate}. */
   readonly runTranslate?: RunTranslate;
 }
 
+/** Handle returned by {@link watch} to stop it. */
 export interface WatchController {
   /** Stop accepting triggers, close the watcher, and await the in-flight run to completion. */
   stop(): Promise<void>;
@@ -69,6 +86,37 @@ function describeError(error: unknown): { code: string; message: string } {
  * once). A missing source at startup is a hard error; a run that fails after start is reported and
  * watching continues. Returns a controller whose stop() closes the watcher and awaits the in-flight
  * run (the caller wires any signal, e.g. SIGINT, to it).
+ *
+ * Only the startup source check throws; every run outcome after start is surfaced through `onRun` as a
+ * {@link WatchRunResult} (a failed run never rejects the in-flight promise).
+ *
+ * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
+ * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
+ * @returns A {@link WatchController}; call `stop()` to close the watcher and await the in-flight run.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE` — at startup only, when the source locale file is absent.
+ * @example
+ * ```ts
+ * import { loadConfig, watch } from "@verbatra/sdk";
+ *
+ * // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY); no key is passed here.
+ * const config = await loadConfig();
+ * const controller = await watch({
+ *   config,
+ *   onRun: (result) => {
+ *     if (result.status === "succeeded") {
+ *       console.log(`ran: ${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
+ *     } else {
+ *       // Surfaced, not thrown: code is a preserved string (WATCH_RUN_FAILED is only the fallback).
+ *       console.error(`run failed: ${result.error.code} ${result.error.message}`);
+ *     }
+ *   },
+ * });
+ *
+ * // Stop cleanly on Ctrl-C: closes the watcher and awaits the in-flight run.
+ * process.on("SIGINT", () => {
+ *   void controller.stop();
+ * });
+ * ```
  */
 export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<WatchController> {
   const cwd = input.cwd ?? process.cwd();

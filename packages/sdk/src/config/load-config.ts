@@ -106,6 +106,26 @@ async function loadExplicit(
  * property) through cosmiconfig + cosmiconfig-typescript-loader. Multiple sources ->
  * first-found-wins by cosmiconfig precedence. Any failure is a structured SdkError;
  * a raw zod error is never thrown upward and an unvalidated config never proceeds.
+ *
+ * Precedence: `configOverride` (validate in-memory) > `configPath` (load one explicit file) > search.
+ *
+ * @param options - Where/what to load: `cwd`, an in-memory `configOverride`, or an explicit `configPath`.
+ * @returns The validated {@link VerbatraConfig}.
+ * @throws {@link SdkError} `CONFIG_NOT_FOUND` — no config was found by search, or the explicit `configPath`
+ *   does not exist.
+ * @throws {@link SdkError} `CONFIG_INVALID` — a config was found but is unparseable or fails validation
+ *   (a raw zod error never escapes).
+ * @example
+ * ```ts
+ * import { loadConfig, translate } from "@verbatra/sdk";
+ *
+ * // Search upward from the cwd (verbatra.config.ts, .verbatrarc.json, or a package.json "verbatra" key):
+ * const config = await loadConfig();
+ * // Or load one explicit file (relative resolves against cwd; absolute as given):
+ * // const config = await loadConfig({ configPath: "verbatra.config.ts" });
+ *
+ * const summary = await translate({ config });
+ * ```
  */
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<VerbatraConfig> {
   if (options.configOverride !== undefined) {

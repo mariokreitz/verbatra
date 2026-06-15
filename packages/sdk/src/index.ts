@@ -1,3 +1,15 @@
+/**
+ * The verbatra SDK: the entry point a consumer calls to run translation. {@link loadConfig} loads and
+ * validates the project config; {@link translate} runs the one-shot read -> diff -> translate -> write
+ * flow over all target locales, composing the audited format adapters and providers; {@link watch} runs
+ * the same flow on each debounced source change. Whole-run failures throw a structured, secret-free
+ * {@link SdkError}; per-locale failures, provider notices, and integrity findings are surfaced as data on
+ * the {@link RunSummary} rather than thrown. API keys are read only from the environment by the providers;
+ * the SDK never reads or holds a key, and the config carries none.
+ *
+ * @packageDocumentation
+ */
+
 // Config
 export { defineConfig } from "./config/define-config.js";
 export { type LoadConfigOptions, loadConfig } from "./config/load-config.js";
