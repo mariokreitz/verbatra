@@ -1,3 +1,17 @@
+/**
+ * Translation providers behind a single {@link TranslationProvider} contract and a
+ * {@link ProviderRegistry}. v1 ships four: three LLM providers (Anthropic, OpenAI, Gemini) built on the
+ * shared LLM layer via the {@link LlmMechanism} extension point and {@link runLlmTranslation}, and DeepL,
+ * a machine-translation provider that implements the contract directly. The LLM layer constrains and
+ * validates every model against one single-source schema ({@link translationsResultSchema}) so the
+ * constraint and the validation cannot drift. Failures surface as secret-free {@link ProviderError}s —
+ * by construction, not by scrubbing: an underlying SDK throw is mapped to a static error and raw SDK text
+ * is never bound. {@link redact} is a separate standalone utility. API keys are read only from the
+ * environment; translatable strings are treated as untrusted and travel only in the data channel.
+ *
+ * @packageDocumentation
+ */
+
 // Anthropic provider
 
 export {
@@ -52,7 +66,8 @@ export type {
   TranslationProvider,
   Usage,
 } from "./provider.js";
-// Redaction utility (route any log or error text that could contain a key through this)
+// Redaction utility (a standalone scrubber for an explicit log/error sink; NOT the provider error path,
+// which is secret-free by construction)
 export { redact } from "./redaction.js";
 // Registry
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";

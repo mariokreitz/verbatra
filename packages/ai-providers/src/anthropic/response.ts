@@ -20,6 +20,10 @@ function extractToolInput(content: readonly unknown[]): unknown {
  * Extract the forced tool-use input from the response, or reject when the model
  * returned no such block. This is the Anthropic-specific step; the schema
  * validation and key reconciliation are the shared layer's job.
+ *
+ * @param content - The response content blocks.
+ * @returns The forced tool-use input, as unparsed data for the shared layer to validate.
+ * @throws {@link ProviderError} `INVALID_RESPONSE` — no forced tool-use block was present.
  */
 export function requireToolInput(content: readonly unknown[]): unknown {
   const raw = extractToolInput(content);

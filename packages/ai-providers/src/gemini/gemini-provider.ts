@@ -11,6 +11,7 @@ const PROVIDER_ID = "gemini";
 
 /** Optional dependencies, used by tests to inject a stub client (keeps tests offline). */
 export interface GeminiDeps {
+  /** A stub client; when omitted, the production client is built and reads the env key. */
   readonly client?: GeminiClient;
 }
 
@@ -19,6 +20,22 @@ export interface GeminiDeps {
  * mechanism behind the shared layer's extension point; the model and output-token
  * limit come from config and the API key is read only from the environment (via the
  * default client).
+ *
+ * @param config - The model and output-token limit; never a key.
+ * @param deps - Optional injected client; when omitted, the production client is built.
+ * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE` (including a MAX_TOKENS-truncated completion, which is treated as
+ *   incomplete output, not a block), `PROVIDER_BLOCKED` (a safety block, no candidate, or filtered output),
+ *   or `PROVIDER_ERROR` — never `PROVIDER_REFUSED`.
+ * @throws A `ZodError` if `config` is invalid.
+ * @throws {@link ProviderError} `MISSING_API_KEY` — at construction, when no client is injected and
+ *   `GEMINI_API_KEY` is unset (the default client reads the env key eagerly).
+ * @example
+ * ```ts
+ * // The key is read from GEMINI_API_KEY in the environment; it is never passed here.
+ * const provider = createGeminiProvider({ model: "gemini-2.5-flash", maxOutputTokens: 1024 });
+ * const result = await provider.translateBatch(request);
+ * ```
  */
 export function createGeminiProvider(
   config: GeminiConfig,

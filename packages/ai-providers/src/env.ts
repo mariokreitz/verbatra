@@ -4,6 +4,11 @@ import { ProviderError } from "./errors.js";
  * Read a required API key from the environment only. Keys are never read from
  * config, function arguments, or files. A missing or empty value yields a
  * structured error that names the variable but contains no key value.
+ *
+ * @param name - The environment variable to read.
+ * @returns The non-empty value.
+ * @throws {@link ProviderError} `MISSING_API_KEY` — the variable is unset or empty. The message names the
+ *   variable but never includes a key value.
  */
 function readRequiredEnv(name: string): string {
   const value = process.env[name];

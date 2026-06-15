@@ -20,7 +20,9 @@ const PROVIDER_ID = "deepl";
  * `freeAccount` lets a test exercise the free-key (":fx") degradation path without a key.
  */
 export interface DeepLDeps {
+  /** A stub client; when omitted, the production client is built and reads the env key. */
   readonly client?: DeepLTranslateClient;
+  /** Forces the free-tier degradation path in tests; in production it is derived from the key suffix. */
   readonly freeAccount?: boolean;
 }
 
@@ -30,6 +32,26 @@ export interface DeepLDeps {
  * (no LlmMechanism, no system/instruction channel, no schema). It reuses only the non-LLM
  * cross-cutting pieces: the mandatory-extractor gate, the integrity check, ProviderError,
  * and the env key reader.
+ *
+ * @param config - An optional pre-existing DeepL glossary id; never a key.
+ * @param deps - Optional injected client and free-tier flag; when omitted, the production client is built.
+ * @returns A {@link TranslationProvider} whose result also carries {@link ProviderNotice}s
+ *   (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`) as data. Its `translateBatch` raises
+ *   {@link ProviderError} `INVALID_REQUEST`, `INVALID_RESPONSE` (a result-count mismatch), or
+ *   `PROVIDER_ERROR` — never `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
+ * @throws A `ZodError` if `config` is invalid.
+ * @throws {@link ProviderError} `MISSING_API_KEY` — at construction, when no client is injected and
+ *   `DEEPL_API_KEY` is unset (the default client reads the env key eagerly).
+ * @example
+ * ```ts
+ * // The key is read from DEEPL_API_KEY in the environment; it is never passed here.
+ * const provider = createDeepLProvider({});
+ * // translateBatch is typed to TranslateResult; the concrete DeepL result also carries notices.
+ * const result = (await provider.translateBatch(request)) as DeepLTranslateResult;
+ * for (const notice of result.notices) {
+ *   // notice.code is FORMALITY_DOWNGRADED or GLOSSARY_IGNORED — data, not errors.
+ * }
+ * ```
  */
 export function createDeepLProvider(
   config: DeepLConfig,

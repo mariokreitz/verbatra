@@ -43,6 +43,13 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
  * its incomplete text falls through to the shared validation as INVALID_RESPONSE. The
  * raw object is validated against the canonical schema by the shared layer. Errors
  * here carry no key, header, or content.
+ *
+ * @param response - The raw generateContent response.
+ * @returns The schema-bound raw output plus optional usage.
+ * @throws {@link ProviderError} `PROVIDER_BLOCKED` — the prompt was blocked, there was no candidate, or the
+ *   candidate was safety-filtered.
+ * @throws {@link ProviderError} `INVALID_RESPONSE` — the content was empty (including a MAX_TOKENS
+ *   truncation) or unparseable.
  */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
   // An empty-string blockReason is treated as "not blocked": only a present,

@@ -30,6 +30,12 @@ function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
  * translation and never silently dropped. The returned raw object is validated
  * against the canonical schema by the shared layer (our side), regardless of any
  * SDK parsing. Errors here carry no key, header, or content.
+ *
+ * @param completion - The raw Chat Completions response.
+ * @returns The schema-bound raw output plus optional usage.
+ * @throws {@link ProviderError} `PROVIDER_REFUSED` — the model populated the refusal field.
+ * @throws {@link ProviderError} `INVALID_RESPONSE` — there was no message, no content, or unparseable
+ *   content.
  */
 export function extractOpenAiResult(completion: OpenAiCompletion): LlmCompletion {
   const message = completion.choices[0]?.message;

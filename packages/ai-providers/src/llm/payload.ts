@@ -23,6 +23,9 @@ function toItem(entry: TranslationEntry): ItemPayload {
  * and glossary, and the untrusted items. This object is what providers serialize
  * into their user turn. Nothing here is ever spliced into an instruction string;
  * that separation is the prompt-injection boundary, owned by the shared layer.
+ *
+ * @param data - The validated request data (locales, entries, optional glossary/tone).
+ * @returns A plain object for the user-turn payload; its `items[].value` fields are untrusted.
  */
 export function buildDataPayload(data: ValidatedRequestData): Record<string, unknown> {
   return {

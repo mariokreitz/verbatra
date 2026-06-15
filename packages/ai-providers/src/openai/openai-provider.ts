@@ -11,6 +11,7 @@ const PROVIDER_ID = "openai";
 
 /** Optional dependencies, used by tests to inject a stub client (keeps tests offline). */
 export interface OpenAiDeps {
+  /** A stub client; when omitted, the production client is built and reads the env key. */
   readonly client?: OpenAiClient;
 }
 
@@ -18,6 +19,21 @@ export interface OpenAiDeps {
  * Create the OpenAI LLM provider. Structured Outputs is its mechanism behind the
  * shared layer's extension point; the model and output-token limit come from config
  * and the API key is read only from the environment (via the default client).
+ *
+ * @param config - The model and output-token limit; never a key.
+ * @param deps - Optional injected client; when omitted, the production client is built.
+ * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `PROVIDER_REFUSED` (the model's refusal path), or
+ *   `PROVIDER_ERROR` — never `PROVIDER_BLOCKED`.
+ * @throws A `ZodError` if `config` is invalid.
+ * @throws {@link ProviderError} `MISSING_API_KEY` — at construction, when no client is injected and
+ *   `OPENAI_API_KEY` is unset (the default client reads the env key eagerly).
+ * @example
+ * ```ts
+ * // The key is read from OPENAI_API_KEY in the environment; it is never passed here.
+ * const provider = createOpenAiProvider({ model: "gpt-4o", maxOutputTokens: 1024 });
+ * const result = await provider.translateBatch(request);
+ * ```
  */
 export function createOpenAiProvider(
   config: OpenAiConfig,
