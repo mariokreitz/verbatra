@@ -37,6 +37,11 @@ async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string
  *
  * A missing path rejects (the underlying `open` throws); callers decide how to treat
  * that, matching the prior behavior where a missing file propagated from `stat`.
+ *
+ * @param filePath - The file to read.
+ * @returns A {@link BoundedReadOutcome}: `ok` with the content, `not-a-file`, or `too-large`.
+ * @throws Rejects with the underlying filesystem error if the path cannot be opened (for example, it
+ *   does not exist). It raises no `AdapterError` of its own.
  */
 export async function readBounded(filePath: string): Promise<BoundedReadOutcome> {
   const handle = await open(filePath, "r");

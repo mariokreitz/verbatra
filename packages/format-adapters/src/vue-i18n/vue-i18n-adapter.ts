@@ -4,9 +4,18 @@ import { extractVueI18nPlaceholders } from "./placeholders.js";
 import { isPluralValue } from "./plural.js";
 
 /**
- * The vue-i18n JSON adapter. Placeholders are single-brace {name}/{0} tokens and
- * isPlural is decided from a pipe in the value. vue-i18n is not ICU, so no ICU
- * validity is computed (invalidIcuKeys is always empty).
+ * The vue-i18n JSON adapter. Placeholders are single-brace `{name}`/`{0}` tokens and isPlural is
+ * decided from a pipe in the value. vue-i18n is not ICU, so no ICU validity is computed
+ * (invalidIcuKeys is always empty).
+ *
+ * @returns A `FormatAdapter` for `vue-i18n-json`. Its `read`/`write` throw the shared structured
+ *   conditions documented on {@link createJsonFileAdapter} (INVALID_JSON, MAX_DEPTH_EXCEEDED,
+ *   INVALID_STRUCTURE, INPUT_TOO_LARGE; never MIXED_STRUCTURE).
+ * @example
+ * ```ts
+ * const adapter = createVueI18nJsonAdapter();
+ * const { resource } = await adapter.read("locales/en.json", "en");
+ * ```
  */
 export function createVueI18nJsonAdapter(): FormatAdapter {
   return createJsonFileAdapter({

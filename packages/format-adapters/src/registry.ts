@@ -29,6 +29,12 @@ export interface ResolveOptions {
 export class AdapterRegistry {
   private readonly adapters: FormatAdapter[] = [];
 
+  /**
+   * Register an adapter.
+   *
+   * @param adapter - The adapter to add.
+   * @returns This registry, for chaining.
+   */
   register(adapter: FormatAdapter): this {
     this.adapters.push(adapter);
     return this;
@@ -52,12 +58,22 @@ export class AdapterRegistry {
     if (first === undefined) {
       return { status: "no-match", filePath, triedFormats: this.formats() };
     }
+    // All JSON adapters claim a `.json` file, so detection alone usually cannot pick one. Rather than
+    // guess, report "ambiguous" and let the caller disambiguate with an explicit format.
     if (matches.length > 1) {
       return { status: "ambiguous", filePath, candidates: matches.map((m) => m.format) };
     }
     return { status: "resolved", adapter: first };
   }
 
+  /**
+   * Resolve the adapter for a file, by explicit format when given, otherwise by detection.
+   *
+   * @param filePath - The file to resolve an adapter for.
+   * @param options - `format` selects explicitly and skips detection; `sample` aids detection.
+   * @returns A structured {@link AdapterResolution} — `resolved`, `no-match`, or `ambiguous`. Never
+   *   throws; an unresolvable file is a status, not an exception.
+   */
   resolve(filePath: string, options: ResolveOptions = {}): AdapterResolution {
     if (options.format !== undefined) {
       return this.resolveByFormat(filePath, options.format);

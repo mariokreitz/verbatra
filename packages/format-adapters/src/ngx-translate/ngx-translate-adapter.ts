@@ -4,10 +4,20 @@ import { createJsonFileAdapter } from "../json/json-file-adapter.js";
 import { assertNotMixed, buildNgxWriteTree } from "./structure.js";
 
 /**
- * The ngx-translate JSON adapter. Interpolation is {{double-brace}} (reused from the
- * i18next extractor). ngx-translate has no built-in plural or ICU, so isPlural is
- * always false and no ICU validity is computed. Files may be flat (dotted keys) or
- * nested; the original style is preserved on write and mixed files are rejected.
+ * The ngx-translate JSON adapter. Interpolation is `{{double-brace}}` (reused from the i18next
+ * extractor). ngx-translate has no built-in plural or ICU, so isPlural is always false and no ICU
+ * validity is computed. Files may be flat (dotted keys) or nested; the original style is preserved on
+ * write.
+ *
+ * @returns A `FormatAdapter` for `ngx-translate-json`. Its `read` throws the shared structured
+ *   conditions documented on {@link createJsonFileAdapter} AND, uniquely among the adapters,
+ *   `MIXED_STRUCTURE` when a file mixes flat dotted keys with nested objects (its `validateTree`);
+ *   `write` throws INVALID_STRUCTURE on a key collision.
+ * @example
+ * ```ts
+ * const adapter = createNgxTranslateJsonAdapter();
+ * const { resource } = await adapter.read("locales/en.json", "en");
+ * ```
  */
 export function createNgxTranslateJsonAdapter(): FormatAdapter {
   return createJsonFileAdapter({

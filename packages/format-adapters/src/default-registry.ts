@@ -4,7 +4,17 @@ import { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-ada
 import { AdapterRegistry } from "./registry.js";
 import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 
-/** A registry pre-loaded with the v1 JSON adapters. */
+/**
+ * Build an {@link AdapterRegistry} pre-loaded with the four v1 JSON adapters (i18next, vue-i18n,
+ * next-intl, ngx-translate).
+ *
+ * @returns A registry ready to resolve any v1 format.
+ * @example
+ * ```ts
+ * const registry = createDefaultRegistry();
+ * const resolution = registry.resolve("locales/en.json", { format: "vue-i18n-json" });
+ * ```
+ */
 export function createDefaultRegistry(): AdapterRegistry {
   return new AdapterRegistry()
     .register(createI18nextJsonAdapter())

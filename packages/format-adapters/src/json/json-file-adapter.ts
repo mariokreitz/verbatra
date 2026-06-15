@@ -92,9 +92,39 @@ function computeIcu(
 }
 
 /**
- * Build a JSON file adapter from format-specific behavior. All JSON adapters share
- * the same shell (detection, bounded read, structured errors, order-preserving
- * write); only placeholder/plural derivation and ICU validity differ.
+ * Build a JSON {@link FormatAdapter} from format-specific behavior. This is the shared shell every
+ * JSON adapter (i18next, vue-i18n, next-intl, ngx-translate) is built on, and the in-repo lever for
+ * adding a new JSON-family format: supply the format-specific parts and the shell provides detection,
+ * the bounded TOCTOU-safe read, structured errors, and the atomic order-preserving write.
+ *
+ * The returned adapter's methods throw as follows. `read` raises {@link AdapterError} with
+ * `INVALID_JSON` (content is not valid JSON), `MAX_DEPTH_EXCEEDED` (nesting exceeds the depth cap),
+ * `INVALID_STRUCTURE` (the path is not a regular file, the root is not a JSON object, a leaf is not a
+ * string, or a supplied hook throws a non-AdapterError), or `INPUT_TOO_LARGE` (the file exceeds the
+ * size cap) — plus any `AdapterError` a supplied `validateTree` raises (for example, ngx-translate's
+ * `MIXED_STRUCTURE`). A missing or unopenable path instead rejects with the underlying filesystem
+ * error. `write` raises `AdapterError` `INVALID_STRUCTURE` when a leaf key collides with a nested key
+ * path, and rejects with the underlying filesystem error on a write failure.
+ *
+ * @param options - The format-specific behavior: the `format` tag, `deriveEntry` (placeholders and
+ *   plurality per leaf), `extractPlaceholders`, and the optional `computeInvalidIcuKeys`,
+ *   `validateTree`, and `buildWriteTree` hooks.
+ * @returns A ready-to-register `FormatAdapter` for the given format.
+ * @example
+ * ```ts
+ * // `format` must be a SupportedFormat from core. To add a brand-new format, extend core's
+ * // SupportedFormat enum first; here we reuse an existing one for illustration.
+ * export function createMyJsonAdapter(): FormatAdapter {
+ *   const extract = (value: string) => [...value.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[0]);
+ *   return createJsonFileAdapter({
+ *     format: "i18next-json",
+ *     extractPlaceholders: extract,
+ *     deriveEntry: (key, value) => ({ placeholders: extract(value), isPlural: key.endsWith("_other") }),
+ *     // optional: validateTree (reject a structure), computeInvalidIcuKeys (ICU formats),
+ *     // buildWriteTree (a custom on-disk shape)
+ *   });
+ * }
+ * ```
  */
 export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAdapter {
   const {
