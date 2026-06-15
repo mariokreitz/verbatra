@@ -35,8 +35,11 @@ runs:
         node-version: ${{ inputs.node-version }}
 
     # Run the CLI and CAPTURE its stdout and exit code WITHOUT failing the step (a composite step aborts
-    # on non-zero, which would skip annotation). Inputs travel via env (data), never spliced into the
-    # command as code, and are passed as a quoted bash array — this is the injection-safe boundary.
+    # on non-zero, which would skip annotation). Inputs travel via env: as DATA — bash expands them into a
+    # quoted array (below), so a crafted value stays an argument, never code. Interpolating
+    # ${{ inputs.* }} into the run: script instead would splice the raw input into the command TEXT before
+    # bash parses it, where a value like '; rm -rf .' could be evaluated as shell. This env-passing (not
+    # interpolation) is the injection-safe boundary.
     - name: Run verbatra translate
       id: run
       shell: bash

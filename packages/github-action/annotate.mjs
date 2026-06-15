@@ -8,6 +8,7 @@ import { buildReport, parseSummaryJson } from "./report.mjs";
 
 const [summaryFile, errorFile, exitCodeArg] = process.argv.slice(2);
 
+/** Read a UTF-8 file, or "" when the path is missing or absent (a missing capture file is not an error). */
 const readOrEmpty = (path) => (path && existsSync(path) ? readFileSync(path, "utf8") : "");
 
 const summary = parseSummaryJson(readOrEmpty(summaryFile));
