@@ -31,7 +31,9 @@ const TOKEN_LIMIT = 4096;
 
 /** Prompting seams, injected so the decision logic is tested without a real TTY. */
 export interface InitDeps {
+  /** Reads one line for a prompt; defaults to the readline seam. Tests inject canned answers. */
   readonly ask?: (question: string) => Promise<string>;
+  /** Reports whether stdin is a TTY; defaults to the real check. Tests force interactive or not. */
   readonly isTty?: () => boolean;
 }
 
@@ -70,6 +72,9 @@ function readDependencyNames(cwd: string): Set<string> {
 function detectFormat(cwd: string): { format: string; detected: boolean } {
   const deps = readDependencyNames(cwd);
   const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
+  // Only a SINGLE match is unambiguous. Zero, or two or more (a project pulling in more than one i18n
+  // library), cannot be resolved to one format without guessing, so fall back to the default and mark
+  // it undetected — the scaffold then carries a "set this" comment rather than a wrong guess.
   const [first, second] = matches;
   if (first !== undefined && second === undefined) {
     return { format: first, detected: true };
@@ -77,13 +82,22 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   return { format: DEFAULT_FORMAT, detected: false };
 }
 
-/** Read this package's own name from its package.json (the Workstream 2 runtime-read mechanism). */
+/**
+ * Read this package's own name from its package.json at runtime (the Workstream 2 mechanism). The
+ * scaffolded config imports defineConfig from THIS name, so reading it at run time keeps the emitted
+ * import correct even if the published package is renamed; a hardcoded specifier would silently rot.
+ */
 function readPackageName(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);
   const { name } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { name: string };
   return name;
 }
 
+// buildProviderConfig (the object validated before writing) and renderProviderBlock (the text emitted
+// to the file) are two representations of the same provider shape and MUST stay in sync: the
+// self-validation checks the object, not the emitted text, so a divergence would write an invalid
+// config while reporting success. The guard against drift is the all-provider loadConfig round-trip
+// (deepl, anthropic, openai, gemini), which loads each emitted scaffold and fails if the text drifts.
 /** The provider block as a plain object, for validating the assembled config before writing. */
 function buildProviderConfig(id: ProviderId): Record<string, unknown> {
   switch (id) {
@@ -161,7 +175,11 @@ function renderEnvExample(id: ProviderId): string {
   ].join("\n");
 }
 
-/** Write a file unless it exists without --force; report what happened. */
+/**
+ * Write a file unless it already exists and --force was not given, in which case it is left intact so
+ * re-running init never clobbers a user's edited config or env example; --force overwrites. Reports
+ * what happened.
+ */
 function writeFileIfAllowed(
   path: string,
   content: string,
@@ -191,12 +209,16 @@ function ensureGitignore(cwd: string, streams: Streams): void {
     return;
   }
   const content = readFileSync(gitignorePath, "utf8");
+  // Keyed to the entries already present (as trimmed lines), not a blind write, so re-running init
+  // never duplicates an entry a user or a prior run already added.
   const present = new Set(content.split(/\r?\n/).map((line) => line.trim()));
   const missing = entries.filter((entry) => !present.has(entry));
   if (missing.length === 0) {
     streams.out(".gitignore already ignores .env and .env.local\n");
     return;
   }
+  // Prepend a newline only when the file is non-empty and lacks a trailing one, so the first appended
+  // entry starts on its own line rather than joining the last existing line.
   const prefix = content.length === 0 || content.endsWith("\n") ? "" : "\n";
   appendFileSync(gitignorePath, `${prefix}${missing.join("\n")}\n`);
   streams.out(`updated .gitignore (added ${missing.join(", ")})\n`);
@@ -249,6 +271,9 @@ async function resolveValue(
  * Scaffold a verbatra config, a .env.example, and gitignore the real .env. Reads detection and
  * defaults; prompts only for un-defaultable values when interactive; never writes a real key.
  *
+ * @param opts - The parsed `init` flags (cwd, provider, source, targets, path, yes, force).
+ * @param streams - The output sink; init writes only human-readable status, never a key value.
+ * @param deps - Injected prompting seams (ask, isTty); defaults to the real readline/TTY seam.
  * @returns 0 on success (including safe skips), 2 on a usage error (missing/unknown provider or an
  *   internally invalid scaffold).
  */
@@ -260,6 +285,9 @@ export async function runInit(
   const ask = deps.ask ?? askLine;
   const isTty = deps.isTty ?? stdinIsTty;
   const cwd = opts.cwd ?? process.cwd();
+  // Prompt only with a real terminal and without --yes; otherwise stay non-interactive so init runs
+  // unattended in CI, where the un-defaultable provider must be supplied via --provider (enforced by
+  // resolveProvider below).
   const interactive = opts.yes !== true && isTty();
 
   const provider = await resolveProvider(opts, interactive, ask, streams);
@@ -297,6 +325,9 @@ export async function runInit(
     files: { pattern: filesPattern },
     provider: buildProviderConfig(provider),
   };
+  // Validate the assembled config against the real schema BEFORE writing, so a scaffolding bug fails
+  // here with a clear message instead of emitting a file the user only sees rejected later by
+  // loadConfig. This validates the object; renderProviderBlock must mirror it (see its note above).
   const validated = verbatraConfigSchema.safeParse(candidate);
   if (!validated.success) {
     const detail = validated.error.issues.map((issue) => issue.message).join("; ");
