@@ -186,15 +186,15 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@verbatra/ai-providers':
-        specifier: workspace:*
-        version: link:../ai-providers
-      '@verbatra/core':
-        specifier: workspace:*
-        version: link:../core
-      '@verbatra/format-adapters':
-        specifier: workspace:*
-        version: link:../format-adapters
+      '@anthropic-ai/sdk':
+        specifier: 0.104.1
+        version: 0.104.1(zod@4.4.3)
+      '@formatjs/icu-messageformat-parser':
+        specifier: 3.5.11
+        version: 3.5.11
+      '@google/genai':
+        specifier: 2.8.0
+        version: 2.8.0
       chokidar:
         specifier: 5.0.0
         version: 5.0.0
@@ -204,6 +204,15 @@ importers:
       cosmiconfig-typescript-loader:
         specifier: 6.3.0
         version: 6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3)
+      deepl-node:
+        specifier: 1.27.0
+        version: 1.27.0
+      loglevel:
+        specifier: 1.9.2
+        version: 1.9.2
+      openai:
+        specifier: 6.42.0
+        version: 6.42.0(ws@8.21.0)(zod@4.4.3)
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -211,9 +220,18 @@ importers:
       '@types/node':
         specifier: 22.19.21
         version: 22.19.21
+      '@verbatra/ai-providers':
+        specifier: workspace:*
+        version: link:../ai-providers
       '@verbatra/config':
         specifier: workspace:*
         version: link:../config
+      '@verbatra/core':
+        specifier: workspace:*
+        version: link:../core
+      '@verbatra/format-adapters':
+        specifier: workspace:*
+        version: link:../format-adapters
       '@vitest/coverage-v8':
         specifier: 4.1.8
         version: 4.1.8(vitest@4.1.8)

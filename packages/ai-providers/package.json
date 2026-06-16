@@ -1,6 +1,7 @@
 {
   "name": "@verbatra/ai-providers",
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "description": "AI and machine-translation providers for verbatra behind one narrow interface",
   "license": "MIT",
@@ -28,10 +29,6 @@
   "files": [
     "dist"
   ],
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "scripts": {
     "build": "tsup",
     "lint": "biome check .",
