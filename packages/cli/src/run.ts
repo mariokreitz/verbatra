@@ -108,49 +108,76 @@ function buildProgram(
   const program = new Command();
   program
     .name("verbatra")
-    .description("Automate i18n translations: a thin CLI over the verbatra SDK")
+    .description(
+      "Automate i18n translation — keep your locale files in sync across languages with AI and machine-translation providers",
+    )
     .version(CLI_VERSION)
     .exitOverride()
     .configureOutput({ writeOut: (s) => streams.out(s), writeErr: (s) => streams.err(s) });
 
   program
     .command("translate")
-    .description("Run the one-shot translation flow once and exit")
-    .option("--cwd <path>", "directory to resolve config and locale files against")
-    .option("--config <path>", "load an explicit config file instead of searching")
-    .option("--dry-run", "report what would change without calling a provider or writing")
-    .option("--json", "emit the run summary as JSON on stdout")
+    .description("Translate every target locale once, then exit")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--dry-run", "preview changes without calling a provider or writing files")
+    .option("--json", "print the run summary as JSON")
     .action(async (opts: TranslateOpts) => {
       setCode(await runTranslate(opts, deps, streams));
-    });
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra translate                 translate once using the config it finds",
+        "  $ verbatra translate --dry-run       preview changes without calling a provider",
+        "  $ verbatra translate --json          machine-readable summary on stdout",
+      ].join("\n"),
+    );
 
   program
     .command("watch")
-    .description("Watch the source and re-translate on each change until interrupted")
-    .option("--cwd <path>", "directory to resolve config and locale files against")
-    .option("--config <path>", "load an explicit config file instead of searching")
-    .option("--debounce <ms>", "debounce window in milliseconds (default 300)")
-    .option("--json", "emit each run as one NDJSON record on stdout")
+    .description("Re-translate on every source change until interrupted")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option(
+      "--debounce <ms>",
+      "wait this many milliseconds after a change before translating (default 300)",
+    )
+    .option("--json", "print each run as one NDJSON record")
     .action(async (opts: WatchOpts) => {
       setCode(await runWatchCommand(opts, deps, streams, hooks));
     });
 
   program
     .command("init")
-    .description("Scaffold a verbatra config and .env example for this project")
-    .option("--cwd <path>", "directory to write the config and env files to")
-    .option("--provider <id>", "provider id: anthropic, openai, gemini, or deepl")
-    .option("--source <locale>", "source locale (default en)")
-    .option("--targets <locales>", "comma-separated target locales (default de)")
+    .description("Create a verbatra config and .env example for this project")
+    .option("--cwd <path>", "write the config and env files to this directory")
+    .option(
+      "--provider <id>",
+      "translation provider to use: anthropic, openai, gemini, or deepl (required unless prompted)",
+    )
+    .option("--source <locale>", "locale your source strings are written in (default en)")
+    .option("--targets <locales>", "comma-separated locales to translate into (default de)")
     .option(
       "--path <pattern>",
-      "locale file pattern containing {locale} (default locales/{locale}.json)",
+      "locale file pattern containing the {locale} token (default locales/{locale}.json)",
     )
-    .option("--yes", "accept defaults and run non-interactively")
+    .option("--yes", "skip prompts and accept the defaults")
     .option("--force", "overwrite an existing config or .env.example")
     .action(async (opts: InitOpts) => {
       setCode(await runInit(opts, streams));
-    });
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra init --provider anthropic        create config + .env example, prompting for the rest",
+        "  $ verbatra init --provider deepl --yes      non-interactive, accept all defaults",
+      ].join("\n"),
+    );
 
   return program;
 }
