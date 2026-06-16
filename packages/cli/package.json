@@ -17,6 +17,12 @@
   "bin": {
     "verbatra": "./dist/index.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
+    }
+  },
   "files": [
     "dist"
   ],

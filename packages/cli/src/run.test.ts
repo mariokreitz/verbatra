@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SdkError, type WatchController } from "@verbatra/sdk";
@@ -224,5 +224,25 @@ describe("run: .env loading is wired before the SDK flow", () => {
 
     expect(await done).toBe(0);
     expect(seen).toBe("valW");
+  });
+});
+
+describe("run: init command", () => {
+  it("dispatches init and scaffolds files non-interactively", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "verbatra-init-run-"));
+    try {
+      const { deps } = recordingDeps();
+      const code = await run(
+        ["init", "--yes", "--provider", "deepl", "--cwd", dir],
+        deps,
+        captureStreams().streams,
+      );
+      expect(code).toBe(0);
+      expect(existsSync(join(dir, "verbatra.config.ts"))).toBe(true);
+      expect(existsSync(join(dir, ".env.example"))).toBe(true);
+      expect(existsSync(join(dir, ".gitignore"))).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

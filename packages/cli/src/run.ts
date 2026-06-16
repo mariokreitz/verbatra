@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
 import { loadEnvFiles } from "./env.js";
+import { runInit } from "./init.js";
 import { renderError, renderHuman, renderJson, toRenderableError } from "./render.js";
-import type { CliDeps, RunHooks, Streams } from "./types.js";
+import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
 // Resolve this package's own version from its package.json at runtime.
@@ -132,6 +133,23 @@ function buildProgram(
     .option("--json", "emit each run as one NDJSON record on stdout")
     .action(async (opts: WatchOpts) => {
       setCode(await runWatchCommand(opts, deps, streams, hooks));
+    });
+
+  program
+    .command("init")
+    .description("Scaffold a verbatra config and .env example for this project")
+    .option("--cwd <path>", "directory to write the config and env files to")
+    .option("--provider <id>", "provider id: anthropic, openai, gemini, or deepl")
+    .option("--source <locale>", "source locale (default en)")
+    .option("--targets <locales>", "comma-separated target locales (default de)")
+    .option(
+      "--path <pattern>",
+      "locale file pattern containing {locale} (default locales/{locale}.json)",
+    )
+    .option("--yes", "accept defaults and run non-interactively")
+    .option("--force", "overwrite an existing config or .env.example")
+    .action(async (opts: InitOpts) => {
+      setCode(await runInit(opts, streams));
     });
 
   return program;

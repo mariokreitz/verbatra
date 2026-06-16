@@ -41,3 +41,21 @@ export interface RunHooks {
   /** Called with the live watch session so the shim can wire SIGINT/SIGTERM to `requestStop`. */
   onWatchSession?(session: WatchSession): void;
 }
+
+/** Options for the `init` command (commander flags). */
+export interface InitOpts {
+  /** Directory to write the config and env files to; defaults to the process working directory. */
+  readonly cwd?: string;
+  /** Provider id to scaffold (anthropic, openai, gemini, or deepl). */
+  readonly provider?: string;
+  /** Source locale; defaults to "en". */
+  readonly source?: string;
+  /** Comma-separated target locales; defaults to "de". */
+  readonly targets?: string;
+  /** Locale file pattern containing the {locale} token; defaults to "locales/{locale}.json". */
+  readonly path?: string;
+  /** Accept defaults and run non-interactively. */
+  readonly yes?: boolean;
+  /** Overwrite an existing config or .env.example. */
+  readonly force?: boolean;
+}
