@@ -1,14 +1,18 @@
-import { readFileSync } from "node:fs";
-import { SdkError } from "@verbatra/sdk";
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { SdkError, type WatchController } from "@verbatra/sdk";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run } from "./run.js";
 import {
   captureStreams,
+  flush,
   makeConfig,
   makeLocale,
   makeSummary,
   recordingDeps,
 } from "./test-support.js";
+import type { WatchSession } from "./types.js";
 
 describe("run translate: SDK delegation and rendering", () => {
   it("calls the SDK translate() with the resolved config and renders the summary human-readably", async () => {
@@ -27,7 +31,7 @@ describe("run translate: SDK delegation and rendering", () => {
 
     expect(code).toBe(0);
     expect(calls.translate).toHaveLength(1);
-    expect(calls.translate[0]).toEqual({ config: cfg }); // no cwd, no dryRun
+    expect(calls.translate[0]).toEqual({ config: cfg, cwd: process.cwd() }); // resolved cwd, no dryRun
     expect(cap.out()).toContain("de: 1 translated");
     expect(cap.err()).toBe("");
   });
@@ -48,7 +52,7 @@ describe("run translate: SDK delegation and rendering", () => {
 
     await run(["translate"], deps, cap.streams);
 
-    expect(calls.loadConfig[0]).toEqual({});
+    expect(calls.loadConfig[0]).toEqual({ cwd: process.cwd() });
     expect(calls.loadConfig[0]).not.toHaveProperty("configPath");
   });
 
@@ -146,5 +150,79 @@ describe("run: usage errors, help, version", () => {
     const raw = readFileSync(new URL("../package.json", import.meta.url), "utf8");
     const manifest = JSON.parse(raw) as { version: string };
     expect(cap.out().trim()).toBe(manifest.version);
+  });
+});
+
+describe("run: .env loading is wired before the SDK flow", () => {
+  let dir: string;
+  let savedEnv: NodeJS.ProcessEnv;
+  const TKEY = "VERBATRA_RUNTEST_T";
+  const WKEY = "VERBATRA_RUNTEST_W";
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "verbatra-run-env-"));
+    savedEnv = { ...process.env };
+    delete process.env[TKEY];
+    delete process.env[WKEY];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in savedEnv)) {
+        delete process.env[key];
+      }
+    }
+    for (const [key, value] of Object.entries(savedEnv)) {
+      if (value !== undefined) {
+        process.env[key] = value;
+      }
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("translate loads .env from the --cwd directory before calling the SDK", async () => {
+    writeFileSync(join(dir, ".env"), `${TKEY}=valT\n`);
+    let seen: string | undefined;
+    const { deps } = recordingDeps({
+      translate: async () => {
+        seen = process.env[TKEY];
+        return makeSummary({ succeeded: ["de"] });
+      },
+    });
+
+    const code = await run(["translate", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(seen).toBe("valT");
+  });
+
+  it("watch loads .env from the --cwd directory before calling the SDK", async () => {
+    writeFileSync(join(dir, ".env"), `${WKEY}=valW\n`);
+    let seen: string | undefined;
+    let resolveStop: (() => void) | undefined;
+    const { deps } = recordingDeps({
+      watch: () => {
+        seen = process.env[WKEY];
+        return Promise.resolve({
+          stop: () =>
+            new Promise<void>((resolve) => {
+              resolveStop = resolve;
+            }),
+        } satisfies WatchController);
+      },
+    });
+
+    let session: WatchSession | undefined;
+    const done = run(["watch", "--cwd", dir], deps, captureStreams().streams, {
+      onWatchSession: (s) => {
+        session = s;
+      },
+    });
+    await flush();
+    session?.requestStop();
+    resolveStop?.();
+
+    expect(await done).toBe(0);
+    expect(seen).toBe("valW");
   });
 });
