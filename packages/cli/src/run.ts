@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
+import { loadEnvFiles } from "./env.js";
 import { renderError, renderHuman, renderJson, toRenderableError } from "./render.js";
 import type { CliDeps, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
@@ -30,10 +31,10 @@ interface WatchOpts extends SharedOpts {
   readonly json?: boolean;
 }
 
-/** loadConfig options from the shared flags: explicit file via configPath, search root via cwd. */
-function loadOptions(opts: SharedOpts): { cwd?: string; configPath?: string } {
+/** loadConfig options from the resolved working directory and the explicit-config flag. */
+function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
   return {
-    ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
+    cwd,
     ...(opts.config !== undefined ? { configPath: opts.config } : {}),
   };
 }
@@ -47,13 +48,14 @@ function parseDebounce(value: string | undefined): number | undefined {
 }
 
 async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams): Promise<number> {
-  const cwd = opts.cwd;
+  const cwd = opts.cwd ?? process.cwd();
+  loadEnvFiles(cwd);
   let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
   try {
-    config = await deps.loadConfig(loadOptions(opts));
+    config = await deps.loadConfig(loadOptions(opts, cwd));
     const summary = await deps.translate({
       config,
-      ...(cwd !== undefined ? { cwd } : {}),
+      cwd,
       ...(opts.dryRun === true ? { dryRun: true } : {}),
     });
     streams.out(opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`);
@@ -72,9 +74,11 @@ async function runWatchCommand(
   streams: Streams,
   hooks: RunHooks,
 ): Promise<number> {
+  const cwd = opts.cwd ?? process.cwd();
+  loadEnvFiles(cwd);
   let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
   try {
-    config = await deps.loadConfig(loadOptions(opts));
+    config = await deps.loadConfig(loadOptions(opts, cwd));
   } catch (error) {
     streams.err(`${renderError(toRenderableError(error))}\n`);
     return 2;
@@ -84,7 +88,7 @@ async function runWatchCommand(
     {
       config,
       json: opts.json === true,
-      ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}),
+      cwd,
       ...(debounceMs !== undefined ? { debounceMs } : {}),
     },
     deps,

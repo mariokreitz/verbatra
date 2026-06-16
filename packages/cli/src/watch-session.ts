@@ -11,8 +11,8 @@ import type { CliDeps, Streams, WatchSession } from "./types.js";
 export interface WatchOptions {
   /** The validated configuration. */
   readonly config: VerbatraConfig;
-  /** Directory to resolve config and locale files against; defaults to the SDK's cwd. */
-  readonly cwd?: string;
+  /** Resolved working directory to translate against; the command resolves it once per run. */
+  readonly cwd: string;
   /** Debounce window in milliseconds; defaults to the SDK's 300ms. */
   readonly debounceMs?: number;
   /** When true, emit NDJSON records; otherwise human-readable output. */
@@ -54,7 +54,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
   const watchInput: WatchInput = {
     config: options.config,
     onRun,
-    ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+    cwd: options.cwd,
     ...(options.debounceMs !== undefined ? { debounceMs: options.debounceMs } : {}),
   };
 
