@@ -46,11 +46,11 @@ jobs:
       - name: Check (lint and format)
         run: pnpm check
 
-      - name: Typecheck
-        run: pnpm -r typecheck
-
       - name: Build
         run: pnpm build
+
+      - name: Typecheck
+        run: pnpm -r typecheck
 
       - name: Lint
         run: pnpm lint
