@@ -1,17 +1,19 @@
 ---
 title: Introduction
-description: What verbatra is and where to start.
+description: What verbatra is and where to go next in the documentation.
 ---
 
-# verbatra
+# Introduction
 
-verbatra translates your application's locale files for you. You maintain the source locale by hand, and as strings are added or change, verbatra fills in every target locale through the AI or machine-translation provider you choose. It records what it has already translated, so each run touches only what actually changed.
+verbatra automates keeping your i18n translation files in sync. You maintain the source locale, and verbatra translates the others through the provider you choose, re-translating only the keys that changed since the last run.
 
-verbatra is built SDK-first. The `@verbatra/cli` package gives you a `verbatra` command for the terminal and CI, and `@verbatra/sdk` is the same engine as a programmatic API. Anything the command line does, you can also do in code.
+These guides cover installing and configuring verbatra, the providers and formats it supports, how a run works under the hood, and using it from the command line, in CI, or through the SDK.
 
-## Where to start
+## Where to go next
 
-- [Getting Started](/docs/getting-started): install verbatra, scaffold a config, and run your first translation.
-- [Configuration](/docs/configuration): the config schema, discovery order, and how the working directory ties it together.
+- [Getting started](/docs/getting-started): install verbatra, scaffold a config, and run your first translation.
+- [How it works](/docs/how-it-works): what a run does, from config discovery to the run summary.
+- [Configuration](/docs/configuration): the config schema, discovery order, and the working directory.
 - [Providers](/docs/providers): the four providers, their options, and the API key each one reads.
-- [CI and automation](/docs/ci-automation): run verbatra in CI, read its exit codes, and consume its JSON output.
+- [SDK](/docs/sdk): use verbatra programmatically from scripts, CI, and your own tooling.
+- [CI and automation](/docs/ci-automation): the exit-code contract and JSON output for pipelines.
