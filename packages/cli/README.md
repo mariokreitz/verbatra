@@ -111,6 +111,7 @@ verbatra is configured with a `verbatra.config.ts`, a `.verbatrarc.json`, or a `
 
 ## Documentation
 
+- [Documentation site](https://verbatra.kreitz-webdev.de)
 - [Project README](https://github.com/mariokreitz/verbatra)
 - [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk) for the programmatic API
 - `verbatra <command> --help` for the command reference at the terminal

@@ -107,6 +107,7 @@ The SDK throws a single structured error type, `SdkError`, for whole-run failure
 
 ## Documentation
 
+- [Documentation site](https://verbatra.kreitz-webdev.de)
 - [Project README](https://github.com/mariokreitz/verbatra)
 - [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) for the command-line tool
 

@@ -1,0 +1,17 @@
+# Build artifacts and dependencies are recreated inside the image.
+.git
+.github
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/.source
+**/*.tsbuildinfo
+*.log
+.env
+.env.*
+.changeset
+
+# Local-only planning material (root-anchored; does not match apps/docs).
+/docs

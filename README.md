@@ -146,7 +146,7 @@ API keys are read only from environment variables, never from the config file. T
 
 ## Documentation
 
-Each package documents its own surface: the [`@verbatra/cli` README](./packages/cli/README.md) for the command line and the [`@verbatra/sdk` README](./packages/sdk/README.md) for the programmatic API. At the terminal, `verbatra <command> --help` prints the same reference.
+The hosted documentation site is at [verbatra.kreitz-webdev.de](https://verbatra.kreitz-webdev.de). Each package also documents its own surface: the [`@verbatra/cli` README](./packages/cli/README.md) for the command line and the [`@verbatra/sdk` README](./packages/sdk/README.md) for the programmatic API. At the terminal, `verbatra <command> --help` prints the same reference.
 
 ## Contributing
 
