@@ -8,12 +8,12 @@
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./biome.json": "./biome.json",
-    "./tsup": "./tsup.base.ts"
+    "./tsup": "./tsup.base.mjs"
   },
   "files": [
     "tsconfig.base.json",
     "biome.json",
-    "tsup.base.ts"
+    "tsup.base.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
