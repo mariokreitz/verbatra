@@ -1,4 +1,12 @@
 {
   "title": "Documentation",
-  "pages": ["index", "getting-started", "configuration", "providers", "ci-automation"]
+  "pages": [
+    "index",
+    "getting-started",
+    "how-it-works",
+    "configuration",
+    "providers",
+    "sdk",
+    "ci-automation"
+  ]
 }

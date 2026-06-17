@@ -1,0 +1,187 @@
+---
+title: SDK
+description: Use @verbatra/sdk to run translation from your own scripts, CI jobs, and tooling.
+---
+
+# SDK
+
+`@verbatra/sdk` is the programmatic core that the `verbatra` command is built on. The CLI is a thin
+wrapper over it, so anything the command line does, you can do in code: load and validate a config,
+run a one-shot translation, or watch the source and re-translate on each change. Reach for the SDK
+when you want translation inside a script, a CI job, or your own tooling.
+
+## Install
+
+```bash
+pnpm add -D @verbatra/sdk
+# npm
+npm install -D @verbatra/sdk
+# yarn
+yarn add -D @verbatra/sdk
+```
+
+Requires Node.js `>=22.14.0`.
+
+## The public surface
+
+The package exports four functions and the types a caller touches.
+
+- `defineConfig(config: VerbatraConfig): VerbatraConfig` returns its argument unchanged. It exists
+  only to give you type inference and autocomplete when you author a config in TypeScript.
+- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` discovers and validates the
+  config. `LoadConfigOptions` accepts `cwd`, an explicit `configPath`, or an in-memory
+  `configOverride`. It throws an `SdkError` when no config is found or validation fails.
+- `translate(input: TranslateInput): Promise<RunSummary>` runs the read, diff, translate, write flow
+  over every target locale. `TranslateInput` is `{ config, cwd?, dryRun? }`. It resolves to a
+  `RunSummary`; whole-run problems throw an `SdkError`, while per-locale outcomes are data on the
+  summary.
+- `watch(input: WatchInput): Promise<WatchController>` watches the source file and re-runs on each
+  debounced change. `WatchInput` is `{ config, cwd?, debounceMs?, onRun }`, where `onRun` receives a
+  `WatchRunResult` per run. The returned `WatchController` has a single method, `stop()`, which closes
+  the watcher and awaits the in-flight run.
+
+The result types:
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // true when nothing was written and no provider was called
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+}
+
+interface LocaleSummary {
+  locale: string;
+  status: "succeeded" | "failed";
+  translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  unchanged: string[];           // keys already up to date
+  orphaned: string[];            // target keys with no matching source key
+  invalidIcuSource: string[];    // source keys skipped for invalid ICU
+  integrityMismatches: string[]; // translations withheld for a placeholder mismatch
+  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  error?: { code: string; message: string }; // present only when status is "failed"
+}
+
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+Notices are per locale, on `LocaleSummary.notices`. There is no top-level notices list on
+`RunSummary`.
+
+`SdkError` is the single error type the SDK throws for whole-run failures. It carries a stable `code`
+and a secret-free `message`. The codes are:
+
+| Code | When |
+| --- | --- |
+| `CONFIG_NOT_FOUND` | no config was found, or an explicit `configPath` does not exist |
+| `CONFIG_INVALID` | a config was found but is unparseable or fails validation |
+| `UNKNOWN_FORMAT` | no adapter is registered for the configured format |
+| `PROVIDER_CONSTRUCTION_FAILED` | the provider could not be built (includes a missing API key) |
+| `SOURCE_UNREADABLE` | the source locale file does not exist |
+| `SOURCE_INVALID` | the source locale file could not be read or parsed |
+| `LOCK_FILE_INVALID` | the lock file is present but corrupt or too large |
+| `LOCALE_FAILED` | not thrown: the fallback `code` recorded on a failed locale's `error` |
+
+A single locale failing does not throw; it is recorded on that locale's `LocaleSummary` with `status:
+"failed"` and an `error`, and the run continues.
+
+## Define a config
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Run a one-shot translation
+
+`translate` resolves to the run summary. Read `succeeded` and `failed` for the headline, and walk
+`locales` for the detail, including any provider notices.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await translate({ config });
+
+console.log(`${summary.succeeded.length} succeeded, ${summary.failed.length} failed`);
+
+for (const locale of summary.locales) {
+  for (const notice of locale.notices) {
+    console.warn(`${locale.locale}: ${notice.code} ${notice.message}`);
+  }
+}
+```
+
+Pass `dryRun: true` to read and diff without calling a provider or writing files.
+
+## Watch mode
+
+`watch` calls your `onRun` once per run with a discriminated `WatchRunResult`. The controller's
+`stop()` shuts it down cleanly.
+
+```ts
+import { loadConfig, watch } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const controller = await watch({
+  config,
+  onRun: (result) => {
+    if (result.status === "succeeded") {
+      console.log(`${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
+    } else {
+      console.error(`run failed: ${result.error.code} ${result.error.message}`);
+    }
+  },
+});
+
+// Stop cleanly on Ctrl-C.
+process.on("SIGINT", () => {
+  void controller.stop();
+});
+```
+
+## Handle errors
+
+Whole-run failures throw an `SdkError`. Switch on its `code` to react to specific cases.
+
+```ts
+import { loadConfig, SdkError, translate } from "@verbatra/sdk";
+
+try {
+  const config = await loadConfig();
+  await translate({ config });
+} catch (error) {
+  if (error instanceof SdkError) {
+    switch (error.code) {
+      case "CONFIG_NOT_FOUND":
+        console.error("No verbatra config found. Run `verbatra init` to scaffold one.");
+        break;
+      case "SOURCE_UNREADABLE":
+      case "SOURCE_INVALID":
+        console.error(`Could not read the source locale: ${error.message}`);
+        break;
+      default:
+        console.error(`${error.code}: ${error.message}`);
+    }
+  } else {
+    throw error;
+  }
+}
+```
