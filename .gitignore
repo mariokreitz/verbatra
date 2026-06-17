@@ -8,6 +8,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Next.js / Fumadocs (docs app build artifacts)
+.next/
+.source/
+
 # Turborepo
 .turbo/
 

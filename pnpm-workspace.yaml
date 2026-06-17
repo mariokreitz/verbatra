@@ -1,8 +1,11 @@
 packages:
   - "packages/*"
+  - "apps/*"
 
 allowBuilds:
   '@google/genai': false
+  '@tailwindcss/oxide': true
   esbuild: true
   lefthook: true
   protobufjs: false
+  sharp: true
