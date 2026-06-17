@@ -36,7 +36,7 @@ async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
  * and destination share a filesystem; rename is atomic only then, so a reader sees either
  * the complete old file or the complete new file, never a truncated middle, and an
  * interrupted write leaves the prior target intact. On any failure the temp is cleaned up
- * (best effort) and the ORIGINAL fs error propagates unchanged — no structured wrapping.
+ * (best effort) and the ORIGINAL fs error propagates unchanged. No structured wrapping.
  */
 export async function atomicWriteFile(
   path: string,

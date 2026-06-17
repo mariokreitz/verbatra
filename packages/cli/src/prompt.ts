@@ -3,7 +3,7 @@ import { createInterface } from "node:readline/promises";
 
 /**
  * Thin I/O seam for the init prompts: a TTY check and a single line read, and nothing else. The
- * decision logic — interactive-vs-not, what to ask, the defaults, and validation — lives in init.ts
+ * decision logic (interactive-vs-not, what to ask, the defaults, and validation) lives in init.ts
  * and is unit-tested there. This module is the isolated, coverage-excluded process boundary (like the
  * bin shim index.ts): keeping the unmockable readline/stdin calls here lets the decisions stay fully
  * covered.

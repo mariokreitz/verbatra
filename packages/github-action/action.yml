@@ -35,7 +35,7 @@ runs:
         node-version: ${{ inputs.node-version }}
 
     # Run the CLI and CAPTURE its stdout and exit code WITHOUT failing the step (a composite step aborts
-    # on non-zero, which would skip annotation). Inputs travel via env: as DATA — bash expands them into a
+    # on non-zero, which would skip annotation). Inputs travel via env: as DATA, and bash expands them into a
     # quoted array (below), so a crafted value stays an argument, never code. Interpolating
     # ${{ inputs.* }} into the run: script instead would splice the raw input into the command TEXT before
     # bash parses it, where a value like '; rm -rf .' could be evaluated as shell. This env-passing (not

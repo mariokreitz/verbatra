@@ -74,7 +74,7 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
   // Only a SINGLE match is unambiguous. Zero, or two or more (a project pulling in more than one i18n
   // library), cannot be resolved to one format without guessing, so fall back to the default and mark
-  // it undetected — the scaffold then carries a "set this" comment rather than a wrong guess.
+  // it undetected. The scaffold then carries a "set this" comment rather than a wrong guess.
   const [first, second] = matches;
   if (first !== undefined && second === undefined) {
     return { format: first, detected: true };

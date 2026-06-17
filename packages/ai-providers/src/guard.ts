@@ -13,7 +13,7 @@ export const PROVIDER_CALL_FAILED_MESSAGE = "The translation provider request fa
  *
  * @param call - A thunk performing exactly the raw SDK call.
  * @returns The call's resolved value, unchanged, on success.
- * @throws {@link ProviderError} `PROVIDER_ERROR` — a static, secret-free error if `call` rejects; the
+ * @throws {@link ProviderError} `PROVIDER_ERROR`: a static, secret-free error if `call` rejects; the
  *   original error is discarded, never bound or logged.
  */
 export async function guardProviderCall<T>(call: () => Promise<T>): Promise<T> {

@@ -23,7 +23,7 @@ export interface LocaleSummary {
   readonly notices: readonly ProviderNotice[];
   /**
    * Present only when status is "failed": a structured, secret-free error. `code` is a PRESERVED string
-   * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback) — intentionally
+   * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback), intentionally
    * wider than {@link SdkErrorCode}, so do not treat it as a closed set.
    */
   readonly error?: { readonly code: string; readonly message: string };

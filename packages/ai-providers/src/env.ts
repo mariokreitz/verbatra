@@ -7,7 +7,7 @@ import { ProviderError } from "./errors.js";
  *
  * @param name - The environment variable to read.
  * @returns The non-empty value.
- * @throws {@link ProviderError} `MISSING_API_KEY` — the variable is unset or empty. The message names the
+ * @throws {@link ProviderError} `MISSING_API_KEY`: the variable is unset or empty. The message names the
  *   variable but never includes a key value.
  */
 function readRequiredEnv(name: string): string {

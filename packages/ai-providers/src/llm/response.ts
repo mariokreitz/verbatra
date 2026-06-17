@@ -40,7 +40,7 @@ function reconcile(
  * @param raw - The mechanism's unparsed per-key output.
  * @param requestedKeys - The keys the response must contain, exactly once each.
  * @returns A complete map of requested key to translated value (key-in equals key-out).
- * @throws {@link ProviderError} `INVALID_RESPONSE` — the payload is malformed, or has an extra,
+ * @throws {@link ProviderError} `INVALID_RESPONSE`: the payload is malformed, or has an extra,
  *   duplicate, or missing key.
  */
 export function reconcileResult(

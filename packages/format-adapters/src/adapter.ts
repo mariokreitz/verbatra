@@ -7,7 +7,7 @@ export interface ReadResult {
   /** The parsed locale resource. */
   readonly resource: LocaleResource;
   /**
-   * Keys whose values are invalid for the format's message syntax — the exact shape core's
+   * Keys whose values are invalid for the format's message syntax, the exact shape core's
    * validation layer consumes. Empty for formats that are not ICU-based.
    */
   readonly invalidIcuKeys: readonly string[];
@@ -22,7 +22,7 @@ export interface ReadResult {
  *   {@link AdapterError}, never a raw parser throw and never echoing file content or a host path. A
  *   missing or unopenable PATH is the exception: it rejects with the underlying filesystem error,
  *   because there is no content to map.
- * - `write` preserves key order and structure and is atomic — an interrupted write must never leave a
+ * - `write` preserves key order and structure and is atomic. An interrupted write must never leave a
  *   half-written locale file.
  * - `canHandle` is best-effort and side-effect-free. Multiple adapters may claim the same file (all
  *   JSON adapters claim `.json`); disambiguation is the caller's, by explicit format, not by sniffing.

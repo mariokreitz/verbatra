@@ -38,9 +38,9 @@ export interface DeepLDeps {
  * @returns A {@link TranslationProvider} whose result also carries {@link ProviderNotice}s
  *   (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`) as data. Its `translateBatch` raises
  *   {@link ProviderError} `INVALID_REQUEST`, `INVALID_RESPONSE` (a result-count mismatch), or
- *   `PROVIDER_ERROR` — never `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
+ *   `PROVIDER_ERROR`, never `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
- * @throws {@link ProviderError} `MISSING_API_KEY` — at construction, when no client is injected and
+ * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `DEEPL_API_KEY` is unset (the default client reads the env key eagerly).
  * @example
  * ```ts
@@ -49,7 +49,7 @@ export interface DeepLDeps {
  * // translateBatch is typed to TranslateResult; the concrete DeepL result also carries notices.
  * const result = (await provider.translateBatch(request)) as DeepLTranslateResult;
  * for (const notice of result.notices) {
- *   // notice.code is FORMALITY_DOWNGRADED or GLOSSARY_IGNORED — data, not errors.
+ *   // notice.code is FORMALITY_DOWNGRADED or GLOSSARY_IGNORED. These are data, not errors.
  * }
  * ```
  */

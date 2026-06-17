@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["*.mjs"],
-      // annotate.mjs is the I/O entry (argv, file reads, $GITHUB_STEP_SUMMARY append, process.exit) —
+      // annotate.mjs is the I/O entry (argv, file reads, $GITHUB_STEP_SUMMARY append, process.exit),
       // a runner seam, coverage-excluded like the CLI bin shim. The pure core report.mjs is covered.
       exclude: ["**/*.test.mjs", "annotate.mjs"],
       thresholds: {

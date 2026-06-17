@@ -101,7 +101,7 @@ function computeIcu(
  * `INVALID_JSON` (content is not valid JSON), `MAX_DEPTH_EXCEEDED` (nesting exceeds the depth cap),
  * `INVALID_STRUCTURE` (the path is not a regular file, the root is not a JSON object, a leaf is not a
  * string, or a supplied hook throws a non-AdapterError), or `INPUT_TOO_LARGE` (the file exceeds the
- * size cap) — plus any `AdapterError` a supplied `validateTree` raises (for example, ngx-translate's
+ * size cap), plus any `AdapterError` a supplied `validateTree` raises (for example, ngx-translate's
  * `MIXED_STRUCTURE`). A missing or unopenable path instead rejects with the underlying filesystem
  * error. `write` raises `AdapterError` `INVALID_STRUCTURE` when a leaf key collides with a nested key
  * path, and rejects with the underlying filesystem error on a write failure.

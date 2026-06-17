@@ -4,7 +4,7 @@
  * shared LLM layer via the {@link LlmMechanism} extension point and {@link runLlmTranslation}, and DeepL,
  * a machine-translation provider that implements the contract directly. The LLM layer constrains and
  * validates every model against one single-source schema ({@link translationsResultSchema}) so the
- * constraint and the validation cannot drift. Failures surface as secret-free {@link ProviderError}s —
+ * constraint and the validation cannot drift. Failures surface as secret-free {@link ProviderError}s,
  * by construction, not by scrubbing: an underlying SDK throw is mapped to a static error and raw SDK text
  * is never bound. {@link redact} is a separate standalone utility. API keys are read only from the
  * environment; translatable strings are treated as untrusted and travel only in the data channel.

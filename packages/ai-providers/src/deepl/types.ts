@@ -36,14 +36,14 @@ export interface DeepLClientBundle {
  * Stable codes for the DeepL graceful-degradation notices, DeepL only. These are returned DATA on a
  * successful result, NOT thrown:
  *
- * - `FORMALITY_DOWNGRADED` — a requested formality was not applied (the free tier does not support it).
- * - `GLOSSARY_IGNORED` — a supplied generic glossary was not applied.
+ * - `FORMALITY_DOWNGRADED`: a requested formality was not applied (the free tier does not support it).
+ * - `GLOSSARY_IGNORED`: a supplied generic glossary was not applied.
  */
 export type ProviderNoticeCode = "FORMALITY_DOWNGRADED" | "GLOSSARY_IGNORED";
 
 /**
  * An observable, structured signal that something was gracefully degraded (not an
- * error). Carries only a stable code and a static message — never a key or content.
+ * error). Carries only a stable code and a static message, never a key or content.
  * Surfaced as result data, never thrown; callers inspect it but need not treat it as a failure.
  */
 export interface ProviderNotice {

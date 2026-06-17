@@ -36,8 +36,8 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
 
 /**
  * Extract schema-bound raw output from a generateContent response. A blocked, empty,
- * or safety-filtered result is a distinct, clean outcome surfaced as PROVIDER_BLOCKED
- * — never parsed as a translation and never silently dropped. Blocked reasons are
+ * or safety-filtered result is a distinct, clean outcome surfaced as PROVIDER_BLOCKED,
+ * never parsed as a translation and never silently dropped. Blocked reasons are
  * checked BEFORE reading the text, so the SDK's non-STOP text warning is never
  * reached on a blocked result. A token-limit truncation (MAX_TOKENS) is not a block:
  * its incomplete text falls through to the shared validation as INVALID_RESPONSE. The
@@ -46,9 +46,9 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
  *
  * @param response - The raw generateContent response.
  * @returns The schema-bound raw output plus optional usage.
- * @throws {@link ProviderError} `PROVIDER_BLOCKED` — the prompt was blocked, there was no candidate, or the
+ * @throws {@link ProviderError} `PROVIDER_BLOCKED`: the prompt was blocked, there was no candidate, or the
  *   candidate was safety-filtered.
- * @throws {@link ProviderError} `INVALID_RESPONSE` — the content was empty (including a MAX_TOKENS
+ * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty (including a MAX_TOKENS
  *   truncation) or unparseable.
  */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {

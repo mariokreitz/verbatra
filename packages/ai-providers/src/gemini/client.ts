@@ -13,7 +13,7 @@ import type { GeminiClient, GeminiResponse } from "./types.js";
  * logging (the logLevel knob belongs to a separate next-gen client we do not use; the
  * only console logging in request code is the unrelated live/websocket API). There is
  * thus no leak path to suppress here, unlike OpenAI/Anthropic. Do NOT "add" a
- * suppression option to fix its apparent absence — there is none on this client.
+ * suppression option to fix its apparent absence. There is none on this client.
  */
 export function createDefaultClient(): GeminiClient {
   const ai = new GoogleGenAI({ apiKey: requireGeminiKey() });

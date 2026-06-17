@@ -6,7 +6,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      // index.ts is the bin shim (real process streams, real SDK, SIGINT, process.exit) — an IO
+      // index.ts is the bin shim (real process streams, real SDK, SIGINT, process.exit), an IO
       // seam, coverage-excluded like the providers' client.ts and the SDK's wiring.ts seams.
       exclude: [
         "src/**/*.test.ts",

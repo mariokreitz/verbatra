@@ -3,7 +3,7 @@ import { translate } from "../flow/translate-project.js";
 import type { CreateWatcher, RunTranslate, WatchDeps } from "./watch.js";
 
 /**
- * Production wiring for watch — the two seams that reach real IO and are therefore excluded from
+ * Production wiring for watch: the two seams that reach real IO and are therefore excluded from
  * coverage (like the providers' client.ts seams): the chokidar watcher, and the runner that calls
  * the real one-shot translate(). The state machine in watch.ts injects these in tests.
  */
