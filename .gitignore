@@ -2,7 +2,7 @@
 node_modules/
 
 # Planning
-docs/
+/docs/
 
 # Build output
 dist/

@@ -1,0 +1,79 @@
+---
+title: Getting Started
+description: Install verbatra, scaffold a config, and run your first translation.
+---
+
+# Getting Started
+
+This guide takes you from an empty project to your first translated locale: install the CLI, scaffold a config, provide a provider key, and run a translation.
+
+## Requirements
+
+Node.js `>=22.14.0`.
+
+## Install
+
+verbatra is a development dependency:
+
+```bash
+pnpm add -D @verbatra/cli
+# npm
+npm install -D @verbatra/cli
+# yarn
+yarn add -D @verbatra/cli
+```
+
+Run the binary through your package manager: `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
+
+## Scaffold a config
+
+Run `init` and choose your provider:
+
+```bash
+verbatra init --provider anthropic
+```
+
+This writes a `verbatra.config.ts` and a `.env.example`, and it adds `.env` and `.env.local` to your `.gitignore` so a real key is never committed. With a terminal attached, `init` prompts for the values it cannot default; pass `--yes` to accept the defaults and run without prompts. The defaults are `en` for the source locale, `de` for the target locales, and `locales/{locale}.json` for the file pattern.
+
+## Provide the API key
+
+Each provider reads its key from one environment variable. For Anthropic that is `ANTHROPIC_API_KEY`. Set it in `.env` (which `init` has already gitignored) or export it in your shell:
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+verbatra loads `.env.local` and then `.env` from the working directory before it runs, and a variable already present in your environment always wins. See [Providers](/docs/providers) for each provider's variable.
+
+## Translate
+
+Run a one-shot translation over every target locale:
+
+```bash
+verbatra translate
+```
+
+verbatra reads the source locale, compares it against what it translated last time, and sends only the new or changed strings to the provider. Translations that are still current are left untouched.
+
+## Preview with a dry run
+
+To see what would change without calling a provider or writing files:
+
+```bash
+verbatra translate --dry-run
+```
+
+## Watch mode
+
+To re-translate automatically while you work, watch the source and let verbatra re-run on each change:
+
+```bash
+verbatra watch
+```
+
+Watch keeps running until you interrupt it with Ctrl-C.
+
+## Next steps
+
+- [Configuration](/docs/configuration) for the full config schema and discovery order.
+- [Providers](/docs/providers) for provider options and where to obtain a key.
