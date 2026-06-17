@@ -64,7 +64,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.104.1",
+    "@anthropic-ai/sdk": "0.104.2",
     "@formatjs/icu-messageformat-parser": "3.5.11",
     "@google/genai": "2.8.0",
     "chokidar": "5.0.0",
@@ -72,7 +72,7 @@
     "cosmiconfig-typescript-loader": "6.3.0",
     "deepl-node": "1.27.0",
     "loglevel": "1.9.2",
-    "openai": "6.42.0",
+    "openai": "6.43.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -81,9 +81,9 @@
     "@verbatra/config": "workspace:*",
     "@verbatra/core": "workspace:*",
     "@verbatra/format-adapters": "workspace:*",
-    "@vitest/coverage-v8": "4.1.8",
+    "@vitest/coverage-v8": "4.1.9",
     "tsup": "8.5.1",
     "typescript": "6.0.3",
-    "vitest": "4.1.8"
+    "vitest": "4.1.9"
   }
 }
