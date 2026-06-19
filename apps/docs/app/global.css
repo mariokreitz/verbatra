@@ -25,18 +25,18 @@
   /* Links and the active-nav accent ride the glow; the deep purple is reserved (ring below + CTA). */
   --color-fd-primary: hsl(258 47% 74%);
   --color-fd-primary-foreground: hsl(240 23% 7%);
-  --color-fd-accent: hsl(258 25% 20%); /* #2A2440, subtle on-brand raised surface for hover/active */
+  --color-fd-accent: hsl(258 25% 20%); /* #2A2440 raised hover/active surface */
   --color-fd-accent-foreground: hsl(240 30% 94%); /* #ECECF4, readable on the hover surface */
   /* The focus ring is the one spot the deep purple shows in the chrome. */
   --color-fd-ring: hsl(291 64% 42%);
 }
 
-:root:not(.dark) .prose {
-  --tw-prose-links: hsl(280 70% 38%); /* #7B1FA2, clears AA on white */
-}
-
 .dark .prose {
   --tw-prose-links: hsl(258 47% 74%); /* #B39DDB */
+}
+
+:root:not(.dark) .prose {
+  --tw-prose-links: hsl(280 70% 38%); /* #7B1FA2, clears AA on white */
 }
 
 :root {
