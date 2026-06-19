@@ -8,9 +8,19 @@
   --v-purple: hsl(291 64% 42%); /* #9C27B0 */
   --v-glow: hsl(258 47% 74%); /* #B39DDB */
 
-  --color-fd-primary: hsl(291 64% 42%); /* #9C27B0 */
+  /* Light theme: a considered inverse of dark, not the stock preset. An off-white
+     lavender-tinted base, near-navy text, pure white reserved for the raised popover. */
+  --color-fd-background: hsl(260 30% 99%); /* off-white, faint lavender tint */
+  --color-fd-card: hsl(258 30% 97%); /* faint lavender-tinted surface */
+  --color-fd-popover: hsl(0 0% 100%); /* pure white, lifts above the card */
+  --color-fd-muted: hsl(258 24% 95%);
+  --color-fd-border: hsl(258 20% 90%); /* soft but visible on white */
+  --color-fd-foreground: hsl(240 28% 12%); /* near brand navy, not pure black */
+  --color-fd-muted-foreground: hsl(240 12% 42%); /* AA on the light background */
+  --color-fd-primary: hsl(291 64% 42%); /* #9C27B0, the CTA fill */
   --color-fd-primary-foreground: hsl(290 60% 98%); /* near-white, AA on the CTA */
-  --color-fd-accent: hsl(258 47% 74%); /* #B39DDB */
+  --color-fd-accent: hsl(258 40% 92%); /* light lavender hover/active surface */
+  --color-fd-accent-foreground: hsl(240 28% 12%); /* navy text on the tint */
   --color-fd-ring: hsl(291 64% 42%);
 }
 
