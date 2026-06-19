@@ -43,7 +43,7 @@ describe("buildReport: exit code is a literal pass-through", () => {
   });
 });
 
-describe("buildReport: per-locale failure (exit 1) — the conjunction criterion", () => {
+describe("buildReport: per-locale failure (exit 1): the conjunction criterion", () => {
   it("produces one annotation per failed locale AND a non-zero exitStatus in the SAME result", () => {
     const s = summary({
       locales: [

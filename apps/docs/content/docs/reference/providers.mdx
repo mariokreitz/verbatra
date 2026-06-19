@@ -1,0 +1,90 @@
+---
+title: Providers
+description: The four translation providers, their options, and the API key each one reads.
+---
+
+# Providers
+
+verbatra ships four providers behind one interface: Anthropic, OpenAI, and Gemini are large language models, and DeepL is a machine-translation service. You select one in the `provider` block of your config, by `id`.
+
+## Keys come from the environment
+
+verbatra never reads an API key from the config. Each provider reads exactly one environment variable:
+
+| Provider id | Environment variable |
+| --- | --- |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `deepl` | `DEEPL_API_KEY` |
+
+Set the variable in `.env` (which `verbatra init` gitignores) or export it in your shell or CI secret store. Obtain a key from the provider's own dashboard, then put its value behind the variable above. Never commit a real key.
+
+## Anthropic
+
+```ts
+provider: {
+  id: "anthropic",
+  options: {
+    model: "<your-model>",
+    maxTokens: 4096,
+  },
+}
+```
+
+Reads `ANTHROPIC_API_KEY`. `model` and `maxTokens` are both required.
+
+## OpenAI
+
+```ts
+provider: {
+  id: "openai",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Reads `OPENAI_API_KEY`. `model` and `maxOutputTokens` are both required.
+
+## Gemini
+
+```ts
+provider: {
+  id: "gemini",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Reads `GEMINI_API_KEY`. `model` and `maxOutputTokens` are both required.
+
+## DeepL
+
+```ts
+provider: {
+  id: "deepl",
+  options: {},
+}
+```
+
+Reads `DEEPL_API_KEY`. DeepL needs no model. The only option is an optional `glossaryId` that names a glossary you have already created in DeepL:
+
+```ts
+provider: {
+  id: "deepl",
+  options: {
+    glossaryId: "<your-glossary-id>",
+  },
+}
+```
+
+## Tone and glossary across providers
+
+The optional `tone` and `glossary` config fields (see [Configuration](/docs/reference/configuration)) are applied differently per provider:
+
+- **Tone.** The LLM providers receive the tone with the request and are instructed to honor it. DeepL maps it to formality: `formal` becomes more formal, `informal` becomes less formal, and `neutral` or an absent tone is omitted. On a free-tier DeepL key a non-default tone is not supported and degrades to the default, with a notice on the result.
+- **Glossary.** The LLM providers receive the `glossary` term map and are instructed to treat its terms as binding. DeepL does not apply a generic term map; it records a notice and instead uses the `glossaryId` option above.

@@ -48,7 +48,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *
  * @param schema - The canonical derivation ({@link deriveJsonSchema} output) to transform.
  * @returns The same schema in Gemini's responseSchema dialect.
- * @throws A plain `Error` — NOT a {@link ProviderError} — when the input carries a JSON Schema keyword the
+ * @throws A plain `Error` (NOT a {@link ProviderError}) when the input carries a JSON Schema keyword the
  *   transform does not handle. This is a developer-facing build invariant (the make-drift-fail-loudly
  *   guard): it fires only if the canonical schema gains a keyword without this transform being extended,
  *   never on provider input at runtime.
@@ -57,7 +57,7 @@ export function toGeminiSchema(schema: Record<string, unknown>): Record<string, 
   for (const keyword of Object.keys(schema)) {
     if (!HANDLED_KEYWORDS.has(keyword)) {
       throw new Error(
-        `toGeminiSchema: unsupported JSON Schema keyword '${keyword}' — the Gemini schema transform must be extended to handle it`,
+        `toGeminiSchema: unsupported JSON Schema keyword '${keyword}'. The Gemini schema transform must be extended to handle it`,
       );
     }
   }

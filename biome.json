@@ -2,6 +2,19 @@
   "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
   "extends": ["./packages/config/biome.json"],
   "files": {
-    "includes": ["**", "!**/dist", "!**/coverage", "!**/.turbo"]
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/coverage",
+      "!**/.turbo",
+      "!**/.next",
+      "!**/.source",
+      "!**/next-env.d.ts"
+    ]
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
   }
 }

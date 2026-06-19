@@ -41,7 +41,7 @@ export class ProviderRegistry {
    * known ids, so the caller decides how to handle it.
    *
    * @param id - The provider id to look up.
-   * @returns A {@link ProviderResolution} — `resolved` with the provider, or `unknown` with the known ids.
+   * @returns A {@link ProviderResolution}: `resolved` with the provider, or `unknown` with the known ids.
    */
   resolve(id: string): ProviderResolution {
     const provider = this.providers.get(id);

@@ -2,13 +2,13 @@
 // GitHub annotations, a job-summary markdown, and the exit status. No I/O lives here (annotate.mjs
 // does the reading/writing), so this is unit-testable without an Actions runner.
 //
-// The build result is the CLI's exit code, copied verbatim (exitStatus = exitCode) — never re-derived
+// The build result is the CLI's exit code, copied verbatim (exitStatus = exitCode), never re-derived
 // from the summary. The parsed JSON is used only for annotation/summary CONTENT.
 
 /**
  * Escape a workflow-command DATA segment (the message after `::`). This is the output-side
  * injection boundary: a value (CLI message, locale name) is encoded so it cannot break out of the
- * `::error::` command — a raw newline would end the command and let crafted text inject a new one.
+ * `::error::` command. A raw newline would end the command and let crafted text inject a new one.
  *
  * @param value - The text to place after `::`.
  * @returns The value with `%`, CR, and LF percent-encoded.
@@ -19,7 +19,7 @@ function escapeData(value) {
 
 /**
  * Escape a workflow-command PROPERTY value (e.g. `title=...`): data encoding plus `:` and `,`, which
- * otherwise delimit properties — so a crafted value cannot forge extra annotation properties.
+ * otherwise delimit properties, so a crafted value cannot forge extra annotation properties.
  *
  * @param value - The property value to encode.
  * @returns The value with data characters plus `:` and `,` percent-encoded.
@@ -132,7 +132,7 @@ function wholeRunMarkdown(exitCode, stderrText) {
 
 /**
  * Build the report from the parsed summary (or null) and the CLI's exit code.
- * exitStatus mirrors exitCode exactly — the action consumes the CLI's contract, it does not re-derive
+ * exitStatus mirrors exitCode exactly. The action consumes the CLI's contract, it does not re-derive
  * failure. Annotations: whole-run failure (no summary, non-zero exit) -> one annotation from stderr;
  * per-locale failure (exit 1) -> one per failed locale; otherwise none.
  *

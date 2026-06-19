@@ -26,10 +26,10 @@ export interface AnthropicDeps {
  * @param config - The model and max-tokens; never a key.
  * @param deps - Optional injected client; when omitted, the production client is built.
  * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE`, or `PROVIDER_ERROR` — never `PROVIDER_REFUSED` or
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, or `PROVIDER_ERROR`, never `PROVIDER_REFUSED` or
  *   `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
- * @throws {@link ProviderError} `MISSING_API_KEY` — at construction, when no client is injected and
+ * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `ANTHROPIC_API_KEY` is unset (the default client reads the env key eagerly).
  * @example
  * ```ts

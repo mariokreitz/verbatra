@@ -53,7 +53,7 @@ export interface TranslateResult {
 }
 
 /**
- * The single contract every provider implements — narrow enough that a machine-translation API like
+ * The single contract every provider implements. It is narrow enough that a machine-translation API like
  * DeepL fits it directly, while LLM providers implement it by delegating to {@link runLlmTranslation}.
  * A new provider attaches by implementing this and registering it in a {@link ProviderRegistry}.
  *
@@ -97,7 +97,7 @@ export interface TranslationProvider {
    *
    * @param request - The provider-neutral batch request (no prompt, model, or key).
    * @returns The per-key translated values and per-key placeholder-integrity outcomes.
-   * @throws {@link ProviderError} — secret-free, with the code for the failure (the concrete codes are
+   * @throws {@link ProviderError}, secret-free, with the code for the failure (the concrete codes are
    *   the implementation's; see each provider factory).
    */
   translateBatch(request: TranslateRequest): Promise<TranslateResult>;
@@ -123,7 +123,7 @@ export type ValidatedRequestData = z.infer<typeof requestDataSchema>;
  *
  * @param request - The batch request to validate.
  * @returns The request's plain-data fields (locales, entries, optional glossary/tone), extractor omitted.
- * @throws {@link ProviderError} `INVALID_REQUEST` — the extractor is missing, or a data field is malformed.
+ * @throws {@link ProviderError} `INVALID_REQUEST`: the extractor is missing, or a data field is malformed.
  *   It rejects before reaching the network.
  */
 export function validateRequest(request: TranslateRequest): ValidatedRequestData {

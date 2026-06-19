@@ -23,7 +23,7 @@ function extractToolInput(content: readonly unknown[]): unknown {
  *
  * @param content - The response content blocks.
  * @returns The forced tool-use input, as unparsed data for the shared layer to validate.
- * @throws {@link ProviderError} `INVALID_RESPONSE` — no forced tool-use block was present.
+ * @throws {@link ProviderError} `INVALID_RESPONSE`: no forced tool-use block was present.
  */
 export function requireToolInput(content: readonly unknown[]): unknown {
   const raw = extractToolInput(content);

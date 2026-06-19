@@ -71,7 +71,7 @@ export class AdapterRegistry {
    *
    * @param filePath - The file to resolve an adapter for.
    * @param options - `format` selects explicitly and skips detection; `sample` aids detection.
-   * @returns A structured {@link AdapterResolution} — `resolved`, `no-match`, or `ambiguous`. Never
+   * @returns A structured {@link AdapterResolution}: `resolved`, `no-match`, or `ambiguous`. Never
    *   throws; an unresolvable file is a status, not an exception.
    */
   resolve(filePath: string, options: ResolveOptions = {}): AdapterResolution {

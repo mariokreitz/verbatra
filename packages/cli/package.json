@@ -1,8 +1,29 @@
 {
   "name": "@verbatra/cli",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "The verbatra command-line interface: a thin wrapper over @verbatra/sdk exposing translate and watch",
+  "description": "Command-line tool to automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.",
+  "keywords": [
+    "i18n",
+    "internationalization",
+    "localization",
+    "l10n",
+    "translation",
+    "translate",
+    "locale",
+    "ai",
+    "machine-translation",
+    "deepl",
+    "openai",
+    "anthropic",
+    "gemini",
+    "i18next",
+    "vue-i18n",
+    "next-intl",
+    "ngx-translate",
+    "cli",
+    "automation"
+  ],
   "license": "MIT",
   "author": "Mario Kreitz",
   "repository": {
@@ -17,9 +38,18 @@
   "bin": {
     "verbatra": "./dist/index.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/lib.d.ts",
+      "import": "./dist/lib.js"
+    }
+  },
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=22.14.0"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true

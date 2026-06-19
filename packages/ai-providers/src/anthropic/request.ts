@@ -6,7 +6,7 @@ export const SUBMIT_TOOL_NAME = "submit_translations";
 
 /**
  * INVARIANT: SYSTEM_RULES is a compile-time constant. Nothing variable is ever
- * spliced into it — not entry values, not the glossary, not the tone. Every
+ * spliced into it: not entry values, not the glossary, not the tone. Every
  * variable input travels exclusively in the user-turn JSON payload built by the
  * shared data-payload builder. This separation is the prompt-injection boundary: an
  * untrusted string can only ever land in the data channel, never in the instruction

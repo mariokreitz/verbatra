@@ -9,7 +9,7 @@ export interface RenderableError {
 }
 
 /**
- * Project an unknown thrown value to a structured, secret-free `{ code, message }` — never a stack.
+ * Project an unknown thrown value to a structured, secret-free `{ code, message }`. Never a stack.
  *
  * @param error - The caught value (an `Error`, an SDK error, or anything thrown).
  * @returns The projection; `code` is the error's string `code` or `"CLI_ERROR"` when it has none.

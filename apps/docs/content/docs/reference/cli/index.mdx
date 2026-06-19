@@ -1,0 +1,49 @@
+---
+title: CLI
+description: The verbatra command - its three subcommands, global flags, how it reads your environment, and the exit-code contract.
+---
+
+# CLI
+
+`@verbatra/cli` provides the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/reference/sdk). It ships three commands:
+
+- [`init`](/docs/reference/cli/init): scaffold a config and a `.env.example`.
+- [`translate`](/docs/reference/cli/translate): translate every target locale once, then exit.
+- [`watch`](/docs/reference/cli/watch): re-translate on every source change until interrupted.
+
+## Install and invoke
+
+verbatra is a development dependency. Install it, then run the binary through your package manager:
+
+```bash
+pnpm add -D @verbatra/cli
+# pnpm verbatra ..., npx verbatra ..., or yarn verbatra ...
+```
+
+Requires Node.js `>=22.14.0`.
+
+## Global flags
+
+| Flag | What it does |
+| --- | --- |
+| `--help` | print usage for the program or a command, then exit `0` |
+| `--version` | print the installed `@verbatra/cli` version, then exit `0` |
+
+Run `verbatra <command> --help` for a command's full option list and examples - the same reference as these pages.
+
+## The working directory and .env
+
+`translate` and `watch` load `.env.local` and then `.env` from the working directory before they run; a variable already set in your real environment always wins. Pass `--cwd` to point at your project root if you invoke verbatra from elsewhere. API keys are read only from the environment, never from the config or a flag - see [Providers](/docs/reference/providers).
+
+## Exit codes
+
+verbatra uses its exit code as the contract a CI step or script branches on:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | success (also `--help` and `--version`) |
+| `1` | `translate` finished but some locales failed (translate only) |
+| `2` | could not run: a whole-run error, or a usage error |
+| `130` | `watch` was force-stopped by a second interrupt |
+
+A per-run failure in `watch` is reported as a stream record, not an exit code. Each command page notes how these codes apply to it, and [CI and automation](/docs/guides/ci-automation) covers using them in a pipeline.

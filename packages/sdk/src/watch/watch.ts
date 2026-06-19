@@ -31,7 +31,7 @@ export type WatchRunResult =
       readonly status: "failed";
       /**
        * A secret-free projection of the run's failure. `code` is a preserved string (the underlying
-       * error's `code`, or `"WATCH_RUN_FAILED"` as a fallback) — not an {@link SdkErrorCode}.
+       * error's `code`, or `"WATCH_RUN_FAILED"` as a fallback), not an {@link SdkErrorCode}.
        */
       readonly error: { readonly code: string; readonly message: string };
     };
@@ -93,7 +93,7 @@ function describeError(error: unknown): { code: string; message: string } {
  * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
  * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
  * @returns A {@link WatchController}; call `stop()` to close the watcher and await the in-flight run.
- * @throws {@link SdkError} `SOURCE_UNREADABLE` — at startup only, when the source locale file is absent.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: at startup only, when the source locale file is absent.
  * @example
  * ```ts
  * import { loadConfig, watch } from "@verbatra/sdk";

@@ -14,7 +14,7 @@ import { z } from "zod";
 /**
  * The provider section of the config: a discriminated union over the provider id,
  * reusing each provider's own exported config schema. There is no key field anywhere
- * in this union — the provider reads its API key from the environment at construction.
+ * in this union. The provider reads its API key from the environment at construction.
  *
  * This union and the factory table below are co-located on purpose: adding a provider
  * is a single edit here (one union variant plus one table entry), and the mapped-type

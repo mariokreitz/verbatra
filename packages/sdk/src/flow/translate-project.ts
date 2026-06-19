@@ -93,21 +93,21 @@ async function readSource(
  *
  * A per-locale failure does NOT throw: it is recorded on that locale's {@link LocaleSummary} as
  * `status: "failed"` with a secret-free `{ code, message }`, where `code` is a preserved string (the
- * underlying provider/adapter code, or `"LOCALE_FAILED"` as a fallback) — not necessarily an
+ * underlying provider/adapter code, or `"LOCALE_FAILED"` as a fallback), not necessarily an
  * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
  * surface on each `LocaleSummary`, never as throws.
  *
  * @param input - The validated config and run options (cwd, dryRun).
  * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
  * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
- * @throws {@link SdkError} `UNKNOWN_FORMAT` — no adapter is registered for the configured format.
- * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED` — the provider factory threw (this wraps the
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw (this wraps the
  *   provider's own error, including a missing `*_API_KEY` reported as `MISSING_API_KEY`); only on a
  *   non-dry-run, since dry-run never constructs the provider.
- * @throws {@link SdkError} `SOURCE_UNREADABLE` — the source locale file does not exist.
- * @throws {@link SdkError} `SOURCE_INVALID` — the source locale file could not be read or parsed (wraps the
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
  *   adapter read error).
- * @throws {@link SdkError} `LOCK_FILE_INVALID` — the lock-file is present but corrupt or oversized.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
  * @example
  * ```ts
  * import { loadConfig, translate } from "@verbatra/sdk";

@@ -76,7 +76,7 @@ function validate(input: unknown): VerbatraConfig {
  * used as given. A genuinely missing file is CONFIG_NOT_FOUND. The existsSync pre-check only buys the
  * nicer not-found message and is not load-bearing: a file that passes the check but then fails to load
  * (a parse error, or the file vanishing between the check and the load) is caught here and surfaced as
- * CONFIG_INVALID — a raw fs/ENOENT error never escapes. Validation reuses the same zod boundary as the
+ * CONFIG_INVALID. A raw fs/ENOENT error never escapes. Validation reuses the same zod boundary as the
  * search path, so a present-but-invalid (or empty) file is CONFIG_INVALID, identical in shape.
  */
 async function loadExplicit(
@@ -111,9 +111,9 @@ async function loadExplicit(
  *
  * @param options - Where/what to load: `cwd`, an in-memory `configOverride`, or an explicit `configPath`.
  * @returns The validated {@link VerbatraConfig}.
- * @throws {@link SdkError} `CONFIG_NOT_FOUND` — no config was found by search, or the explicit `configPath`
+ * @throws {@link SdkError} `CONFIG_NOT_FOUND`: no config was found by search, or the explicit `configPath`
  *   does not exist.
- * @throws {@link SdkError} `CONFIG_INVALID` — a config was found but is unparseable or fails validation
+ * @throws {@link SdkError} `CONFIG_INVALID`: a config was found but is unparseable or fails validation
  *   (a raw zod error never escapes).
  * @example
  * ```ts

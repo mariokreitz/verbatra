@@ -15,7 +15,7 @@ const MISMATCH_MESSAGE = "The provider returned a mismatched number of translati
  * @param entries - The original entries, in request order.
  * @param results - DeepL's ordered result array, expected one-per-entry.
  * @returns The per-key value map and the per-key integrity inputs for the shared check.
- * @throws {@link ProviderError} `INVALID_RESPONSE` — the result count does not match the entry count
+ * @throws {@link ProviderError} `INVALID_RESPONSE`: the result count does not match the entry count
  *   (fewer or more), so a positional zip cannot be trusted.
  */
 export function zipResults(

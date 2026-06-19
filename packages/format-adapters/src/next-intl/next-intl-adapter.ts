@@ -25,7 +25,7 @@ function computeInvalidIcuKeys(entries: ReadonlyMap<string, TranslationEntry>): 
  * @returns A `FormatAdapter` for `next-intl-json`. Its `read`/`write` throw the shared structured
  *   conditions documented on {@link createJsonFileAdapter} (INVALID_JSON, MAX_DEPTH_EXCEEDED,
  *   INVALID_STRUCTURE, INPUT_TOO_LARGE; never MIXED_STRUCTURE). Invalid ICU is RECORDED in
- *   `invalidIcuKeys`, not thrown — the ICU analysis is total.
+ *   `invalidIcuKeys`, not thrown. The ICU analysis is total.
  * @example
  * ```ts
  * const adapter = createNextIntlJsonAdapter();
