@@ -4,6 +4,7 @@ node_modules/
 # Planning
 /docs/
 .claude/agents/*
+.claude/workflows/
 
 # Build output
 dist/
