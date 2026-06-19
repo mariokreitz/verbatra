@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { DiffPanel } from "@/components/diff-panel";
 import { Globe } from "@/components/globe";
 import { CopyCommand } from "@/components/landing";
+import { Showcase } from "@/components/showcase";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
@@ -71,7 +71,7 @@ export default function HomePage() {
             link={{ token: "@verbatra/cli", href: NPM_CLI }}
           />
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/docs/getting-started" className="v-cta">
+            <Link href="/docs" className="v-cta">
               Get started <span aria-hidden="true">&rarr;</span>
             </Link>
             <Link
@@ -92,9 +92,9 @@ export default function HomePage() {
           id="demo-heading"
           className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-fd-muted-foreground"
         >
-          See it work
+          See a run unfold
         </p>
-        <DiffPanel />
+        <Showcase />
       </section>
 
       <section className="my-9 flex flex-col gap-3.5 border-y border-fd-border py-6">
