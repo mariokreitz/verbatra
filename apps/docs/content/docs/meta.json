@@ -1,9 +1,8 @@
 {
   "title": "Documentation",
   "pages": [
-    "index",
     "---start---",
-    "getting-started",
+    "index",
     "your-first-translation",
     "add-a-language",
     "---configure---",

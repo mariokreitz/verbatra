@@ -98,7 +98,7 @@ type Lane = {
 };
 
 const LANES: ReadonlyArray<Lane> = [
-  { href: "/docs/getting-started", tag: "New here", label: "Start in 5 minutes", primary: true },
+  { href: "/docs", tag: "New here", label: "Start in 5 minutes", primary: true },
   { href: "/docs/add-a-language", tag: "Already installed", label: "Add a language" },
   { href: "/docs/ci-and-exit-codes", tag: "Going to prod", label: "Wire up CI" },
 ];
