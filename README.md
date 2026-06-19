@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/banner.png" alt="verbatra: automated i18n translation for modern applications" />
+</p>
+
 <h1 align="center">verbatra</h1>
 
 <p align="center">

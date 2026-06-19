@@ -19,11 +19,13 @@ export const metadata: Metadata = {
     url: SITE_URL,
     title: "verbatra",
     description: TAGLINE,
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "verbatra" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "verbatra",
     description: TAGLINE,
+    images: ["/og-image.png"],
   },
 };
 
