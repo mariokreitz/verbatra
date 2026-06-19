@@ -1,0 +1,100 @@
+---
+title: Programmatic API
+description: Practical recipes for running verbatra from your own scripts, build steps, and CI jobs.
+---
+
+# Programmatic API
+
+The [SDK reference](/docs/sdk) documents every function and type. This page is the task-oriented companion: a few end-to-end patterns for using verbatra in code. Reach for the SDK when you want translation inside a script, a build step, or a CI job, with full control over what happens around it.
+
+## Translate in a script
+
+Load the config, run a translation, and report the headline. Whole-run problems throw an `SdkError`; per-locale outcomes are data on the summary.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await translate({ config });
+
+console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+```
+
+## Gate a build or CI step on the result
+
+The summary tells you what changed and what failed without parsing output. Fail the step when any locale failed, and inspect the per-locale detail to log why.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const summary = await translate({ config: await loadConfig() });
+
+for (const locale of summary.locales) {
+  if (locale.status === "failed") {
+    console.error(`${locale.locale}: ${locale.error?.code} ${locale.error?.message}`);
+  }
+}
+
+if (summary.failed.length > 0) {
+  process.exitCode = 1;
+}
+```
+
+## Check without writing
+
+Pass `dryRun: true` to read and diff without calling a provider or writing files. The summary lists the keys that would be translated, so you can detect missing or stale translations in CI and fail if there is work to do.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const summary = await translate({ config: await loadConfig(), dryRun: true });
+const pending = summary.locales.flatMap((locale) => locale.translated);
+
+if (pending.length > 0) {
+  console.error(`${pending.length} keys are missing or stale. Run verbatra translate.`);
+  process.exitCode = 1;
+}
+```
+
+## Re-translate as the source changes
+
+`watch` calls your `onRun` once per debounced change and returns a controller you stop cleanly.
+
+```ts
+import { loadConfig, watch } from "@verbatra/sdk";
+
+const controller = await watch({
+  config: await loadConfig(),
+  onRun: (result) => {
+    if (result.status === "failed") {
+      console.error(`run failed: ${result.error.code}`);
+    }
+  },
+});
+
+process.on("SIGINT", () => {
+  void controller.stop();
+});
+```
+
+## A config without a file
+
+`loadConfig` accepts an in-memory `configOverride`, so you can drive verbatra entirely from code with no `verbatra.config.ts` on disk.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const config = await loadConfig({
+  configOverride: {
+    sourceLocale: "en",
+    targetLocales: ["de", "fr"],
+    format: "i18next-json",
+    files: { pattern: "locales/{locale}.json" },
+    provider: { id: "anthropic", options: { model: "<your-model>", maxTokens: 4096 } },
+  },
+});
+
+await translate({ config });
+```
+
+For the full list of functions, the `RunSummary` and `LocaleSummary` shapes, and every `SdkError` code, see the [SDK reference](/docs/sdk). For the exit-code contract when you run the CLI in CI instead, see [CI and exit codes](/docs/ci-and-exit-codes).
