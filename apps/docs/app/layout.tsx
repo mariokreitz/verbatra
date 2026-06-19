@@ -3,16 +3,19 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
+import { SITE_URL } from "@/lib/site";
 
-const SITE_URL = "https://verbatra.kreitz-webdev.de";
 const TAGLINE = "Keep your locale files in sync. Translate only what changed.";
 
 // Site-wide metadata defaults. Per-page titles fill the "%s | verbatra" template.
 // The social-card image is added once the banner asset lands (cropped to 1200x630).
+// The homepage carries the self-referencing canonical here; docs pages override it
+// (and og:title / og:type / og:url) in their own generateMetadata.
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "verbatra", template: "%s | verbatra" },
   description: TAGLINE,
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: "verbatra",

@@ -33,8 +33,18 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  // Self-referencing canonical on the canonical host, plus a per-page Open Graph card:
+  // og:title mirrors the page title, og:type is "article" (the homepage stays "website"),
+  // and og:url points at this page rather than the site root.
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: { canonical: page.url },
+    openGraph: {
+      type: "article",
+      title: page.data.title,
+      description: page.data.description,
+      url: page.url,
+    },
   };
 }
