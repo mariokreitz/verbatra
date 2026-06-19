@@ -1,37 +1,26 @@
 import Link from "next/link";
+import { DiffPanel } from "@/components/diff-panel";
+import { Globe } from "@/components/globe";
+import { CopyCommand } from "@/components/landing";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
 
-const CONFIG_SNIPPET = `import { defineConfig } from "@verbatra/sdk";
+const FRAMEWORKS = ["Angular", "React", "Vue", "Node.js"];
+const PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL"];
 
-export default defineConfig({
-  sourceLocale: "en",
-  targetLocales: ["de", "fr"],
-  format: "i18next-json",
-  files: { pattern: "locales/{locale}.json" },
-  provider: {
-    id: "anthropic",
-    options: { model: "<your-model>", maxTokens: 4096 },
-  },
-});`;
-
-const VALUE_PROPS: ReadonlyArray<{ title: string; body: string }> = [
+const CAPABILITIES: ReadonlyArray<{ title: string; body: string }> = [
   {
     title: "Incremental by default",
-    body: "A lock file records what was translated. Each run diffs your source and calls the provider only for the keys that changed.",
+    body: "A committed lock file records what was translated. Each run diffs the source and calls the provider only for the keys that changed.",
   },
   {
     title: "Your choice of provider",
-    body: "Anthropic, OpenAI, Gemini, or DeepL, chosen in one line of config. API keys are read from the environment, never the config.",
-  },
-  {
-    title: "Framework-agnostic",
-    body: "JSON locale files for i18next, vue-i18n, next-intl, and ngx-translate.",
+    body: "Anthropic, OpenAI, Gemini, or DeepL, chosen in one line of config. Keys are read from the environment, never the config.",
   },
   {
     title: "Safe by construction",
-    body: "Placeholder and ICU integrity are checked after every translation. A result that breaks a placeholder is withheld, and no secret appears in output.",
+    body: "Placeholder and ICU integrity are checked after every translation. A result that breaks a placeholder is withheld.",
   },
   {
     title: "CLI and SDK",
@@ -39,90 +28,110 @@ const VALUE_PROPS: ReadonlyArray<{ title: string; body: string }> = [
   },
 ];
 
+function Bullet() {
+  return (
+    <span
+      className="h-1.5 w-1.5 shrink-0 rounded-full"
+      style={{ background: "var(--v-glow)", opacity: 0.75 }}
+      aria-hidden="true"
+    />
+  );
+}
+
 export default function HomePage() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-20 px-6 py-20 md:py-28">
-      <section className="flex flex-col items-start gap-6">
-        <p className="font-mono text-sm tracking-widest text-fd-muted-foreground">verbatra</p>
-        <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight text-fd-foreground md:text-5xl">
-          Keep your locale files in sync, automatically.
-        </h1>
-        <p className="max-w-2xl text-lg text-fd-muted-foreground">
-          You maintain the source locale. verbatra translates every other locale through the
-          provider you choose, and on each run it sends only the keys that changed.
+    <main className="mx-auto w-full max-w-5xl px-6 pb-24">
+      <section className="relative grid items-center gap-9 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
+        <div
+          className="pointer-events-none absolute -top-[8%] -right-[6%] -z-10 h-[560px] w-[560px] rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle, rgba(156,39,176,0.20), rgba(124,77,255,0.08) 40%, transparent 66%)",
+          }}
+          aria-hidden="true"
+        />
+        <div>
+          <p className="mb-5 font-mono text-xs tracking-[0.18em] text-fd-muted-foreground">
+            open-source i18n automation
+          </p>
+          <h1
+            className="mb-4 max-w-[14ch] text-5xl font-semibold tracking-tight text-fd-foreground md:text-6xl"
+            style={{ fontFamily: "var(--font-display)" }}
+          >
+            Translate only what changed.
+          </h1>
+          <p className="mb-6 max-w-[46ch] text-lg text-fd-muted-foreground">
+            verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the
+            source locale; it fills every other locale through your provider.
+          </p>
+          <CopyCommand command="pnpm add -D @verbatra/cli" />
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/docs/getting-started" className="v-cta">
+              Get started <span aria-hidden="true">&rarr;</span>
+            </Link>
+            <Link
+              href="/docs"
+              className="inline-flex items-center rounded-[11px] border border-fd-border px-[18px] py-[11px] text-sm font-semibold text-fd-foreground transition-colors hover:bg-fd-accent"
+            >
+              Read the docs
+            </Link>
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <Globe className="h-auto w-full max-w-[380px]" />
+        </div>
+      </section>
+
+      <section aria-labelledby="demo-heading">
+        <p
+          id="demo-heading"
+          className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-fd-muted-foreground"
+        >
+          See it work
         </p>
-        <div className="flex flex-wrap items-center gap-3 pt-2">
-          <Link
-            href="/docs/getting-started"
-            className="rounded-md bg-fd-primary px-5 py-2.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
-          >
-            Get started
-          </Link>
-          <a
-            href={GITHUB_URL}
-            className="rounded-md border border-fd-border px-5 py-2.5 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-          >
-            View on GitHub
-          </a>
-        </div>
+        <DiffPanel />
       </section>
 
-      <section aria-labelledby="how-heading" className="flex flex-col gap-4">
-        <h2 id="how-heading" className="font-mono text-sm tracking-widest text-fd-muted-foreground">
-          A config and a command
-        </h2>
-        <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-fd-border bg-fd-border md:grid-cols-2">
-          <div className="flex flex-col gap-3 bg-fd-card p-5">
-            <span className="font-mono text-xs text-fd-muted-foreground">verbatra.config.ts</span>
-            <pre className="overflow-x-auto text-sm leading-relaxed text-fd-foreground">
-              <code className="font-mono">{CONFIG_SNIPPET}</code>
-            </pre>
-            <div className="mt-1 rounded-md bg-fd-secondary px-3 py-2 font-mono text-sm text-fd-secondary-foreground">
-              <span className="text-fd-muted-foreground">$</span> verbatra translate
-            </div>
-          </div>
-          <div className="flex flex-col gap-4 bg-fd-card p-5">
-            <span className="font-mono text-xs text-fd-muted-foreground">locales/</span>
-            <div className="flex flex-col gap-3 font-mono text-sm">
-              <div>
-                <div className="text-xs text-fd-muted-foreground">en.json (source)</div>
-                <div className="text-fd-foreground">{'{ "cart.checkout": "Checkout" }'}</div>
-              </div>
-              <div className="text-fd-muted-foreground">
-                <span aria-hidden="true">{"↓ "}</span>translated
-              </div>
-              <div>
-                <div className="text-xs text-fd-muted-foreground">de.json</div>
-                <div className="text-fd-foreground">
-                  {'{ "cart.checkout": '}
-                  <span className="text-fd-primary">{'"Zur Kasse"'}</span>
-                  {" }"}
-                </div>
-              </div>
-            </div>
-            <p className="mt-auto text-sm text-fd-muted-foreground">
-              Only the keys that changed since the last run are sent to the provider.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section aria-labelledby="why-heading" className="flex flex-col gap-8">
-        <h2 id="why-heading" className="font-mono text-sm tracking-widest text-fd-muted-foreground">
-          Why verbatra
-        </h2>
-        <ul className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
-          {VALUE_PROPS.map((item) => (
-            <li key={item.title} className="flex flex-col gap-2 border-t border-fd-border pt-4">
-              <h3 className="font-medium text-fd-foreground">{item.title}</h3>
-              <p className="text-sm text-fd-muted-foreground">{item.body}</p>
-            </li>
+      <section className="my-9 flex flex-col gap-3.5 border-y border-fd-border py-6">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <span className="w-24 font-mono text-[11px] uppercase tracking-[0.12em] text-fd-muted-foreground">
+            Works with
+          </span>
+          {FRAMEWORKS.map((name) => (
+            <span key={name} className="inline-flex items-center gap-2 text-fd-foreground">
+              <Bullet />
+              {name}
+            </span>
           ))}
-        </ul>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <span className="w-24 font-mono text-[11px] uppercase tracking-[0.12em] text-fd-muted-foreground">
+            Providers
+          </span>
+          {PROVIDERS.map((name) => (
+            <span key={name} className="inline-flex items-center gap-2 text-fd-foreground">
+              <Bullet />
+              {name}
+            </span>
+          ))}
+        </div>
       </section>
 
-      <footer className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
-        <span>MIT licensed</span>
+      <section className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+        {CAPABILITIES.map((item) => (
+          <div key={item.title} className="border-t border-fd-border pt-3.5">
+            <h3
+              className="mb-1 font-semibold text-fd-foreground"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {item.title}
+            </h3>
+            <p className="max-w-[44ch] text-sm text-fd-muted-foreground">{item.body}</p>
+          </div>
+        ))}
+      </section>
+
+      <footer className="mt-12 flex flex-wrap items-center gap-5 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
         <Link href="/docs" className="transition-colors hover:text-fd-foreground">
           Documentation
         </Link>
@@ -130,8 +139,9 @@ export default function HomePage() {
           GitHub
         </a>
         <a href={LICENSE_URL} className="transition-colors hover:text-fd-foreground">
-          License
+          MIT license
         </a>
+        <span className="ml-auto font-mono text-xs">v0.1.0</span>
       </footer>
     </main>
   );
