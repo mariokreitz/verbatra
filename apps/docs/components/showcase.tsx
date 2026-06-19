@@ -57,6 +57,24 @@ const FINAL_TARGET: Record<string, string> = {
   "auth.signin": "Anmelden",
 };
 
+// A static, labeled transcript of the run the animation dramatizes. The animated grid above
+// is decorative flat text to a machine; this table (and the sentence before it) give answer
+// engines and screen readers the same facts in structured form. It mirrors the settled end
+// state: the one changed key is re-translated, the rest are left untouched.
+const TRANSCRIPT: ReadonlyArray<{ key: string; en: string; de: string; status: string }> = [
+  {
+    key: "cart.checkout",
+    en: "Pay now",
+    de: "Jetzt bezahlen",
+    status: "Re-translated (source changed)",
+  },
+  { key: "cart.empty", en: "Empty", de: "Leer", status: "Unchanged (already current)" },
+  { key: "cart.total", en: "Total", de: "Gesamt", status: "Unchanged (already current)" },
+  { key: "nav.home", en: "Home", de: "Startseite", status: "Unchanged (already current)" },
+  { key: "nav.about", en: "About", de: "Über uns", status: "Unchanged (already current)" },
+  { key: "auth.signin", en: "Sign in", de: "Anmelden", status: "Unchanged (already current)" },
+];
+
 type Summary = {
   translated: number;
   unchanged: number;
@@ -203,101 +221,137 @@ export function Showcase() {
         boxShadow: "0 30px 80px -44px color-mix(in srgb, var(--v-purple) 38%, transparent)",
       }}
     >
-      <div className="flex items-center gap-3 border-b border-fd-border px-5 py-3">
-        <span className="font-mono text-xs text-fd-muted-foreground">
-          <span style={{ color: "var(--v-glow)" }}>$</span> verbatra translate
-        </span>
+      <div className="sr-only">
+        <p>
+          An animated demonstration of verbatra translating only what changed. verbatra compares an
+          English source locale (en.json) against a lock file, sends only the new or changed keys to
+          a translation provider for German (de.json), and leaves already-current keys untouched.
+        </p>
+        <table>
+          <caption>
+            Example verbatra run: each key, its English source value, its German translation, and
+            whether verbatra re-translated it
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Key</th>
+              <th scope="col">Source (en)</th>
+              <th scope="col">Target (de)</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {TRANSCRIPT.map((row) => (
+              <tr key={row.key}>
+                <td>{row.key}</td>
+                <td>{row.en}</td>
+                <td>{row.de}</td>
+                <td>{row.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2">
-        <div className="p-5">
-          <div className="mb-3 font-mono text-xs tracking-wide text-fd-muted-foreground">
-            en.json (source)
-          </div>
-          {KEYS.map((key) => {
-            const b = bucket(key);
-            return (
-              <div
-                key={key}
-                className="flex min-h-[30px] items-center gap-2 py-1 font-mono text-sm"
-              >
-                <span className="whitespace-nowrap text-fd-muted-foreground">
-                  &quot;{key}&quot;:
-                </span>
-                <span className="text-fd-foreground">&quot;{source[key]}&quot;</span>
-                <span
-                  className="ms-auto rounded-md border px-1.5 py-px font-mono text-[10px] uppercase tracking-wide"
-                  style={chipStyle(b)}
-                >
-                  {b}
-                </span>
-              </div>
-            );
-          })}
+      {/* The animated transcript is decorative; the sr-only table above is its accessible,
+          machine-readable equivalent, so hide this branch from assistive tech. */}
+      <div aria-hidden="true">
+        <div className="flex items-center gap-3 border-b border-fd-border px-5 py-3">
+          <span className="font-mono text-xs text-fd-muted-foreground">
+            <span style={{ color: "var(--v-glow)" }}>$</span> verbatra translate
+          </span>
         </div>
 
-        <div className="border-t border-fd-border p-5 sm:border-t-0 sm:border-s">
-          <div className="mb-3 font-mono text-xs tracking-wide text-fd-muted-foreground">
-            de.json (target)
-          </div>
-          {KEYS.map((key) => {
-            let value: React.ReactNode;
-            if (typing && typing.key === key) {
-              value = <span style={typingStyle}>&quot;{typing.text}&quot;</span>;
-            } else if (key in target) {
-              const isFresh = fresh.includes(key);
-              value = (
-                <span
-                  className={isFresh ? "" : "text-fd-foreground"}
-                  style={isFresh ? { color: "var(--v-glow)" } : undefined}
+        <div className="grid grid-cols-1 sm:grid-cols-2">
+          <div className="p-5">
+            <div className="mb-3 font-mono text-xs tracking-wide text-fd-muted-foreground">
+              en.json (source)
+            </div>
+            {KEYS.map((key) => {
+              const b = bucket(key);
+              return (
+                <div
+                  key={key}
+                  className="flex min-h-[30px] items-center gap-2 py-1 font-mono text-sm"
                 >
-                  &quot;{target[key]}&quot;
-                </span>
+                  <span className="whitespace-nowrap text-fd-muted-foreground">
+                    &quot;{key}&quot;:
+                  </span>
+                  <span className="text-fd-foreground">&quot;{source[key]}&quot;</span>
+                  <span
+                    className="ms-auto rounded-md border px-1.5 py-px font-mono text-[10px] uppercase tracking-wide"
+                    style={chipStyle(b)}
+                  >
+                    {b}
+                  </span>
+                </div>
               );
-            } else {
-              value = <span style={{ color: "#5c5c72" }}>. . .</span>;
-            }
-            return (
-              <div
-                key={key}
-                className="flex min-h-[30px] items-center gap-2 py-1 font-mono text-sm"
-              >
-                <span className="whitespace-nowrap text-fd-muted-foreground">
-                  &quot;{key}&quot;:
-                </span>
-                {value}
-              </div>
-            );
-          })}
+            })}
+          </div>
+
+          <div className="border-t border-fd-border p-5 sm:border-t-0 sm:border-s">
+            <div className="mb-3 font-mono text-xs tracking-wide text-fd-muted-foreground">
+              de.json (target)
+            </div>
+            {KEYS.map((key) => {
+              let value: React.ReactNode;
+              if (typing && typing.key === key) {
+                value = <span style={typingStyle}>&quot;{typing.text}&quot;</span>;
+              } else if (key in target) {
+                const isFresh = fresh.includes(key);
+                value = (
+                  <span
+                    className={isFresh ? "" : "text-fd-foreground"}
+                    style={isFresh ? { color: "var(--v-glow)" } : undefined}
+                  >
+                    &quot;{target[key]}&quot;
+                  </span>
+                );
+              } else {
+                value = <span style={{ color: "#5c5c72" }}>. . .</span>;
+              }
+              return (
+                <div
+                  key={key}
+                  className="flex min-h-[30px] items-center gap-2 py-1 font-mono text-sm"
+                >
+                  <span className="whitespace-nowrap text-fd-muted-foreground">
+                    &quot;{key}&quot;:
+                  </span>
+                  {value}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-2.5 border-t border-fd-border px-5 py-3.5 font-mono text-xs text-fd-muted-foreground">
-        <span
-          className="h-1.5 w-1.5 shrink-0 rounded-full"
-          style={{ background: "var(--v-glow)" }}
-          aria-hidden="true"
-        />
-        {narration}
-      </div>
+        <div className="flex items-center gap-2.5 border-t border-fd-border px-5 py-3.5 font-mono text-xs text-fd-muted-foreground">
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ background: "var(--v-glow)" }}
+            aria-hidden="true"
+          />
+          {narration}
+        </div>
 
-      <div className="border-t border-fd-border px-5 py-4 font-mono text-sm">
-        {summary ? (
-          <>
-            <div className="mb-2.5 text-[11px] uppercase tracking-[0.12em] text-fd-muted-foreground">
-              RunSummary &middot; de
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-2">
-              <Stat n={summary.translated} label="translated" />
-              <Stat n={summary.unchanged} label="unchanged" />
-              <Stat n={summary.orphaned} label="orphaned" />
-              <Stat n={summary.skipped} label="skipped invalid icu" />
-              <Stat n={summary.withheld} label="withheld" />
-            </div>
-          </>
-        ) : (
-          <span className="text-[#5c5c72] italic">The RunSummary appears here.</span>
-        )}
+        <div className="border-t border-fd-border px-5 py-4 font-mono text-sm">
+          {summary ? (
+            <>
+              <div className="mb-2.5 text-[11px] uppercase tracking-[0.12em] text-fd-muted-foreground">
+                RunSummary &middot; de
+              </div>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                <Stat n={summary.translated} label="translated" />
+                <Stat n={summary.unchanged} label="unchanged" />
+                <Stat n={summary.orphaned} label="orphaned" />
+                <Stat n={summary.skipped} label="skipped invalid icu" />
+                <Stat n={summary.withheld} label="withheld" />
+              </div>
+            </>
+          ) : (
+            <span className="text-[#5c5c72] italic">The RunSummary appears here.</span>
+          )}
+        </div>
       </div>
     </div>
   );

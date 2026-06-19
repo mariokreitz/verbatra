@@ -1,0 +1,38 @@
+import { SITE_URL } from "@/lib/site";
+import { source } from "@/lib/source";
+
+// An llms.txt summary for language-model consumers (https://llmstxt.org). Curated facts up
+// top, then a generated index of every documentation page so the link list never drifts.
+export const dynamic = "force-static";
+
+export function GET(): Response {
+  const docs = source
+    .getPages()
+    .map((page) => {
+      const url = new URL(page.url, SITE_URL).href;
+      const desc = page.data.description ? `: ${page.data.description}` : "";
+      return `- [${page.data.title}](${url})${desc}`;
+    })
+    .join("\n");
+
+  const body = `# verbatra
+
+> verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider.
+
+verbatra is open source and MIT licensed. You maintain one source locale; on each run it diffs the source against a committed lock file and sends only the new or changed keys to your provider, leaving current translations untouched. Placeholder and ICU integrity are checked after every translation, and any result that breaks a placeholder is withheld.
+
+- Repository: https://github.com/mariokreitz/verbatra
+- npm packages: @verbatra/cli (the \`verbatra\` command), @verbatra/sdk (programmatic API)
+- Translation providers: Anthropic, OpenAI, Gemini, DeepL
+- i18n formats: i18next, vue-i18n, next-intl, ngx-translate (React, Vue, Angular, Node.js)
+- Requires Node.js >= 22.14.0
+
+## Documentation
+
+${docs}
+`;
+
+  return new Response(body, {
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}

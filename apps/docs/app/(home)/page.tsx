@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Globe } from "@/components/globe";
+import { JsonLd } from "@/components/json-ld";
 import { CopyCommand } from "@/components/landing";
 import { Showcase } from "@/components/showcase";
+import { type FaqItem, faqPageLd, softwareApplicationLd } from "@/lib/structured-data";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
@@ -30,6 +32,31 @@ const CAPABILITIES: ReadonlyArray<{ title: string; body: string }> = [
   },
 ];
 
+// Plain question-and-answer pairs reusing the prose elsewhere on the site. They render as
+// discrete Q&A for human readers and feed the FAQPage JSON-LD that answer engines quote.
+const FAQ: ReadonlyArray<FaqItem> = [
+  {
+    question: "How does verbatra avoid re-translating everything on each run?",
+    answer:
+      "verbatra keeps a committed lock file that records what was already translated. On each run it diffs your source locale against that lock and sends only the new or changed keys to your provider; unchanged keys are left untouched.",
+  },
+  {
+    question: "Which translation providers does verbatra support?",
+    answer:
+      "Anthropic, OpenAI, Gemini, and DeepL. You choose one in a single line of config, and the API key is read from an environment variable, never from the config file.",
+  },
+  {
+    question: "How does verbatra handle ICU placeholders and message formats?",
+    answer:
+      "It checks placeholder and ICU integrity after every translation. If a returned translation breaks a placeholder or produces invalid ICU, that result is withheld rather than written to your locale file.",
+  },
+  {
+    question: "Which i18n file formats can verbatra read?",
+    answer:
+      "JSON formats for i18next, vue-i18n, next-intl, and ngx-translate, covering React, Vue, Angular, and Node.js projects.",
+  },
+];
+
 function Bullet() {
   return (
     <span
@@ -43,6 +70,8 @@ function Bullet() {
 export default function HomePage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-6 pb-24">
+      <JsonLd data={softwareApplicationLd()} />
+      <JsonLd data={faqPageLd(FAQ)} />
       <section className="relative grid items-center gap-9 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
         <div
           className="pointer-events-none absolute -top-[8%] -right-[6%] -z-10 h-[560px] w-[560px] rounded-full"
@@ -134,6 +163,29 @@ export default function HomePage() {
             <p className="max-w-[44ch] text-sm text-fd-muted-foreground">{item.body}</p>
           </div>
         ))}
+      </section>
+
+      <section aria-labelledby="faq-heading" className="mt-16">
+        <h2
+          id="faq-heading"
+          className="mb-6 text-2xl font-semibold tracking-tight text-fd-foreground"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Frequently asked questions
+        </h2>
+        <dl className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+          {FAQ.map((item) => (
+            <div key={item.question} className="border-t border-fd-border pt-3.5">
+              <dt
+                className="mb-1.5 font-semibold text-fd-foreground"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                {item.question}
+              </dt>
+              <dd className="max-w-[52ch] text-sm text-fd-muted-foreground">{item.answer}</dd>
+            </div>
+          ))}
+        </dl>
       </section>
 
       <footer className="mt-12 flex flex-wrap items-center gap-5 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
