@@ -1,5 +1,56 @@
 @import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/purple.css";
 @import "fumadocs-ui/css/preset.css";
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
+
+:root {
+  --color-fd-primary: hsl(291 64% 42%); /* #9C27B0 */
+  --color-fd-primary-foreground: hsl(290 60% 98%); /* near-white, AA on the CTA */
+  --color-fd-accent: hsl(258 47% 74%); /* #B39DDB */
+  --color-fd-ring: hsl(291 64% 42%);
+}
+
+.dark {
+  --color-fd-background: hsl(240 23% 7%); /* #0E0E16 */
+  --color-fd-card: hsl(240 28% 14%); /* #1A1A2E */
+  --color-fd-popover: hsl(240 24% 18%); /* #232338 */
+  --color-fd-muted: hsl(240 24% 18%);
+  --color-fd-border: hsl(240 23% 22%); /* #2C2C44 */
+  --color-fd-foreground: hsl(240 30% 94%); /* #ECECF4 */
+  --color-fd-muted-foreground: hsl(240 13% 65%);
+  --color-fd-primary: hsl(258 47% 74%); /* lighter purple reads better on dark */
+  --color-fd-primary-foreground: hsl(240 23% 7%);
+  --color-fd-accent: hsl(
+    258 25% 20%
+  ); /* #2A2440, subtle on-brand raised surface for hover/active */
+  --color-fd-accent-foreground: hsl(240 30% 94%); /* #ECECF4, readable text on the hover surface */
+  --color-fd-ring: hsl(258 47% 74%);
+}
+
+:root:not(.dark) .prose {
+  --tw-prose-links: hsl(280 70% 38%); /* #7B1FA2, clears AA on white */
+}
+
+.dark .prose {
+  --tw-prose-links: hsl(258 47% 74%); /* #B39DDB */
+}
+
+:root {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-space-grotesk);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-display);
+}
+
+:root {
+  --fd-layout-width: 100%;
+}
