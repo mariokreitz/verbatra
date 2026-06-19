@@ -47,10 +47,10 @@ verbatra translate
 
 verbatra ships three commands: `init` (scaffold a config), `translate` (translate every target locale once), and `watch` (re-translate on every source change). The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
 
-- [CLI reference](https://verbatra.kreitz-webdev.de/docs/reference/cli)
-- [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/reference/cli/init)
-- [`verbatra translate`](https://verbatra.kreitz-webdev.de/docs/reference/cli/translate)
-- [`verbatra watch`](https://verbatra.kreitz-webdev.de/docs/reference/cli/watch)
+- [CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)
+- [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/cli/init)
+- [`verbatra translate`](https://verbatra.kreitz-webdev.de/docs/cli/translate)
+- [`verbatra watch`](https://verbatra.kreitz-webdev.de/docs/cli/watch)
 
 Run `verbatra <command> --help` for the same reference at the terminal.
 

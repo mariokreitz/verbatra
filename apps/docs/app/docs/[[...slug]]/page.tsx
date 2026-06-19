@@ -10,11 +10,14 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
   if (!page) notFound();
 
   const MDX = page.data.body;
+  // The /docs index is a wayfinding landing: it owns its own hero, so it renders
+  // full-width without the default title, description, or table of contents.
+  const isIndex = !params.slug || params.slug.length === 0;
 
   return (
-    <DocsPage toc={page.data.toc}>
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription>{page.data.description}</DocsDescription>
+    <DocsPage toc={page.data.toc} full={isIndex}>
+      {!isIndex && <DocsTitle>{page.data.title}</DocsTitle>}
+      {!isIndex && <DocsDescription>{page.data.description}</DocsDescription>}
       <DocsBody>
         <MDX components={getMDXComponents()} />
       </DocsBody>

@@ -22,7 +22,7 @@ verbatra translate
 
 ## Output
 
-Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout - see the [`RunSummary` shape in the SDK reference](/docs/reference/sdk). A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout - see the [`RunSummary` shape in the SDK reference](/docs/sdk). A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
 
 ## Examples
 
@@ -45,4 +45,4 @@ verbatra translate --json
 | `1` | the run finished but one or more locales failed |
 | `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a provider that could not be built including a missing API key, or a corrupt lock file), or a usage error |
 
-A single locale failing is not fatal and yields exit `1`; the per-locale detail is in the summary. See [CI and automation](/docs/guides/ci-automation) for branching on these codes.
+A single locale failing is not fatal and yields exit `1`; the per-locale detail is in the summary. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

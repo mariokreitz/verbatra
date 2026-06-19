@@ -5,11 +5,11 @@ description: The verbatra command - its three subcommands, global flags, how it 
 
 # CLI
 
-`@verbatra/cli` provides the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/reference/sdk). It ships three commands:
+`@verbatra/cli` provides the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/sdk). It ships three commands:
 
-- [`init`](/docs/reference/cli/init): scaffold a config and a `.env.example`.
-- [`translate`](/docs/reference/cli/translate): translate every target locale once, then exit.
-- [`watch`](/docs/reference/cli/watch): re-translate on every source change until interrupted.
+- [`init`](/docs/cli/init): scaffold a config and a `.env.example`.
+- [`translate`](/docs/cli/translate): translate every target locale once, then exit.
+- [`watch`](/docs/cli/watch): re-translate on every source change until interrupted.
 
 ## Install and invoke
 
@@ -33,7 +33,7 @@ Run `verbatra <command> --help` for a command's full option list and examples - 
 
 ## The working directory and .env
 
-`translate` and `watch` load `.env.local` and then `.env` from the working directory before they run; a variable already set in your real environment always wins. Pass `--cwd` to point at your project root if you invoke verbatra from elsewhere. API keys are read only from the environment, never from the config or a flag - see [Providers](/docs/reference/providers).
+`translate` and `watch` load `.env.local` and then `.env` from the working directory before they run; a variable already set in your real environment always wins. Pass `--cwd` to point at your project root if you invoke verbatra from elsewhere. API keys are read only from the environment, never from the config or a flag - see [Providers](/docs/providers).
 
 ## Exit codes
 
@@ -46,4 +46,4 @@ verbatra uses its exit code as the contract a CI step or script branches on:
 | `2` | could not run: a whole-run error, or a usage error |
 | `130` | `watch` was force-stopped by a second interrupt |
 
-A per-run failure in `watch` is reported as a stream record, not an exit code. Each command page notes how these codes apply to it, and [CI and automation](/docs/guides/ci-automation) covers using them in a pipeline.
+A per-run failure in `watch` is reported as a stream record, not an exit code. Each command page notes how these codes apply to it, and [CI and automation](/docs/ci-and-exit-codes) covers using them in a pipeline.

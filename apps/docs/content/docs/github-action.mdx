@@ -30,7 +30,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-The action runs the CLI, so the provider's API key is read from the environment. Provide it from your repository secrets as the matching variable for your provider (see [Providers](/docs/reference/providers)) - for example `ANTHROPIC_API_KEY` above.
+The action runs the CLI, so the provider's API key is read from the environment. Provide it from your repository secrets as the matching variable for your provider (see [Providers](/docs/providers)) - for example `ANTHROPIC_API_KEY` above.
 
 ## Inputs
 
@@ -46,7 +46,7 @@ The action always runs `translate --json`; it does not run `init` or `watch`.
 
 ## Exit behavior
 
-The action captures the CLI's stdout and exit code without failing early, annotates failures and writes the job summary, and then propagates the CLI's exit code - so the step fails on `1` (some locales failed) or `2` (could not run) only after the annotations and summary are produced. The [CLI exit codes](/docs/reference/cli#exit-codes) define what each code means.
+The action captures the CLI's stdout and exit code without failing early, annotates failures and writes the job summary, and then propagates the CLI's exit code - so the step fails on `1` (some locales failed) or `2` (could not run) only after the annotations and summary are produced. The [CLI exit codes](/docs/cli#exit-codes) define what each code means.
 
 ## Persisting translations
 

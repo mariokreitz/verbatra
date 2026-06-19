@@ -84,7 +84,7 @@ provider: {
 
 ## Tone and glossary across providers
 
-The optional `tone` and `glossary` config fields (see [Configuration](/docs/reference/configuration)) are applied differently per provider:
+The optional `tone` and `glossary` config fields (see [Configuration](/docs/config-file)) are applied differently per provider:
 
 - **Tone.** The LLM providers receive the tone with the request and are instructed to honor it. DeepL maps it to formality: `formal` becomes more formal, `informal` becomes less formal, and `neutral` or an absent tone is omitted. On a free-tier DeepL key a non-default tone is not supported and degrades to the default, with a notice on the result.
 - **Glossary.** The LLM providers receive the `glossary` term map and are instructed to treat its terms as binding. DeepL does not apply a generic term map; it records a notice and instead uses the `glossaryId` option above.

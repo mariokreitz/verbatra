@@ -1,19 +1,28 @@
 ---
 title: Introduction
-description: What verbatra is and where to go next in the documentation.
+description: Keep your locale files in sync. Translate only what changed.
 ---
 
-# Introduction
+<div className="not-prose flex flex-col gap-5 pt-2 pb-4">
+  <div className="flex items-center gap-3">
+    <VMark size={44} />
+    <span className="font-mono text-sm tracking-[0.2em] text-fd-muted-foreground">verbatra docs</span>
+  </div>
+  <h1
+    className="max-w-2xl text-balance text-3xl font-semibold tracking-tight text-fd-foreground md:text-4xl"
+    style={{ fontFamily: "var(--font-display)" }}
+  >
+    Keep your locale files in sync. Translate only what changed.
+  </h1>
+  <p className="max-w-2xl text-fd-muted-foreground">
+    verbatra is a CLI and SDK that maintains your i18n locale files: you keep the source locale, it
+    translates the rest through your provider, re-translating only the keys that changed.
+  </p>
+  <CopyCommand command="pnpm add -D @verbatra/cli" />
+</div>
 
-verbatra automates keeping your i18n translation files in sync. You maintain the source locale, and verbatra translates the others through the provider you choose, re-translating only the keys that changed since the last run.
+<DiffPanel />
 
-These guides cover installing and configuring verbatra, the providers and formats it supports, how a run works under the hood, and using it from the command line, in CI, or through the SDK.
+<LaneCards />
 
-## Where to go next
-
-- [Getting started](/docs/guides/getting-started): install verbatra, scaffold a config, and run your first translation.
-- [How it works](/docs/concepts/how-it-works): what a run does, from config discovery to the run summary.
-- [Configuration](/docs/reference/configuration): the config schema, discovery order, and the working directory.
-- [Providers](/docs/reference/providers): the four providers, their options, and the API key each one reads.
-- [SDK](/docs/reference/sdk): use verbatra programmatically from scripts, CI, and your own tooling.
-- [CI and automation](/docs/guides/ci-automation): the exit-code contract and JSON output for pipelines.
+<ReferenceRow />

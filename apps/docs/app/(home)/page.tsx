@@ -53,7 +53,7 @@ export default function HomePage() {
         </p>
         <div className="flex flex-wrap items-center gap-3 pt-2">
           <Link
-            href="/docs/guides/getting-started"
+            href="/docs/getting-started"
             className="rounded-md bg-fd-primary px-5 py-2.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
           >
             Get started

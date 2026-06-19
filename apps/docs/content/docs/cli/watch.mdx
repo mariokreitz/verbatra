@@ -24,7 +24,7 @@ Watch keeps running until you stop it. A single interrupt (Ctrl-C) stops it grac
 
 ## Output
 
-Without `--json`, `watch` prints a human-readable summary per run. With `--json`, it prints one NDJSON record per run (one JSON object per line): either a success carrying the run summary, or a failure carrying an error code and message. A failed run is one of these records on the stream - it does not stop the watcher and does not set a non-zero exit code. See the [`WatchRunResult` shape in the SDK reference](/docs/reference/sdk).
+Without `--json`, `watch` prints a human-readable summary per run. With `--json`, it prints one NDJSON record per run (one JSON object per line): either a success carrying the run summary, or a failure carrying an error code and message. A failed run is one of these records on the stream - it does not stop the watcher and does not set a non-zero exit code. See the [`WatchRunResult` shape in the SDK reference](/docs/sdk).
 
 ## Examples
 
@@ -47,4 +47,4 @@ verbatra watch --json
 | `2` | could not run: the config failed to load, or a usage error |
 | `130` | force-stopped by a second interrupt |
 
-Unlike [`translate`](/docs/reference/cli/translate), a per-run failure does not change the exit code - it is reported as a stream record. The exit code reflects only how the watcher stopped.
+Unlike [`translate`](/docs/cli/translate), a per-run failure does not change the exit code - it is reported as a stream record. The exit code reflects only how the watcher stopped.

@@ -4,7 +4,13 @@
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
 
+/* Brand purples bound to two roles that never cross.
+   --v-purple (deep #9C27B0) is spent only on the single primary CTA, the live diff, and focus rings.
+   --v-glow (#B39DDB) carries links, the active-nav marker, and the V glow. */
 :root {
+  --v-purple: hsl(291 64% 42%); /* #9C27B0 */
+  --v-glow: hsl(258 47% 74%); /* #B39DDB */
+
   --color-fd-primary: hsl(291 64% 42%); /* #9C27B0 */
   --color-fd-primary-foreground: hsl(290 60% 98%); /* near-white, AA on the CTA */
   --color-fd-accent: hsl(258 47% 74%); /* #B39DDB */
@@ -12,20 +18,20 @@
 }
 
 .dark {
-  --color-fd-background: hsl(240 23% 7%); /* #0E0E16 */
+  --color-fd-background: hsl(240 24% 6%); /* #0B0B12, the deeper void */
   --color-fd-card: hsl(240 28% 14%); /* #1A1A2E */
   --color-fd-popover: hsl(240 24% 18%); /* #232338 */
   --color-fd-muted: hsl(240 24% 18%);
   --color-fd-border: hsl(240 23% 22%); /* #2C2C44 */
   --color-fd-foreground: hsl(240 30% 94%); /* #ECECF4 */
   --color-fd-muted-foreground: hsl(240 13% 65%);
-  --color-fd-primary: hsl(258 47% 74%); /* lighter purple reads better on dark */
+  /* Links and the active-nav accent ride the glow; the deep purple is reserved (ring below + CTA). */
+  --color-fd-primary: hsl(258 47% 74%);
   --color-fd-primary-foreground: hsl(240 23% 7%);
-  --color-fd-accent: hsl(
-    258 25% 20%
-  ); /* #2A2440, subtle on-brand raised surface for hover/active */
-  --color-fd-accent-foreground: hsl(240 30% 94%); /* #ECECF4, readable text on the hover surface */
-  --color-fd-ring: hsl(258 47% 74%);
+  --color-fd-accent: hsl(258 25% 20%); /* #2A2440, subtle on-brand raised surface for hover/active */
+  --color-fd-accent-foreground: hsl(240 30% 94%); /* #ECECF4, readable on the hover surface */
+  /* The focus ring is the one spot the deep purple shows in the chrome. */
+  --color-fd-ring: hsl(291 64% 42%);
 }
 
 :root:not(.dark) .prose {
@@ -37,8 +43,8 @@
 }
 
 :root {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
   --font-display: var(--font-space-grotesk);
 }
 
@@ -51,6 +57,69 @@ h6 {
   font-family: var(--font-display);
 }
 
+/* A 1440px shell with generous gutters; the reading column stays scannable at 68ch. */
 :root {
-  --fd-layout-width: 100%;
+  --fd-layout-width: 1440px;
+}
+
+#nd-page {
+  max-width: 68ch;
+}
+
+/* The single primary CTA: the one filled use of the deep brand purple. */
+.v-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+  background: var(--v-purple);
+  color: hsl(290 60% 98%);
+}
+
+.v-cta:hover {
+  filter: brightness(1.08);
+}
+
+/* ---- Fumadocs chrome overrides. One block; selectors verified against fumadocs-ui 16.9.3 DOM. ---- */
+
+/* The sidebar reads like a file tree: mono, lowercase, lightly tracked.
+   Separators are <p>, items are <a data-active>. */
+#nd-sidebar a[data-active],
+#nd-sidebar p {
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+}
+
+#nd-sidebar p {
+  letter-spacing: 0.12em; /* group (separator) labels */
+}
+
+#nd-sidebar a[data-active] {
+  letter-spacing: 0.02em;
+}
+
+/* Active item: no purple fill, full ink, a 2px glow marker at the inline start. */
+#nd-sidebar a[data-active="true"] {
+  position: relative;
+  background: transparent;
+  color: var(--color-fd-foreground);
+}
+
+#nd-sidebar a[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  translate: 0 -50%;
+  height: 1.1em;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--v-glow);
+}
+
+/* Code blocks carry the same glow marker as a left border, so code and "where am I" share one idea. */
+figure.shiki {
+  border-inline-start: 2px solid var(--v-glow);
 }

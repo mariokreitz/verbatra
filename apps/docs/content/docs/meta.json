@@ -1,4 +1,21 @@
 {
   "title": "Documentation",
-  "pages": ["index", "guides", "concepts", "reference"]
+  "pages": [
+    "index",
+    "---start---",
+    "getting-started",
+    "your-first-translation",
+    "add-a-language",
+    "---configure---",
+    "config-file",
+    "providers",
+    "---run---",
+    "cli",
+    "github-action",
+    "ci-and-exit-codes",
+    "---understand---",
+    "how-it-works",
+    "---build on it---",
+    "sdk"
+  ]
 }
