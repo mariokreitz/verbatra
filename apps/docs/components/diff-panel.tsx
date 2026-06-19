@@ -24,10 +24,12 @@ export function DiffPanel({
   rows = DEFAULT_ROWS,
   sourceFile = "en.json",
   targetFile = "de.json",
+  tag = "verbatra translate",
 }: {
   rows?: ReadonlyArray<Row>;
   sourceFile?: string;
   targetFile?: string;
+  tag?: string;
 }) {
   const changed = rows.find((r) => r.changed);
   const full = changed?.target ?? "";
@@ -93,10 +95,16 @@ export function DiffPanel({
     <figure
       ref={ref}
       aria-label="A diff showing only the changed translation key being re-translated"
-      className="not-prose my-6 overflow-hidden rounded-xl border border-fd-border bg-fd-card p-4 font-mono text-sm shadow-sm sm:p-5"
-      style={{ borderInlineStart: "2px solid var(--v-glow)" }}
+      className="not-prose relative my-8 rounded-2xl border border-fd-border bg-fd-card p-5 font-mono text-sm sm:p-7 sm:text-[15px]"
+      style={{
+        borderInlineStart: "2px solid var(--v-glow)",
+        boxShadow: "0 24px 60px -30px color-mix(in srgb, var(--v-purple) 35%, transparent)",
+      }}
     >
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+      <span className="absolute -top-2.5 left-5 rounded-md border border-fd-border bg-fd-background px-2 py-0.5 text-[10.5px] uppercase tracking-wider text-fd-muted-foreground">
+        {tag}
+      </span>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3.5">
         <div className="text-xs text-fd-muted-foreground">{sourceFile}</div>
         <div className="text-xs text-fd-muted-foreground">{targetFile}</div>
 
