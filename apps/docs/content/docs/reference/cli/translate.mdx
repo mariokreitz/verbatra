@@ -1,0 +1,48 @@
+---
+title: verbatra translate
+description: Translate every target locale once, then exit.
+---
+
+# verbatra translate
+
+Run the read, diff, translate, write flow over every target locale once, then exit. verbatra reads the source locale, compares it against what it translated last time, and sends only the new or changed strings to the provider; translations that are still current are left untouched.
+
+```bash
+verbatra translate
+```
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | resolve config and locale files from this directory |
+| `--config <path>` | load this config file instead of searching for one |
+| `--dry-run` | preview changes without calling a provider or writing files |
+| `--json` | print the run summary as JSON |
+
+## Output
+
+Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout - see the [`RunSummary` shape in the SDK reference](/docs/reference/sdk). A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+
+## Examples
+
+```bash
+# translate once using the config it finds
+verbatra translate
+
+# preview changes without calling a provider or writing files
+verbatra translate --dry-run
+
+# machine-readable summary on stdout
+verbatra translate --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | every target locale succeeded |
+| `1` | the run finished but one or more locales failed |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a provider that could not be built including a missing API key, or a corrupt lock file), or a usage error |
+
+A single locale failing is not fatal and yields exit `1`; the per-locale detail is in the summary. See [CI and automation](/docs/guides/ci-automation) for branching on these codes.
