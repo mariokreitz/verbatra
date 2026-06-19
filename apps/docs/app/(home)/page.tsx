@@ -87,17 +87,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section aria-labelledby="demo-heading">
-        <p
-          id="demo-heading"
-          className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-fd-muted-foreground"
-        >
-          See a run unfold
-        </p>
-        <Showcase />
-      </section>
-
-      <section className="my-9 flex flex-col gap-3.5 border-y border-fd-border py-6">
+      <section className="mt-4 mb-12 flex flex-col gap-3.5 border-y border-fd-border py-6">
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <span className="w-24 font-mono text-[11px] uppercase tracking-[0.12em] text-fd-muted-foreground">
             Works with
@@ -122,7 +112,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-x-10 gap-y-6 md:grid-cols-2">
+      <section aria-labelledby="demo-heading">
+        <p
+          id="demo-heading"
+          className="mb-3 font-mono text-xs uppercase tracking-[0.14em] text-fd-muted-foreground"
+        >
+          See a run unfold
+        </p>
+        <Showcase />
+      </section>
+
+      <section className="mt-12 grid gap-x-10 gap-y-6 md:grid-cols-2">
         {CAPABILITIES.map((item) => (
           <div key={item.title} className="border-t border-fd-border pt-3.5">
             <h3

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-// A mocked, interactive verbatra run. No network, no provider call, no key: the German
+// A mocked, automated verbatra run. No network, no provider call, no key: the German
 // values are hardcoded and the output is deterministic. It dramatizes the real mechanics
-// from the docs: a run sorts keys into buckets (new, changed, unchanged, orphaned), sends
-// only new and changed keys, and returns a RunSummary. Edit one source value and rerun to
-// see verbatra touch exactly that one key. Honors prefers-reduced-motion.
+// from the docs: a run sorts keys into buckets (new, changed, unchanged), sends only new
+// and changed keys, and returns a RunSummary. The loop plays a first run, then changes one
+// source value and reruns, so verbatra touches exactly that one key. It starts when the
+// panel scrolls into view and honors prefers-reduced-motion by showing the settled end
+// state with no animation.
 
 const KEYS = [
   "cart.checkout",
@@ -46,6 +48,15 @@ const INITIAL_LOCK: Record<string, string> = {
   "nav.home": "Home",
 };
 
+const FINAL_TARGET: Record<string, string> = {
+  "cart.checkout": "Jetzt bezahlen",
+  "cart.empty": "Leer",
+  "cart.total": "Gesamt",
+  "nav.home": "Startseite",
+  "nav.about": "Über uns",
+  "auth.signin": "Anmelden",
+};
+
 type Summary = {
   translated: number;
   unchanged: number;
@@ -55,101 +66,137 @@ type Summary = {
 };
 
 type Bucket = "new" | "changed" | "unchanged";
+type Dict = Record<string, string>;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const germanFor = (key: string, value: string | undefined) =>
+  GERMAN[`${key}|${value}`] ?? "[mocked]";
 
 export function Showcase() {
-  const [source, setSource] = useState<Record<string, string>>({ ...INITIAL_SOURCE });
-  const [target, setTarget] = useState<Record<string, string>>({ ...INITIAL_TARGET });
-  const [lock, setLock] = useState<Record<string, string>>({ ...INITIAL_LOCK });
+  const [source, setSource] = useState<Dict>({ ...INITIAL_SOURCE });
+  const [target, setTarget] = useState<Dict>({ ...INITIAL_TARGET });
+  const [lock, setLock] = useState<Dict>({ ...INITIAL_LOCK });
   const [typing, setTyping] = useState<{ key: string; text: string } | null>(null);
   const [fresh, setFresh] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [ran, setRan] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [hint, setHint] = useState("Run the first translation");
+  const [narration, setNarration] = useState("verbatra translate");
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    let cancelled = false;
+    let started = false;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    async function typeInto(key: string, value: string, src: Dict, tgt: Dict, lck: Dict) {
+      for (let i = 1; i <= value.length; i += 1) {
+        if (cancelled) return;
+        setTyping({ key, text: value.slice(0, i) });
+        await delay(38);
+      }
+      setTyping(null);
+      tgt[key] = value;
+      lck[key] = src[key] ?? "";
+      setTarget({ ...tgt });
+      setLock({ ...lck });
+    }
+
+    async function runOnce(src: Dict, tgt: Dict, lck: Dict): Promise<Summary | null> {
+      const sent = KEYS.filter((key) => !(key in tgt) || src[key] !== lck[key]);
+      const done: string[] = [];
+      for (const key of sent) {
+        await typeInto(key, germanFor(key, src[key]), src, tgt, lck);
+        if (cancelled) return null;
+        done.push(key);
+        setFresh([...done]);
+        await delay(140);
+      }
+      return {
+        translated: sent.length,
+        unchanged: KEYS.length - sent.length,
+        orphaned: 0,
+        skipped: 0,
+        withheld: 0,
+      };
+    }
+
+    function idle(src: Dict, tgt: Dict, lck: Dict) {
+      setSource({ ...src });
+      setTarget({ ...tgt });
+      setLock({ ...lck });
+      setFresh([]);
+      setTyping(null);
+      setSummary(null);
+      setNarration("verbatra translate");
+    }
+
+    async function cycle() {
+      while (!cancelled) {
+        const src = { ...INITIAL_SOURCE };
+        const tgt = { ...INITIAL_TARGET };
+        const lck = { ...INITIAL_LOCK };
+        idle(src, tgt, lck);
+        await delay(1000);
+        setNarration("First run, sending the new keys");
+        const first = await runOnce(src, tgt, lck);
+        if (cancelled || !first) return;
+        setSummary(first);
+        setNarration("Three new keys filled in, three already current");
+        await delay(2400);
+
+        src["cart.checkout"] = "Pay now";
+        setSource({ ...src });
+        setFresh([]);
+        setNarration("One source value changes");
+        await delay(1700);
+
+        setNarration("Second run, sending only the changed key");
+        const second = await runOnce(src, tgt, lck);
+        if (cancelled || !second) return;
+        setSummary(second);
+        setNarration("One key re-translated, the rest untouched");
+        await delay(3600);
+      }
+    }
+
+    function showStaticFinal() {
+      setSource({ ...INITIAL_SOURCE, "cart.checkout": "Pay now" });
+      setTarget({ ...FINAL_TARGET });
+      setLock({ ...INITIAL_SOURCE, "cart.checkout": "Pay now" });
+      setFresh(["cart.checkout"]);
+      setSummary({ translated: 1, unchanged: 5, orphaned: 0, skipped: 0, withheld: 0 });
+      setNarration("Change one key, verbatra touches one key");
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting || started) continue;
+          started = true;
+          if (reduce) showStaticFinal();
+          else void cycle();
+        }
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(node);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, []);
 
   function bucket(key: string): Bucket {
     if (!(key in target)) return "new";
     if (source[key] !== lock[key]) return "changed";
     return "unchanged";
   }
-  function german(key: string): string {
-    return GERMAN[`${key}|${source[key]}`] ?? "[mocked]";
-  }
-
-  async function typeKey(key: string) {
-    const full = german(key);
-    for (let i = 1; i <= full.length; i += 1) {
-      setTyping({ key, text: full.slice(0, i) });
-      await delay(45);
-    }
-    setTyping(null);
-  }
-
-  function finishRun(translated: number, unchanged: number) {
-    setBusy(false);
-    setRan(true);
-    setSummary({ translated, unchanged, orphaned: 0, skipped: 0, withheld: 0 });
-    setHint(
-      translated === 0
-        ? "Nothing changed. The provider was not called."
-        : "Now edit a source key and run again.",
-    );
-  }
-
-  async function run() {
-    if (busy) return;
-    const sent = KEYS.filter((key) => bucket(key) !== "unchanged");
-    const unchanged = KEYS.length - sent.length;
-    setBusy(true);
-    setFresh([]);
-
-    const animate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const nextTarget = { ...target };
-    const nextLock = { ...lock };
-    const done: string[] = [];
-
-    for (const key of sent) {
-      if (animate) await typeKey(key);
-      nextTarget[key] = german(key);
-      nextLock[key] = source[key] ?? "";
-      done.push(key);
-      setTarget({ ...nextTarget });
-      setLock({ ...nextLock });
-      setFresh([...done]);
-      if (animate) await delay(160);
-    }
-
-    finishRun(sent.length, unchanged);
-  }
-
-  function editKey() {
-    if (busy) return;
-    setSource((prev) => ({
-      ...prev,
-      "cart.checkout": prev["cart.checkout"] === "Checkout" ? "Pay now" : "Checkout",
-    }));
-    setFresh([]);
-    setHint('cart.checkout is now "changed". Run again.');
-  }
-
-  function reset() {
-    setSource({ ...INITIAL_SOURCE });
-    setTarget({ ...INITIAL_TARGET });
-    setLock({ ...INITIAL_LOCK });
-    setTyping(null);
-    setFresh([]);
-    setRan(false);
-    setBusy(false);
-    setSummary(null);
-    setHint("Run the first translation");
-  }
-
-  const resetDisabled = busy || (!ran && source["cart.checkout"] === "Checkout");
 
   return (
     <div
+      ref={rootRef}
       className="not-prose overflow-hidden rounded-2xl border border-fd-border bg-fd-card"
       style={{
         borderInlineStart: "2px solid var(--v-glow)",
@@ -157,8 +204,8 @@ export function Showcase() {
       }}
     >
       <div className="flex items-center gap-3 border-b border-fd-border px-5 py-3">
-        <span className="font-mono text-xs uppercase tracking-[0.1em] text-fd-muted-foreground">
-          verbatra translate
+        <span className="font-mono text-xs text-fd-muted-foreground">
+          <span style={{ color: "var(--v-glow)" }}>$</span> verbatra translate
         </span>
         <span
           className="ms-auto inline-flex items-center gap-2 rounded-full border border-fd-border px-2.5 py-1 font-mono text-[10.5px] tracking-wide"
@@ -169,7 +216,7 @@ export function Showcase() {
             style={{ background: "var(--v-glow)" }}
             aria-hidden="true"
           />
-          interactive demo, mocked output
+          mocked output, no provider called
         </span>
       </div>
 
@@ -236,36 +283,13 @@ export function Showcase() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-fd-border px-5 py-4">
-        <button
-          type="button"
-          onClick={run}
-          disabled={busy}
-          className="inline-flex items-center gap-2.5 rounded-[10px] px-4 py-2.5 font-mono text-sm font-medium disabled:opacity-45"
-          style={{ background: "var(--v-purple)", color: "hsl(290 60% 98%)" }}
-        >
-          <span style={{ opacity: 0.8 }} aria-hidden="true">
-            $
-          </span>
-          verbatra translate
-        </button>
-        <button
-          type="button"
-          onClick={editKey}
-          disabled={!ran || busy}
-          className="rounded-[10px] border border-fd-border px-3.5 py-2 text-sm text-fd-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground disabled:opacity-40"
-        >
-          Edit a source key
-        </button>
-        <button
-          type="button"
-          onClick={reset}
-          disabled={resetDisabled}
-          className="rounded-[10px] border border-fd-border px-3.5 py-2 text-sm text-fd-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground disabled:opacity-40"
-        >
-          Reset
-        </button>
-        <span className="ms-auto font-mono text-xs text-fd-muted-foreground">{hint}</span>
+      <div className="flex items-center gap-2.5 border-t border-fd-border px-5 py-3.5 font-mono text-xs text-fd-muted-foreground">
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: "var(--v-glow)" }}
+          aria-hidden="true"
+        />
+        {narration}
       </div>
 
       <div className="border-t border-fd-border px-5 py-4 font-mono text-sm">
@@ -283,7 +307,7 @@ export function Showcase() {
             </div>
           </>
         ) : (
-          <span className="text-[#5c5c72] italic">No run yet. The RunSummary appears here.</span>
+          <span className="text-[#5c5c72] italic">The RunSummary appears here.</span>
         )}
       </div>
     </div>
