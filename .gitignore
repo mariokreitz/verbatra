@@ -3,6 +3,7 @@ node_modules/
 
 # Planning
 /docs/
+.claude/agents/*
 
 # Build output
 dist/
