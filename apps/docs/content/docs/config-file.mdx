@@ -7,6 +7,10 @@ description: The verbatra config schema, discovery order, and how the working di
 
 verbatra reads a small, non-secret configuration object and validates it before doing any work. It carries no API key; the provider reads its key from the environment.
 
+<Callout title="Keys come from the environment">
+No API key is ever read from this file. Each provider reads its key from an environment variable, so the config stays safe to commit. See [Providers](/docs/providers).
+</Callout>
+
 ## A minimal config
 
 ```ts

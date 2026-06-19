@@ -37,6 +37,10 @@ A dry run produces the same summary, listing the keys that would be translated, 
 
 Run `verbatra translate` again without changing your source and nothing is sent to the provider: every key is already current. Change one source string and only that key is re-translated on the next run. This is the core behavior. verbatra keeps a committed lock file (`verbatra.lock.json`) recording what it translated, and diffs against it each run so the provider is called only for what actually changed. See [How it works](/docs/how-it-works) for the full pipeline.
 
+<Callout title="Commit the lock file">
+verbatra writes `verbatra.lock.json` on the first run. Commit it with your locale files so every machine and your CI diff against the same baseline. See [The lock file](/docs/the-lock-file).
+</Callout>
+
 ## Translate as you work
 
 To re-translate automatically while you edit, watch the source and let verbatra re-run on each change:
