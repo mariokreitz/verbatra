@@ -43,56 +43,16 @@ export ANTHROPIC_API_KEY=your-key-here
 verbatra translate
 ```
 
-## Commands and options
+## Commands
 
-### `verbatra init`
+verbatra ships three commands: `init` (scaffold a config), `translate` (translate every target locale once), and `watch` (re-translate on every source change). The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
 
-Create a verbatra config and .env example for this project.
-
-| Option | Description |
-| --- | --- |
-| `--cwd <path>` | write the config and env files to this directory |
-| `--provider <id>` | translation provider to use: anthropic, openai, gemini, or deepl (required unless prompted) |
-| `--source <locale>` | locale your source strings are written in (default en) |
-| `--targets <locales>` | comma-separated locales to translate into (default de) |
-| `--path <pattern>` | locale file pattern containing the {locale} token (default locales/{locale}.json) |
-| `--yes` | skip prompts and accept the defaults |
-| `--force` | overwrite an existing config or .env.example |
-
-### `verbatra translate`
-
-Translate every target locale once, then exit.
-
-| Option | Description |
-| --- | --- |
-| `--cwd <path>` | resolve config and locale files from this directory |
-| `--config <path>` | load this config file instead of searching for one |
-| `--dry-run` | preview changes without calling a provider or writing files |
-| `--json` | print the run summary as JSON |
-
-### `verbatra watch`
-
-Re-translate on every source change until interrupted.
-
-| Option | Description |
-| --- | --- |
-| `--cwd <path>` | resolve config and locale files from this directory |
-| `--config <path>` | load this config file instead of searching for one |
-| `--debounce <ms>` | wait this many milliseconds after a change before translating (default 300) |
-| `--json` | print each run as one NDJSON record |
+- [CLI reference](https://verbatra.kreitz-webdev.de/docs/reference/cli)
+- [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/reference/cli/init)
+- [`verbatra translate`](https://verbatra.kreitz-webdev.de/docs/reference/cli/translate)
+- [`verbatra watch`](https://verbatra.kreitz-webdev.de/docs/reference/cli/watch)
 
 Run `verbatra <command> --help` for the same reference at the terminal.
-
-## Exit codes
-
-verbatra uses exit codes as its CI and scripting contract:
-
-| Code | Meaning |
-| --- | --- |
-| `0` | success |
-| `1` | `translate` finished but some locales failed (translate only) |
-| `2` | could not run (a whole-run error, or a usage error) |
-| `130` | `watch` was force-stopped by a second interrupt |
 
 ## API keys
 
