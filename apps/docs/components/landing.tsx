@@ -31,7 +31,13 @@ export function VMark({ size = 44 }: { size?: number }) {
   );
 }
 
-export function CopyCommand({ command }: { command: string }) {
+export function CopyCommand({
+  command,
+  link,
+}: {
+  command: string;
+  link?: { token: string; href: string };
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -44,12 +50,34 @@ export function CopyCommand({ command }: { command: string }) {
     }
   }
 
+  // Optionally turn one token (the package name) into a subtle npm link. Copy still
+  // writes the plain command string, and clicking the link does not trigger a copy.
+  const tokenAt = link ? command.indexOf(link.token) : -1;
+
   return (
     <div className="not-prose flex max-w-xl items-center gap-3 rounded-lg border border-fd-border bg-fd-card px-4 py-2.5 font-mono text-sm">
       <span className="text-fd-muted-foreground" aria-hidden="true">
         $
       </span>
-      <code className="text-fd-foreground">{command}</code>
+      <code className="text-fd-foreground">
+        {link && tokenAt >= 0 ? (
+          <>
+            {command.slice(0, tokenAt)}
+            <a
+              href={link.href}
+              target="_blank"
+              rel="noreferrer noopener"
+              onClick={(event) => event.stopPropagation()}
+              className="rounded underline decoration-fd-border underline-offset-4 transition-colors hover:text-[var(--v-glow)] hover:decoration-[var(--v-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--v-purple)]"
+            >
+              {link.token}
+            </a>
+            {command.slice(tokenAt + link.token.length)}
+          </>
+        ) : (
+          command
+        )}
+      </code>
       <button
         type="button"
         onClick={copy}

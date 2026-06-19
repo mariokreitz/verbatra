@@ -5,6 +5,8 @@ import { CopyCommand } from "@/components/landing";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
+const NPM_CLI = "https://www.npmjs.com/package/@verbatra/cli";
+const NPM_SDK = "https://www.npmjs.com/package/@verbatra/sdk";
 
 const FRAMEWORKS = ["Angular", "React", "Vue", "Node.js"];
 const PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL"];
@@ -64,7 +66,10 @@ export default function HomePage() {
             verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the
             source locale; it fills every other locale through your provider.
           </p>
-          <CopyCommand command="pnpm add -D @verbatra/cli" />
+          <CopyCommand
+            command="pnpm add -D @verbatra/cli"
+            link={{ token: "@verbatra/cli", href: NPM_CLI }}
+          />
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/docs/getting-started" className="v-cta">
               Get started <span aria-hidden="true">&rarr;</span>
@@ -137,6 +142,12 @@ export default function HomePage() {
         </Link>
         <a href={GITHUB_URL} className="transition-colors hover:text-fd-foreground">
           GitHub
+        </a>
+        <a href={NPM_CLI} className="transition-colors hover:text-fd-foreground">
+          @verbatra/cli
+        </a>
+        <a href={NPM_SDK} className="transition-colors hover:text-fd-foreground">
+          @verbatra/sdk
         </a>
         <a href={LICENSE_URL} className="transition-colors hover:text-fd-foreground">
           MIT license
