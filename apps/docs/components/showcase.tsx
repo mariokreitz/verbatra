@@ -207,17 +207,6 @@ export function Showcase() {
         <span className="font-mono text-xs text-fd-muted-foreground">
           <span style={{ color: "var(--v-glow)" }}>$</span> verbatra translate
         </span>
-        <span
-          className="ms-auto inline-flex items-center gap-2 rounded-full border border-fd-border px-2.5 py-1 font-mono text-[10.5px] tracking-wide"
-          style={{ color: "var(--v-glow)" }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: "var(--v-glow)" }}
-            aria-hidden="true"
-          />
-          mocked output, no provider called
-        </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2">
