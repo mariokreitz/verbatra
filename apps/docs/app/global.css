@@ -4,9 +4,6 @@
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
 
-/* Brand purples bound to two roles that never cross.
-   --v-purple (deep #9C27B0) is spent only on the single primary CTA, the live diff, and focus rings.
-   --v-glow (#B39DDB) carries links, the active-nav marker, and the V glow. */
 :root {
   --v-purple: hsl(291 64% 42%); /* #9C27B0 */
   --v-glow: hsl(258 47% 74%); /* #B39DDB */
@@ -57,16 +54,10 @@ h6 {
   font-family: var(--font-display);
 }
 
-/* A 1440px shell with generous gutters; the reading column stays scannable at 68ch. */
 :root {
-  --fd-layout-width: 1440px;
+  --fd-layout-width: 100%;
 }
 
-#nd-page {
-  max-width: 68ch;
-}
-
-/* The single primary CTA: the one filled use of the deep brand purple. */
 .v-cta {
   display: inline-flex;
   align-items: center;
@@ -82,10 +73,6 @@ h6 {
   filter: brightness(1.08);
 }
 
-/* ---- Fumadocs chrome overrides. One block; selectors verified against fumadocs-ui 16.9.3 DOM. ---- */
-
-/* The sidebar reads like a file tree: mono, lowercase, lightly tracked.
-   Separators are <p>, items are <a data-active>. */
 #nd-sidebar a[data-active],
 #nd-sidebar p {
   font-family: var(--font-mono);
@@ -100,7 +87,6 @@ h6 {
   letter-spacing: 0.02em;
 }
 
-/* Active item: no purple fill, full ink, a 2px glow marker at the inline start. */
 #nd-sidebar a[data-active="true"] {
   position: relative;
   background: transparent;
@@ -119,7 +105,6 @@ h6 {
   background: var(--v-glow);
 }
 
-/* Code blocks carry the same glow marker as a left border, so code and "where am I" share one idea. */
 figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }
