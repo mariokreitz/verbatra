@@ -2,6 +2,7 @@ import "./global.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import Script from "next/script";
 import type { ReactNode } from "react";
 import { SITE_URL } from "@/lib/site";
 
@@ -59,6 +60,13 @@ export default function Layout({ children }: { children: ReactNode }) {
     >
       <body className="flex flex-col min-h-screen">
         <RootProvider>{children}</RootProvider>
+        {/* Cookieless, self-hosted Umami analytics. No consent banner is required. */}
+        <Script
+          defer
+          src="https://umami.kreitz-webdev.de/script.js"
+          data-website-id="2ade0fc1-62ec-4f3c-a3cd-2ce7fcb14d86"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

@@ -58,6 +58,45 @@ export function softwareApplicationLd(): Record<string, unknown> {
 
 export type FaqItem = { question: string; answer: string };
 
+/**
+ * The on-page FAQ, shared by the visible accordion and the FAQPage JSON-LD so the two never
+ * drift. Lives here (a server module) rather than in the client landing-sections module: a
+ * plain array exported from a "use client" module becomes a client reference when imported
+ * into a Server Component, which breaks JSON serialization.
+ */
+export const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
+  {
+    question: "How does verbatra avoid re-translating everything on each run?",
+    answer:
+      "verbatra keeps a committed lock file that records what was already translated. On each run it diffs your source locale against that lock and sends only the new or changed keys to your provider; unchanged keys are left untouched.",
+  },
+  {
+    question: "Which translation providers does verbatra support?",
+    answer:
+      "Anthropic, OpenAI, Gemini, and DeepL. You choose one in a single line of config, and the API key is read from an environment variable, never from the config file.",
+  },
+  {
+    question: "How does verbatra handle ICU placeholders and message formats?",
+    answer:
+      "It checks placeholder and ICU integrity after every translation. If a returned translation breaks a placeholder or produces invalid ICU, that result is withheld rather than written to your locale file.",
+  },
+  {
+    question: "Which i18n file formats can verbatra read?",
+    answer:
+      "JSON formats for i18next, vue-i18n, next-intl, and ngx-translate, covering React, Vue, Next.js, Nuxt, Angular, and Node.js projects.",
+  },
+  {
+    question: "Can I preview a run before it writes anything?",
+    answer:
+      "Yes. A dry run reports exactly which keys would be sent and written without touching your locale files, and watch mode keeps translating as your source locale changes.",
+  },
+  {
+    question: "Is there an SDK as well as a CLI?",
+    answer:
+      "Yes. The verbatra command is a thin wrapper over @verbatra/sdk, which exposes the same translate and watch operations for scripts, CI, and your own tooling.",
+  },
+];
+
 /** FAQPage facts mirroring the on-page FAQ. */
 export function faqPageLd(items: ReadonlyArray<FaqItem>): Record<string, unknown> {
   return {

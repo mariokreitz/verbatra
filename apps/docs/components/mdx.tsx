@@ -1,15 +1,23 @@
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import { DiffPanel } from "@/components/diff-panel";
-import { CopyCommand, LaneCards, ReferenceRow, VMark } from "@/components/landing";
+import { LaneCards, ReferenceRow, VMark } from "@/components/landing";
+import Badge from "@/components/ui/badge";
+import Card from "@/components/ui/card";
+import CommandLine from "@/components/ui/command-line";
+import Tabs from "@/components/ui/tabs";
 
 // Merge the Fumadocs UI defaults with verbatra's custom MDX components so pages can use
-// <DiffPanel/>, the landing pieces, etc. without per-page imports.
+// <DiffPanel/>, the landing pieces, etc. without per-page imports. The DS Tabs registers
+// as <VTabs/> so it never shadows Fumadocs' built-in <Tabs/>/<Tab/>.
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
     ...defaultMdxComponents,
     DiffPanel,
-    CopyCommand,
+    CommandLine,
+    Badge,
+    Card,
+    VTabs: Tabs,
     LaneCards,
     ReferenceRow,
     VMark,
