@@ -1,7 +1,6 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { i18n, type Locale } from "@/lib/i18n";
 
 // The translation registry handed to Fumadocs UI. We only carry verbatra's own locales; the
@@ -10,9 +9,20 @@ import { i18n, type Locale } from "@/lib/i18n";
 // Fumadocs UI strings are needed later, add `.preset(locale, …)` here.
 export const translations = i18n.translations().extend(uiTranslations());
 
-/** RootProvider i18n config for the active locale. */
+// Display names for the language switcher, in autonyms. These populate Fumadocs's built-in
+// switcher (`locales` on the i18n provider props); without them it only knows the current
+// locale and shows "English" alone.
+const localeNames = [
+  { locale: "en", name: "English" },
+  { locale: "de", name: "Deutsch" },
+  { locale: "es", name: "Español" },
+  { locale: "fr", name: "Français" },
+];
+
+/** RootProvider i18n config for the active locale. Fumadocs renders the only language switcher
+ *  in the chrome (home + docs); `locales` gives it the display names so it lists all four. */
 export function i18nConfig(locale: string) {
-  return i18nProvider(translations, locale);
+  return { ...i18nProvider(translations, locale), locales: localeNames };
 }
 
 // `default-locale` routing: English is unprefixed, the others are prefixed. Internal links in
@@ -22,9 +32,9 @@ function localized(locale: Locale, path: string): string {
 }
 
 // Shared chrome for the home, legal, and docs layouts: the V mark + verbatra wordmark, the
-// locale-prefixed Docs link, the locale switcher (right of Docs, left of GitHub), and the
-// repository link. Strings come from the next-intl catalog so nothing in the chrome is
-// hardcoded English. The switcher is the only client leaf; the rest of the nav stays server.
+// locale-prefixed Docs link, and the repository link. Strings come from the next-intl catalog
+// so nothing in the chrome is hardcoded English. The language switcher is Fumadocs's built-in
+// control (configured via `i18nConfig` above), so the nav itself stays fully server-rendered.
 export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
   const t = await getTranslations({ locale, namespace: "landing.nav" });
   return {
@@ -59,10 +69,7 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         </span>
       ),
     },
-    links: [
-      { text: t("docs"), url: localized(locale, "/docs") },
-      { type: "custom", secondary: true, children: <LocaleSwitcher /> },
-    ],
+    links: [{ text: t("docs"), url: localized(locale, "/docs") }],
     githubUrl: "https://github.com/mariokreitz/verbatra",
     // Dark-only app-wide: remove the Fumadocs theme-switch control from the nav chrome (the
     // theme is forced dark via RootProvider `theme={{ enabled: false }}`).
