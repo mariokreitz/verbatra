@@ -1,0 +1,173 @@
+{
+  "landing": {
+    "brand": {
+      "vmarkAlt": "verbatra"
+    },
+    "compat": {
+      "body": "verbatra lee los formatos de configuración regional JSON que su framework ya utiliza y los rellena a través del proveedor que elija.",
+      "eyebrow": "funciona con tu stack",
+      "heading": "Una herramienta, todos los frameworks.",
+      "labelFrameworks": "Frameworks y formatos",
+      "labelProviders": "Proveedores de traducción"
+    },
+    "faq": {
+      "eyebrow": "preguntas frecuentes",
+      "heading": "Preguntas frecuentes",
+      "items": {
+        "avoidRetranslate": {
+          "answer": "verbatra mantiene un archivo de bloqueo comprometido que registra lo que ya se ha traducido. En cada ejecución, compara su configuración regional de origen con ese bloqueo y envía solo las claves nuevas o modificadas a su proveedor; las claves sin cambios se dejan intactas.",
+          "question": "¿Cómo evita verbatra volver a traducir todo en cada ejecución?"
+        },
+        "ci": {
+          "answer": "Sí. El comando verbatra es una envoltura ligera sobre @verbatra/sdk, que expone las mismas operaciones de traducción y supervisión para scripts, CI y sus propias herramientas.",
+          "question": "¿Hay un SDK además de un CLI?"
+        },
+        "formats": {
+          "answer": "Formatos JSON para i18next, vue-i18n, next-intl y ngx-translate, que cubren proyectos React, Vue, Next.js, Nuxt, Angular y Node.js.",
+          "question": "¿Qué formatos de archivo i18n puede leer verbatra?"
+        },
+        "icu": {
+          "answer": "Verifica la integridad de los marcadores de posición y de ICU después de cada traducción. Si una traducción devuelta rompe un marcador de posición o produce un ICU inválido, ese resultado se retiene en lugar de escribirse en su archivo de configuración regional.",
+          "question": "¿Cómo maneja verbatra los marcadores de posición y formatos de mensajes de ICU?"
+        },
+        "openSource": {
+          "answer": "Sí. Una ejecución de prueba informa exactamente qué claves se enviarían y se escribirían sin tocar sus archivos de configuración regional, y el modo de observación continúa traduciendo a medida que cambia su configuración regional de origen.",
+          "question": "¿Puedo previsualizar una ejecución antes de que escriba algo?"
+        },
+        "providers": {
+          "answer": "Anthropic, OpenAI, Gemini y DeepL. Elige uno en una sola línea de configuración, y la clave API se lee de una variable de entorno, nunca del archivo de configuración.",
+          "question": "¿Qué proveedores de traducción admite verbatra?"
+        }
+      }
+    },
+    "finalClose": {
+      "eyebrow": "un comando",
+      "heading": "Deja de sincronizar archivos de configuración regional manualmente."
+    },
+    "footer": {
+      "cols": {
+        "learn": {
+          "formats": "Formatos",
+          "howItWorks": "Cómo funciona",
+          "lockFile": "El archivo de bloqueo",
+          "providers": "Proveedores",
+          "title": "Aprender"
+        },
+        "legal": {
+          "imprint": "Aviso legal",
+          "privacy": "Política de privacidad",
+          "title": "Legal"
+        },
+        "product": {
+          "cliReference": "Referencia de CLI",
+          "documentation": "Documentación",
+          "githubAction": "Acción de GitHub",
+          "sdk": "SDK",
+          "title": "Producto"
+        },
+        "project": {
+          "configFile": "Archivo de configuración",
+          "title": "Proyecto"
+        }
+      },
+      "githubAria": "verbatra en GitHub",
+      "legalLine": "Código abierto bajo la licencia MIT · © 2026 Mario Kreitz",
+      "npmAria": "verbatra en npm",
+      "tagline": "Traduce solo lo que cambió. Un CLI y SDK de código abierto que mantiene tus archivos de configuración regional i18n sincronizados a través del proveedor que elijas."
+    },
+    "hero": {
+      "ctaGithub": "Destacar en GitHub",
+      "ctaStart": "Empezar ahora",
+      "headline": "Traduce solo lo que cambió.",
+      "lead": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados. Tú mantienes la configuración regional de origen; verbatra rellena cualquier otra configuración regional a través del proveedor de IA que elijas."
+    },
+    "how": {
+      "eyebrow": "cómo funciona",
+      "heading": "Una ejecución es una tubería corta y predecible.",
+      "steps": {
+        "configure": {
+          "body": "Apunte verbatra a su configuración regional de origen, liste los idiomas de destino y elija un proveedor. La configuración reside en un archivo; las claves API permanecen en su entorno.",
+          "title": "Configurar"
+        },
+        "diff": {
+          "body": "Cada ejecución compara su configuración regional de origen con el archivo de bloqueo comprometido y clasifica cada clave en nueva, modificada, sin cambios u huérfana.",
+          "title": "Diferenciar"
+        },
+        "translate": {
+          "body": "Solo las claves nuevas y modificadas se envían a su proveedor, en lotes, con su glosario y tono aplicados. Todo lo demás se deja intacto.",
+          "title": "Traducir"
+        },
+        "verifyWrite": {
+          "body": "Se comprueba la integridad de los marcadores de posición y de ICU en cada resultado. Cualquier cosa que se rompa se retiene; el resto se escribe en sus archivos de configuración regional y se actualiza el bloqueo.",
+          "title": "Verificar y escribir"
+        }
+      }
+    },
+    "install": {
+      "copied": "copiado",
+      "copy": "copiar",
+      "copyAria": "Copiar comando de instalación",
+      "tablistLabel": "Administrador de paquetes"
+    },
+    "meta": {
+      "definition": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados, traduciendo solo las claves que cambiaron a través de tu elección de proveedor de IA o traducción automática.",
+      "ogImageAlt": "verbatra",
+      "tagline": "Mantén tus archivos de configuración regional sincronizados. Traduce solo lo que cambió."
+    },
+    "nav": {
+      "docs": "Documentación",
+      "lang": {
+        "de": "Deutsch",
+        "en": "English",
+        "es": "Español",
+        "fr": "Français"
+      },
+      "language": "Idioma"
+    },
+    "showcase": {
+      "body": "Una primera ejecución rellena las nuevas claves; cambie un valor de origen y la siguiente ejecución envía solo esa clave. Todo lo demás se deja intacto.",
+      "eyebrow": "ver una ejecución en acción",
+      "heading": "Obsérvalo tocar exactamente una clave."
+    },
+    "trust": {
+      "eyebrow": "Bloques de construcción confiables",
+      "items": {
+        "ciReady": "Listo para CI",
+        "cliSdk": "CLI + SDK",
+        "incremental": "Incremental",
+        "mitLicensed": "Licencia MIT",
+        "placeholderSafe": "Seguro para marcadores de posición"
+      }
+    },
+    "why": {
+      "eyebrow": "por qué verbatra",
+      "heading": "Construido para equipos que lanzan en muchos idiomas.",
+      "reasons": {
+        "dryRun": {
+          "body": "Previsualice exactamente lo que cambiaría una ejecución sin escribir nada, o mantenga una observación en marcha que traduzca a medida que evoluciona su configuración regional de origen.",
+          "title": "Ejecuciones de prueba y modo de observación"
+        },
+        "environment": {
+          "body": "Las claves API del proveedor se leen de variables de entorno, nunca del archivo de configuración, nunca de los argumentos de la CLI y nunca se registran.",
+          "title": "Las claves permanecen en su entorno"
+        },
+        "incremental": {
+          "body": "Un archivo de bloqueo comprometido registra lo que se tradujo. Cada ejecución compara la fuente y llama al proveedor solo para las claves que cambiaron.",
+          "title": "Incremental por defecto"
+        },
+        "oneEngine": {
+          "body": "El comando verbatra y @verbatra/sdk comparten un único núcleo de orquestación, por lo que los scripts, CI y sus propias herramientas se comportan de forma idéntica.",
+          "title": "CLI y SDK, un solo motor"
+        },
+        "provider": {
+          "body": "Anthropic, OpenAI, Gemini o DeepL, elegidos en una línea de configuración. Cambie de proveedor sin tocar sus archivos de configuración regional.",
+          "title": "Su elección de proveedor"
+        },
+        "safety": {
+          "body": "Se comprueba la integridad de los marcadores de posición y de ICU después de cada traducción. Un resultado que rompe un marcador de posición se retiene, nunca se escribe.",
+          "title": "Seguro por construcción"
+        }
+      }
+    }
+  }
+}
