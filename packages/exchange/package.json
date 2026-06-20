@@ -1,47 +1,40 @@
 {
-  "name": "@verbatra/cli",
+  "name": "@verbatra/exchange",
   "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "description": "Command-line tool to automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.",
+  "description": "Translator interchange for verbatra: build and read styled Excel workbooks over a neutral, format-agnostic row model.",
   "keywords": [
     "i18n",
     "internationalization",
     "localization",
     "l10n",
     "translation",
-    "translate",
-    "locale",
-    "ai",
-    "machine-translation",
-    "deepl",
-    "openai",
-    "anthropic",
-    "gemini",
-    "i18next",
-    "vue-i18n",
-    "next-intl",
-    "ngx-translate",
-    "cli",
-    "automation"
+    "excel",
+    "xlsx",
+    "interchange",
+    "verbatra"
   ],
   "license": "MIT",
   "author": "Mario Kreitz",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mariokreitz/verbatra.git",
-    "directory": "packages/cli"
+    "directory": "packages/exchange"
   },
-  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/cli",
+  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/exchange",
   "bugs": {
     "url": "https://github.com/mariokreitz/verbatra/issues"
   },
-  "bin": {
-    "verbatra": "./dist/index.js"
-  },
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/lib.d.ts",
-      "import": "./dist/lib.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
   "files": [
@@ -49,10 +42,6 @@
   ],
   "engines": {
     "node": ">=22.14.0"
-  },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
   },
   "scripts": {
     "build": "tsup",
@@ -62,8 +51,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@verbatra/sdk": "workspace:*",
-    "commander": "15.0.0",
+    "@verbatra/core": "workspace:*",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.1",
     "zod": "4.4.3"
   },
   "devDependencies": {

@@ -87,4 +87,16 @@ export interface FormatAdapter {
    * @returns The placeholder tokens found, in document order. Does not throw.
    */
   extractPlaceholders(value: string): readonly string[];
+
+  /**
+   * Validate a single, not-yet-persisted value against the format's message syntax, the same
+   * check {@link ReadResult.invalidIcuKeys} reports on read but applied to one value before it is
+   * written. Lets a caller (for example the manual-import path) reject a bad value WITHOUT first
+   * writing it to disk. For non-ICU formats (i18next, vue-i18n, ngx-translate) every value is
+   * valid, so this returns true. Does not throw; an unparseable value returns false.
+   *
+   * @param value - The candidate translated value to validate.
+   * @returns True when the value is valid for the format's message syntax.
+   */
+  validateMessage(value: string): boolean;
 }

@@ -7,10 +7,14 @@ function extractPlaceholders(value: string): readonly string[] {
   return analyzeIcuValue(value).placeholders;
 }
 
+function validateMessage(value: string): boolean {
+  return analyzeIcuValue(value).valid;
+}
+
 function computeInvalidIcuKeys(entries: ReadonlyMap<string, TranslationEntry>): readonly string[] {
   const invalid: string[] = [];
   for (const [key, entry] of entries) {
-    if (!analyzeIcuValue(entry.value).valid) {
+    if (!validateMessage(entry.value)) {
       invalid.push(key);
     }
   }
@@ -41,5 +45,6 @@ export function createNextIntlJsonAdapter(): FormatAdapter {
       return { placeholders: analysis.placeholders, isPlural: analysis.isPlural };
     },
     computeInvalidIcuKeys,
+    validateMessage,
   });
 }

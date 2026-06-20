@@ -24,6 +24,19 @@ export {
   type TranslateInput,
   translate,
 } from "./flow/translate-project.js";
+// Manual-translation workbook export/import
+export {
+  DEFAULT_WORKBOOK_PATH,
+  type ExportWorkbookDeps,
+  type ExportWorkbookInput,
+  type ExportWorkbookResult,
+  exportWorkbook,
+} from "./flow/workbook/export-workbook.js";
+export {
+  type ImportWorkbookDeps,
+  type ImportWorkbookInput,
+  importWorkbook,
+} from "./flow/workbook/import-workbook.js";
 // File-system seam
 export type { SdkFs } from "./fs.js";
 // Provider construction seam

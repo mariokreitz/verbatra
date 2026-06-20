@@ -1,4 +1,7 @@
 import type {
+  ExportWorkbookInput,
+  ExportWorkbookResult,
+  ImportWorkbookInput,
   LoadConfigOptions,
   LocaleSummary,
   RunSummary,
@@ -38,6 +41,12 @@ export function makeSummary(overrides: Partial<RunSummary> = {}): RunSummary {
   return { dryRun: false, locales: [], succeeded: [], failed: [], ...overrides };
 }
 
+export function makeExportResult(
+  overrides: Partial<ExportWorkbookResult> = {},
+): ExportWorkbookResult {
+  return { path: "/proj/verbatra-translations.xlsx", locales: [], ...overrides };
+}
+
 /** Accumulating stream sink: captures everything written to out and err. */
 export function captureStreams(): { streams: Streams; out: () => string; err: () => string } {
   let outBuf = "";
@@ -60,11 +69,19 @@ export interface DepCalls {
   loadConfig: LoadConfigOptions[];
   translate: TranslateInput[];
   watch: WatchInput[];
+  exportWorkbook: ExportWorkbookInput[];
+  importWorkbook: ImportWorkbookInput[];
 }
 
-/** Recording stub of the SDK deps. Override any of the three to control behavior or throw. */
+/** Recording stub of the SDK deps. Override any of them to control behavior or throw. */
 export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; calls: DepCalls } {
-  const calls: DepCalls = { loadConfig: [], translate: [], watch: [] };
+  const calls: DepCalls = {
+    loadConfig: [],
+    translate: [],
+    watch: [],
+    exportWorkbook: [],
+    importWorkbook: [],
+  };
   const deps: CliDeps = {
     loadConfig: async (options) => {
       calls.loadConfig.push(options);
@@ -77,6 +94,14 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     watch: async (input) => {
       calls.watch.push(input);
       return impl.watch ? impl.watch(input) : ({ stop: async () => {} } satisfies WatchController);
+    },
+    exportWorkbook: async (input) => {
+      calls.exportWorkbook.push(input);
+      return impl.exportWorkbook ? impl.exportWorkbook(input) : makeExportResult();
+    },
+    importWorkbook: async (input) => {
+      calls.importWorkbook.push(input);
+      return impl.importWorkbook ? impl.importWorkbook(input) : makeSummary();
     },
   };
   return { deps, calls };

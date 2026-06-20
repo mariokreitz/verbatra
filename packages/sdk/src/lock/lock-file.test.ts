@@ -2,8 +2,8 @@ import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
-import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
-import { makeTempDir, readTextFile } from "../test-support.js";
+import { type BoundedFileRead, defaultFs } from "../fs.js";
+import { makeFakeFs, makeTempDir, readTextFile } from "../test-support.js";
 import {
   baselineFor,
   lockFilePath,
@@ -70,11 +70,10 @@ describe("lock-file", () => {
   });
 
   it("an over-cap lock-file is a structured LOCK_FILE_INVALID (bounded read)", async () => {
-    const overCap: SdkFs = {
+    const overCap = makeFakeFs({
       fileExists: async () => true,
       readFileBounded: async (): Promise<BoundedFileRead> => ({ kind: "too-large" }),
-      writeFile: async () => {},
-    };
+    });
     await expect(readLockFile("/anywhere/verbatra.lock.json", overCap)).rejects.toMatchObject({
       code: "LOCK_FILE_INVALID",
     });
@@ -105,13 +104,12 @@ describe("lock-file", () => {
     const good = updateLockLocale({ version: 1, locales: {} }, "de", { a: "1" });
     await writeLockFile(path, good, defaultFs);
 
-    const throwingFs: SdkFs = {
+    const throwingFs = makeFakeFs({
       fileExists: async () => true,
-      readFileBounded: async (): Promise<BoundedFileRead> => ({ kind: "missing" }),
       writeFile: async () => {
         throw new Error("disk full");
       },
-    };
+    });
     const next = updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" });
     await expect(writeLockFile(path, next, throwingFs)).rejects.toThrow();
 
