@@ -1,0 +1,31 @@
+---
+title: Formats
+description: The JSON i18n formats verbatra supports, how it reads them, and how each handles placeholders, plurals, and ICU.
+---
+
+# Formats
+
+verbatra works on JSON locale files through a format adapter. Every adapter reads a file into one format-neutral representation that the diff, hashing, and integrity checks operate on, and writes it back in the file's original shape. v1 supports four JSON formats, selected with the `format` field in your config.
+
+## The four formats
+
+| `format` | For | Placeholders | Plurals | ICU |
+| --- | --- | --- | --- | --- |
+| `i18next-json` | i18next | `{{name}}` | CLDR plural suffix on the key | no |
+| `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | pipe in the value | no |
+| `next-intl-json` | next-intl | ICU argument and tag names | ICU plural or selectordinal | yes |
+| `ngx-translate-json` | ngx-translate | `{{name}}` | none | no |
+
+i18next and ngx-translate share the same `{{double-brace}}` interpolation. vue-i18n uses single braces and decides plural from a pipe in the value. next-intl values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. ngx-translate has no built-in plural or ICU, and its files may be flat with dotted keys or nested; verbatra preserves whichever style the file uses on write.
+
+## Why the format matters
+
+The format tells verbatra two things it needs for a safe run. First, the placeholder syntax, so the [placeholder integrity check](/docs/translation-safety) knows what to compare before and after translation. Second, for ICU, which values to validate, so an invalid ICU source key is skipped rather than sent in a broken state. Setting the wrong format would compare the wrong tokens, so match it to your i18n library.
+
+## How files are read and written
+
+Reads are bounded and safe: there are caps on input size and nesting depth, and the read resists a file changing underneath it. Writes are atomic, written to a temporary file and renamed into place, so an interrupted write never leaves a half-finished locale file. When a file cannot be handled, verbatra raises a structured, secret-free error rather than a raw one. Malformed input surfaces as a clear condition, for example invalid JSON, a structure that is too deep, or, for ngx-translate only, a file that mixes flat dotted keys with nested objects.
+
+## Choosing a format
+
+Match the format to your framework: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, and `ngx-translate-json` for ngx-translate. XLIFF, YAML, and ARB are planned for later releases. See [Config file](/docs/config-file) for where `format` sits in the config.

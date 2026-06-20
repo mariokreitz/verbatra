@@ -1,0 +1,49 @@
+---
+title: verbatra init
+description: Scaffold a verbatra config and .env example for your project.
+---
+
+# verbatra init
+
+Create a `verbatra.config.ts` and a `.env.example`, and add `.env` and `.env.local` to your `.gitignore` so a real key is never committed. With a terminal attached and without `--yes`, `init` prompts for the values it cannot default; otherwise it runs non-interactively and uses the defaults.
+
+```bash
+verbatra init --provider anthropic
+```
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | write the config and env files to this directory |
+| `--provider <id>` | translation provider: `anthropic`, `openai`, `gemini`, or `deepl` (required unless prompted) |
+| `--source <locale>` | locale your source strings are written in (default `en`) |
+| `--targets <locales>` | comma-separated locales to translate into (default `de`) |
+| `--path <pattern>` | locale file pattern containing the `{locale}` token (default `locales/{locale}.json`) |
+| `--yes` | skip prompts and accept the defaults |
+| `--force` | overwrite an existing config or `.env.example` |
+
+The provider is the one value `init` cannot default. Without a terminal to prompt (in CI, or with `--yes`), pass `--provider`. The other values fall back to their defaults when not supplied.
+
+## Existing files
+
+By default, `init` never overwrites: if a `verbatra.config.ts` or `.env.example` already exists, it is left untouched and the command still succeeds. Pass `--force` to overwrite an existing file.
+
+## Examples
+
+```bash
+# create config + .env example, prompting for the rest
+verbatra init --provider anthropic
+
+# non-interactive, accept all defaults
+verbatra init --provider deepl --yes
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | the files were written, or safely skipped because they already exist (without `--force`) |
+| `2` | a usage error: no `--provider` was given without a terminal to prompt, or the assembled config failed validation |
+
+After `init`, set the provider's API key and run [`verbatra translate`](/docs/cli/translate). See [Getting started](/docs) for the full walkthrough.

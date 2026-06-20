@@ -3,18 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SdkError } from "../errors.js";
 import type { RunSummary } from "../flow/summary.js";
 import type { TranslateInput } from "../flow/translate-project.js";
-import type { SdkFs } from "../fs.js";
-import { baseConfig } from "../test-support.js";
+import { baseConfig, makeFakeFs } from "../test-support.js";
 import { type CreateWatcher, type RunTranslate, type WatchRunResult, watch } from "./watch.js";
 
 const CWD = "/proj";
 const SOURCE = resolve(CWD, "locales/en.json");
 
-const okFs: SdkFs = {
-  fileExists: async () => true,
-  readFileBounded: async () => ({ kind: "missing" }),
-  writeFile: async () => {},
-};
+const okFs = makeFakeFs({ fileExists: async () => true });
 
 /** Flush nested microtasks (run-completion chain) without advancing the debounce timer. */
 async function settle(): Promise<void> {
@@ -146,7 +141,7 @@ describe("watch: startup and wiring", () => {
   it("a missing source path at startup is a hard SOURCE_UNREADABLE error, no watcher or run", async () => {
     const w = watcherHarness();
     const r = runHarness();
-    const missingFs: SdkFs = { ...okFs, fileExists: async () => false };
+    const missingFs = makeFakeFs({ fileExists: async () => false });
     await expect(
       watch(
         { config: baseConfig(), cwd: CWD, onRun: () => {} },

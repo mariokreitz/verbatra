@@ -26,10 +26,12 @@ export function toRenderableError(error: unknown): RenderableError {
  * Human-readable run summary: one line per locale, then an aggregate. Plain text, no emoji.
  *
  * @param summary - The SDK run summary to render.
+ * @param command - The command label for the header (defaults to "translate"); `import` reuses this
+ *   same formatter unchanged, so the per-locale lines and exit-code rule are shared with no special case.
  * @returns The multi-line human report (no trailing newline).
  */
-export function renderHuman(summary: RunSummary): string {
-  const header = summary.dryRun ? "verbatra translate (dry run)" : "verbatra translate";
+export function renderHuman(summary: RunSummary, command = "translate"): string {
+  const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
   const localeLines = summary.locales.map(renderLocaleLine);
   const aggregate = `${summary.succeeded.length} succeeded, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
@@ -87,6 +89,33 @@ export function renderRunResultNdjson(result: WatchRunResult): string {
  */
 export function renderRunResultHuman(result: WatchRunResult): string {
   return result.status === "succeeded" ? renderHuman(result.summary) : renderError(result.error);
+}
+
+/** The export outcome the CLI renders: where the workbook went and the per-locale row counts. */
+export interface ExportRenderable {
+  readonly path: string;
+  readonly locales: readonly { readonly locale: string; readonly rows: number }[];
+}
+
+/**
+ * Human-readable export report: the output path, then one line per locale with its row count.
+ *
+ * @param result - The SDK export result.
+ * @returns The multi-line human report (no trailing newline).
+ */
+export function renderExportHuman(result: ExportRenderable): string {
+  const localeLines = result.locales.map((l) => `  ${l.locale}: ${l.rows} rows`);
+  const total = result.locales.reduce((sum, l) => sum + l.rows, 0);
+  return [
+    `verbatra export -> ${result.path}`,
+    ...localeLines,
+    `${total} rows across ${result.locales.length} locales`,
+  ].join("\n");
+}
+
+/** The `export --json` contract: the SDK export result as one compact JSON object on one line. */
+export function renderExportJson(result: ExportRenderable): string {
+  return JSON.stringify(result);
 }
 
 /**

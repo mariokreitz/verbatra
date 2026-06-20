@@ -1,8 +1,10 @@
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
 import { source } from "@/lib/source";
+import { techArticleLd } from "@/lib/structured-data";
 
 export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
   const params = await props.params;
@@ -13,6 +15,13 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
 
   return (
     <DocsPage toc={page.data.toc}>
+      <JsonLd
+        data={techArticleLd({
+          title: page.data.title,
+          description: page.data.description,
+          path: page.url,
+        })}
+      />
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
@@ -33,8 +42,18 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
+  // Self-referencing canonical on the canonical host, plus a per-page Open Graph card:
+  // og:title mirrors the page title, og:type is "article" (the homepage stays "website"),
+  // and og:url points at this page rather than the site root.
   return {
     title: page.data.title,
     description: page.data.description,
+    alternates: { canonical: page.url },
+    openGraph: {
+      type: "article",
+      title: page.data.title,
+      description: page.data.description,
+      url: page.url,
+    },
   };
 }

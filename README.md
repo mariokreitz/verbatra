@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/banner.png" alt="verbatra: automated i18n translation for modern applications" />
+</p>
+
 <h1 align="center">verbatra</h1>
 
 <p align="center">
@@ -116,7 +120,7 @@ Each provider reads its API key from one environment variable:
 | `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--json` |
 | `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--json` |
 
-Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/reference/cli).
+Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
 
 ## Programmatic use
 
@@ -149,7 +153,7 @@ API keys are read only from environment variables, never from the config file. T
 
 ## Documentation
 
-The hosted documentation site at [verbatra.kreitz-webdev.de](https://verbatra.kreitz-webdev.de) is the canonical reference, including the full [CLI command reference](https://verbatra.kreitz-webdev.de/docs/reference/cli). The [`@verbatra/sdk` README](./packages/sdk/README.md) documents the programmatic API. At the terminal, `verbatra <command> --help` prints the same command reference.
+The hosted documentation site at [verbatra.kreitz-webdev.de](https://verbatra.kreitz-webdev.de) is the canonical reference, including the full [CLI command reference](https://verbatra.kreitz-webdev.de/docs/cli). The [`@verbatra/sdk` README](./packages/sdk/README.md) documents the programmatic API. At the terminal, `verbatra <command> --help` prints the same command reference.
 
 ## Contributing
 

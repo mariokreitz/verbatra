@@ -1,0 +1,30 @@
+---
+title: Translation safety
+description: The integrity checks and security boundaries that decide what verbatra writes and what it withholds.
+---
+
+# Translation safety
+
+Machine output is not trusted by default. verbatra runs every translation through integrity checks before it writes, and it keeps untrusted text away from the instructions it sends the provider. This page covers what those checks are and what they protect.
+
+## Placeholder integrity
+
+A translated value must carry the same placeholders as its source. After translation, verbatra compares the placeholder set of each result against the source value. A translation that drops, adds, or alters a placeholder fails the check and is withheld rather than written. The withheld key keeps its prior lock hash, so the next run retries it, and it is reported per locale as an integrity mismatch on the run summary.
+
+What counts as a placeholder depends on the format: `{{double-brace}}` tokens for i18next and ngx-translate, single-brace `{name}` and `{0}` for vue-i18n, and ICU argument and tag names for next-intl. See [Formats](/docs/formats) for the syntax of each.
+
+## ICU validity
+
+For the ICU format, next-intl, verbatra parses each source value. A source key whose value is not valid ICU is set aside and skipped for translation rather than sent in a broken state, and it is reported as invalid ICU on the summary. The ICU body is kept verbatim through the pipeline; nothing is resolved or rewritten.
+
+## The prompt-injection boundary
+
+The strings you translate are not trustworthy: they can contain text that looks like an instruction. verbatra treats them that way. The system rules it sends a provider are compile-time constants. All variable input, the entries to translate along with your glossary and tone, travels only in the user-turn data payload, never spliced into the instruction channel. Provider output is constrained to a schema and validated, and the placeholder check runs on whatever comes back. A string that tries to redirect the model cannot reach the rules, and a result that breaks a placeholder is withheld.
+
+## Secrets never leak
+
+API keys are read only from the environment, by the providers, never from your config or arguments. Any text that could contain a key is routed through a central redaction step before it is logged, and verbatra raises its own structured errors rather than the provider SDK's raw errors, which can carry request headers. A key cannot appear in logs, in error messages, or in output.
+
+## What you see
+
+Every one of these outcomes is data on the run summary, per locale: the keys translated, the ones withheld for a placeholder mismatch, the source keys skipped for invalid ICU, and any provider notices. Nothing is hidden, and a single locale's failure does not stop the others. See [How it works](/docs/how-it-works) for where each check sits in the run.

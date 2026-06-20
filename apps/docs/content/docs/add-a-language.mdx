@@ -1,0 +1,53 @@
+---
+title: Add a language
+description: Add a new target locale to an existing verbatra setup.
+---
+
+# Add a language
+
+Adding a language is a one-line config change followed by a translation run. verbatra treats the new locale as missing everything, so the first run fills it in completely; later runs stay incremental.
+
+## Add the locale to your config
+
+Add the new locale to `targetLocales` in `verbatra.config.ts`. It must not be your `sourceLocale`:
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"], // "fr" added
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Translate
+
+Run a translation:
+
+```bash
+verbatra translate
+```
+
+The new locale has no target file yet, so verbatra treats it as empty and translates every source key into it, writing the file from `files.pattern` (for example `locales/fr.json`). Your existing locales are left untouched unless their source strings changed, because the lock file still records them as current.
+
+Preview first with `verbatra translate --dry-run` if you want to see the new locale's keys before any provider call.
+
+## Maintaining the source locale
+
+You only ever maintain the source locale by hand. To add new strings, add them to the source file and run `translate` again; verbatra fills them into every target, including the one you just added.
+
+## Next
+
+- [Configuration](/docs/config-file): the full config schema, including `glossary` and `tone`.
+- [Providers](/docs/providers): provider options and where to get a key.

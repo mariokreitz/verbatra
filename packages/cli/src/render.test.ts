@@ -2,6 +2,8 @@ import type { WatchRunResult } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import {
   renderError,
+  renderExportHuman,
+  renderExportJson,
   renderHuman,
   renderJson,
   renderRunResultHuman,
@@ -9,6 +11,33 @@ import {
   toRenderableError,
 } from "./render.js";
 import { makeLocale, makeSummary } from "./test-support.js";
+
+describe("render: export result", () => {
+  it("renders the path, one line per locale, and a total", () => {
+    const text = renderExportHuman({
+      path: "/p/wb.xlsx",
+      locales: [
+        { locale: "de", rows: 2 },
+        { locale: "fr", rows: 3 },
+      ],
+    });
+    expect(text).toContain("verbatra export -> /p/wb.xlsx");
+    expect(text).toContain("de: 2 rows");
+    expect(text).toContain("5 rows across 2 locales");
+  });
+
+  it("renders the export result as compact JSON", () => {
+    const result = { path: "/p/wb.xlsx", locales: [{ locale: "de", rows: 1 }] };
+    expect(JSON.parse(renderExportJson(result))).toEqual(result);
+  });
+});
+
+describe("render: import reuses the summary formatter with an import header", () => {
+  it("uses the import command label in the header", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale()] }), "import");
+    expect(text).toContain("verbatra import");
+  });
+});
 
 describe("render: human run summary", () => {
   it("renders one line per locale plus an aggregate", () => {

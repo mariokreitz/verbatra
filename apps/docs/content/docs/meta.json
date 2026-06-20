@@ -1,4 +1,24 @@
 {
   "title": "Documentation",
-  "pages": ["index", "guides", "concepts", "reference"]
+  "pages": [
+    "---start---",
+    "index",
+    "your-first-translation",
+    "add-a-language",
+    "---configure---",
+    "config-file",
+    "providers",
+    "formats",
+    "---run---",
+    "cli",
+    "github-action",
+    "ci-and-exit-codes",
+    "---understand---",
+    "how-it-works",
+    "the-lock-file",
+    "translation-safety",
+    "---build on it---",
+    "sdk",
+    "programmatic-api"
+  ]
 }

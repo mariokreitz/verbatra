@@ -8,6 +8,7 @@ function fakeAdapter(format: SupportedFormat, claims: boolean): FormatAdapter {
     format,
     canHandle: () => claims,
     extractPlaceholders: () => [],
+    validateMessage: () => true,
     read: () => Promise.reject(new Error("not used")),
     write: () => Promise.reject(new Error("not used")),
   };
