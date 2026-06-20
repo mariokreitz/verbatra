@@ -13,10 +13,11 @@ import {
   SiReact,
   SiVuedotjs,
 } from "@icons-pack/react-simple-icons";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { VMark } from "@/components/landing";
 import Button from "@/components/ui/button";
-import { FAQ_ITEMS } from "@/lib/structured-data";
+import type { FaqItem } from "@/lib/structured-data";
 
 // Marketing landing sections for the home page. Most of this file is static and would be
 // happy as RSC, but PackageInstall (a manager switcher) and Faq (an accordion) need runtime
@@ -48,6 +49,39 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
     >
       {children}
     </h2>
+  );
+}
+
+// --------------------------------------------------------------------------------------
+// TrustStrip — the eyebrow + building-block chips below the hero
+// --------------------------------------------------------------------------------------
+
+export function TrustStrip(): ReactNode {
+  const t = useTranslations("landing.trust");
+  const items = Object.values(t.raw("items") as Record<string, string>);
+  return (
+    <section className="mx-auto max-w-5xl px-6">
+      <div className="border-y border-fd-border py-5">
+        <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--accent)]">
+          {t("eyebrow")}
+        </p>
+        <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          {items.map((item) => (
+            <li
+              key={item}
+              className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground"
+            >
+              <span
+                aria-hidden="true"
+                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
   );
 }
 
@@ -99,6 +133,7 @@ const MANAGERS = [
 ] as const;
 
 export function PackageInstall(): ReactNode {
+  const t = useTranslations("landing.install");
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("pnpm");
   const [copied, setCopied] = useState(false);
   const current = MANAGERS.find((m) => m.id === active) ?? MANAGERS[0];
@@ -117,7 +152,7 @@ export function PackageInstall(): ReactNode {
 
   return (
     <div className="not-prose w-full max-w-[27rem] overflow-hidden rounded-lg border border-fd-border bg-fd-card">
-      <div role="tablist" aria-label="Package manager" className="flex border-b border-fd-border">
+      <div role="tablist" aria-label={t("tablistLabel")} className="flex border-b border-fd-border">
         {MANAGERS.map((m) => {
           const selected = m.id === active;
           return (
@@ -165,10 +200,10 @@ export function PackageInstall(): ReactNode {
         <button
           type="button"
           onClick={copy}
-          aria-label="Copy install command"
+          aria-label={t("copyAria")}
           className="ms-auto rounded-md border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
         >
-          {copied ? "copied" : "copy"}
+          {copied ? t("copied") : t("copy")}
         </button>
       </div>
     </div>
@@ -297,28 +332,26 @@ export function MarqueeBand({
 }
 
 export function Compatibility(): ReactNode {
+  const t = useTranslations("landing.compat");
   return (
     <section className="mt-24">
       <div className="mx-auto max-w-5xl px-6">
-        <Eyebrow>works with your stack</Eyebrow>
-        <SectionHeading>One tool, every framework.</SectionHeading>
-        <p className="mb-8 max-w-[52ch] text-fd-muted-foreground">
-          verbatra reads the JSON locale formats your framework already uses, and fills them through
-          the provider you choose.
-        </p>
+        <Eyebrow>{t("eyebrow")}</Eyebrow>
+        <SectionHeading>{t("heading")}</SectionHeading>
+        <p className="mb-8 max-w-[52ch] text-fd-muted-foreground">{t("body")}</p>
       </div>
       <div className="flex flex-col gap-3">
         <MarqueeBand
           chips={FRAMEWORK_CHIPS}
           direction="left"
           duration={34}
-          label="Frameworks and formats"
+          label={t("labelFrameworks")}
         />
         <MarqueeBand
           chips={PROVIDER_CHIPS}
           direction="right"
           duration={26}
-          label="Translation providers"
+          label={t("labelProviders")}
         />
       </div>
     </section>
@@ -329,42 +362,23 @@ export function Compatibility(): ReactNode {
 // HowItWorks
 // --------------------------------------------------------------------------------------
 
-const STEPS: ReadonlyArray<{ n: string; title: string; body: string }> = [
-  {
-    n: "01",
-    title: "Configure",
-    body: "Point verbatra at your source locale, list the target languages, and pick a provider. Configuration lives in one file; API keys stay in your environment.",
-  },
-  {
-    n: "02",
-    title: "Diff",
-    body: "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned.",
-  },
-  {
-    n: "03",
-    title: "Translate",
-    body: "Only the new and changed keys are sent to your provider, in batches, with your glossary and tone applied. Everything else is left untouched.",
-  },
-  {
-    n: "04",
-    title: "Verify & write",
-    body: "Placeholder and ICU integrity are checked on every result. Anything that breaks is withheld; the rest is written to your locale files and the lock is updated.",
-  },
-];
+type Step = { title: string; body: string };
 
 export function HowItWorks(): ReactNode {
+  const t = useTranslations("landing.how");
+  const steps = Object.values(t.raw("steps") as Record<string, Step>);
   return (
     <section className="mx-auto mt-24 max-w-5xl px-6">
-      <Eyebrow>how it works</Eyebrow>
-      <SectionHeading>A run is a short, predictable pipeline.</SectionHeading>
+      <Eyebrow>{t("eyebrow")}</Eyebrow>
+      <SectionHeading>{t("heading")}</SectionHeading>
       <div className="mt-10 grid gap-px sm:grid-cols-2 lg:grid-cols-4">
-        {STEPS.map((step) => (
-          <div key={step.n} className="border-l border-fd-border pl-5">
+        {steps.map((step, i) => (
+          <div key={step.title} className="border-l border-fd-border pl-5">
             <div
               className="mb-3 font-mono text-sm text-[color:var(--accent)]"
               style={{ textShadow: "var(--glow-mark)" }}
             >
-              {step.n}
+              {String(i + 1).padStart(2, "0")}
             </div>
             <h3
               className="mb-2 text-base font-semibold text-fd-foreground"
@@ -384,40 +398,17 @@ export function HowItWorks(): ReactNode {
 // WhyUse
 // --------------------------------------------------------------------------------------
 
-const REASONS: ReadonlyArray<{ title: string; body: string }> = [
-  {
-    title: "Incremental by default",
-    body: "A committed lock file records what was translated. Each run diffs the source and calls the provider only for the keys that changed.",
-  },
-  {
-    title: "Your choice of provider",
-    body: "Anthropic, OpenAI, Gemini, or DeepL, chosen in one line of config. Switch providers without touching your locale files.",
-  },
-  {
-    title: "Safe by construction",
-    body: "Placeholder and ICU integrity are checked after every translation. A result that breaks a placeholder is withheld, never written.",
-  },
-  {
-    title: "Keys stay in your environment",
-    body: "Provider API keys are read from environment variables, never from the config file, never from CLI arguments, and never logged.",
-  },
-  {
-    title: "CLI and SDK, one engine",
-    body: "The verbatra command and @verbatra/sdk share a single orchestration core, so scripts, CI, and your own tooling behave identically.",
-  },
-  {
-    title: "Dry runs and watch mode",
-    body: "Preview exactly what a run would change without writing anything, or keep a watch running that translates as your source locale evolves.",
-  },
-];
+type Reason = { title: string; body: string };
 
 export function WhyUse(): ReactNode {
+  const t = useTranslations("landing.why");
+  const reasons = Object.values(t.raw("reasons") as Record<string, Reason>);
   return (
     <section className="mx-auto mt-24 max-w-5xl px-6">
-      <Eyebrow>why verbatra</Eyebrow>
-      <SectionHeading>Built for teams that ship in many languages.</SectionHeading>
+      <Eyebrow>{t("eyebrow")}</Eyebrow>
+      <SectionHeading>{t("heading")}</SectionHeading>
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {REASONS.map((reason) => (
+        {reasons.map((reason) => (
           <div
             key={reason.title}
             className="not-prose rounded-2xl border border-fd-border bg-fd-card p-5 text-fd-foreground"
@@ -437,19 +428,21 @@ export function WhyUse(): ReactNode {
 }
 
 // --------------------------------------------------------------------------------------
-// Faq — accordion (client: open state). FAQ_ITEMS lives in lib/structured-data so the
-// visible accordion and the FAQPage JSON-LD share one source.
+// Faq — accordion (client: open state). The items are passed in from the server page, which
+// reads them once from the catalog and feeds the same array to the FAQPage JSON-LD, so the
+// visible accordion and the structured data share one source and never drift.
 // --------------------------------------------------------------------------------------
 
-export function Faq(): ReactNode {
+export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
+  const t = useTranslations("landing.faq");
   const [open, setOpen] = useState(0);
 
   return (
     <section className="mx-auto mt-24 max-w-3xl px-6">
-      <Eyebrow>faq</Eyebrow>
-      <SectionHeading>Frequently asked questions</SectionHeading>
+      <Eyebrow>{t("eyebrow")}</Eyebrow>
+      <SectionHeading>{t("heading")}</SectionHeading>
       <div className="mt-8 divide-y divide-fd-border border-y border-fd-border">
-        {FAQ_ITEMS.map((item, i) => {
+        {items.map((item, i) => {
           const isOpen = open === i;
           const panelId = `faq-panel-${i}`;
           const buttonId = `faq-button-${i}`;
@@ -498,68 +491,76 @@ export function Faq(): ReactNode {
 // FullFooter
 // --------------------------------------------------------------------------------------
 
-type FooterLink = { label: string; href: string; external?: boolean };
-type FooterCol = { title: string; links: ReadonlyArray<FooterLink> };
+// A footer link's visible text is either a catalog key under `landing.footer.cols.<col>`
+// (human labels, translated) or a literal proper noun (brand/package names, kept verbatim).
+type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
+type FooterCol = { col: string; titleKey: string; links: ReadonlyArray<FooterLink> };
 
+// Internal hrefs point at the canonical (unprefixed) English routes: /docs and the legal pages
+// are English-only for now (docs content i18n is deferred), and `fallbackLanguage: "en"` would
+// only ever serve English under a /de prefix anyway, so prefixing them would route a localized
+// reader to a fallback page for no gain. The link labels are translated; the targets stay
+// canonical. When docs content is localized, locale-prefix these here.
 const FOOTER_COLS: ReadonlyArray<FooterCol> = [
   {
-    title: "Product",
+    col: "product",
+    titleKey: "cols.product.title",
     links: [
-      { label: "Documentation", href: "/docs" },
-      { label: "CLI reference", href: "/docs/cli" },
-      { label: "SDK", href: "/docs/sdk" },
-      { label: "GitHub Action", href: "/docs/github-action" },
+      { labelKey: "cols.product.documentation", href: "/docs" },
+      { labelKey: "cols.product.cliReference", href: "/docs/cli" },
+      { labelKey: "cols.product.sdk", href: "/docs/sdk" },
+      { labelKey: "cols.product.githubAction", href: "/docs/github-action" },
     ],
   },
   {
-    title: "Learn",
+    col: "learn",
+    titleKey: "cols.learn.title",
     links: [
-      { label: "How it works", href: "/docs/how-it-works" },
-      { label: "Providers", href: "/docs/providers" },
-      { label: "Formats", href: "/docs/formats" },
-      { label: "The lock file", href: "/docs/the-lock-file" },
+      { labelKey: "cols.learn.howItWorks", href: "/docs/how-it-works" },
+      { labelKey: "cols.learn.providers", href: "/docs/providers" },
+      { labelKey: "cols.learn.formats", href: "/docs/formats" },
+      { labelKey: "cols.learn.lockFile", href: "/docs/the-lock-file" },
     ],
   },
   {
-    title: "Project",
+    col: "project",
+    titleKey: "cols.project.title",
     links: [
-      { label: "Config file", href: "/docs/config-file" },
-      { label: "GitHub", href: GITHUB_URL, external: true },
-      { label: "@verbatra/cli", href: NPM_CLI, external: true },
-      { label: "@verbatra/sdk", href: NPM_SDK, external: true },
+      { labelKey: "cols.project.configFile", href: "/docs/config-file" },
+      { literal: "GitHub", href: GITHUB_URL, external: true },
+      { literal: "@verbatra/cli", href: NPM_CLI, external: true },
+      { literal: "@verbatra/sdk", href: NPM_SDK, external: true },
     ],
   },
   {
-    title: "Legal",
+    col: "legal",
+    titleKey: "cols.legal.title",
     links: [
-      {
-        label: "MIT License",
-        href: `${GITHUB_URL}/blob/main/LICENSE`,
-        external: true,
-      },
-      { label: "Privacy policy", href: "/privacy" },
-      { label: "Imprint", href: "/imprint" },
+      { literal: "MIT License", href: `${GITHUB_URL}/blob/main/LICENSE`, external: true },
+      { labelKey: "cols.legal.privacy", href: "/privacy" },
+      { labelKey: "cols.legal.imprint", href: "/imprint" },
     ],
   },
 ];
 
-function FooterLinkItem({ link }: { link: FooterLink }): ReactNode {
+function FooterLinkItem({ link, label }: { link: FooterLink; label: string }): ReactNode {
   const className = "transition-colors hover:text-fd-foreground";
   if (link.external) {
     return (
       <a href={link.href} className={className} target="_blank" rel="noreferrer noopener">
-        {link.label}
+        {label}
       </a>
     );
   }
   return (
     <a href={link.href} className={className}>
-      {link.label}
+      {label}
     </a>
   );
 }
 
 export function FullFooter(): ReactNode {
+  const t = useTranslations("landing.footer");
   return (
     <footer className="mt-24 border-t border-fd-border">
       <div className="mx-auto max-w-5xl px-6 py-14">
@@ -575,15 +576,14 @@ export function FullFooter(): ReactNode {
               </span>
             </span>
             <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-fd-muted-foreground">
-              Translate only what changed. An open-source CLI and SDK that keeps your i18n locale
-              files in sync through the provider you choose.
+              {t("tagline")}
             </p>
             <div className="mt-4 flex items-center gap-5">
               <a
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noreferrer noopener"
-                aria-label="verbatra on GitHub"
+                aria-label={t("githubAria")}
                 className="inline-flex items-center gap-2 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground"
               >
                 <GithubIcon size={16} />
@@ -593,7 +593,7 @@ export function FullFooter(): ReactNode {
                 href={NPM_CLI}
                 target="_blank"
                 rel="noreferrer noopener"
-                aria-label="verbatra on npm"
+                aria-label={t("npmAria")}
                 className="inline-flex items-center gap-2 text-sm text-fd-muted-foreground transition-colors hover:text-fd-foreground"
               >
                 <SiNpm size={16} color="currentColor" aria-hidden="true" className="shrink-0" />
@@ -602,14 +602,14 @@ export function FullFooter(): ReactNode {
             </div>
           </div>
           {FOOTER_COLS.map((col) => (
-            <div key={col.title}>
+            <div key={col.col}>
               <h2 className="mb-3 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
-                {col.title}
+                {t(col.titleKey)}
               </h2>
               <ul className="flex flex-col gap-2.5 text-sm text-fd-muted-foreground">
                 {col.links.map((link) => (
-                  <li key={link.label}>
-                    <FooterLinkItem link={link} />
+                  <li key={link.literal ?? link.labelKey}>
+                    <FooterLinkItem link={link} label={link.literal ?? t(link.labelKey ?? "")} />
                   </li>
                 ))}
               </ul>
@@ -617,7 +617,7 @@ export function FullFooter(): ReactNode {
           ))}
         </div>
         <div className="mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
-          <span>Open-source under the MIT License &middot; &copy; 2026 Mario Kreitz</span>
+          <span>{t("legalLine")}</span>
           <span className="ml-auto font-mono text-xs">Node.js &gt;=22.14</span>
           <span className="font-mono text-xs">v0.1.0</span>
         </div>
@@ -631,6 +631,8 @@ export function FullFooter(): ReactNode {
 // --------------------------------------------------------------------------------------
 
 export function FinalClose(): ReactNode {
+  const t = useTranslations("landing.finalClose");
+  const tHero = useTranslations("landing.hero");
   return (
     <section className="relative mx-auto mt-24 max-w-3xl px-6 text-center">
       <div
@@ -638,12 +640,12 @@ export function FinalClose(): ReactNode {
         className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{ background: "var(--wash-globe)" }}
       />
-      <Eyebrow>one command</Eyebrow>
+      <Eyebrow>{t("eyebrow")}</Eyebrow>
       <h2
         className="mx-auto mb-8 max-w-[20ch] text-3xl font-semibold tracking-tight text-fd-foreground md:text-4xl"
         style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.025em" }}
       >
-        Stop hand-syncing locale files.
+        {t("heading")}
       </h2>
       <div
         className="not-prose mx-auto mb-8 max-w-xl overflow-hidden rounded-2xl border border-fd-border bg-fd-card text-left"
@@ -699,7 +701,7 @@ export function FinalClose(): ReactNode {
       <div className="flex flex-col items-center gap-5">
         <PackageInstall />
         <Button href="/docs" variant="primary" size="lg" trailingArrow>
-          Start now
+          {tHero("ctaStart")}
         </Button>
       </div>
     </section>

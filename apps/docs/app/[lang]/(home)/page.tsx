@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { Globe } from "@/components/globe";
 import { JsonLd } from "@/components/json-ld";
 import {
@@ -10,27 +11,29 @@ import {
   HowItWorks,
   PackageInstall,
   SectionHeading,
+  TrustStrip,
   WhyUse,
 } from "@/components/landing-sections";
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
-import { FAQ_ITEMS, faqPageLd, softwareApplicationLd } from "@/lib/structured-data";
+import type { Locale } from "@/lib/i18n";
+import { type FaqItem, faqPageLd, softwareApplicationLd } from "@/lib/structured-data";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 
-const TRUST_ITEMS = [
-  "MIT licensed",
-  "Incremental",
-  "Placeholder-safe",
-  "CLI + SDK",
-  "CI-ready",
-] as const;
+export default async function HomePage(props: { params: Promise<{ lang: string }> }) {
+  const { lang } = await props.params;
+  const locale = lang as Locale;
+  const t = await getTranslations({ locale, namespace: "landing" });
 
-export default function HomePage() {
+  // FAQ items are read once here (server) and handed to BOTH the visible accordion and the
+  // FAQPage JSON-LD, so the two can never drift (the plan's FAQ↔JSON-LD coupling note).
+  const faqItems = Object.values(t.raw("faq.items") as Record<string, FaqItem>);
+
   return (
     <div className="vk-home w-full">
-      <JsonLd data={softwareApplicationLd()} />
-      <JsonLd data={faqPageLd(FAQ_ITEMS)} />
+      <JsonLd data={softwareApplicationLd({ description: t("meta.definition"), lang: locale })} />
+      <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
 
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-6">
@@ -45,20 +48,17 @@ export default function HomePage() {
               className="mb-5 max-w-[14ch] text-5xl font-semibold text-fd-foreground md:text-6xl"
               style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.025em" }}
             >
-              Translate only what changed.
+              {t("hero.headline")}
             </h1>
-            <p className="mb-6 max-w-[48ch] text-lg text-fd-muted-foreground">
-              verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the
-              source locale; it fills every other locale through the AI provider you choose.
-            </p>
+            <p className="mb-6 max-w-[48ch] text-lg text-fd-muted-foreground">{t("hero.lead")}</p>
             <PackageInstall />
             <div className="mt-6 flex flex-wrap gap-3">
               <Button href="/docs" variant="primary" size="lg" trailingArrow>
-                Start now
+                {t("hero.ctaStart")}
               </Button>
               <Button href={GITHUB_URL} variant="secondary" size="lg">
                 <GithubIcon size={18} />
-                Star on GitHub
+                {t("hero.ctaGithub")}
               </Button>
             </div>
           </div>
@@ -69,40 +69,16 @@ export default function HomePage() {
       </section>
 
       {/* Trust strip */}
-      <section className="mx-auto max-w-5xl px-6">
-        <div className="border-y border-fd-border py-5">
-          <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--accent)]">
-            Trusted building blocks
-          </p>
-          <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            {TRUST_ITEMS.map((item) => (
-              <li
-                key={item}
-                className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground"
-              >
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
-                />
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <TrustStrip />
 
       {/* Compatibility — the marquee */}
       <Compatibility />
 
       {/* Showcase */}
       <section className="mx-auto mt-24 max-w-5xl px-6">
-        <Eyebrow>see a run unfold</Eyebrow>
-        <SectionHeading>Watch it touch exactly one key.</SectionHeading>
-        <p className="mb-8 max-w-[52ch] text-fd-muted-foreground">
-          A first run fills the new keys; change one source value and the next run sends only that
-          key. Everything else is left untouched.
-        </p>
+        <Eyebrow>{t("showcase.eyebrow")}</Eyebrow>
+        <SectionHeading>{t("showcase.heading")}</SectionHeading>
+        <p className="mb-8 max-w-[52ch] text-fd-muted-foreground">{t("showcase.body")}</p>
         <Showcase />
       </section>
 
@@ -113,7 +89,7 @@ export default function HomePage() {
       <WhyUse />
 
       {/* FAQ */}
-      <Faq />
+      <Faq items={faqItems} />
 
       {/* Final close */}
       <FinalClose />

@@ -34,3 +34,37 @@ Wire up self-hosted, cookieless Umami analytics (no consent banner) in the root 
 `(legal)` route group with `/privacy` (GDPR privacy policy reflecting the real, analytics-light,
 cookieless deployment) and `/imprint` (German DDG/MStV Impressum), linked from the footer Legal
 column.
+
+Localize the landing page and make the docs app dark-mode-only, app-wide. i18n uses a hybrid:
+Fumadocs i18n owns routing, the middleware (`proxy.ts`), and the `[lang]` segment
+(`defaultLanguage: "en"`, `languages: en/de/es/fr`, `hideLocale: "default-locale"`,
+`fallbackLanguage: "en"`), while next-intl owns the message catalog (next-intl namespaced JSON,
+source at `messages/en.json`; `de`/`es`/`fr` seeded as English fallbacks until translated). The
+whole localizable tree moves under `app/[lang]/` (home, legal, docs); route handlers
+(`api/search`, `sitemap`, `robots`, `llms.txt`, icons, `global.css`) stay outside it, and the
+middleware matcher excludes `api`, `_next`, `favicon.ico`, `robots.txt`, `sitemap.xml`,
+`llms.txt`, and image assets so those routes are never locale-redirected. English stays at `/`
+(no `/en`); `/de`, `/es`, `/fr` are prefixed, with Accept-Language auto-detect on first visit.
+Every user-visible landing string is externalized to the `landing.*` catalog and read via
+next-intl (`useTranslations` / `getTranslations`); the FAQ items are read once on the server and
+fed to both the visible accordion and the FAQPage JSON-LD so the two never drift, and JSON-LD
+`inLanguage` plus `softwareApplicationLd().description` follow the active locale. `generateMetadata`
+emits per-locale description/OG and `alternates.languages` hreflang (en/de/es/fr + `x-default`),
+and the sitemap adds the per-locale home routes (docs stays English-only pending the deferred docs
+i18n). A compact locale switcher (lowercase `en`/`de`/`es`/`fr` codes, autonym accessible names,
+the VMARK glyph, glow active-bar, keyboard + focus-visible) is injected into the shared nav as a
+single client leaf via the `BaseLayoutProps` custom slot; every option is a real `<a href>` that
+works without JS and is crawlable. Terminal-mock output and brand/proper-noun terms are kept
+English per the inventory. Dark-mode-only: the audited dark `--color-fd-*` values are promoted to
+the unconditional `:root` default, the light `:root` block and the `:root:not(.dark)` prose-link
+override are removed, `RootProvider` forces dark (`theme={{ enabled: false }}`), the Fumadocs
+theme switch is disabled (`themeSwitch: { enabled: false }`), and `<html className="dark">` is
+server-rendered so first paint is dark with no flash-of-light.
+
+Scaffold verbatra dogfooding the docs catalog (NOT yet run): `apps/docs/verbatra.config.ts`
+declares source `en`, targets `de`/`es`/`fr`, format `next-intl-json`, the Gemini provider (API
+key read from `GEMINI_API_KEY` env only — never in the config), `messages/{locale}.json` files,
+and a brand-term glossary. A `pnpm i18n` script runs `verbatra translate`, with `@verbatra/cli`
+and `@verbatra/sdk` added as devDependencies. The translation run is pending a free Gemini API
+key; until then the `de`/`es`/`fr` catalogs ship as English-fallback seeds and `pnpm i18n` is the
+dogfooding step that fills them.

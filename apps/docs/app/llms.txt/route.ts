@@ -1,13 +1,16 @@
+import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
 // An llms.txt summary for language-model consumers (https://llmstxt.org). Curated facts up
 // top, then a generated index of every documentation page so the link list never drifts.
+// Docs content is English-only (its i18n is deferred), so we index the default-locale pages;
+// the i18n-aware loader would otherwise repeat each page once per locale for the same content.
 export const dynamic = "force-static";
 
 export function GET(): Response {
   const docs = source
-    .getPages()
+    .getPages(i18n.defaultLanguage)
     .map((page) => {
       const url = new URL(page.url, SITE_URL).href;
       const desc = page.data.description ? `: ${page.data.description}` : "";

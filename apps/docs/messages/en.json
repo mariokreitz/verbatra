@@ -1,0 +1,173 @@
+{
+  "landing": {
+    "meta": {
+      "tagline": "Keep your locale files in sync. Translate only what changed.",
+      "ogImageAlt": "verbatra",
+      "definition": "verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider."
+    },
+    "hero": {
+      "headline": "Translate only what changed.",
+      "lead": "verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the source locale; it fills every other locale through the AI provider you choose.",
+      "ctaStart": "Start now",
+      "ctaGithub": "Star on GitHub"
+    },
+    "trust": {
+      "eyebrow": "Trusted building blocks",
+      "items": {
+        "mitLicensed": "MIT licensed",
+        "incremental": "Incremental",
+        "placeholderSafe": "Placeholder-safe",
+        "cliSdk": "CLI + SDK",
+        "ciReady": "CI-ready"
+      }
+    },
+    "install": {
+      "tablistLabel": "Package manager",
+      "copy": "copy",
+      "copied": "copied",
+      "copyAria": "Copy install command"
+    },
+    "compat": {
+      "eyebrow": "works with your stack",
+      "heading": "One tool, every framework.",
+      "body": "verbatra reads the JSON locale formats your framework already uses, and fills them through the provider you choose.",
+      "labelFrameworks": "Frameworks and formats",
+      "labelProviders": "Translation providers"
+    },
+    "showcase": {
+      "eyebrow": "see a run unfold",
+      "heading": "Watch it touch exactly one key.",
+      "body": "A first run fills the new keys; change one source value and the next run sends only that key. Everything else is left untouched."
+    },
+    "how": {
+      "eyebrow": "how it works",
+      "heading": "A run is a short, predictable pipeline.",
+      "steps": {
+        "configure": {
+          "title": "Configure",
+          "body": "Point verbatra at your source locale, list the target languages, and pick a provider. Configuration lives in one file; API keys stay in your environment."
+        },
+        "diff": {
+          "title": "Diff",
+          "body": "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned."
+        },
+        "translate": {
+          "title": "Translate",
+          "body": "Only the new and changed keys are sent to your provider, in batches, with your glossary and tone applied. Everything else is left untouched."
+        },
+        "verifyWrite": {
+          "title": "Verify & write",
+          "body": "Placeholder and ICU integrity are checked on every result. Anything that breaks is withheld; the rest is written to your locale files and the lock is updated."
+        }
+      }
+    },
+    "why": {
+      "eyebrow": "why verbatra",
+      "heading": "Built for teams that ship in many languages.",
+      "reasons": {
+        "incremental": {
+          "title": "Incremental by default",
+          "body": "A committed lock file records what was translated. Each run diffs the source and calls the provider only for the keys that changed."
+        },
+        "provider": {
+          "title": "Your choice of provider",
+          "body": "Anthropic, OpenAI, Gemini, or DeepL, chosen in one line of config. Switch providers without touching your locale files."
+        },
+        "safety": {
+          "title": "Safe by construction",
+          "body": "Placeholder and ICU integrity are checked after every translation. A result that breaks a placeholder is withheld, never written."
+        },
+        "environment": {
+          "title": "Keys stay in your environment",
+          "body": "Provider API keys are read from environment variables, never from the config file, never from CLI arguments, and never logged."
+        },
+        "oneEngine": {
+          "title": "CLI and SDK, one engine",
+          "body": "The verbatra command and @verbatra/sdk share a single orchestration core, so scripts, CI, and your own tooling behave identically."
+        },
+        "dryRun": {
+          "title": "Dry runs and watch mode",
+          "body": "Preview exactly what a run would change without writing anything, or keep a watch running that translates as your source locale evolves."
+        }
+      }
+    },
+    "faq": {
+      "eyebrow": "faq",
+      "heading": "Frequently asked questions",
+      "items": {
+        "avoidRetranslate": {
+          "question": "How does verbatra avoid re-translating everything on each run?",
+          "answer": "verbatra keeps a committed lock file that records what was already translated. On each run it diffs your source locale against that lock and sends only the new or changed keys to your provider; unchanged keys are left untouched."
+        },
+        "providers": {
+          "question": "Which translation providers does verbatra support?",
+          "answer": "Anthropic, OpenAI, Gemini, and DeepL. You choose one in a single line of config, and the API key is read from an environment variable, never from the config file."
+        },
+        "icu": {
+          "question": "How does verbatra handle ICU placeholders and message formats?",
+          "answer": "It checks placeholder and ICU integrity after every translation. If a returned translation breaks a placeholder or produces invalid ICU, that result is withheld rather than written to your locale file."
+        },
+        "formats": {
+          "question": "Which i18n file formats can verbatra read?",
+          "answer": "JSON formats for i18next, vue-i18n, next-intl, and ngx-translate, covering React, Vue, Next.js, Nuxt, Angular, and Node.js projects."
+        },
+        "openSource": {
+          "question": "Can I preview a run before it writes anything?",
+          "answer": "Yes. A dry run reports exactly which keys would be sent and written without touching your locale files, and watch mode keeps translating as your source locale changes."
+        },
+        "ci": {
+          "question": "Is there an SDK as well as a CLI?",
+          "answer": "Yes. The verbatra command is a thin wrapper over @verbatra/sdk, which exposes the same translate and watch operations for scripts, CI, and your own tooling."
+        }
+      }
+    },
+    "finalClose": {
+      "eyebrow": "one command",
+      "heading": "Stop hand-syncing locale files."
+    },
+    "footer": {
+      "tagline": "Translate only what changed. An open-source CLI and SDK that keeps your i18n locale files in sync through the provider you choose.",
+      "cols": {
+        "product": {
+          "title": "Product",
+          "documentation": "Documentation",
+          "cliReference": "CLI reference",
+          "sdk": "SDK",
+          "githubAction": "GitHub Action"
+        },
+        "learn": {
+          "title": "Learn",
+          "howItWorks": "How it works",
+          "providers": "Providers",
+          "formats": "Formats",
+          "lockFile": "The lock file"
+        },
+        "project": {
+          "title": "Project",
+          "configFile": "Config file"
+        },
+        "legal": {
+          "title": "Legal",
+          "privacy": "Privacy policy",
+          "imprint": "Imprint"
+        }
+      },
+      "legalLine": "Open-source under the MIT License · © 2026 Mario Kreitz",
+      "githubAria": "verbatra on GitHub",
+      "npmAria": "verbatra on npm"
+    },
+    "brand": {
+      "vmarkAlt": "verbatra"
+    },
+    "nav": {
+      "docs": "Docs",
+      "language": "Language",
+      "lang": {
+        "en": "English",
+        "de": "Deutsch",
+        "es": "Español",
+        "fr": "Français"
+      }
+    }
+  }
+}

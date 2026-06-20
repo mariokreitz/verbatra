@@ -1,10 +1,35 @@
+import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { getTranslations } from "next-intl/server";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { i18n, type Locale } from "@/lib/i18n";
 
-// Shared chrome for both the home and docs layouts: the V mark and verbatra wordmark in
-// the nav, a Docs link, and a link to the repository. The wordmark uses the display face.
-export function baseOptions(): BaseLayoutProps {
+// The translation registry handed to Fumadocs UI. We only carry verbatra's own locales; the
+// built-in `uiTranslations()` ships Fumadocs's English UI strings, which de/es/fr inherit
+// (Fumadocs has no bundled de/es/fr UI preset and the chrome copy is minimal). When localized
+// Fumadocs UI strings are needed later, add `.preset(locale, …)` here.
+export const translations = i18n.translations().extend(uiTranslations());
+
+/** RootProvider i18n config for the active locale. */
+export function i18nConfig(locale: string) {
+  return i18nProvider(translations, locale);
+}
+
+// `default-locale` routing: English is unprefixed, the others are prefixed. Internal links in
+// the chrome follow the same rule so the nav never jumps a reader out of their locale.
+function localized(locale: Locale, path: string): string {
+  return locale === i18n.defaultLanguage ? path : `/${locale}${path}`;
+}
+
+// Shared chrome for the home, legal, and docs layouts: the V mark + verbatra wordmark, the
+// locale-prefixed Docs link, the locale switcher (right of Docs, left of GitHub), and the
+// repository link. Strings come from the next-intl catalog so nothing in the chrome is
+// hardcoded English. The switcher is the only client leaf; the rest of the nav stays server.
+export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
+  const t = await getTranslations({ locale, namespace: "landing.nav" });
   return {
     nav: {
+      url: localized(locale, "/"),
       title: (
         <span className="inline-flex items-center gap-2">
           <svg
@@ -34,7 +59,13 @@ export function baseOptions(): BaseLayoutProps {
         </span>
       ),
     },
-    links: [{ text: "Docs", url: "/docs" }],
+    links: [
+      { text: t("docs"), url: localized(locale, "/docs") },
+      { type: "custom", secondary: true, children: <LocaleSwitcher /> },
+    ],
     githubUrl: "https://github.com/mariokreitz/verbatra",
+    // Dark-only app-wide: remove the Fumadocs theme-switch control from the nav chrome (the
+    // theme is forced dark via RootProvider `theme={{ enabled: false }}`).
+    themeSwitch: { enabled: false },
   };
 }

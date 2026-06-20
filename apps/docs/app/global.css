@@ -4,27 +4,17 @@
 
 @source "../node_modules/fumadocs-ui/dist/**/*.js";
 
+/* Dark-mode only, app-wide. The previously-dark `--color-fd-*` values are now the
+   unconditional default: there is no light theme and no theme toggle (see RootProvider
+   `theme={{ enabled: false }}` and the server-rendered `<html className="dark">`). The
+   `.dark` class is still rendered on <html> for Fumadocs UI selectors that key off it, but
+   these tokens live on `:root` so first paint is dark even before any class is applied —
+   no flash-of-light. The values are unchanged from the audited dark palette (all clear AA);
+   this is a consolidation, not a re-theme. */
 :root {
   --v-purple: hsl(291 64% 42%); /* #9C27B0 */
   --v-glow: hsl(258 47% 74%); /* #B39DDB */
 
-  /* Light theme: a considered inverse of dark, not the stock preset. An off-white
-     lavender-tinted base, near-navy text, pure white reserved for the raised popover. */
-  --color-fd-background: hsl(260 30% 99%); /* off-white, faint lavender tint */
-  --color-fd-card: hsl(258 30% 97%); /* faint lavender-tinted surface */
-  --color-fd-popover: hsl(0 0% 100%); /* pure white, lifts above the card */
-  --color-fd-muted: hsl(258 24% 95%);
-  --color-fd-border: hsl(258 20% 90%); /* soft but visible on white */
-  --color-fd-foreground: hsl(240 28% 12%); /* near brand navy, not pure black */
-  --color-fd-muted-foreground: hsl(240 12% 42%); /* AA on the light background */
-  --color-fd-primary: hsl(291 64% 42%); /* #9C27B0, the CTA fill */
-  --color-fd-primary-foreground: hsl(290 60% 98%); /* near-white, AA on the CTA */
-  --color-fd-accent: hsl(258 40% 92%); /* light lavender hover/active surface */
-  --color-fd-accent-foreground: hsl(240 28% 12%); /* navy text on the tint */
-  --color-fd-ring: hsl(291 64% 42%);
-}
-
-.dark {
   --color-fd-background: hsl(240 24% 6%); /* #0B0B12, the deeper void */
   --color-fd-card: hsl(240 28% 14%); /* #1A1A2E */
   --color-fd-popover: hsl(240 24% 18%); /* #232338 */
@@ -41,12 +31,8 @@
   --color-fd-ring: hsl(291 64% 42%);
 }
 
-.dark .prose {
-  --tw-prose-links: hsl(258 47% 74%); /* #B39DDB */
-}
-
-:root:not(.dark) .prose {
-  --tw-prose-links: hsl(280 70% 38%); /* #7B1FA2, clears AA on white */
+.prose {
+  --tw-prose-links: hsl(258 47% 74%); /* #B39DDB, the only prose-link color */
 }
 
 :root {
@@ -216,15 +202,6 @@ figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }
 
-/* ---------------------------------------------------------------------------
-   Marquee — the scrolling compatibility bands on the landing page. The track
-   holds two copies of its chips and is translated -50% so the loop is seamless;
-   the keyframe name + duration are applied inline on each track. The band is
-   centered and capped at 1600px (not full-bleed) so the right-scrolling band,
-   which starts at translateX(-50%), never reveals empty space mid-screen on wide
-   displays. Edge masks fade the chips in and out; .vk-home keeps overflow-x:clip
-   as a guard.
-   --------------------------------------------------------------------------- */
 @keyframes vk-marquee-left {
   from {
     transform: translateX(0);
@@ -266,13 +243,10 @@ figure.shiki {
 
 @media (prefers-reduced-motion: reduce) {
   .vk-track {
-    /* biome-ignore lint/complexity/noImportantStyles: override the inline animation applied on .vk-track for users who prefer reduced motion. */
     animation: none !important;
   }
 }
 
-/* The marquee track overflows its band by design; clip horizontal overflow on
-   the home wrapper as a guard so the bands never add an x-scrollbar. */
 .vk-home {
   overflow-x: clip;
 }
