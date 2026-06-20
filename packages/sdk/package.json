@@ -71,6 +71,8 @@
     "cosmiconfig": "9.0.2",
     "cosmiconfig-typescript-loader": "6.3.0",
     "deepl-node": "1.27.0",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.1",
     "loglevel": "1.9.2",
     "openai": "6.42.0",
     "zod": "4.4.3"
@@ -80,6 +82,7 @@
     "@verbatra/ai-providers": "workspace:*",
     "@verbatra/config": "workspace:*",
     "@verbatra/core": "workspace:*",
+    "@verbatra/exchange": "workspace:*",
     "@verbatra/format-adapters": "workspace:*",
     "@vitest/coverage-v8": "4.1.8",
     "tsup": "8.5.1",

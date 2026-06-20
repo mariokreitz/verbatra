@@ -35,6 +35,12 @@ describe("next-intl adapter: format and registry", () => {
       "{c}",
     ]);
   });
+
+  it("validateMessage delegates to the ICU analyzer (valid true, malformed false)", () => {
+    expect(adapter.validateMessage("Hello {name}")).toBe(true);
+    expect(adapter.validateMessage("{count, plural, one {# item} other {# items}}")).toBe(true);
+    expect(adapter.validateMessage("{count, plural, one {x")).toBe(false);
+  });
 });
 
 describe("next-intl adapter: read", () => {

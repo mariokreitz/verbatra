@@ -1,4 +1,7 @@
 import type {
+  ExportWorkbookInput,
+  ExportWorkbookResult,
+  ImportWorkbookInput,
   LoadConfigOptions,
   RunSummary,
   TranslateInput,
@@ -26,6 +29,10 @@ export interface CliDeps {
   translate(input: TranslateInput): Promise<RunSummary>;
   /** Start watch mode (the SDK's `watch`). */
   watch(input: WatchInput): Promise<WatchController>;
+  /** Export the translator workbook (the SDK's `exportWorkbook`). */
+  exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>;
+  /** Import a filled workbook back into the locale files (the SDK's `importWorkbook`). */
+  importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>;
 }
 
 /** A long-running watch run. The bin shim wires SIGINT to requestStop; tests call it directly. */

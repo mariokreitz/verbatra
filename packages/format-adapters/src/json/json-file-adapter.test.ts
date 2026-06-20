@@ -27,6 +27,25 @@ async function readError(promise: Promise<unknown>): Promise<unknown> {
   return promise.catch((error: unknown) => error);
 }
 
+describe("createJsonFileAdapter validateMessage", () => {
+  it("defaults to true for every value when no validator is supplied (non-ICU formats)", () => {
+    const adapter = makeAdapter();
+    expect(adapter.validateMessage("anything {weird")).toBe(true);
+    expect(adapter.validateMessage("")).toBe(true);
+  });
+
+  it("uses the supplied validator when one is provided", () => {
+    const adapter = createJsonFileAdapter({
+      format: "next-intl-json",
+      extractPlaceholders: () => [],
+      deriveEntry: () => ({ placeholders: [], isPlural: false }),
+      validateMessage: (value) => value !== "bad",
+    });
+    expect(adapter.validateMessage("good")).toBe(true);
+    expect(adapter.validateMessage("bad")).toBe(false);
+  });
+});
+
 describe("createJsonFileAdapter read boundary", () => {
   it("rejects a non-regular path (directory) with a structured INVALID_STRUCTURE", async () => {
     const dir = await mkdtemp(join(tmpdir(), "verbatra-jfa-dir-"));

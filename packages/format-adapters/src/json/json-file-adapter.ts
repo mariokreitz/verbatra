@@ -14,6 +14,9 @@ type ExtractPlaceholders = (value: string) => readonly string[];
 /** Derives the keys whose values are invalid for the format's message syntax. */
 type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) => readonly string[];
 
+/** Validates a single value against the format's message syntax (one value, before write). */
+type ValidateMessage = (value: string) => boolean;
+
 /** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
 type ValidateTree = (tree: JsonRecord) => void;
 
@@ -29,6 +32,11 @@ export interface JsonFileAdapterOptions {
   readonly extractPlaceholders: ExtractPlaceholders;
   /** Optional; formats without ICU (i18next, vue-i18n) omit it and report none. */
   readonly computeInvalidIcuKeys?: ComputeInvalidIcuKeys;
+  /**
+   * Optional per-value message validator. Formats without ICU omit it and every value is valid;
+   * ICU formats supply the same total check `computeInvalidIcuKeys` runs, applied to one value.
+   */
+  readonly validateMessage?: ValidateMessage;
   /** Optional; runs on the parsed tree before flattening (defaults to no check). */
   readonly validateTree?: ValidateTree;
   /** Optional; builds the object to write (defaults to nested via unflattenEntries). */
@@ -132,6 +140,7 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
     deriveEntry,
     extractPlaceholders,
     computeInvalidIcuKeys,
+    validateMessage,
     validateTree,
     buildWriteTree,
   } = options;
@@ -139,6 +148,8 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
     format,
     canHandle,
     extractPlaceholders,
+    // Non-ICU formats supply no validator: every value is valid for their syntax.
+    validateMessage: validateMessage ?? ((): boolean => true),
     async read(filePath, locale): Promise<ReadResult> {
       const outcome = await readBounded(filePath);
       if (outcome.kind === "not-a-file") {

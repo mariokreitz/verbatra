@@ -9,6 +9,7 @@ import type {
 } from "@verbatra/ai-providers";
 import type { PlaceholderIntegrityResult } from "@verbatra/core";
 import type { VerbatraConfig } from "./config/schema.js";
+import type { BoundedBytesRead, BoundedFileRead, SdkFs } from "./fs.js";
 
 export interface StubCall {
   readonly request: TranslateRequest;
@@ -101,4 +102,20 @@ export async function readJsonFile(path: string): Promise<unknown> {
 
 export async function readTextFile(path: string): Promise<string> {
   return readFile(path, "utf8");
+}
+
+/**
+ * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op
+ * ("missing" reads, accepted writes), and any subset can be overridden. Keeps test fakes
+ * from having to spell out every interface method when they only care about one of them.
+ */
+export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
+  return {
+    fileExists: async (): Promise<boolean> => false,
+    readFileBounded: async (): Promise<BoundedFileRead> => ({ kind: "missing" }),
+    readBytesBounded: async (): Promise<BoundedBytesRead> => ({ kind: "missing" }),
+    writeFile: async (): Promise<void> => {},
+    writeBytes: async (): Promise<void> => {},
+    ...overrides,
+  };
 }

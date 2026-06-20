@@ -7,6 +7,12 @@ export type BoundedFileRead =
   | { readonly kind: "missing" }
   | { readonly kind: "too-large" };
 
+/** Outcome of a bounded binary read: the bytes, or why they could not be read in bounds. */
+export type BoundedBytesRead =
+  | { readonly kind: "ok"; readonly bytes: Uint8Array }
+  | { readonly kind: "missing" }
+  | { readonly kind: "too-large" };
+
 /**
  * The minimal file-system surface the SDK needs for the lock-file and for existence
  * checks. Injectable so tests stay deterministic; the format adapters do their own
@@ -22,8 +28,17 @@ export interface SdkFs {
    * unreadable path is "missing" (first-run); a file over the cap is "too-large".
    */
   readFileBounded(path: string, maxBytes: number): Promise<BoundedFileRead>;
+  /**
+   * Read a file as raw bytes through a single handle, bounded to maxBytes, with the SAME
+   * TOCTOU-safe discipline as {@link readFileBounded}: the handle is fstat'd and the read never
+   * advances past the sized length. Used for the untrusted workbook on import; a file over the
+   * cap is "too-large", a missing path is "missing".
+   */
+  readBytesBounded(path: string, maxBytes: number): Promise<BoundedBytesRead>;
   /** Write atomically: a temp file in the same directory, then rename over the target. */
   writeFile(path: string, data: string): Promise<void>;
+  /** Write raw bytes atomically (temp file, then rename over the target). Used for the workbook. */
+  writeBytes(path: string, data: Uint8Array): Promise<void>;
 }
 
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
@@ -61,14 +76,50 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   }
 }
 
+async function readBoundedBytesInto(handle: FileHandle, size: number): Promise<Uint8Array> {
+  // A dedicated, non-pooled buffer (allocUnsafeSlow) so the returned view owns its memory and is
+  // never aliased by a later allocation from Buffer's shared pool.
+  const buffer = Buffer.allocUnsafeSlow(size);
+  let offset = 0;
+  while (offset < size) {
+    const { bytesRead } = await handle.read(buffer, offset, size - offset, offset);
+    if (bytesRead === 0) {
+      break;
+    }
+    offset += bytesRead;
+  }
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, offset);
+}
+
+async function readBoundedBytes(path: string, maxBytes: number): Promise<BoundedBytesRead> {
+  let handle: FileHandle;
+  try {
+    handle = await open(path, "r");
+  } catch {
+    return { kind: "missing" };
+  }
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return { kind: "missing" };
+    }
+    if (info.size > maxBytes) {
+      return { kind: "too-large" };
+    }
+    return { kind: "ok", bytes: await readBoundedBytesInto(handle, info.size) };
+  } finally {
+    await handle.close();
+  }
+}
+
 /**
  * Write to a temp file in the same directory, then rename over the target. rename is
  * atomic on POSIX, so a reader sees either the old valid file or the new one, never a
  * truncated middle; a crash before the rename leaves the original untouched.
  */
-async function atomicWrite(path: string, data: string): Promise<void> {
+async function atomicWrite(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}`);
-  await writeFile(tmp, data, "utf8");
+  await (typeof data === "string" ? writeFile(tmp, data, "utf8") : writeFile(tmp, data));
   try {
     await rename(tmp, path);
   } catch (error) {
@@ -89,5 +140,8 @@ export const defaultFs: SdkFs = {
   },
   readFileBounded: (path: string, maxBytes: number): Promise<BoundedFileRead> =>
     readBounded(path, maxBytes),
+  readBytesBounded: (path: string, maxBytes: number): Promise<BoundedBytesRead> =>
+    readBoundedBytes(path, maxBytes),
   writeFile: (path: string, data: string): Promise<void> => atomicWrite(path, data),
+  writeBytes: (path: string, data: Uint8Array): Promise<void> => atomicWrite(path, data),
 };

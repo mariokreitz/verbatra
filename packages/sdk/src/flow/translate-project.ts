@@ -1,6 +1,5 @@
 import type { AdapterRegistry } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
-import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import {
   baselineFor,
@@ -9,10 +8,11 @@ import {
   updateLockLocale,
   writeLockFile,
 } from "../lock/lock-file.js";
-import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { type CreateProvider, selectProvider } from "../selection/select-provider.js";
+import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
+import { readSource } from "./source.js";
 import type { LocaleSummary, RunSummary } from "./summary.js";
 
 /** Everything the one-shot run needs: the validated config and where/how to run it. */
@@ -33,54 +33,6 @@ export interface TranslateDeps {
   readonly createProvider?: CreateProvider;
   /** File system for existence checks and the lock-file; defaults to the real file system. */
   readonly fs?: SdkFs;
-}
-
-function describeError(error: unknown): { code: string; message: string } {
-  // Per-locale failures are Adapter/Provider errors (both secret-free), which carry a
-  // string `code`; SdkError, also an Error with a `code`, is handled by the same branch.
-  if (error instanceof Error) {
-    const code = (error as { code?: unknown }).code;
-    return { code: typeof code === "string" ? code : "LOCALE_FAILED", message: error.message };
-  }
-  return { code: "LOCALE_FAILED", message: String(error) };
-}
-
-function failureSummary(locale: string, error: unknown): LocaleSummary {
-  return {
-    locale,
-    status: "failed",
-    translated: [],
-    unchanged: [],
-    orphaned: [],
-    invalidIcuSource: [],
-    integrityMismatches: [],
-    notices: [],
-    error: describeError(error),
-  };
-}
-
-async function readSource(
-  config: VerbatraConfig,
-  cwd: string,
-  fs: SdkFs,
-  adapter: ReturnType<typeof selectAdapter>,
-) {
-  const sourcePath = localeFilePath(cwd, config.files.pattern, config.sourceLocale);
-  if (!(await fs.fileExists(sourcePath))) {
-    throw new SdkError(
-      "SOURCE_UNREADABLE",
-      `The source locale file was not found at ${sourcePath}.`,
-    );
-  }
-  try {
-    return await adapter.read(sourcePath, config.sourceLocale);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new SdkError(
-      "SOURCE_INVALID",
-      `The source locale file at ${sourcePath} could not be read: ${detail}`,
-    );
-  }
 }
 
 /**
@@ -174,11 +126,6 @@ export async function translate(
     }
   }
 
-  return aggregate(dryRun, summaries);
-}
-
-function aggregate(dryRun: boolean, locales: readonly LocaleSummary[]): RunSummary {
-  const succeeded = locales.filter((s) => s.status === "succeeded").map((s) => s.locale);
-  const failed = locales.filter((s) => s.status === "failed").map((s) => s.locale);
-  return { dryRun, locales, succeeded, failed };
+  const { succeeded, failed } = partition(summaries);
+  return { dryRun, locales: summaries, succeeded, failed };
 }

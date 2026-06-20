@@ -1,8 +1,16 @@
 import { readFileSync } from "node:fs";
 import { Command, CommanderError } from "commander";
+import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
 import { runInit } from "./init.js";
-import { renderError, renderHuman, renderJson, toRenderableError } from "./render.js";
+import {
+  renderError,
+  renderExportHuman,
+  renderExportJson,
+  renderHuman,
+  renderJson,
+  toRenderableError,
+} from "./render.js";
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
@@ -31,6 +39,39 @@ interface WatchOpts extends SharedOpts {
   readonly debounce?: string;
   readonly json?: boolean;
 }
+
+/**
+ * zod schemas for the export/import command flags. Commander hands strings (or undefined) and
+ * booleans; the schema is the typed boundary between untrusted argv and the SDK call. `locales`
+ * is a comma-separated list, normalized to a trimmed non-empty array (or omitted).
+ */
+const localeListSchema = z
+  .string()
+  .optional()
+  .transform((value) =>
+    value === undefined
+      ? undefined
+      : value
+          .split(",")
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0),
+  );
+
+const exportOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  out: z.string().optional(),
+  locales: localeListSchema,
+  includeUnchanged: z.boolean().optional(),
+  json: z.boolean().optional(),
+});
+
+const importOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  dryRun: z.boolean().optional(),
+  json: z.boolean().optional(),
+});
 
 /** loadConfig options from the resolved working directory and the explicit-config flag. */
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
@@ -99,6 +140,76 @@ async function runWatchCommand(
   return session.done;
 }
 
+/**
+ * Run the `export` command: validate the flags, load the config, call the SDK's `exportWorkbook`,
+ * and render the result. Returns `0` on success and `2` when the run could not start (a structured
+ * SdkError, rendered to stderr). Export has no per-locale failure mode, so it never returns `1`.
+ *
+ * @param rawOpts - the raw commander options (validated by `exportOptsSchema`)
+ * @returns the process exit code (`0` success, `2` whole-run failure)
+ */
+async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const opts = exportOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  try {
+    const config = await deps.loadConfig(
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    );
+    const result = await deps.exportWorkbook({
+      config,
+      cwd,
+      ...(opts.out !== undefined ? { out: opts.out } : {}),
+      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+      ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+    });
+    streams.out(
+      opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+    );
+    return 0;
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+}
+
+/**
+ * Run the `import` command: validate the flags, load the config, call the SDK's `importWorkbook`,
+ * and render the run summary. The exit-code rule matches `translate`: `1` when any locale failed,
+ * `0` when all succeeded, and `2` when the run could not start (a structured SdkError to stderr).
+ *
+ * @param workbook - the path to the filled workbook to import
+ * @param rawOpts - the raw commander options (validated by `importOptsSchema`)
+ * @returns the process exit code (`0` all locales succeeded, `1` a locale failed, `2` whole-run failure)
+ */
+async function runImport(
+  workbook: string,
+  rawOpts: unknown,
+  deps: CliDeps,
+  streams: Streams,
+): Promise<number> {
+  const opts = importOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  try {
+    const config = await deps.loadConfig(
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    );
+    const summary = await deps.importWorkbook({
+      config,
+      workbook,
+      cwd,
+      ...(opts.dryRun === true ? { dryRun: true } : {}),
+    });
+    streams.out(
+      opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+    );
+    // Identical exit-code rule to translate: 1 when any locale failed, else 0.
+    return summary.failed.length > 0 ? 1 : 0;
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+}
+
 function buildProgram(
   deps: CliDeps,
   streams: Streams,
@@ -149,6 +260,52 @@ function buildProgram(
     .action(async (opts: WatchOpts) => {
       setCode(await runWatchCommand(opts, deps, streams, hooks));
     });
+
+  program
+    .command("export")
+    .description("Export untranslated strings into a styled Excel workbook for a human translator")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--out <path>", "write the workbook to this path (default verbatra-translations.xlsx)")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
+    .option("--include-unchanged", "also export already up-to-date strings (off by default)")
+    .option("--json", "print the export result as JSON")
+    .action(async (opts: unknown) => {
+      setCode(await runExport(opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra export                       write the workbook with missing and changed strings",
+        "  $ verbatra export --locales de,fr       only the German and French sheets",
+        "  $ verbatra export --include-unchanged   include already up-to-date strings",
+      ].join("\n"),
+    );
+
+  program
+    .command("import")
+    .argument("<workbook>", "path to the filled workbook to import")
+    .description(
+      "Import a filled workbook back into the locale files, running the same safety checks",
+    )
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--dry-run", "validate and report without writing locale files or updating the lock")
+    .option("--json", "print the run summary as JSON")
+    .action(async (workbook: string, opts: unknown) => {
+      setCode(await runImport(workbook, opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra import translations.xlsx             import the filled workbook",
+        "  $ verbatra import translations.xlsx --dry-run   validate and report, write nothing",
+      ].join("\n"),
+    );
 
   program
     .command("init")
