@@ -78,7 +78,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "22.19.21",
+    "@types/node": "26.0.0",
     "@verbatra/ai-providers": "workspace:*",
     "@verbatra/config": "workspace:*",
     "@verbatra/core": "workspace:*",
