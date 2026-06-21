@@ -1,0 +1,57 @@
+---
+title: Deine erste Übersetzung
+description: Führe verbatra zum ersten Mal aus, lies die Zusammenfassung des Laufs und verstehe inkrementelle Neu-Läufe.
+---
+
+# Deine erste Übersetzung
+
+Mit installiertem CLI, einer erstellten Konfiguration und deinem Provider-Schlüssel in der Umgebung (siehe [Erste Schritte](/docs)) bist du bereit zu übersetzen.
+
+## Führe eine Übersetzung aus
+
+Führe eine einmalige Übersetzung über jedes Ziel-Locale aus:
+
+```bash
+verbatra translate
+```
+
+verbatra liest das Quell-Locale, vergleicht es mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen oder geänderten Strings an den Provider. Übersetzungen, die noch aktuell sind, bleiben unberührt. Jede Ziel-Locale-Datei wird an Ort und Stelle geschrieben, sodass `locales/de.json` und der Rest neben deiner Quelldatei erscheinen oder aktualisiert werden.
+
+## Lies die Lauf-Zusammenfassung
+
+Ein Lauf endet mit einer Zusammenfassung über jedes Ziel-Locale: welche Locales erfolgreich waren, welche fehlgeschlagen sind, und eine Aufschlüsselung pro Locale der übersetzten Schlüssel, der unveränderten Schlüssel, aller verwaisten Schlüssel (vorhanden in einem Ziel, aber nicht mehr in der Quelle) und aller Provider-Hinweise. Wenn ein einzelnes Locale fehlschlägt, stoppt das die anderen nicht; es wird in der Zeile dieses Locales mit einem Code und einer Nachricht gemeldet.
+
+Für maschinenlesbare Ausgabe füge `--json` hinzu und verbatra gibt die Zusammenfassung als ein JSON-Objekt aus. Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes) für die Struktur und den Exit-Code-Vertrag.
+
+## Vorschau mit einem Dry-Run
+
+Um zu sehen, was sich ändern würde, ohne einen Provider aufzurufen oder Dateien zu schreiben:
+
+```bash
+verbatra translate --dry-run
+```
+
+Ein Dry-Run erstellt die gleiche Zusammenfassung, listet die Schlüssel auf, die übersetzt würden, tätigt aber keine Provider-Aufrufe und schreibt nichts. Es ist der sichere Weg, um zu überprüfen, was ein Lauf tun wird.
+
+## Neu-Läufe sind inkrementell
+
+Führe `verbatra translate` erneut aus, ohne deine Quelle zu ändern, und nichts wird an den Provider gesendet: Jeder Schlüssel ist bereits aktuell. Ändere einen Quell-String und nur dieser Schlüssel wird beim nächsten Lauf neu übersetzt. Dies ist das Kernverhalten. verbatra führt eine festgeschriebene Lock-Datei (`verbatra.lock.json`), die aufzeichnet, was es übersetzt hat, und vergleicht diese bei jedem Lauf, sodass der Provider nur für das aufgerufen wird, was sich tatsächlich geändert hat. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Pipeline.
+
+<Callout title="Committe die Lock-Datei">
+verbatra schreibt `verbatra.lock.json` beim ersten Lauf. Committe sie zusammen mit deinen Locale-Dateien, damit jede Maschine und deine CI gegen dieselbe Basislinie vergleichen. Siehe [Die Lock-Datei](/docs/the-lock-file).
+</Callout>
+
+## Übersetze während du arbeitest
+
+Um automatisch neu zu übersetzen, während du bearbeitest, überwache die Quelle und lasse verbatra bei jeder Änderung neu laufen:
+
+```bash
+verbatra watch
+```
+
+Watch läuft weiter, bis du es mit Strg-C unterbrichst.
+
+## Weiter
+
+- [Sprache hinzufügen](/docs/add-a-language): füge ein Ziel-Locale zu einem bestehenden Setup hinzu.
+- [Wie es funktioniert](/docs/how-it-works): was ein Lauf von Anfang bis Ende tut.

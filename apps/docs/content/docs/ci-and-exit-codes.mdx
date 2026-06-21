@@ -20,7 +20,7 @@ verbatra uses its exit code as the contract a CI step branches on:
 | Code | Meaning |
 | --- | --- |
 | `0` | success |
-| `1` | `translate` finished but some locales failed (translate only) |
+| `1` | `translate` or `import` finished but some locales failed |
 | `2` | could not run (a whole-run error, or a usage error) |
 | `130` | `watch` was force-stopped by a second interrupt |
 
@@ -28,7 +28,7 @@ A per-run failure in `watch` is reported as a stream record, not an exit code; a
 
 ## JSON output
 
-Both commands accept `--json` for machine-readable output.
+The `translate`, `watch`, `export`, and `import` commands accept `--json` for machine-readable output.
 
 `verbatra translate --json` prints the run summary as one JSON object with this shape:
 

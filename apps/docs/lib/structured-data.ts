@@ -8,9 +8,6 @@ const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";
 
-const DEFINITION =
-  "verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider.";
-
 const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js"];
 const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL"];
 const SUPPORTED_FORMATS = ["i18next", "vue-i18n", "next-intl", "ngx-translate"];
@@ -21,13 +18,21 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
-/** SoftwareApplication + SoftwareSourceCode facts for the homepage. */
-export function softwareApplicationLd(): Record<string, unknown> {
+/**
+ * SoftwareApplication + SoftwareSourceCode facts for the homepage. The `description` is the
+ * active-locale `landing.meta.definition`, and `inLanguage` follows the active locale, so the
+ * JSON-LD never drifts from the rendered language.
+ */
+export function softwareApplicationLd(args: {
+  description: string;
+  lang: string;
+}): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": ["SoftwareApplication", "SoftwareSourceCode"],
     name: "verbatra",
-    description: DEFINITION,
+    description: args.description,
+    inLanguage: args.lang,
     url: SITE_URL,
     applicationCategory: "DeveloperApplication",
     operatingSystem: "Node.js >= 22.14.0",
@@ -58,12 +63,21 @@ export function softwareApplicationLd(): Record<string, unknown> {
 
 export type FaqItem = { question: string; answer: string };
 
-/** FAQPage facts mirroring the on-page FAQ. */
-export function faqPageLd(items: ReadonlyArray<FaqItem>): Record<string, unknown> {
+/**
+ * FAQPage facts mirroring the on-page FAQ. The `items` are read once from the active-locale
+ * catalog (`landing.faq.items`) by the server page and passed both here and to the visible
+ * `<Faq>` accordion, so the JSON-LD and the rendered FAQ can never drift. `inLanguage` follows
+ * the active locale.
+ */
+export function faqPageLd(args: {
+  items: ReadonlyArray<FaqItem>;
+  lang: string;
+}): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: items.map((item) => ({
+    inLanguage: args.lang,
+    mainEntity: args.items.map((item) => ({
       "@type": "Question",
       name: item.question,
       acceptedAnswer: { "@type": "Answer", text: item.answer },
@@ -76,6 +90,7 @@ export function techArticleLd(args: {
   title: string;
   description?: string | undefined;
   path: string;
+  lang: string;
 }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -83,7 +98,7 @@ export function techArticleLd(args: {
     headline: args.title,
     ...(args.description ? { description: args.description } : {}),
     url: new URL(args.path, SITE_URL).href,
-    inLanguage: "en",
+    inLanguage: args.lang,
     author: AUTHOR,
     publisher: { "@type": "Organization", name: "verbatra", url: SITE_URL },
     isPartOf: { "@type": "WebSite", name: "verbatra documentation", url: `${SITE_URL}/docs` },

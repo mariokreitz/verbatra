@@ -1,0 +1,51 @@
+---
+title: CLI
+description: La commande verbatra - ses cinq sous-commandes, ses options globales, comment elle lit ton environnement et le contrat des codes de sortie.
+---
+
+# CLI
+
+`@verbatra/cli` fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Il embarque cinq commandes :
+
+- [`init`](/docs/cli/init) : échafaude une configuration et un `.env.example`.
+- [`translate`](/docs/cli/translate) : traduis chaque locale cible une fois, puis quitte.
+- [`watch`](/docs/cli/watch) : retraduis à chaque modification de la source jusqu'à interruption.
+- [`export`](/docs/cli/export) : exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain.
+- [`import`](/docs/cli/import) : importe un classeur rempli dans tes fichiers de locale.
+
+## Installer et invoquer
+
+verbatra est une dépendance de développement. Installe-le, puis exécute le binaire via ton gestionnaire de paquets :
+
+```bash
+pnpm add -D @verbatra/cli
+# pnpm verbatra ..., npx verbatra ..., ou yarn verbatra ...
+```
+
+Nécessite Node.js `>=22.14.0`.
+
+## Options globales
+
+| Option | Ce qu'elle fait |
+| --- | --- |
+| `--help` | affiche l'usage du programme ou d'une commande, puis quitte avec `0` |
+| `--version` | affiche la version installée de `@verbatra/cli`, puis quitte avec `0` |
+
+Exécute `verbatra <command> --help` pour la liste complète des options et des exemples d'une commande - la même référence que ces pages.
+
+## Le répertoire de travail et .env
+
+`translate` et `watch` chargent `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter ; une variable déjà définie dans ton environnement réel l'emporte toujours. Passe `--cwd` pour désigner la racine de ton projet si tu invoques verbatra depuis un autre endroit. Les clés API ne sont lues que depuis l'environnement, jamais depuis la configuration ni une option - voir [Fournisseurs](/docs/providers).
+
+## Codes de sortie
+
+verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI ou un script s'embranche :
+
+| Code | Signification |
+| --- | --- |
+| `0` | succès (également `--help` et `--version`) |
+| `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale, ou une erreur d'usage |
+| `130` | `watch` a été arrêté de force par une seconde interruption |
+
+L'échec d'une exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie. Chaque page de commande indique comment ces codes s'y appliquent, et [CI et automatisation](/docs/ci-and-exit-codes) couvre leur utilisation dans un pipeline.

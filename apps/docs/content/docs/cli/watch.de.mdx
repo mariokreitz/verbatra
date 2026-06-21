@@ -1,0 +1,50 @@
+---
+title: verbatra watch
+description: Übersetzt bei jeder Quelländerung neu, bis es unterbrochen wird.
+---
+
+# verbatra watch
+
+Überwacht die Quelldatei und führt bei jeder entprellten Änderung eine Übersetzung neu aus, bis du es unterbrichst. Verwende es, während du arbeitest, damit neue und geänderte Strings beim Speichern übersetzt werden.
+
+```bash
+verbatra watch
+```
+
+Watch läuft weiter, bis du es stoppst. Eine einzelne Unterbrechung (Strg-C) stoppt es ordnungsgemäß und beendet sich mit `0`; eine zweite Unterbrechung erzwingt das Stoppen und beendet sich mit `130`.
+
+## Optionen
+
+| Option | Beschreibung |
+| --- | --- |
+| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
+| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
+| `--debounce <ms>` | wartet diese Anzahl Millisekunden nach einer Änderung, bevor übersetzt wird (Standard `300`) |
+| `--json` | gibt jeden Lauf als einen NDJSON-Datensatz aus |
+
+## Ausgabe
+
+Ohne `--json` gibt `watch` pro Lauf eine menschenlesbare Zusammenfassung aus. Mit `--json` gibt es einen NDJSON-Datensatz pro Lauf aus (ein JSON-Objekt pro Zeile): entweder einen Erfolg, der die Lauf-Zusammenfassung trägt, oder einen Fehlschlag, der einen Fehlercode und eine Nachricht trägt. Ein fehlgeschlagener Lauf ist einer dieser Datensätze im Stream - er stoppt den Watcher nicht und setzt keinen Exit-Code ungleich null. Siehe die [`WatchRunResult`-Struktur in der SDK-Referenz](/docs/sdk).
+
+## Beispiele
+
+```bash
+# watch and re-translate on each change
+verbatra watch
+
+# wait 1s after a change before translating
+verbatra watch --debounce 1000
+
+# stream one NDJSON record per run
+verbatra watch --json
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | durch eine einzelne Unterbrechung ordnungsgemäß gestoppt |
+| `2` | konnte nicht ausgeführt werden: die Konfiguration konnte nicht geladen werden oder ein Nutzungsfehler |
+| `130` | durch eine zweite Unterbrechung erzwungen gestoppt |
+
+Anders als bei [`translate`](/docs/cli/translate) ändert ein Fehlschlag eines einzelnen Laufs den Exit-Code nicht - er wird als Stream-Datensatz gemeldet. Der Exit-Code spiegelt nur wider, wie der Watcher gestoppt wurde.

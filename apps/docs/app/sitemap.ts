@@ -1,23 +1,36 @@
 import type { MetadataRoute } from "next";
+import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-// Fumadocs does not emit a sitemap, so we build one explicitly: the homepage plus every
-// documentation route, all on the canonical host. source.getPages() is the same page list
-// the docs route renders, so the sitemap can never drift from what actually exists.
+const HOME_ALTERNATES = {
+  languages: {
+    en: new URL("/", SITE_URL).href,
+    de: new URL("/de", SITE_URL).href,
+    es: new URL("/es", SITE_URL).href,
+    fr: new URL("/fr", SITE_URL).href,
+  },
+} as const;
+
 export default function sitemap(): MetadataRoute.Sitemap {
-  const docs = source.getPages().map((page) => ({
+  const homePaths: ReadonlyArray<{ path: string; priority: number }> = [
+    { path: "/", priority: 1 },
+    { path: "/de", priority: 0.9 },
+    { path: "/es", priority: 0.9 },
+    { path: "/fr", priority: 0.9 },
+  ];
+  const home: MetadataRoute.Sitemap = homePaths.map(({ path, priority }) => ({
+    url: new URL(path, SITE_URL).href,
+    changeFrequency: "weekly",
+    priority,
+    alternates: HOME_ALTERNATES,
+  }));
+
+  const docs: MetadataRoute.Sitemap = source.getPages(i18n.defaultLanguage).map((page) => ({
     url: new URL(page.url, SITE_URL).href,
-    changeFrequency: "weekly" as const,
+    changeFrequency: "weekly",
     priority: 0.8,
   }));
 
-  return [
-    {
-      url: new URL("/", SITE_URL).href,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    ...docs,
-  ];
+  return [...home, ...docs];
 }

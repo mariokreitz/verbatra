@@ -1,0 +1,197 @@
+---
+title: SDK
+description: Utilise @verbatra/sdk pour exécuter la traduction depuis tes propres scripts, tâches CI et outils.
+---
+
+# SDK
+
+`@verbatra/sdk` est le cœur programmatique sur lequel la commande `verbatra` est construite. La CLI est un mince
+wrapper par-dessus, de sorte que tout ce que fait la ligne de commande, tu peux le faire en code : charger et valider une configuration,
+exécuter une traduction unique, ou surveiller la source et retraduire à chaque changement. Tourne-toi vers le SDK
+lorsque tu veux de la traduction à l'intérieur d'un script, d'une tâche CI ou de tes propres outils.
+
+## Installation
+
+```bash
+pnpm add -D @verbatra/sdk
+# npm
+npm install -D @verbatra/sdk
+# yarn
+yarn add -D @verbatra/sdk
+```
+
+Nécessite Node.js `>=22.14.0`.
+
+## La surface publique
+
+Le paquet exporte six fonctions et les types qu'un appelant manipule.
+
+- `defineConfig(config: VerbatraConfig): VerbatraConfig` renvoie son argument inchangé. Elle n'existe
+  que pour te fournir l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript.
+- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la
+  configuration. `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride`
+  en mémoire. Elle lève une `SdkError` lorsqu'aucune configuration n'est trouvée ou que la validation échoue.
+- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, diffuser, traduire, écrire
+  sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun? }`. Elle se résout en un
+  `RunSummary` ; les problèmes sur toute l'exécution lèvent une `SdkError`, tandis que les résultats par locale sont des données sur le
+  résumé.
+- `watch(input: WatchInput): Promise<WatchController>` surveille le fichier source et se réexécute à chaque
+  changement débondi. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, où `onRun` reçoit un
+  `WatchRunResult` par exécution. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
+  le surveillant et attend l'exécution en cours.
+- `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` écrit les chaînes qui ont
+  besoin d'être traduites dans un classeur Excel stylisé pour un traducteur humain. `ExportWorkbookInput`
+  est `{ config, cwd?, out?, locales?, includeUnchanged? }`. Elle se résout en un `ExportWorkbookResult` :
+  le `path` absolu écrit et les comptes de `rows` par locale. Aucun fournisseur n'est appelé et aucun
+  fichier de verrouillage n'est écrit. Voir [Traduction manuelle](/docs/manual-translation).
+- `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` relit un classeur rempli dans les
+  fichiers de locale, en exécutant les mêmes vérifications de placeholders et d'ICU que `translate`.
+  `ImportWorkbookInput` est `{ config, workbook, cwd?, dryRun? }`. Elle se résout en le même `RunSummary`
+  que `translate`, de sorte qu'un échec par locale est une donnée sur le résumé plutôt qu'une exception.
+  `DEFAULT_WORKBOOK_PATH` est le chemin d'export par défaut (`verbatra-translations.xlsx`).
+
+Les types de résultat :
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // true when nothing was written and no provider was called
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+}
+
+interface LocaleSummary {
+  locale: string;
+  status: "succeeded" | "failed";
+  translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  unchanged: string[];           // keys already up to date
+  orphaned: string[];            // target keys with no matching source key
+  invalidIcuSource: string[];    // source keys skipped for invalid ICU
+  integrityMismatches: string[]; // translations withheld for a placeholder mismatch
+  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  error?: { code: string; message: string }; // present only when status is "failed"
+}
+
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+Les notifications sont par locale, sur `LocaleSummary.notices`. Il n'y a pas de liste de notifications de niveau supérieur sur
+`RunSummary`.
+
+`SdkError` est le type d'erreur unique que le SDK lève pour les échecs sur toute l'exécution. Il porte un `code` stable
+et un `message` sans secret. Les codes sont :
+
+| Code | Quand |
+| --- | --- |
+| `CONFIG_NOT_FOUND` | aucune configuration n'a été trouvée, ou un `configPath` explicite n'existe pas |
+| `CONFIG_INVALID` | une configuration a été trouvée mais est non analysable ou échoue à la validation |
+| `UNKNOWN_FORMAT` | aucun adaptateur n'est enregistré pour le format configuré |
+| `PROVIDER_CONSTRUCTION_FAILED` | le fournisseur n'a pas pu être construit (inclut une clé API manquante) |
+| `SOURCE_UNREADABLE` | le fichier de locale source n'existe pas |
+| `SOURCE_INVALID` | le fichier de locale source n'a pas pu être lu ou analysé |
+| `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu ou trop volumineux |
+| `LOCALE_FAILED` | non levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |
+
+L'échec d'une seule locale ne lève pas d'erreur ; il est enregistré sur le `LocaleSummary` de cette locale avec `status:
+"failed"` et une `error`, et l'exécution continue.
+
+## Définir une configuration
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Exécuter une traduction unique
+
+`translate` se résout en le résumé de l'exécution. Lis `succeeded` et `failed` pour l'essentiel, et parcours
+`locales` pour le détail, y compris toute notification du fournisseur.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await translate({ config });
+
+console.log(`${summary.succeeded.length} succeeded, ${summary.failed.length} failed`);
+
+for (const locale of summary.locales) {
+  for (const notice of locale.notices) {
+    console.warn(`${locale.locale}: ${notice.code} ${notice.message}`);
+  }
+}
+```
+
+Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers.
+
+## Mode surveillance
+
+`watch` appelle ton `onRun` une fois par exécution avec un `WatchRunResult` discriminé. La méthode
+`stop()` du contrôleur l'arrête proprement.
+
+```ts
+import { loadConfig, watch } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const controller = await watch({
+  config,
+  onRun: (result) => {
+    if (result.status === "succeeded") {
+      console.log(`${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
+    } else {
+      console.error(`run failed: ${result.error.code} ${result.error.message}`);
+    }
+  },
+});
+
+// Stop cleanly on Ctrl-C.
+process.on("SIGINT", () => {
+  void controller.stop();
+});
+```
+
+## Gérer les erreurs
+
+Les échecs sur toute l'exécution lèvent une `SdkError`. Branche-toi sur son `code` pour réagir à des cas spécifiques.
+
+```ts
+import { loadConfig, SdkError, translate } from "@verbatra/sdk";
+
+try {
+  const config = await loadConfig();
+  await translate({ config });
+} catch (error) {
+  if (error instanceof SdkError) {
+    switch (error.code) {
+      case "CONFIG_NOT_FOUND":
+        console.error("No verbatra config found. Run `verbatra init` to scaffold one.");
+        break;
+      case "SOURCE_UNREADABLE":
+      case "SOURCE_INVALID":
+        console.error(`Could not read the source locale: ${error.message}`);
+        break;
+      default:
+        console.error(`${error.code}: ${error.message}`);
+    }
+  } else {
+    throw error;
+  }
+}
+```

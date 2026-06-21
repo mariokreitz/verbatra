@@ -56,6 +56,24 @@ if (pending.length > 0) {
 }
 ```
 
+## Hand strings to a human translator
+
+Export the strings that need translating into an Excel workbook, then import the filled file back. `importWorkbook` returns the same `RunSummary` as `translate` and runs the same placeholder and ICU checks, so a manual handoff fits the same reporting and gating as an automated run. See [Manual translation](/docs/manual-translation).
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating.
+const exported = await exportWorkbook({ config });
+console.log(`Wrote ${exported.path}`);
+
+// ...later, after a translator fills and returns the file, import it back.
+const summary = await importWorkbook({ config, workbook: exported.path });
+console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+```
+
 ## Re-translate as the source changes
 
 `watch` calls your `onRun` once per debounced change and returns a controller you stop cleanly.

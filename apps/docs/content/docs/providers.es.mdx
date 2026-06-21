@@ -1,0 +1,90 @@
+---
+title: Proveedores
+description: Los cuatro proveedores de traducción, sus opciones y la clave API que lee cada uno.
+---
+
+# Proveedores
+
+verbatra incluye cuatro proveedores bajo una única interfaz: Anthropic, OpenAI y Gemini son modelos de lenguaje grandes, y DeepL es un servicio de traducción automática. Seleccionas uno en el bloque `provider` de tu configuración, por `id`.
+
+## Las claves provienen del entorno
+
+verbatra nunca lee una clave API de la configuración. Cada proveedor lee exactamente una variable de entorno:
+
+| ID del proveedor | Variable de entorno |
+| --- | --- |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `deepl` | `DEEPL_API_KEY` |
+
+Establece la variable en `.env` (que `verbatra init` ignora en git) o expórtala en tu shell o almacén de secretos de CI. Obtén una clave del propio panel del proveedor, luego coloca su valor detrás de la variable anterior. Nunca confirmes una clave real.
+
+## Anthropic
+
+```ts
+provider: {
+  id: "anthropic",
+  options: {
+    model: "<your-model>",
+    maxTokens: 4096,
+  },
+}
+```
+
+Lee `ANTHROPIC_API_KEY`. `model` y `maxTokens` son ambos obligatorios.
+
+## OpenAI
+
+```ts
+provider: {
+  id: "openai",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Lee `OPENAI_API_KEY`. `model` y `maxOutputTokens` son ambos obligatorios.
+
+## Gemini
+
+```ts
+provider: {
+  id: "gemini",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Lee `GEMINI_API_KEY`. `model` y `maxOutputTokens` son ambos obligatorios.
+
+## DeepL
+
+```ts
+provider: {
+  id: "deepl",
+  options: {},
+}
+```
+
+Lee `DEEPL_API_KEY`. DeepL no necesita un modelo. La única opción es un `glossaryId` opcional que nombra un glosario que ya has creado en DeepL:
+
+```ts
+provider: {
+  id: "deepl",
+  options: {
+    glossaryId: "<your-glossary-id>",
+  },
+}
+```
+
+## Tono y glosario entre proveedores
+
+Los campos de configuración opcionales `tone` y `glossary` (consulta [Configuración](/docs/config-file)) se aplican de manera diferente por proveedor:
+
+- **Tono.** Los proveedores de LLM reciben el tono con la solicitud y se les indica que lo respeten. DeepL lo mapea a la formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono no predeterminado no es compatible y se degrada al predeterminado, con un aviso en el resultado.
+- **Glosario.** Los proveedores de LLM reciben el mapa de términos `glossary` y se les indica que traten sus términos como vinculantes. DeepL no aplica un mapa de términos genérico; registra un aviso y en su lugar utiliza la opción `glossaryId` anterior.

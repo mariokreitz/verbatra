@@ -1,0 +1,53 @@
+---
+title: Démarrer
+description: Installe verbatra, échafaude une configuration et fournis ta clé de fournisseur.
+---
+
+# Démarrer
+
+verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source, et il ne traduit que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix.
+
+Ce guide te mène d'un projet vide à une configuration verbatra prête à l'emploi : installe la CLI, échafaude une configuration et fournis ta clé de fournisseur. L'exécution de ta première traduction se trouve à la page suivante.
+
+## Prérequis
+
+Node.js `>=22.14.0`.
+
+## Installation
+
+verbatra est une dépendance de développement :
+
+```bash
+pnpm add -D @verbatra/cli
+# npm
+npm install -D @verbatra/cli
+# yarn
+yarn add -D @verbatra/cli
+```
+
+Exécute le binaire via ton gestionnaire de paquets : `pnpm verbatra ...`, `npx verbatra ...`, ou `yarn verbatra ...`.
+
+## Échafaude une configuration
+
+Exécute `init` et choisis ton fournisseur :
+
+```bash
+verbatra init --provider anthropic
+```
+
+Ceci écrit un `verbatra.config.ts` et un `.env.example`, et ajoute `.env` et `.env.local` à ton `.gitignore` afin qu'une vraie clé ne soit jamais commitée. Avec un terminal attaché, `init` demande les valeurs qu'il ne peut pas définir par défaut ; passe `--yes` pour accepter les valeurs par défaut et exécuter sans invites. Les valeurs par défaut sont `en` pour la locale source, `de` pour les locales cibles, et `locales/{locale}.json` pour le modèle de fichier.
+
+## Fournis la clé API
+
+Chaque fournisseur lit sa clé à partir d'une variable d'environnement. Pour Anthropic, c'est `ANTHROPIC_API_KEY`. Définis-la dans `.env` (que `init` a déjà ignoré par git) ou exporte-la dans ton shell :
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+verbatra charge `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter, et une variable déjà présente dans ton environnement l'emporte toujours. Voir [Fournisseurs](/docs/providers) pour la variable de chaque fournisseur.
+
+## Suivant
+
+- [Ta première traduction](/docs/your-first-translation) : exécute verbatra, lis le résumé de l'exécution et vois ce que signifie "traduire uniquement ce qui a changé" en pratique.
+- [Configuration](/docs/config-file) : le schéma de configuration complet et l'ordre de découverte.

@@ -12,6 +12,7 @@
     "---run---",
     "cli",
     "github-action",
+    "manual-translation",
     "ci-and-exit-codes",
     "---understand---",
     "how-it-works",

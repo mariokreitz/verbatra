@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 
 // Landing pieces for the /docs index hero. The deep brand purple appears only as a
 // filled surface (the primary lane), where light text on it clears AA; it is never used
@@ -28,65 +25,6 @@ export function VMark({ size = 44 }: { size?: number }) {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-export function CopyCommand({
-  command,
-  link,
-}: {
-  command: string;
-  link?: { token: string; href: string };
-}) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(command);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context); the command is still visible.
-    }
-  }
-
-  // Optionally turn one token (the package name) into a subtle npm link. Copy still
-  // writes the plain command string, and clicking the link does not trigger a copy.
-  const tokenAt = link ? command.indexOf(link.token) : -1;
-
-  return (
-    <div className="not-prose flex max-w-xl items-center gap-3 rounded-lg border border-fd-border bg-fd-card px-4 py-2.5 font-mono text-sm">
-      <span className="text-fd-muted-foreground" aria-hidden="true">
-        $
-      </span>
-      <code className="text-fd-foreground">
-        {link && tokenAt >= 0 ? (
-          <>
-            {command.slice(0, tokenAt)}
-            <a
-              href={link.href}
-              target="_blank"
-              rel="noreferrer noopener"
-              onClick={(event) => event.stopPropagation()}
-              className="rounded underline decoration-fd-border underline-offset-4 transition-colors hover:text-[var(--v-glow)] hover:decoration-[var(--v-glow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--v-purple)]"
-            >
-              {link.token}
-            </a>
-            {command.slice(tokenAt + link.token.length)}
-          </>
-        ) : (
-          command
-        )}
-      </code>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label="Copy install command"
-        className="ms-auto rounded-md border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
-      >
-        {copied ? "copied" : "copy"}
-      </button>
-    </div>
   );
 }
 

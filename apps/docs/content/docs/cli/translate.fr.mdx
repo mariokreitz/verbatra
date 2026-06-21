@@ -1,0 +1,48 @@
+---
+title: verbatra translate
+description: Traduis chaque locale cible une fois, puis quitte.
+---
+
+# verbatra translate
+
+Exécute le flux lire, comparer, traduire, écrire sur chaque locale cible une fois, puis quitte. verbatra lit la locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées ; les traductions qui sont toujours à jour sont laissées intactes.
+
+```bash
+verbatra translate
+```
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
+| `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
+| `--dry-run` | prévisualiser les changements sans appeler de fournisseur ni écrire de fichiers |
+| `--json` | afficher le résumé de l'exécution au format JSON |
+
+## Sortie
+
+Sans `--json`, `translate` affiche un résumé d'exécution lisible par un humain. Avec `--json`, il affiche le résumé de l'exécution sous forme d'un seul objet JSON sur stdout - voir la [structure `RunSummary` dans la référence du SDK](/docs/sdk). Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
+
+## Exemples
+
+```bash
+# traduire une fois en utilisant la configuration trouvée
+verbatra translate
+
+# prévisualiser les changements sans appeler de fournisseur ni écrire de fichiers
+verbatra translate --dry-run
+
+# résumé lisible par machine sur stdout
+verbatra translate --json
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | chaque locale cible a réussi |
+| `1` | l'exécution s'est terminée mais une ou plusieurs locales ont échoué |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fournisseur qui n'a pas pu être construit, y compris une clé API manquante, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+
+L'échec d'une seule locale n'est pas fatal et produit le code de sortie `1` ; le détail par locale figure dans le résumé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

@@ -1,0 +1,98 @@
+---
+title: Archivo de configuración
+description: El esquema de configuración de verbatra, el orden de descubrimiento y cómo el directorio de trabajo lo une todo.
+---
+
+# Archivo de configuración
+
+verbatra lee un pequeño objeto de configuración no secreto y lo valida antes de realizar cualquier trabajo. No contiene ninguna clave de API; el proveedor lee su clave del entorno.
+
+<Callout title="Keys come from the environment">
+Nunca se lee ninguna clave de API de este archivo. Cada proveedor lee su clave de una variable de entorno, por lo que la configuración permanece segura para ser confirmada. Consulta [Proveedores](/docs/providers).
+</Callout>
+
+## Una configuración mínima
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>", // replace with your provider's model id
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+`defineConfig` es una función auxiliar de identidad de `@verbatra/sdk`. Devuelve su argumento sin cambios y existe solo para proporcionarte inferencia de tipos y autocompletado en el editor.
+
+## Campos
+
+- **`sourceLocale`** (string): la configuración regional en la que están escritas tus cadenas de origen.
+- **`targetLocales`** (array de strings): las configuraciones regionales a las que traducir. No debe incluir `sourceLocale`.
+- **`format`** (string): uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, o `ngx-translate-json`.
+- **`files.pattern`** (string): la ruta a cada archivo de configuración regional. Debe contener el token `{locale}`, que verbatra reemplaza con cada configuración regional (por ejemplo, `locales/{locale}.json` se resuelve en `locales/de.json`).
+- **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor tiene sus propias `options`. Consulta [Proveedores](/docs/providers).
+- **`glossary`** (opcional, objeto): un mapa de términos de origen a términos de destino preferidos. Los proveedores de LLM (Anthropic, OpenAI, Gemini) lo reciben con la solicitud y se les indica que traten sus términos como vinculantes. DeepL no aplica este mapa de términos; registra un aviso y, en su lugar, aplica un glosario configurado por id (consulta [Proveedores](/docs/providers)).
+- **`tone`** (opcional): uno de `"formal"`, `"informal"`, o `"neutral"`. Los proveedores de LLM lo reciben y se les indica que lo respeten. DeepL lo mapea a la formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono no predeterminado no es compatible y se degrada al predeterminado con un aviso.
+
+Las claves de nivel superior desconocidas son rechazadas. Esta es también la razón por la que una clave de API no puede residir en la configuración: las claves provienen del entorno, no del archivo.
+
+Una configuración que utiliza los campos opcionales:
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  glossary: {
+    "Sign in": "Anmelden",
+  },
+  tone: "formal",
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Orden de descubrimiento
+
+verbatra busca hacia arriba desde el directorio de trabajo y utiliza la primera fuente que encuentra. Múltiples fuentes presentes no son un error; la primera coincidencia gana. El orden de búsqueda es:
+
+1. `package.json` (una propiedad `"verbatra"`)
+2. `.verbatrarc`
+3. `.verbatrarc.json`
+4. `.verbatrarc.yaml`
+5. `.verbatrarc.yml`
+6. `.verbatrarc.js`
+7. `.verbatrarc.cjs`
+8. `.verbatrarc.ts`
+9. `verbatra.config.js`
+10. `verbatra.config.cjs`
+11. `verbatra.config.ts`
+
+Para cargar un archivo explícito en lugar de buscar, pasa `--config <path>`.
+
+## El directorio de trabajo y .env
+
+Ejecuta verbatra desde la raíz de tu proyecto, o pasa `--cwd` apuntando a ella. El directorio de trabajo es el único ancla para todo lo que verbatra resuelve: la búsqueda de configuración comienza allí y sube, `.env.local` y `.env` se cargan desde allí, y cada ruta de archivo de configuración regional se resuelve en relación con él. Mantener los tres en el mismo lugar es lo que hace que un simple `verbatra translate` funcione.
+
+La precedencia del entorno es, de mayor a menor: una variable ya establecida en tu entorno real, luego `.env.local`, luego `.env`. Una variable ya presente nunca se sobrescribe.

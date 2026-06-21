@@ -1,0 +1,31 @@
+---
+title: Formatos
+description: Los formatos JSON de i18n que admite verbatra, cómo los lee y cómo cada uno maneja los marcadores de posición, los plurales y ICU.
+---
+
+# Formatos
+
+verbatra trabaja sobre archivos JSON de configuración regional a través de un adaptador de formato. Cada adaptador lee un archivo en una representación neutral respecto al formato sobre la que operan el diff, el hashing y las comprobaciones de integridad, y lo vuelve a escribir en la forma original del archivo. La v1 admite cuatro formatos JSON, seleccionados con el campo `format` en tu configuración.
+
+## Los cuatro formatos
+
+| `format` | Para | Marcadores de posición | Plurales | ICU |
+| --- | --- | --- | --- | --- |
+| `i18next-json` | i18next | `{{name}}` | sufijo de plural CLDR en la clave | no |
+| `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | barra vertical en el valor | no |
+| `next-intl-json` | next-intl | nombres de argumentos y etiquetas ICU | plural o selectordinal de ICU | sí |
+| `ngx-translate-json` | ngx-translate | `{{name}}` | ninguno | no |
+
+i18next y ngx-translate comparten la misma interpolación de `{{doble-llave}}`. vue-i18n usa llaves simples y decide el plural a partir de una barra vertical en el valor. Los valores de next-intl son ICU MessageFormat: los marcadores de posición son los nombres de los argumentos ICU y las etiquetas de texto enriquecido, el plural sigue un argumento plural o selectordinal de ICU, y el cuerpo ICU se mantiene literal a lo largo de la canalización. ngx-translate no tiene plural ni ICU integrados, y sus archivos pueden ser planos con claves con puntos o anidados; verbatra preserva el estilo que use el archivo al escribir.
+
+## Por qué importa el formato
+
+El formato le dice a verbatra dos cosas que necesita para una ejecución segura. Primero, la sintaxis del marcador de posición, para que la [comprobación de integridad de marcadores de posición](/docs/translation-safety) sepa qué comparar antes y después de la traducción. Segundo, para ICU, qué valores validar, de modo que una clave de origen con ICU no válido se omita en lugar de enviarse en un estado roto. El formato incorrecto compara los tokens equivocados, así que ajústalo a tu biblioteca de i18n.
+
+## Cómo se leen y se escriben los archivos
+
+verbatra limita el tamaño de entrada y la profundidad de anidamiento al leer, y resiste que un archivo cambie por debajo de ella. Escribe de forma atómica: escribe en un archivo temporal y luego lo renombra en su lugar, de modo que una escritura interrumpida nunca deja un archivo de configuración regional a medio terminar. Cuando verbatra no puede manejar un archivo, genera un error estructurado y sin secretos en lugar de uno en bruto, por ejemplo ante JSON no válido, una estructura demasiado profunda o, solo para ngx-translate, un archivo que mezcla claves planas con puntos con objetos anidados.
+
+## Elegir un formato
+
+Ajusta el formato a tu framework: `i18next-json` para i18next, `vue-i18n-json` para vue-i18n, `next-intl-json` para next-intl y `ngx-translate-json` para ngx-translate. XLIFF, YAML y ARB están planeados para versiones posteriores. Consulta [Archivo de configuración](/docs/config-file) para ver dónde se ubica `format` en la configuración.

@@ -8,13 +8,16 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "postinstall": "fumadocs-mdx"
+    "postinstall": "fumadocs-mdx",
+    "i18n": "verbatra translate"
   },
   "dependencies": {
+    "@icons-pack/react-simple-icons": "13.13.0",
     "fumadocs-core": "16.9.3",
     "fumadocs-mdx": "15.0.12",
     "fumadocs-ui": "16.9.3",
     "next": "16.2.6",
+    "next-intl": "4.13.0",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
@@ -24,6 +27,8 @@
     "@types/node": "26.0.0",
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
+    "@verbatra/cli": "workspace:*",
+    "@verbatra/sdk": "workspace:*",
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3"
   }

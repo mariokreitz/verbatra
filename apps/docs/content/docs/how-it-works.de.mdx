@@ -1,0 +1,99 @@
+---
+title: Wie es funktioniert
+description: Was ein verbatra-Lauf von Anfang bis Ende tut, von der Konfigurationssuche bis zur Lauf-Zusammenfassung.
+---
+
+# Wie es funktioniert
+
+Ein verbatra-Lauf ist eine kurze Pipeline: lade die Konfiguration, lies das Quell-Locale, dann für jedes Ziel-Locale
+vergleiche gegen das, was zuletzt übersetzt wurde, sende nur das, was sich geändert hat, an den Provider, prüfe das
+Ergebnis und schreibe. Diese Seite geht jeden Schritt durch, damit du genau weißt, was ein Lauf tut.
+
+<DiffPanel />
+
+## Konfigurationssuche und -laden
+
+Ein Lauf beginnt mit dem Laden der Konfiguration. verbatra sucht vom Arbeitsverzeichnis aufwärts und
+verwendet die erste Quelle, die es findet: ein `"verbatra"`-Schlüssel in `package.json`, dann eine der
+`.verbatrarc.*`-Dateien, dann eine `verbatra.config.*`-Datei. Die Konfiguration wird validiert, bevor mit der Arbeit begonnen wird. Wenn nichts
+gefunden wird, schlägt der Lauf mit `CONFIG_NOT_FOUND` fehl; wenn eine Konfiguration vorhanden, aber ungültig ist, schlägt er mit
+`CONFIG_INVALID` fehl. Die Konfiguration enthält keinen API-Schlüssel; der Provider liest seinen Schlüssel aus der Umgebung.
+
+## Lesen des Quell-Locales
+
+verbatra löst die Quelldatei aus `files.pattern` auf, indem es das `{locale}`-Token durch
+`sourceLocale` ersetzt, relativ zum Arbeitsverzeichnis. Wenn diese Datei fehlt, schlägt der Lauf mit
+`SOURCE_UNREADABLE` fehl; wenn sie nicht geparst werden kann, schlägt er mit `SOURCE_INVALID` fehl. Während des Lesens vermerkt der Format-
+Adapter auch alle Quell-Schlüssel, deren Werte für die Nachrichten-Syntax des Formats ungültig sind (ungültiges
+ICU). Diese Schlüssel werden mitgeführt und von der Übersetzung übersprungen, statt in einem fehlerhaften Zustand gesendet zu werden.
+
+## Der Lauf pro Locale
+
+Jedes Ziel-Locale wird für sich behandelt. Ein Fehler in einem Locale bricht die anderen nicht ab.
+
+### Vergleich gegen die Lock-Basislinie
+
+verbatra liest die vorhandene Zieldatei (eine fehlende Datei wird als leer behandelt) und vergleicht die Quelle
+dagegen, wobei die Lock-Datei als Basislinie dessen dient, was zuvor übersetzt wurde. Der Vergleich sortiert jeden
+Quell-Schlüssel in einen von vier Behältern:
+
+- neue Schlüssel, die das Ziel noch nicht hat,
+- geänderte Schlüssel, deren Quelltext von der aufgezeichneten Basislinie abweicht,
+- unveränderte Schlüssel, die bereits aktuell sind,
+- verwaiste Schlüssel, die im Ziel vorhanden sind, aber nicht mehr in der Quelle.
+
+Nur die neuen und geänderten Schlüssel kommen für eine Übersetzung in Frage. Unveränderte Schlüssel bleiben unberührt, und
+verwaiste Schlüssel werden gemeldet, aber nicht entfernt. Jeder Kandidat, der als ungültiges ICU markiert ist, wird ebenfalls beiseitegelegt.
+Das ist es, was einen Lauf inkrementell hält: ein Provider wird nur für die Strings aufgerufen, die sich tatsächlich geändert haben.
+
+### Aufruf des Providers
+
+Die Kandidaten-Einträge werden in einem Batch an den konfigurierten Provider gesendet, zusammen mit dem optionalen
+`glossary` und `tone` aus deiner Konfiguration. Wie diese angewendet werden, hängt vom Provider ab.
+
+- Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten die Einträge, das Glossar und den Ton in einem
+  strukturierten Daten-Payload und werden angewiesen, die Glossar-Begriffe als bindend zu behandeln und den
+  Ton zu berücksichtigen. Das Modell ist darauf beschränkt, einen Wert pro angefragtem Schlüssel zurückzugeben.
+- DeepL ist ein maschineller Übersetzungsdienst und ordnet dieselben Eingaben seinen eigenen Optionen zu. Ton wird zu
+  Formalität: `formal` fragt nach einem formelleren Ergebnis, `informal` nach einem weniger formellen, und `neutral`
+  oder ein fehlender Ton wird weggelassen. Eine konfigurierte `glossaryId` wird nativ durchgereicht.
+
+DeepL kann auch Hinweise melden, wenn es ordnungsgemäß herabstuft. Bei einem Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton
+nicht unterstützt, sodass es auf den Standardwert zurückfällt und einen `FORMALITY_DOWNGRADED`-Hinweis ausgibt. Eine generische
+`glossary`-Begriffszuordnung wird von DeepL nicht angewendet (es verwendet stattdessen ein Glossar über die ID), sodass es einen
+`GLOSSARY_IGNORED`-Hinweis ausgibt. Dies sind Daten im Ergebnis, keine Fehler. Die LLM-Provider geben keine
+Hinweise aus.
+
+### Platzhalter prüfen und schreiben
+
+Nach der Übersetzung vergleicht verbatra den Platzhalter-Satz jedes übersetzten Werts mit seiner Quelle.
+Eine Übersetzung, die einen Platzhalter weglässt oder verändert, besteht diese Integritätsprüfung nicht und wird zurückgehalten, statt
+geschrieben zu werden. Die akzeptierten Übersetzungen werden in das Ziel-Locale eingefügt und atomar geschrieben, sodass
+ein unterbrochener Schreibvorgang niemals eine halbfertige Datei hinterlässt.
+
+## Die Lock-Datei und inkrementelle Arbeit
+
+verbatra führt eine festgeschriebene Lock-Datei (`verbatra.lock.json`), die pro Locale einen Content-Hash
+für jeden übersetzten Quell-Schlüssel aufzeichnet. Dieser Datensatz ist die Basislinie, gegen die der nächste Lauf vergleicht. Nachdem ein
+Locale geschrieben wurde, wird die Lock-Datei mit den aktuellen Quell-Hashes aktualisiert, mit einer bewussten
+Ausnahme: Schlüssel, die in diesem Lauf zurückgehalten wurden (ein Platzhalter-Konflikt oder ungültiges ICU), behalten ihren vorherigen
+Hash, sodass der nächste Lauf sie als noch zu bearbeiten sieht und erneut versucht. Verwaiste Schlüssel erhalten keinen Eintrag.
+Eine fehlende Lock-Datei wird als erster Lauf behandelt; eine beschädigte schlägt mit `LOCK_FILE_INVALID` fehl, statt
+stillschweigend überschrieben zu werden.
+
+## Die Lauf-Zusammenfassung
+
+Ein Lauf gibt eine Zusammenfassung über alle Ziel-Locales zurück: die Locales, die erfolgreich waren, die fehlgeschlagenen,
+und eine Aufschlüsselung pro Locale. Jeder Locale-Eintrag meldet die übersetzten Schlüssel, die unverändert gelassenen Schlüssel,
+die verwaisten Schlüssel, alle Quell-Schlüssel, die wegen ungültigem ICU übersprungen wurden, alle Übersetzungen, die wegen eines
+Platzhalter-Konflikts zurückgehalten wurden, und alle Provider-Hinweise (wie die DeepL-Fälle oben). Ein Dry-Run erzeugt die
+gleiche Form der Zusammenfassung und listet die Schlüssel auf, die übersetzt würden, ohne einen Provider aufzurufen oder etwas zu
+schreiben.
+
+## Fehler
+
+verbatra zieht eine klare Linie zwischen zwei Arten von Fehlern. Ein Problem des gesamten Laufs, wie eine fehlende oder
+ungültige Konfiguration, eine unlesbare Quelle, ein unbekanntes Format, ein Provider, der nicht konstruiert werden kann
+(einschließlich eines fehlenden API-Schlüssels), oder eine beschädigte Lock-Datei, stoppt den Lauf mit einem strukturierten Fehler. Das
+Fehlschlagen eines einzelnen Locales ist nicht fatal: es wird im Eintrag dieses Locales mit einem Code und einer Nachricht aufgezeichnet,
+und die übrigen Locales laufen weiter.

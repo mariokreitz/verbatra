@@ -1,0 +1,49 @@
+---
+title: verbatra init
+description: Genera una configuración de verbatra y un ejemplo de .env para tu proyecto.
+---
+
+# verbatra init
+
+Crea un `verbatra.config.ts` y un `.env.example`, y añade `.env` y `.env.local` a tu `.gitignore` para que una clave real nunca sea confirmada. Con un terminal conectado y sin `--yes`, `init` solicita los valores que no puede establecer por defecto; de lo contrario, se ejecuta de forma no interactiva y utiliza los valores por defecto.
+
+```bash
+verbatra init --provider anthropic
+```
+
+## Opciones
+
+| Opción | Descripción |
+| --- | --- |
+| `--cwd <path>` | escribe los archivos de configuración y de entorno en este directorio |
+| `--provider <id>` | proveedor de traducción: `anthropic`, `openai`, `gemini` o `deepl` (obligatorio salvo que se solicite) |
+| `--source <locale>` | configuración regional en la que están escritas tus cadenas de origen (por defecto `en`) |
+| `--targets <locales>` | configuraciones regionales a las que traducir, separadas por comas (por defecto `de`) |
+| `--path <pattern>` | patrón de archivo de configuración regional que contiene el token `{locale}` (por defecto `locales/{locale}.json`) |
+| `--yes` | omite las solicitudes y acepta los valores por defecto |
+| `--force` | sobrescribe una configuración o un `.env.example` existente |
+
+El proveedor es el único valor que `init` no puede establecer por defecto. Sin un terminal para solicitar (en CI, o con `--yes`), pasa `--provider`. Los demás valores recurren a sus valores por defecto cuando no se proporcionan.
+
+## Archivos existentes
+
+Por defecto, `init` nunca sobrescribe: si ya existe un `verbatra.config.ts` o un `.env.example`, se deja intacto y el comando aun así tiene éxito. Pasa `--force` para sobrescribir un archivo existente.
+
+## Ejemplos
+
+```bash
+# crea config + .env de ejemplo, solicitando el resto
+verbatra init --provider anthropic
+
+# no interactivo, acepta todos los valores por defecto
+verbatra init --provider deepl --yes
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | los archivos se escribieron, o se omitieron de forma segura porque ya existen (sin `--force`) |
+| `2` | un error de uso: no se dio ningún `--provider` sin un terminal para solicitar, o la configuración ensamblada no superó la validación |
+
+Después de `init`, establece la clave de API del proveedor y ejecuta [`verbatra translate`](/docs/cli/translate). Consulta [Primeros pasos](/docs) para ver el recorrido completo.

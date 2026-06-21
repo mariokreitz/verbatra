@@ -1,0 +1,48 @@
+---
+title: verbatra translate
+description: Übersetzt jedes Ziel-Locale einmal und beendet sich dann.
+---
+
+# verbatra translate
+
+Führt den Ablauf aus Lesen, Diffen, Übersetzen, Schreiben einmal über jedes Ziel-Locale aus und beendet sich dann. verbatra liest das Quell-Locale, vergleicht es mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen oder geänderten Strings an den Provider; Übersetzungen, die noch aktuell sind, bleiben unberührt.
+
+```bash
+verbatra translate
+```
+
+## Optionen
+
+| Option | Beschreibung |
+| --- | --- |
+| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
+| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
+| `--dry-run` | zeigt eine Vorschau der Änderungen, ohne einen Provider aufzurufen oder Dateien zu schreiben |
+| `--json` | gibt die Lauf-Zusammenfassung als JSON aus |
+
+## Ausgabe
+
+Ohne `--json` gibt `translate` eine menschenlesbare Lauf-Zusammenfassung aus. Mit `--json` gibt es die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout aus - siehe die [`RunSummary`-Struktur in der SDK-Referenz](/docs/sdk). Ein Lauf-weiter Fehler wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
+
+## Beispiele
+
+```bash
+# translate once using the config it finds
+verbatra translate
+
+# preview changes without calling a provider or writing files
+verbatra translate --dry-run
+
+# machine-readable summary on stdout
+verbatra translate --json
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | jedes Ziel-Locale war erfolgreich |
+| `1` | der Lauf wurde beendet, aber ein oder mehrere Locales sind fehlgeschlagen |
+| `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, ein Provider, der nicht aufgebaut werden konnte, einschließlich eines fehlenden API-Schlüssels, oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+
+Ein einzelnes fehlgeschlagenes Locale ist nicht fatal und ergibt Exit `1`; das Detail pro Locale steht in der Zusammenfassung. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.

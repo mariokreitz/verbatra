@@ -3,12 +3,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
+import type { Locale } from "@/lib/i18n";
 import { source } from "@/lib/source";
 import { techArticleLd } from "@/lib/structured-data";
 
-export default async function Page(props: { params: Promise<{ slug?: string[] }> }) {
+export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
-  const page = source.getPage(params.slug);
+  const lang = params.lang as Locale;
+  const page = source.getPage(params.slug, lang);
   if (!page) notFound();
 
   const MDX = page.data.body;
@@ -20,6 +22,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[] }>
           title: page.data.title,
           description: page.data.description,
           path: page.url,
+          lang,
         })}
       />
       <DocsTitle>{page.data.title}</DocsTitle>
@@ -36,10 +39,10 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata(props: {
-  params: Promise<{ slug?: string[] }>;
+  params: Promise<{ slug?: string[]; lang: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug);
+  const page = source.getPage(params.slug, params.lang as Locale);
   if (!page) notFound();
 
   // Self-referencing canonical on the canonical host, plus a per-page Open Graph card:

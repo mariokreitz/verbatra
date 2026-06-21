@@ -14,9 +14,13 @@ informed as we investigate and work on a fix.
 
 ## Supported versions
 
-verbatra has not had its first public release yet. Once the first version is
-published to npm, security fixes will target the latest released version. Until
-then, please report issues against the current `main` branch.
+verbatra is published to npm. Security fixes target the latest released minor;
+upgrade to the latest release to receive them.
+
+| Version | Supported |
+| ------- | --------- |
+| 0.2.x   | yes       |
+| < 0.2.0 | no        |
 
 ## Handling of API keys
 

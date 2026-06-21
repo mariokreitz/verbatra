@@ -5,7 +5,7 @@ automation tool built as a pnpm + Turborepo monorepo. This guide describes the
 setup, commands, and conventions this repository actually enforces.
 
 By participating, you agree to abide by our [Code of Conduct](CODE_OF_CONDUCT.md).
-To report a security issue, follow [SECURITY.md](SECURITY.md) — please do not
+To report a security issue, follow [SECURITY.md](SECURITY.md); please do not
 open a public issue for vulnerabilities.
 
 ## Prerequisites
@@ -31,11 +31,11 @@ installs them during install). If the hooks are not active, run
 Run all commands from the repository root; Turborepo orchestrates the per-package
 tasks.
 
-- `pnpm build` — build all packages
-- `pnpm test` — run the test suites (Vitest) with coverage
-- `pnpm lint` — lint all packages (Biome)
-- `pnpm check` — run Biome lint and format checks across the repository
-- `pnpm format` — apply Biome formatting
+- `pnpm build` - build all packages
+- `pnpm test` - run the test suites (Vitest) with coverage
+- `pnpm lint` - lint all packages (Biome)
+- `pnpm check` - run Biome lint and format checks across the repository
+- `pnpm format` - apply Biome formatting
 
 Run a task for a single package with a filter, for example:
 
@@ -91,5 +91,8 @@ hold to the standards in the [Code of Conduct](CODE_OF_CONDUCT.md).
 ## Adding a provider or a format adapter
 
 Step-by-step guides for adding a new translation provider or a new format adapter
-are coming with the documentation site. Until then, open an issue or a draft pull
-request to discuss the design first.
+are not yet written. Open an issue or a draft pull request to discuss the design
+first: format adapters build on the shared `createJsonFileAdapter` factory and
+register in the adapter registry, providers implement the `TranslationProvider`
+interface behind the provider registry, and both must respect the repository's
+inner-to-outer dependency graph (never import against it).

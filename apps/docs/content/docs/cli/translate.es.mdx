@@ -1,0 +1,48 @@
+---
+title: verbatra translate
+description: Traduce cada configuración regional de destino una vez y luego termina.
+---
+
+# verbatra translate
+
+Ejecuta el flujo de leer, comparar, traducir y escribir sobre cada configuración regional de destino una vez y luego termina. verbatra lee la configuración regional de origen, la compara con lo que tradujo la última vez y envía solo las cadenas nuevas o modificadas al proveedor; las traducciones que aún están actualizadas se dejan intactas.
+
+```bash
+verbatra translate
+```
+
+## Opciones
+
+| Opción | Descripción |
+| --- | --- |
+| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
+| `--dry-run` | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
+| `--json` | imprime el resumen de la ejecución como JSON |
+
+## Salida
+
+Sin `--json`, `translate` imprime un resumen de la ejecución legible para humanos. Con `--json`, imprime el resumen de la ejecución como un único objeto JSON en stdout: consulta la [forma de `RunSummary` en la referencia del SDK](/docs/sdk). Un error de ejecución completa se escribe en stderr, por lo que stdout permanece limpio y canalizable con `--json`.
+
+## Ejemplos
+
+```bash
+# traduce una vez usando la configuración que encuentra
+verbatra translate
+
+# previsualiza los cambios sin llamar a un proveedor ni escribir archivos
+verbatra translate --dry-run
+
+# resumen legible por máquina en stdout
+verbatra translate --json
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | cada configuración regional de destino tuvo éxito |
+| `1` | la ejecución terminó pero una o más configuraciones regionales fallaron |
+| `2` | no se pudo ejecutar: un error de ejecución completa (configuración ausente o no válida, origen ilegible, formato desconocido, un proveedor que no se pudo construir incluyendo una clave de API ausente, o un archivo de bloqueo corrupto), o un error de uso |
+
+Que una sola configuración regional falle no es fatal y produce el código de salida `1`; el detalle por configuración regional está en el resumen. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.

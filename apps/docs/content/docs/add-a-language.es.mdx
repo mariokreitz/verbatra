@@ -1,0 +1,53 @@
+---
+title: Añadir un idioma
+description: Añade una nueva configuración regional de destino a una configuración de verbatra existente.
+---
+
+# Añadir un idioma
+
+Añadir un idioma es un cambio de configuración de una sola línea seguido de una ejecución de traducción. verbatra trata la nueva configuración regional como si le faltara todo, por lo que la primera ejecución la completa; las ejecuciones posteriores se mantienen incrementales.
+
+## Añade la configuración regional a tu configuración
+
+Añade la nueva configuración regional a `targetLocales` en `verbatra.config.ts`. No debe ser tu `sourceLocale`:
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"], // "fr" added
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Traducir
+
+Ejecuta una traducción:
+
+```bash
+verbatra translate
+```
+
+La nueva configuración regional aún no tiene un archivo de destino, por lo que verbatra la trata como vacía y traduce cada clave de origen a ella, escribiendo el archivo desde `files.pattern` (por ejemplo, `locales/fr.json`). Tus configuraciones regionales existentes se dejan intactas a menos que sus cadenas de origen hayan cambiado, porque el archivo de bloqueo aún las registra como actuales.
+
+Previsualiza primero con `verbatra translate --dry-run` si quieres ver las claves de la nueva configuración regional antes de cualquier llamada al proveedor.
+
+## Manteniendo la configuración regional de origen
+
+Solo mantienes la configuración regional de origen manualmente. Para añadir nuevas cadenas, añádelas al archivo de origen y ejecuta `translate` de nuevo; verbatra las rellena en cada destino, incluida la que acabas de añadir.
+
+## Siguiente
+
+- [Configuración](/docs/config-file): el esquema de configuración completo, incluyendo `glossary` y `tone`.
+- [Proveedores](/docs/providers): opciones del proveedor y dónde obtener una clave.

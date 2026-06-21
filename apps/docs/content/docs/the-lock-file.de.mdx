@@ -1,0 +1,35 @@
+---
+title: Die Lock-Datei
+description: Was verbatra.lock.json aufzeichnet, warum sie die Basislinie für inkrementelle Läufe ist und warum du sie committest.
+---
+
+# Die Lock-Datei
+
+verbatra führt eine einzelne festgeschriebene Datei, `verbatra.lock.json`, in deinem Projekt. Sie ist der Datensatz dessen, was verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf vergleicht deine Quelle gegen diese Basislinie und ruft den Provider nur für die Schlüssel auf, die sich tatsächlich geändert haben.
+
+## Was sie aufzeichnet
+
+Für jedes Ziel-Locale speichert die Lock-Datei einen Content-Hash für jeden übersetzten Quell-Schlüssel. Der Hash wird aus dem Quellwert gebildet, sodass er genau den Text erfasst, der die vorhandene Übersetzung erzeugt hat. Die Lock-Datei enthält keine Übersetzungen und keine API-Schlüssel. Sie enthält Hashes.
+
+## Wie ein Lauf sie verwendet
+
+Wenn verbatra ein Ziel-Locale liest, vergleicht es die Quelle gegen dieses Locale, wobei die Lock-Datei als Basislinie dessen dient, was zuvor übersetzt wurde. Jeder Quell-Schlüssel sortiert sich in einen von vier Behältern:
+
+- neu: das Ziel hat den Schlüssel noch nicht.
+- geändert: der Quellwert weicht von dem in der Lock-Datei aufgezeichneten Hash ab.
+- unverändert: der Quellwert stimmt noch mit dem aufgezeichneten Hash überein.
+- verwaist: der Schlüssel ist im Ziel, aber nicht mehr in der Quelle.
+
+Nur neue und geänderte Schlüssel werden an den Provider gesendet. Unveränderte Schlüssel bleiben unberührt, weshalb ein zweiter Lauf ohne Quell-Bearbeitungen den Provider für nichts aufruft.
+
+## Wie sie aktualisiert wird
+
+Nachdem ein Locale geschrieben wurde, aktualisiert verbatra die Lock-Datei mit den aktuellen Quell-Hashes, mit einer bewussten Ausnahme. Ein Schlüssel, der in diesem Lauf zurückgehalten wurde, weil seine Übersetzung die Platzhalter-Prüfung nicht bestanden hat oder sein Quell-ICU ungültig war, behält seinen vorherigen Hash. Der nächste Lauf sieht ihn dann immer noch als zu bearbeiten an und versucht ihn erneut, statt ihn als erledigt aufzuzeichnen. Verwaiste Schlüssel erhalten keinen Eintrag.
+
+## Erster Lauf, fehlende Lock-Datei, beschädigte Lock-Datei
+
+Eine fehlende Lock-Datei wird als erster Lauf behandelt: jeder Ziel-Schlüssel ist neu. Eine Lock-Datei, die vorhanden, aber beschädigt oder größer als die Größenobergrenze ist, wird nicht stillschweigend überschrieben. Der Lauf schlägt mit `LOCK_FILE_INVALID` fehl, damit du sie inspizieren kannst, statt die Basislinie zu verlieren.
+
+## Committe sie
+
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Sie ist die gemeinsame Basislinie, gegen die dein Team und deine CI vergleichen, sodass sie in der Versionskontrolle zu halten das ist, was inkrementelle Läufe maschinenübergreifend reproduzierbar macht. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Lauf-Pipeline und [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.

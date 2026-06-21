@@ -1,0 +1,57 @@
+---
+title: Tu primera traducción
+description: Ejecuta verbatra por primera vez, lee el resumen de la ejecución y comprende las re-ejecuciones incrementales.
+---
+
+# Tu primera traducción
+
+Con el CLI instalado, una configuración andamiada y tu clave de proveedor en el entorno (consulta [Primeros pasos](/docs)), estás listo para traducir.
+
+## Ejecutar una traducción
+
+Ejecuta una traducción única sobre cada configuración regional de destino:
+
+```bash
+verbatra translate
+```
+
+verbatra lee la configuración regional de origen, la compara con lo que tradujo la última vez y envía solo las cadenas nuevas o modificadas al proveedor. Las traducciones que aún están actualizadas se dejan intactas. Cada archivo de configuración regional de destino se escribe en su lugar, por lo que `locales/de.json` y el resto aparecen o se actualizan junto a tu archivo de origen.
+
+## Leer el resumen de la ejecución
+
+Una ejecución finaliza con un resumen de cada configuración regional de destino: qué configuraciones regionales tuvieron éxito, cuáles fallaron, y un desglose por configuración regional de las claves traducidas, las claves sin cambios, las claves huérfanas (presentes en un destino pero ya no en el origen) y cualquier aviso del proveedor. Que una sola configuración regional falle no detiene a las demás; se informa en la línea de esa configuración regional con un código y un mensaje.
+
+Para una salida legible por máquina, añade `--json` y verbatra imprimirá el resumen como un objeto JSON. Consulta [CI y códigos de salida](/docs/ci-and-exit-codes) para conocer la forma y el contrato del código de salida.
+
+## Previsualizar con una ejecución de prueba
+
+Para ver qué cambiaría sin llamar a un proveedor ni escribir archivos:
+
+```bash
+verbatra translate --dry-run
+```
+
+Una ejecución de prueba produce el mismo resumen, listando las claves que se traducirían, pero no realiza llamadas al proveedor ni escribe nada. Es la forma segura de verificar lo que hará una ejecución.
+
+## Las re-ejecuciones son incrementales
+
+Ejecuta `verbatra translate` de nuevo sin cambiar tu origen y no se envía nada al proveedor: cada clave ya está actualizada. Cambia una cadena de origen y solo esa clave se volverá a traducir en la siguiente ejecución. Este es el comportamiento principal. verbatra mantiene un archivo de bloqueo (`verbatra.lock.json`) que registra lo que tradujo, y compara con él en cada ejecución para que el proveedor sea llamado solo por lo que realmente cambió. Consulta [Cómo funciona](/docs/how-it-works) para ver el flujo completo.
+
+<Callout title="Confirma el archivo de bloqueo">
+verbatra escribe `verbatra.lock.json` en la primera ejecución. Confírmalo con tus archivos de configuración regional para que cada máquina y tu CI comparen con la misma línea base. Consulta [El archivo de bloqueo](/docs/the-lock-file).
+</Callout>
+
+## Traduce mientras trabajas
+
+Para volver a traducir automáticamente mientras editas, observa el origen y deja que verbatra se vuelva a ejecutar con cada cambio:
+
+```bash
+verbatra watch
+```
+
+Watch sigue ejecutándose hasta que lo interrumpas con Ctrl-C.
+
+## Siguiente
+
+- [Añadir un idioma](/docs/add-a-language): añade una configuración regional de destino a una configuración existente.
+- [Cómo funciona](/docs/how-it-works): lo que hace una ejecución de principio a fin.

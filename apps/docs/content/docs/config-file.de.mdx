@@ -1,0 +1,98 @@
+---
+title: Konfigurationsdatei
+description: Das verbatra-Konfigurationsschema, die Erkennungsreihenfolge und wie das Arbeitsverzeichnis alles miteinander verbindet.
+---
+
+# Konfigurationsdatei
+
+verbatra liest ein kleines, nicht-geheimes Konfigurationsobjekt und validiert es, bevor es mit der Arbeit beginnt. Es enthält keinen API-Schlüssel; der Provider liest seinen Schlüssel aus der Umgebung.
+
+<Callout title="Schlüssel kommen aus der Umgebung">
+Aus dieser Datei wird niemals ein API-Schlüssel gelesen. Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable, sodass die Konfiguration sicher committet werden kann. Sieh dir [Provider](/docs/providers) an.
+</Callout>
+
+## Eine minimale Konfiguration
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>", // replace with your provider's model id
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+`defineConfig` ist ein Identitäts-Helfer von `@verbatra/sdk`. Er gibt sein Argument unverändert zurück und existiert nur, um dir Typinferenz und Editor-Autovervollständigung zu bieten.
+
+## Felder
+
+- **`sourceLocale`** (String): das Locale, in dem deine Quell-Strings geschrieben sind.
+- **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten.
+- **`format`** (String): eines von `i18next-json`, `vue-i18n-json`, `next-intl-json` oder `ngx-translate-json`.
+- **`files.pattern`** (String): der Pfad zu jeder Locale-Datei. Er muss das `{locale}`-Token enthalten, das verbatra durch jedes Locale ersetzt (zum Beispiel wird `locales/{locale}.json` zu `locales/de.json`).
+- **`provider`** (Objekt): der Übersetzungs-Provider, ausgewählt durch `id`. Jeder Provider hat seine eigenen `options`. Sieh dir [Provider](/docs/providers) an.
+- **`glossary`** (optional, Objekt): eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen. Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten sie mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet diese Begriffszuordnung nicht an; es protokolliert einen Hinweis und wendet stattdessen ein Glossar an, das über die ID konfiguriert ist (sieh dir [Provider](/docs/providers) an).
+- **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und fällt mit einem Hinweis auf den Standard zurück.
+
+Unbekannte Schlüssel auf oberster Ebene werden abgelehnt. Dies ist auch der Grund, warum ein API-Schlüssel nicht in der Konfiguration stehen kann: Schlüssel kommen aus der Umgebung, nicht aus der Datei.
+
+Eine Konfiguration, die die optionalen Felder verwendet:
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  glossary: {
+    "Sign in": "Anmelden",
+  },
+  tone: "formal",
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Erkennungsreihenfolge
+
+verbatra sucht vom Arbeitsverzeichnis aufwärts und verwendet die erste Quelle, die es findet. Mehrere vorhandene Quellen sind kein Fehler; die erste Übereinstimmung gewinnt. Die Suchreihenfolge ist:
+
+1. `package.json` (a `"verbatra"` property)
+2. `.verbatrarc`
+3. `.verbatrarc.json`
+4. `.verbatrarc.yaml`
+5. `.verbatrarc.yml`
+6. `.verbatrarc.js`
+7. `.verbatrarc.cjs`
+8. `.verbatrarc.ts`
+9. `verbatra.config.js`
+10. `verbatra.config.cjs`
+11. `verbatra.config.ts`
+
+Um eine explizite Datei zu laden, anstatt zu suchen, übergib `--config <path>`.
+
+## Das Arbeitsverzeichnis und .env
+
+Führe verbatra von deinem Projekt-Root aus oder übergib `--cwd`, das darauf zeigt. Das Arbeitsverzeichnis ist der einzige Anker für alles, was verbatra auflöst: Die Konfigurationssuche beginnt dort und geht aufwärts, `.env.local` und `.env` werden von dort geladen, und jeder Locale-Dateipfad wird relativ dazu aufgelöst. Alle drei am selben Ort zu halten, ist das, was ein einfaches `verbatra translate` funktionieren lässt.
+
+Die Umgebungspriorität ist, höchste zuerst: eine Variable, die bereits in deiner echten Umgebung gesetzt ist, dann `.env.local`, dann `.env`. Eine bereits vorhandene Variable wird niemals überschrieben.

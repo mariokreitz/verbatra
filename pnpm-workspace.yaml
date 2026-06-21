@@ -4,6 +4,8 @@ packages:
 
 allowBuilds:
   '@google/genai': false
+  '@parcel/watcher': false
+  '@swc/core': false
   '@tailwindcss/oxide': true
   esbuild: true
   lefthook: true
