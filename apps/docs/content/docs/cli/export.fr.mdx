@@ -1,0 +1,54 @@
+---
+title: verbatra export
+description: Exportez les chaînes non traduites dans un classeur Excel stylisé pour un traducteur humain.
+---
+
+# verbatra export
+
+Écrivez les chaînes qui ont besoin d'être traduites dans un classeur Excel stylisé qu'un humain peut remplir, puis renvoyez-le pour [`verbatra import`](/docs/cli/import). Le classeur comporte une feuille par locale cible plus une feuille d'instructions ; le traducteur édite une seule colonne et tout le reste est verrouillé.
+
+```bash
+verbatra export
+```
+
+Par défaut, ceci écrit `verbatra-translations.xlsx` dans le répertoire de travail, ne contenant que les chaînes **manquantes et modifiées** - les mêmes clés qu'une exécution `translate` automatisée enverrait à un fournisseur. Voir [Traduction manuelle](/docs/manual-translation) pour l'aller-retour complet.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
+| `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
+| `--out <path>` | écrire le classeur à ce chemin (par défaut `verbatra-translations.xlsx`) |
+| `--locales <list>` | sous-ensemble de locales cibles séparées par des virgules (par défaut toutes celles configurées) |
+| `--include-unchanged` | exporter aussi les chaînes déjà à jour (désactivé par défaut) |
+| `--json` | afficher le résultat de l'export au format JSON |
+
+## Sortie
+
+Sans `--json`, `export` affiche le chemin de sortie et une ligne par locale avec son nombre de lignes. Avec `--json`, il affiche le résultat de l'export - le chemin écrit et le nombre de lignes par locale - sous forme d'un seul objet JSON sur stdout. Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
+
+## Exemples
+
+```bash
+# écrire le classeur avec les chaînes manquantes et modifiées
+verbatra export
+
+# seulement les feuilles allemande et française
+verbatra export --locales de,fr
+
+# inclure les chaînes déjà à jour pour le contexte complet
+verbatra export --include-unchanged
+
+# écrire à un chemin spécifique
+verbatra export --out handoff/round-2.xlsx
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | le classeur a été écrit |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+
+Export n'appelle jamais de fournisseur et n'a besoin d'aucune clé API. Voir [`verbatra import`](/docs/cli/import) pour relire le classeur rempli.

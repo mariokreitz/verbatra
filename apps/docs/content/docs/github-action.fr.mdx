@@ -1,0 +1,57 @@
+---
+title: GitHub Action
+description: Exécutez verbatra dans GitHub Actions - traduisez en CI, annotez les échecs et écrivez un résumé de tâche.
+---
+
+# GitHub Action
+
+verbatra fournit une GitHub Action composite qui exécute `verbatra translate --json` en CI, annote tout échec, écrit un résumé de tâche, puis sort avec le code de sortie de la CLI. Elle est consommée directement depuis le dépôt avec `uses:` ; elle n'est pas publiée sur npm.
+
+## Utilisation
+
+```yaml
+name: translate
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verbatra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+        with:
+          version: 1.2.3 # pin @verbatra/cli to an exact version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+L'action exécute la CLI, donc la clé API du fournisseur est lue depuis l'environnement. Fournissez-la depuis les secrets de votre dépôt sous la forme de la variable correspondant à votre fournisseur (voir [Fournisseurs](/docs/providers)) - par exemple `ANTHROPIC_API_KEY` ci-dessus.
+
+## Entrées
+
+| Entrée | Requis | Par défaut | Description |
+| --- | --- | --- | --- |
+| `version` | oui | - | la version de `@verbatra/cli` à exécuter, par exemple `1.2.3`. Épinglez-la à une version exacte ; n'utilisez pas une étiquette flottante telle que `latest` |
+| `config-path` | non | `""` | fichier de configuration explicite à charger (mappé sur `--config`) ; vide utilise la recherche de configuration normale |
+| `working-directory` | non | `""` | répertoire par rapport auquel résoudre la configuration et les fichiers de locale (mappé sur `--cwd`) |
+| `dry-run` | non | `"false"` | définissez sur `"true"` pour signaler ce qui changerait sans appeler de fournisseur ni écrire (mappé sur `--dry-run`) |
+| `node-version` | non | `"24"` | version de Node.js à configurer pour exécuter la CLI |
+
+L'action exécute toujours `translate --json` ; elle n'exécute ni `init` ni `watch`.
+
+## Comportement de sortie
+
+L'action capture la sortie standard et le code de sortie de la CLI sans échouer prématurément, annote les échecs et écrit le résumé de tâche, puis propage le code de sortie de la CLI - de sorte que l'étape échoue sur `1` (certaines locales ont échoué) ou `2` (impossible de s'exécuter) seulement après que les annotations et le résumé sont produits. Les [codes de sortie de la CLI](/docs/cli#exit-codes) définissent la signification de chaque code.
+
+## Persister les traductions
+
+Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action ne les commite pas. Pour conserver les changements, ajoutez votre propre étape pour commiter et pousser, ou ouvrez une pull request. Utilisez `dry-run: "true"` lorsque vous voulez seulement que la CI vérifie les traductions manquantes ou obsolètes.
+
+## Sécurité
+
+Épinglez à la fois l'action et la CLI à des références exactes : épinglez `uses:` à un SHA de commit, et épinglez l'entrée `version` à une release exacte de `@verbatra/cli` plutôt qu'à une étiquette flottante, afin qu'une exécution soit reproductible et ne puisse pas récupérer automatiquement une release compromise. Donnez au workflow le moindre privilège dont il a besoin - `contents: read` pour une vérification ; ajoutez `contents: write` et `pull-requests: write` seulement si une étape ultérieure commite ou ouvre une pull request. Les entrées sont passées à la CLI comme données, jamais insérées dans le shell, de sorte qu'une valeur d'entrée forgée reste un argument plutôt que du code exécutable.

@@ -1,0 +1,30 @@
+---
+title: Sûreté de la traduction
+description: Les vérifications d'intégrité et les limites de sécurité qui décident de ce que verbatra écrit et de ce qu'il retient.
+---
+
+# Sûreté de la traduction
+
+La sortie de la machine n'est pas digne de confiance par défaut. verbatra fait passer chaque traduction par des vérifications d'intégrité avant d'écrire, et il tient le texte non fiable à l'écart des instructions qu'il envoie au fournisseur. Cette page couvre ce que sont ces vérifications et ce qu'elles protègent.
+
+## Intégrité des espaces réservés
+
+Une valeur traduite doit porter les mêmes espaces réservés que sa source. Après la traduction, verbatra compare l'ensemble des espaces réservés de chaque résultat à la valeur source. Une traduction qui supprime, ajoute ou altère un espace réservé échoue à la vérification et est retenue plutôt qu'écrite. La clé retenue conserve son hachage de verrouillage précédent, de sorte que l'exécution suivante la réessaie, et elle est signalée par locale comme une non-concordance d'intégrité sur le résumé de l'exécution.
+
+Ce qui compte comme un espace réservé dépend du format : les jetons `{{double-brace}}` pour i18next et ngx-translate, les accolades simples `{name}` et `{0}` pour vue-i18n, et les noms d'argument et de balise ICU pour next-intl. Voir [Formats](/docs/formats) pour la syntaxe de chacun.
+
+## Validité ICU
+
+Pour le format ICU, next-intl, verbatra analyse chaque valeur source. Une clé source dont la valeur n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutôt qu'envoyée dans un état défectueux, et elle est signalée comme ICU invalide sur le résumé. Le corps ICU est conservé tel quel tout au long du pipeline ; rien n'est résolu ni réécrit.
+
+## La limite d'injection de prompt
+
+Les chaînes que vous traduisez ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction. verbatra les traite ainsi. Les règles système qu'il envoie à un fournisseur sont des constantes de compilation. Toutes les entrées variables, les entrées à traduire ainsi que votre glossaire et votre tonalité, circulent uniquement dans la charge utile de données du tour utilisateur, jamais insérées dans le canal d'instructions. La sortie du fournisseur est contrainte à un schéma et validée, et la vérification des espaces réservés s'exécute sur tout ce qui revient. Une chaîne qui tente de rediriger le modèle ne peut pas atteindre les règles, et un résultat qui casse un espace réservé est retenu.
+
+## Les secrets ne fuient jamais
+
+Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs, jamais depuis votre configuration ni vos arguments. Tout texte qui pourrait contenir une clé est acheminé par une étape de rédaction centrale avant d'être journalisé, et verbatra lève ses propres erreurs structurées plutôt que les erreurs brutes du SDK du fournisseur, qui peuvent porter des en-têtes de requête. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
+
+## Ce que vous voyez
+
+Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles retenues pour une non-concordance d'espace réservé, les clés source ignorées pour ICU invalide, et toute notification du fournisseur. Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir [Comment ça marche](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.

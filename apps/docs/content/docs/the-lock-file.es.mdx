@@ -1,0 +1,35 @@
+---
+title: El archivo de bloqueo
+description: Qué registra verbatra.lock.json, por qué es la línea base de las ejecuciones incrementales y por qué lo confirmas.
+---
+
+# El archivo de bloqueo
+
+verbatra mantiene un único archivo confirmado, `verbatra.lock.json`, en tu proyecto. Es el registro de lo que verbatra ya ha traducido, y es lo que hace que una ejecución sea incremental: cada ejecución compara tu origen con esta línea base y llama al proveedor solo para las claves que realmente cambiaron.
+
+## Qué registra
+
+Para cada configuración regional de destino, el archivo de bloqueo almacena un hash de contenido para cada clave de origen traducida. El hash se toma del valor de origen, por lo que captura exactamente el texto que produjo la traducción existente. El archivo de bloqueo no contiene traducciones ni claves API. Contiene hashes.
+
+## Cómo lo usa una ejecución
+
+Cuando verbatra lee una configuración regional de destino, compara el origen con esa configuración regional usando el archivo de bloqueo como línea base de lo que se tradujo antes. Cada clave de origen se clasifica en uno de cuatro grupos:
+
+- nueva: el destino aún no tiene la clave.
+- modificada: el valor de origen difiere del hash registrado en el bloqueo.
+- sin cambios: el valor de origen aún coincide con el hash registrado.
+- huérfana: la clave está en el destino pero ya no en el origen.
+
+Solo las claves nuevas y modificadas se envían al proveedor. Las claves sin cambios se dejan intactas, por lo que una segunda ejecución sin ediciones de origen no llama al proveedor para nada.
+
+## Cómo se actualiza
+
+Después de escribir una configuración regional, verbatra actualiza el bloqueo con los hashes de origen actuales, con una excepción deliberada. Una clave que se retuvo en esta ejecución, porque su traducción no superó la comprobación de marcadores de posición o su ICU de origen no era válido, conserva su hash anterior. La siguiente ejecución la sigue viendo como que necesita trabajo y la reintenta, en lugar de registrarla como hecha. Las claves huérfanas no obtienen entrada.
+
+## Primera ejecución, bloqueo ausente, bloqueo corrupto
+
+Un archivo de bloqueo ausente se trata como una primera ejecución: cada clave de destino es nueva. Un bloqueo que está presente pero corrupto o más grande que el límite de tamaño no se sobrescribe silenciosamente. La ejecución falla con `LOCK_FILE_INVALID` para que puedas inspeccionarlo en lugar de perder la línea base.
+
+## Confírmalo
+
+Confirma `verbatra.lock.json` junto con tus archivos de configuración regional. Es la línea base compartida con la que comparan tu equipo y tu CI, por lo que mantenerlo en el control de versiones es lo que hace que las ejecuciones incrementales sean reproducibles entre máquinas. Consulta [Cómo funciona](/docs/how-it-works) para ver la canalización completa de la ejecución, y [Seguridad de la traducción](/docs/translation-safety) para las comprobaciones que deciden qué se retiene.

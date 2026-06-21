@@ -1,0 +1,52 @@
+---
+title: CI und Exit-Codes
+description: Führe verbatra in CI aus, lies seine Exit-Codes und verarbeite seine JSON-Ausgabe.
+---
+
+# CI und Exit-Codes
+
+verbatra ist eine Entwicklungsabhängigkeit, daher laufen dieselben Befehle, die du lokal ausführst, auch in CI. Installiere es, gib den Provider-Schlüssel aus deinem CI-Geheimnisspeicher als passende Umgebungsvariable an und führe `verbatra translate` aus. Verwende `--dry-run`, wenn du auf fehlende oder veraltete Übersetzungen prüfen möchtest, ohne Dateien zu schreiben.
+
+```bash
+pnpm add -D @verbatra/cli
+# ANTHROPIC_API_KEY is provided by the CI secret store as an environment variable
+verbatra translate --json
+```
+
+## Exit-Codes
+
+verbatra verwendet seinen Exit-Code als Vertrag, anhand dessen ein CI-Schritt verzweigt:
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | Erfolg |
+| `1` | `translate` abgeschlossen, aber einige Locales sind fehlgeschlagen (nur translate) |
+| `2` | konnte nicht ausgeführt werden (ein Fehler des gesamten Laufs oder ein Verwendungsfehler) |
+| `130` | `watch` wurde durch eine zweite Unterbrechung erzwungenermaßen gestoppt |
+
+Ein Fehler eines einzelnen Laufs in `watch` wird als Stream-Datensatz gemeldet, nicht als Exit-Code; eine einzelne Unterbrechung stoppt `watch` ordnungsgemäß und beendet mit `0`.
+
+## JSON-Ausgabe
+
+Beide Befehle akzeptieren `--json` für maschinenlesbare Ausgabe.
+
+`verbatra translate --json` gibt die Lauf-Zusammenfassung als ein JSON-Objekt mit dieser Struktur aus:
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+}
+```
+
+`verbatra watch --json` gibt einen Datensatz pro Lauf als NDJSON aus (ein JSON-Objekt pro Zeile). Jeder Datensatz ist entweder ein Erfolg oder ein Fehler:
+
+```ts
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+Ein fehlgeschlagener Lauf während `watch` ist einer dieser Datensätze im Stream; er stoppt den Watcher nicht und setzt keinen Exit-Code ungleich null.

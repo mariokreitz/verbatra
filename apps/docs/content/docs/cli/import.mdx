@@ -1,0 +1,55 @@
+---
+title: verbatra import
+description: Import a filled workbook back into your locale files, running the same safety checks as an automated run.
+---
+
+# verbatra import
+
+Read a workbook filled in by a translator back into your locale files. Import runs the same placeholder and ICU checks as [`verbatra translate`](/docs/cli/translate): every value is validated, the ones that pass are written and the [lock file](/docs/the-lock-file) is updated, and any value that fails a check is withheld and reported rather than written.
+
+```bash
+verbatra import verbatra-translations.xlsx
+```
+
+The argument is the path to the workbook produced by [`verbatra export`](/docs/cli/export) and filled in by the translator. Only the `Translation` column is read; empty cells are skipped, never written as empty strings. See [Manual translation](/docs/manual-translation) for the full round-trip.
+
+## Arguments
+
+| Argument | Description |
+| --- | --- |
+| `<workbook>` | path to the filled workbook to import |
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | resolve config and locale files from this directory |
+| `--config <path>` | load this config file instead of searching for one |
+| `--dry-run` | validate and report without writing locale files or updating the lock |
+| `--json` | print the run summary as JSON |
+
+## Output
+
+Import reuses the `translate` run summary unchanged. Without `--json`, it prints a human-readable summary: one line per locale, then an aggregate. Each locale line reports how many values were `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped`, and `integrity-withheld`. With `--json`, it prints the same [`RunSummary` shape](/docs/sdk) as one JSON object on stdout.
+
+A value is **withheld** when it breaks a placeholder, is invalid ICU, or its source changed since the workbook was exported (detected through the hidden source-hash column). A withheld value leaves the locale file untouched so you can fix it and reimport. See [Translation safety](/docs/translation-safety) for the checks.
+
+## Examples
+
+```bash
+# import the filled workbook
+verbatra import verbatra-translations.xlsx
+
+# validate and report, write nothing
+verbatra import verbatra-translations.xlsx --dry-run
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | every target locale succeeded |
+| `1` | the run finished but one or more locales failed |
+| `2` | could not run: a whole-run error (missing or invalid config, an unreadable or invalid workbook, unknown format, or a corrupt lock file), or a usage error |
+
+The exit-code contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI - see [CI and automation](/docs/ci-and-exit-codes).

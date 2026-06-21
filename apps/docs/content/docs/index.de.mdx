@@ -1,0 +1,53 @@
+---
+title: Erste Schritte
+description: Installiere verbatra, erstelle eine Konfiguration und gib deinen Provider-Schlüssel an.
+---
+
+# Erste Schritte
+
+verbatra ist ein CLI und SDK, das deine i18n Locale-Dateien synchron hält. Du pflegst die Quell-Locale, und es übersetzt nur die Schlüssel, die sich geändert haben, über den von dir gewählten KI- oder maschinellen Übersetzungs-Provider.
+
+Dieser Leitfaden führt dich von einem leeren Projekt zu einem verbatra-Setup, das bereit ist für einen Lauf: Installiere die CLI, erstelle eine Konfiguration und gib deinen Provider-Schlüssel an. Dein erster Übersetzungs-Lauf ist auf der nächsten Seite beschrieben.
+
+## Anforderungen
+
+Node.js `>=22.14.0`.
+
+## Installation
+
+verbatra ist eine Entwicklungsabhängigkeit:
+
+```bash
+pnpm add -D @verbatra/cli
+# npm
+npm install -D @verbatra/cli
+# yarn
+yarn add -D @verbatra/cli
+```
+
+Führe das Binary über deinen Paketmanager aus: `pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...`.
+
+## Eine Konfiguration erstellen
+
+Führe `init` aus und wähle deinen Provider:
+
+```bash
+verbatra init --provider anthropic
+```
+
+Dies schreibt eine `verbatra.config.ts` und eine `.env.example` und fügt `.env` und `.env.local` zu deiner `.gitignore` hinzu, damit ein echter Schlüssel niemals committet wird. Wenn ein Terminal angeschlossen ist, fragt `init` nach den Werten, für die es keine Standardwerte gibt; übergib `--yes`, um die Standardwerte zu akzeptieren und ohne Aufforderungen auszuführen. Die Standardwerte sind `en` für die Quell-Locale, `de` für die Ziel-Locales und `locales/{locale}.json` für das Dateimuster.
+
+## Den API-Schlüssel angeben
+
+Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable. Für Anthropic ist das `ANTHROPIC_API_KEY`. Setze ihn in `.env` (was `init` bereits in `.gitignore` eingetragen hat) oder exportiere ihn in deiner Shell:
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+verbatra lädt `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor es einen Lauf ausführt, und eine Variable, die bereits in deiner Umgebung vorhanden ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
+
+## Weiter
+
+- [Dein erster Übersetzungs-Lauf](/docs/your-first-translation): Führe verbatra aus, lies die Lauf-Zusammenfassung und sieh, was "übersetze nur, was sich geändert hat" in der Praxis bedeutet.
+- [Konfiguration](/docs/config-file): das vollständige Konfigurationsschema und die Erkennungsreihenfolge.

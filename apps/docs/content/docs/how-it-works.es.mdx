@@ -1,0 +1,58 @@
+---
+title: Cómo funciona
+description: Lo que hace una ejecución de verbatra de principio a fin, desde el descubrimiento de la configuración hasta el resumen de la ejecución.
+---
+
+# Cómo funciona
+
+Una ejecución de verbatra es una canalización corta: carga la configuración, lee la configuración regional de origen, luego para cada configuración regional de destino compara con lo que se tradujo la última vez, envía solo lo que cambió al proveedor, comprueba el resultado y escribe. Esta página recorre cada paso para que sepas exactamente qué hace una ejecución.
+
+<DiffPanel />
+
+## Descubrimiento y carga de la configuración
+
+Una ejecución comienza cargando la configuración. verbatra busca hacia arriba desde el directorio de trabajo y usa la primera fuente que encuentra: una clave `"verbatra"` en `package.json`, luego uno de los archivos `.verbatrarc.*`, luego un archivo `verbatra.config.*`. La configuración se valida antes de que comience cualquier trabajo. Si no se encuentra nada, la ejecución falla con `CONFIG_NOT_FOUND`; si hay una configuración presente pero no válida, falla con `CONFIG_INVALID`. La configuración no lleva ninguna clave API; el proveedor lee su clave del entorno.
+
+## Leer la configuración regional de origen
+
+verbatra resuelve el archivo de origen a partir de `files.pattern` sustituyendo el token `{locale}` por `sourceLocale`, en relación con el directorio de trabajo. Si ese archivo falta, la ejecución falla con `SOURCE_UNREADABLE`; si no se puede analizar, falla con `SOURCE_INVALID`. Mientras lee, el adaptador de formato también anota cualquier clave de origen cuyos valores no sean válidos para la sintaxis de mensajes del formato (ICU no válido). Esas claves se arrastran y se omiten para la traducción en lugar de enviarse en un estado roto.
+
+## La ejecución por configuración regional
+
+Cada configuración regional de destino se maneja por su cuenta. Un fallo en una configuración regional no aborta las demás.
+
+### Comparar con la línea base del archivo de bloqueo
+
+verbatra lee el archivo de destino existente (un archivo ausente se trata como vacío) y compara el origen con él, usando el archivo de bloqueo como línea base de lo que se tradujo antes. El diff clasifica cada clave de origen en uno de cuatro grupos:
+
+- claves nuevas que el destino aún no tiene,
+- claves modificadas cuyo texto de origen difiere de la línea base registrada,
+- claves sin cambios que ya están actualizadas,
+- claves huérfanas presentes en el destino pero que ya no están en el origen.
+
+Solo las claves nuevas y modificadas son candidatas para la traducción. Las claves sin cambios se dejan intactas, y las claves huérfanas se informan pero no se eliminan. Cualquier candidata marcada como ICU no válido también se deja de lado. Esto es lo que mantiene una ejecución incremental: se llama a un proveedor solo para las cadenas que realmente cambiaron.
+
+### Llamar al proveedor
+
+Las entradas candidatas se envían al proveedor configurado en un solo lote, junto con el `glossary` y el `tone` opcionales de tu configuración. Cómo se aplican depende del proveedor.
+
+- Los proveedores de LLM (Anthropic, OpenAI, Gemini) reciben las entradas, el glosario y el tono en una carga de datos estructurada, y se les indica que traten los términos del glosario como vinculantes y que respeten el tono. El modelo está restringido a devolver un valor por cada clave solicitada.
+- DeepL es un servicio de traducción automática y mapea las mismas entradas a sus propias opciones. El tono se convierte en formalidad: `formal` solicita un resultado más formal, `informal` uno menos formal, y `neutral` o un tono ausente se omite. Un `glossaryId` configurado se pasa de forma nativa.
+
+DeepL también puede informar avisos cuando se degrada de forma elegante. Con una clave de nivel gratuito, un tono no predeterminado no es compatible, por lo que recurre al predeterminado y emite un aviso `FORMALITY_DOWNGRADED`. Un mapa de términos `glossary` genérico no es aplicado por DeepL (usa un glosario por id en su lugar), por lo que emite un aviso `GLOSSARY_IGNORED`. Estos son datos en el resultado, no errores. Los proveedores de LLM no emiten avisos.
+
+### Comprobar marcadores de posición y escribir
+
+Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada valor traducido con su origen. Una traducción que elimina o altera un marcador de posición no supera esta comprobación de integridad y se retiene en lugar de escribirse. Las traducciones aceptadas se fusionan en la configuración regional de destino y se escriben de forma atómica, de modo que una escritura interrumpida nunca deja un archivo a medio terminar.
+
+## El archivo de bloqueo y el trabajo incremental
+
+verbatra mantiene un archivo de bloqueo confirmado (`verbatra.lock.json`) que registra, por configuración regional, un hash de contenido para cada clave de origen traducida. Ese registro es la línea base con la que compara la siguiente ejecución. Después de escribir una configuración regional, el bloqueo se actualiza con los hashes de origen actuales, con una excepción deliberada: las claves que se retuvieron en esta ejecución (una discrepancia de marcador de posición o un ICU no válido) conservan su hash anterior, de modo que la siguiente ejecución las ve como que aún necesitan trabajo y las reintenta. Las claves huérfanas no obtienen entrada. Un archivo de bloqueo ausente se trata como una primera ejecución; uno corrupto falla con `LOCK_FILE_INVALID` en lugar de sobrescribirse silenciosamente.
+
+## El resumen de la ejecución
+
+Una ejecución devuelve un resumen de todas las configuraciones regionales de destino: las configuraciones regionales que tuvieron éxito, las que fallaron y un desglose por configuración regional. Cada entrada de configuración regional informa las claves traducidas, las claves sin cambios, las claves huérfanas, cualquier clave de origen omitida por ICU no válido, cualquier traducción retenida por una discrepancia de marcador de posición y cualquier aviso del proveedor (como los casos de DeepL anteriores). Una ejecución de prueba produce la misma forma de resumen, listando las claves que se traducirían, sin llamar a un proveedor ni escribir nada.
+
+## Errores
+
+verbatra traza una línea clara entre dos tipos de fallo. Un problema de toda la ejecución, como una configuración ausente o no válida, un origen ilegible, un formato desconocido, un proveedor que no se puede construir (incluida una clave API ausente) o un archivo de bloqueo corrupto, detiene la ejecución con un error estructurado. Que una sola configuración regional falle no es fatal: se registra en la entrada de esa configuración regional con un código y un mensaje, y el resto de las configuraciones regionales siguen ejecutándose.

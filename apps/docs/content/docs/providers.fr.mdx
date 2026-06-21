@@ -1,0 +1,90 @@
+---
+title: Fournisseurs
+description: Les quatre fournisseurs de traduction, leurs options et la clé API que chacun lit.
+---
+
+# Fournisseurs
+
+verbatra propose quatre fournisseurs derrière une seule interface : Anthropic, OpenAI et Gemini sont des modèles de langage étendus, et DeepL est un service de traduction automatique. Vous en sélectionnez un dans le bloc `provider` de votre configuration, par `id`.
+
+## Les clés proviennent de l'environnement
+
+verbatra ne lit jamais une clé API depuis la configuration. Chaque fournisseur lit exactement une variable d'environnement :
+
+| ID du fournisseur | Variable d'environnement |
+| --- | --- |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `deepl` | `DEEPL_API_KEY` |
+
+Définissez la variable dans `.env` (que `verbatra init` ignore via git) ou exportez-la dans votre shell ou votre gestionnaire de secrets CI. Obtenez une clé depuis le tableau de bord du fournisseur, puis placez sa valeur derrière la variable ci-dessus. Ne commettez jamais une vraie clé.
+
+## Anthropic
+
+```ts
+provider: {
+  id: "anthropic",
+  options: {
+    model: "<your-model>",
+    maxTokens: 4096,
+  },
+}
+```
+
+Lit `ANTHROPIC_API_KEY`. `model` et `maxTokens` sont tous deux requis.
+
+## OpenAI
+
+```ts
+provider: {
+  id: "openai",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Lit `OPENAI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
+
+## Gemini
+
+```ts
+provider: {
+  id: "gemini",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Lit `GEMINI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
+
+## DeepL
+
+```ts
+provider: {
+  id: "deepl",
+  options: {},
+}
+```
+
+Lit `DEEPL_API_KEY`. DeepL n'a pas besoin de modèle. La seule option est un `glossaryId` facultatif qui nomme un glossaire que vous avez déjà créé dans DeepL :
+
+```ts
+provider: {
+  id: "deepl",
+  options: {
+    glossaryId: "<your-glossary-id>",
+  },
+}
+```
+
+## Tonalité et glossaire selon les fournisseurs
+
+Les champs de configuration facultatifs `tone` et `glossary` (voir [Configuration](/docs/config-file)) sont appliqués différemment selon le fournisseur :
+
+- **Tonalité.** Les fournisseurs de LLM reçoivent la tonalité avec la requête et sont invités à la respecter. DeepL la mappe à la formalité : `formal` devient plus formel, `informal` devient moins formel, et `neutral` ou une tonalité absente est omise. Avec une clé DeepL de niveau gratuit, une tonalité non par défaut n'est pas prise en charge et se dégrade à la valeur par défaut, avec une notification sur le résultat.
+- **Glossaire.** Les fournisseurs de LLM reçoivent la carte de termes `glossary` et sont invités à traiter ses termes comme contraignants. DeepL n'applique pas de carte de termes générique ; il enregistre une notification et utilise plutôt l'option `glossaryId` ci-dessus.

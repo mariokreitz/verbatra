@@ -1,0 +1,53 @@
+---
+title: Primeros pasos
+description: Instala verbatra, configura un archivo de configuración y proporciona tu clave de proveedor.
+---
+
+# Primeros pasos
+
+verbatra es una CLI y un SDK que mantiene tus archivos de configuración regional de i18n sincronizados. Tú mantienes la configuración regional de origen, y traduce solo las claves que cambiaron a través del proveedor de IA o traducción automática de tu elección.
+
+Esta guía te lleva desde un proyecto vacío a una configuración de verbatra lista para ejecutarse: instala la CLI, configura un archivo de configuración y proporciona tu clave de proveedor. Ejecutar tu primera traducción está en la página siguiente.
+
+## Requisitos
+
+Node.js `>=22.14.0`.
+
+## Instalación
+
+verbatra es una dependencia de desarrollo:
+
+```bash
+pnpm add -D @verbatra/cli
+# npm
+npm install -D @verbatra/cli
+# yarn
+yarn add -D @verbatra/cli
+```
+
+Ejecuta el binario a través de tu gestor de paquetes: `pnpm verbatra ...`, `npx verbatra ...`, o `yarn verbatra ...`.
+
+## Configura un archivo de configuración
+
+Ejecuta `init` y elige tu proveedor:
+
+```bash
+verbatra init --provider anthropic
+```
+
+Esto escribe un `verbatra.config.ts` y un `.env.example`, y añade `.env` y `.env.local` a tu `.gitignore` para que una clave real nunca sea confirmada. Con un terminal conectado, `init` solicita los valores que no puede establecer por defecto; pasa `--yes` para aceptar los valores por defecto y ejecutar sin solicitudes. Los valores por defecto son `en` para la configuración regional de origen, `de` para las configuraciones regionales de destino, y `locales/{locale}.json` para el patrón de archivo.
+
+## Proporciona la clave API
+
+Cada proveedor lee su clave de una variable de entorno. Para Anthropic, esa es `ANTHROPIC_API_KEY`. Establécela en `.env` (que `init` ya ha ignorado en git) o expórtala en tu shell:
+
+```bash
+export ANTHROPIC_API_KEY=your-key-here
+```
+
+verbatra carga `.env.local` y luego `.env` del directorio de trabajo antes de ejecutarse, y una variable ya presente en tu entorno siempre prevalece. Consulta [Proveedores](/docs/providers) para ver la variable de cada proveedor.
+
+## Siguiente
+
+- [Tu primera traducción](/docs/your-first-translation): ejecuta verbatra, lee el resumen de la ejecución y ve lo que significa "traducir solo lo que cambió" en la práctica.
+- [Configuración](/docs/config-file): el esquema de configuración completo y el orden de descubrimiento.

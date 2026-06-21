@@ -1,0 +1,90 @@
+---
+title: Provider
+description: Die vier Übersetzungs-Provider, ihre Optionen und der API-Schlüssel, den jeder liest.
+---
+
+# Provider
+
+verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration, mittels `id`.
+
+## Schlüssel kommen aus der Umgebung
+
+verbatra liest niemals einen API-Schlüssel aus der Konfiguration. Jeder Provider liest genau eine Umgebungsvariable:
+
+| Provider-ID | Umgebungsvariable |
+| --- | --- |
+| `anthropic` | `ANTHROPIC_API_KEY` |
+| `openai` | `OPENAI_API_KEY` |
+| `gemini` | `GEMINI_API_KEY` |
+| `deepl` | `DEEPL_API_KEY` |
+
+Setze die Variable in `.env` (welches `verbatra init` ignoriert) oder exportiere sie in deiner Shell oder deinem CI-Geheimnisspeicher. Besorge dir einen Schlüssel vom Dashboard des Providers und setze seinen Wert hinter die obige Variable. Committe niemals einen echten Schlüssel.
+
+## Anthropic
+
+```ts
+provider: {
+  id: "anthropic",
+  options: {
+    model: "<your-model>",
+    maxTokens: 4096,
+  },
+}
+```
+
+Liest `ANTHROPIC_API_KEY`. `model` und `maxTokens` sind beide erforderlich.
+
+## OpenAI
+
+```ts
+provider: {
+  id: "openai",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Liest `OPENAI_API_KEY`. `model` und `maxOutputTokens` sind beide erforderlich.
+
+## Gemini
+
+```ts
+provider: {
+  id: "gemini",
+  options: {
+    model: "<your-model>",
+    maxOutputTokens: 4096,
+  },
+}
+```
+
+Liest `GEMINI_API_KEY`. `model` und `maxOutputTokens` sind beide erforderlich.
+
+## DeepL
+
+```ts
+provider: {
+  id: "deepl",
+  options: {},
+}
+```
+
+Liest `DEEPL_API_KEY`. DeepL benötigt kein Modell. Die einzige Option ist eine optionale `glossaryId`, die ein Glossar benennt, das du bereits in DeepL erstellt hast:
+
+```ts
+provider: {
+  id: "deepl",
+  options: {
+    glossaryId: "<your-glossary-id>",
+  },
+}
+```
+
+## Ton und Glossar über Provider hinweg
+
+Die optionalen Konfigurationsfelder `tone` und `glossary` (siehe [Konfiguration](/docs/config-file)) werden pro Provider unterschiedlich angewendet:
+
+- **Ton.** Die LLM-Provider erhalten den Ton mit der Anfrage und werden angewiesen, ihn zu berücksichtigen. DeepL ordnet ihn der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und auf den Standardwert herabgestuft, mit einem Hinweis im Ergebnis.
+- **Glossar.** Die LLM-Provider erhalten die `glossary`-Begriffszuordnung und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet keine generische Begriffszuordnung an; es vermerkt einen Hinweis und verwendet stattdessen die obige `glossaryId`-Option.

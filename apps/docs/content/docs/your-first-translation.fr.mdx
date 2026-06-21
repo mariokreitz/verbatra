@@ -1,0 +1,57 @@
+---
+title: Votre première traduction
+description: Exécutez verbatra pour la première fois, lisez le résumé de l'exécution et comprenez les réexécutions incrémentielles.
+---
+
+# Votre première traduction
+
+Avec le CLI installé, une configuration échafaudée et votre clé de fournisseur dans l'environnement (voir [Démarrer](/docs)), vous êtes prêt à traduire.
+
+## Exécuter une traduction
+
+Exécutez une traduction unique pour chaque locale cible :
+
+```bash
+verbatra translate
+```
+
+verbatra lit la locale source, la compare à ce qu'elle a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées. Les traductions qui sont toujours à jour sont laissées intactes. Chaque fichier de locale cible est écrit sur place, de sorte que `locales/de.json` et les autres apparaissent ou se mettent à jour à côté de votre fichier source.
+
+## Lire le résumé de l'exécution
+
+Une exécution se termine par un résumé pour chaque locale cible : quelles locales ont réussi, lesquelles ont échoué, et une ventilation par locale des clés traduites, des clés laissées inchangées, des clés orphelines (présentes dans une cible mais plus dans la source), et des notifications du fournisseur. L'échec d'une seule locale n'arrête pas les autres ; il est signalé sur la ligne de cette locale avec un code et un message.
+
+Pour une sortie lisible par machine, ajoutez `--json` et verbatra affichera le résumé sous forme d'un objet JSON. Voir [CI et codes de sortie](/docs/ci-and-exit-codes) pour la structure et le contrat des codes de sortie.
+
+## Prévisualiser avec une exécution à blanc
+
+Pour voir ce qui changerait sans appeler de fournisseur ni écrire de fichiers :
+
+```bash
+verbatra translate --dry-run
+```
+
+Une exécution à blanc produit le même résumé, listant les clés qui seraient traduites, mais n'effectue aucun appel au fournisseur et n'écrit rien. C'est le moyen sûr de vérifier ce qu'une exécution fera.
+
+## Les réexécutions sont incrémentielles
+
+Exécutez `verbatra translate` à nouveau sans modifier votre source et rien n'est envoyé au fournisseur : chaque clé est déjà à jour. Modifiez une chaîne source et seule cette clé est retraduite lors de la prochaine exécution. C'est le comportement fondamental. verbatra conserve un fichier de verrouillage (`verbatra.lock.json`) enregistré, qui consigne ce qu'il a traduit, et effectue des comparaisons à chaque exécution afin que le fournisseur ne soit appelé que pour ce qui a réellement changé. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline complet.
+
+<Callout title="Commitez le fichier de verrouillage">
+verbatra écrit `verbatra.lock.json` lors de la première exécution. Commitez-le avec vos fichiers de locale afin que chaque machine et votre CI se comparent à la même base de référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).
+</Callout>
+
+## Traduisez au fur et à mesure
+
+Pour retraduire automatiquement pendant que vous éditez, surveillez la source et laissez verbatra se réexécuter à chaque modification :
+
+```bash
+verbatra watch
+```
+
+La surveillance continue de s'exécuter jusqu'à ce que vous l'interrompiez avec Ctrl-C.
+
+## Suivant
+
+- [Ajouter une langue](/docs/add-a-language) : ajoutez une locale cible à une configuration existante.
+- [Comment ça marche](/docs/how-it-works) : ce qu'une exécution fait de bout en bout.

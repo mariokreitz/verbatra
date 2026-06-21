@@ -1,0 +1,53 @@
+---
+title: Ajouter une langue
+description: Ajouter une nouvelle locale cible à une configuration verbatra existante.
+---
+
+# Ajouter une langue
+
+L'ajout d'une langue est une modification de configuration d'une seule ligne suivie d'une exécution de traduction. verbatra considère la nouvelle locale comme manquant de tout, donc la première exécution la remplit complètement ; les exécutions ultérieures restent incrémentielles.
+
+## Ajouter la locale à votre configuration
+
+Ajoutez la nouvelle locale à `targetLocales` dans `verbatra.config.ts`. Elle ne doit pas être votre `sourceLocale` :
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"], // "fr" added
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Traduire
+
+Exécutez une traduction :
+
+```bash
+verbatra translate
+```
+
+La nouvelle locale n'a pas encore de fichier cible, donc verbatra la considère comme vide et y traduit chaque clé source, en écrivant le fichier à partir de `files.pattern` (par exemple `locales/fr.json`). Vos locales existantes restent inchangées, sauf si leurs chaînes source ont été modifiées, car le fichier de verrouillage les enregistre toujours comme actuelles.
+
+Prévisualisez d'abord avec `verbatra translate --dry-run` si vous souhaitez voir les clés de la nouvelle locale avant tout appel de fournisseur.
+
+## Maintenir la locale source
+
+Vous ne maintenez la locale source qu'à la main. Pour ajouter de nouvelles chaînes, ajoutez-les au fichier source et exécutez `translate` à nouveau ; verbatra les remplit dans chaque cible, y compris celle que vous venez d'ajouter.
+
+## Suivant
+
+- [Configuration](/docs/config-file): le schéma de configuration complet, y compris `glossary` et `tone`.
+- [Fournisseurs](/docs/providers): les options des fournisseurs et où obtenir une clé.

@@ -1,0 +1,170 @@
+---
+title: SDK
+description: Usa @verbatra/sdk para ejecutar traducción desde tus propios scripts, trabajos de CI y herramientas.
+---
+
+# SDK
+
+`@verbatra/sdk` es el núcleo programático sobre el que se construye el comando `verbatra`. La CLI es un envoltorio delgado sobre él, así que cualquier cosa que haga la línea de comandos, puedes hacerla en código: cargar y validar una configuración, ejecutar una traducción única, u observar el origen y volver a traducir en cada cambio. Recurre al SDK cuando quieras traducción dentro de un script, un trabajo de CI o tus propias herramientas.
+
+## Instalación
+
+```bash
+pnpm add -D @verbatra/sdk
+# npm
+npm install -D @verbatra/sdk
+# yarn
+yarn add -D @verbatra/sdk
+```
+
+Requiere Node.js `>=22.14.0`.
+
+## La superficie pública
+
+El paquete exporta cuatro funciones y los tipos que toca un llamador.
+
+- `defineConfig(config: VerbatraConfig): VerbatraConfig` devuelve su argumento sin cambios. Existe solo para darte inferencia de tipos y autocompletado cuando creas una configuración en TypeScript.
+- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` descubre y valida la configuración. `LoadConfigOptions` acepta `cwd`, un `configPath` explícito o un `configOverride` en memoria. Lanza un `SdkError` cuando no se encuentra ninguna configuración o la validación falla.
+- `translate(input: TranslateInput): Promise<RunSummary>` ejecuta el flujo de lectura, diff, traducción y escritura sobre cada configuración regional de destino. `TranslateInput` es `{ config, cwd?, dryRun? }`. Se resuelve en un `RunSummary`; los problemas de toda la ejecución lanzan un `SdkError`, mientras que los resultados por configuración regional son datos en el resumen.
+- `watch(input: WatchInput): Promise<WatchController>` observa el archivo de origen y se vuelve a ejecutar en cada cambio con anti-rebote. `WatchInput` es `{ config, cwd?, debounceMs?, onRun }`, donde `onRun` recibe un `WatchRunResult` por ejecución. El `WatchController` devuelto tiene un único método, `stop()`, que cierra el observador y espera a la ejecución en curso.
+
+Los tipos de resultado:
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // true when nothing was written and no provider was called
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+}
+
+interface LocaleSummary {
+  locale: string;
+  status: "succeeded" | "failed";
+  translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  unchanged: string[];           // keys already up to date
+  orphaned: string[];            // target keys with no matching source key
+  invalidIcuSource: string[];    // source keys skipped for invalid ICU
+  integrityMismatches: string[]; // translations withheld for a placeholder mismatch
+  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  error?: { code: string; message: string }; // present only when status is "failed"
+}
+
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+Los avisos son por configuración regional, en `LocaleSummary.notices`. No hay una lista de avisos de nivel superior en `RunSummary`.
+
+`SdkError` es el único tipo de error que el SDK lanza para los fallos de toda la ejecución. Lleva un `code` estable y un `message` sin secretos. Los códigos son:
+
+| Código | Cuándo |
+| --- | --- |
+| `CONFIG_NOT_FOUND` | no se encontró ninguna configuración, o un `configPath` explícito no existe |
+| `CONFIG_INVALID` | se encontró una configuración pero no se puede analizar o no supera la validación |
+| `UNKNOWN_FORMAT` | no hay ningún adaptador registrado para el formato configurado |
+| `PROVIDER_CONSTRUCTION_FAILED` | el proveedor no se pudo construir (incluye una clave API ausente) |
+| `SOURCE_UNREADABLE` | el archivo de configuración regional de origen no existe |
+| `SOURCE_INVALID` | el archivo de configuración regional de origen no se pudo leer o analizar |
+| `LOCK_FILE_INVALID` | el archivo de bloqueo está presente pero corrupto o demasiado grande |
+| `LOCALE_FAILED` | no lanzado: el `code` de reserva registrado en el `error` de una configuración regional fallida |
+
+Que una sola configuración regional falle no lanza una excepción; se registra en el `LocaleSummary` de esa configuración regional con `status: "failed"` y un `error`, y la ejecución continúa.
+
+## Definir una configuración
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Ejecutar una traducción única
+
+`translate` se resuelve en el resumen de la ejecución. Lee `succeeded` y `failed` para el titular, y recorre `locales` para el detalle, incluidos cualquier aviso del proveedor.
+
+```ts
+import { loadConfig, translate } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await translate({ config });
+
+console.log(`${summary.succeeded.length} succeeded, ${summary.failed.length} failed`);
+
+for (const locale of summary.locales) {
+  for (const notice of locale.notices) {
+    console.warn(`${locale.locale}: ${notice.code} ${notice.message}`);
+  }
+}
+```
+
+Pasa `dryRun: true` para leer y comparar sin llamar a un proveedor ni escribir archivos.
+
+## Modo de observación
+
+`watch` llama a tu `onRun` una vez por ejecución con un `WatchRunResult` discriminado. El `stop()` del controlador lo apaga de forma limpia.
+
+```ts
+import { loadConfig, watch } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const controller = await watch({
+  config,
+  onRun: (result) => {
+    if (result.status === "succeeded") {
+      console.log(`${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
+    } else {
+      console.error(`run failed: ${result.error.code} ${result.error.message}`);
+    }
+  },
+});
+
+// Stop cleanly on Ctrl-C.
+process.on("SIGINT", () => {
+  void controller.stop();
+});
+```
+
+## Manejar errores
+
+Los fallos de toda la ejecución lanzan un `SdkError`. Discrimina según su `code` para reaccionar a casos específicos.
+
+```ts
+import { loadConfig, SdkError, translate } from "@verbatra/sdk";
+
+try {
+  const config = await loadConfig();
+  await translate({ config });
+} catch (error) {
+  if (error instanceof SdkError) {
+    switch (error.code) {
+      case "CONFIG_NOT_FOUND":
+        console.error("No verbatra config found. Run `verbatra init` to scaffold one.");
+        break;
+      case "SOURCE_UNREADABLE":
+      case "SOURCE_INVALID":
+        console.error(`Could not read the source locale: ${error.message}`);
+        break;
+      default:
+        console.error(`${error.code}: ${error.message}`);
+    }
+  } else {
+    throw error;
+  }
+}
+```

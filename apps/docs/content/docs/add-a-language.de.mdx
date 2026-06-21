@@ -1,0 +1,53 @@
+---
+title: Eine Sprache hinzufügen
+description: Füge ein neues Ziel-Locale zu einer bestehenden verbatra-Einrichtung hinzu.
+---
+
+# Eine Sprache hinzufügen
+
+Das Hinzufügen einer Sprache ist eine einzeilige Konfigurationsänderung, gefolgt von einem Übersetzungs-Lauf. verbatra behandelt das neue Locale so, als würde alles fehlen, daher füllt der erste Lauf es vollständig aus; spätere Läufe bleiben inkrementell.
+
+## Füge das Locale zu deiner Konfiguration hinzu
+
+Füge das neue Locale zu `targetLocales` in `verbatra.config.ts` hinzu. Es darf nicht dein `sourceLocale` sein:
+
+```ts
+import { defineConfig } from "@verbatra/sdk";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de", "fr"], // "fr" added
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "anthropic",
+    options: {
+      model: "<your-model>",
+      maxTokens: 4096,
+    },
+  },
+});
+```
+
+## Übersetzen
+
+Führe eine Übersetzung aus:
+
+```bash
+verbatra translate
+```
+
+Das neue Locale hat noch keine Zieldatei, daher behandelt verbatra es als leer und übersetzt jeden Quell-Schlüssel hinein, wobei die Datei aus `files.pattern` (zum Beispiel `locales/fr.json`) geschrieben wird. Deine bestehenden Locales bleiben unberührt, es sei denn, ihre Quell-Strings haben sich geändert, da die Lock-Datei sie immer noch als aktuell aufzeichnet.
+
+Vorschau zuerst mit `verbatra translate --dry-run`, wenn du die Schlüssel des neuen Locales vor jedem Provider-Aufruf sehen möchtest.
+
+## Pflege des Quell-Locales
+
+Du pflegst das Quell-Locale immer nur von Hand. Um neue Strings hinzuzufügen, füge sie der Quelldatei hinzu und führe `translate` erneut aus; verbatra füllt sie in jedes Ziel, einschließlich desjenigen, das du gerade hinzugefügt hast.
+
+## Weiter
+
+- [Konfiguration](/docs/config-file): das vollständige Konfigurationsschema, einschließlich `glossary` und `tone`.
+- [Provider](/docs/providers): Provider-Optionen und wo du einen Schlüssel erhältst.

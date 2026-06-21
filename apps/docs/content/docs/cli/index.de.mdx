@@ -1,0 +1,49 @@
+---
+title: CLI
+description: Das verbatra-Kommando - seine drei Unterbefehle, globale Flags, wie es deine Umgebung liest und der Exit-Code-Vertrag.
+---
+
+# CLI
+
+`@verbatra/cli` stellt das `verbatra`-Binary bereit, einen schlanken Wrapper über [`@verbatra/sdk`](/docs/sdk). Es liefert drei Befehle:
+
+- [`init`](/docs/cli/init): erstellt ein Grundgerüst aus Konfiguration und `.env.example`.
+- [`translate`](/docs/cli/translate): übersetzt jedes Ziel-Locale einmal und beendet sich dann.
+- [`watch`](/docs/cli/watch): übersetzt bei jeder Quelländerung neu, bis es unterbrochen wird.
+
+## Installieren und aufrufen
+
+verbatra ist eine Entwicklungsabhängigkeit. Installiere es und führe dann das Binary über deinen Paketmanager aus:
+
+```bash
+pnpm add -D @verbatra/cli
+# pnpm verbatra ..., npx verbatra ... oder yarn verbatra ...
+```
+
+Erfordert Node.js `>=22.14.0`.
+
+## Globale Flags
+
+| Flag | Was es tut |
+| --- | --- |
+| `--help` | gibt die Nutzungshinweise für das Programm oder einen Befehl aus und beendet sich dann mit `0` |
+| `--version` | gibt die installierte `@verbatra/cli`-Version aus und beendet sich dann mit `0` |
+
+Führe `verbatra <command> --help` aus, um die vollständige Optionsliste und Beispiele eines Befehls zu sehen - dieselbe Referenz wie diese Seiten.
+
+## Das Arbeitsverzeichnis und .env
+
+`translate` und `watch` laden `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor sie ausgeführt werden; eine Variable, die bereits in deiner echten Umgebung gesetzt ist, gewinnt immer. Übergib `--cwd`, um auf deinen Projekt-Root zu zeigen, wenn du verbatra von woanders aufrufst. API-Schlüssel werden nur aus der Umgebung gelesen, niemals aus der Konfiguration oder einem Flag - siehe [Provider](/docs/providers).
+
+## Exit-Codes
+
+verbatra verwendet seinen Exit-Code als Vertrag, auf den ein CI-Schritt oder Skript verzweigt:
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | Erfolg (auch `--help` und `--version`) |
+| `1` | `translate` wurde beendet, aber einige Locales sind fehlgeschlagen (nur `translate`) |
+| `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler oder ein Nutzungsfehler |
+| `130` | `watch` wurde durch eine zweite Unterbrechung erzwungen gestoppt |
+
+Ein Fehlschlag eines einzelnen Laufs in `watch` wird als Stream-Datensatz gemeldet, nicht als Exit-Code. Jede Befehlsseite erklärt, wie diese Codes auf sie zutreffen, und [CI und Automatisierung](/docs/ci-and-exit-codes) behandelt ihren Einsatz in einer Pipeline.

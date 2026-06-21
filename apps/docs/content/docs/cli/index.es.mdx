@@ -1,0 +1,49 @@
+---
+title: CLI
+description: El comando verbatra - sus tres subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida.
+---
+
+# CLI
+
+`@verbatra/cli` proporciona el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Incluye tres comandos:
+
+- [`init`](/docs/cli/init): genera una configuración y un `.env.example`.
+- [`translate`](/docs/cli/translate): traduce cada configuración regional de destino una vez y luego termina.
+- [`watch`](/docs/cli/watch): vuelve a traducir con cada cambio del origen hasta que se interrumpe.
+
+## Instalar e invocar
+
+verbatra es una dependencia de desarrollo. Instálalo y luego ejecuta el binario a través de tu gestor de paquetes:
+
+```bash
+pnpm add -D @verbatra/cli
+# pnpm verbatra ..., npx verbatra ..., o yarn verbatra ...
+```
+
+Requiere Node.js `>=22.14.0`.
+
+## Opciones globales
+
+| Opción | Qué hace |
+| --- | --- |
+| `--help` | imprime el uso del programa o de un comando, luego termina con `0` |
+| `--version` | imprime la versión instalada de `@verbatra/cli`, luego termina con `0` |
+
+Ejecuta `verbatra <command> --help` para ver la lista completa de opciones y ejemplos de un comando: la misma referencia que estas páginas.
+
+## El directorio de trabajo y .env
+
+`translate` y `watch` cargan `.env.local` y luego `.env` del directorio de trabajo antes de ejecutarse; una variable ya establecida en tu entorno real siempre prevalece. Pasa `--cwd` para apuntar a la raíz de tu proyecto si invocas verbatra desde otro lugar. Las claves de API se leen solo del entorno, nunca de la configuración ni de una opción: consulta [Proveedores](/docs/providers).
+
+## Códigos de salida
+
+verbatra utiliza su código de salida como el contrato sobre el que un paso de CI o un script bifurca:
+
+| Código | Significado |
+| --- | --- |
+| `0` | éxito (también `--help` y `--version`) |
+| `1` | `translate` terminó pero algunas configuraciones regionales fallaron (solo translate) |
+| `2` | no se pudo ejecutar: un error de ejecución completa o un error de uso |
+| `130` | `watch` fue detenido a la fuerza por una segunda interrupción |
+
+Un fallo por ejecución en `watch` se informa como un registro de flujo, no como un código de salida. La página de cada comando indica cómo se aplican estos códigos en él, y [CI y automatización](/docs/ci-and-exit-codes) cubre cómo usarlos en una canalización.

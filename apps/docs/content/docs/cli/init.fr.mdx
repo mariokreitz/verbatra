@@ -1,0 +1,49 @@
+---
+title: verbatra init
+description: Échafaudez une configuration verbatra et un exemple de .env pour votre projet.
+---
+
+# verbatra init
+
+Crée un `verbatra.config.ts` et un `.env.example`, et ajoute `.env` et `.env.local` à votre `.gitignore` afin qu'une vraie clé ne soit jamais commitée. Avec un terminal attaché et sans `--yes`, `init` demande les valeurs qu'il ne peut pas définir par défaut ; sinon, il s'exécute de façon non interactive et utilise les valeurs par défaut.
+
+```bash
+verbatra init --provider anthropic
+```
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | écrire la configuration et les fichiers env dans ce répertoire |
+| `--provider <id>` | fournisseur de traduction : `anthropic`, `openai`, `gemini` ou `deepl` (requis sauf si demandé) |
+| `--source <locale>` | locale dans laquelle vos chaînes source sont écrites (par défaut `en`) |
+| `--targets <locales>` | locales cibles séparées par des virgules vers lesquelles traduire (par défaut `de`) |
+| `--path <pattern>` | modèle de fichier de locale contenant le jeton `{locale}` (par défaut `locales/{locale}.json`) |
+| `--yes` | ignorer les invites et accepter les valeurs par défaut |
+| `--force` | écraser une configuration ou un `.env.example` existant |
+
+Le fournisseur est la seule valeur qu'`init` ne peut pas définir par défaut. Sans terminal pour demander (en CI, ou avec `--yes`), passez `--provider`. Les autres valeurs reviennent à leurs valeurs par défaut lorsqu'elles ne sont pas fournies.
+
+## Fichiers existants
+
+Par défaut, `init` n'écrase jamais : si un `verbatra.config.ts` ou un `.env.example` existe déjà, il est laissé intact et la commande réussit tout de même. Passez `--force` pour écraser un fichier existant.
+
+## Exemples
+
+```bash
+# créer la configuration + l'exemple .env, en demandant le reste
+verbatra init --provider anthropic
+
+# non interactif, accepter toutes les valeurs par défaut
+verbatra init --provider deepl --yes
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | les fichiers ont été écrits, ou ignorés sans risque car ils existent déjà (sans `--force`) |
+| `2` | une erreur d'usage : aucun `--provider` n'a été fourni sans terminal pour demander, ou la configuration assemblée a échoué à la validation |
+
+Après `init`, définissez la clé API du fournisseur et exécutez [`verbatra translate`](/docs/cli/translate). Voir [Démarrer](/docs) pour la procédure complète.

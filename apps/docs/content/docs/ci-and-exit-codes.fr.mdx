@@ -1,0 +1,52 @@
+---
+title: CI et codes de sortie
+description: Exécutez verbatra en CI, lisez ses codes de sortie et consommez sa sortie JSON.
+---
+
+# CI et codes de sortie
+
+verbatra est une dépendance de développement, donc les mêmes commandes que vous exécutez localement s'exécutent en CI. Installez-le, fournissez la clé du fournisseur depuis votre magasin de secrets CI sous la forme de la variable d'environnement correspondante, et exécutez `verbatra translate`. Utilisez `--dry-run` lorsque vous souhaitez vérifier les traductions manquantes ou obsolètes sans écrire de fichiers.
+
+```bash
+pnpm add -D @verbatra/cli
+# ANTHROPIC_API_KEY is provided by the CI secret store as an environment variable
+verbatra translate --json
+```
+
+## Codes de sortie
+
+verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI se branche :
+
+| Code | Signification |
+| --- | --- |
+| `0` | succès |
+| `1` | `translate` s'est terminé mais certaines locales ont échoué (translate uniquement) |
+| `2` | impossible de s'exécuter (une erreur sur toute l'exécution, ou une erreur d'utilisation) |
+| `130` | `watch` a été arrêté de force par une seconde interruption |
+
+Un échec par exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie ; une seule interruption arrête `watch` proprement et sort avec `0`.
+
+## Sortie JSON
+
+Les deux commandes acceptent `--json` pour une sortie lisible par machine.
+
+`verbatra translate --json` affiche le résumé de l'exécution sous forme d'un seul objet JSON ayant cette forme :
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+}
+```
+
+`verbatra watch --json` affiche un enregistrement par exécution au format NDJSON (un objet JSON par ligne). Chaque enregistrement est soit un succès, soit un échec :
+
+```ts
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+Une exécution échouée pendant `watch` est l'un de ces enregistrements sur le flux ; elle n'arrête pas le surveillant et ne définit pas de code de sortie non nul.
