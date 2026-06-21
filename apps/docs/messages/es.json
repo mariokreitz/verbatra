@@ -115,14 +115,7 @@
       "tagline": "Mantén tus archivos de configuración regional sincronizados. Traduce solo lo que cambió."
     },
     "nav": {
-      "docs": "Documentación",
-      "lang": {
-        "de": "Deutsch",
-        "en": "English",
-        "es": "Español",
-        "fr": "Français"
-      },
-      "language": "Idioma"
+      "docs": "Documentación"
     },
     "showcase": {
       "body": "Una primera ejecución rellena las nuevas claves; cambie un valor de origen y la siguiente ejecución envía solo esa clave. Todo lo demás se deja intacto.",

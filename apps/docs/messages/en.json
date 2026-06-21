@@ -160,14 +160,7 @@
       "vmarkAlt": "verbatra"
     },
     "nav": {
-      "docs": "Docs",
-      "language": "Language",
-      "lang": {
-        "en": "English",
-        "de": "Deutsch",
-        "es": "Español",
-        "fr": "Français"
-      }
+      "docs": "Docs"
     }
   }
 }

@@ -115,14 +115,7 @@
       "tagline": "Halten Sie Ihre Locale-Dateien synchron. Übersetzen Sie nur das, was sich geändert hat."
     },
     "nav": {
-      "docs": "Dokumentation",
-      "lang": {
-        "de": "Deutsch",
-        "en": "Englisch",
-        "es": "Spanisch",
-        "fr": "Französisch"
-      },
-      "language": "Sprache"
+      "docs": "Dokumentation"
     },
     "showcase": {
       "body": "Ein erster Lauf füllt die neuen Schlüssel; ändern Sie einen Quellwert, und der nächste Lauf sendet nur diesen Schlüssel. Alles andere bleibt unberührt.",

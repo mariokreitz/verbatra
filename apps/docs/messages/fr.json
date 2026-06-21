@@ -115,14 +115,7 @@
       "tagline": "Maintenez vos fichiers de locale synchronisés. Ne traduisez que ce qui a changé."
     },
     "nav": {
-      "docs": "Docs",
-      "lang": {
-        "de": "Deutsch",
-        "en": "English",
-        "es": "Español",
-        "fr": "Français"
-      },
-      "language": "Langue"
+      "docs": "Docs"
     },
     "showcase": {
       "body": "Une première exécution remplit les nouvelles clés ; changez une valeur source et l'exécution suivante n'envoie que cette clé. Tout le reste est laissé intact.",
