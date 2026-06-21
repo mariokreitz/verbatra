@@ -16,7 +16,7 @@
 
 ## Description
 
-`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, or watch your source and re-translate as it changes. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
+`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, or export and import an Excel workbook for manual translation. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
 
 ## Requirements
 
@@ -49,12 +49,15 @@ verbatra translate
 
 ## Commands
 
-verbatra ships three commands: `init` (scaffold a config), `translate` (translate every target locale once), and `watch` (re-translate on every source change). The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
+verbatra ships five commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `export` (write untranslated strings to an Excel workbook for a human translator), and `import` (read the filled workbook back, with the same safety checks as `translate`). `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
 
 - [CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)
 - [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/cli/init)
 - [`verbatra translate`](https://verbatra.kreitz-webdev.de/docs/cli/translate)
 - [`verbatra watch`](https://verbatra.kreitz-webdev.de/docs/cli/watch)
+- [`verbatra export`](https://verbatra.kreitz-webdev.de/docs/cli/export)
+- [`verbatra import`](https://verbatra.kreitz-webdev.de/docs/cli/import)
+- [Manual translation workflow](https://verbatra.kreitz-webdev.de/docs/manual-translation)
 
 Run `verbatra <command> --help` for the same reference at the terminal.
 

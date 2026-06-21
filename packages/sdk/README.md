@@ -16,7 +16,7 @@
 
 ## Description
 
-`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, or watch the source and re-translate on each change. The [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
+`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
 
 ## Requirements
 
@@ -70,7 +70,7 @@ export default defineConfig({
 });
 ```
 
-`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, and `ngx-translate-json`. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
+`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, and `ngx-translate-json`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
 
 ## API reference
 
@@ -106,6 +106,28 @@ const controller = await watch({
 // Stop cleanly on Ctrl-C.
 process.on("SIGINT", () => void controller.stop());
 ```
+
+### `exportWorkbook(input): Promise<ExportWorkbookResult>`
+
+Exports the strings that need translating into a styled Excel workbook for a human translator. `input` is `{ config, cwd?, out?, locales?, includeUnchanged? }`. By default it writes the missing and changed strings for every target locale to `verbatra-translations.xlsx`; `out` overrides the path, `locales` narrows which target locales are exported, and `includeUnchanged: true` also exports already up-to-date strings. Resolves to an `ExportWorkbookResult` with the written `path` and a per-locale row count.
+
+### `importWorkbook(input): Promise<RunSummary>`
+
+Imports a filled workbook back into the locale files, running the same placeholder and ICU checks as `translate`. `input` is `{ config, workbook, cwd?, dryRun? }`. With `dryRun: true` it validates and reports without writing locale files or updating the lock. Resolves to a `RunSummary`, the same shape `translate` returns.
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Export the strings that need translating to an Excel workbook.
+const { path } = await exportWorkbook({ config });
+
+// ...a human fills the Translation column, then import the file back.
+const summary = await importWorkbook({ config, workbook: path });
+```
+
+See [Manual translation](https://verbatra.kreitz-webdev.de/docs/manual-translation) for the full round-trip and the workbook layout.
 
 ## Errors and results
 

@@ -29,6 +29,7 @@ It ships in two packages. `@verbatra/cli` gives you a `verbatra` command for the
 - **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project.
 - **Dry runs.** `--dry-run` previews what would change without calling a provider or writing files.
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
+- **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run.
 - **Placeholder integrity.** Every translation is checked after the fact; a result that drops or alters a placeholder is withheld and reported rather than written.
 - **Keys stay in your environment.** API keys are read only from environment variables, never from the config.
 
@@ -119,6 +120,8 @@ Each provider reads its API key from one environment variable:
 | `verbatra init` | Create a verbatra config and .env example for this project | `--provider <id>`, `--source`, `--targets`, `--path`, `--yes`, `--force` |
 | `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--json` |
 | `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--json` |
+| `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
+| `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
 
 Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
 
@@ -136,6 +139,20 @@ const config = await loadConfig();
 const summary = await translate({ config });
 
 console.log(`${summary.succeeded.length} locale(s) translated, ${summary.failed.length} failed`);
+```
+
+The manual-translation workflow is available too, with `exportWorkbook` and `importWorkbook`:
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Export the strings that need translating to an Excel workbook.
+const { path } = await exportWorkbook({ config });
+
+// ...a human fills the Translation column, then import the file back.
+const summary = await importWorkbook({ config, workbook: path });
 ```
 
 See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
