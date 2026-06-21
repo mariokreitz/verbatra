@@ -19,8 +19,11 @@ COPY . .
 # Install only what @verbatra/docs needs, against the committed lockfile.
 RUN pnpm install --frozen-lockfile --filter @verbatra/docs...
 
-# Build the standalone output (emits apps/docs/.next/standalone).
-RUN pnpm --filter @verbatra/docs build
+# Build the standalone output (emits apps/docs/.next/standalone). The trailing "..." builds
+# @verbatra/docs together with its workspace dependencies (sdk, cli, …) in topological order,
+# so their dist/ + type declarations exist before Next type-checks verbatra.config.ts, which
+# imports @verbatra/sdk.
+RUN pnpm --filter @verbatra/docs... build
 
 # ---- Runner ----
 FROM node:22.22.3-bookworm-slim AS runner
