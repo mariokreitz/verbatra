@@ -56,6 +56,24 @@ if (pending.length > 0) {
 }
 ```
 
+## Confier des chaînes à un traducteur humain
+
+Exportez les chaînes qui ont besoin d'être traduites dans un classeur Excel, puis réimportez le fichier rempli. `importWorkbook` renvoie le même `RunSummary` que `translate` et exécute les mêmes vérifications de placeholders et d'ICU, de sorte qu'un transfert manuel s'intègre aux mêmes rapports et garde-fous qu'une exécution automatisée. Voir [Traduction manuelle](/docs/manual-translation).
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating.
+const exported = await exportWorkbook({ config });
+console.log(`Wrote ${exported.path}`);
+
+// ...later, after a translator fills and returns the file, import it back.
+const summary = await importWorkbook({ config, workbook: exported.path });
+console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+```
+
 ## Retraduire au fur et à mesure que la source change
 
 `watch` appelle votre `onRun` une fois par changement débondi et renvoie un contrôleur que vous arrêtez proprement.

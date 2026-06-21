@@ -1,15 +1,17 @@
 ---
 title: CLI
-description: Das verbatra-Kommando - seine drei Unterbefehle, globale Flags, wie es deine Umgebung liest und der Exit-Code-Vertrag.
+description: Das verbatra-Kommando - seine fünf Unterbefehle, globale Flags, wie es deine Umgebung liest und der Exit-Code-Vertrag.
 ---
 
 # CLI
 
-`@verbatra/cli` stellt das `verbatra`-Binary bereit, einen schlanken Wrapper über [`@verbatra/sdk`](/docs/sdk). Es liefert drei Befehle:
+`@verbatra/cli` stellt das `verbatra`-Binary bereit, einen schlanken Wrapper über [`@verbatra/sdk`](/docs/sdk). Es liefert fünf Befehle:
 
 - [`init`](/docs/cli/init): erstellt ein Grundgerüst aus Konfiguration und `.env.example`.
 - [`translate`](/docs/cli/translate): übersetzt jedes Ziel-Locale einmal und beendet sich dann.
 - [`watch`](/docs/cli/watch): übersetzt bei jeder Quelländerung neu, bis es unterbrochen wird.
+- [`export`](/docs/cli/export): exportiert nicht übersetzte Strings in eine Excel-Arbeitsmappe für einen menschlichen Übersetzer.
+- [`import`](/docs/cli/import): importiert eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien.
 
 ## Installieren und aufrufen
 
@@ -42,7 +44,7 @@ verbatra verwendet seinen Exit-Code als Vertrag, auf den ein CI-Schritt oder Skr
 | Code | Bedeutung |
 | --- | --- |
 | `0` | Erfolg (auch `--help` und `--version`) |
-| `1` | `translate` wurde beendet, aber einige Locales sind fehlgeschlagen (nur `translate`) |
+| `1` | `translate` oder `import` wurde beendet, aber einige Locales sind fehlgeschlagen |
 | `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler oder ein Nutzungsfehler |
 | `130` | `watch` wurde durch eine zweite Unterbrechung erzwungen gestoppt |
 

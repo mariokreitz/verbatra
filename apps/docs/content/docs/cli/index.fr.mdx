@@ -1,15 +1,17 @@
 ---
 title: CLI
-description: La commande verbatra - ses trois sous-commandes, ses options globales, comment elle lit votre environnement et le contrat des codes de sortie.
+description: La commande verbatra - ses cinq sous-commandes, ses options globales, comment elle lit votre environnement et le contrat des codes de sortie.
 ---
 
 # CLI
 
-`@verbatra/cli` fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Il embarque trois commandes :
+`@verbatra/cli` fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Il embarque cinq commandes :
 
 - [`init`](/docs/cli/init) : échafaudez une configuration et un `.env.example`.
 - [`translate`](/docs/cli/translate) : traduisez chaque locale cible une fois, puis quittez.
 - [`watch`](/docs/cli/watch) : retraduisez à chaque modification de la source jusqu'à interruption.
+- [`export`](/docs/cli/export) : exportez les chaînes non traduites dans un classeur Excel pour un traducteur humain.
+- [`import`](/docs/cli/import) : importez un classeur rempli dans vos fichiers de locale.
 
 ## Installer et invoquer
 
@@ -42,7 +44,7 @@ verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI
 | Code | Signification |
 | --- | --- |
 | `0` | succès (également `--help` et `--version`) |
-| `1` | `translate` s'est terminé mais certaines locales ont échoué (translate uniquement) |
+| `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué |
 | `2` | impossible de s'exécuter : une erreur d'exécution globale, ou une erreur d'usage |
 | `130` | `watch` a été arrêté de force par une seconde interruption |
 

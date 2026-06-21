@@ -1,15 +1,17 @@
 ---
 title: CLI
-description: The verbatra command - its three subcommands, global flags, how it reads your environment, and the exit-code contract.
+description: The verbatra command - its five subcommands, global flags, how it reads your environment, and the exit-code contract.
 ---
 
 # CLI
 
-`@verbatra/cli` provides the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/sdk). It ships three commands:
+`@verbatra/cli` provides the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/sdk). It ships five commands:
 
 - [`init`](/docs/cli/init): scaffold a config and a `.env.example`.
 - [`translate`](/docs/cli/translate): translate every target locale once, then exit.
 - [`watch`](/docs/cli/watch): re-translate on every source change until interrupted.
+- [`export`](/docs/cli/export): export untranslated strings into an Excel workbook for a human translator.
+- [`import`](/docs/cli/import): import a filled workbook back into your locale files.
 
 ## Install and invoke
 
@@ -42,7 +44,7 @@ verbatra uses its exit code as the contract a CI step or script branches on:
 | Code | Meaning |
 | --- | --- |
 | `0` | success (also `--help` and `--version`) |
-| `1` | `translate` finished but some locales failed (translate only) |
+| `1` | `translate` or `import` finished but some locales failed |
 | `2` | could not run: a whole-run error, or a usage error |
 | `130` | `watch` was force-stopped by a second interrupt |
 

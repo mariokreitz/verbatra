@@ -24,7 +24,7 @@ Nécessite Node.js `>=22.14.0`.
 
 ## La surface publique
 
-Le paquet exporte quatre fonctions et les types qu'un appelant manipule.
+Le paquet exporte six fonctions et les types qu'un appelant manipule.
 
 - `defineConfig(config: VerbatraConfig): VerbatraConfig` renvoie son argument inchangé. Elle n'existe
   que pour vous fournir l'inférence de type et l'autocomplétion lorsque vous rédigez une configuration en TypeScript.
@@ -39,6 +39,16 @@ Le paquet exporte quatre fonctions et les types qu'un appelant manipule.
   changement débondi. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, où `onRun` reçoit un
   `WatchRunResult` par exécution. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
   le surveillant et attend l'exécution en cours.
+- `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` écrit les chaînes qui ont
+  besoin d'être traduites dans un classeur Excel stylisé pour un traducteur humain. `ExportWorkbookInput`
+  est `{ config, cwd?, out?, locales?, includeUnchanged? }`. Elle se résout en un `ExportWorkbookResult` :
+  le `path` absolu écrit et les comptes de `rows` par locale. Aucun fournisseur n'est appelé et aucun
+  fichier de verrouillage n'est écrit. Voir [Traduction manuelle](/docs/manual-translation).
+- `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` relit un classeur rempli dans les
+  fichiers de locale, en exécutant les mêmes vérifications de placeholders et d'ICU que `translate`.
+  `ImportWorkbookInput` est `{ config, workbook, cwd?, dryRun? }`. Elle se résout en le même `RunSummary`
+  que `translate`, de sorte qu'un échec par locale est une donnée sur le résumé plutôt qu'une exception.
+  `DEFAULT_WORKBOOK_PATH` est le chemin d'export par défaut (`verbatra-translations.xlsx`).
 
 Les types de résultat :
 

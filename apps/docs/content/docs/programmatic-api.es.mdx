@@ -56,6 +56,24 @@ if (pending.length > 0) {
 }
 ```
 
+## Entregar cadenas a un traductor humano
+
+Exporta las cadenas que necesitan traducción a un libro de Excel y luego importa el archivo rellenado de vuelta. `importWorkbook` devuelve el mismo `RunSummary` que `translate` y ejecuta las mismas comprobaciones de marcadores de posición e ICU, de modo que una entrega manual encaja con los mismos informes y controles que una ejecución automatizada. Consulta [Traducción manual](/docs/manual-translation).
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating.
+const exported = await exportWorkbook({ config });
+console.log(`Wrote ${exported.path}`);
+
+// ...later, after a translator fills and returns the file, import it back.
+const summary = await importWorkbook({ config, workbook: exported.path });
+console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+```
+
 ## Volver a traducir a medida que cambia el origen
 
 `watch` llama a tu `onRun` una vez por cada cambio con anti-rebote y devuelve un controlador que detienes de forma limpia.

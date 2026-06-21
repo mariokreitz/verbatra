@@ -56,6 +56,24 @@ if (pending.length > 0) {
 }
 ```
 
+## Strings an einen menschlichen Übersetzer übergeben
+
+Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe und importiere die ausgefüllte Datei dann zurück. `importWorkbook` gibt dieselbe `RunSummary` wie `translate` zurück und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe zu denselben Berichten und Absicherungen passt wie ein automatischer Lauf. Siehe [Manuelle Übersetzung](/docs/manual-translation).
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating.
+const exported = await exportWorkbook({ config });
+console.log(`Wrote ${exported.path}`);
+
+// ...later, after a translator fills and returns the file, import it back.
+const summary = await importWorkbook({ config, workbook: exported.path });
+console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+```
+
 ## Neu übersetzen, während sich die Quelle ändert
 
 `watch` ruft dein `onRun` einmal pro entprellter Änderung auf und gibt einen Controller zurück, den du sauber stoppst.

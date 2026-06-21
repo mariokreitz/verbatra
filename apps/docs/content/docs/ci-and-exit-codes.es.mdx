@@ -20,7 +20,7 @@ verbatra usa su código de salida como el contrato sobre el que se ramifica un p
 | Código | Significado |
 | --- | --- |
 | `0` | éxito |
-| `1` | `translate` terminó pero algunas configuraciones regionales fallaron (solo translate) |
+| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron |
 | `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso) |
 | `130` | `watch` fue detenido forzosamente por una segunda interrupción |
 
@@ -28,7 +28,7 @@ Un fallo por ejecución en `watch` se informa como un registro de flujo, no como
 
 ## Salida JSON
 
-Ambos comandos aceptan `--json` para una salida legible por máquina.
+Los comandos `translate`, `watch`, `export` e `import` aceptan `--json` para una salida legible por máquina.
 
 `verbatra translate --json` imprime el resumen de la ejecución como un único objeto JSON con esta forma:
 

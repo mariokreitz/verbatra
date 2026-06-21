@@ -20,7 +20,7 @@ verbatra verwendet seinen Exit-Code als Vertrag, anhand dessen ein CI-Schritt ve
 | Code | Bedeutung |
 | --- | --- |
 | `0` | Erfolg |
-| `1` | `translate` abgeschlossen, aber einige Locales sind fehlgeschlagen (nur translate) |
+| `1` | `translate` oder `import` abgeschlossen, aber einige Locales sind fehlgeschlagen |
 | `2` | konnte nicht ausgeführt werden (ein Fehler des gesamten Laufs oder ein Verwendungsfehler) |
 | `130` | `watch` wurde durch eine zweite Unterbrechung erzwungenermaßen gestoppt |
 
@@ -28,7 +28,7 @@ Ein Fehler eines einzelnen Laufs in `watch` wird als Stream-Datensatz gemeldet, 
 
 ## JSON-Ausgabe
 
-Beide Befehle akzeptieren `--json` für maschinenlesbare Ausgabe.
+Die Befehle `translate`, `watch`, `export` und `import` akzeptieren `--json` für maschinenlesbare Ausgabe.
 
 `verbatra translate --json` gibt die Lauf-Zusammenfassung als ein JSON-Objekt mit dieser Struktur aus:
 

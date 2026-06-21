@@ -24,7 +24,7 @@ Benötigt Node.js `>=22.14.0`.
 
 ## Die öffentliche Schnittstelle
 
-Das Paket exportiert vier Funktionen und die Typen, die ein Aufrufer berührt.
+Das Paket exportiert sechs Funktionen und die Typen, die ein Aufrufer berührt.
 
 - `defineConfig(config: VerbatraConfig): VerbatraConfig` gibt sein Argument unverändert zurück. Es existiert
   nur, um dir Typinferenz und Autovervollständigung zu bieten, wenn du eine Konfiguration in TypeScript schreibst.
@@ -39,6 +39,16 @@ Das Paket exportiert vier Funktionen und die Typen, die ein Aufrufer berührt.
   entprellten Änderung erneut. `WatchInput` ist `{ config, cwd?, debounceMs?, onRun }`, wobei `onRun` ein
   `WatchRunResult` pro Lauf erhält. Der zurückgegebene `WatchController` hat eine einzige Methode, `stop()`, die den
   Watcher schließt und auf den laufenden Lauf wartet.
+- `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` schreibt die Strings,
+  die übersetzt werden müssen, in eine gestylte Excel-Arbeitsmappe für einen menschlichen Übersetzer.
+  `ExportWorkbookInput` ist `{ config, cwd?, out?, locales?, includeUnchanged? }`. Es wird zu einem
+  `ExportWorkbookResult` aufgelöst: dem geschriebenen absoluten `path` und den `rows`-Zahlen pro Locale.
+  Es wird kein Provider aufgerufen und keine Lock-Datei geschrieben. Siehe [Manuelle Übersetzung](/docs/manual-translation).
+- `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` liest eine ausgefüllte Arbeitsmappe
+  zurück in die Locale-Dateien und führt dieselben Platzhalter- und ICU-Prüfungen aus wie `translate`.
+  `ImportWorkbookInput` ist `{ config, workbook, cwd?, dryRun? }`. Es wird zur selben `RunSummary` wie
+  `translate` aufgelöst, sodass ein Fehler pro Locale Daten in der Zusammenfassung sind statt geworfen
+  zu werden. `DEFAULT_WORKBOOK_PATH` ist der Standard-Exportpfad (`verbatra-translations.xlsx`).
 
 Die Ergebnistypen:
 
