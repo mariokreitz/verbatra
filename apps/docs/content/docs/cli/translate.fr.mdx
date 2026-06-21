@@ -1,11 +1,11 @@
 ---
 title: verbatra translate
-description: Traduisez chaque locale cible une fois, puis quittez.
+description: Traduis chaque locale cible une fois, puis quitte.
 ---
 
 # verbatra translate
 
-Exécutez le flux lire, comparer, traduire, écrire sur chaque locale cible une fois, puis quittez. verbatra lit la locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées ; les traductions qui sont toujours à jour sont laissées intactes.
+Exécute le flux lire, comparer, traduire, écrire sur chaque locale cible une fois, puis quitte. verbatra lit la locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées ; les traductions qui sont toujours à jour sont laissées intactes.
 
 ```bash
 verbatra translate
@@ -45,4 +45,4 @@ verbatra translate --json
 | `1` | l'exécution s'est terminée mais une ou plusieurs locales ont échoué |
 | `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fournisseur qui n'a pas pu être construit, y compris une clé API manquante, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
 
-L'échec d'une seule locale n'est pas fatal et produit le code de sortie `1` ; le détail par locale figure dans le résumé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour vous embrancher sur ces codes.
+L'échec d'une seule locale n'est pas fatal et produit le code de sortie `1` ; le détail par locale figure dans le résumé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

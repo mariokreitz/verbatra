@@ -1,14 +1,14 @@
 ---
 title: SDK
-description: Utilisez @verbatra/sdk pour exécuter la traduction depuis vos propres scripts, tâches CI et outils.
+description: Utilise @verbatra/sdk pour exécuter la traduction depuis tes propres scripts, tâches CI et outils.
 ---
 
 # SDK
 
 `@verbatra/sdk` est le cœur programmatique sur lequel la commande `verbatra` est construite. La CLI est un mince
-wrapper par-dessus, de sorte que tout ce que fait la ligne de commande, vous pouvez le faire en code : charger et valider une configuration,
-exécuter une traduction unique, ou surveiller la source et retraduire à chaque changement. Tournez-vous vers le SDK
-lorsque vous voulez de la traduction à l'intérieur d'un script, d'une tâche CI ou de vos propres outils.
+wrapper par-dessus, de sorte que tout ce que fait la ligne de commande, tu peux le faire en code : charger et valider une configuration,
+exécuter une traduction unique, ou surveiller la source et retraduire à chaque changement. Tourne-toi vers le SDK
+lorsque tu veux de la traduction à l'intérieur d'un script, d'une tâche CI ou de tes propres outils.
 
 ## Installation
 
@@ -27,7 +27,7 @@ Nécessite Node.js `>=22.14.0`.
 Le paquet exporte six fonctions et les types qu'un appelant manipule.
 
 - `defineConfig(config: VerbatraConfig): VerbatraConfig` renvoie son argument inchangé. Elle n'existe
-  que pour vous fournir l'inférence de type et l'autocomplétion lorsque vous rédigez une configuration en TypeScript.
+  que pour te fournir l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la
   configuration. `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride`
   en mémoire. Elle lève une `SdkError` lorsqu'aucune configuration n'est trouvée ou que la validation échoue.
@@ -121,7 +121,7 @@ export default defineConfig({
 
 ## Exécuter une traduction unique
 
-`translate` se résout en le résumé de l'exécution. Lisez `succeeded` et `failed` pour l'essentiel, et parcourez
+`translate` se résout en le résumé de l'exécution. Lis `succeeded` et `failed` pour l'essentiel, et parcours
 `locales` pour le détail, y compris toute notification du fournisseur.
 
 ```ts
@@ -139,11 +139,11 @@ for (const locale of summary.locales) {
 }
 ```
 
-Passez `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers.
+Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers.
 
 ## Mode surveillance
 
-`watch` appelle votre `onRun` une fois par exécution avec un `WatchRunResult` discriminé. La méthode
+`watch` appelle ton `onRun` une fois par exécution avec un `WatchRunResult` discriminé. La méthode
 `stop()` du contrôleur l'arrête proprement.
 
 ```ts
@@ -169,7 +169,7 @@ process.on("SIGINT", () => {
 
 ## Gérer les erreurs
 
-Les échecs sur toute l'exécution lèvent une `SdkError`. Branchez-vous sur son `code` pour réagir à des cas spécifiques.
+Les échecs sur toute l'exécution lèvent une `SdkError`. Branche-toi sur son `code` pour réagir à des cas spécifiques.
 
 ```ts
 import { loadConfig, SdkError, translate } from "@verbatra/sdk";

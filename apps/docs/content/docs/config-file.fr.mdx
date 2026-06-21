@@ -33,11 +33,11 @@ export default defineConfig({
 });
 ```
 
-`defineConfig` est une fonction utilitaire d'identité de `@verbatra/sdk`. Elle renvoie son argument inchangé et n'existe que pour vous fournir l'inférence de type et l'autocomplétion de l'éditeur.
+`defineConfig` est une fonction utilitaire d'identité de `@verbatra/sdk`. Elle renvoie son argument inchangé et n'existe que pour te fournir l'inférence de type et l'autocomplétion de l'éditeur.
 
 ## Champs
 
-- **`sourceLocale`** (chaîne de caractères) : la locale dans laquelle vos chaînes source sont écrites.
+- **`sourceLocale`** (chaîne de caractères) : la locale dans laquelle tes chaînes source sont écrites.
 - **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`.
 - **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json` ou `ngx-translate-json`.
 - **`files.pattern`** (chaîne de caractères) : le chemin vers chaque fichier de locale. Il doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale (par exemple, `locales/{locale}.json` se résout en `locales/de.json`).
@@ -89,10 +89,10 @@ verbatra effectue une recherche vers le haut à partir du répertoire de travail
 10. `verbatra.config.cjs`
 11. `verbatra.config.ts`
 
-Pour charger un fichier explicite au lieu de rechercher, passez `--config <path>`.
+Pour charger un fichier explicite au lieu de rechercher, passe `--config <path>`.
 
 ## Le répertoire de travail et .env
 
-Exécutez verbatra depuis la racine de votre projet, ou passez `--cwd` en la désignant. Le répertoire de travail est le point d'ancrage unique pour tout ce que verbatra résout : la recherche de configuration commence là et remonte, `.env.local` et `.env` sont chargés à partir de là, et chaque chemin de fichier de locale est résolu par rapport à celui-ci. Garder les trois au même endroit est ce qui fait fonctionner un simple `verbatra translate`.
+Exécute verbatra depuis la racine de ton projet, ou passe `--cwd` en la désignant. Le répertoire de travail est le point d'ancrage unique pour tout ce que verbatra résout : la recherche de configuration commence là et remonte, `.env.local` et `.env` sont chargés à partir de là, et chaque chemin de fichier de locale est résolu par rapport à celui-ci. Garder les trois au même endroit est ce qui fait fonctionner un simple `verbatra translate`.
 
-La précédence des variables d'environnement est, du plus élevé au plus bas : une variable déjà définie dans votre environnement réel, puis `.env.local`, puis `.env`. Une variable déjà présente n'est jamais écrasée.
+La précédence des variables d'environnement est, du plus élevé au plus bas : une variable déjà définie dans ton environnement réel, puis `.env.local`, puis `.env`. Une variable déjà présente n'est jamais écrasée.

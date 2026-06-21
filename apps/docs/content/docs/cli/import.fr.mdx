@@ -1,11 +1,11 @@
 ---
 title: verbatra import
-description: Importez un classeur rempli dans vos fichiers de locale, en exécutant les mêmes vérifications de sécurité qu'une exécution automatisée.
+description: Importe un classeur rempli dans tes fichiers de locale, en exécutant les mêmes vérifications de sécurité qu'une exécution automatisée.
 ---
 
 # verbatra import
 
-Relisez un classeur rempli par un traducteur dans vos fichiers de locale. Import exécute les mêmes vérifications de placeholders et d'ICU que [`verbatra translate`](/docs/cli/translate) : chaque valeur est validée, celles qui passent sont écrites et le [fichier de verrouillage](/docs/the-lock-file) est mis à jour, et toute valeur qui échoue à une vérification est retenue et signalée plutôt qu'écrite.
+Relis un classeur rempli par un traducteur dans tes fichiers de locale. Import exécute les mêmes vérifications de placeholders et d'ICU que [`verbatra translate`](/docs/cli/translate) : chaque valeur est validée, celles qui passent sont écrites et le [fichier de verrouillage](/docs/the-lock-file) est mis à jour, et toute valeur qui échoue à une vérification est retenue et signalée plutôt qu'écrite.
 
 ```bash
 verbatra import verbatra-translations.xlsx
@@ -32,7 +32,7 @@ L'argument est le chemin vers le classeur produit par [`verbatra export`](/docs/
 
 Import réutilise le résumé d'exécution de `translate` tel quel. Sans `--json`, il affiche un résumé lisible par un humain : une ligne par locale, puis un agrégat. Chaque ligne de locale indique combien de valeurs étaient `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` et `integrity-withheld`. Avec `--json`, il affiche la même [structure `RunSummary`](/docs/sdk) sous forme d'un seul objet JSON sur stdout.
 
-Une valeur est **retenue** lorsqu'elle casse un placeholder, qu'elle est de l'ICU invalide, ou que sa source a changé depuis que le classeur a été exporté (détecté via la colonne cachée de hachage de source). Une valeur retenue laisse le fichier de locale intact afin que vous puissiez la corriger et la réimporter. Voir [Sécurité de traduction](/docs/translation-safety) pour les vérifications.
+Une valeur est **retenue** lorsqu'elle casse un placeholder, qu'elle est de l'ICU invalide, ou que sa source a changé depuis que le classeur a été exporté (détecté via la colonne cachée de hachage de source). Une valeur retenue laisse le fichier de locale intact afin que tu puisses la corriger et la réimporter. Voir [Sécurité de traduction](/docs/translation-safety) pour les vérifications.
 
 ## Exemples
 

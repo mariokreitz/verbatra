@@ -5,7 +5,7 @@ description: Les quatre fournisseurs de traduction, leurs options et la clé API
 
 # Fournisseurs
 
-verbatra propose quatre fournisseurs derrière une seule interface : Anthropic, OpenAI et Gemini sont des modèles de langage étendus, et DeepL est un service de traduction automatique. Vous en sélectionnez un dans le bloc `provider` de votre configuration, par `id`.
+verbatra propose quatre fournisseurs derrière une seule interface : Anthropic, OpenAI et Gemini sont des modèles de langage étendus, et DeepL est un service de traduction automatique. Tu en sélectionnes un dans le bloc `provider` de ta configuration, par `id`.
 
 ## Les clés proviennent de l'environnement
 
@@ -18,7 +18,7 @@ verbatra ne lit jamais une clé API depuis la configuration. Chaque fournisseur 
 | `gemini` | `GEMINI_API_KEY` |
 | `deepl` | `DEEPL_API_KEY` |
 
-Définissez la variable dans `.env` (que `verbatra init` ignore via git) ou exportez-la dans votre shell ou votre gestionnaire de secrets CI. Obtenez une clé depuis le tableau de bord du fournisseur, puis placez sa valeur derrière la variable ci-dessus. Ne commettez jamais une vraie clé.
+Définis la variable dans `.env` (que `verbatra init` ignore via git) ou exporte-la dans ton shell ou ton gestionnaire de secrets CI. Obtiens une clé depuis le tableau de bord du fournisseur, puis place sa valeur derrière la variable ci-dessus. Ne commets jamais une vraie clé.
 
 ## Anthropic
 
@@ -71,7 +71,7 @@ provider: {
 }
 ```
 
-Lit `DEEPL_API_KEY`. DeepL n'a pas besoin de modèle. La seule option est un `glossaryId` facultatif qui nomme un glossaire que vous avez déjà créé dans DeepL :
+Lit `DEEPL_API_KEY`. DeepL n'a pas besoin de modèle. La seule option est un `glossaryId` facultatif qui nomme un glossaire que tu as déjà créé dans DeepL :
 
 ```ts
 provider: {

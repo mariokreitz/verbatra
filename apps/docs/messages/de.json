@@ -4,8 +4,8 @@
       "vmarkAlt": "verbatra"
     },
     "compat": {
-      "body": "verbatra liest die JSON-Locale-Formate, die Ihr Framework bereits verwendet, und füllt sie über den von Ihnen gewählten Anbieter aus.",
-      "eyebrow": "funktioniert mit Ihrem Stack",
+      "body": "verbatra liest die JSON-Locale-Formate, die dein Framework bereits verwendet, und füllt sie über den von dir gewählten Anbieter aus.",
+      "eyebrow": "funktioniert mit deinem Stack",
       "heading": "Ein Tool, jedes Framework.",
       "labelFrameworks": "Frameworks und Formate",
       "labelProviders": "Übersetzungsanbieter"
@@ -15,11 +15,11 @@
       "heading": "Häufig gestellte Fragen",
       "items": {
         "avoidRetranslate": {
-          "answer": "verbatra führt eine festgeschriebene Lock-Datei, die festhält, was bereits übersetzt wurde. Bei jedem Lauf gleicht es Ihre Quell-Locale mit dieser Lock-Datei ab und sendet nur die neuen oder geänderten Schlüssel an Ihren Anbieter; unveränderte Schlüssel bleiben unberührt.",
+          "answer": "verbatra führt eine festgeschriebene Lock-Datei, die festhält, was bereits übersetzt wurde. Bei jedem Lauf gleicht es deine Quell-Locale mit dieser Lock-Datei ab und sendet nur die neuen oder geänderten Schlüssel an deinen Anbieter; unveränderte Schlüssel bleiben unberührt.",
           "question": "Wie vermeidet verbatra, bei jedem Lauf alles neu zu übersetzen?"
         },
         "ci": {
-          "answer": "Ja. Der verbatra-Befehl ist ein schlanker Wrapper über dem @verbatra/sdk, der die gleichen Übersetzungs- und Überwachungsoperationen für Skripte, CI und Ihre eigenen Tools bereitstellt.",
+          "answer": "Ja. Der verbatra-Befehl ist ein schlanker Wrapper über dem @verbatra/sdk, der die gleichen Übersetzungs- und Überwachungsoperationen für Skripte, CI und deine eigenen Tools bereitstellt.",
           "question": "Gibt es neben einem CLI auch ein SDK?"
         },
         "formats": {
@@ -27,22 +27,22 @@
           "question": "Welche i18n-Dateiformate kann verbatra lesen?"
         },
         "icu": {
-          "answer": "Es prüft die Integrität von Platzhaltern und ICU nach jeder Übersetzung. Wenn eine zurückgegebene Übersetzung einen Platzhalter bricht oder ungültige ICU erzeugt, wird dieses Ergebnis zurückgehalten, anstatt in Ihre Locale-Datei geschrieben zu werden.",
+          "answer": "Es prüft die Integrität von Platzhaltern und ICU nach jeder Übersetzung. Wenn eine zurückgegebene Übersetzung einen Platzhalter bricht oder ungültige ICU erzeugt, wird dieses Ergebnis zurückgehalten, anstatt in deine Locale-Datei geschrieben zu werden.",
           "question": "Wie geht verbatra mit ICU-Platzhaltern und Nachrichtenformaten um?"
         },
         "openSource": {
-          "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne Ihre Locale-Dateien zu berühren, und der Überwachungsmodus übersetzt weiter, wenn sich Ihre Quell-Locale ändert.",
+          "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Locale-Dateien zu berühren, und der Überwachungsmodus übersetzt weiter, wenn sich deine Quell-Locale ändert.",
           "question": "Kann ich einen Lauf vor dem Schreiben in eine Vorschau ansehen?"
         },
         "providers": {
-          "answer": "Anthropic, OpenAI, Gemini und DeepL. Sie wählen einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, niemals aus der Konfigurationsdatei.",
+          "answer": "Anthropic, OpenAI, Gemini und DeepL. Du wählst einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, niemals aus der Konfigurationsdatei.",
           "question": "Welche Übersetzungsanbieter unterstützt verbatra?"
         }
       }
     },
     "finalClose": {
       "eyebrow": "ein Befehl",
-      "heading": "Hören Sie auf, Locale-Dateien manuell zu synchronisieren."
+      "heading": "Hör auf, Locale-Dateien manuell zu synchronisieren."
     },
     "footer": {
       "cols": {
@@ -73,32 +73,32 @@
       "githubAria": "verbatra auf GitHub",
       "legalLine": "Open-Source unter der MIT-Lizenz · © 2026 Mario Kreitz",
       "npmAria": "verbatra auf npm",
-      "tagline": "Übersetzen Sie nur das, was sich geändert hat. Ein Open-Source CLI und SDK, das Ihre i18n-Locale-Dateien über den von Ihnen gewählten Anbieter synchron hält."
+      "tagline": "Übersetze nur das, was sich geändert hat. Ein Open-Source CLI und SDK, das deine i18n-Locale-Dateien über den von dir gewählten Anbieter synchron hält."
     },
     "hero": {
       "ctaGithub": "Auf GitHub starren",
       "ctaStart": "Jetzt starten",
-      "headline": "Übersetzen Sie nur das, was sich geändert hat.",
-      "lead": "verbatra ist ein CLI und SDK, das Ihre i18n-Locale-Dateien synchron hält. Sie pflegen die Quell-Locale; es füllt jede andere Locale über den von Ihnen gewählten KI-Anbieter aus."
+      "headline": "Übersetze nur das, was sich geändert hat.",
+      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus."
     },
     "how": {
       "eyebrow": "so funktioniert's",
       "heading": "Ein Lauf ist eine kurze, vorhersehbare Pipeline.",
       "steps": {
         "configure": {
-          "body": "Richten Sie verbatra auf Ihre Quell-Locale aus, listen Sie die Zielsprachen auf und wählen Sie einen Anbieter. Die Konfiguration befindet sich in einer Datei; API-Schlüssel bleiben in Ihrer Umgebung.",
+          "body": "Richte verbatra auf deine Quell-Locale aus, liste die Zielsprachen auf und wähle einen Anbieter. Die Konfiguration befindet sich in einer Datei; API-Schlüssel bleiben in deiner Umgebung.",
           "title": "Konfigurieren"
         },
         "diff": {
-          "body": "Jeder Lauf vergleicht Ihre Quell-Locale mit der festgeschriebenen Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist.",
+          "body": "Jeder Lauf vergleicht deine Quell-Locale mit der festgeschriebenen Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist.",
           "title": "Diff"
         },
         "translate": {
-          "body": "Nur die neuen und geänderten Schlüssel werden in Batches an Ihren Anbieter gesendet, unter Anwendung Ihres Glossars und Ihres Tones. Alles andere bleibt unberührt.",
+          "body": "Nur die neuen und geänderten Schlüssel werden in Batches an deinen Anbieter gesendet, unter Anwendung deines Glossars und deines Tones. Alles andere bleibt unberührt.",
           "title": "Übersetzen"
         },
         "verifyWrite": {
-          "body": "Die Integrität von Platzhaltern und ICU wird bei jedem Ergebnis geprüft. Alles, was bricht, wird zurückgehalten; der Rest wird in Ihre Locale-Dateien geschrieben und die Lock-Datei aktualisiert.",
+          "body": "Die Integrität von Platzhaltern und ICU wird bei jedem Ergebnis geprüft. Alles, was bricht, wird zurückgehalten; der Rest wird in deine Locale-Dateien geschrieben und die Lock-Datei aktualisiert.",
           "title": "Überprüfen & schreiben"
         }
       }
@@ -110,17 +110,17 @@
       "tablistLabel": "Paketmanager"
     },
     "meta": {
-      "definition": "verbatra ist ein CLI und SDK, das Ihre i18n-Locale-Dateien synchron hält und nur die geänderten Schlüssel über den von Ihnen gewählten KI- oder maschinellen Übersetzungsanbieter übersetzt.",
+      "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die geänderten Schlüssel über den von dir gewählten KI- oder maschinellen Übersetzungsanbieter übersetzt.",
       "ogImageAlt": "verbatra",
-      "tagline": "Halten Sie Ihre Locale-Dateien synchron. Übersetzen Sie nur das, was sich geändert hat."
+      "tagline": "Halte deine Locale-Dateien synchron. Übersetze nur das, was sich geändert hat."
     },
     "nav": {
       "docs": "Dokumentation"
     },
     "showcase": {
-      "body": "Ein erster Lauf füllt die neuen Schlüssel; ändern Sie einen Quellwert, und der nächste Lauf sendet nur diesen Schlüssel. Alles andere bleibt unberührt.",
-      "eyebrow": "sehen Sie, wie ein Lauf abläuft",
-      "heading": "Sehen Sie zu, wie es genau einen Schlüssel berührt."
+      "body": "Ein erster Lauf füllt die neuen Schlüssel; ändere einen Quellwert, und der nächste Lauf sendet nur diesen Schlüssel. Alles andere bleibt unberührt.",
+      "eyebrow": "sieh, wie ein Lauf abläuft",
+      "heading": "Sieh zu, wie es genau einen Schlüssel berührt."
     },
     "trust": {
       "eyebrow": "Vertrauenswürdige Bausteine",
@@ -137,24 +137,24 @@
       "heading": "Gebaut für Teams, die in vielen Sprachen ausliefern.",
       "reasons": {
         "dryRun": {
-          "body": "Zeigen Sie genau an, was ein Lauf ändern würde, ohne etwas zu schreiben, oder lassen Sie einen Überwachungsmodus laufen, der übersetzt, während sich Ihre Quell-Locale entwickelt.",
+          "body": "Zeig genau an, was ein Lauf ändern würde, ohne etwas zu schreiben, oder lass einen Überwachungsmodus laufen, der übersetzt, während sich deine Quell-Locale entwickelt.",
           "title": "Probeläufe und Überwachungsmodus"
         },
         "environment": {
           "body": "API-Schlüssel von Anbietern werden aus Umgebungsvariablen gelesen, niemals aus der Konfigurationsdatei, niemals aus CLI-Argumenten und niemals protokolliert.",
-          "title": "Schlüssel bleiben in Ihrer Umgebung"
+          "title": "Schlüssel bleiben in deiner Umgebung"
         },
         "incremental": {
           "body": "Eine festgeschriebene Lock-Datei zeichnet auf, was übersetzt wurde. Jeder Lauf gleicht die Quelle ab und ruft den Anbieter nur für die Schlüssel auf, die sich geändert haben.",
           "title": "Standardmäßig inkrementell"
         },
         "oneEngine": {
-          "body": "Der verbatra-Befehl und das @verbatra/sdk teilen sich einen einzigen Orchestrierungskern, sodass Skripte, CI und Ihre eigenen Tools identisch funktionieren.",
+          "body": "Der verbatra-Befehl und das @verbatra/sdk teilen sich einen einzigen Orchestrierungskern, sodass Skripte, CI und deine eigenen Tools identisch funktionieren.",
           "title": "CLI und SDK, eine Engine"
         },
         "provider": {
-          "body": "Anthropic, OpenAI, Gemini oder DeepL, ausgewählt in einer Zeile der Konfiguration. Wechseln Sie den Anbieter, ohne Ihre Locale-Dateien zu berühren.",
-          "title": "Ihre Wahl des Anbieters"
+          "body": "Anthropic, OpenAI, Gemini oder DeepL, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Locale-Dateien zu berühren.",
+          "title": "Deine Wahl des Anbieters"
         },
         "safety": {
           "body": "Die Integrität von Platzhaltern und ICU wird nach jeder Übersetzung geprüft. Ein Ergebnis, das einen Platzhalter bricht, wird zurückgehalten und niemals geschrieben.",

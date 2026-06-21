@@ -1,15 +1,15 @@
 ---
 title: API programmatique
-description: Des recettes pratiques pour exécuter verbatra depuis vos propres scripts, étapes de build et tâches CI.
+description: Des recettes pratiques pour exécuter verbatra depuis tes propres scripts, étapes de build et tâches CI.
 ---
 
 # API programmatique
 
-La [référence du SDK](/docs/sdk) documente chaque fonction et chaque type. Cette page en est le compagnon orienté tâches : quelques modèles de bout en bout pour utiliser verbatra dans du code. Tournez-vous vers le SDK lorsque vous voulez de la traduction à l'intérieur d'un script, d'une étape de build ou d'une tâche CI, avec un contrôle total sur ce qui se passe autour.
+La [référence du SDK](/docs/sdk) documente chaque fonction et chaque type. Cette page en est le compagnon orienté tâches : quelques modèles de bout en bout pour utiliser verbatra dans du code. Tourne-toi vers le SDK lorsque tu veux de la traduction à l'intérieur d'un script, d'une étape de build ou d'une tâche CI, avec un contrôle total sur ce qui se passe autour.
 
 ## Traduire dans un script
 
-Chargez la configuration, exécutez une traduction et signalez l'essentiel. Les problèmes sur toute l'exécution lèvent une `SdkError` ; les résultats par locale sont des données sur le résumé.
+Charge la configuration, exécute une traduction et signale l'essentiel. Les problèmes sur toute l'exécution lèvent une `SdkError` ; les résultats par locale sont des données sur le résumé.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -22,7 +22,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Conditionner une étape de build ou de CI au résultat
 
-Le résumé vous indique ce qui a changé et ce qui a échoué sans analyser de sortie. Faites échouer l'étape lorsqu'une locale a échoué, et inspectez le détail par locale pour journaliser pourquoi.
+Le résumé t'indique ce qui a changé et ce qui a échoué sans analyser de sortie. Fais échouer l'étape lorsqu'une locale a échoué, et inspecte le détail par locale pour journaliser pourquoi.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -42,7 +42,7 @@ if (summary.failed.length > 0) {
 
 ## Vérifier sans écrire
 
-Passez `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers. Le résumé liste les clés qui seraient traduites, de sorte que vous pouvez détecter les traductions manquantes ou obsolètes en CI et échouer s'il y a du travail à faire.
+Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers. Le résumé liste les clés qui seraient traduites, de sorte que tu peux détecter les traductions manquantes ou obsolètes en CI et échouer s'il y a du travail à faire.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -58,7 +58,7 @@ if (pending.length > 0) {
 
 ## Confier des chaînes à un traducteur humain
 
-Exportez les chaînes qui ont besoin d'être traduites dans un classeur Excel, puis réimportez le fichier rempli. `importWorkbook` renvoie le même `RunSummary` que `translate` et exécute les mêmes vérifications de placeholders et d'ICU, de sorte qu'un transfert manuel s'intègre aux mêmes rapports et garde-fous qu'une exécution automatisée. Voir [Traduction manuelle](/docs/manual-translation).
+Exporte les chaînes qui ont besoin d'être traduites dans un classeur Excel, puis réimporte le fichier rempli. `importWorkbook` renvoie le même `RunSummary` que `translate` et exécute les mêmes vérifications de placeholders et d'ICU, de sorte qu'un transfert manuel s'intègre aux mêmes rapports et garde-fous qu'une exécution automatisée. Voir [Traduction manuelle](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
@@ -76,7 +76,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Retraduire au fur et à mesure que la source change
 
-`watch` appelle votre `onRun` une fois par changement débondi et renvoie un contrôleur que vous arrêtez proprement.
+`watch` appelle ton `onRun` une fois par changement débondi et renvoie un contrôleur que tu arrêtes proprement.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";
@@ -97,7 +97,7 @@ process.on("SIGINT", () => {
 
 ## Une configuration sans fichier
 
-`loadConfig` accepte un `configOverride` en mémoire, de sorte que vous pouvez piloter verbatra entièrement depuis le code sans aucun `verbatra.config.ts` sur le disque.
+`loadConfig` accepte un `configOverride` en mémoire, de sorte que tu peux piloter verbatra entièrement depuis le code sans aucun `verbatra.config.ts` sur le disque.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -115,4 +115,4 @@ const config = await loadConfig({
 await translate({ config });
 ```
 
-Pour la liste complète des fonctions, les formes `RunSummary` et `LocaleSummary`, et chaque code `SdkError`, voir la [référence du SDK](/docs/sdk). Pour le contrat des codes de sortie lorsque vous exécutez la CLI en CI à la place, voir [CI et codes de sortie](/docs/ci-and-exit-codes).
+Pour la liste complète des fonctions, les formes `RunSummary` et `LocaleSummary`, et chaque code `SdkError`, voir la [référence du SDK](/docs/sdk). Pour le contrat des codes de sortie lorsque tu exécutes la CLI en CI à la place, voir [CI et codes de sortie](/docs/ci-and-exit-codes).

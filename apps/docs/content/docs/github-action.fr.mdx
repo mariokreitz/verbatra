@@ -1,6 +1,6 @@
 ---
 title: GitHub Action
-description: Exécutez verbatra dans GitHub Actions - traduisez en CI, annotez les échecs et écrivez un résumé de tâche.
+description: Exécute verbatra dans GitHub Actions - traduis en CI, annote les échecs et écris un résumé de tâche.
 ---
 
 # GitHub Action
@@ -30,16 +30,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-L'action exécute la CLI, donc la clé API du fournisseur est lue depuis l'environnement. Fournissez-la depuis les secrets de votre dépôt sous la forme de la variable correspondant à votre fournisseur (voir [Fournisseurs](/docs/providers)) - par exemple `ANTHROPIC_API_KEY` ci-dessus.
+L'action exécute la CLI, donc la clé API du fournisseur est lue depuis l'environnement. Fournis-la depuis les secrets de ton dépôt sous la forme de la variable correspondant à ton fournisseur (voir [Fournisseurs](/docs/providers)) - par exemple `ANTHROPIC_API_KEY` ci-dessus.
 
 ## Entrées
 
 | Entrée | Requis | Par défaut | Description |
 | --- | --- | --- | --- |
-| `version` | oui | - | la version de `@verbatra/cli` à exécuter, par exemple `1.2.3`. Épinglez-la à une version exacte ; n'utilisez pas une étiquette flottante telle que `latest` |
+| `version` | oui | - | la version de `@verbatra/cli` à exécuter, par exemple `1.2.3`. Épingle-la à une version exacte ; n'utilise pas une étiquette flottante telle que `latest` |
 | `config-path` | non | `""` | fichier de configuration explicite à charger (mappé sur `--config`) ; vide utilise la recherche de configuration normale |
 | `working-directory` | non | `""` | répertoire par rapport auquel résoudre la configuration et les fichiers de locale (mappé sur `--cwd`) |
-| `dry-run` | non | `"false"` | définissez sur `"true"` pour signaler ce qui changerait sans appeler de fournisseur ni écrire (mappé sur `--dry-run`) |
+| `dry-run` | non | `"false"` | définis sur `"true"` pour signaler ce qui changerait sans appeler de fournisseur ni écrire (mappé sur `--dry-run`) |
 | `node-version` | non | `"24"` | version de Node.js à configurer pour exécuter la CLI |
 
 L'action exécute toujours `translate --json` ; elle n'exécute ni `init` ni `watch`.
@@ -50,8 +50,8 @@ L'action capture la sortie standard et le code de sortie de la CLI sans échouer
 
 ## Persister les traductions
 
-Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action ne les commite pas. Pour conserver les changements, ajoutez votre propre étape pour commiter et pousser, ou ouvrez une pull request. Utilisez `dry-run: "true"` lorsque vous voulez seulement que la CI vérifie les traductions manquantes ou obsolètes.
+Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action ne les commite pas. Pour conserver les changements, ajoute ta propre étape pour commiter et pousser, ou ouvre une pull request. Utilise `dry-run: "true"` lorsque tu veux seulement que la CI vérifie les traductions manquantes ou obsolètes.
 
 ## Sécurité
 
-Épinglez à la fois l'action et la CLI à des références exactes : épinglez `uses:` à un SHA de commit, et épinglez l'entrée `version` à une release exacte de `@verbatra/cli` plutôt qu'à une étiquette flottante, afin qu'une exécution soit reproductible et ne puisse pas récupérer automatiquement une release compromise. Donnez au workflow le moindre privilège dont il a besoin - `contents: read` pour une vérification ; ajoutez `contents: write` et `pull-requests: write` seulement si une étape ultérieure commite ou ouvre une pull request. Les entrées sont passées à la CLI comme données, jamais insérées dans le shell, de sorte qu'une valeur d'entrée forgée reste un argument plutôt que du code exécutable.
+Épingle à la fois l'action et la CLI à des références exactes : épingle `uses:` à un SHA de commit, et épingle l'entrée `version` à une release exacte de `@verbatra/cli` plutôt qu'à une étiquette flottante, afin qu'une exécution soit reproductible et ne puisse pas récupérer automatiquement une release compromise. Donne au workflow le moindre privilège dont il a besoin - `contents: read` pour une vérification ; ajoute `contents: write` et `pull-requests: write` seulement si une étape ultérieure commite ou ouvre une pull request. Les entrées sont passées à la CLI comme données, jamais insérées dans le shell, de sorte qu'une valeur d'entrée forgée reste un argument plutôt que du code exécutable.

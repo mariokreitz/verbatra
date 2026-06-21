@@ -19,12 +19,12 @@ Pour le format ICU, next-intl, verbatra analyse chaque valeur source. Une clé s
 
 ## La limite d'injection de prompt
 
-Les chaînes que vous traduisez ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction. verbatra les traite ainsi. Les règles système qu'il envoie à un fournisseur sont des constantes de compilation. Toutes les entrées variables, les entrées à traduire ainsi que votre glossaire et votre tonalité, circulent uniquement dans la charge utile de données du tour utilisateur, jamais insérées dans le canal d'instructions. La sortie du fournisseur est contrainte à un schéma et validée, et la vérification des espaces réservés s'exécute sur tout ce qui revient. Une chaîne qui tente de rediriger le modèle ne peut pas atteindre les règles, et un résultat qui casse un espace réservé est retenu.
+Les chaînes que tu traduis ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction. verbatra les traite ainsi. Les règles système qu'il envoie à un fournisseur sont des constantes de compilation. Toutes les entrées variables, les entrées à traduire ainsi que ton glossaire et ta tonalité, circulent uniquement dans la charge utile de données du tour utilisateur, jamais insérées dans le canal d'instructions. La sortie du fournisseur est contrainte à un schéma et validée, et la vérification des espaces réservés s'exécute sur tout ce qui revient. Une chaîne qui tente de rediriger le modèle ne peut pas atteindre les règles, et un résultat qui casse un espace réservé est retenu.
 
 ## Les secrets ne fuient jamais
 
-Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs, jamais depuis votre configuration ni vos arguments. Tout texte qui pourrait contenir une clé est acheminé par une étape de rédaction centrale avant d'être journalisé, et verbatra lève ses propres erreurs structurées plutôt que les erreurs brutes du SDK du fournisseur, qui peuvent porter des en-têtes de requête. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
+Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs, jamais depuis ta configuration ni tes arguments. Tout texte qui pourrait contenir une clé est acheminé par une étape de rédaction centrale avant d'être journalisé, et verbatra lève ses propres erreurs structurées plutôt que les erreurs brutes du SDK du fournisseur, qui peuvent porter des en-têtes de requête. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
 
-## Ce que vous voyez
+## Ce que tu vois
 
 Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles retenues pour une non-concordance d'espace réservé, les clés source ignorées pour ICU invalide, et toute notification du fournisseur. Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir [Comment ça marche](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.

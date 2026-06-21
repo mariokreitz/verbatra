@@ -20,11 +20,11 @@ i18next und ngx-translate teilen sich die gleiche `{{double-brace}}`-Interpolati
 
 ## Warum das Format wichtig ist
 
-Das Format teilt verbatra zwei Dinge mit, die es für einen sicheren Lauf benötigt. Erstens die Platzhalter-Syntax, damit die [Platzhalter-Integritätsprüfung](/docs/translation-safety) weiß, was vor und nach der Übersetzung verglichen werden muss. Zweitens, für ICU, welche Werte validiert werden sollen, damit ein ungültiger ICU-Quell-Schlüssel übersprungen wird, anstatt in einem fehlerhaften Zustand gesendet zu werden. Das Festlegen des falschen Formats würde die falschen Tokens vergleichen, also gleiche es mit deiner i18n-Bibliothek ab.
+Das Format teilt verbatra zwei Dinge mit, die es für einen sicheren Lauf benötigt. Erstens die Platzhalter-Syntax, damit die [Platzhalter-Integritätsprüfung](/docs/translation-safety) weiß, was vor und nach der Übersetzung verglichen werden muss. Zweitens, für ICU, welche Werte validiert werden sollen, damit ein ungültiger ICU-Quell-Schlüssel übersprungen wird, anstatt in einem fehlerhaften Zustand gesendet zu werden. Das falsche Format vergleicht die falschen Tokens, also gleiche es mit deiner i18n-Bibliothek ab.
 
 ## Wie Dateien gelesen und geschrieben werden
 
-Lesevorgänge sind begrenzt und sicher: Es gibt Obergrenzen für die Eingabegröße und die Verschachtelungstiefe, und der Lesevorgang widersteht einer Datei, die sich darunter ändert. Schreibvorgänge sind atomar, werden in eine temporäre Datei geschrieben und umbenannt, sodass ein unterbrochener Schreibvorgang niemals eine halbfertige Locale-Datei hinterlässt. Wenn eine Datei nicht verarbeitet werden kann, gibt verbatra einen strukturierten, geheimnis-freien Fehler aus, anstatt eines rohen Fehlers. Fehlformatierte Eingaben zeigen sich als klare Bedingung, zum Beispiel ungültiges JSON, eine zu tiefe Struktur oder, nur für ngx-translate, eine Datei, die flache gepunktete Schlüssel mit verschachtelten Objekten mischt.
+verbatra begrenzt beim Lesen die Eingabegröße und die Verschachtelungstiefe und widersteht einer Datei, die sich darunter ändert. Es schreibt atomar: Es schreibt in eine temporäre Datei und benennt sie dann an ihren Platz um, sodass ein unterbrochener Schreibvorgang niemals eine halbfertige Locale-Datei hinterlässt. Wenn verbatra eine Datei nicht verarbeiten kann, gibt es einen strukturierten, geheimnis-freien Fehler aus statt eines rohen, zum Beispiel bei ungültigem JSON, einer zu tiefen Struktur oder, nur für ngx-translate, einer Datei, die flache gepunktete Schlüssel mit verschachtelten Objekten mischt.
 
 ## Ein Format wählen
 

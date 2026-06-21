@@ -7,7 +7,7 @@ description: Ce qu'une exécution de verbatra fait de bout en bout, de la décou
 
 Une exécution de verbatra est un court pipeline : charger la configuration, lire la locale source, puis pour chaque
 locale cible diffuser par rapport à ce qui a été traduit la dernière fois, n'envoyer au fournisseur que ce qui a changé, vérifier le
-résultat et écrire. Cette page parcourt chaque étape afin que vous sachiez exactement ce que fait une exécution.
+résultat et écrire. Cette page parcourt chaque étape afin que tu saches exactement ce que fait une exécution.
 
 <DiffPanel />
 
@@ -49,7 +49,7 @@ C'est ce qui maintient une exécution incrémentielle : un fournisseur n'est app
 ### Appel du fournisseur
 
 Les entrées candidates sont envoyées au fournisseur configuré en un seul lot, accompagnées des options facultatives
-`glossary` et `tone` de votre configuration. La façon dont elles sont appliquées dépend du fournisseur.
+`glossary` et `tone` de ta configuration. La façon dont elles sont appliquées dépend du fournisseur.
 
 - Les fournisseurs LLM (Anthropic, OpenAI, Gemini) reçoivent les entrées, le glossaire et la tonalité dans une
   charge utile de données structurée, et sont invités à traiter les termes du glossaire comme contraignants et à respecter la

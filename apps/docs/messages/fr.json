@@ -4,8 +4,8 @@
       "vmarkAlt": "verbatra"
     },
     "compat": {
-      "body": "verbatra lit les formats de locale JSON que votre framework utilise déjà et les remplit via le fournisseur que vous choisissez.",
-      "eyebrow": "fonctionne avec votre stack",
+      "body": "verbatra lit les formats de locale JSON que ton framework utilise déjà et les remplit via le fournisseur que tu choisis.",
+      "eyebrow": "fonctionne avec ta stack",
       "heading": "Un outil, tous les frameworks.",
       "labelFrameworks": "Frameworks et formats",
       "labelProviders": "Fournisseurs de traduction"
@@ -15,11 +15,11 @@
       "heading": "Questions fréquemment posées",
       "items": {
         "avoidRetranslate": {
-          "answer": "verbatra maintient un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. À chaque exécution, il compare votre locale source à ce verrou et n'envoie que les clés nouvelles ou modifiées à votre fournisseur ; les clés inchangées sont laissées intactes.",
+          "answer": "verbatra maintient un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. À chaque exécution, il compare ta locale source à ce verrou et n'envoie que les clés nouvelles ou modifiées à ton fournisseur ; les clés inchangées sont laissées intactes.",
           "question": "Comment verbatra évite-t-il de tout re-traduire à chaque exécution ?"
         },
         "ci": {
-          "answer": "Oui. La commande verbatra est un simple wrapper autour de @verbatra/sdk, qui expose les mêmes opérations de traduction et de surveillance pour les scripts, l'intégration continue (CI) et vos propres outils.",
+          "answer": "Oui. La commande verbatra est un simple wrapper autour de @verbatra/sdk, qui expose les mêmes opérations de traduction et de surveillance pour les scripts, l'intégration continue (CI) et tes propres outils.",
           "question": "Existe-t-il un SDK en plus d'une CLI ?"
         },
         "formats": {
@@ -27,22 +27,22 @@
           "question": "Quels formats de fichiers i18n verbatra peut-il lire ?"
         },
         "icu": {
-          "answer": "Il vérifie l'intégrité des placeholders et des ICU après chaque traduction. Si une traduction renvoyée brise un placeholder ou produit un ICU invalide, ce résultat est retenu plutôt que d'être écrit dans votre fichier de locale.",
+          "answer": "Il vérifie l'intégrité des placeholders et des ICU après chaque traduction. Si une traduction renvoyée brise un placeholder ou produit un ICU invalide, ce résultat est retenu plutôt que d'être écrit dans ton fichier de locale.",
           "question": "Comment verbatra gère-t-il les placeholders et les formats de message ICU ?"
         },
         "openSource": {
-          "answer": "Oui. Une exécution à blanc (dry run) indique exactement quelles clés seraient envoyées et écrites sans toucher vos fichiers de locale, et le mode de surveillance (watch mode) continue de traduire à mesure que votre locale source change.",
+          "answer": "Oui. Une exécution à blanc (dry run) indique exactement quelles clés seraient envoyées et écrites sans toucher tes fichiers de locale, et le mode de surveillance (watch mode) continue de traduire à mesure que ta locale source change.",
           "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?"
         },
         "providers": {
-          "answer": "Anthropic, OpenAI, Gemini et DeepL. Vous en choisissez un en une seule ligne de configuration, et la clé API est lue à partir d'une variable d'environnement, jamais du fichier de configuration.",
+          "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de configuration, et la clé API est lue à partir d'une variable d'environnement, jamais du fichier de configuration.",
           "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?"
         }
       }
     },
     "finalClose": {
       "eyebrow": "une seule commande",
-      "heading": "Arrêtez de synchroniser manuellement les fichiers de locale."
+      "heading": "Arrête de synchroniser manuellement les fichiers de locale."
     },
     "footer": {
       "cols": {
@@ -73,32 +73,32 @@
       "githubAria": "verbatra sur GitHub",
       "legalLine": "Open source sous licence MIT · © 2026 Mario Kreitz",
       "npmAria": "verbatra sur npm",
-      "tagline": "Ne traduisez que ce qui a changé. Une CLI et un SDK open source qui maintiennent vos fichiers de locale i18n synchronisés via le fournisseur que vous choisissez."
+      "tagline": "Ne traduis que ce qui a changé. Une CLI et un SDK open source qui maintiennent tes fichiers de locale i18n synchronisés via le fournisseur que tu choisis."
     },
     "hero": {
       "ctaGithub": "Mettre en favori sur GitHub",
       "ctaStart": "Commencer maintenant",
-      "headline": "Ne traduisez que ce qui a changé.",
-      "lead": "verbatra est une CLI et un SDK qui maintient vos fichiers de locale i18n synchronisés. Vous maintenez la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que vous choisissez."
+      "headline": "Ne traduis que ce qui a changé.",
+      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis."
     },
     "how": {
       "eyebrow": "comment ça marche",
       "heading": "Une exécution est un pipeline court et prévisible.",
       "steps": {
         "configure": {
-          "body": "Pointez verbatra vers votre locale source, listez les langues cibles et choisissez un fournisseur. La configuration se trouve dans un seul fichier ; les clés API restent dans votre environnement.",
+          "body": "Pointe verbatra vers ta locale source, liste les langues cibles et choisis un fournisseur. La configuration se trouve dans un seul fichier ; les clés API restent dans ton environnement.",
           "title": "Configurer"
         },
         "diff": {
-          "body": "Chaque exécution compare votre locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline.",
+          "body": "Chaque exécution compare ta locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline.",
           "title": "Différencier"
         },
         "translate": {
-          "body": "Seules les clés nouvelles et modifiées sont envoyées à votre fournisseur, par lots, avec votre glossaire et votre ton appliqués. Tout le reste est laissé intact.",
+          "body": "Seules les clés nouvelles et modifiées sont envoyées à ton fournisseur, par lots, avec ton glossaire et ton ton appliqués. Tout le reste est laissé intact.",
           "title": "Traduire"
         },
         "verifyWrite": {
-          "body": "L'intégrité des placeholders et des ICU est vérifiée sur chaque résultat. Tout ce qui est rompu est retenu ; le reste est écrit dans vos fichiers de locale et le verrou est mis à jour.",
+          "body": "L'intégrité des placeholders et des ICU est vérifiée sur chaque résultat. Tout ce qui est rompu est retenu ; le reste est écrit dans tes fichiers de locale et le verrou est mis à jour.",
           "title": "Vérifier et écrire"
         }
       }
@@ -110,17 +110,17 @@
       "tablistLabel": "Gestionnaire de paquets"
     },
     "meta": {
-      "definition": "verbatra est une CLI et un SDK qui maintient vos fichiers de locale i18n synchronisés, ne traduisant que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de votre choix.",
+      "definition": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés, ne traduisant que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix.",
       "ogImageAlt": "verbatra",
-      "tagline": "Maintenez vos fichiers de locale synchronisés. Ne traduisez que ce qui a changé."
+      "tagline": "Maintiens tes fichiers de locale synchronisés. Ne traduis que ce qui a changé."
     },
     "nav": {
       "docs": "Docs"
     },
     "showcase": {
-      "body": "Une première exécution remplit les nouvelles clés ; changez une valeur source et l'exécution suivante n'envoie que cette clé. Tout le reste est laissé intact.",
+      "body": "Une première exécution remplit les nouvelles clés ; change une valeur source et l'exécution suivante n'envoie que cette clé. Tout le reste est laissé intact.",
       "eyebrow": "voir une exécution se dérouler",
-      "heading": "Regardez-le toucher exactement une clé."
+      "heading": "Regarde-le toucher exactement une clé."
     },
     "trust": {
       "eyebrow": "Blocs de construction fiables",
@@ -137,24 +137,24 @@
       "heading": "Conçu pour les équipes qui livrent en plusieurs langues.",
       "reasons": {
         "dryRun": {
-          "body": "Prévisualisez exactement ce qu'une exécution modifierait sans rien écrire, ou maintenez une surveillance en cours qui traduit à mesure que votre locale source évolue.",
+          "body": "Prévisualise exactement ce qu'une exécution modifierait sans rien écrire, ou maintiens une surveillance en cours qui traduit à mesure que ta locale source évolue.",
           "title": "Exécutions à blanc et mode de surveillance"
         },
         "environment": {
           "body": "Les clés API des fournisseurs sont lues à partir des variables d'environnement, jamais du fichier de configuration, jamais des arguments de la CLI, et jamais enregistrées.",
-          "title": "Les clés restent dans votre environnement"
+          "title": "Les clés restent dans ton environnement"
         },
         "incremental": {
           "body": "Un fichier de verrouillage validé enregistre ce qui a été traduit. Chaque exécution différencie la source et appelle le fournisseur uniquement pour les clés qui ont changé.",
           "title": "Incrémentiel par défaut"
         },
         "oneEngine": {
-          "body": "La commande verbatra et @verbatra/sdk partagent un seul cœur d'orchestration, de sorte que les scripts, l'intégration continue (CI) et vos propres outils se comportent de manière identique.",
+          "body": "La commande verbatra et @verbatra/sdk partagent un seul cœur d'orchestration, de sorte que les scripts, l'intégration continue (CI) et tes propres outils se comportent de manière identique.",
           "title": "CLI et SDK, un seul moteur"
         },
         "provider": {
-          "body": "Anthropic, OpenAI, Gemini ou DeepL, choisi en une ligne de configuration. Changez de fournisseur sans toucher à vos fichiers de locale.",
-          "title": "Votre choix de fournisseur"
+          "body": "Anthropic, OpenAI, Gemini ou DeepL, choisi en une ligne de configuration. Change de fournisseur sans toucher à tes fichiers de locale.",
+          "title": "Ton choix de fournisseur"
         },
         "safety": {
           "body": "L'intégrité des placeholders et des ICU est vérifiée après chaque traduction. Un résultat qui brise un placeholder est retenu, jamais écrit.",

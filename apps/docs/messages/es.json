@@ -4,7 +4,7 @@
       "vmarkAlt": "verbatra"
     },
     "compat": {
-      "body": "verbatra lee los formatos de configuración regional JSON que su framework ya utiliza y los rellena a través del proveedor que elija.",
+      "body": "verbatra lee los formatos de configuración regional JSON que tu framework ya utiliza y los rellena a través del proveedor que elijas.",
       "eyebrow": "funciona con tu stack",
       "heading": "Una herramienta, todos los frameworks.",
       "labelFrameworks": "Frameworks y formatos",
@@ -15,11 +15,11 @@
       "heading": "Preguntas frecuentes",
       "items": {
         "avoidRetranslate": {
-          "answer": "verbatra mantiene un archivo de bloqueo comprometido que registra lo que ya se ha traducido. En cada ejecución, compara su configuración regional de origen con ese bloqueo y envía solo las claves nuevas o modificadas a su proveedor; las claves sin cambios se dejan intactas.",
+          "answer": "verbatra mantiene un archivo de bloqueo comprometido que registra lo que ya se ha traducido. En cada ejecución, compara tu configuración regional de origen con ese bloqueo y envía solo las claves nuevas o modificadas a tu proveedor; las claves sin cambios se dejan intactas.",
           "question": "¿Cómo evita verbatra volver a traducir todo en cada ejecución?"
         },
         "ci": {
-          "answer": "Sí. El comando verbatra es una envoltura ligera sobre @verbatra/sdk, que expone las mismas operaciones de traducción y supervisión para scripts, CI y sus propias herramientas.",
+          "answer": "Sí. El comando verbatra es una envoltura ligera sobre @verbatra/sdk, que expone las mismas operaciones de traducción y supervisión para scripts, CI y tus propias herramientas.",
           "question": "¿Hay un SDK además de un CLI?"
         },
         "formats": {
@@ -27,11 +27,11 @@
           "question": "¿Qué formatos de archivo i18n puede leer verbatra?"
         },
         "icu": {
-          "answer": "Verifica la integridad de los marcadores de posición y de ICU después de cada traducción. Si una traducción devuelta rompe un marcador de posición o produce un ICU inválido, ese resultado se retiene en lugar de escribirse en su archivo de configuración regional.",
+          "answer": "Verifica la integridad de los marcadores de posición y de ICU después de cada traducción. Si una traducción devuelta rompe un marcador de posición o produce un ICU inválido, ese resultado se retiene en lugar de escribirse en tu archivo de configuración regional.",
           "question": "¿Cómo maneja verbatra los marcadores de posición y formatos de mensajes de ICU?"
         },
         "openSource": {
-          "answer": "Sí. Una ejecución de prueba informa exactamente qué claves se enviarían y se escribirían sin tocar sus archivos de configuración regional, y el modo de observación continúa traduciendo a medida que cambia su configuración regional de origen.",
+          "answer": "Sí. Una ejecución de prueba informa exactamente qué claves se enviarían y se escribirían sin tocar tus archivos de configuración regional, y el modo de observación continúa traduciendo a medida que cambia tu configuración regional de origen.",
           "question": "¿Puedo previsualizar una ejecución antes de que escriba algo?"
         },
         "providers": {
@@ -86,19 +86,19 @@
       "heading": "Una ejecución es una tubería corta y predecible.",
       "steps": {
         "configure": {
-          "body": "Apunte verbatra a su configuración regional de origen, liste los idiomas de destino y elija un proveedor. La configuración reside en un archivo; las claves API permanecen en su entorno.",
+          "body": "Apunta verbatra a tu configuración regional de origen, lista los idiomas de destino y elige un proveedor. La configuración reside en un archivo; las claves API permanecen en tu entorno.",
           "title": "Configurar"
         },
         "diff": {
-          "body": "Cada ejecución compara su configuración regional de origen con el archivo de bloqueo comprometido y clasifica cada clave en nueva, modificada, sin cambios u huérfana.",
+          "body": "Cada ejecución compara tu configuración regional de origen con el archivo de bloqueo comprometido y clasifica cada clave en nueva, modificada, sin cambios u huérfana.",
           "title": "Diferenciar"
         },
         "translate": {
-          "body": "Solo las claves nuevas y modificadas se envían a su proveedor, en lotes, con su glosario y tono aplicados. Todo lo demás se deja intacto.",
+          "body": "Solo las claves nuevas y modificadas se envían a tu proveedor, en lotes, con tu glosario y tono aplicados. Todo lo demás se deja intacto.",
           "title": "Traducir"
         },
         "verifyWrite": {
-          "body": "Se comprueba la integridad de los marcadores de posición y de ICU en cada resultado. Cualquier cosa que se rompa se retiene; el resto se escribe en sus archivos de configuración regional y se actualiza el bloqueo.",
+          "body": "Se comprueba la integridad de los marcadores de posición y de ICU en cada resultado. Cualquier cosa que se rompa se retiene; el resto se escribe en tus archivos de configuración regional y se actualiza el bloqueo.",
           "title": "Verificar y escribir"
         }
       }
@@ -118,7 +118,7 @@
       "docs": "Documentación"
     },
     "showcase": {
-      "body": "Una primera ejecución rellena las nuevas claves; cambie un valor de origen y la siguiente ejecución envía solo esa clave. Todo lo demás se deja intacto.",
+      "body": "Una primera ejecución rellena las nuevas claves; cambia un valor de origen y la siguiente ejecución envía solo esa clave. Todo lo demás se deja intacto.",
       "eyebrow": "ver una ejecución en acción",
       "heading": "Obsérvalo tocar exactamente una clave."
     },
@@ -137,24 +137,24 @@
       "heading": "Construido para equipos que lanzan en muchos idiomas.",
       "reasons": {
         "dryRun": {
-          "body": "Previsualice exactamente lo que cambiaría una ejecución sin escribir nada, o mantenga una observación en marcha que traduzca a medida que evoluciona su configuración regional de origen.",
+          "body": "Previsualiza exactamente lo que cambiaría una ejecución sin escribir nada, o mantén una observación en marcha que traduzca a medida que evoluciona tu configuración regional de origen.",
           "title": "Ejecuciones de prueba y modo de observación"
         },
         "environment": {
           "body": "Las claves API del proveedor se leen de variables de entorno, nunca del archivo de configuración, nunca de los argumentos de la CLI y nunca se registran.",
-          "title": "Las claves permanecen en su entorno"
+          "title": "Las claves permanecen en tu entorno"
         },
         "incremental": {
           "body": "Un archivo de bloqueo comprometido registra lo que se tradujo. Cada ejecución compara la fuente y llama al proveedor solo para las claves que cambiaron.",
           "title": "Incremental por defecto"
         },
         "oneEngine": {
-          "body": "El comando verbatra y @verbatra/sdk comparten un único núcleo de orquestación, por lo que los scripts, CI y sus propias herramientas se comportan de forma idéntica.",
+          "body": "El comando verbatra y @verbatra/sdk comparten un único núcleo de orquestación, por lo que los scripts, CI y tus propias herramientas se comportan de forma idéntica.",
           "title": "CLI y SDK, un solo motor"
         },
         "provider": {
-          "body": "Anthropic, OpenAI, Gemini o DeepL, elegidos en una línea de configuración. Cambie de proveedor sin tocar sus archivos de configuración regional.",
-          "title": "Su elección de proveedor"
+          "body": "Anthropic, OpenAI, Gemini o DeepL, elegidos en una línea de configuración. Cambia de proveedor sin tocar tus archivos de configuración regional.",
+          "title": "Tu elección de proveedor"
         },
         "safety": {
           "body": "Se comprueba la integridad de los marcadores de posición y de ICU después de cada traducción. Un resultado que rompe un marcador de posición se retiene, nunca se escribe.",

@@ -5,7 +5,7 @@ description: Les formats i18n JSON pris en charge par verbatra, comment il les l
 
 # Formats
 
-verbatra travaille sur des fichiers de locale JSON via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. La v1 prend en charge quatre formats JSON, sélectionnés avec le champ `format` de votre configuration.
+verbatra travaille sur des fichiers de locale JSON via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. La v1 prend en charge quatre formats JSON, sélectionnés avec le champ `format` de ta configuration.
 
 ## Les quatre formats
 
@@ -20,12 +20,12 @@ i18next et ngx-translate partagent la même interpolation `{{double-brace}}`. vu
 
 ## Pourquoi le format compte
 
-Le format indique à verbatra deux choses dont il a besoin pour une exécution sûre. Premièrement, la syntaxe des espaces réservés, afin que la [vérification d'intégrité des espaces réservés](/docs/translation-safety) sache quoi comparer avant et après la traduction. Deuxièmement, pour l'ICU, quelles valeurs valider, afin qu'une clé source ICU invalide soit ignorée plutôt qu'envoyée dans un état défectueux. Définir le mauvais format comparerait les mauvais jetons, alors faites-le correspondre à votre bibliothèque i18n.
+Le format indique à verbatra deux choses dont il a besoin pour une exécution sûre. Premièrement, la syntaxe des espaces réservés, afin que la [vérification d'intégrité des espaces réservés](/docs/translation-safety) sache quoi comparer avant et après la traduction. Deuxièmement, pour l'ICU, quelles valeurs valider, afin qu'une clé source ICU invalide soit ignorée plutôt qu'envoyée dans un état défectueux. Un mauvais format compare les mauvais jetons, alors fais-le correspondre à ta bibliothèque i18n.
 
 ## Comment les fichiers sont lus et écrits
 
-Les lectures sont bornées et sûres : il existe des plafonds sur la taille d'entrée et la profondeur d'imbrication, et la lecture résiste à un fichier qui change en dessous d'elle. Les écritures sont atomiques, écrites dans un fichier temporaire puis renommées en place, de sorte qu'une écriture interrompue ne laisse jamais un fichier de locale à moitié terminé. Lorsqu'un fichier ne peut pas être traité, verbatra lève une erreur structurée et sans secret plutôt qu'une erreur brute. Une entrée mal formée se manifeste comme une condition claire, par exemple un JSON invalide, une structure trop profonde, ou, pour ngx-translate uniquement, un fichier qui mélange des clés pointées plates avec des objets imbriqués.
+verbatra plafonne la taille d'entrée et la profondeur d'imbrication à la lecture, et résiste à un fichier qui change en dessous de lui. Il écrit de façon atomique : il écrit dans un fichier temporaire, puis le renomme en place, de sorte qu'une écriture interrompue ne laisse jamais un fichier de locale à moitié terminé. Lorsque verbatra ne peut pas traiter un fichier, il lève une erreur structurée et sans secret plutôt qu'une erreur brute, par exemple pour un JSON invalide, une structure trop profonde, ou, pour ngx-translate uniquement, un fichier qui mélange des clés pointées plates avec des objets imbriqués.
 
 ## Choisir un format
 
-Faites correspondre le format à votre framework : `i18next-json` pour i18next, `vue-i18n-json` pour vue-i18n, `next-intl-json` pour next-intl, et `ngx-translate-json` pour ngx-translate. XLIFF, YAML et ARB sont prévus pour des versions ultérieures. Voir [Fichier de configuration](/docs/config-file) pour savoir où se situe `format` dans la configuration.
+Fais correspondre le format à ton framework : `i18next-json` pour i18next, `vue-i18n-json` pour vue-i18n, `next-intl-json` pour next-intl, et `ngx-translate-json` pour ngx-translate. XLIFF, YAML et ARB sont prévus pour des versions ultérieures. Voir [Fichier de configuration](/docs/config-file) pour savoir où se situe `format` dans la configuration.
