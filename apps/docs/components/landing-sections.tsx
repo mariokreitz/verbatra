@@ -17,13 +17,9 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { VMark } from "@/components/landing";
 import Button from "@/components/ui/button";
+import { PACKAGE_VERSION } from "@/lib/site";
 import type { FaqItem } from "@/lib/structured-data";
 
-// Marketing landing sections for the home page. Most of this file is static and would be
-// happy as RSC, but PackageInstall (a manager switcher) and Faq (an accordion) need runtime
-// state, so the whole file carries "use client". The static helpers below (MarqueeBand,
-// HowItWorks, WhyUse, FullFooter, Eyebrow, SectionHeading) render no client state and are
-// cheap; keeping them co-located mirrors the DS landing source and avoids a second file.
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI = "https://www.npmjs.com/package/@verbatra/cli";
@@ -53,7 +49,7 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
 }
 
 // --------------------------------------------------------------------------------------
-// TrustStrip — the eyebrow + building-block chips below the hero
+// TrustStrip - the eyebrow + building-block chips below the hero
 // --------------------------------------------------------------------------------------
 
 export function TrustStrip(): ReactNode {
@@ -122,7 +118,7 @@ function OpenAiIcon({ size = 16, className }: { size?: number; className?: strin
 }
 
 // --------------------------------------------------------------------------------------
-// PackageInstall — manager switcher (client: selection state)
+// PackageInstall - manager switcher (client: selection state)
 // --------------------------------------------------------------------------------------
 
 const MANAGERS = [
@@ -231,7 +227,7 @@ const FRAMEWORK_CHIPS: ReadonlyArray<Chip> = [
 
 // Only 4 unique providers. The track later duplicates whatever it is given (×2), so with the
 // marquee band now capped at 1600px we repeat the four providers four times here to guarantee
-// each half of the doubled track is wider than the band — otherwise the -50% loop would show a
+// each half of the doubled track is wider than the band - otherwise the -50% loop would show a
 // gap. The two halves stay identical, so the loop is seamless.
 const UNIQUE_PROVIDERS: ReadonlyArray<Chip> = [
   { name: "Anthropic", sub: "LLM" },
@@ -249,7 +245,7 @@ const PROVIDER_CHIPS: ReadonlyArray<Chip> = [
 
 // Brand icons (monochrome, tinted via currentColor on the chip). OpenAI is rendered separately
 // from an inlined logomark (see OpenAiIcon) since Simple Icons does not ship it. The remaining
-// names without a brand mark — the library/format chips — fall back to the glow dot.
+// names without a brand mark (the library/format chips) fall back to the glow dot.
 const CHIP_ICONS: Readonly<Record<string, IconType>> = {
   React: SiReact,
   "Next.js": SiNextdotjs,
@@ -428,7 +424,7 @@ export function WhyUse(): ReactNode {
 }
 
 // --------------------------------------------------------------------------------------
-// Faq — accordion (client: open state). The items are passed in from the server page, which
+// Faq - accordion (client: open state). The items are passed in from the server page, which
 // reads them once from the catalog and feeds the same array to the FAQPage JSON-LD, so the
 // visible accordion and the structured data share one source and never drift.
 // --------------------------------------------------------------------------------------
@@ -601,25 +597,28 @@ export function FullFooter(): ReactNode {
               </a>
             </div>
           </div>
-          {FOOTER_COLS.map((col) => (
-            <div key={col.col}>
-              <h2 className="mb-3 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
-                {t(col.titleKey)}
-              </h2>
-              <ul className="flex flex-col gap-2.5 text-sm text-fd-muted-foreground">
-                {col.links.map((link) => (
-                  <li key={link.literal ?? link.labelKey}>
-                    <FooterLinkItem link={link} label={link.literal ?? t(link.labelKey ?? "")} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {FOOTER_COLS.map((col) => {
+            const title = t(col.titleKey);
+            return (
+              <nav key={col.col} aria-label={title}>
+                <p className="mb-3 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
+                  {title}
+                </p>
+                <ul className="flex flex-col gap-2.5 text-sm text-fd-muted-foreground">
+                  {col.links.map((link) => (
+                    <li key={link.literal ?? link.labelKey}>
+                      <FooterLinkItem link={link} label={link.literal ?? t(link.labelKey ?? "")} />
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            );
+          })}
         </div>
         <div className="mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
           <span>{t("legalLine")}</span>
           <span className="ml-auto font-mono text-xs">Node.js &gt;=22.14</span>
-          <span className="font-mono text-xs">v0.1.0</span>
+          <span className="font-mono text-xs">v{PACKAGE_VERSION}</span>
         </div>
       </div>
     </footer>
@@ -627,7 +626,7 @@ export function FullFooter(): ReactNode {
 }
 
 // --------------------------------------------------------------------------------------
-// FinalClose — terminal mock + CTA
+// FinalClose - terminal mock + CTA
 // --------------------------------------------------------------------------------------
 
 export function FinalClose(): ReactNode {

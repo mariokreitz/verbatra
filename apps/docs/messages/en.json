@@ -2,7 +2,7 @@
   "landing": {
     "meta": {
       "title": "verbatra: keep your i18n locale files in sync, translate only what changed",
-      "tagline": "Keep your locale files in sync. Translate only what changed.",
+      "description": "Keep your i18n locale files in sync. verbatra translates only the keys that changed, through your choice of AI or machine-translation provider. Start now.",
       "ogImageAlt": "verbatra keeps your i18n locale files in sync and translates only the keys that changed.",
       "definition": "verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider."
     },

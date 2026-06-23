@@ -61,9 +61,18 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
             style={{ background: "var(--wash-hero)", zIndex: -1 }}
           />
           <div>
+            {/* Fluid hero size: the clamp floor (2rem) keeps the longest localized headline
+                (German "Übersetze nur das, was sich geändert hat.") from clipping or forcing
+                horizontal scroll at 360-390px, while the 3.75rem ceiling matches the previous
+                desktop text-6xl. Scoped to the hero; the global --text-h1 token is untouched. */}
             <h1
-              className="mb-5 max-w-[14ch] text-5xl font-semibold text-fd-foreground md:text-6xl"
-              style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.025em" }}
+              className="mb-5 max-w-[14ch] font-semibold text-fd-foreground"
+              style={{
+                fontFamily: "var(--font-display)",
+                letterSpacing: "-0.025em",
+                fontSize: "clamp(2rem, 8vw + 0.5rem, 3.75rem)",
+                lineHeight: 1.05,
+              }}
             >
               {t("hero.headline")}
             </h1>

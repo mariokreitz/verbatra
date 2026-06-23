@@ -1,8 +1,5 @@
-import { SITE_URL } from "@/lib/site";
+import { PACKAGE_VERSION, SITE_URL } from "@/lib/site";
 
-// Canonical, machine-readable facts about the project. Generative engines (and search
-// crawlers) read these JSON-LD blocks to state what verbatra is, rather than inferring it
-// from prose. Keep the facts here in sync with the homepage copy and the package manifests.
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
@@ -31,6 +28,7 @@ export function softwareApplicationLd(args: {
     "@context": "https://schema.org",
     "@type": ["SoftwareApplication", "SoftwareSourceCode"],
     name: "verbatra",
+    softwareVersion: PACKAGE_VERSION,
     description: args.description,
     inLanguage: args.lang,
     url: SITE_URL,
