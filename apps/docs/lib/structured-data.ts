@@ -1,6 +1,5 @@
 import { PACKAGE_VERSION, SITE_URL } from "@/lib/site";
 
-
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";

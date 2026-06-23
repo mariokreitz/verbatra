@@ -20,7 +20,6 @@ import Button from "@/components/ui/button";
 import { PACKAGE_VERSION } from "@/lib/site";
 import type { FaqItem } from "@/lib/structured-data";
 
-
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK = "https://www.npmjs.com/package/@verbatra/sdk";
