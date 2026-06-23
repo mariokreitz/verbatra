@@ -15,6 +15,7 @@ export type AdapterResolution =
       readonly candidates: readonly SupportedFormat[];
     };
 
+/** Options for {@link AdapterRegistry.resolve}: select a format explicitly, or aid detection. */
 export interface ResolveOptions {
   /** A content sample to aid detection. */
   readonly sample?: string;

@@ -34,6 +34,10 @@
           "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Locale-Dateien zu berühren, und der Überwachungsmodus übersetzt weiter, wenn sich deine Quell-Locale ändert.",
           "question": "Kann ich einen Lauf vor dem Schreiben in eine Vorschau ansehen?"
         },
+        "production": {
+          "answer": "verbatra ist jung und wird aktiv weiterentwickelt, daher kann sich seine API zwischen Releases noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits stabil ist, ist das Sicherheitsmodell: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, prüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles, was einen Platzhalter bricht, zurück, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; verstehe das als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher wären.",
+          "question": "Ist verbatra produktionsreif?"
+        },
         "providers": {
           "answer": "Anthropic, OpenAI, Gemini und DeepL. Du wählst einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, niemals aus der Konfigurationsdatei.",
           "question": "Welche Übersetzungsanbieter unterstützt verbatra?"
@@ -111,8 +115,8 @@
     },
     "meta": {
       "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die geänderten Schlüssel über den von dir gewählten KI- oder maschinellen Übersetzungsanbieter übersetzt.",
+      "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die geänderten Schlüssel, über den KI- oder Übersetzungsanbieter deiner Wahl. Jetzt starten.",
       "ogImageAlt": "verbatra hält deine i18n-Locale-Dateien synchron und übersetzt nur die Schlüssel, die sich geändert haben.",
-      "tagline": "Halte deine Locale-Dateien synchron. Übersetze nur das, was sich geändert hat.",
       "title": "verbatra: i18n-Locale-Dateien synchron halten, nur Geändertes übersetzen"
     },
     "nav": {
@@ -131,6 +135,11 @@
         "incremental": "Inkrementell",
         "mitLicensed": "MIT-lizenziert",
         "placeholderSafe": "Platzhaltersicher"
+      },
+      "stats": {
+        "versionAria": "Version {version}",
+        "downloadsLabel": "Downloads / Monat",
+        "starsLabel": "GitHub-Sterne"
       }
     },
     "why": {
@@ -162,6 +171,65 @@
           "title": "Sicher durch Konstruktion"
         }
       }
+    }
+  },
+  "legal": {
+    "privacy": {
+      "meta": {
+        "title": "Datenschutzerklärung",
+        "description": "Wie die verbatra-Dokumentationswebsite mit Ihren Daten umgeht."
+      },
+      "title": "Datenschutzerklärung",
+      "lastUpdatedLabel": "Zuletzt aktualisiert",
+      "disclaimer": "Dies ist eine Übersetzung zur besseren Verständlichkeit. Bei etwaigen Abweichungen ist die englische Fassung maßgeblich.",
+      "s1": {
+        "heading": "1. Verantwortliche Stelle",
+        "body": "Verantwortlich für die Datenverarbeitung auf dieser Website ist Mario Kreitz, Deutschland. Sie erreichen uns per E-Mail unter <email>mario.kreitz@web.de</email>."
+      },
+      "s2": {
+        "heading": "2. Überblick",
+        "body": "Diese Website ist darauf ausgelegt, Ihre Privatsphäre zu achten. Sie setzt keine Cookies, betreibt kein seitenübergreifendes Tracking und erhebt nur die Daten, die für den Betrieb der Website und das Verständnis der aggregierten Nutzung unbedingt erforderlich sind. Die folgenden Abschnitte erläutern, was genau verarbeitet wird und warum."
+      },
+      "s3": {
+        "heading": "3. Serverprotokolle und Hosting",
+        "body": "Die Website wird auf einem virtuellen Server selbst gehostet (verwaltet mit Dokploy). Bei Ihrem Besuch verarbeitet der Server standardmäßige Zugriffsprotokolle, die Ihre IP-Adresse, Datum und Uhrzeit der Anfrage, die angeforderte URL, die verweisende Seite sowie die User-Agent-Kennung Ihres Browsers enthalten können. Diese Daten dienen dem Betrieb und der Absicherung der Website, etwa um Seiten auszuliefern, Fehler zu diagnostizieren und Missbrauch abzuwehren. Rechtsgrundlage ist Art. 6(1)(f) DSGVO (unser berechtigtes Interesse an einem sicheren, funktionsfähigen Dienst). Diese Protokolle werden nur für einen kurzen Zeitraum aufbewahrt."
+      },
+      "s4": {
+        "heading": "4. Webanalyse",
+        "body": "Wir verwenden Umami, ein datenschutzfreundliches Analysetool, das wir selbst hosten. Umami ist <strong>cookielos und erhebt keine personenbezogenen Daten und verwendet kein seitenübergreifendes Fingerprinting</strong>. Es erfasst nur aggregierte Kennzahlen wie Seitenaufrufe, Verweisquellen, ungefähres Land sowie Browser, Betriebssystem und Gerätetyp. Rechtsgrundlage ist Art. 6(1)(f) DSGVO (unser berechtigtes Interesse am Verständnis der Nutzung der Website). Mehr über Umami erfahren Sie in dessen <umami>Dokumentation</umami>."
+      },
+      "s5": {
+        "heading": "5. Cookies",
+        "body": "Diese Website setzt keine Cookies. Da nichts Einwilligungspflichtiges auf Ihrem Gerät gespeichert wird, ist kein Cookie-Einwilligungsbanner erforderlich."
+      },
+      "s6": {
+        "heading": "6. Schriftarten und Assets",
+        "body": "Schriftarten werden selbst gehostet: Sie werden zur Build-Zeit eingebunden, sodass beim Laden einer Seite keine Anfragen an Google Fonts oder andere Dritte gestellt werden. Abgesehen von dem oben beschriebenen, selbst gehosteten Umami-Skript werden zur Laufzeit keine Skripte oder Einbettungen Dritter geladen."
+      },
+      "s7": {
+        "heading": "7. GitHub",
+        "body": "Der Quellcode des Projekts sowie Issues und Diskussionen werden auf <repo>GitHub</repo> gehostet. Wenn Sie sich dort beteiligen (etwa indem Sie ein Issue eröffnen oder an einer Diskussion teilnehmen), verarbeitet GitHub Ihre Daten als eigenständig Verantwortlicher, und es gilt dessen <ghprivacy>Datenschutzerklärung</ghprivacy>."
+      },
+      "s8": {
+        "heading": "8. Ihre Rechte",
+        "body": "Nach der DSGVO haben Sie das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Datenübertragbarkeit (Art. 15–21 DSGVO). Außerdem haben Sie das Recht, bei einer Aufsichtsbehörde Beschwerde einzulegen. Zur Ausübung dieser Rechte kontaktieren Sie uns über die unten genannten Angaben."
+      },
+      "s9": {
+        "heading": "9. Kontakt",
+        "body": "Bei Fragen oder Anliegen zum Datenschutz schreiben Sie uns an <email>mario.kreitz@web.de</email>."
+      },
+      "s10": {
+        "heading": "10. Änderungen dieser Erklärung",
+        "body": "Wir können diese Datenschutzerklärung anpassen, wenn sich die Website weiterentwickelt oder sich die rechtlichen Anforderungen ändern. Das untenstehende Datum gibt die letzte Überarbeitung wieder."
+      }
+    },
+    "imprint": {
+      "meta": {
+        "title": "Impressum",
+        "description": "Rechtliche Hinweise (Impressum) für die verbatra-Dokumentationswebsite."
+      },
+      "intro": "Dieses Impressum wird gemäß den Anforderungen des deutschen Rechts in deutscher Sprache bereitgestellt.",
+      "lastUpdatedLabel": "Zuletzt aktualisiert"
     }
   }
 }

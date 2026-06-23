@@ -34,6 +34,10 @@
           "answer": "Oui. Une exécution à blanc (dry run) indique exactement quelles clés seraient envoyées et écrites sans toucher tes fichiers de locale, et le mode de surveillance (watch mode) continue de traduire à mesure que ta locale source change.",
           "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?"
         },
+        "production": {
+          "answer": "verbatra est jeune et activement développé, donc son API peut encore changer d'une version à l'autre ; fixe une version et lis le changelog lorsque tu mets à jour. Ce qui est déjà solide, c'est le modèle de sécurité : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et des ICU sur chaque résultat, et retient tout ce qui brise un placeholder plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent déjà en CI aujourd'hui ; considère cela comme un signal pour fixer les versions, non comme un avertissement que les résultats seraient non sûrs.",
+          "question": "verbatra est-il prêt pour la production ?"
+        },
         "providers": {
           "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de configuration, et la clé API est lue à partir d'une variable d'environnement, jamais du fichier de configuration.",
           "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?"
@@ -111,8 +115,8 @@
     },
     "meta": {
       "definition": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés, ne traduisant que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix.",
+      "description": "Garde tes fichiers de locale i18n synchronisés. verbatra ne traduit que ce qui a changé, via le fournisseur d'IA ou de traduction de ton choix. Commence maintenant.",
       "ogImageAlt": "verbatra maintient tes fichiers de locale i18n synchronisés et ne traduit que les clés qui ont changé.",
-      "tagline": "Maintiens tes fichiers de locale synchronisés. Ne traduis que ce qui a changé.",
       "title": "verbatra : garde tes fichiers de locale i18n synchronisés, traduis ce qui change"
     },
     "nav": {
@@ -131,6 +135,11 @@
         "incremental": "Incrémentiel",
         "mitLicensed": "Sous licence MIT",
         "placeholderSafe": "Sûr pour les placeholders"
+      },
+      "stats": {
+        "versionAria": "Version {version}",
+        "downloadsLabel": "téléchargements / mois",
+        "starsLabel": "étoiles GitHub"
       }
     },
     "why": {
@@ -162,6 +171,65 @@
           "title": "Sécurité de construction"
         }
       }
+    }
+  },
+  "legal": {
+    "privacy": {
+      "meta": {
+        "title": "Politique de confidentialité",
+        "description": "Comment le site de documentation de verbatra traite vos données."
+      },
+      "title": "Politique de confidentialité",
+      "lastUpdatedLabel": "Dernière mise à jour",
+      "disclaimer": "Ceci est une traduction de courtoisie. En cas de divergence, la version anglaise prévaut.",
+      "s1": {
+        "heading": "1. Responsable du traitement",
+        "body": "Le responsable du traitement des données sur ce site est Mario Kreitz, Allemagne. Vous pouvez nous contacter par courrier électronique à l'adresse <email>mario.kreitz@web.de</email>."
+      },
+      "s2": {
+        "heading": "2. Aperçu",
+        "body": "Ce site est conçu pour respecter votre vie privée. Il ne dépose aucun cookie, n'effectue aucun suivi intersites et ne collecte que les données minimales nécessaires à son fonctionnement et à la compréhension de l'usage agrégé. Les sections ci-dessous expliquent précisément ce qui est traité et pourquoi."
+      },
+      "s3": {
+        "heading": "3. Journaux du serveur et hébergement",
+        "body": "Le site est auto-hébergé sur un serveur virtuel (géré avec Dokploy). Lors de votre visite, le serveur traite des journaux d'accès standard pouvant inclure votre adresse IP, la date et l'heure de la requête, l'URL demandée, la page de provenance et la chaîne d'agent utilisateur de votre navigateur. Ces données servent à exploiter et à sécuriser le site, par exemple pour livrer les pages, diagnostiquer les erreurs et se défendre contre les abus. La base juridique est l'Art. 6(1)(f) du RGPD (notre intérêt légitime à un service sûr et fonctionnel). Ces journaux ne sont conservés que pendant une courte période."
+      },
+      "s4": {
+        "heading": "4. Mesure d'audience",
+        "body": "Nous utilisons Umami, un outil de mesure d'audience respectueux de la vie privée que nous hébergeons nous-mêmes. Umami <strong>n'utilise pas de cookies et ne collecte aucune donnée personnelle ni n'emploie d'empreinte numérique intersites</strong>. Il n'enregistre que des indicateurs agrégés tels que les pages vues, les sources de provenance, le pays approximatif ainsi que le type de navigateur, de système d'exploitation et d'appareil. La base juridique est l'Art. 6(1)(f) du RGPD (notre intérêt légitime à comprendre l'usage du site). Vous pouvez en savoir plus sur Umami dans sa <umami>documentation</umami>."
+      },
+      "s5": {
+        "heading": "5. Cookies",
+        "body": "Ce site ne dépose aucun cookie. Comme rien qui nécessite un consentement n'est stocké sur votre appareil, aucune bannière de consentement aux cookies n'est requise."
+      },
+      "s6": {
+        "heading": "6. Polices et ressources",
+        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment de la compilation, de sorte qu'aucune requête n'est adressée à Google Fonts ou à tout autre tiers lors du chargement d'une page. Hormis le script Umami auto-hébergé décrit ci-dessus, aucun script ni contenu intégré de tiers n'est chargé à l'exécution."
+      },
+      "s7": {
+        "heading": "7. GitHub",
+        "body": "Le code source du projet, les tickets et les discussions sont hébergés sur <repo>GitHub</repo>. Si vous choisissez d'y participer (par exemple en ouvrant un ticket ou en rejoignant une discussion), GitHub traite vos données en tant que responsable indépendant et sa <ghprivacy>déclaration de confidentialité</ghprivacy> s'applique."
+      },
+      "s8": {
+        "heading": "8. Vos droits",
+        "body": "En vertu du RGPD, vous disposez des droits d'accès, de rectification, d'effacement, de limitation du traitement, d'opposition et de portabilité des données (Art. 15–21 du RGPD). Vous avez également le droit d'introduire une réclamation auprès d'une autorité de contrôle. Pour exercer l'un de ces droits, contactez-nous à l'aide des coordonnées indiquées ci-dessous."
+      },
+      "s9": {
+        "heading": "9. Contact",
+        "body": "Pour toute question ou demande relative à la confidentialité, écrivez à <email>mario.kreitz@web.de</email>."
+      },
+      "s10": {
+        "heading": "10. Modifications de cette politique",
+        "body": "Nous pouvons mettre à jour cette politique de confidentialité à mesure que le site évolue ou que les exigences légales changent. La date ci-dessous reflète la dernière révision."
+      }
+    },
+    "imprint": {
+      "meta": {
+        "title": "Mentions légales",
+        "description": "Mentions légales (Impressum) du site de documentation de verbatra."
+      },
+      "intro": "Ces mentions légales (Impressum) sont fournies en allemand, comme l'exige la loi allemande.",
+      "lastUpdatedLabel": "Dernière mise à jour"
     }
   }
 }

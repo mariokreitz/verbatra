@@ -14,7 +14,6 @@ import {
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-// Resolve this package's own version from its package.json at runtime.
 // INVARIANT: package.json sits one directory above the running module. That holds for both
 // src/run.ts (tests) and the bundled dist/index.js (built and published bin), so the same
 // "../package.json" offset resolves in both. If the tsup output depth changes, preserve this

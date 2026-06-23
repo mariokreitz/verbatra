@@ -1,19 +1,36 @@
 import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Imprint",
-  description: "Legal disclosure (Impressum) for the verbatra documentation site.",
-  robots: { index: true },
-};
+import { getTranslations } from "next-intl/server";
+import { LEGAL_LAST_UPDATED } from "@/lib/site";
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
 
-export default function ImprintPage() {
+export async function generateMetadata(props: {
+  params: Promise<{ lang: string }>;
+}): Promise<Metadata> {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: "legal.imprint.meta" });
+  return {
+    title: t("title"),
+    description: t("description"),
+    robots: { index: true },
+  };
+}
+
+export default async function ImprintPage(props: { params: Promise<{ lang: string }> }) {
+  const { lang } = await props.params;
+  const t = await getTranslations({ locale: lang, namespace: "legal.imprint" });
+
   return (
     <main className="container mx-auto max-w-3xl px-6 py-16 prose">
+      {/* The H1 stays the literal statutory term "Impressum" in every locale. */}
       <h1>Impressum</h1>
+      {/* Localized chrome: a one-line intro and the "Last updated" label. The German legal body
+          below is statutory and is kept verbatim and byte-identical across all four locales. */}
+      <p>{t("intro")}</p>
       <p>
-        <em>Last updated: 2026-06-21</em>
+        <em>
+          {t("lastUpdatedLabel")}: {LEGAL_LAST_UPDATED}
+        </em>
       </p>
 
       <h2>Angaben gem&auml;&szlig; &sect; 5 DDG</h2>

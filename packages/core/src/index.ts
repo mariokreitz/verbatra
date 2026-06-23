@@ -6,12 +6,9 @@
  * @packageDocumentation
  */
 
-// Diffing
 export { diffResources } from "./diff/diff-resources.js";
 export type { DiffOptions, DiffResult } from "./diff/types.js";
-// Content hash
 export { contentHash } from "./hash/content-hash.js";
-// Domain model
 export {
   type LocaleResource,
   localeResourceSchema,
@@ -28,7 +25,6 @@ export {
   translationEntrySchema,
 } from "./model/translation-entry.js";
 
-// Placeholder integrity
 export { checkPlaceholders } from "./placeholder/integrity.js";
 export type { PlaceholderIntegrityResult } from "./placeholder/types.js";
 export type {
@@ -37,5 +33,4 @@ export type {
   ValidationFinding,
   ValidationReport,
 } from "./validation/types.js";
-// Validation
 export { validate } from "./validation/validate.js";

@@ -17,6 +17,7 @@ import {
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n";
+import { getSocialStats } from "@/lib/social-stats";
 import {
   type FaqItem,
   faqPageLd,
@@ -46,13 +47,19 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
     return { name: step?.title ?? "", text: step?.body ?? "" };
   });
 
+  // Build-time social-proof stats (GitHub stars, summed npm last-month downloads). Fetched once
+  // at build, formatted with the active locale's grouping; null stats are simply not shown.
+  const stats = await getSocialStats();
+  const numberFormat = new Intl.NumberFormat(locale);
+  const formattedStars = stats.stars != null ? numberFormat.format(stats.stars) : null;
+  const formattedDownloads = stats.downloads != null ? numberFormat.format(stats.downloads) : null;
+
   return (
     <div className="vk-home w-full">
       <JsonLd data={softwareApplicationLd({ description: t("meta.definition"), lang: locale })} />
       <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
-      {/* Hero */}
       <section className="mx-auto max-w-5xl px-6">
         <div className="relative grid items-center gap-9 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
           <div
@@ -61,9 +68,18 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
             style={{ background: "var(--wash-hero)", zIndex: -1 }}
           />
           <div>
+            {/* Fluid hero size: the clamp floor (2rem) keeps the longest localized headline
+                (German "Übersetze nur das, was sich geändert hat.") from clipping or forcing
+                horizontal scroll at 360-390px, while the 3.75rem ceiling matches the previous
+                desktop text-6xl. Scoped to the hero; the global --text-h1 token is untouched. */}
             <h1
-              className="mb-5 max-w-[14ch] text-5xl font-semibold text-fd-foreground md:text-6xl"
-              style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.025em" }}
+              className="mb-5 max-w-[14ch] font-semibold text-fd-foreground"
+              style={{
+                fontFamily: "var(--font-display)",
+                letterSpacing: "-0.025em",
+                fontSize: "clamp(2rem, 8vw + 0.5rem, 3.75rem)",
+                lineHeight: 1.05,
+              }}
             >
               {t("hero.headline")}
             </h1>
@@ -85,13 +101,10 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
         </div>
       </section>
 
-      {/* Trust strip */}
-      <TrustStrip />
+      <TrustStrip stars={formattedStars} downloads={formattedDownloads} />
 
-      {/* Compatibility - the marquee */}
       <Compatibility />
 
-      {/* Showcase */}
       <section className="mx-auto mt-24 max-w-5xl px-6">
         <Eyebrow>{t("showcase.eyebrow")}</Eyebrow>
         <SectionHeading>{t("showcase.heading")}</SectionHeading>
@@ -99,19 +112,14 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
         <Showcase />
       </section>
 
-      {/* How it works */}
       <HowItWorks />
 
-      {/* Why use verbatra */}
       <WhyUse />
 
-      {/* FAQ */}
       <Faq items={faqItems} />
 
-      {/* Final close */}
       <FinalClose />
 
-      {/* Footer */}
       <FullFooter />
     </div>
   );

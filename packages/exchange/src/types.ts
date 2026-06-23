@@ -36,7 +36,10 @@ export interface WorkbookSheet {
   readonly rows: readonly WorkbookRow[];
 }
 
-/** The whole workbook as neutral data: one data sheet per target locale plus an instructions sheet. */
+/**
+ * The neutral workbook source data: one data sheet per target locale, in config order. The
+ * leading instructions sheet is not part of the model; {@link buildWorkbook} synthesizes it.
+ */
 export interface WorkbookModel {
   /** One data sheet per target locale, in config order. */
   readonly sheets: readonly WorkbookSheet[];

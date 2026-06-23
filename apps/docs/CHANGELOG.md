@@ -7,7 +7,7 @@
 - 9124d17: Formalize the Verbatra Design System in the docs app: add the theme-agnostic DS scale tokens
   (type, spacing, radii, shadows, glows, washes, motion) and semantic aliases mapped onto the
   existing Fumadocs `--color-fd-*` tokens in `global.css`, and introduce a `components/ui/`
-  primitive set — `Button`, `Badge`, `Card`, `CommandLine`, `Input`, and `Tabs`. `Button`,
+  primitive set - `Button`, `Badge`, `Card`, `CommandLine`, `Input`, and `Tabs`. `Button`,
   `Badge`, `Card`, and `Input` are server components; `CommandLine` (clipboard) and `Tabs`
   (selection) are the only client boundaries. The landing CTAs and hero install line now use the
   new primitives, the legacy `.v-cta` rule and `CopyCommand` are removed, and MDX registers
@@ -65,7 +65,7 @@
 
   Scaffold verbatra dogfooding the docs catalog (NOT yet run): `apps/docs/verbatra.config.ts`
   declares source `en`, targets `de`/`es`/`fr`, format `next-intl-json`, the Gemini provider (API
-  key read from `GEMINI_API_KEY` env only — never in the config), `messages/{locale}.json` files,
+  key read from `GEMINI_API_KEY` env only - never in the config), `messages/{locale}.json` files,
   and a brand-term glossary. A `pnpm i18n` script runs `verbatra translate`, with `@verbatra/cli`
   and `@verbatra/sdk` added as devDependencies. The translation run is pending a free Gemini API
   key; until then the `de`/`es`/`fr` catalogs ship as English-fallback seeds and `pnpm i18n` is the

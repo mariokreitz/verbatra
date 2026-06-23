@@ -34,6 +34,10 @@
           "answer": "Sí. Una ejecución de prueba informa exactamente qué claves se enviarían y se escribirían sin tocar tus archivos de configuración regional, y el modo de observación continúa traduciendo a medida que cambia tu configuración regional de origen.",
           "question": "¿Puedo previsualizar una ejecución antes de que escriba algo?"
         },
+        "production": {
+          "answer": "verbatra es joven y está en desarrollo activo, por lo que su API aún puede cambiar entre versiones; fija una versión y lee el registro de cambios al actualizar. Lo que ya es sólido es el modelo de seguridad: cada ejecución compara con un archivo de bloqueo comprometido, verifica la integridad de los marcadores de posición y de ICU en cada resultado, y retiene cualquier cosa que rompa un marcador de posición en lugar de escribirla en tu archivo de configuración regional. Muchos equipos ya lo usan en CI hoy; entiéndelo como una señal para fijar versiones, no como una advertencia de que los resultados no sean seguros.",
+          "question": "¿Está verbatra listo para producción?"
+        },
         "providers": {
           "answer": "Anthropic, OpenAI, Gemini y DeepL. Elige uno en una sola línea de configuración, y la clave API se lee de una variable de entorno, nunca del archivo de configuración.",
           "question": "¿Qué proveedores de traducción admite verbatra?"
@@ -111,8 +115,8 @@
     },
     "meta": {
       "definition": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados, traduciendo solo las claves que cambiaron a través de tu elección de proveedor de IA o traducción automática.",
+      "description": "Mantén sincronizados tus archivos i18n. verbatra traduce solo las claves que cambiaron, con el proveedor de IA o traducción automática que elijas. Empieza ya.",
       "ogImageAlt": "verbatra mantiene tus archivos de configuración regional i18n sincronizados y traduce solo las claves que cambiaron.",
-      "tagline": "Mantén tus archivos de configuración regional sincronizados. Traduce solo lo que cambió.",
       "title": "verbatra: mantén tus archivos i18n sincronizados, traduce solo lo que cambió"
     },
     "nav": {
@@ -131,6 +135,11 @@
         "incremental": "Incremental",
         "mitLicensed": "Licencia MIT",
         "placeholderSafe": "Seguro para marcadores de posición"
+      },
+      "stats": {
+        "versionAria": "Versión {version}",
+        "downloadsLabel": "descargas / mes",
+        "starsLabel": "estrellas en GitHub"
       }
     },
     "why": {
@@ -162,6 +171,65 @@
           "title": "Seguro por construcción"
         }
       }
+    }
+  },
+  "legal": {
+    "privacy": {
+      "meta": {
+        "title": "Política de privacidad",
+        "description": "Cómo trata sus datos el sitio de documentación de verbatra."
+      },
+      "title": "Política de privacidad",
+      "lastUpdatedLabel": "Última actualización",
+      "disclaimer": "Esta es una traducción de cortesía. En caso de discrepancia, prevalecerá la versión en inglés.",
+      "s1": {
+        "heading": "1. Responsable del tratamiento",
+        "body": "El responsable del tratamiento de los datos en este sitio es Mario Kreitz, Alemania. Puede ponerse en contacto con nosotros por correo electrónico en <email>mario.kreitz@web.de</email>."
+      },
+      "s2": {
+        "heading": "2. Resumen",
+        "body": "Este sitio está diseñado para respetar su privacidad. No utiliza cookies, no realiza seguimiento entre sitios y solo recopila los datos mínimos necesarios para operar el sitio y comprender el uso agregado. Las secciones siguientes explican exactamente qué se trata y por qué."
+      },
+      "s3": {
+        "heading": "3. Registros del servidor y alojamiento",
+        "body": "El sitio se autoaloja en un servidor virtual (gestionado con Dokploy). Cuando usted lo visita, el servidor procesa registros de acceso estándar que pueden incluir su dirección IP, la fecha y hora de la solicitud, la URL solicitada, la página de referencia y la cadena de agente de usuario de su navegador. Estos datos se utilizan para operar y proteger el sitio, por ejemplo para entregar páginas, diagnosticar errores y defenderse de abusos. La base jurídica es el Art. 6(1)(f) del RGPD (nuestro interés legítimo en un servicio seguro y funcional). Estos registros se conservan solo durante un breve período."
+      },
+      "s4": {
+        "heading": "4. Analítica",
+        "body": "Utilizamos Umami, una herramienta de analítica respetuosa con la privacidad que autoalojamos. Umami <strong>no utiliza cookies y no recopila datos personales ni emplea huellas digitales entre sitios</strong>. Solo registra métricas agregadas como vistas de página, fuentes de referencia, país aproximado y tipo de navegador, sistema operativo y dispositivo. La base jurídica es el Art. 6(1)(f) del RGPD (nuestro interés legítimo en comprender cómo se utiliza el sitio). Puede obtener más información sobre Umami en su <umami>documentación</umami>."
+      },
+      "s5": {
+        "heading": "5. Cookies",
+        "body": "Este sitio no utiliza cookies. Dado que no se almacena en su dispositivo nada que requiera consentimiento, no es necesario ningún banner de consentimiento de cookies."
+      },
+      "s6": {
+        "heading": "6. Tipografías y recursos",
+        "body": "Las tipografías se autoalojan: se incluyen en el momento de la compilación, por lo que no se realizan solicitudes a Google Fonts ni a ningún otro tercero cuando carga una página. Aparte del script autoalojado de Umami descrito anteriormente, no se carga ningún script ni contenido incrustado de terceros en tiempo de ejecución."
+      },
+      "s7": {
+        "heading": "7. GitHub",
+        "body": "El código fuente del proyecto, las incidencias y los debates se alojan en <repo>GitHub</repo>. Si decide participar allí (por ejemplo, abriendo una incidencia o uniéndose a un debate), GitHub trata sus datos como responsable independiente y se aplica su <ghprivacy>declaración de privacidad</ghprivacy>."
+      },
+      "s8": {
+        "heading": "8. Sus derechos",
+        "body": "En virtud del RGPD, usted tiene los derechos de acceso, rectificación, supresión, limitación del tratamiento, oposición y portabilidad de los datos (Art. 15–21 del RGPD). También tiene derecho a presentar una reclamación ante una autoridad de control. Para ejercer cualquiera de estos derechos, póngase en contacto con nosotros a través de los datos indicados a continuación."
+      },
+      "s9": {
+        "heading": "9. Contacto",
+        "body": "Para cualquier pregunta o solicitud relacionada con la privacidad, escriba a <email>mario.kreitz@web.de</email>."
+      },
+      "s10": {
+        "heading": "10. Cambios en esta política",
+        "body": "Podemos actualizar esta política de privacidad a medida que el sitio evolucione o cambien los requisitos legales. La fecha que figura a continuación refleja la última revisión."
+      }
+    },
+    "imprint": {
+      "meta": {
+        "title": "Aviso legal",
+        "description": "Aviso legal (Impressum) del sitio de documentación de verbatra."
+      },
+      "intro": "Este aviso legal (Impressum) se ofrece en alemán, según lo exige la legislación alemana.",
+      "lastUpdatedLabel": "Última actualización"
     }
   }
 }

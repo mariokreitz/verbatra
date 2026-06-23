@@ -14,9 +14,11 @@ export type BoundedBytesRead =
   | { readonly kind: "too-large" };
 
 /**
- * The minimal file-system surface the SDK needs for the lock-file and for existence
- * checks. Injectable so tests stay deterministic; the format adapters do their own
- * file IO and are not routed through this seam.
+ * The minimal file-system surface the SDK needs: existence checks, the lock-file read/write,
+ * and the untrusted workbook bytes read/write for the export/import flow. Reads are bounded
+ * (see {@link readFileBounded} / {@link readBytesBounded}) and writes are atomic. Injectable so
+ * tests stay deterministic; the format adapters do their own file IO and are not routed through
+ * this seam.
  */
 export interface SdkFs {
   /** Whether a readable file exists at the path. */

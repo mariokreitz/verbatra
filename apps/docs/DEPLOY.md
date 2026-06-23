@@ -16,7 +16,7 @@ Create a Dokploy **Application** with the **Dockerfile** build type and these se
 - **Port**: `3000`. Set this when you create the domain so Dokploy routes to the
   container's exposed port.
 - **Domain**: `verbatra.kreitz-webdev.de`, with HTTPS (Let's Encrypt) enabled. This bare
-  (non-www) host is the **canonical** host — every canonical link, `og:url`, sitemap entry,
+  (non-www) host is the **canonical** host - every canonical link, `og:url`, sitemap entry,
   and robots reference is built from it.
 
 ## Canonical host (www vs non-www)
@@ -27,7 +27,7 @@ also resolves, the app issues a permanent (301) redirect from it to the bare hos
 For that redirect to fire, point the `www` DNS record at the same Dokploy app and add
 `www.verbatra.kreitz-webdev.de` as an additional domain on the application (the request must
 reach the container with its original `Host` header). If you prefer, you can instead handle
-the 301 at the proxy — either is fine as long as only the bare host serves `200`s.
+the 301 at the proxy - either is fine as long as only the bare host serves `200`s.
 
 ## Build architecture
 
