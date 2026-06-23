@@ -173,5 +173,64 @@
     "nav": {
       "docs": "Docs"
     }
+  },
+  "legal": {
+    "privacy": {
+      "meta": {
+        "title": "Privacy policy",
+        "description": "How the verbatra documentation site handles your data."
+      },
+      "title": "Privacy policy",
+      "lastUpdatedLabel": "Last updated",
+      "disclaimer": "This is a translation for convenience. In case of any discrepancy, the English version prevails.",
+      "s1": {
+        "heading": "1. Responsible party",
+        "body": "The party responsible for data processing on this site is Mario Kreitz, Germany. You can reach us by email at <email>mario.kreitz@web.de</email>."
+      },
+      "s2": {
+        "heading": "2. Overview",
+        "body": "This site is built to respect your privacy. It sets no cookies, runs no cross-site tracking, and collects only the minimal data needed to operate the site and understand aggregate usage. The sections below explain exactly what is processed and why."
+      },
+      "s3": {
+        "heading": "3. Server logs and hosting",
+        "body": "The site is self-hosted on a virtual server (managed with Dokploy). When you visit, the server processes standard access logs that may include your IP address, the date and time of the request, the requested URL, the referring page, and your browser's user-agent string. This data is used to operate and secure the site, for example to deliver pages, diagnose errors, and defend against abuse. The legal basis is Art. 6(1)(f) GDPR (our legitimate interest in a secure, functioning service). These logs are retained only for a short period."
+      },
+      "s4": {
+        "heading": "4. Analytics",
+        "body": "We use Umami, a privacy-friendly analytics tool that we self-host. Umami is <strong>cookieless and does not collect personal data or use cross-site fingerprinting</strong>. It records only aggregated metrics such as page views, referrers, approximate country, and browser, operating system, and device type. The legal basis is Art. 6(1)(f) GDPR (our legitimate interest in understanding how the site is used). You can read more about Umami in its <umami>documentation</umami>."
+      },
+      "s5": {
+        "heading": "5. Cookies",
+        "body": "This site sets no cookies. Because nothing requiring consent is stored on your device, no cookie consent banner is required."
+      },
+      "s6": {
+        "heading": "6. Fonts and assets",
+        "body": "Fonts are self-hosted: they are bundled at build time, so no requests are made to Google Fonts or any other third party when you load a page. Apart from the self-hosted Umami script described above, no third-party scripts or embeds load at runtime."
+      },
+      "s7": {
+        "heading": "7. GitHub",
+        "body": "The project's source code, issues, and discussions are hosted on <repo>GitHub</repo>. If you choose to interact there (for example, by opening an issue or joining a discussion), GitHub processes your data as an independent controller and its <ghprivacy>privacy statement</ghprivacy> applies."
+      },
+      "s8": {
+        "heading": "8. Your rights",
+        "body": "Under the GDPR you have the rights of access, rectification, erasure, restriction of processing, objection, and data portability (Art. 15–21 GDPR). You also have the right to lodge a complaint with a supervisory authority. To exercise any of these rights, contact us using the details below."
+      },
+      "s9": {
+        "heading": "9. Contact",
+        "body": "For any privacy-related questions or requests, email <email>mario.kreitz@web.de</email>."
+      },
+      "s10": {
+        "heading": "10. Changes to this policy",
+        "body": "We may update this privacy policy as the site evolves or as legal requirements change. The date below reflects the most recent revision."
+      }
+    },
+    "imprint": {
+      "meta": {
+        "title": "Imprint",
+        "description": "Legal disclosure (Impressum) for the verbatra documentation site."
+      },
+      "intro": "This legal notice (Impressum) is provided in German as required by German law.",
+      "lastUpdatedLabel": "Last updated"
+    }
   }
 }
