@@ -34,6 +34,10 @@
           "answer": "Oui. Une exécution à blanc (dry run) indique exactement quelles clés seraient envoyées et écrites sans toucher tes fichiers de locale, et le mode de surveillance (watch mode) continue de traduire à mesure que ta locale source change.",
           "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?"
         },
+        "production": {
+          "answer": "verbatra est en version antérieure à la 1.0 et activement développé, donc son API peut encore changer avant la sortie de la 1.0 ; fixe une version et lis le changelog lorsque tu mets à jour. Ce qui est déjà solide, c'est le modèle de sécurité : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et des ICU sur chaque résultat, et retient tout ce qui brise un placeholder plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent déjà en CI aujourd'hui ; considère la version antérieure à la 1.0 comme un signal pour fixer les versions, non comme un avertissement que les résultats seraient non sûrs.",
+          "question": "verbatra est-il prêt pour la production ?"
+        },
         "providers": {
           "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de configuration, et la clé API est lue à partir d'une variable d'environnement, jamais du fichier de configuration.",
           "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?"
@@ -79,7 +83,9 @@
       "ctaGithub": "Mettre en favori sur GitHub",
       "ctaStart": "Commencer maintenant",
       "headline": "Ne traduis que ce qui a changé.",
-      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis."
+      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis.",
+      "maturityLabel": "Avant la 1.0, activement développé",
+      "maturityNote": "verbatra est en version antérieure à la 1.0 et activement développé. L'API peut encore changer avant la 1.0 ; chaque exécution est protégée par des vérifications d'intégrité des placeholders et des ICU, et un résultat défectueux est retenu, jamais écrit."
     },
     "how": {
       "eyebrow": "comment ça marche",
@@ -131,6 +137,10 @@
         "incremental": "Incrémentiel",
         "mitLicensed": "Sous licence MIT",
         "placeholderSafe": "Sûr pour les placeholders"
+      },
+      "stats": {
+        "downloadsLabel": "téléchargements / mois",
+        "starsLabel": "étoiles GitHub"
       }
     },
     "why": {

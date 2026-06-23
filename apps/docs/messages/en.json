@@ -10,7 +10,9 @@
       "headline": "Translate only what changed.",
       "lead": "verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the source locale; it fills every other locale through the AI provider you choose.",
       "ctaStart": "Start now",
-      "ctaGithub": "Star on GitHub"
+      "ctaGithub": "Star on GitHub",
+      "maturityLabel": "Pre-1.0, actively developed",
+      "maturityNote": "verbatra is pre-1.0 and actively developed. The API may still change before 1.0; every run is guarded by placeholder and ICU integrity checks, and a broken result is withheld, never written."
     },
     "trust": {
       "eyebrow": "Trusted building blocks",
@@ -20,6 +22,10 @@
         "placeholderSafe": "Placeholder-safe",
         "cliSdk": "CLI + SDK",
         "ciReady": "CI-ready"
+      },
+      "stats": {
+        "starsLabel": "GitHub stars",
+        "downloadsLabel": "downloads / month"
       }
     },
     "install": {
@@ -119,6 +125,10 @@
         "ci": {
           "question": "Is there an SDK as well as a CLI?",
           "answer": "Yes. The verbatra command is a thin wrapper over @verbatra/sdk, which exposes the same translate and watch operations for scripts, CI, and your own tooling."
+        },
+        "production": {
+          "question": "Is verbatra production-ready?",
+          "answer": "verbatra is pre-1.0 and actively developed, so its API may still change before the 1.0 release; pin a version and read the changelog when you upgrade. What is already solid is the safety model: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks a placeholder rather than writing it to your locale file. Many teams run it in CI today; treat pre-1.0 as a signal to pin versions, not as a warning that results are unsafe."
         }
       }
     },

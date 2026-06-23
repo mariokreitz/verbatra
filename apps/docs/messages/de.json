@@ -34,6 +34,10 @@
           "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Locale-Dateien zu berühren, und der Überwachungsmodus übersetzt weiter, wenn sich deine Quell-Locale ändert.",
           "question": "Kann ich einen Lauf vor dem Schreiben in eine Vorschau ansehen?"
         },
+        "production": {
+          "answer": "verbatra ist vor 1.0 und wird aktiv weiterentwickelt, daher kann sich seine API vor dem 1.0-Release noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits stabil ist, ist das Sicherheitsmodell: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, prüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles, was einen Platzhalter bricht, zurück, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; verstehe Vor-1.0 als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher wären.",
+          "question": "Ist verbatra produktionsreif?"
+        },
         "providers": {
           "answer": "Anthropic, OpenAI, Gemini und DeepL. Du wählst einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, niemals aus der Konfigurationsdatei.",
           "question": "Welche Übersetzungsanbieter unterstützt verbatra?"
@@ -79,7 +83,9 @@
       "ctaGithub": "Auf GitHub starren",
       "ctaStart": "Jetzt starten",
       "headline": "Übersetze nur das, was sich geändert hat.",
-      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus."
+      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus.",
+      "maturityLabel": "Vor 1.0, aktiv entwickelt",
+      "maturityNote": "verbatra ist vor 1.0 und wird aktiv weiterentwickelt. Die API kann sich vor 1.0 noch ändern; jeder Lauf ist durch Integritätsprüfungen von Platzhaltern und ICU abgesichert, und ein fehlerhaftes Ergebnis wird zurückgehalten, nie geschrieben."
     },
     "how": {
       "eyebrow": "so funktioniert's",
@@ -131,6 +137,10 @@
         "incremental": "Inkrementell",
         "mitLicensed": "MIT-lizenziert",
         "placeholderSafe": "Platzhaltersicher"
+      },
+      "stats": {
+        "downloadsLabel": "Downloads / Monat",
+        "starsLabel": "GitHub-Sterne"
       }
     },
     "why": {
