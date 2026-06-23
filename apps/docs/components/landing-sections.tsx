@@ -98,10 +98,7 @@ export function TrustStrip({
               aria-label={t("stats.versionAria", { version: PACKAGE_VERSION })}
             >
               <TagIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
-              <span className="whitespace-nowrap">
-                <span className="text-fd-foreground">v{PACKAGE_VERSION}</span>
-                <span className="text-[color:var(--text-faint)]"> · {t("stats.versionLabel")}</span>
-              </span>
+              <span className="whitespace-nowrap text-fd-foreground">v{PACKAGE_VERSION}</span>
             </li>
             {downloads != null && (
               <li className={unitClass}>

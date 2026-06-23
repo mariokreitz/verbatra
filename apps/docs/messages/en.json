@@ -22,8 +22,7 @@
         "ciReady": "CI-ready"
       },
       "stats": {
-        "versionLabel": "pre-1.0",
-        "versionAria": "Version {version}, pre-release",
+        "versionAria": "Version {version}",
         "starsLabel": "GitHub stars",
         "downloadsLabel": "downloads / month"
       }
@@ -128,7 +127,7 @@
         },
         "production": {
           "question": "Is verbatra production-ready?",
-          "answer": "verbatra is pre-1.0 and actively developed, so its API may still change before the 1.0 release; pin a version and read the changelog when you upgrade. What is already solid is the safety model: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks a placeholder rather than writing it to your locale file. Many teams run it in CI today; treat pre-1.0 as a signal to pin versions, not as a warning that results are unsafe."
+          "answer": "verbatra is young and actively developed, so its API may still change between releases; pin a version and read the changelog when you upgrade. What is already solid is the safety model: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks a placeholder rather than writing it to your locale file. Many teams run it in CI today; treat that as a signal to pin versions, not as a warning that results are unsafe."
         }
       }
     },

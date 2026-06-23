@@ -35,7 +35,7 @@
           "question": "¿Puedo previsualizar una ejecución antes de que escriba algo?"
         },
         "production": {
-          "answer": "verbatra está en una versión anterior a la 1.0 y en desarrollo activo, por lo que su API aún puede cambiar antes del lanzamiento de la 1.0; fija una versión y lee el registro de cambios al actualizar. Lo que ya es sólido es el modelo de seguridad: cada ejecución compara con un archivo de bloqueo comprometido, verifica la integridad de los marcadores de posición y de ICU en cada resultado, y retiene cualquier cosa que rompa un marcador de posición en lugar de escribirla en tu archivo de configuración regional. Muchos equipos ya lo usan en CI hoy; entiende la versión anterior a la 1.0 como una señal para fijar versiones, no como una advertencia de que los resultados no sean seguros.",
+          "answer": "verbatra es joven y está en desarrollo activo, por lo que su API aún puede cambiar entre versiones; fija una versión y lee el registro de cambios al actualizar. Lo que ya es sólido es el modelo de seguridad: cada ejecución compara con un archivo de bloqueo comprometido, verifica la integridad de los marcadores de posición y de ICU en cada resultado, y retiene cualquier cosa que rompa un marcador de posición en lugar de escribirla en tu archivo de configuración regional. Muchos equipos ya lo usan en CI hoy; entiéndelo como una señal para fijar versiones, no como una advertencia de que los resultados no sean seguros.",
           "question": "¿Está verbatra listo para producción?"
         },
         "providers": {
@@ -137,8 +137,7 @@
         "placeholderSafe": "Seguro para marcadores de posición"
       },
       "stats": {
-        "versionLabel": "pre-1.0",
-        "versionAria": "Versión {version}, versión preliminar",
+        "versionAria": "Versión {version}",
         "downloadsLabel": "descargas / mes",
         "starsLabel": "estrellas en GitHub"
       }

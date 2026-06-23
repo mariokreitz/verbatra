@@ -35,7 +35,7 @@
           "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?"
         },
         "production": {
-          "answer": "verbatra est en version antérieure à la 1.0 et activement développé, donc son API peut encore changer avant la sortie de la 1.0 ; fixe une version et lis le changelog lorsque tu mets à jour. Ce qui est déjà solide, c'est le modèle de sécurité : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et des ICU sur chaque résultat, et retient tout ce qui brise un placeholder plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent déjà en CI aujourd'hui ; considère la version antérieure à la 1.0 comme un signal pour fixer les versions, non comme un avertissement que les résultats seraient non sûrs.",
+          "answer": "verbatra est jeune et activement développé, donc son API peut encore changer d'une version à l'autre ; fixe une version et lis le changelog lorsque tu mets à jour. Ce qui est déjà solide, c'est le modèle de sécurité : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et des ICU sur chaque résultat, et retient tout ce qui brise un placeholder plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent déjà en CI aujourd'hui ; considère cela comme un signal pour fixer les versions, non comme un avertissement que les résultats seraient non sûrs.",
           "question": "verbatra est-il prêt pour la production ?"
         },
         "providers": {
@@ -137,8 +137,7 @@
         "placeholderSafe": "Sûr pour les placeholders"
       },
       "stats": {
-        "versionLabel": "pre-1.0",
-        "versionAria": "Version {version}, préversion",
+        "versionAria": "Version {version}",
         "downloadsLabel": "téléchargements / mois",
         "starsLabel": "étoiles GitHub"
       }

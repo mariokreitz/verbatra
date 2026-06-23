@@ -35,7 +35,7 @@
           "question": "Kann ich einen Lauf vor dem Schreiben in eine Vorschau ansehen?"
         },
         "production": {
-          "answer": "verbatra ist vor 1.0 und wird aktiv weiterentwickelt, daher kann sich seine API vor dem 1.0-Release noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits stabil ist, ist das Sicherheitsmodell: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, prüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles, was einen Platzhalter bricht, zurück, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; verstehe Vor-1.0 als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher wären.",
+          "answer": "verbatra ist jung und wird aktiv weiterentwickelt, daher kann sich seine API zwischen Releases noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits stabil ist, ist das Sicherheitsmodell: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, prüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles, was einen Platzhalter bricht, zurück, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; verstehe das als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher wären.",
           "question": "Ist verbatra produktionsreif?"
         },
         "providers": {
@@ -137,8 +137,7 @@
         "placeholderSafe": "Platzhaltersicher"
       },
       "stats": {
-        "versionLabel": "pre-1.0",
-        "versionAria": "Version {version}, Vorabversion",
+        "versionAria": "Version {version}",
         "downloadsLabel": "Downloads / Monat",
         "starsLabel": "GitHub-Sterne"
       }
