@@ -83,9 +83,7 @@
       "ctaGithub": "Destacar en GitHub",
       "ctaStart": "Empezar ahora",
       "headline": "Traduce solo lo que cambió.",
-      "lead": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados. Tú mantienes la configuración regional de origen; verbatra rellena cualquier otra configuración regional a través del proveedor de IA que elijas.",
-      "maturityLabel": "Anterior a la 1.0, en desarrollo activo",
-      "maturityNote": "verbatra está en una versión anterior a la 1.0 y en desarrollo activo. La API aún puede cambiar antes de la 1.0; cada ejecución está protegida por verificaciones de integridad de marcadores de posición e ICU, y un resultado defectuoso se retiene, nunca se escribe."
+      "lead": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados. Tú mantienes la configuración regional de origen; verbatra rellena cualquier otra configuración regional a través del proveedor de IA que elijas."
     },
     "how": {
       "eyebrow": "cómo funciona",
@@ -139,6 +137,8 @@
         "placeholderSafe": "Seguro para marcadores de posición"
       },
       "stats": {
+        "versionLabel": "pre-1.0",
+        "versionAria": "Versión {version}, versión preliminar",
         "downloadsLabel": "descargas / mes",
         "starsLabel": "estrellas en GitHub"
       }

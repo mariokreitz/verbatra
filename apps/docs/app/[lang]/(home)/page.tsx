@@ -17,7 +17,6 @@ import {
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n";
-import { PACKAGE_VERSION } from "@/lib/site";
 import { getSocialStats } from "@/lib/social-stats";
 import {
   type FaqItem,
@@ -87,22 +86,6 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
             </h1>
             <p className="mb-6 max-w-[48ch] text-lg text-fd-muted-foreground">{t("hero.lead")}</p>
             <PackageInstall />
-            {/* Version + maturity: a calm, non-interactive factual annotation on the package just
-                shown installed. The version chip reads PACKAGE_VERSION (never hardcoded); the full
-                honest safety note lives on the wrapper as title + aria-label, not as visible body
-                text. The chip carries whitespace-nowrap so the version never breaks; the label may
-                wrap to a second line on a narrow phone while the chip stays intact. */}
-            <div
-              className="mt-4 inline-flex items-center gap-2.5 text-xs text-fd-muted-foreground"
-              role="note"
-              title={t("hero.maturityNote")}
-              aria-label={t("hero.maturityNote")}
-            >
-              <span className="whitespace-nowrap rounded-full border border-fd-border px-2 py-0.5 font-mono text-fd-foreground">
-                v{PACKAGE_VERSION}
-              </span>
-              <span>{t("hero.maturityLabel")}</span>
-            </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button href="/docs" variant="primary" size="lg" trailingArrow>
                 {t("hero.ctaStart")}

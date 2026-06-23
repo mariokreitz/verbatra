@@ -10,9 +10,7 @@
       "headline": "Translate only what changed.",
       "lead": "verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the source locale; it fills every other locale through the AI provider you choose.",
       "ctaStart": "Start now",
-      "ctaGithub": "Star on GitHub",
-      "maturityLabel": "Pre-1.0, actively developed",
-      "maturityNote": "verbatra is pre-1.0 and actively developed. The API may still change before 1.0; every run is guarded by placeholder and ICU integrity checks, and a broken result is withheld, never written."
+      "ctaGithub": "Star on GitHub"
     },
     "trust": {
       "eyebrow": "Trusted building blocks",
@@ -24,6 +22,8 @@
         "ciReady": "CI-ready"
       },
       "stats": {
+        "versionLabel": "pre-1.0",
+        "versionAria": "Version {version}, pre-release",
         "starsLabel": "GitHub stars",
         "downloadsLabel": "downloads / month"
       }

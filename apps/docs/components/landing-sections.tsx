@@ -17,15 +17,12 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { VMark } from "@/components/landing";
 import Button from "@/components/ui/button";
+import { PACKAGE_VERSION } from "@/lib/site";
 import type { FaqItem } from "@/lib/structured-data";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK = "https://www.npmjs.com/package/@verbatra/sdk";
-
-// --------------------------------------------------------------------------------------
-// Shared section chrome
-// --------------------------------------------------------------------------------------
 
 export function Eyebrow({ children }: { children: ReactNode }): ReactNode {
   return (
@@ -62,55 +59,79 @@ export function TrustStrip({
 } = {}): ReactNode {
   const t = useTranslations("landing.trust");
   const items = Object.values(t.raw("items") as Record<string, string>);
+  // The unit (chip & stat) shares one type/spacing rule; the qualitative chips and the live stats
+  // only differ in their leading mark (glow dot vs. monochrome icon) and value styling.
+  const unitClass =
+    "inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground";
   return (
     <section className="mx-auto max-w-5xl px-6">
       <div className="border-y border-fd-border py-5">
         <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--accent)]">
           {t("eyebrow")}
         </p>
-        <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          {items.map((item) => (
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+          {/* Group 1 - qualitative building-block chips. The two separate <ul>s give each group
+              native list semantics so assistive tech announces them as distinct groups. */}
+          <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            {items.map((item) => (
+              <li key={item} className={unitClass}>
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
+                  style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
+                />
+                {item}
+              </li>
+            ))}
+          </ul>
+
+          {/* Quiet divider: a vertical hairline on desktop. It only renders when the stats group
+              is non-empty - version is always present, so in practice it always renders. */}
+          <span
+            aria-hidden="true"
+            className="hidden sm:block w-px self-stretch min-h-5 bg-fd-border"
+          />
+
+          {/* Group 2 - live proof stats, fixed order: version -> downloads -> stars. Version is
+              always present; downloads/stars are build-time snapshots shown only when present.
+              On mobile the divider is hidden and this group gets a top rule so the two sets still
+              read as distinct after wrapping. */}
+          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 max-sm:w-full max-sm:border-t max-sm:border-fd-border max-sm:pt-3.5">
             <li
-              key={item}
-              className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground"
+              className={unitClass}
+              aria-label={t("stats.versionAria", { version: PACKAGE_VERSION })}
             >
-              <span
-                aria-hidden="true"
-                className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
-              />
-              {item}
+              <TagIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
+              <span className="whitespace-nowrap">
+                <span className="text-fd-foreground">v{PACKAGE_VERSION}</span>
+                <span className="text-[color:var(--text-faint)]"> · {t("stats.versionLabel")}</span>
+              </span>
             </li>
-          ))}
-          {/* Live proof stats, build-time snapshots; each shown only when present (above floor). */}
-          {stars != null && (
-            <li className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
-              <GithubIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
-              <span className="text-fd-foreground">{stars}</span>
-              <span>{t("stats.starsLabel")}</span>
-            </li>
-          )}
-          {downloads != null && (
-            <li className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
-              <SiNpm
-                size={14}
-                color="currentColor"
-                aria-hidden="true"
-                className="shrink-0 text-[color:var(--accent)]"
-              />
-              <span className="text-fd-foreground">{downloads}</span>
-              <span>{t("stats.downloadsLabel")}</span>
-            </li>
-          )}
-        </ul>
+            {downloads != null && (
+              <li className={unitClass}>
+                <SiNpm
+                  size={14}
+                  color="currentColor"
+                  aria-hidden="true"
+                  className="shrink-0 text-[color:var(--accent)]"
+                />
+                <span className="text-fd-foreground">{downloads}</span>
+                <span>{t("stats.downloadsLabel")}</span>
+              </li>
+            )}
+            {stars != null && (
+              <li className={unitClass}>
+                <GithubIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
+                <span className="text-fd-foreground">{stars}</span>
+                <span>{t("stats.starsLabel")}</span>
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
     </section>
   );
 }
-
-// --------------------------------------------------------------------------------------
-// GithubIcon
-// --------------------------------------------------------------------------------------
 
 export function GithubIcon({
   size = 18,
@@ -129,6 +150,27 @@ export function GithubIcon({
       className={className ?? "shrink-0"}
     >
       <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
+    </svg>
+  );
+}
+
+// Simple Icons has no neutral "tag" glyph, so the version stat's leading mark is inlined here
+// following the GithubIcon/OpenAiIcon pattern (monochrome, currentColor, no new dep).
+function TagIcon({ size = 14, className }: { size?: number; className?: string }): ReactNode {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82zM7.5 7.5h.01" />
     </svg>
   );
 }

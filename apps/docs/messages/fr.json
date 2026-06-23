@@ -83,9 +83,7 @@
       "ctaGithub": "Mettre en favori sur GitHub",
       "ctaStart": "Commencer maintenant",
       "headline": "Ne traduis que ce qui a changé.",
-      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis.",
-      "maturityLabel": "Avant la 1.0, activement développé",
-      "maturityNote": "verbatra est en version antérieure à la 1.0 et activement développé. L'API peut encore changer avant la 1.0 ; chaque exécution est protégée par des vérifications d'intégrité des placeholders et des ICU, et un résultat défectueux est retenu, jamais écrit."
+      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis."
     },
     "how": {
       "eyebrow": "comment ça marche",
@@ -139,6 +137,8 @@
         "placeholderSafe": "Sûr pour les placeholders"
       },
       "stats": {
+        "versionLabel": "pre-1.0",
+        "versionAria": "Version {version}, préversion",
         "downloadsLabel": "téléchargements / mois",
         "starsLabel": "étoiles GitHub"
       }
