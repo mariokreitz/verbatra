@@ -111,8 +111,9 @@
     },
     "meta": {
       "definition": "verbatra es un CLI y SDK que mantiene tus archivos de configuración regional i18n sincronizados, traduciendo solo las claves que cambiaron a través de tu elección de proveedor de IA o traducción automática.",
-      "ogImageAlt": "verbatra",
-      "tagline": "Mantén tus archivos de configuración regional sincronizados. Traduce solo lo que cambió."
+      "ogImageAlt": "verbatra mantiene tus archivos de configuración regional i18n sincronizados y traduce solo las claves que cambiaron.",
+      "tagline": "Mantén tus archivos de configuración regional sincronizados. Traduce solo lo que cambió.",
+      "title": "verbatra: mantén tus archivos i18n sincronizados, traduce solo lo que cambió"
     },
     "nav": {
       "docs": "Documentación"

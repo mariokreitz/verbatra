@@ -17,7 +17,15 @@ import {
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n";
-import { type FaqItem, faqPageLd, softwareApplicationLd } from "@/lib/structured-data";
+import {
+  type FaqItem,
+  faqPageLd,
+  type HowToStepItem,
+  howToLd,
+  softwareApplicationLd,
+} from "@/lib/structured-data";
+
+const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 
@@ -30,10 +38,19 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
   // FAQPage JSON-LD, so the two can never drift (the plan's FAQ↔JSON-LD coupling note).
   const faqItems = Object.values(t.raw("faq.items") as Record<string, FaqItem>);
 
+  // The four pipeline steps are read once here (server) so the HowTo JSON-LD stays coupled to
+  // the same catalog copy the <HowItWorks> section renders. Order follows HOW_STEP_KEYS.
+  const howStepCopy = t.raw("how.steps") as Record<string, { title: string; body: string }>;
+  const howSteps: ReadonlyArray<HowToStepItem> = HOW_STEP_KEYS.map((key) => {
+    const step = howStepCopy[key];
+    return { name: step?.title ?? "", text: step?.body ?? "" };
+  });
+
   return (
     <div className="vk-home w-full">
       <JsonLd data={softwareApplicationLd({ description: t("meta.definition"), lang: locale })} />
       <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
+      <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
       {/* Hero */}
       <section className="mx-auto max-w-5xl px-6">
@@ -71,7 +88,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       {/* Trust strip */}
       <TrustStrip />
 
-      {/* Compatibility — the marquee */}
+      {/* Compatibility - the marquee */}
       <Compatibility />
 
       {/* Showcase */}

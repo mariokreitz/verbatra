@@ -1,6 +1,6 @@
 import "../global.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { notFound } from "next/navigation";
 import Script from "next/script";
@@ -30,13 +30,14 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { lang } = await props.params;
   const t = await getTranslations({ locale: lang, namespace: "landing.meta" });
+  const title = t("title");
   const tagline = t("tagline");
   const ogImageAlt = t("ogImageAlt");
   const canonical = lang === i18n.defaultLanguage ? "/" : `/${lang}`;
 
   return {
     metadataBase: new URL(SITE_URL),
-    title: { default: "verbatra", template: "%s | verbatra" },
+    title: { default: title, template: "%s | verbatra" },
     description: tagline,
     alternates: {
       canonical,
@@ -53,18 +54,25 @@ export async function generateMetadata(props: {
       siteName: "verbatra",
       locale: lang,
       url: new URL(canonical, SITE_URL).href,
-      title: "verbatra",
+      title,
       description: tagline,
       images: [{ url: "/og-image.png", width: 1200, height: 630, alt: ogImageAlt }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "verbatra",
+      title,
       description: tagline,
       images: ["/og-image.png"],
     },
   };
 }
+
+// Dark-only: a single theme-color, no light/dark media variants. The value is the
+// --color-fd-background dark surface (#0B0B12) so the browser chrome matches the app
+// background. Next 16 reads themeColor from the `viewport` export, not from Metadata.
+export const viewport: Viewport = {
+  themeColor: "#0B0B12",
+};
 
 export default async function Layout({
   params,

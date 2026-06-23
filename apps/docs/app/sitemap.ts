@@ -26,11 +26,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     alternates: HOME_ALTERNATES,
   }));
 
-  const docs: MetadataRoute.Sitemap = source.getPages(i18n.defaultLanguage).map((page) => ({
-    url: new URL(page.url, SITE_URL).href,
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  // Alternates rely on the i18n fallbackLanguage copy so every locale resolves and does not 404.
+  const docs: MetadataRoute.Sitemap = i18n.languages.flatMap((locale) =>
+    source.getPages(locale).map((page) => {
+      const languages: Record<string, string> = {};
+      for (const altLocale of i18n.languages) {
+        const altPage = source.getPage(page.slugs, altLocale);
+        if (altPage) languages[altLocale] = new URL(altPage.url, SITE_URL).href;
+      }
+      return {
+        url: new URL(page.url, SITE_URL).href,
+        changeFrequency: "weekly",
+        priority: 0.8,
+        alternates: { languages },
+      };
+    }),
+  );
 
   return [...home, ...docs];
 }
