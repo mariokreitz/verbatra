@@ -35,13 +35,17 @@ export default defineConfig({
 
 `defineConfig` es una función auxiliar de identidad de `@verbatra/sdk`. Devuelve su argumento sin cambios y existe solo para proporcionarte inferencia de tipos y autocompletado en el editor.
 
+<Callout title="Autocompletado de modelos en TypeScript">
+Cuando escribes la configuración en TypeScript, tu editor sugiere para `options.model` los IDs de modelo conocidos del proveedor seleccionado, acotados por la `id` de proveedor que elegiste. La lista proviene del propio SDK de ese proveedor (`@anthropic-ai/sdk`, `openai`, `@google/genai`), por lo que se mantiene actualizada con la versión del SDK que tengas instalada. Es una sugerencia, no una restricción: cualquier otra cadena se sigue aceptando, incluido un modelo recién lanzado que el SDK aún no haya añadido.
+</Callout>
+
 ## Campos
 
 - **`sourceLocale`** (string): la configuración regional en la que están escritas tus cadenas de origen.
 - **`targetLocales`** (array de strings): las configuraciones regionales a las que traducir. No debe incluir `sourceLocale`.
 - **`format`** (string): uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, o `ngx-translate-json`.
 - **`files.pattern`** (string): la ruta a cada archivo de configuración regional. Debe contener el token `{locale}`, que verbatra reemplaza con cada configuración regional (por ejemplo, `locales/{locale}.json` se resuelve en `locales/de.json`).
-- **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor tiene sus propias `options`. Consulta [Proveedores](/docs/providers).
+- **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor tiene sus propias `options`, y en TypeScript el campo `model` autocompleta los IDs de modelo conocidos del proveedor elegido. Consulta [Proveedores](/docs/providers).
 - **`glossary`** (opcional, objeto): un mapa de términos de origen a términos de destino preferidos. Los proveedores de LLM (Anthropic, OpenAI, Gemini) lo reciben con la solicitud y se les indica que traten sus términos como vinculantes. DeepL no aplica este mapa de términos; registra un aviso y, en su lugar, aplica un glosario configurado por id (consulta [Proveedores](/docs/providers)).
 - **`tone`** (opcional): uno de `"formal"`, `"informal"`, o `"neutral"`. Los proveedores de LLM lo reciben y se les indica que lo respeten. DeepL lo mapea a la formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono no predeterminado no es compatible y se degrada al predeterminado con un aviso.
 

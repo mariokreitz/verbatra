@@ -20,6 +20,7 @@ export {
   type AnthropicConfig,
   anthropicConfigSchema,
 } from "./anthropic/config.js";
+export type { AnthropicModel } from "./anthropic/models.js";
 export {
   type DeepLConfig,
   deepLConfigSchema,
@@ -42,10 +43,12 @@ export {
   createGeminiProvider,
   type GeminiDeps,
 } from "./gemini/gemini-provider.js";
+export type { GeminiModel } from "./gemini/models.js";
 export {
   type OpenAiConfig,
   openAiConfigSchema,
 } from "./openai/config.js";
+export type { OpenAiModel } from "./openai/models.js";
 export {
   createOpenAiProvider,
   type OpenAiDeps,

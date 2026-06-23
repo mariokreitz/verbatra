@@ -7,6 +7,10 @@ description: Die vier Übersetzungs-Provider, ihre Optionen und der API-Schlüss
 
 verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration, mittels `id`.
 
+<Callout title="Modell-Autovervollständigung in TypeScript">
+Wenn du die Konfiguration in TypeScript mit `defineConfig` schreibst, vervollständigt das Feld `model` automatisch die bekannten Modell-IDs des gewählten Providers, die aus dem SDK des jeweiligen Providers stammen. Jeder andere String wird weiterhin akzeptiert. DeepL hat kein `model`-Feld.
+</Callout>
+
 ## Schlüssel kommen aus der Umgebung
 
 verbatra liest niemals einen API-Schlüssel aus der Konfiguration. Jeder Provider liest genau eine Umgebungsvariable:

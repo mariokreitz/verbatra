@@ -35,13 +35,17 @@ export default defineConfig({
 
 `defineConfig` ist ein Identitäts-Helfer von `@verbatra/sdk`. Er gibt sein Argument unverändert zurück und existiert nur, um dir Typinferenz und Editor-Autovervollständigung zu bieten.
 
+<Callout title="Modell-Autovervollständigung in TypeScript">
+Wenn du die Konfiguration in TypeScript schreibst, schlägt dein Editor für `options.model` die bekannten Modell-IDs des ausgewählten Providers vor, eingegrenzt durch die gewählte Provider-`id`. Die Liste stammt aus dem SDK des jeweiligen Providers (`@anthropic-ai/sdk`, `openai`, `@google/genai`), sodass sie mit der von dir installierten SDK-Version aktuell bleibt. Es ist ein Vorschlag, keine Einschränkung: Jeder andere String wird weiterhin akzeptiert, auch ein brandneues Modell, das das SDK noch nicht aufgenommen hat.
+</Callout>
+
 ## Felder
 
 - **`sourceLocale`** (String): das Locale, in dem deine Quell-Strings geschrieben sind.
 - **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten.
 - **`format`** (String): eines von `i18next-json`, `vue-i18n-json`, `next-intl-json` oder `ngx-translate-json`.
 - **`files.pattern`** (String): der Pfad zu jeder Locale-Datei. Er muss das `{locale}`-Token enthalten, das verbatra durch jedes Locale ersetzt (zum Beispiel wird `locales/{locale}.json` zu `locales/de.json`).
-- **`provider`** (Objekt): der Übersetzungs-Provider, ausgewählt durch `id`. Jeder Provider hat seine eigenen `options`. Sieh dir [Provider](/docs/providers) an.
+- **`provider`** (Objekt): der Übersetzungs-Provider, ausgewählt durch `id`. Jeder Provider hat seine eigenen `options`, und in TypeScript vervollständigt das Feld `model` automatisch die bekannten Modell-IDs des gewählten Providers. Sieh dir [Provider](/docs/providers) an.
 - **`glossary`** (optional, Objekt): eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen. Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten sie mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet diese Begriffszuordnung nicht an; es protokolliert einen Hinweis und wendet stattdessen ein Glossar an, das über die ID konfiguriert ist (sieh dir [Provider](/docs/providers) an).
 - **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und fällt mit einem Hinweis auf den Standard zurück.
 
