@@ -35,13 +35,17 @@ export default defineConfig({
 
 `defineConfig` is an identity helper from `@verbatra/sdk`. It returns its argument unchanged and exists only to give you type inference and editor autocomplete.
 
+<Callout title="Model autocomplete in TypeScript">
+When you author the config in TypeScript, your editor suggests the selected provider's known model IDs for `options.model`, narrowed by the provider `id` you chose. The list comes from that provider's own SDK (`@anthropic-ai/sdk`, `openai`, `@google/genai`), so it stays current with the SDK version you have installed. It is a suggestion, not a restriction: any other string is still accepted, including a brand-new model the SDK has not added yet.
+</Callout>
+
 ## Fields
 
 - **`sourceLocale`** (string): the locale your source strings are written in.
 - **`targetLocales`** (string array): the locales to translate into. It must not include `sourceLocale`.
 - **`format`** (string): one of `i18next-json`, `vue-i18n-json`, `next-intl-json`, or `ngx-translate-json`.
 - **`files.pattern`** (string): the path to each locale file. It must contain the `{locale}` token, which verbatra replaces with each locale (for example, `locales/{locale}.json` resolves to `locales/de.json`).
-- **`provider`** (object): the translation provider, selected by `id`. Each provider takes its own `options`. See [Providers](/docs/providers).
+- **`provider`** (object): the translation provider, selected by `id`. Each provider takes its own `options`, and in TypeScript the `model` field autocompletes the chosen provider's known model IDs. See [Providers](/docs/providers).
 - **`glossary`** (optional, object): a map of source terms to preferred target terms. The LLM providers (Anthropic, OpenAI, Gemini) receive it with the request and are instructed to treat its terms as binding. DeepL does not apply this term map; it records a notice and instead applies a glossary configured by id (see [Providers](/docs/providers)).
 - **`tone`** (optional): one of `"formal"`, `"informal"`, or `"neutral"`. The LLM providers receive it and are instructed to honor it. DeepL maps it to formality: `formal` becomes more formal, `informal` becomes less formal, and `neutral` or an absent tone is omitted. On a free-tier DeepL key, a non-default tone is not supported and degrades to the default with a notice.
 

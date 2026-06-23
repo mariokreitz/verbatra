@@ -7,6 +7,10 @@ description: Les quatre fournisseurs de traduction, leurs options et la clé API
 
 verbatra propose quatre fournisseurs derrière une seule interface : Anthropic, OpenAI et Gemini sont des modèles de langage étendus, et DeepL est un service de traduction automatique. Tu en sélectionnes un dans le bloc `provider` de ta configuration, par `id`.
 
+<Callout title="Autocomplétion des modèles en TypeScript">
+Lorsque tu écris la configuration en TypeScript avec `defineConfig`, le champ `model` complète automatiquement les identifiants de modèle connus du fournisseur choisi, issus du SDK du fournisseur lui-même. Toute autre chaîne est toujours acceptée. DeepL n'a pas de champ `model`.
+</Callout>
+
 ## Les clés proviennent de l'environnement
 
 verbatra ne lit jamais une clé API depuis la configuration. Chaque fournisseur lit exactement une variable d'environnement :
