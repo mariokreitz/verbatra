@@ -5,6 +5,6 @@ export default createI18nMiddleware(i18n);
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|llms.txt|.*\\.(?:png|ico|svg)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|llms.txt|.*\\.(?:png|ico|svg|webmanifest)$).*)",
   ],
 };
