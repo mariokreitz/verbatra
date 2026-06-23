@@ -1,6 +1,6 @@
 {
   "name": "@verbatra/ai-providers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "AI and machine-translation providers for verbatra behind one narrow interface",
