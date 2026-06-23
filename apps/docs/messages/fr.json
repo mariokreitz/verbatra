@@ -111,8 +111,9 @@
     },
     "meta": {
       "definition": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés, ne traduisant que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix.",
-      "ogImageAlt": "verbatra",
-      "tagline": "Maintiens tes fichiers de locale synchronisés. Ne traduis que ce qui a changé."
+      "ogImageAlt": "verbatra maintient tes fichiers de locale i18n synchronisés et ne traduit que les clés qui ont changé.",
+      "tagline": "Maintiens tes fichiers de locale synchronisés. Ne traduis que ce qui a changé.",
+      "title": "verbatra : garde tes fichiers de locale i18n synchronisés, traduis ce qui change"
     },
     "nav": {
       "docs": "Docs"

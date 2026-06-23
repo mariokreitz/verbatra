@@ -50,7 +50,7 @@ export function softwareApplicationLd(args: {
       "locale files",
     ],
     featureList: [
-      "Incremental translation — only new or changed keys are sent to the provider",
+      "Incremental translation - only new or changed keys are sent to the provider",
       `Translation providers: ${SUPPORTED_PROVIDERS.join(", ")}`,
       `i18n formats: ${SUPPORTED_FORMATS.join(", ")}`,
       `Frameworks: ${SUPPORTED_FRAMEWORKS.join(", ")}`,
@@ -81,6 +81,33 @@ export function faqPageLd(args: {
       "@type": "Question",
       name: item.question,
       acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  };
+}
+
+export type HowToStepItem = { name: string; text: string };
+
+/**
+ * HowTo facts mirroring the on-page "How it works" pipeline. The `steps` are read once from
+ * the active-locale catalog (`landing.how.steps.{configure,diff,translate,verifyWrite}`) by
+ * the server page and passed here in order, so the JSON-LD and the rendered steps can never
+ * drift. `inLanguage` follows the active locale.
+ */
+export function howToLd(args: {
+  name: string;
+  steps: ReadonlyArray<HowToStepItem>;
+  lang: string;
+}): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: args.name,
+    inLanguage: args.lang,
+    step: args.steps.map((item, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: item.name,
+      text: item.text,
     })),
   };
 }
