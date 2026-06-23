@@ -123,7 +123,10 @@ function computeIcu(
  * // `format` must be a SupportedFormat from core. To add a brand-new format, extend core's
  * // SupportedFormat enum first; here we reuse an existing one for illustration.
  * export function createMyJsonAdapter(): FormatAdapter {
- *   const extract = (value: string) => [...value.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[0]);
+ *   // Under noUncheckedIndexedAccess, match[0] is string | undefined, so filter to satisfy
+ *   // extractPlaceholders' readonly string[] return type (the real extractors guard the same way).
+ *   const extract = (value: string): readonly string[] =>
+ *     [...value.matchAll(/\{\{\w+\}\}/g)].map((m) => m[0]).filter((t): t is string => t !== undefined);
  *   return createJsonFileAdapter({
  *     format: "i18next-json",
  *     extractPlaceholders: extract,

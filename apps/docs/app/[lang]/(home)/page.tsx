@@ -60,7 +60,6 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
-      {/* Hero */}
       <section className="mx-auto max-w-5xl px-6">
         <div className="relative grid items-center gap-9 py-16 md:grid-cols-[1.05fr_0.95fr] md:py-24">
           <div
@@ -102,13 +101,10 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
         </div>
       </section>
 
-      {/* Trust strip */}
       <TrustStrip stars={formattedStars} downloads={formattedDownloads} />
 
-      {/* Compatibility - the marquee */}
       <Compatibility />
 
-      {/* Showcase */}
       <section className="mx-auto mt-24 max-w-5xl px-6">
         <Eyebrow>{t("showcase.eyebrow")}</Eyebrow>
         <SectionHeading>{t("showcase.heading")}</SectionHeading>
@@ -116,19 +112,14 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
         <Showcase />
       </section>
 
-      {/* How it works */}
       <HowItWorks />
 
-      {/* Why use verbatra */}
       <WhyUse />
 
-      {/* FAQ */}
       <Faq items={faqItems} />
 
-      {/* Final close */}
       <FinalClose />
 
-      {/* Footer */}
       <FullFooter />
     </div>
   );

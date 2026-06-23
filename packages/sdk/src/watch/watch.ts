@@ -174,7 +174,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   function onSettledChange(): void {
     // Reached only via the debounce timer, and stop() clears that timer before it can fire, so the
     // machine is never stopped here; no stopped-guard is needed (and adding one would be dead code).
-    debounceTimer = undefined; // the single timer has fired and is cleared
+    debounceTimer = undefined;
     if (state === "idle") {
       startRun();
     } else {

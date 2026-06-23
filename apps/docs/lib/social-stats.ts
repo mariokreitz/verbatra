@@ -74,6 +74,12 @@ async function fetchDownloads(): Promise<number | null> {
   return total >= DOWNLOADS_FLOOR ? total : null;
 }
 
+/**
+ * Resolves the landing TrustStrip stats at build time: GitHub stars and the summed last-month
+ * npm downloads for the published packages. Each stat is the raw integer when it clears its floor
+ * and the fetch/parse succeeds, otherwise `null` (the build never fails on a fetch error). Callers
+ * do the locale-aware formatting.
+ */
 export async function getSocialStats(): Promise<SocialStats> {
   const [stars, downloads] = await Promise.all([fetchStars(), fetchDownloads()]);
   return { stars, downloads };

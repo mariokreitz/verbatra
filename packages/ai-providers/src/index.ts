@@ -12,8 +12,6 @@
  * @packageDocumentation
  */
 
-// Anthropic provider
-
 export {
   type AnthropicDeps,
   createAnthropicProvider,
@@ -22,7 +20,6 @@ export {
   type AnthropicConfig,
   anthropicConfigSchema,
 } from "./anthropic/config.js";
-// DeepL provider
 export {
   type DeepLConfig,
   deepLConfigSchema,
@@ -36,9 +33,7 @@ export type {
   ProviderNotice,
   ProviderNoticeCode,
 } from "./deepl/types.js";
-// Errors
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
-// Gemini provider
 export {
   type GeminiConfig,
   geminiConfigSchema,
@@ -47,7 +42,6 @@ export {
   createGeminiProvider,
   type GeminiDeps,
 } from "./gemini/gemini-provider.js";
-// OpenAI provider
 export {
   type OpenAiConfig,
   openAiConfigSchema,
@@ -56,7 +50,6 @@ export {
   createOpenAiProvider,
   type OpenAiDeps,
 } from "./openai/openai-provider.js";
-// Provider interface and request/response shapes
 export type {
   PlaceholderExtractor,
   ProviderKind,
@@ -69,5 +62,4 @@ export type {
 // Redaction utility (a standalone scrubber for an explicit log/error sink; NOT the provider error path,
 // which is secret-free by construction)
 export { redact } from "./redaction.js";
-// Registry
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";

@@ -37,7 +37,6 @@ describe("readWorkbook: structural rejection", () => {
   });
 
   it("rejects a data sheet missing the Key/Source-hash header", async () => {
-    // Forge a workbook whose data sheet carries the wrong header labels.
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("de");
     sheet.getRow(1).getCell(1).value = "NotKey";

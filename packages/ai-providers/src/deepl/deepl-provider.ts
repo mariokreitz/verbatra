@@ -30,8 +30,9 @@ export interface DeepLDeps {
  * Create the DeepL provider. It is a machine-translation (non-LLM) provider: it implements
  * translateBatch DIRECTLY against TranslationProvider and does NOT use the shared LLM layer
  * (no LlmMechanism, no system/instruction channel, no schema). It reuses only the non-LLM
- * cross-cutting pieces: the mandatory-extractor gate, the integrity check, ProviderError,
- * and the env key reader.
+ * cross-cutting pieces: the mandatory-extractor gate ({@link validateRequest}), the integrity
+ * check, the SDK-call guard (so a raw SDK/axios error never leaks), {@link ProviderError}, and
+ * the env key reader.
  *
  * @param config - An optional pre-existing DeepL glossary id; never a key.
  * @param deps - Optional injected client and free-tier flag; when omitted, the production client is built.

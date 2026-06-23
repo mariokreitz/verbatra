@@ -43,10 +43,6 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
   );
 }
 
-// --------------------------------------------------------------------------------------
-// TrustStrip - the eyebrow + building-block chips below the hero
-// --------------------------------------------------------------------------------------
-
 // `stars` / `downloads` are already-formatted display strings (locale-grouped integers) passed in
 // from the server page, or null when the stat is hidden (below floor, or its build-time fetch
 // failed). Both null renders the strip exactly as before (building-block chips only).
@@ -192,10 +188,6 @@ function OpenAiIcon({ size = 16, className }: { size?: number; className?: strin
   );
 }
 
-// --------------------------------------------------------------------------------------
-// PackageInstall - manager switcher (client: selection state)
-// --------------------------------------------------------------------------------------
-
 const MANAGERS = [
   { id: "pnpm", label: "pnpm", command: "pnpm add -D @verbatra/cli" },
   { id: "npm", label: "npm", command: "npm i -D @verbatra/cli" },
@@ -280,10 +272,6 @@ export function PackageInstall(): ReactNode {
     </div>
   );
 }
-
-// --------------------------------------------------------------------------------------
-// Compatibility marquee
-// --------------------------------------------------------------------------------------
 
 type Chip = { name: string; sub: string };
 
@@ -429,10 +417,6 @@ export function Compatibility(): ReactNode {
   );
 }
 
-// --------------------------------------------------------------------------------------
-// HowItWorks
-// --------------------------------------------------------------------------------------
-
 type Step = { title: string; body: string };
 
 export function HowItWorks(): ReactNode {
@@ -465,10 +449,6 @@ export function HowItWorks(): ReactNode {
   );
 }
 
-// --------------------------------------------------------------------------------------
-// WhyUse
-// --------------------------------------------------------------------------------------
-
 type Reason = { title: string; body: string };
 
 export function WhyUse(): ReactNode {
@@ -498,12 +478,9 @@ export function WhyUse(): ReactNode {
   );
 }
 
-// --------------------------------------------------------------------------------------
-// Faq - accordion (client: open state). The items are passed in from the server page, which
-// reads them once from the catalog and feeds the same array to the FAQPage JSON-LD, so the
-// visible accordion and the structured data share one source and never drift.
-// --------------------------------------------------------------------------------------
-
+// The items are passed in from the server page, which reads them once from the catalog and feeds
+// the same array to the FAQPage JSON-LD, so the visible accordion and the structured data share
+// one source and never drift.
 export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const t = useTranslations("landing.faq");
   const [open, setOpen] = useState(0);
@@ -557,10 +534,6 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
     </section>
   );
 }
-
-// --------------------------------------------------------------------------------------
-// FullFooter
-// --------------------------------------------------------------------------------------
 
 // A footer link's visible text is either a catalog key under `landing.footer.cols.<col>`
 // (human labels, translated) or a literal proper noun (brand/package names, kept verbatim).
@@ -697,10 +670,6 @@ export function FullFooter(): ReactNode {
     </footer>
   );
 }
-
-// --------------------------------------------------------------------------------------
-// FinalClose - terminal mock + CTA
-// --------------------------------------------------------------------------------------
 
 export function FinalClose(): ReactNode {
   const t = useTranslations("landing.finalClose");
