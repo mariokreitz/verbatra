@@ -1,7 +1,7 @@
 import type { AnthropicModel, GeminiModel, OpenAiModel } from "@verbatra/ai-providers";
 import { describe, expect, it } from "vitest";
 import { baseConfig } from "../test-support.js";
-import type { AuthoringConfig } from "./authoring.js";
+import type { AuthoringConfig, AuthoringConfigFor } from "./authoring.js";
 import { defineConfig } from "./define-config.js";
 import { loadConfig } from "./load-config.js";
 
@@ -26,16 +26,13 @@ type AnthropicModelField = ModelOf<"anthropic">;
 type OpenAiModelField = ModelOf<"openai">;
 type GeminiModelField = ModelOf<"gemini">;
 
-// The model field as seen at the `defineConfig` call site once the generic collapses for
-// a literal provider id. This is the property that makes editors with weaker
+// The model field of one provider's concrete authoring config (the parameter type of that
+// provider's `defineConfig` overload). This is the property that makes editors with weaker
 // discriminated-union narrowing (for example JetBrains/WebStorm) offer only the selected
-// provider's models: the argument type is one concrete variant, so `options.model` is
-// never a cross-provider union and there is no nested union for the editor to narrow.
-type CollapsedModelOf<Id extends "anthropic" | "openai" | "gemini"> = Parameters<
-  typeof defineConfig<Id>
->[0]["provider"] extends { options: { model: infer M } }
-  ? M
-  : never;
+// provider's models: each overload's argument is one concrete variant, so `options.model`
+// is never a cross-provider union and there is no nested union for the editor to narrow.
+type CollapsedModelOf<Id extends "anthropic" | "openai" | "gemini"> =
+  AuthoringConfigFor<Id>["provider"] extends { options: { model: infer M } } ? M : never;
 
 type CollapsedAnthropic = CollapsedModelOf<"anthropic">;
 type CollapsedOpenAi = CollapsedModelOf<"openai">;

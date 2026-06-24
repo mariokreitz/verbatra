@@ -1,5 +1,4 @@
-import type { AuthoringConfigFor } from "./authoring.js";
-import type { ProviderId } from "./provider-config.js";
+import type { AuthoringConfig, AuthoringConfigFor } from "./authoring.js";
 import type { VerbatraConfig } from "./schema.js";
 
 /**
@@ -7,32 +6,32 @@ import type { VerbatraConfig } from "./schema.js";
  * argument unchanged; its only purpose is to give the author full type inference and
  * editor autocomplete on the config object.
  *
- * The function is generic over the provider id `TId`. The parameter intersects
- * `{ provider: { id: TId } }` so `provider.id` is a DIRECT inference site: TypeScript
- * infers `TId` straight from the `provider.id` literal at the call site (inferring it
- * through {@link AuthoringConfigFor} alone fails, because `TId` only appears there in an
- * indexed-access position, and the generic would silently fall back to the full-union
- * default). Inferring `TId` collapses the argument type to the single authoring variant
- * for that provider. As a
- * result `provider.options.model` is restricted to that one provider's known model
- * literals, not a union across providers: completions offer only the selected provider's
- * models, and a foreign or unknown model (for example a Claude model under `id: "gemini"`)
- * is a type error. The collapse also removes the nested discriminated-union narrowing that
- * some editors (for example the JetBrains/WebStorm completion engine) do not perform, so
- * the restriction holds editor-side and is not dependent on tsserver-grade union narrowing.
- * With `provider.id` absent, `TId` defaults to {@link ProviderId} and the argument is the
- * full authoring union.
+ * It is declared as one overload per provider id rather than a single generic. Each
+ * overload's parameter is the concrete single-provider authoring config
+ * ({@link AuthoringConfigFor}), so `provider.options.model` is already that one provider's
+ * known model literals, with no union across providers and no generic for an editor to
+ * infer. Overload resolution selects the matching overload from the `provider.id` literal,
+ * so the editor offers only the selected provider's models and a foreign or unknown model
+ * (for example a Claude model under `id: "gemini"`) is a type error. This is deliberately
+ * overload-based: a generic whose type parameter is inferred from a nested `provider.id`
+ * collapses correctly in tsserver but not in editors with weaker inference (notably the
+ * JetBrains/WebStorm completion engine), which then fall back to the full union and offer
+ * every provider's models. Concrete per-provider signatures avoid that inference step.
+ *
+ * The final overload accepts the full {@link AuthoringConfig} union, so a config whose
+ * provider id is not a single literal (for example a value typed as the union) still
+ * type-checks.
  *
  * The return type is the runtime {@link VerbatraConfig}. The model restriction is a static
  * authoring constraint, not a runtime one: `loadConfig` still validates `model` as
  * `z.string().min(1)`, so a model the installed provider SDK does not yet list is flagged
  * in the editor but still runs.
  */
-export function defineConfig<TId extends ProviderId = ProviderId>(
-  config: AuthoringConfigFor<TId> & { provider: { id: TId } },
-): VerbatraConfig {
-  // The argument is an authoring view of a VerbatraConfig (its model literals are a
-  // subtype of `string`); the cast restates that to the caller. TypeScript cannot prove
-  // the generic `& { provider: { id: TId } }` intersection assignable on its own.
-  return config as VerbatraConfig;
+export function defineConfig(config: AuthoringConfigFor<"anthropic">): VerbatraConfig;
+export function defineConfig(config: AuthoringConfigFor<"openai">): VerbatraConfig;
+export function defineConfig(config: AuthoringConfigFor<"gemini">): VerbatraConfig;
+export function defineConfig(config: AuthoringConfigFor<"deepl">): VerbatraConfig;
+export function defineConfig(config: AuthoringConfig): VerbatraConfig;
+export function defineConfig(config: AuthoringConfig): VerbatraConfig {
+  return config;
 }

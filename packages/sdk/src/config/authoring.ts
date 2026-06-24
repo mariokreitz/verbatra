@@ -41,16 +41,17 @@ type AuthoringProviderVariant = {
  * The authoring view of the whole config for a given provider id. It is structurally a
  * {@link VerbatraConfig} whose `provider` is the single authoring variant for `TId`.
  *
- * When `TId` is a literal (inferred from `provider.id` at the call site), `provider`
- * collapses to one concrete variant, so `options.model` is that provider's known model
- * literals alone and not a union across providers. That collapse, together with the closed
- * {@link KnownModels} set, is what makes a foreign model (for example a Claude model under
- * `id: "gemini"`) a type error and keeps the editor offering only the selected provider's
- * models, even in editors with weaker discriminated-union narrowing (for example the
- * JetBrains/WebStorm completion engine): there is no nested union to narrow. When `TId`
- * defaults to `ProviderId`, `provider` is the full authoring union. Every value assignable
- * here is assignable to {@link VerbatraConfig}, because a model literal is a subtype of
- * `string`; `defineConfig` returns the runtime {@link VerbatraConfig}.
+ * When `TId` is a single provider literal, `provider` is one concrete variant, so
+ * `options.model` is that provider's known model literals alone and not a union across
+ * providers. `defineConfig` declares one overload per provider parameterized on this type
+ * (`AuthoringConfigFor<"openai">` and so on), so overload resolution picks the variant from
+ * the `provider.id` literal. That, together with the closed {@link KnownModels} set, makes a
+ * foreign model (for example a Claude model under `id: "gemini"`) a type error and aims to
+ * keep editors with weaker discriminated-union narrowing (for example the JetBrains/WebStorm
+ * completion engine) offering only the selected provider's models, since each overload's
+ * parameter is already a single variant with no nested union to narrow. When `TId` defaults
+ * to `ProviderId`, `provider` is the full authoring union. Every value assignable here is
+ * assignable to {@link VerbatraConfig}, because a model literal is a subtype of `string`.
  */
 export type AuthoringConfigFor<TId extends ProviderId = ProviderId> = Omit<
   VerbatraConfig,
