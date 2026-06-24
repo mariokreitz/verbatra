@@ -26,6 +26,21 @@ type AnthropicModelField = ModelOf<"anthropic">;
 type OpenAiModelField = ModelOf<"openai">;
 type GeminiModelField = ModelOf<"gemini">;
 
+// The model field as seen at the `defineConfig` call site once the generic collapses for
+// a literal provider id. This is the property that makes editors with weaker
+// discriminated-union narrowing (for example JetBrains/WebStorm) offer only the selected
+// provider's models: the argument type is one concrete variant, so `options.model` is
+// never a cross-provider union and there is no nested union for the editor to narrow.
+type CollapsedModelOf<Id extends "anthropic" | "openai" | "gemini"> = Parameters<
+  typeof defineConfig<Id>
+>[0]["provider"] extends { options: { model: infer M } }
+  ? M
+  : never;
+
+type CollapsedAnthropic = CollapsedModelOf<"anthropic">;
+type CollapsedOpenAi = CollapsedModelOf<"openai">;
+type CollapsedGemini = CollapsedModelOf<"gemini">;
+
 describe("provider model authoring suggestions (type-level)", () => {
   it("offers each provider's known SDK model literal as an assignable completion", () => {
     type Assertions = [
@@ -76,6 +91,45 @@ describe("provider model authoring suggestions (type-level)", () => {
     ];
     const assertions: Assertions = [true, true, true];
     expect(assertions).toEqual([true, true, true]);
+  });
+
+  it("collapses defineConfig to the selected provider's model union for a literal id", () => {
+    // The collapsed call-site field carries exactly the matching SDK type's literals (the
+    // generic selects one variant) and no foreign provider's literals. This locks in the
+    // editor-robust per-provider completion: there is no cross-provider union to narrow.
+    type Assertions = [
+      Expect<Extends<LiteralMembers<CollapsedOpenAi>, LiteralMembers<OpenAiModel>>>,
+      Expect<Extends<LiteralMembers<OpenAiModel>, LiteralMembers<CollapsedOpenAi>>>,
+      Expect<Extends<LiteralMembers<CollapsedAnthropic>, LiteralMembers<AnthropicModel>>>,
+      Expect<Extends<LiteralMembers<AnthropicModel>, LiteralMembers<CollapsedAnthropic>>>,
+      Expect<Extends<LiteralMembers<CollapsedGemini>, LiteralMembers<GeminiModel>>>,
+      Expect<Extends<LiteralMembers<GeminiModel>, LiteralMembers<CollapsedGemini>>>,
+      // No foreign-provider literals leak into a collapsed field.
+      Expect<Extends<Extends<"claude-opus-4-8", LiteralMembers<CollapsedOpenAi>>, false>>,
+      Expect<Extends<Extends<"gemini-2.5-flash", LiteralMembers<CollapsedOpenAi>>, false>>,
+      Expect<Extends<Extends<"gpt-4o", LiteralMembers<CollapsedAnthropic>>, false>>,
+      Expect<Extends<Extends<"gpt-4o", LiteralMembers<CollapsedGemini>>, false>>,
+      // The open escape hatch survives the collapse for every LLM provider.
+      Expect<Extends<"some-future-model-2099", CollapsedOpenAi>>,
+      Expect<Extends<"some-future-model-2099", CollapsedAnthropic>>,
+      Expect<Extends<"some-future-model-2099", CollapsedGemini>>,
+    ];
+    const assertions: Assertions = [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ];
+    expect(assertions).toEqual(assertions.map(() => true));
   });
 
   it("defineConfig accepts a known model ID and returns the runtime config unchanged", () => {
