@@ -26,6 +26,10 @@ Le format indique à verbatra deux choses dont il a besoin pour une exécution s
 
 verbatra plafonne la taille d'entrée et la profondeur d'imbrication à la lecture, et résiste à un fichier qui change en dessous de lui. Il écrit de façon atomique : il écrit dans un fichier temporaire, puis le renomme en place, de sorte qu'une écriture interrompue ne laisse jamais un fichier de locale à moitié terminé. Lorsque verbatra ne peut pas traiter un fichier, il lève une erreur structurée et sans secret plutôt qu'une erreur brute, par exemple pour un JSON invalide, une structure trop profonde, ou, pour ngx-translate uniquement, un fichier qui mélange des clés pointées plates avec des objets imbriqués.
 
+## Clés pointées
+
+Pour i18next, vue-i18n et next-intl, une feuille pointée littérale (une clé telle que `"foo.bar"` utilisée comme une seule feuille) fait un aller-retour sans perte : verbatra la lit et la réécrit en préservant sa forme sur le disque, sans la ré-imbriquer en `foo` puis `bar`. Les vrais chemins imbriqués restent imbriqués. Le seul cas qui échoue encore par conception est une véritable collision, où un fichier exprime le même chemin effectif à la fois comme une feuille pointée littérale et comme un vrai chemin imbriqué (par exemple `"foo.bar"` aux côtés de `"foo": { "bar": ... }`) ; cette exécution échoue avec `INVALID_STRUCTURE` plutôt que de deviner ou de corrompre les données. ngx-translate reste inchangé : une clé pointée y désigne un chemin imbriqué, donc sa gestion existante plat-contre-imbriqué s'applique et un fichier qui mélange des clés pointées plates avec des objets imbriqués échoue toujours.
+
 ## Choisir un format
 
 Fais correspondre le format à ton framework : `i18next-json` pour i18next, `vue-i18n-json` pour vue-i18n, `next-intl-json` pour next-intl, et `ngx-translate-json` pour ngx-translate. XLIFF, YAML et ARB sont prévus pour des versions ultérieures. Voir [Fichier de configuration](/docs/config-file) pour savoir où se situe `format` dans la configuration.

@@ -26,6 +26,10 @@ El formato le dice a verbatra dos cosas que necesita para una ejecución segura.
 
 verbatra limita el tamaño de entrada y la profundidad de anidamiento al leer, y resiste que un archivo cambie por debajo de ella. Escribe de forma atómica: escribe en un archivo temporal y luego lo renombra en su lugar, de modo que una escritura interrumpida nunca deja un archivo de configuración regional a medio terminar. Cuando verbatra no puede manejar un archivo, genera un error estructurado y sin secretos en lugar de uno en bruto, por ejemplo ante JSON no válido, una estructura demasiado profunda o, solo para ngx-translate, un archivo que mezcla claves planas con puntos con objetos anidados.
 
+## Claves con puntos
+
+Para i18next, vue-i18n y next-intl, una hoja literal con puntos (una clave como `"foo.bar"` usada como una sola hoja) hace un ida y vuelta sin pérdidas: verbatra la lee y la vuelve a escribir conservando su forma en disco, sin re-anidarla en `foo` y luego `bar`. Las rutas anidadas reales permanecen anidadas. El único caso que sigue fallando por diseño es una colisión genuina, donde un archivo expresa la misma ruta efectiva tanto como una hoja literal con puntos como una ruta anidada real (por ejemplo, `"foo.bar"` junto a `"foo": { "bar": ... }`); esa ejecución falla con `INVALID_STRUCTURE` en lugar de adivinar o corromper los datos. ngx-translate no cambia: una clave con puntos allí denota una ruta anidada, así que se aplica su manejo existente de plano frente a anidado y un archivo que mezcla claves planas con puntos con objetos anidados sigue fallando.
+
 ## Elegir un formato
 
 Ajusta el formato a tu framework: `i18next-json` para i18next, `vue-i18n-json` para vue-i18n, `next-intl-json` para next-intl y `ngx-translate-json` para ngx-translate. XLIFF, YAML y ARB están planeados para versiones posteriores. Consulta [Archivo de configuración](/docs/config-file) para ver dónde se ubica `format` en la configuración.

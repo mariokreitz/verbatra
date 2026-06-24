@@ -43,7 +43,9 @@ clé source dans l'un de quatre paniers :
 - les clés orphelines présentes dans la cible mais qui ne sont plus dans la source.
 
 Seules les clés nouvelles et modifiées sont candidates à la traduction. Les clés inchangées sont laissées intactes, et
-les clés orphelines sont signalées mais pas supprimées. Toute candidate marquée ICU invalide est également mise de côté.
+les clés orphelines sont signalées et, par défaut, laissées en place. Pour opter pour leur suppression, passe `--prune`
+(ou définis `prune: true` dans la configuration) : verbatra supprime alors exactement les clés orphelines du fichier
+cible et du verrouillage, et rien d'autre. Toute candidate marquée ICU invalide est également mise de côté.
 C'est ce qui maintient une exécution incrémentielle : un fournisseur n'est appelé que pour les chaînes qui ont réellement changé.
 
 ### Appel du fournisseur
@@ -85,10 +87,13 @@ que d'être silencieusement écrasé.
 
 Une exécution renvoie un résumé pour toutes les locales cibles : les locales qui ont réussi, celles qui ont échoué,
 et une ventilation par locale. Chaque entrée de locale signale les clés traduites, les clés laissées inchangées,
-les clés orphelines, toute clé source ignorée pour ICU invalide, toute traduction retenue pour une
-non-concordance d'espace réservé, et toute notification du fournisseur (telles que les cas DeepL ci-dessus). Une exécution à blanc produit le
-même type de résumé, listant les clés qui seraient traduites, sans appeler de fournisseur ni écrire
-quoi que ce soit.
+les clés orphelines, les clés orphelines réellement élaguées lors de cette exécution (vide sauf si l'élagage est activé), toute clé source
+ignorée pour ICU invalide, toute traduction retenue pour une non-concordance d'espace réservé, toute forme plurielle
+générée lors de cette exécution (vide sauf si la génération de pluriels est activée), et toute notification. Les notifications couvrent à la fois les
+notifications du fournisseur (telles que les cas DeepL ci-dessus) et les notifications du SDK, y compris un avertissement de catégorie de pluriel
+(code `PLURAL_CATEGORIES_INCOMPLETE`) lorsqu'une langue cible a besoin de plus de catégories de pluriel CLDR que
+la source n'en fournit. Une exécution à blanc produit le même type de résumé, listant les clés qui seraient traduites,
+sans appeler de fournisseur ni écrire quoi que ce soit.
 
 ## Erreurs
 

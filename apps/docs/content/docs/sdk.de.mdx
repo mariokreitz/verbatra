@@ -32,9 +32,12 @@ Das Paket exportiert sechs Funktionen und die Typen, die ein Aufrufer berührt.
   Konfiguration. `LoadConfigOptions` akzeptiert `cwd`, einen expliziten `configPath` oder ein In-Memory-
   `configOverride`. Es wirft einen `SdkError`, wenn keine Konfiguration gefunden wird oder die Validierung fehlschlägt.
 - `translate(input: TranslateInput): Promise<RunSummary>` führt den Lese-, Vergleichs-, Übersetzungs- und Schreibablauf
-  über jedes Ziel-Locale aus. `TranslateInput` ist `{ config, cwd?, dryRun? }`. Es wird zu einer
-  `RunSummary` aufgelöst; Probleme des gesamten Laufs werfen einen `SdkError`, während Ergebnisse pro Locale Daten in der
-  Zusammenfassung sind.
+  über jedes Ziel-Locale aus. `TranslateInput` ist `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+  `prune` (standardmäßig aus) entfernt verwaiste Schlüssel aus der geschriebenen Datei und der Lock-Datei; `generatePlurals`
+  (standardmäßig aus) synthetisiert die CLDR-Pluralformen, die eine Zielsprache benötigt, die Quelle aber nicht liefert
+  (nur i18next-JSON mit einem LLM-Provider). Jede Flag pro Lauf überschreibt, wenn gesetzt, die entsprechende Konfigurations-
+  Option für diesen Lauf. Es wird zu einer `RunSummary` aufgelöst; Probleme des gesamten Laufs werfen einen `SdkError`, während
+  Ergebnisse pro Locale Daten in der Zusammenfassung sind.
 - `watch(input: WatchInput): Promise<WatchController>` überwacht die Quelldatei und läuft bei jeder
   entprellten Änderung erneut. `WatchInput` ist `{ config, cwd?, debounceMs?, onRun }`, wobei `onRun` ein
   `WatchRunResult` pro Lauf erhält. Der zurückgegebene `WatchController` hat eine einzige Methode, `stop()`, die den
@@ -65,19 +68,26 @@ interface LocaleSummary {
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   unchanged: string[];           // keys already up to date
-  orphaned: string[];            // target keys with no matching source key
+  orphaned: string[];            // target keys with no matching source key (reported regardless of pruning)
+  pruned: string[];              // orphaned keys removed this run; empty unless pruning is on (subset of orphaned)
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
   integrityMismatches: string[]; // translations withheld for a placeholder mismatch
-  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
+  notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
   error?: { code: string; message: string }; // present only when status is "failed"
 }
+
+// A notice is either a provider-emitted notice or an SDK-emitted one.
+type LocaleNotice = ProviderNotice | SdkNotice;
 
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Hinweise sind pro Locale, auf `LocaleSummary.notices`. Es gibt keine Hinweisliste auf oberster Ebene auf
+Hinweise sind pro Locale, auf `LocaleSummary.notices`, und decken sowohl Provider-Hinweise (zum Beispiel eine
+sanfte DeepL-Degradierung) als auch SDK-Hinweise ab (zum Beispiel eine Zielsprache, die mehr CLDR-Pluralkategorien
+benötigt, als die Quelle liefert, Code `PLURAL_CATEGORIES_INCOMPLETE`). Es gibt keine Hinweisliste auf oberster Ebene auf
 `RunSummary`.
 
 `SdkError` ist der einzige Fehlertyp, den das SDK für Fehler des gesamten Laufs wirft. Er trägt einen stabilen `code`
@@ -122,7 +132,7 @@ export default defineConfig({
 ## Eine einmalige Übersetzung ausführen
 
 `translate` wird zur Lauf-Zusammenfassung aufgelöst. Lies `succeeded` und `failed` für das Wesentliche und durchlaufe
-`locales` für das Detail, einschließlich aller Provider-Hinweise.
+`locales` für das Detail, einschließlich aller Hinweise (Provider oder SDK).
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -139,7 +149,10 @@ for (const locale of summary.locales) {
 }
 ```
 
-Übergib `dryRun: true`, um zu lesen und zu vergleichen, ohne einen Provider aufzurufen oder Dateien zu schreiben.
+Übergib `dryRun: true`, um zu lesen und zu vergleichen, ohne einen Provider aufzurufen oder Dateien zu schreiben. Übergib
+`prune: true`, um verwaiste Schlüssel zu entfernen, oder `generatePlurals: true`, um fehlende Pluralkategorien zu
+synthetisieren (nur i18next-JSON mit einem LLM-Provider); jede Option überschreibt die entsprechende Konfigurations-Option
+für diesen Lauf.
 
 ## Watch-Modus
 

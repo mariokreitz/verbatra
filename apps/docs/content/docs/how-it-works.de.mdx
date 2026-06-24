@@ -43,8 +43,10 @@ Quell-Schlüssel in einen von vier Behältern:
 - verwaiste Schlüssel, die im Ziel vorhanden sind, aber nicht mehr in der Quelle.
 
 Nur die neuen und geänderten Schlüssel kommen für eine Übersetzung in Frage. Unveränderte Schlüssel bleiben unberührt, und
-verwaiste Schlüssel werden gemeldet, aber nicht entfernt. Jeder Kandidat, der als ungültiges ICU markiert ist, wird ebenfalls beiseitegelegt.
-Das ist es, was einen Lauf inkrementell hält: ein Provider wird nur für die Strings aufgerufen, die sich tatsächlich geändert haben.
+verwaiste Schlüssel werden gemeldet und standardmäßig an Ort und Stelle belassen. Um ihr Entfernen zu aktivieren, übergib `--prune`
+(oder setze `prune: true` in der Konfiguration): verbatra entfernt dann genau die verwaisten Schlüssel aus der Ziel-Datei und der
+Lock-Datei, und sonst nichts. Jeder Kandidat, der als ungültiges ICU markiert ist, wird ebenfalls beiseitegelegt. Das ist es, was
+einen Lauf inkrementell hält: ein Provider wird nur für die Strings aufgerufen, die sich tatsächlich geändert haben.
 
 ### Aufruf des Providers
 
@@ -85,10 +87,13 @@ stillschweigend überschrieben zu werden.
 
 Ein Lauf gibt eine Zusammenfassung über alle Ziel-Locales zurück: die Locales, die erfolgreich waren, die fehlgeschlagenen,
 und eine Aufschlüsselung pro Locale. Jeder Locale-Eintrag meldet die übersetzten Schlüssel, die unverändert gelassenen Schlüssel,
-die verwaisten Schlüssel, alle Quell-Schlüssel, die wegen ungültigem ICU übersprungen wurden, alle Übersetzungen, die wegen eines
-Platzhalter-Konflikts zurückgehalten wurden, und alle Provider-Hinweise (wie die DeepL-Fälle oben). Ein Dry-Run erzeugt die
-gleiche Form der Zusammenfassung und listet die Schlüssel auf, die übersetzt würden, ohne einen Provider aufzurufen oder etwas zu
-schreiben.
+die verwaisten Schlüssel, die in diesem Lauf tatsächlich entfernten verwaisten Schlüssel (leer, sofern Pruning nicht aktiviert ist),
+alle Quell-Schlüssel, die wegen ungültigem ICU übersprungen wurden, alle Übersetzungen, die wegen eines Platzhalter-Konflikts
+zurückgehalten wurden, alle in diesem Lauf generierten Pluralformen (leer, sofern die Plural-Generierung nicht aktiviert ist), und
+alle Hinweise. Hinweise decken sowohl Provider-Hinweise (wie die DeepL-Fälle oben) als auch SDK-Hinweise ab, einschließlich einer
+Pluralkategorie-Warnung (Code `PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr CLDR-Pluralkategorien benötigt, als die
+Quelle liefert. Ein Dry-Run erzeugt die gleiche Form der Zusammenfassung und listet die Schlüssel auf, die übersetzt würden, ohne
+einen Provider aufzurufen oder etwas zu schreiben.
 
 ## Fehler
 

@@ -30,7 +30,7 @@ verbatra lee el archivo de destino existente (un archivo ausente se trata como v
 - claves sin cambios que ya están actualizadas,
 - claves huérfanas presentes en el destino pero que ya no están en el origen.
 
-Solo las claves nuevas y modificadas son candidatas para la traducción. Las claves sin cambios se dejan intactas, y las claves huérfanas se informan pero no se eliminan. Cualquier candidata marcada como ICU no válido también se deja de lado. Esto es lo que mantiene una ejecución incremental: se llama a un proveedor solo para las cadenas que realmente cambiaron.
+Solo las claves nuevas y modificadas son candidatas para la traducción. Las claves sin cambios se dejan intactas, y las claves huérfanas se informan y, por defecto, se dejan en su lugar. Para optar por eliminarlas, pasa `--prune` (o establece `prune: true` en la configuración): verbatra elimina entonces exactamente las claves huérfanas del archivo de destino y del bloqueo, y nada más. Cualquier candidata marcada como ICU no válido también se deja de lado. Esto es lo que mantiene una ejecución incremental: se llama a un proveedor solo para las cadenas que realmente cambiaron.
 
 ### Llamar al proveedor
 
@@ -51,7 +51,7 @@ verbatra mantiene un archivo de bloqueo confirmado (`verbatra.lock.json`) que re
 
 ## El resumen de la ejecución
 
-Una ejecución devuelve un resumen de todas las configuraciones regionales de destino: las configuraciones regionales que tuvieron éxito, las que fallaron y un desglose por configuración regional. Cada entrada de configuración regional informa las claves traducidas, las claves sin cambios, las claves huérfanas, cualquier clave de origen omitida por ICU no válido, cualquier traducción retenida por una discrepancia de marcador de posición y cualquier aviso del proveedor (como los casos de DeepL anteriores). Una ejecución de prueba produce la misma forma de resumen, listando las claves que se traducirían, sin llamar a un proveedor ni escribir nada.
+Una ejecución devuelve un resumen de todas las configuraciones regionales de destino: las configuraciones regionales que tuvieron éxito, las que fallaron y un desglose por configuración regional. Cada entrada de configuración regional informa las claves traducidas, las claves sin cambios, las claves huérfanas, las claves huérfanas realmente podadas en esta ejecución (vacías a menos que la poda esté activada), cualquier clave de origen omitida por ICU no válido, cualquier traducción retenida por una discrepancia de marcador de posición, cualquier forma plural generada en esta ejecución (vacías a menos que la generación de plurales esté activada) y cualquier aviso. Los avisos cubren tanto los avisos del proveedor (como los casos de DeepL anteriores) como los avisos del SDK, incluida una advertencia de categoría plural (código `PLURAL_CATEGORIES_INCOMPLETE`) cuando una lengua de destino necesita más categorías plurales CLDR de las que aporta el origen. Una ejecución de prueba produce la misma forma de resumen, listando las claves que se traducirían, sin llamar a un proveedor ni escribir nada.
 
 ## Errores
 

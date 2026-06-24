@@ -26,6 +26,10 @@ Das Format teilt verbatra zwei Dinge mit, die es für einen sicheren Lauf benöt
 
 verbatra begrenzt beim Lesen die Eingabegröße und die Verschachtelungstiefe und widersteht einer Datei, die sich darunter ändert. Es schreibt atomar: Es schreibt in eine temporäre Datei und benennt sie dann an ihren Platz um, sodass ein unterbrochener Schreibvorgang niemals eine halbfertige Locale-Datei hinterlässt. Wenn verbatra eine Datei nicht verarbeiten kann, gibt es einen strukturierten, geheimnis-freien Fehler aus statt eines rohen, zum Beispiel bei ungültigem JSON, einer zu tiefen Struktur oder, nur für ngx-translate, einer Datei, die flache gepunktete Schlüssel mit verschachtelten Objekten mischt.
 
+## Gepunktete Schlüssel
+
+Für i18next, vue-i18n und next-intl wird ein wörtliches gepunktetes Blatt (ein Schlüssel wie `"foo.bar"`, der als ein einzelnes Blatt verwendet wird) verlustfrei hin- und zurückgeschrieben: verbatra liest ihn und schreibt ihn mit seiner On-Disk-Form unverändert zurück, statt ihn erneut in `foo` und dann `bar` zu verschachteln. Echte verschachtelte Pfade bleiben verschachtelt. Der eine Fall, der weiterhin bewusst fehlschlägt, ist eine echte Kollision, bei der eine Datei denselben effektiven Pfad sowohl als wörtliches gepunktetes Blatt als auch als echten verschachtelten Pfad ausdrückt (zum Beispiel `"foo.bar"` neben `"foo": { "bar": ... }`); dieser Lauf schlägt mit `INVALID_STRUCTURE` fehl, statt zu raten oder Daten zu beschädigen. ngx-translate ist unverändert: ein gepunkteter Schlüssel bezeichnet dort einen verschachtelten Pfad, sodass seine bestehende Flach-gegen-verschachtelt-Behandlung gilt und eine Datei, die flache gepunktete Schlüssel mit verschachtelten Objekten mischt, weiterhin fehlschlägt.
+
 ## Ein Format wählen
 
 Gleiche das Format mit deinem Framework ab: `i18next-json` für i18next, `vue-i18n-json` für vue-i18n, `next-intl-json` für next-intl und `ngx-translate-json` für ngx-translate. XLIFF, YAML und ARB sind für spätere Veröffentlichungen geplant. Siehe [Konfigurationsdatei](/docs/config-file), wo `format` in der Konfiguration sitzt.
