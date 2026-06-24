@@ -43,8 +43,10 @@ source key into one of four buckets:
 - orphaned keys present in the target but no longer in the source.
 
 Only the new and changed keys are candidates for translation. Unchanged keys are left alone, and
-orphaned keys are reported but not removed. Any candidate flagged invalid ICU is set aside as well.
-This is what keeps a run incremental: a provider is called only for the strings that actually changed.
+orphaned keys are reported and, by default, left in place. To opt in to removing them, pass `--prune`
+(or set `prune: true` in the config): verbatra then removes exactly the orphaned keys from the target
+file and the lock, and nothing else. Any candidate flagged invalid ICU is set aside as well. This is
+what keeps a run incremental: a provider is called only for the strings that actually changed.
 
 ### Calling the provider
 
@@ -85,10 +87,13 @@ than being silently overwritten.
 
 A run returns a summary across all target locales: the locales that succeeded, the ones that failed,
 and a per-locale breakdown. Each locale entry reports the keys translated, the keys left unchanged,
-the orphaned keys, any source keys skipped for invalid ICU, any translations withheld for a
-placeholder mismatch, and any provider notices (such as the DeepL cases above). A dry run produces the
-same summary shape, listing the keys that would be translated, without calling a provider or writing
-anything.
+the orphaned keys, the orphaned keys actually pruned this run (empty unless pruning is on), any source
+keys skipped for invalid ICU, any translations withheld for a placeholder mismatch, any plural forms
+generated this run (empty unless plural generation is on), and any notices. Notices cover both
+provider notices (such as the DeepL cases above) and SDK notices, including a plural-category warning
+(code `PLURAL_CATEGORIES_INCOMPLETE`) when a target language needs more CLDR plural categories than
+the source supplies. A dry run produces the same summary shape, listing the keys that would be
+translated, without calling a provider or writing anything.
 
 ## Errors
 

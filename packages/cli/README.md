@@ -45,6 +45,9 @@ export ANTHROPIC_API_KEY=your-key-here
 
 # Translate every target locale once
 verbatra translate
+
+# Also remove orphaned keys (present in a target file, absent from source)
+verbatra translate --prune
 ```
 
 ## Commands
@@ -60,6 +63,19 @@ verbatra ships five commands: `init` (scaffold a config), `translate` (translate
 - [Manual translation workflow](https://verbatra.kreitz-webdev.de/docs/manual-translation)
 
 Run `verbatra <command> --help` for the same reference at the terminal.
+
+## Exit codes
+
+The CLI returns codes you can branch on in CI and scripts:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success (also `--help` and `--version`). |
+| `1` | `translate` or `import` finished, but at least one locale failed. |
+| `2` | Could not run: a whole-run error or a usage error. |
+| `130` | `watch` was force-stopped by a second interrupt (a single interrupt stops gracefully and exits `0`). |
+
+A `watch` per-run failure is reported as an output record, not an exit code.
 
 ## API keys
 

@@ -31,6 +31,8 @@ It ships in two packages. `@verbatra/cli` gives you a `verbatra` command for the
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
 - **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run.
 - **Placeholder integrity.** Every translation is checked after the fact; a result that drops or alters a placeholder is withheld and reported rather than written.
+- **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape. A genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path, errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. See the [Formats page](https://verbatra.kreitz-webdev.de/docs/formats) for the full behavior.
+- **Opt-in cleanup and plural generation.** Orphan pruning (`--prune` / `prune`) and CLDR plural-category generation (`generatePlurals`) are off by default and documented on the [Configuration page](https://verbatra.kreitz-webdev.de/docs/config-file).
 - **Keys stay in your environment.** API keys are read only from environment variables, never from the config.
 
 ## Requirements
@@ -118,7 +120,7 @@ Each provider reads its API key from one environment variable:
 | Command | What it does | Common flags |
 | --- | --- | --- |
 | `verbatra init` | Create a verbatra config and .env example for this project | `--provider <id>`, `--source`, `--targets`, `--path`, `--yes`, `--force` |
-| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--json` |
+| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--prune`, `--json` |
 | `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--json` |
 | `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |

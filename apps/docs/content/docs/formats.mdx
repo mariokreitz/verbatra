@@ -26,6 +26,10 @@ The format tells verbatra two things it needs for a safe run. First, the placeho
 
 verbatra caps input size and nesting depth on read, and resists a file changing underneath it. It writes atomically: it writes to a temporary file, then renames it into place, so an interrupted write never leaves a half-finished locale file. When verbatra cannot handle a file, it raises a structured, secret-free error rather than a raw one, for example on invalid JSON, a structure too deep, or, for ngx-translate only, a file that mixes flat dotted keys with nested objects.
 
+## Dotted keys
+
+For i18next, vue-i18n, and next-intl, a literal dotted leaf (a key such as `"foo.bar"` used as a single leaf) round-trips losslessly: verbatra reads it and writes it back with its on-disk shape preserved, not re-nested into `foo` then `bar`. Real nested paths stay nested. The one case that still fails by design is a genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path (for example `"foo.bar"` alongside `"foo": { "bar": ... }`); that run errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. ngx-translate is unchanged: a dotted key there denotes a nested path, so its existing flat-vs-nested handling applies and a file that mixes flat dotted keys with nested objects still errors.
+
 ## Choosing a format
 
 Match the format to your framework: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, and `ngx-translate-json` for ngx-translate. XLIFF, YAML, and ARB are planned for later releases. See [Config file](/docs/config-file) for where `format` sits in the config.

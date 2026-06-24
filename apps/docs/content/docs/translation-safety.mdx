@@ -27,4 +27,4 @@ API keys are read only from the environment, by the providers, never from your c
 
 ## What you see
 
-Every one of these outcomes is data on the run summary, per locale: the keys translated, the ones withheld for a placeholder mismatch, the source keys skipped for invalid ICU, and any provider notices. Nothing is hidden, and a single locale's failure does not stop the others. See [How it works](/docs/how-it-works) for where each check sits in the run.
+Every one of these outcomes is data on the run summary, per locale: the keys translated, the ones withheld for a placeholder mismatch, the source keys skipped for invalid ICU, and any notices. Notices include provider notices and SDK notices, such as a plural-category warning (code `PLURAL_CATEGORIES_INCOMPLETE`) when a target language needs more plural categories than the source supplies; see [Add a language](/docs/add-a-language) for how to synthesize those forms instead. Nothing is hidden, and a single locale's failure does not stop the others. See [How it works](/docs/how-it-works) for where each check sits in the run.

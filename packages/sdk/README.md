@@ -70,7 +70,7 @@ export default defineConfig({
 });
 ```
 
-`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, and `ngx-translate-json`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
+`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, and `ngx-translate-json`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output. The optional `prune` boolean (off by default) opts in to removing orphaned keys (present in a target file but absent from the source) from the written target files and the lock; the `translate --prune` flag overrides it per run. The optional `generatePlurals` boolean (off by default) opts in to synthesizing the CLDR plural forms a richer target language requires but the source lacks (i18next-JSON projects translated by an LLM provider only; DeepL, non-i18next formats, and unknown languages fall back to the per-locale plural warning and never fail); a per-run `generatePlurals` override on `translate` takes precedence, and generated keys are reported separately from translated keys on the summary. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
 
 ## API reference
 
@@ -84,7 +84,7 @@ Discovers and validates the configuration. With no arguments it searches upward 
 
 ### `translate(input): Promise<RunSummary>`
 
-Runs the one-shot read, diff, translate, write flow over every target locale. `input` is `{ config, cwd?, dryRun? }`. With `dryRun: true` it reads, diffs, and reports without calling the provider or writing anything. Resolves to a `RunSummary` (`dryRun`, `locales`, `succeeded`, and `failed`).
+Runs the one-shot read, diff, translate, write flow over every target locale. `input` is `{ config, cwd?, dryRun?, prune?, generatePlurals? }`. With `dryRun: true` it reads, diffs, and reports without calling the provider or writing anything. `prune` and `generatePlurals` each override the matching config option for this run. Resolves to a `RunSummary` (`dryRun`, `locales`, `succeeded`, and `failed`); each locale summary lists `translated`, `generated`, `pruned`, `integrityMismatches`, and `notices`.
 
 ```ts
 const preview = await translate({ config, dryRun: true });
