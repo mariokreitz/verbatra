@@ -2,8 +2,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { defineConfig } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { type InitDeps, runInit } from "./init.js";
+import { DEFAULT_MODEL, type InitDeps, runInit } from "./init.js";
 import { captureStreams } from "./test-support.js";
 
 const nonInteractive: InitDeps = { isTty: () => false };
@@ -64,6 +65,39 @@ describe("runInit", () => {
     expect(config).toContain('model: "claude-sonnet-4-6"');
     expect(config).toContain("maxTokens: 4096");
     expect(readFileSync(join(dir, ".env.example"), "utf8")).toContain("ANTHROPIC_API_KEY=");
+  });
+
+  it("pins each scaffold default model as valid for its provider (compile-time)", () => {
+    // Routing the DEFAULT_MODEL values through defineConfig pins them against the exact per-provider
+    // model restriction a scaffolded config faces. If a provider SDK drops or renames a model literal,
+    // this stops type-checking in CI (`tsc --noEmit`) instead of only surfacing in a freshly scaffolded
+    // user project. The runtime assertion just keeps the calls live; the real check is the type-check.
+    const anthropic = defineConfig({
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      format: "i18next-json",
+      files: { pattern: "locales/{locale}.json" },
+      provider: { id: "anthropic", options: { model: DEFAULT_MODEL.anthropic, maxTokens: 4096 } },
+    });
+    const openai = defineConfig({
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      format: "i18next-json",
+      files: { pattern: "locales/{locale}.json" },
+      provider: { id: "openai", options: { model: DEFAULT_MODEL.openai, maxOutputTokens: 4096 } },
+    });
+    const gemini = defineConfig({
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      format: "i18next-json",
+      files: { pattern: "locales/{locale}.json" },
+      provider: { id: "gemini", options: { model: DEFAULT_MODEL.gemini, maxOutputTokens: 4096 } },
+    });
+    expect([anthropic.provider.id, openai.provider.id, gemini.provider.id]).toEqual([
+      "anthropic",
+      "openai",
+      "gemini",
+    ]);
   });
 
   it("uses maxOutputTokens and the right key for openai and gemini", async () => {

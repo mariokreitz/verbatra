@@ -50,6 +50,8 @@ verbatra translate
 verbatra translate --prune
 ```
 
+Plural-category generation is opt-in too, but config/SDK only: set `generatePlurals: true` in the config. Unlike `--prune`, there is no `--generate-plurals` flag (the SDK `translate()` input accepts a per-run override).
+
 ## Commands
 
 verbatra ships five commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `export` (write untranslated strings to an Excel workbook for a human translator), and `import` (read the filled workbook back, with the same safety checks as `translate`). `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:

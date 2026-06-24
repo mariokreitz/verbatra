@@ -30,7 +30,7 @@ const DEFAULT_FORMAT = "i18next-json";
 // placeholder), so a freshly scaffolded config type-checks immediately under the per-provider model
 // restriction; the user changes it to any model the provider supports. They may go stale as the
 // provider SDKs add models, which is cosmetic: the runtime accepts any non-empty model string.
-const DEFAULT_MODEL = {
+export const DEFAULT_MODEL = {
   anthropic: "claude-sonnet-4-6",
   openai: "gpt-5.4-mini",
   gemini: "gemini-2.5-flash",
