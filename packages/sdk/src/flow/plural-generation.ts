@@ -48,6 +48,9 @@ export function generatedLockHash(
   category: CldrPluralCategory,
 ): string {
   const governingHashes = governingEntries.map(contentHash).sort();
+  // Reuse contentHash by feeding it a throwaway entry whose `value` encodes the category and the
+  // sorted governing-form hashes. Only the returned hash string is used (stored in the lock); this
+  // entry is never persisted, and its other fields are inert filler to satisfy the shape.
   return contentHash({
     key: "",
     namespace: "",

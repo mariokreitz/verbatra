@@ -35,6 +35,10 @@ async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
  * Build a collision-proof temp-file name: a hidden sibling of the target in the SAME directory,
  * carrying the pid and timestamp for legibility plus a random UUID so two writes to the same
  * target in the same millisecond from the same process can never collide on the temp name.
+ *
+ * NOTE: a deliberate twin of `tempFileName` in `@verbatra/sdk` (`src/fs.ts`). They are duplicated
+ * rather than shared because each sits in its own layer with no common low-level package below
+ * both; keep the two in sync, or extract a shared util if a third copy ever appears.
  */
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);

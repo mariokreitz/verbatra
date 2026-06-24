@@ -120,6 +120,11 @@ async function readBoundedBytes(path: string, maxBytes: number): Promise<Bounded
  * in the SAME directory, carrying the pid and timestamp for legibility plus a random UUID so two
  * writes to the same target in the same millisecond from the same process never collide (e.g. a
  * future parallelization, or a pattern that maps two locales to one path).
+ *
+ * NOTE: a deliberate twin of `tempFileName` in `@verbatra/format-adapters`
+ * (`src/json/atomic-write.ts`). They are duplicated rather than shared because each sits in its
+ * own layer (the SDK fs seam vs the JSON adapter) with no common low-level package below both;
+ * keep the two in sync, or extract a shared util if a third copy ever appears.
  */
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
