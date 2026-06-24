@@ -26,8 +26,9 @@ Requires Node.js `>=22.14.0`.
 
 The package exports six functions and the types a caller touches.
 
-- `defineConfig(config: VerbatraConfig): VerbatraConfig` returns its argument unchanged. It exists
-  only to give you type inference and autocomplete when you author a config in TypeScript.
+- `defineConfig(config): VerbatraConfig` returns its argument unchanged. It exists only to give you
+  type inference and autocomplete when you author a config in TypeScript; the `model` field is
+  restricted to the selected provider's known models, so another provider's model is a type error.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` discovers and validates the
   config. `LoadConfigOptions` accepts `cwd`, an explicit `configPath`, or an in-memory
   `configOverride`. It throws an `SdkError` when no config is found or validation fails.

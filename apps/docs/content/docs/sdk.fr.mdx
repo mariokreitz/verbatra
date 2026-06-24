@@ -26,8 +26,10 @@ Nécessite Node.js `>=22.14.0`.
 
 Le paquet exporte six fonctions et les types qu'un appelant manipule.
 
-- `defineConfig(config: VerbatraConfig): VerbatraConfig` renvoie son argument inchangé. Elle n'existe
-  que pour te fournir l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript.
+- `defineConfig(config): VerbatraConfig` renvoie son argument inchangé. Elle n'existe que pour te fournir
+  l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript ; le champ `model`
+  est restreint aux modèles connus du fournisseur choisi, de sorte que le modèle d'un autre fournisseur est une
+  erreur de type.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la
   configuration. `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride`
   en mémoire. Elle lève une `SdkError` lorsqu'aucune configuration n'est trouvée ou que la validation échoue.

@@ -36,7 +36,7 @@ export default defineConfig({
 `defineConfig` es una función auxiliar de identidad de `@verbatra/sdk`. Devuelve su argumento sin cambios y existe solo para proporcionarte inferencia de tipos y autocompletado en el editor.
 
 <Callout title="Autocompletado de modelos en TypeScript">
-Cuando escribes la configuración en TypeScript, tu editor sugiere para `options.model` los IDs de modelo conocidos del proveedor seleccionado, acotados por la `id` de proveedor que elegiste. La lista proviene del propio SDK de ese proveedor (`@anthropic-ai/sdk`, `openai`, `@google/genai`), por lo que se mantiene actualizada con la versión del SDK que tengas instalada. Es una sugerencia, no una restricción: cualquier otra cadena se sigue aceptando, incluido un modelo recién lanzado que el SDK aún no haya añadido.
+Cuando escribes la configuración en TypeScript, tu editor ofrece para `options.model` los IDs de modelo conocidos del proveedor seleccionado, acotados por la `id` de proveedor que elegiste. La lista proviene del propio SDK de ese proveedor (`@anthropic-ai/sdk`, `openai`, `@google/genai`), por lo que se mantiene actualizada con la versión del SDK que tengas instalada. El campo está restringido a los modelos de ese proveedor: un modelo de otro proveedor (por ejemplo, un modelo de Claude con `id: "gemini"`) es un error de tipo. En tiempo de ejecución, `model` solo se valida como una cadena no vacía, por lo que un modelo recién lanzado que el SDK aún no liste funciona en tiempo de ejecución aunque el editor lo marque.
 </Callout>
 
 ## Campos

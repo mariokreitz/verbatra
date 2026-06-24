@@ -36,7 +36,7 @@ export default defineConfig({
 `defineConfig` ist ein Identitäts-Helfer von `@verbatra/sdk`. Er gibt sein Argument unverändert zurück und existiert nur, um dir Typinferenz und Editor-Autovervollständigung zu bieten.
 
 <Callout title="Modell-Autovervollständigung in TypeScript">
-Wenn du die Konfiguration in TypeScript schreibst, schlägt dein Editor für `options.model` die bekannten Modell-IDs des ausgewählten Providers vor, eingegrenzt durch die gewählte Provider-`id`. Die Liste stammt aus dem SDK des jeweiligen Providers (`@anthropic-ai/sdk`, `openai`, `@google/genai`), sodass sie mit der von dir installierten SDK-Version aktuell bleibt. Es ist ein Vorschlag, keine Einschränkung: Jeder andere String wird weiterhin akzeptiert, auch ein brandneues Modell, das das SDK noch nicht aufgenommen hat.
+Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor für `options.model` die bekannten Modell-IDs des ausgewählten Providers an, eingegrenzt durch die gewählte Provider-`id`. Die Liste stammt aus dem SDK des jeweiligen Providers (`@anthropic-ai/sdk`, `openai`, `@google/genai`), sodass sie mit der von dir installierten SDK-Version aktuell bleibt. Das Feld ist auf die Modelle dieses Providers beschränkt: Ein Modell eines anderen Providers (zum Beispiel ein Claude-Modell unter `id: "gemini"`) ist ein Typfehler. Zur Laufzeit wird `model` nur als nicht-leerer String geprüft, sodass ein brandneues Modell, das das SDK noch nicht kennt, zur Laufzeit funktioniert, auch wenn der Editor es markiert.
 </Callout>
 
 ## Felder

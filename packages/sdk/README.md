@@ -76,7 +76,7 @@ export default defineConfig({
 
 ### `defineConfig(config)`
 
-Returns the config unchanged. It exists purely for type inference and editor autocomplete when authoring a code-defined config.
+Returns the config unchanged. It exists purely for type inference and editor autocomplete when authoring a code-defined config. The `model` field is restricted to the selected provider's known model IDs (sourced from that provider's own SDK), so a model from another provider is a type error at authoring time; the runtime still validates `model` only as a non-empty string, so an unlisted model runs even though the editor flags it.
 
 ### `loadConfig(options?): Promise<VerbatraConfig>`
 
