@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
 import { baseConfig, makeTempDir } from "../test-support.js";
+import type { AuthoringConfig } from "./authoring.js";
 import { defineConfig } from "./define-config.js";
 import { loadConfig } from "./load-config.js";
 
@@ -116,8 +117,11 @@ describe("loadConfig", () => {
   });
 
   it("defineConfig returns its argument unchanged", () => {
+    // baseConfig() is typed as the runtime VerbatraConfig (model widened to string); the
+    // authoring parameter restricts model to a provider's known literals, so cast to feed
+    // the runtime-shaped value through the identity helper and assert it returns the same ref.
     const cfg = baseConfig();
-    expect(defineConfig(cfg)).toBe(cfg);
+    expect(defineConfig(cfg as AuthoringConfig)).toBe(cfg);
   });
 
   it("accepts an optional boolean prune option", async () => {

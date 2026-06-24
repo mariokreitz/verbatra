@@ -3,30 +3,32 @@ import type { ProviderConfig, ProviderId } from "./provider-config.js";
 import type { VerbatraConfig } from "./schema.js";
 
 /**
- * An open union over a provider's known model IDs: the suggested IDs plus any other
- * non-empty string. The `string & {}` arm keeps the union from collapsing to plain
- * `string` (so editors still surface the literals as completions) while accepting a
- * brand-new model ID the tool has never heard of. This is a static authoring hint
- * only; the runtime schema stays `z.string().min(1)` and validates nothing against
- * these literals.
+ * The closed set of a provider's known model IDs: exactly the string literals its SDK
+ * model type ships, with the SDK's own open `string & {}` arm stripped out. Distributing
+ * over the union and dropping any arm the wide `string` extends leaves only the literals,
+ * so the authoring field offers and ACCEPTS only the selected provider's known models. A
+ * foreign or unknown model (for example a Claude model under `id: "gemini"`) is a type
+ * error at authoring time. This is a static authoring constraint only; the runtime schema
+ * stays `z.string().min(1)` and still accepts any non-empty string, so a brand-new model
+ * the installed SDK does not yet list is flagged in the editor but still runs.
  */
-type OpenModel<M extends string> = M | (string & {});
+type KnownModels<M extends string> = M extends string ? (string extends M ? never : M) : never;
 
 type AuthoringVariant<Id extends ProviderId, M extends string> =
   Extract<ProviderConfig, { id: Id }> extends infer Variant
     ? Variant extends { options: { model: string } }
       ? Omit<Variant, "options"> & {
-          options: Omit<Variant["options"], "model"> & { model: OpenModel<M> };
+          options: Omit<Variant["options"], "model"> & { model: KnownModels<M> };
         }
       : never
     : never;
 
 /**
  * The authoring view of one provider variant, keyed by id. LLM providers (anthropic,
- * openai, gemini) narrow `options.model` to that provider's open model union; DeepL has
- * no model field and is carried through unchanged. Keying by id (rather than a flat
+ * openai, gemini) restrict `options.model` to that provider's known model literals; DeepL
+ * has no model field and is carried through unchanged. Keying by id (rather than a flat
  * union) lets {@link AuthoringConfigFor} select exactly one variant for a literal id, so
- * the `options.model` site is a single open union and never a multi-member union.
+ * the `options.model` site is one provider's literal set and never a multi-provider union.
  */
 type AuthoringProviderVariant = {
   anthropic: AuthoringVariant<"anthropic", AnthropicModel>;
@@ -40,14 +42,15 @@ type AuthoringProviderVariant = {
  * {@link VerbatraConfig} whose `provider` is the single authoring variant for `TId`.
  *
  * When `TId` is a literal (inferred from `provider.id` at the call site), `provider`
- * collapses to one concrete variant, so `options.model` is that provider's open model
- * union alone and not a union across providers. That collapse is what makes editors with
- * weaker discriminated-union narrowing (for example the JetBrains/WebStorm completion
- * engine) offer only the selected provider's models: there is no nested union to narrow.
- * When `TId` defaults to `ProviderId`, `provider` is the full authoring union (today's
- * behavior). Every value assignable here is assignable to {@link VerbatraConfig}, because
- * the open model union is a subtype of `string`; `defineConfig` returns the runtime
- * {@link VerbatraConfig}.
+ * collapses to one concrete variant, so `options.model` is that provider's known model
+ * literals alone and not a union across providers. That collapse, together with the closed
+ * {@link KnownModels} set, is what makes a foreign model (for example a Claude model under
+ * `id: "gemini"`) a type error and keeps the editor offering only the selected provider's
+ * models, even in editors with weaker discriminated-union narrowing (for example the
+ * JetBrains/WebStorm completion engine): there is no nested union to narrow. When `TId`
+ * defaults to `ProviderId`, `provider` is the full authoring union. Every value assignable
+ * here is assignable to {@link VerbatraConfig}, because a model literal is a subtype of
+ * `string`; `defineConfig` returns the runtime {@link VerbatraConfig}.
  */
 export type AuthoringConfigFor<TId extends ProviderId = ProviderId> = Omit<
   VerbatraConfig,

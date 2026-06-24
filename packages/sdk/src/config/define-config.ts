@@ -10,17 +10,19 @@ import type { VerbatraConfig } from "./schema.js";
  * The function is generic over the provider id `TId`. TypeScript infers `TId` from the
  * nested `provider.id` literal at the call site, which collapses the argument type
  * ({@link AuthoringConfigFor}) to the single authoring variant for that provider. As a
- * result `provider.options.model` is that one provider's open model union, not a union
- * across providers, so completions offer only the selected provider's known model IDs
- * while still accepting any other string. The collapse removes the nested
- * discriminated-union narrowing that some editors (for example the JetBrains/WebStorm
- * completion engine) do not perform, so per-provider completions are editor-robust and
- * not dependent on tsserver-grade union narrowing. With `provider.id` absent, `TId`
- * defaults to {@link ProviderId} and the argument is the full authoring union.
+ * result `provider.options.model` is restricted to that one provider's known model
+ * literals, not a union across providers: completions offer only the selected provider's
+ * models, and a foreign or unknown model (for example a Claude model under `id: "gemini"`)
+ * is a type error. The collapse also removes the nested discriminated-union narrowing that
+ * some editors (for example the JetBrains/WebStorm completion engine) do not perform, so
+ * the restriction holds editor-side and is not dependent on tsserver-grade union narrowing.
+ * With `provider.id` absent, `TId` defaults to {@link ProviderId} and the argument is the
+ * full authoring union.
  *
- * The return type is the runtime {@link VerbatraConfig}: the suggestions are a static
- * authoring hint, not a runtime constraint, and `loadConfig` validates `model` exactly
- * as before.
+ * The return type is the runtime {@link VerbatraConfig}. The model restriction is a static
+ * authoring constraint, not a runtime one: `loadConfig` still validates `model` as
+ * `z.string().min(1)`, so a model the installed provider SDK does not yet list is flagged
+ * in the editor but still runs.
  */
 export function defineConfig<TId extends ProviderId = ProviderId>(
   config: AuthoringConfigFor<TId>,

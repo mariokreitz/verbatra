@@ -54,8 +54,8 @@ describe("provider model authoring suggestions (type-level)", () => {
 
   it("sources each authoring field from the matching SDK model type", () => {
     // The named literal members of the authoring field are exactly those of the SDK
-    // type the field is sourced from: the authoring layer adds only the open `string`
-    // arm, never new or different literals.
+    // type the field is sourced from: the authoring layer restricts to those literals
+    // and adds no new or different ones.
     type Assertions = [
       Expect<Extends<LiteralMembers<AnthropicModelField>, LiteralMembers<AnthropicModel>>>,
       Expect<Extends<LiteralMembers<AnthropicModel>, LiteralMembers<AnthropicModelField>>>,
@@ -69,8 +69,7 @@ describe("provider model authoring suggestions (type-level)", () => {
   });
 
   it("narrows suggestions by provider id: a foreign literal is not a named member", () => {
-    // The open `string & {}` arm makes every string assignable, so narrowing is asserted
-    // over the named literal members the SDK unions distinguish.
+    // Narrowing is asserted over the named literal members the SDK unions distinguish.
     type Assertions = [
       Expect<Extends<Extends<"gpt-4o", LiteralMembers<AnthropicModelField>>, false>>,
       Expect<Extends<Extends<"gemini-2.5-flash", LiteralMembers<AnthropicModelField>>, false>>,
@@ -83,11 +82,12 @@ describe("provider model authoring suggestions (type-level)", () => {
     expect(assertions).toEqual([true, true, true, true, true, true]);
   });
 
-  it("accepts an unknown model string for every LLM provider (open union)", () => {
+  it("rejects an unknown or foreign model string for every LLM provider (closed union)", () => {
+    // The field is the provider's known literals only; an unknown string is not assignable.
     type Assertions = [
-      Expect<Extends<"some-future-model-2099", AnthropicModelField>>,
-      Expect<Extends<"some-future-model-2099", OpenAiModelField>>,
-      Expect<Extends<"some-future-model-2099", GeminiModelField>>,
+      Expect<Extends<Extends<"some-future-model-2099", AnthropicModelField>, false>>,
+      Expect<Extends<Extends<"some-future-model-2099", OpenAiModelField>, false>>,
+      Expect<Extends<Extends<"some-future-model-2099", GeminiModelField>, false>>,
     ];
     const assertions: Assertions = [true, true, true];
     expect(assertions).toEqual([true, true, true]);
@@ -95,8 +95,9 @@ describe("provider model authoring suggestions (type-level)", () => {
 
   it("collapses defineConfig to the selected provider's model union for a literal id", () => {
     // The collapsed call-site field carries exactly the matching SDK type's literals (the
-    // generic selects one variant) and no foreign provider's literals. This locks in the
-    // editor-robust per-provider completion: there is no cross-provider union to narrow.
+    // generic selects one variant) and is closed: no foreign provider's literals and no
+    // arbitrary string. This locks in the editor-robust per-provider restriction: there is
+    // no cross-provider union to narrow, and a wrong model is a type error.
     type Assertions = [
       Expect<Extends<LiteralMembers<CollapsedOpenAi>, LiteralMembers<OpenAiModel>>>,
       Expect<Extends<LiteralMembers<OpenAiModel>, LiteralMembers<CollapsedOpenAi>>>,
@@ -104,17 +105,19 @@ describe("provider model authoring suggestions (type-level)", () => {
       Expect<Extends<LiteralMembers<AnthropicModel>, LiteralMembers<CollapsedAnthropic>>>,
       Expect<Extends<LiteralMembers<CollapsedGemini>, LiteralMembers<GeminiModel>>>,
       Expect<Extends<LiteralMembers<GeminiModel>, LiteralMembers<CollapsedGemini>>>,
-      // No foreign-provider literals leak into a collapsed field.
-      Expect<Extends<Extends<"claude-opus-4-8", LiteralMembers<CollapsedOpenAi>>, false>>,
-      Expect<Extends<Extends<"gemini-2.5-flash", LiteralMembers<CollapsedOpenAi>>, false>>,
-      Expect<Extends<Extends<"gpt-4o", LiteralMembers<CollapsedAnthropic>>, false>>,
-      Expect<Extends<Extends<"gpt-4o", LiteralMembers<CollapsedGemini>>, false>>,
-      // The open escape hatch survives the collapse for every LLM provider.
-      Expect<Extends<"some-future-model-2099", CollapsedOpenAi>>,
-      Expect<Extends<"some-future-model-2099", CollapsedAnthropic>>,
-      Expect<Extends<"some-future-model-2099", CollapsedGemini>>,
+      // No foreign-provider literal is assignable to a collapsed field.
+      Expect<Extends<Extends<"claude-opus-4-8", CollapsedOpenAi>, false>>,
+      Expect<Extends<Extends<"gemini-2.5-flash", CollapsedOpenAi>, false>>,
+      Expect<Extends<Extends<"gpt-4o", CollapsedAnthropic>, false>>,
+      Expect<Extends<Extends<"claude-opus-4-8", CollapsedGemini>, false>>,
+      Expect<Extends<Extends<"gpt-4o", CollapsedGemini>, false>>,
+      // The union is closed: an arbitrary unknown string is not assignable either.
+      Expect<Extends<Extends<"some-future-model-2099", CollapsedOpenAi>, false>>,
+      Expect<Extends<Extends<"some-future-model-2099", CollapsedAnthropic>, false>>,
+      Expect<Extends<Extends<"some-future-model-2099", CollapsedGemini>, false>>,
     ];
     const assertions: Assertions = [
+      true,
       true,
       true,
       true,
@@ -143,19 +146,32 @@ describe("provider model authoring suggestions (type-level)", () => {
     expect(config.provider.options).toMatchObject({ model: "claude-opus-4-8" });
   });
 
-  it("defineConfig accepts an unknown model string", () => {
-    const config = defineConfig({
+  it("defineConfig rejects a foreign provider's model at author time (type error)", () => {
+    defineConfig({
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      format: "next-intl-json",
+      files: { pattern: "messages/{locale}.json" },
+      // @ts-expect-error - "claude-opus-4-8" is a Claude model, not a Gemini model
+      provider: { id: "gemini", options: { model: "claude-opus-4-8", maxOutputTokens: 256 } },
+    });
+    expect(true).toBe(true);
+  });
+
+  it("defineConfig rejects an unknown model at author time (type error)", () => {
+    defineConfig({
       sourceLocale: "en",
       targetLocales: ["de"],
       format: "i18next-json",
       files: { pattern: "locales/{locale}.json" },
+      // @ts-expect-error - the closed union no longer accepts an unlisted model ID
       provider: { id: "openai", options: { model: "gpt-future-2099", maxOutputTokens: 256 } },
     });
-    expect(config.provider.id).toBe("openai");
+    expect(true).toBe(true);
   });
 });
 
-describe("an unknown model loads and reaches provider construction unchanged", () => {
+describe("an unknown model still loads at runtime and reaches provider construction unchanged", () => {
   it("passes loadConfig without error and preserves the model verbatim", async () => {
     const config = await loadConfig({
       configOverride: baseConfig({
