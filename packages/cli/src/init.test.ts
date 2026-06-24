@@ -73,6 +73,7 @@ describe("runInit", () => {
     ).toBe(0);
     let config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");
     expect(config).toContain('id: "openai"');
+    expect(config).toContain('model: "gpt-5.4-mini"');
     expect(config).toContain("maxOutputTokens: 4096");
     expect(readFileSync(join(dir, ".env.example"), "utf8")).toContain("OPENAI_API_KEY=");
 
@@ -86,6 +87,7 @@ describe("runInit", () => {
     ).toBe(0);
     config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");
     expect(config).toContain('id: "gemini"');
+    expect(config).toContain('model: "gemini-2.5-flash"');
     expect(readFileSync(join(dir, ".env.example"), "utf8")).toContain("GEMINI_API_KEY=");
   });
 

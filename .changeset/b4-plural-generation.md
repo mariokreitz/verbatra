@@ -3,13 +3,15 @@
 "@verbatra/cli": minor
 ---
 
-feat(sdk): generate missing CLDR plural forms (opt-in `generatePlurals`)
+feat(sdk): warn on missing CLDR plural categories, with opt-in generation (`generatePlurals`)
 
 When a target language requires more CLDR plural categories than the i18next source supplies (for
-example Polish few/many against an English one/other source), verbatra can now synthesize the missing
-target forms so the written plural set is complete, instead of only warning. This is opt-in and off by
-default: enable it with a `generatePlurals: true` config option or a per-run `generatePlurals` override
-(the override takes precedence), mirroring the `prune` pattern.
+example Arabic, Polish, or Russian against an English one/other source), verbatra emits a per-locale
+`PLURAL_CATEGORIES_INCOMPLETE` notice naming the locale and the missing categories; the run still
+succeeds. Opt-in `generatePlurals` makes verbatra synthesize the missing target forms so the written
+plural set is complete, instead of only warning. This is off by default: enable it with a
+`generatePlurals: true` config option or a per-run `generatePlurals` override (the override takes
+precedence), mirroring the `prune` pattern.
 
 Generation is supported for i18next-JSON projects translated by an LLM provider only. DeepL,
 non-i18next formats, and target languages not in the static category lookup fall back to the existing
