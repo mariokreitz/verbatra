@@ -50,7 +50,7 @@ describe("runInit", () => {
     expect(gitignore).toContain(".env.local");
   });
 
-  it("scaffolds an LLM provider with a placeholder model and token limit", async () => {
+  it("scaffolds an LLM provider with a default model and token limit", async () => {
     const cap = captureStreams();
     const code = await runInit(
       { cwd: dir, yes: true, provider: "anthropic" },
@@ -61,7 +61,7 @@ describe("runInit", () => {
     expect(code).toBe(0);
     const config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");
     expect(config).toContain('id: "anthropic"');
-    expect(config).toContain('model: "<your-model>"');
+    expect(config).toContain('model: "claude-sonnet-4-6"');
     expect(config).toContain("maxTokens: 4096");
     expect(readFileSync(join(dir, ".env.example"), "utf8")).toContain("ANTHROPIC_API_KEY=");
   });

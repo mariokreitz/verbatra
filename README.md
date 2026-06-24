@@ -87,7 +87,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>", // replace with your provider's model id
+      model: "claude-sonnet-4-6", // replace with your provider's model id
       maxTokens: 4096,
     },
   },
@@ -100,7 +100,7 @@ The `provider` block is selected by `id`. The LLM providers take a `model` and a
 
 ```ts
 // OpenAI / Gemini
-provider: { id: "openai", options: { model: "<your-model>", maxOutputTokens: 4096 } }
+provider: { id: "openai", options: { model: "gpt-5.4-mini", maxOutputTokens: 4096 } }
 
 // DeepL (machine translation)
 provider: { id: "deepl", options: {} }

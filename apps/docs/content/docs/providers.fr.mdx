@@ -30,7 +30,7 @@ Définis la variable dans `.env` (que `verbatra init` ignore via git) ou exporte
 provider: {
   id: "anthropic",
   options: {
-    model: "<your-model>",
+    model: "claude-sonnet-4-6",
     maxTokens: 4096,
   },
 }
@@ -44,7 +44,7 @@ Lit `ANTHROPIC_API_KEY`. `model` et `maxTokens` sont tous deux requis.
 provider: {
   id: "openai",
   options: {
-    model: "<your-model>",
+    model: "gpt-5.4-mini",
     maxOutputTokens: 4096,
   },
 }
@@ -58,7 +58,7 @@ Lit `OPENAI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
 provider: {
   id: "gemini",
   options: {
-    model: "<your-model>",
+    model: "gemini-2.5-flash",
     maxOutputTokens: 4096,
   },
 }

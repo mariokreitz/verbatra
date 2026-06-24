@@ -26,7 +26,15 @@ const SUPPORTED_FORMATS = FORMAT_BY_DEP.map(([, format]) => format);
 const DEFAULT_FORMAT = "i18next-json";
 // A clearly-marked placeholder: it validates (a non-empty string) but never goes stale and forces a
 // deliberate choice. The user replaces it; translate fails with a clear provider error until they do.
-const PLACEHOLDER_MODEL = "<your-model>";
+// A sensible default model per LLM provider for the scaffold. These are real model IDs (not a
+// placeholder), so a freshly scaffolded config type-checks immediately under the per-provider model
+// restriction; the user changes it to any model the provider supports. They may go stale as the
+// provider SDKs add models, which is cosmetic: the runtime accepts any non-empty model string.
+const DEFAULT_MODEL = {
+  anthropic: "claude-sonnet-4-6",
+  openai: "gpt-5.4-mini",
+  gemini: "gemini-2.5-flash",
+} as const;
 const TOKEN_LIMIT = 4096;
 
 /** Prompting seams, injected so the decision logic is tested without a real TTY. */
@@ -102,11 +110,11 @@ function readPackageName(): string {
 function buildProviderConfig(id: ProviderId): Record<string, unknown> {
   switch (id) {
     case "anthropic":
-      return { id, options: { model: PLACEHOLDER_MODEL, maxTokens: TOKEN_LIMIT } };
+      return { id, options: { model: DEFAULT_MODEL.anthropic, maxTokens: TOKEN_LIMIT } };
     case "openai":
-      return { id, options: { model: PLACEHOLDER_MODEL, maxOutputTokens: TOKEN_LIMIT } };
+      return { id, options: { model: DEFAULT_MODEL.openai, maxOutputTokens: TOKEN_LIMIT } };
     case "gemini":
-      return { id, options: { model: PLACEHOLDER_MODEL, maxOutputTokens: TOKEN_LIMIT } };
+      return { id, options: { model: DEFAULT_MODEL.gemini, maxOutputTokens: TOKEN_LIMIT } };
     case "deepl":
       return { id, options: {} };
   }
@@ -128,8 +136,8 @@ function renderProviderBlock(id: ProviderId): string {
     "  provider: {",
     `    id: ${JSON.stringify(id)},`,
     "    options: {",
-    "      // TODO: replace with the model you want to use.",
-    `      model: ${JSON.stringify(PLACEHOLDER_MODEL)},`,
+    "      // A sensible default; change to any model this provider supports.",
+    `      model: ${JSON.stringify(DEFAULT_MODEL[id])},`,
     `      ${tokenKey}: ${TOKEN_LIMIT},`,
     "    },",
     "  },",

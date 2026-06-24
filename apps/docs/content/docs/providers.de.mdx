@@ -30,7 +30,7 @@ Setze die Variable in `.env` (welches `verbatra init` ignoriert) oder exportiere
 provider: {
   id: "anthropic",
   options: {
-    model: "<your-model>",
+    model: "claude-sonnet-4-6",
     maxTokens: 4096,
   },
 }
@@ -44,7 +44,7 @@ Liest `ANTHROPIC_API_KEY`. `model` und `maxTokens` sind beide erforderlich.
 provider: {
   id: "openai",
   options: {
-    model: "<your-model>",
+    model: "gpt-5.4-mini",
     maxOutputTokens: 4096,
   },
 }
@@ -58,7 +58,7 @@ Liest `OPENAI_API_KEY`. `model` und `maxOutputTokens` sind beide erforderlich.
 provider: {
   id: "gemini",
   options: {
-    model: "<your-model>",
+    model: "gemini-2.5-flash",
     maxOutputTokens: 4096,
   },
 }

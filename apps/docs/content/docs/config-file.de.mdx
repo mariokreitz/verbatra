@@ -26,7 +26,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>", // replace with your provider's model id
+      model: "claude-sonnet-4-6", // replace with your provider's model id
       maxTokens: 4096,
     },
   },
@@ -45,7 +45,7 @@ Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor für `opti
 - **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten.
 - **`format`** (String): eines von `i18next-json`, `vue-i18n-json`, `next-intl-json` oder `ngx-translate-json`.
 - **`files.pattern`** (String): der Pfad zu jeder Locale-Datei. Er muss das `{locale}`-Token enthalten, das verbatra durch jedes Locale ersetzt (zum Beispiel wird `locales/{locale}.json` zu `locales/de.json`).
-- **`provider`** (Objekt): der Übersetzungs-Provider, ausgewählt durch `id`. Jeder Provider hat seine eigenen `options`, und in TypeScript vervollständigt das Feld `model` automatisch die bekannten Modell-IDs des gewählten Providers. Sieh dir [Provider](/docs/providers) an.
+- **`provider`** (Objekt): der Übersetzungs-Provider, ausgewählt durch `id`. Jeder Provider hat seine eigenen `options`, und in TypeScript ist das Feld `model` auf die bekannten Modell-IDs des gewählten Providers beschränkt (das Modell eines anderen Providers ist ein Typfehler). Sieh dir [Provider](/docs/providers) an.
 - **`glossary`** (optional, Objekt): eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen. Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten sie mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet diese Begriffszuordnung nicht an; es protokolliert einen Hinweis und wendet stattdessen ein Glossar an, das über die ID konfiguriert ist (sieh dir [Provider](/docs/providers) an).
 - **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und fällt mit einem Hinweis auf den Standard zurück.
 - **`prune`** (optional, boolean, Standard `false`): wenn true, werden Schlüssel, die in einer Ziel-Datei vorhanden sind, aber in der Quelle fehlen (die verwaisten Schlüssel des Vergleichs), aus der geschriebenen Datei und der Lock-Datei entfernt. Eine `prune`-Option pro Lauf auf `translate` (die CLI-Flag `--prune`) überschreibt dies. Es werden niemals andere als verwaiste Schlüssel entfernt.
@@ -72,7 +72,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },

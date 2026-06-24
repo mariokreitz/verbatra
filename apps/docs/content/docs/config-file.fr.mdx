@@ -26,7 +26,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>", // replace with your provider's model id
+      model: "claude-sonnet-4-6", // replace with your provider's model id
       maxTokens: 4096,
     },
   },
@@ -45,7 +45,7 @@ Lorsque tu écris la configuration en TypeScript, ton éditeur propose pour `opt
 - **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`.
 - **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json` ou `ngx-translate-json`.
 - **`files.pattern`** (chaîne de caractères) : le chemin vers chaque fichier de locale. Il doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale (par exemple, `locales/{locale}.json` se résout en `locales/de.json`).
-- **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` complète automatiquement les identifiants de modèle connus du fournisseur choisi. Voir [Fournisseurs](/docs/providers).
+- **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` est restreint aux identifiants de modèle connus du fournisseur choisi (le modèle d'un autre fournisseur est une erreur de type). Voir [Fournisseurs](/docs/providers).
 - **`glossary`** (facultatif, objet) : une carte des termes source vers les termes cibles préférés. Les fournisseurs LLM (Anthropic, OpenAI, Gemini) la reçoivent avec la requête et sont invités à traiter ses termes comme contraignants. DeepL n'applique pas cette carte de termes ; il enregistre une notification et applique à la place un glossaire configuré par id (voir [Fournisseurs](/docs/providers)).
 - **`tone`** (facultatif) : l'un des `"formal"`, `"informal"` ou `"neutral"`. Les fournisseurs LLM le reçoivent et sont invités à le respecter. DeepL le mappe à la formalité : `formal` devient plus formel, `informal` devient moins formel, et `neutral` ou un ton absent est omis. Avec une clé DeepL gratuite, un ton non par défaut n'est pas pris en charge et se dégrade au ton par défaut avec une notification.
 - **`prune`** (facultatif, booléen, par défaut `false`) : lorsqu'il vaut true, les clés présentes dans un fichier cible mais absentes de la source (les clés orphelines du diff) sont supprimées du fichier écrit et du verrouillage. Une option `prune` par exécution sur `translate` (le drapeau CLI `--prune`) la remplace. Seules les clés orphelines sont jamais supprimées.
@@ -72,7 +72,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },

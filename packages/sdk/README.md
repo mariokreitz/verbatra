@@ -63,7 +63,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>", // replace with your provider's model id
+      model: "claude-sonnet-4-6", // replace with your provider's model id
       maxTokens: 4096,
     },
   },
