@@ -12,6 +12,9 @@ describe("library export", () => {
     };
 
     expect(typeof defineConfig).toBe("function");
-    expect(defineConfig(config)).toBe(config);
+    // `config` is typed as the runtime VerbatraConfig (model widened to string); defineConfig's
+    // authoring overloads restrict model to a provider's known literals, so cast to the overload
+    // parameter type to feed the runtime-shaped value through the identity helper.
+    expect(defineConfig(config as Parameters<typeof defineConfig>[0])).toBe(config);
   });
 });
