@@ -342,6 +342,40 @@ describe("translate: glossary routing and notices", () => {
   });
 });
 
+describe("translate: plural-category warning (B4)", () => {
+  it("warns per-locale when the target needs more plural categories than the source supplies", async () => {
+    const dir = await project(
+      { item_one: "1 item", item_other: "{count} items" },
+      { ar: undefined },
+    );
+    const stub = makeStubProvider();
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["ar"] }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    const arabic = summary.locales.find((s) => s.locale === "ar");
+    expect(arabic?.status).toBe("succeeded"); // the warning does not fail the run
+    expect(arabic?.notices.map((n) => n.code)).toContain("PLURAL_CATEGORIES_INCOMPLETE");
+  });
+
+  it("does not warn when the target language is satisfied by one/other (en -> de)", async () => {
+    const dir = await project(
+      { item_one: "1 item", item_other: "{count} items" },
+      { de: undefined },
+    );
+    const stub = makeStubProvider();
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.notices.map((n) => n.code)).not.toContain(
+      "PLURAL_CATEGORIES_INCOMPLETE",
+    );
+  });
+});
+
 describe("translate: round-trip fidelity and dry-run", () => {
   it("changes only translated values and preserves existing key order", async () => {
     const dir = await project(

@@ -23,6 +23,19 @@ export interface TranslateInput {
   readonly cwd?: string;
   /** When true, read + diff + report only: the provider is never constructed or called and nothing is written. */
   readonly dryRun?: boolean;
+  /**
+   * When true, remove orphaned keys (target keys absent from source) from the written file and the lock.
+   * Off by default. When set, takes precedence over the config's `prune` option for this run; when unset,
+   * the config's `prune` applies. Only `diff.orphaned` keys are ever removed; no other key is touched.
+   */
+  readonly prune?: boolean;
+  /**
+   * When true, synthesize the CLDR plural forms a richer target language requires but the source lacks
+   * (i18next-JSON + LLM providers only; every other case falls back to the existing warning). Off by
+   * default. When set, takes precedence over the config's `generatePlurals` option for this run; when
+   * unset, the config's `generatePlurals` applies.
+   */
+  readonly generatePlurals?: boolean;
 }
 
 /** Composition seam: inject a registry, a provider builder, and a file system for tests. */
@@ -49,7 +62,7 @@ export interface TranslateDeps {
  * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
  * surface on each `LocaleSummary`, never as throws.
  *
- * @param input - The validated config and run options (cwd, dryRun).
+ * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
  * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
  * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
@@ -88,6 +101,10 @@ export async function translate(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const dryRun = input.dryRun ?? false;
+  // CLI flag (input.prune) overrides the config option; off when neither is set.
+  const prune = input.prune ?? config.prune ?? false;
+  // Per-run override (input.generatePlurals) overrides the config option; off when neither is set.
+  const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
   const fs = deps.fs ?? defaultFs;
 
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
@@ -113,6 +130,8 @@ export async function translate(
         format: config.format,
         glossary: config.glossary,
         tone: config.tone,
+        prune,
+        generatePlurals,
         fs,
       };
       const { summary, lockEntries } = await runLocale(params);

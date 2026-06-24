@@ -1,5 +1,25 @@
 import type { ProviderNotice } from "@verbatra/ai-providers";
 
+/** A stable code for an SDK-originated notice (not a provider notice). */
+export type SdkNoticeCode = "PLURAL_CATEGORIES_INCOMPLETE";
+
+/**
+ * A notice raised by the SDK itself (not a provider), structurally identical to a {@link ProviderNotice}
+ * so both share the {@link LocaleSummary.notices} channel. Carries only a stable code and a static,
+ * secret-free message; never a key value or translatable content. The SDK keeps its own codes here so
+ * the ai-providers `ProviderNoticeCode` union stays free of SDK concerns (the dependency arrow points
+ * sdk -> ai-providers, never the reverse).
+ */
+export interface SdkNotice {
+  /** The stable {@link SdkNoticeCode} for what the SDK is reporting. */
+  readonly code: SdkNoticeCode;
+  /** A static, safe description; never a key or translatable content. */
+  readonly message: string;
+}
+
+/** A notice on a locale summary: either a provider-emitted notice or an SDK-emitted one. */
+export type LocaleNotice = ProviderNotice | SdkNotice;
+
 /** Structured outcome for one target locale; surfaced as data on the run, never thrown. */
 export interface LocaleSummary {
   /** The target locale this summary is for. */
@@ -13,14 +33,31 @@ export interface LocaleSummary {
   readonly translated: readonly string[];
   /** Keys already up to date, left unchanged this run. */
   readonly unchanged: readonly string[];
-  /** Target keys with no corresponding source key (candidates for removal). */
+  /** Target keys with no corresponding source key (candidates for removal). Reported regardless of pruning. */
   readonly orphaned: readonly string[];
+  /**
+   * Orphaned keys actually removed this run because pruning was on. In a dry-run with pruning on, the keys
+   * that WOULD be removed. Empty when pruning is off (the orphans then survive and are reported in
+   * `orphaned` only). A subset of `orphaned`; never includes a source-present key.
+   */
+  readonly pruned: readonly string[];
   /** Source keys flagged invalid-ICU that were skipped for translation this run. */
   readonly invalidIcuSource: readonly string[];
   /** Translated keys that failed the placeholder-integrity check and were withheld. */
   readonly integrityMismatches: readonly string[];
-  /** Provider notices for this locale (e.g. DeepL graceful-degradation); empty for LLM providers. */
-  readonly notices: readonly ProviderNotice[];
+  /**
+   * Plural-category keys verbatra SYNTHESIZED this run (for example a Polish `items_few` the source
+   * never supplied), kept distinct from {@link translated} because they were generated from the meaning
+   * of the source plural forms, not translated 1:1 from a source string. Empty unless plural generation
+   * was enabled and acted. In a dry-run this is empty (the provider is not called).
+   */
+  readonly generated: readonly string[];
+  /**
+   * Notices for this locale: provider notices (e.g. DeepL graceful-degradation) and SDK notices
+   * (e.g. a target language needing more CLDR plural categories than the source supplies). Empty when
+   * nothing was degraded or flagged.
+   */
+  readonly notices: readonly LocaleNotice[];
   /**
    * Present only when status is "failed": a structured, secret-free error. `code` is a PRESERVED string
    * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback), intentionally

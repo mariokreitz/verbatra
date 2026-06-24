@@ -137,8 +137,12 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     translated: [...buckets.accepted.keys()].sort(),
     unchanged: diff.unchanged,
     orphaned: diff.orphaned,
+    // Import never prunes: orphans are reported but never removed here (pruning is a translate-flow concern).
+    pruned: [],
     invalidIcuSource,
     integrityMismatches: [...buckets.mismatches].sort(),
+    // Plural generation is a translate-flow concern; the manual workbook import never generates forms.
+    generated: [],
     notices: [],
   };
   return { summary, accepted: buckets.accepted, withheld: buckets.withheld };

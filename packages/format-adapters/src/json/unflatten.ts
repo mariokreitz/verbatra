@@ -1,5 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
+import { decodeKeyToSegments } from "./key-encoding.js";
 
 type MutableTree = { [key: string]: string | MutableTree };
 
@@ -30,18 +31,24 @@ function setPath(root: MutableTree, segments: readonly string[], value: string):
   for (const segment of segments.slice(0, -1)) {
     node = descend(node, segment);
   }
+  if (typeof node[leaf] === "object") {
+    throw new AdapterError("INVALID_STRUCTURE", "A leaf key collides with a nested key path.");
+  }
   node[leaf] = value;
 }
 
 /**
  * Rebuild a nested object from ordered entries, splitting dotted keys back into
- * structure. Containers are null-prototype objects, so segments like __proto__ are
- * inert. Insertion order follows entry order, preserving the original key order.
+ * structure. Each map key is decoded on its unescaped dots, so a literal dotted leaf
+ * (whose dots were encoded on flatten) is restored as a single leaf rather than being
+ * re-nested, while a real nested path's segments split as before. Containers are
+ * null-prototype objects, so segments like __proto__ are inert. Insertion order follows
+ * entry order, preserving the original key order.
  */
 export function unflattenEntries(entries: ReadonlyMap<string, TranslationEntry>): MutableTree {
   const root = emptyNode();
   for (const [key, entry] of entries) {
-    setPath(root, key.split("."), entry.value);
+    setPath(root, decodeKeyToSegments(key), entry.value);
   }
   return root;
 }

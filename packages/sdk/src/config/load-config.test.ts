@@ -119,4 +119,20 @@ describe("loadConfig", () => {
     const cfg = baseConfig();
     expect(defineConfig(cfg)).toBe(cfg);
   });
+
+  it("accepts an optional boolean prune option", async () => {
+    const on = await loadConfig({ configOverride: { ...baseConfig(), prune: true } });
+    expect(on.prune).toBe(true);
+    const off = await loadConfig({ configOverride: { ...baseConfig(), prune: false } });
+    expect(off.prune).toBe(false);
+    const absent = await loadConfig({ configOverride: baseConfig() });
+    expect(absent.prune).toBeUndefined(); // off by default when absent
+  });
+
+  it("rejects a non-boolean prune option", async () => {
+    const bad = { ...baseConfig(), prune: "yes" };
+    await expect(loadConfig({ configOverride: bad })).rejects.toMatchObject({
+      code: "CONFIG_INVALID",
+    });
+  });
 });

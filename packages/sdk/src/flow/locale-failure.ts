@@ -21,8 +21,10 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
     translated: [],
     unchanged: [],
     orphaned: [],
+    pruned: [],
     invalidIcuSource: [],
     integrityMismatches: [],
+    generated: [],
     notices: [],
     error: describeError(error),
   };

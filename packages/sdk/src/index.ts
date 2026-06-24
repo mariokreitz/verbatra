@@ -12,21 +12,23 @@
  * @packageDocumentation
  */
 
-// Config
 export { defineConfig } from "./config/define-config.js";
 export { type LoadConfigOptions, loadConfig } from "./config/load-config.js";
 export type { ProviderConfig, ProviderId } from "./config/provider-config.js";
 export { type VerbatraConfig, verbatraConfigSchema } from "./config/schema.js";
-// Errors
 export { SdkError, type SdkErrorCode } from "./errors.js";
-export type { LocaleSummary, RunSummary } from "./flow/summary.js";
-// Orchestration entry point
+export type {
+  LocaleNotice,
+  LocaleSummary,
+  RunSummary,
+  SdkNotice,
+  SdkNoticeCode,
+} from "./flow/summary.js";
 export {
   type TranslateDeps,
   type TranslateInput,
   translate,
 } from "./flow/translate-project.js";
-// Manual-translation workbook export/import
 export {
   DEFAULT_WORKBOOK_PATH,
   type ExportWorkbookDeps,
@@ -39,11 +41,8 @@ export {
   type ImportWorkbookInput,
   importWorkbook,
 } from "./flow/workbook/import-workbook.js";
-// File-system seam
 export type { SdkFs } from "./fs.js";
-// Provider construction seam
 export type { CreateProvider } from "./selection/select-provider.js";
-// Watch mode (slice 2)
 export {
   type CreateWatcher,
   type RunTranslate,

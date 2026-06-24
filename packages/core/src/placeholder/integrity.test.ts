@@ -36,4 +36,42 @@ describe("checkPlaceholders", () => {
   it("does not throw on a mismatch", () => {
     expect(() => checkPlaceholders(["{a}"], ["{x}", "{y}"])).not.toThrow();
   });
+
+  it("reports a dropped duplicate occurrence as missing, not a reorder", () => {
+    const result = checkPlaceholders(["{a}", "{a}", "{b}"], ["{a}", "{b}"]);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{a}"]);
+    expect(result.extra).toEqual([]);
+    expect(result.reordered).toBe(false);
+  });
+
+  it("reports a dropped unique token while a kept duplicate stays", () => {
+    const result = checkPlaceholders(["{a}", "{a}", "{b}"], ["{a}", "{a}"]);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{b}"]);
+    expect(result.extra).toEqual([]);
+  });
+
+  it("reports an added duplicate occurrence as extra, not a reorder", () => {
+    const result = checkPlaceholders(["{n}"], ["{n}", "{n}"]);
+    expect(result.matches).toBe(false);
+    expect(result.extra).toEqual(["{n}"]);
+    expect(result.missing).toEqual([]);
+    expect(result.reordered).toBe(false);
+  });
+
+  it("carries multiplicity for a tripled placeholder", () => {
+    const result = checkPlaceholders(["{n}"], ["{n}", "{n}", "{n}"]);
+    expect(result.matches).toBe(false);
+    expect(result.extra).toEqual(["{n}", "{n}"]);
+    expect(result.missing).toEqual([]);
+  });
+
+  it("still reports a genuine same-multiset reorder as reordered", () => {
+    const result = checkPlaceholders(["{a}", "{a}", "{b}"], ["{b}", "{a}", "{a}"]);
+    expect(result.matches).toBe(false);
+    expect(result.reordered).toBe(true);
+    expect(result.missing).toEqual([]);
+    expect(result.extra).toEqual([]);
+  });
 });

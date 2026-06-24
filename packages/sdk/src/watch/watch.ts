@@ -21,7 +21,7 @@ export interface Watcher {
 /** Builds a {@link Watcher} for the given paths; the seam production fills with chokidar. */
 export type CreateWatcher = (paths: readonly string[]) => Watcher;
 
-/** The run a watch trigger performs: the slice-1 one-shot translate, unchanged. */
+/** The run a watch trigger performs: the one-shot translate, unchanged. */
 export type RunTranslate = (input: TranslateInput) => Promise<RunSummary>;
 
 /** The outcome of one run, surfaced to the caller; never carries a secret. */
@@ -69,7 +69,7 @@ export interface WatchController {
 }
 
 function describeError(error: unknown): { code: string; message: string } {
-  // A {code, message} projection of the run's failure (the slice-1 errors are secret-free).
+  // A {code, message} projection of the run's failure (the underlying errors are secret-free).
   // "WATCH_RUN_FAILED" is a fallback label for the rare non-coded throw, not an SdkErrorCode.
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;

@@ -7,7 +7,7 @@ import { type BuiltRequest, buildRequest } from "./request.js";
 import { requireToolInput } from "./response.js";
 import type { AnthropicMessage, MessagesClient } from "./types.js";
 
-// Re-exported so existing imports of this path keep resolving after the extraction.
+// Re-exported so existing imports of this path keep resolving.
 export { toIntegrityInputs } from "../llm/integrity-inputs.js";
 
 const PROVIDER_ID = "anthropic";

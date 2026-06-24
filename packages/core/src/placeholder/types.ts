@@ -1,14 +1,14 @@
 /**
- * Result of comparing a source placeholder set against a translated-output
- * placeholder set. Always returned (never thrown) for an ordinary mismatch.
+ * Result of comparing source placeholders against translated-output placeholders as MULTISETS
+ * (counts matter). Always returned (never thrown) for an ordinary mismatch.
  */
 export interface PlaceholderIntegrityResult {
   /** True when nothing is missing or extra and order is preserved. */
   readonly matches: boolean;
-  /** In source, absent from the translation. Sorted. */
+  /** Occurrences present in source but absent from the translation, one per dropped occurrence. Sorted. */
   readonly missing: readonly string[];
-  /** In the translation, absent from source. Sorted. */
+  /** Occurrences present in the translation but absent from source, one per surplus occurrence. Sorted. */
   readonly extra: readonly string[];
-  /** Same set present in both, but in a different order. */
+  /** Same multiset present in both, but in a different order. */
   readonly reordered: boolean;
 }

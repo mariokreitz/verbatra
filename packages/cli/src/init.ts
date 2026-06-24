@@ -83,9 +83,9 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
 }
 
 /**
- * Read this package's own name from its package.json at runtime (the Workstream 2 mechanism). The
- * scaffolded config imports defineConfig from THIS name, so reading it at run time keeps the emitted
- * import correct even if the published package is renamed; a hardcoded specifier would silently rot.
+ * Read this package's own name from its package.json at runtime. The scaffolded config imports
+ * defineConfig from THIS name, so reading it at run time keeps the emitted import correct even if the
+ * published package is renamed; a hardcoded specifier would silently rot.
  */
 function readPackageName(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
@@ -31,6 +32,15 @@ async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
 }
 
 /**
+ * Build a collision-proof temp-file name: a hidden sibling of the target in the SAME directory,
+ * carrying the pid and timestamp for legibility plus a random UUID so two writes to the same
+ * target in the same millisecond from the same process can never collide on the temp name.
+ */
+export function tempFileName(path: string): string {
+  return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
+}
+
+/**
  * Write bytes to a target file atomically: write to a temp file in the SAME directory as
  * the target, then rename it over the target. The temp must be same-directory so source
  * and destination share a filesystem; rename is atomic only then, so a reader sees either
@@ -43,7 +53,7 @@ export async function atomicWriteFile(
   data: string,
   ops: AtomicWriteOps = nodeOps,
 ): Promise<void> {
-  const tmp = join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}`);
+  const tmp = tempFileName(path);
   try {
     await ops.writeFile(tmp, data);
     await ops.rename(tmp, path);
