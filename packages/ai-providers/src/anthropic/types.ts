@@ -3,6 +3,7 @@ import type { BuiltRequest } from "./request.js";
 /** The Anthropic message-create response, narrowed to the fields this provider reads. */
 export interface AnthropicMessage {
   readonly content: readonly unknown[];
+  readonly stop_reason?: string | null;
   readonly usage?: { readonly input_tokens?: number; readonly output_tokens?: number };
 }
 

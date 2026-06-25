@@ -1,5 +1,6 @@
 import { guardProviderCall } from "../guard.js";
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
+import { assertNotTruncated } from "../llm/truncation.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider, Usage } from "../provider.js";
 import { createDefaultClient } from "./client.js";
 import { type AnthropicConfig, anthropicConfigSchema } from "./config.js";
@@ -26,8 +27,8 @@ export interface AnthropicDeps {
  * @param config - The model and max-tokens; never a key.
  * @param deps - Optional injected client; when omitted, the production client is built.
  * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE`, or `PROVIDER_ERROR`, never `PROVIDER_REFUSED` or
- *   `PROVIDER_BLOCKED`.
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED`, or `PROVIDER_ERROR`, never
+ *   `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
  * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `ANTHROPIC_API_KEY` is unset (the default client reads the env key eagerly).
@@ -60,6 +61,9 @@ function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMe
     translate: async ({ payloadJson }): Promise<LlmCompletion> => {
       const body = buildRequest(config, payloadJson);
       const message = await callClient(client, body);
+      // Detect an output-token truncation before parsing or reconciling the tool input, so a
+      // truncated-but-valid body still reports truncation rather than a key mismatch.
+      assertNotTruncated(message.stop_reason === "max_tokens");
       const raw = requireToolInput(message.content);
       const usage = toUsage(message.usage);
       return usage === undefined ? { raw } : { raw, usage };

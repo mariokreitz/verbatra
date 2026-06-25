@@ -24,9 +24,9 @@ export interface GeminiDeps {
  * @param config - The model and output-token limit; never a key.
  * @param deps - Optional injected client; when omitted, the production client is built.
  * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE` (including a MAX_TOKENS-truncated completion, which is treated as
- *   incomplete output, not a block), `PROVIDER_BLOCKED` (a safety block, no candidate, or filtered output),
- *   or `PROVIDER_ERROR`, never `PROVIDER_REFUSED`.
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED` (a MAX_TOKENS-truncated completion, surfaced
+ *   as an actionable truncation rather than a block), `PROVIDER_BLOCKED` (a safety block, no candidate, or
+ *   filtered output), or `PROVIDER_ERROR`, never `PROVIDER_REFUSED`.
  * @throws A `ZodError` if `config` is invalid.
  * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `GEMINI_API_KEY` is unset (the default client reads the env key eagerly).
