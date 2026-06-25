@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractI18nextPlaceholders } from "./placeholders.js";
+import { extractDoubleBracePlaceholders, extractI18nextPlaceholders } from "./placeholders.js";
 
 describe("extractI18nextPlaceholders", () => {
   it("extracts a single placeholder verbatim", () => {
@@ -25,5 +25,45 @@ describe("extractI18nextPlaceholders", () => {
 
   it("keeps formatted placeholders verbatim", () => {
     expect(extractI18nextPlaceholders("{{val, number}}")).toEqual(["{{val, number}}"]);
+  });
+
+  it("extracts a $t() nesting reference (H3)", () => {
+    expect(extractI18nextPlaceholders("see $t(common.foo) for details")).toEqual([
+      "$t(common.foo)",
+    ]);
+  });
+
+  it("extracts a $t() reference with options verbatim (H3)", () => {
+    expect(extractI18nextPlaceholders('$t(common.foo, {"count": 3})')).toEqual([
+      '$t(common.foo, {"count": 3})',
+    ]);
+  });
+
+  it("extracts braces and $t() together in document order, with multiplicity (H3)", () => {
+    expect(extractI18nextPlaceholders("$t(a) {{name}} $t(a)")).toEqual([
+      "$t(a)",
+      "{{name}}",
+      "$t(a)",
+    ]);
+  });
+
+  it("stays linear on a long run of unclosed $t( (H3)", () => {
+    const hostile = "$t(".repeat(200_000);
+    const start = Date.now();
+    expect(extractI18nextPlaceholders(hostile)).toEqual([]);
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+});
+
+describe("extractDoubleBracePlaceholders (shared with ngx-translate)", () => {
+  it("extracts double-brace interpolation with multiplicity", () => {
+    expect(extractDoubleBracePlaceholders("{{count}} of {{count}}")).toEqual([
+      "{{count}}",
+      "{{count}}",
+    ]);
+  });
+
+  it("does not extract $t() nesting (ngx-translate has no nesting)", () => {
+    expect(extractDoubleBracePlaceholders("see $t(common.foo) {{name}}")).toEqual(["{{name}}"]);
   });
 });

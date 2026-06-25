@@ -19,6 +19,15 @@ describe("placeholder integrity is multiset-aware end to end (C1)", () => {
     expect(result.missing).toEqual(["{{count}}"]);
   });
 
+  it("i18next: dropping a $t() nesting reference is a mismatch (H3)", () => {
+    const adapter = createI18nextJsonAdapter();
+    const source = adapter.extractPlaceholders("$t(common.greeting) {{name}}");
+    const translated = adapter.extractPlaceholders("Hallo {{name}}");
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["$t(common.greeting)"]);
+  });
+
   it("ngx-translate: dropping a repeated occurrence is a mismatch", () => {
     const adapter = createNgxTranslateJsonAdapter();
     const source = adapter.extractPlaceholders("{{count}} of {{count}}");
