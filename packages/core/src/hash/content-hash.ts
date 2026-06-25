@@ -18,24 +18,37 @@ function fnv1a64(input: string): string {
 }
 
 /**
+ * Normalize a text field so content that is equal in meaning hashes equal in bytes:
+ * Unicode to NFC (precomposed and decomposed forms of the same grapheme agree, for
+ * example "e" + combining acute vs the single "é") and line endings to LF (a CRLF/LF
+ * flip from an editor or a git autocrlf checkout is not a content change).
+ */
+function normalizeText(text: string): string {
+  return text.normalize("NFC").replace(/\r\n?/g, "\n");
+}
+
+/**
  * Canonical, order-independent encoding of the fields that define an entry's
  * translatable content. Identity (key, namespace) is excluded by design: a
- * changed key is a missing/orphaned event, not a content change.
+ * changed key is a missing/orphaned event, not a content change. Text fields are
+ * normalized (see {@link normalizeText}) so equivalent content is encoded identically.
  */
 function canonicalize(entry: TranslationEntry): string {
   return JSON.stringify([
-    entry.value,
-    entry.description ?? null,
-    entry.meaning ?? null,
+    normalizeText(entry.value),
+    entry.description == null ? null : normalizeText(entry.description),
+    entry.meaning == null ? null : normalizeText(entry.meaning),
     entry.isPlural,
-    [...entry.placeholders].sort(),
+    [...entry.placeholders].map(normalizeText).sort(),
   ]);
 }
 
 /**
  * Stable per-entry content hash for cheap change detection. Equal content yields
  * the same hash; different content yields a different hash; placeholder order
- * does not affect the result. Pure computation: it does not throw.
+ * does not affect the result. Equivalence is taken up to Unicode NFC and LF line
+ * endings, so a normalization or CRLF/LF flip is not reported as a content change.
+ * Pure computation: it does not throw.
  *
  * @param entry - The entry whose translatable content is hashed. Identity (key, namespace) is
  *   excluded, so renaming a key does not change its hash.
