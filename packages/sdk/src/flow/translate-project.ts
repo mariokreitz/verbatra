@@ -1,5 +1,5 @@
 import type { AdapterRegistry } from "@verbatra/format-adapters";
-import type { VerbatraConfig } from "../config/schema.js";
+import { DEFAULT_MAX_BATCH_SIZE, type VerbatraConfig } from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import {
   baselineFor,
@@ -105,6 +105,8 @@ export async function translate(
   const prune = input.prune ?? config.prune ?? false;
   // Per-run override (input.generatePlurals) overrides the config option; off when neither is set.
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
+  // Config-only (no CLI flag for this slice); the documented default applies when the field is absent.
+  const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
   const fs = deps.fs ?? defaultFs;
 
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
@@ -132,6 +134,7 @@ export async function translate(
         tone: config.tone,
         prune,
         generatePlurals,
+        maxBatchSize,
         fs,
       };
       const { summary, lockEntries } = await runLocale(params);

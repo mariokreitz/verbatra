@@ -139,4 +139,23 @@ describe("loadConfig", () => {
       code: "CONFIG_INVALID",
     });
   });
+
+  it("accepts a positive-integer maxBatchSize and loads it unchanged", async () => {
+    const config = await loadConfig({ configOverride: { ...baseConfig(), maxBatchSize: 25 } });
+    expect(config.maxBatchSize).toBe(25);
+  });
+
+  it("leaves maxBatchSize undefined when absent so the consumer applies the default", async () => {
+    const config = await loadConfig({ configOverride: baseConfig() });
+    expect(config.maxBatchSize).toBeUndefined();
+  });
+
+  it("rejects a non-positive, non-integer, or non-number maxBatchSize as CONFIG_INVALID", async () => {
+    for (const value of [0, -5, 1.5, "10"]) {
+      const bad = { ...baseConfig(), maxBatchSize: value };
+      await expect(loadConfig({ configOverride: bad })).rejects.toMatchObject({
+        code: "CONFIG_INVALID",
+      });
+    }
+  });
 });

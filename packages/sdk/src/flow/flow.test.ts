@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import {
   baseConfig,
+  makeFakeFs,
   makeStubProvider,
   makeTempDir,
   readJsonFile,
@@ -226,7 +227,7 @@ describe("translate: change detection and first run", () => {
 });
 
 describe("translate: per-locale isolation", () => {
-  it("isolates a failing locale; others are written and locked; the run continues", async () => {
+  it("isolates a locale whose only sub-batch throws as succeeded-with-withheld; others are written and locked", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined, es: undefined });
     const stub = makeStubProvider({ throwForLocales: new Set(["fr"]) });
 
@@ -235,18 +236,52 @@ describe("translate: per-locale isolation", () => {
       { createProvider: () => stub.provider },
     );
 
-    expect(summary.succeeded).toEqual(["de", "es"]);
-    expect(summary.failed).toEqual(["fr"]);
-    expect(summary.locales.find((s) => s.locale === "fr")?.error?.code).toBeDefined();
+    // A chunk-level provider throw no longer sinks the locale: it stays succeeded, its keys are
+    // withheld for retry, and a notice surfaces. The run continues across all locales.
+    expect([...summary.succeeded].sort()).toEqual(["de", "es", "fr"]);
+    expect(summary.failed).toEqual([]);
+    const fr = summary.locales.find((s) => s.locale === "fr");
+    expect(fr?.status).toBe("succeeded");
+    expect(fr?.translated).toEqual([]);
+    expect(fr?.integrityMismatches).toEqual(["a"]);
+    expect(fr?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
 
     expect(await exists(targetPath(dir, "de"))).toBe(true);
     expect(await exists(targetPath(dir, "es"))).toBe(true);
-    expect(await exists(targetPath(dir, "fr"))).toBe(false);
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    expect(Object.keys(lock.locales).sort()).toEqual(["de", "es"]); // fr not recorded
+    // fr's withheld key is not locked, so it retries next run; de and es are locked.
+    expect(lock.locales.fr?.a).toBeUndefined();
+    expect(lock.locales.de?.a).toBeDefined();
+    expect(lock.locales.es?.a).toBeDefined();
+  });
+
+  it("isolates a non-provider per-locale failure (lock write) as a failed locale; the run continues", async () => {
+    const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
+    const stub = makeStubProvider();
+    // The lock write (an SdkFs.writeFile, not an adapter call) happens per-locale inside the run's
+    // try; throwing it only for the locale being recorded leaves a genuine failed summary.
+    const fs = makeFakeFs({
+      fileExists: (path: string) =>
+        access(path)
+          .then(() => true)
+          .catch(() => false),
+      writeFile: async (path: string, data: string) => {
+        if (path.endsWith("verbatra.lock.json") && data.includes('"fr"')) {
+          throw Object.assign(new Error("lock write failed"), { code: "LOCK_FILE_WRITE" });
+        }
+      },
+    });
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },
+      { createProvider: () => stub.provider, fs },
+    );
+
+    expect(summary.failed).toEqual(["fr"]);
+    expect(summary.locales.find((s) => s.locale === "fr")?.error?.code).toBe("LOCK_FILE_WRITE");
   });
 });
 
@@ -261,7 +296,7 @@ describe("translate: error shapes and orphaned keys", () => {
     ).rejects.toMatchObject({ code: "SOURCE_INVALID" });
   });
 
-  it("carries a provider error's code into the per-locale failure summary", async () => {
+  it("withholds the keys of a throwing sub-batch and surfaces a notice instead of failing the locale", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const coded = Object.assign(new Error("provider blew up"), { code: "PROVIDER_ERROR" });
     const provider: TranslationProvider = {
@@ -276,23 +311,33 @@ describe("translate: error shapes and orphaned keys", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => provider },
     );
-    expect(summary.failed).toEqual(["de"]);
-    expect(summary.locales[0]?.error?.code).toBe("PROVIDER_ERROR");
+    // The raw provider error is caught and never surfaced: the locale succeeds with a notice and the
+    // key is withheld for retry. No provider code or message leaks onto the summary.
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
+    expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
+    const noticeText = summary.locales[0]?.notices.map((n) => n.message).join(" ") ?? "";
+    expect(noticeText).not.toContain("provider blew up");
   });
 
-  it("captures a non-Error throw as a structured per-locale failure", async () => {
+  it("captures a non-Error throw on a non-provider path as a structured LOCALE_FAILED summary", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
-    const provider: TranslationProvider = {
-      id: "x",
-      kind: "llm",
-      supportsGlossary: true,
-      translateBatch: async () => {
+    const stub = makeStubProvider();
+    // A non-Error thrown from the lock write (an SdkFs call, not the provider) still reaches the
+    // structured per-locale failure path and falls back to the LOCALE_FAILED code.
+    const fs = makeFakeFs({
+      fileExists: (path: string) =>
+        access(path)
+          .then(() => true)
+          .catch(() => false),
+      writeFile: async () => {
         throw "raw failure";
       },
-    };
+    });
     const summary = await translate(
       { config: cfg(), cwd: dir },
-      { createProvider: () => provider },
+      { createProvider: () => stub.provider, fs },
     );
     expect(summary.locales[0]?.error?.code).toBe("LOCALE_FAILED");
   });
