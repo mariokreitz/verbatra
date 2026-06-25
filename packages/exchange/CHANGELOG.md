@@ -1,5 +1,13 @@
 # @verbatra/exchange
 
+## 0.2.1
+
+### Patch Changes
+
+- Updated dependencies [c2871a9]
+- Updated dependencies [4fd6165]
+  - @verbatra/core@0.1.1
+
 ## 0.2.0
 
 ### Minor Changes

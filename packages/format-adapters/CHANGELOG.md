@@ -1,5 +1,65 @@
 # @verbatra/format-adapters
 
+## 0.3.0
+
+### Minor Changes
+
+- 4fd6165: feat(format-adapters): round-trip literal dotted leaf keys losslessly
+
+  A JSON locale key that contains a literal dot used as a single leaf (for example
+  `{"foo.bar": "Hi"}`) is now read, translated, and written back as one literal leaf instead of
+  being silently re-nested into `{"foo": {"bar": "Hi"}}`. Real nested paths still stay nested, and a
+  file mixing both round-trips with each member's shape preserved. The fix lives once in the shared
+  JSON layer (a per-segment backslash escape in `flatten`/`unflatten`), so all four JSON adapters
+  benefit; ngx-translate keeps its flat-vs-nested path-notation behavior unchanged.
+
+  A genuinely ambiguous file (a literal dotted leaf and a real nested path resolving to the same
+  effective path, for example `{"foo.bar": "Hi", "foo": {"bar": "Hello"}}`) still fails loudly with a
+  structured `AdapterError` (`INVALID_STRUCTURE`); it is never silently picked or corrupted.
+
+  Compatibility: the change is observable only for keys that actually contain a literal dot. Projects
+  with no literal dotted leaf keys are unaffected: write output is byte-for-byte identical, lock-file
+  keys and content hashes are unchanged, and a re-run performs no re-translation. There is no
+  lock-file version bump. Projects that already used literal dotted leaf keys may see a one-time
+  re-translation limited to those dotted keys (their on-disk shape was previously rewritten as
+  nested); non-dotted keys in the same project are unaffected.
+
+- 4fd6165: feat(format-adapters): expose i18next plural key derivation helpers
+
+  Add `pluralCategoryOf`, `pluralBaseKey`, and `makePluralKey` (and the `I18nextPluralCategory` type)
+  alongside the existing `isPluralKey`. These keep the i18next CLDR plural-suffix grammar owned by the
+  format adapter so the SDK can derive a target plural key (for example `items` + `few` -> `items_few`) and
+  read the category off a key without encoding the suffix shape itself. Used by the SDK's opt-in
+  plural-category generation.
+
+### Patch Changes
+
+- d40b7f1: fix(format-adapters): guard i18next $t() nesting references in placeholder integrity
+
+  The i18next extractor only matched `{{double-brace}}` interpolation, so nesting references (`$t(common.foo)`, `$t(common.foo, { options })`) were invisible to the integrity check. A translation that dropped, altered, or translated a `$t(...)` reference changed which message was composed at runtime yet passed integrity.
+
+  The i18next extractor now also extracts `$t(...)` references and guards them as placeholders (multiset-aware, verbatim). The double-brace primitive is split into its own `extractDoubleBracePlaceholders`, which ngx-translate now uses, since ngx-translate has the same interpolation syntax but no `$t()` nesting (it no longer mis-extracts `$t(...)` as a placeholder). Nested parentheses inside `$t()` options are not supported and only the default `$t(` prefix is recognized; extraction remains linear-time. Closes the H3 finding from the full-stack audit (#19, #22).
+
+- 8775839: fix(format-adapters): preserve placeholder multiplicity so dropped or duplicated placeholders are caught
+
+  The i18next, vue-i18n, ngx-translate, and next-intl extractors previously deduplicated placeholders with a `Set` before returning them. That collapsed `{{count}} of {{count}}` to a single occurrence and silently defeated core's multiset integrity check: a translation that dropped one required occurrence (for example `{{count}} total`) passed integrity and was written.
+
+  Extractors now return every occurrence in document order. Combined with `checkPlaceholders` (already multiset-aware), a dropped or duplicated placeholder is now reported as `missing`/`extra`. ICU message bodies are preserved verbatim by translation, so an occurrence missing from one plural/select branch is likewise reported as a mismatch. Closes the C1 finding from the full-stack audit (#19, #20).
+
+- 4fd6165: fix: make atomic-write temp-file names collision-proof
+
+  Both atomic-write paths (the SDK file seam and the format-adapters JSON writer) now append a random UUID to the temp-file name, so two writes to the same target in the same millisecond from the same process can never collide on the temp name. The atomic same-directory-temp-then-rename behavior is otherwise unchanged.
+
+- eb59150: fix(format-adapters): tighten vue-i18n placeholder extraction to the real interpolation grammar
+
+  The vue-i18n extractor matched any single-brace run (`/\{[^{}]*\}/`), which over-captured: `"Hello {{name}}"` yielded a phantom `{name}`, literal text like `"{curly braces}"` was treated as a placeholder, and `{ name }` did not compare equal to `{name}`.
+
+  Extraction now follows vue-i18n's actual grammar: named keys (`{name}`, letters/underscore then letters, digits, underscores, hyphens, dollar signs) and list keys (`{0}`), with inner whitespace normalized to a canonical `{key}` token. Double-brace text (`{{...}}`) and literal interpolation (`{'...'}`) are correctly excluded. Extraction remains linear-time on adversarial input. Closes the H2 finding from the full-stack audit (#19, #21).
+
+- Updated dependencies [c2871a9]
+- Updated dependencies [4fd6165]
+  - @verbatra/core@0.1.1
+
 ## 0.2.0
 
 ### Minor Changes
