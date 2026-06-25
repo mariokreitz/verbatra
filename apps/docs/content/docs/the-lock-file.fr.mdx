@@ -22,6 +22,8 @@ Lorsque verbatra lit une locale cible, il diffuse la source par rapport à cette
 
 Seules les clés nouvelles et modifiées sont envoyées au fournisseur. Les clés inchangées sont laissées intactes, ce qui explique pourquoi une seconde exécution sans modification de la source n'appelle le fournisseur pour rien.
 
+Le hachage de contenu traite l'Unicode canoniquement équivalent (NFC) et les fins de ligne différentes (CRLF par rapport à LF) comme le même contenu, de sorte que réenregistrer un fichier source avec une forme de normalisation ou des fins de ligne différentes ne marque pas une clé comme modifiée ni ne déclenche une retraduction.
+
 ## Comment il est rafraîchi
 
 Après qu'une locale est écrite, verbatra rafraîchit le verrouillage avec les hachages source actuels, avec une exception délibérée. Une clé qui a été retenue lors de cette exécution, parce que sa traduction a échoué à la vérification des espaces réservés ou que son ICU source était invalide, conserve son hachage précédent. L'exécution suivante la voit alors toujours comme nécessitant du travail et la réessaie, plutôt que de l'enregistrer comme terminée. Les clés orphelines n'obtiennent aucune entrée.

@@ -50,6 +50,7 @@ Lorsque tu écris la configuration en TypeScript, ton éditeur propose pour `opt
 - **`tone`** (facultatif) : l'un des `"formal"`, `"informal"` ou `"neutral"`. Les fournisseurs LLM le reçoivent et sont invités à le respecter. DeepL le mappe à la formalité : `formal` devient plus formel, `informal` devient moins formel, et `neutral` ou un ton absent est omis. Avec une clé DeepL gratuite, un ton non par défaut n'est pas pris en charge et se dégrade au ton par défaut avec une notification.
 - **`prune`** (facultatif, booléen, par défaut `false`) : lorsqu'il vaut true, les clés présentes dans un fichier cible mais absentes de la source (les clés orphelines du diff) sont supprimées du fichier écrit et du verrouillage. Une option `prune` par exécution sur `translate` (le drapeau CLI `--prune`) la remplace. Seules les clés orphelines sont jamais supprimées.
 - **`generatePlurals`** (facultatif, booléen, par défaut `false`) : lorsqu'il vaut true, verbatra synthétise les formes plurielles CLDR qu'une langue cible requiert mais que la source ne fournit pas (par exemple few/many en polonais). Pris en charge pour les projets i18next-JSON traduits par un fournisseur LLM uniquement ; DeepL, les formats non-i18next et les langues cibles inconnues retombent sur l'avertissement de pluriel par locale. Contrairement à `prune`, il n'y a pas de drapeau CLI `--generate-plurals` ; définis-le donc dans la configuration ; l'entrée `translate()` du SDK accepte bien une option `generatePlurals` par exécution qui a la priorité.
+- **`maxBatchSize`** (facultatif, entier positif, par défaut `50`) : les entrées manquantes et modifiées d'une locale sont réparties en sous-lots séquentiels ne dépassant pas cette valeur, afin qu'une seule requête de fournisseur surdimensionnée ne puisse pas faire échouer toute la locale. Un sous-lot en échec est retenu et réessayé à l'exécution suivante pendant que les autres continuent d'avancer. Cela se règle uniquement dans la configuration : il n'y a pas de drapeau CLI ni de remplacement `translate()` par exécution ; définis-le donc dans la configuration.
 
 Les clés de niveau supérieur inconnues sont rejetées. C'est aussi pourquoi une clé API ne peut pas résider dans la configuration : les clés proviennent de l'environnement, pas du fichier.
 
@@ -69,6 +70,7 @@ export default defineConfig({
     "Sign in": "Anmelden",
   },
   tone: "formal",
+  maxBatchSize: 25,
   provider: {
     id: "anthropic",
     options: {

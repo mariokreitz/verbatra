@@ -155,7 +155,9 @@ for (const locale of summary.locales) {
 Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers. Passe
 `prune: true` pour supprimer les clés orphelines, ou `generatePlurals: true` pour synthétiser les
 catégories de pluriel manquantes (i18next-JSON avec un fournisseur LLM uniquement) ; chacune remplace
-l'option de configuration correspondante pour cette exécution.
+l'option de configuration correspondante pour cette exécution. Contrairement à `prune` et `generatePlurals`,
+`maxBatchSize` se définit uniquement dans la configuration (sur l'objet de configuration, valeur par défaut 50) :
+il n'existe aucune surcharge par exécution dans `translate()`.
 
 ## Mode surveillance
 

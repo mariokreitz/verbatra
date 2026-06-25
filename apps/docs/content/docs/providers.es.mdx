@@ -92,3 +92,16 @@ Los campos de configuración opcionales `tone` y `glossary` (consulta [Configura
 
 - **Tono.** Los proveedores de LLM reciben el tono con la solicitud y se les indica que lo respeten. DeepL lo mapea a la formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono no predeterminado no es compatible y se degrada al predeterminado, con un aviso en el resultado.
 - **Glosario.** Los proveedores de LLM reciben el mapa de términos `glossary` y se les indica que traten sus términos como vinculantes. DeepL no aplica un mapa de términos genérico; registra un aviso y en su lugar utiliza la opción `glossaryId` anterior.
+
+## Límites de tokens de salida
+
+Los tres proveedores de LLM (Anthropic, OpenAI y Gemini) limitan cuántos tokens puede producir una sola respuesta. Cuando un proveedor se detiene porque alcanzó ese límite (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), verbatra genera un error estructurado propio con el código `OUTPUT_TRUNCATED` en lugar de un fallo genérico por respuesta mal formada. El mensaje es fijo:
+
+> The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
+
+Tienes dos palancas, y cualquiera de ellas lo resuelve:
+
+- Reduce `maxBatchSize` en tu configuración (consulta [Configuración](/docs/config-file)) para que cada solicitud traduzca menos entradas y produzca una respuesta más pequeña. Esto solo se hace mediante la configuración y se aplica a todos los proveedores.
+- Aumenta el presupuesto de tokens por respuesta en el proveedor: `maxTokens` para Anthropic, o `maxOutputTokens` para OpenAI y Gemini (las opciones que se muestran en los bloques anteriores).
+
+DeepL no se ve afectado. Es un servicio de traducción automática y no pasa por la capa de LLM, por lo que no tiene ningún caso de truncamiento por tokens de salida.

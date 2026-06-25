@@ -153,7 +153,8 @@ for (const locale of summary.locales) {
 Pass `dryRun: true` to read and diff without calling a provider or writing files. Pass
 `prune: true` to remove orphaned keys, or `generatePlurals: true` to synthesize missing plural
 categories (i18next-JSON with an LLM provider only); each overrides the matching config option for
-that run.
+that run. Unlike `prune` and `generatePlurals`, `maxBatchSize` is config-only (set on the config
+object, default 50): there is no per-run `translate()` override for it.
 
 ## Watch mode
 

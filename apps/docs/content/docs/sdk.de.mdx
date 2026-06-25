@@ -154,7 +154,8 @@ for (const locale of summary.locales) {
 Übergib `dryRun: true`, um zu lesen und zu vergleichen, ohne einen Provider aufzurufen oder Dateien zu schreiben. Übergib
 `prune: true`, um verwaiste Schlüssel zu entfernen, oder `generatePlurals: true`, um fehlende Pluralkategorien zu
 synthetisieren (nur i18next-JSON mit einem LLM-Provider); jede Option überschreibt die entsprechende Konfigurations-Option
-für diesen Lauf.
+für diesen Lauf. Anders als `prune` und `generatePlurals` ist `maxBatchSize` nur über die Konfiguration einstellbar (am
+Konfigurationsobjekt gesetzt, Standardwert 50): es gibt dafür keine Pro-Lauf-Überschreibung in `translate()`.
 
 ## Watch-Modus
 

@@ -11,12 +11,12 @@ verbatra arbeitet mit JSON Locale-Dateien über einen Format-Adapter. Jeder Adap
 
 | `format` | Für | Platzhalter | Plurale | ICU |
 | --- | --- | --- | --- | --- |
-| `i18next-json` | i18next | `{{name}}` | CLDR Plural-Suffix am Schlüssel | nein |
+| `i18next-json` | i18next | `{{name}}` und `$t(...)`-Verschachtelungsverweise | CLDR Plural-Suffix am Schlüssel | nein |
 | `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | Pipe im Wert | nein |
 | `next-intl-json` | next-intl | ICU Argument- und Tag-Namen | ICU Plural oder selectordinal | ja |
 | `ngx-translate-json` | ngx-translate | `{{name}}` | keine | nein |
 
-i18next und ngx-translate teilen sich die gleiche `{{double-brace}}`-Interpolation. vue-i18n verwendet einfache Klammern und entscheidet Plural anhand eines Pipes im Wert. next-intl-Werte sind ICU MessageFormat: Die Platzhalter sind die ICU-Argument- und Rich-Text-Tag-Namen, Plural folgt einem ICU-Plural- oder selectordinal-Argument, und der ICU-Body wird unverändert durch die Pipeline beibehalten. ngx-translate hat keine integrierten Plural- oder ICU-Funktionen, und seine Dateien können flach mit gepunkteten Schlüsseln oder verschachtelt sein; verbatra bewahrt beim Schreiben den Stil, den die Datei verwendet.
+i18next und ngx-translate teilen sich die gleiche `{{double-brace}}`-Interpolation. i18next extrahiert und schützt zusätzlich seine `$t()`-Verschachtelungsverweise (die den Inhalt eines anderen Schlüssels in den Wert einfügen) als Platzhalter, zum Beispiel `$t(common.foo)` und `$t(common.foo, { options })`, sodass eine Übersetzung, die einen davon weglässt oder verändert, die Integritätsprüfung nicht besteht. Es gelten zwei Einschränkungen: Verschachtelte Klammern innerhalb der `$t()`-Optionen werden nicht unterstützt, und nur das Standard-Präfix `$t(` wird erkannt. ngx-translate verwendet dieselbe Double-Brace-Interpolation, hat aber keine `$t()`-Verschachtelung. vue-i18n verwendet einfache Klammern und entscheidet Plural anhand eines Pipes im Wert. next-intl-Werte sind ICU MessageFormat: Die Platzhalter sind die ICU-Argument- und Rich-Text-Tag-Namen, Plural folgt einem ICU-Plural- oder selectordinal-Argument, und der ICU-Body wird unverändert durch die Pipeline beibehalten. ngx-translate hat keine integrierten Plural- oder ICU-Funktionen, und seine Dateien können flach mit gepunkteten Schlüsseln oder verschachtelt sein; verbatra bewahrt beim Schreiben den Stil, den die Datei verwendet.
 
 ## Warum das Format wichtig ist
 
