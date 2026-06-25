@@ -24,14 +24,18 @@ describe("analyzeIcuValue: extraction", () => {
   });
 
   it("extracts arguments nested inside a plural branch; '#' is not a placeholder", () => {
+    // ICU bodies are preserved verbatim by translation, so each branch's occurrence of
+    // {author} is required: the multiset reports it once per branch, not collapsed.
     const a = analyzeIcuValue("{count, plural, one {# by {author}} other {# by {author}}}");
-    expect(a.placeholders).toEqual(["{count}", "{author}"]);
+    expect(a.placeholders).toEqual(["{count}", "{author}", "{author}"]);
     expect(a.isPlural).toBe(true);
   });
 
-  it("deduplicates in first-appearance order", () => {
+  it("preserves every occurrence in document order (multiset, not deduplicated)", () => {
+    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence
+    // must be detectable. Collapsing duplicates here would hide that.
     const a = analyzeIcuValue("{name} then {name} and {count, plural, other {#}}");
-    expect(a.placeholders).toEqual(["{name}", "{count}"]);
+    expect(a.placeholders).toEqual(["{name}", "{name}", "{count}"]);
   });
 
   it("extracts tag names; the tag body text is not a placeholder", () => {
