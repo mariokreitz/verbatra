@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
 import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
+import { OUTPUT_TRUNCATED_MESSAGE } from "../llm/truncation.js";
 import type { TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
@@ -234,14 +235,30 @@ describe("createGeminiProvider: blocked / safety-filtered handling", () => {
     await assertBlocked({ text: "{}", candidates: [{ finishReason: "RECITATION" }] });
   });
 
-  it("does not treat MAX_TOKENS truncation as blocked (incomplete -> INVALID_RESPONSE)", async () => {
+  it("treats a MAX_TOKENS truncation as OUTPUT_TRUNCATED, not blocked", async () => {
     const { client } = geminiStubClient({
       text: '{"translations":[{"key":"greeting","val',
       candidates: [{ finishReason: "MAX_TOKENS" }],
     });
+    let caught: unknown;
+    try {
+      await createGeminiProvider(config, { client }).translateBatch(request());
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    expect((caught as ProviderError).code).toBe("OUTPUT_TRUNCATED");
+    expect((caught as ProviderError).message).toBe(OUTPUT_TRUNCATED_MESSAGE);
+  });
+
+  it("reports a MAX_TOKENS truncation before reconciliation even when the body is valid JSON", async () => {
+    const { client } = geminiStubClient({
+      text: JSON.stringify({ translations: [{ key: "greeting", value: "Hallo {{name}}" }] }),
+      candidates: [{ finishReason: "MAX_TOKENS" }],
+    });
     await expect(
       createGeminiProvider(config, { client }).translateBatch(request()),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    ).rejects.toMatchObject({ code: "OUTPUT_TRUNCATED" });
   });
 });
 

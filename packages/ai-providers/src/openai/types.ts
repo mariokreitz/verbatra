@@ -6,9 +6,15 @@ export interface OpenAiMessage {
   readonly refusal?: string | null;
 }
 
+/** A single completion choice, narrowed to the fields this provider reads. */
+export interface OpenAiChoice {
+  readonly message: OpenAiMessage;
+  readonly finish_reason?: string | null;
+}
+
 /** A Chat Completions response, narrowed to the fields this provider reads. */
 export interface OpenAiCompletion {
-  readonly choices: readonly { readonly message: OpenAiMessage }[];
+  readonly choices: readonly OpenAiChoice[];
   readonly usage?: { readonly prompt_tokens?: number; readonly completion_tokens?: number };
 }
 

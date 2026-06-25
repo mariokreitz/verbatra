@@ -1,5 +1,6 @@
 import { ProviderError } from "../errors.js";
 import type { LlmCompletion } from "../llm/run.js";
+import { assertNotTruncated } from "../llm/truncation.js";
 import type { Usage } from "../provider.js";
 import type { GeminiResponse } from "./types.js";
 
@@ -40,16 +41,18 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
  * never parsed as a translation and never silently dropped. Blocked reasons are
  * checked BEFORE reading the text, so the SDK's non-STOP text warning is never
  * reached on a blocked result. A token-limit truncation (MAX_TOKENS) is not a block:
- * its incomplete text falls through to the shared validation as INVALID_RESPONSE. The
- * raw object is validated against the canonical schema by the shared layer. Errors
- * here carry no key, header, or content.
+ * it is its own actionable outcome surfaced as OUTPUT_TRUNCATED, checked before the
+ * text is read so a truncated-but-valid body still reports truncation rather than a
+ * key mismatch. The raw object is validated against the canonical schema by the shared
+ * layer. Errors here carry no key, header, or content.
  *
  * @param response - The raw generateContent response.
  * @returns The schema-bound raw output plus optional usage.
  * @throws {@link ProviderError} `PROVIDER_BLOCKED`: the prompt was blocked, there was no candidate, or the
  *   candidate was safety-filtered.
- * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty (including a MAX_TOKENS
- *   truncation) or unparseable.
+ * @throws {@link ProviderError} `OUTPUT_TRUNCATED`: the candidate stopped on the output-token limit
+ *   (`MAX_TOKENS`).
+ * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty or unparseable.
  */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
   // An empty-string blockReason is treated as "not blocked": only a present,
@@ -66,6 +69,7 @@ export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
   if (candidate.finishReason !== undefined && BLOCKED_FINISH_REASONS.has(candidate.finishReason)) {
     throw new ProviderError("PROVIDER_BLOCKED", "The provider filtered the translation response.");
   }
+  assertNotTruncated(candidate.finishReason === "MAX_TOKENS");
   const text = response.text;
   if (text === undefined || text === "") {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no translation content.");
