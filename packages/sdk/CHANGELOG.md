@@ -1,5 +1,91 @@
 # @verbatra/sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- 4fd6165: feat(sdk): warn on missing CLDR plural categories, with opt-in generation (`generatePlurals`)
+
+  When a target language requires more CLDR plural categories than the i18next source supplies (for
+  example Arabic, Polish, or Russian against an English one/other source), verbatra emits a per-locale
+  `PLURAL_CATEGORIES_INCOMPLETE` notice naming the locale and the missing categories; the run still
+  succeeds. Opt-in `generatePlurals` makes verbatra synthesize the missing target forms so the written
+  plural set is complete, instead of only warning. This is off by default: enable it with a
+  `generatePlurals: true` config option or a per-run `generatePlurals` override (the override takes
+  precedence), mirroring the `prune` pattern.
+
+  Generation is supported for i18next-JSON projects translated by an LLM provider only. DeepL,
+  non-i18next formats, and target languages not in the static category lookup fall back to the existing
+  `PLURAL_CATEGORIES_INCOMPLETE` warning and never hard-fail. Generated forms ride the existing provider
+  path: the source plural value travels in the data channel and the CLDR category travels as data context
+  (meaning), so the prompt-injection boundary is unchanged and no provider request shape or schema changes.
+  Each generated form is placeholder/ICU integrity-checked like any translation; a failing form is withheld
+  (surfaced in `integrityMismatches`) and keeps the warning. Generated keys are tracked in the lock by a
+  hash of their governing source plural forms (not regenerated while those are unchanged, reconsidered when
+  they change, retried when withheld) and are surfaced on the run summary as a new `generated` field,
+  distinct from `translated`. The warning is suppressed only when a supported case produced a complete,
+  integrity-passing set.
+
+  The CLI surfaces this on its default human output: the per-locale line now shows a `generated` count
+  (only when non-zero, matching how `orphaned` and `pruned` are shown), so a user not using `--json` sees
+  when plural forms were synthesized. The JSON and NDJSON output already carried the `generated` field
+  verbatim.
+
+- 4fd6165: feat: add opt-in orphan pruning (`--prune`)
+
+  Pruning is off by default and never deletes translator work silently. Enable it with the new
+  `translate --prune` flag or a `prune: true` option in the config (the flag takes precedence per run).
+  When on, verbatra removes exactly the orphaned keys (present in a target file but absent from the
+  source) from the written target file and the lock; no other key is ever touched. Combine
+  `--prune --dry-run` to preview which keys would be removed without writing anything. The run summary
+  (human and `--json` / watch NDJSON) reports a per-locale pruned count and key list alongside the
+  existing orphaned reporting.
+
+- 4fd937b: feat(sdk): split a locale's translation request into bounded sub-batches
+
+  A locale's missing-plus-changed entries are now divided into sequential sub-batches no larger than a
+  configured maximum, and each sub-batch is sent as its own provider request. A locale whose entry
+  count is at or below the maximum still issues exactly one request, so the common case is unchanged.
+  The accepted translations from every sub-batch are merged into one target file and written once, so
+  the on-disk result for a multi-sub-batch locale is identical to what a single un-chunked request
+  would have produced for the same accepted set.
+
+  The maximum is a new optional config field, `maxBatchSize`: a positive integer validated at the
+  config boundary (zero, a negative number, a non-integer, or a non-number is rejected with a
+  structured config error). When the field is absent the documented default of 50 applies. The field
+  is config-only for this slice; no CLI flag is added.
+
+  A failed sub-batch no longer sinks the locale. If a sub-batch's provider call throws, or its results
+  fail integrity, only that sub-batch's keys are withheld (not locked, so they are retried next run)
+  while the remaining sub-batches are still merged, written, and locked. The locale's overall status
+  stays `succeeded`, and a chunk-level provider failure surfaces as a concise, secret-free
+  `SUB_BATCH_FAILED` notice on the locale summary rather than throwing. The raw provider error is never
+  bound or surfaced. This is a behavior change for the provider-throw path: a thrown provider call
+  previously failed the whole locale, and now isolates to the affected sub-batch's keys.
+
+  Compatibility: projects whose locales fit within the default in a single request behave exactly as
+  before. Lock-file format and semantics are unchanged.
+
+### Patch Changes
+
+- 2ba217b: fix(config): restrict the provider model field to the selected provider's known models
+
+  `defineConfig` is now declared as one overload per provider id, each taking that
+  provider's concrete authoring config. Overload resolution picks the variant from the
+  `provider.id` literal, so `provider.options.model` is restricted to that provider's known
+  model IDs: the editor offers only those models, and a foreign or unknown model (for
+  example a Claude model under `id: "gemini"`) is a type error at authoring time. Concrete
+  per-provider signatures avoid the generic/nested-discriminated-union inference that some
+  editors (notably the JetBrains/WebStorm completion engine) do not perform and that
+  otherwise makes them fall back to offering every provider's models. This is a type-only
+  DX change: the runtime schema stays `z.string().min(1)` (a model the installed provider
+  SDK does not yet list is flagged in the editor but still runs), `defineConfig` still
+  returns `VerbatraConfig`, and DeepL (no model field) is unchanged.
+
+- 4fd6165: fix: make atomic-write temp-file names collision-proof
+
+  Both atomic-write paths (the SDK file seam and the format-adapters JSON writer) now append a random UUID to the temp-file name, so two writes to the same target in the same millisecond from the same process can never collide on the temp name. The atomic same-directory-temp-then-rename behavior is otherwise unchanged.
+
 ## 0.2.2
 
 ### Patch Changes
