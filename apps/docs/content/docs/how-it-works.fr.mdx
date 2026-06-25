@@ -50,8 +50,12 @@ C'est ce qui maintient une exécution incrémentielle : un fournisseur n'est app
 
 ### Appel du fournisseur
 
-Les entrées candidates sont envoyées au fournisseur configuré en un seul lot, accompagnées des options facultatives
-`glossary` et `tone` de ta configuration. La façon dont elles sont appliquées dépend du fournisseur.
+Les entrées candidates sont envoyées au fournisseur configuré, accompagnées des options facultatives
+`glossary` et `tone` de ta configuration. Elles sont réparties en sous-lots séquentiels d'au plus
+`maxBatchSize` (par défaut `50`, voir [Configuration](/docs/config-file)), de sorte qu'une requête
+surdimensionnée ne puisse pas faire échouer toute la locale. Un sous-lot dont l'appel échoue est
+retenu et réessayé à la prochaine exécution pendant que les autres continuent de progresser. La façon
+dont les entrées sont appliquées dépend du fournisseur.
 
 - Les fournisseurs LLM (Anthropic, OpenAI, Gemini) reçoivent les entrées, le glossaire et la tonalité dans une
   charge utile de données structurée, et sont invités à traiter les termes du glossaire comme contraignants et à respecter la
@@ -102,3 +106,8 @@ invalide, une source illisible, un format inconnu, un fournisseur qui ne peut pa
 (y compris une clé API manquante), ou un fichier de verrouillage corrompu, arrête l'exécution avec une erreur structurée. L'échec
 d'une seule locale n'est pas fatal : il est enregistré sur l'entrée de cette locale avec un code et un message,
 et le reste des locales s'exécute quand même.
+
+Lorsqu'un fournisseur LLM (Anthropic, OpenAI, Gemini) s'arrête parce qu'il a atteint la limite de
+jetons de sortie, ce sous-lot échoue avec une erreur distincte `OUTPUT_TRUNCATED` qui conseille une
+taille de lot plus petite ou un nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas
+à DeepL. Voir [Fournisseurs](/docs/providers).

@@ -50,6 +50,7 @@ Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor für `opti
 - **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und fällt mit einem Hinweis auf den Standard zurück.
 - **`prune`** (optional, boolean, Standard `false`): wenn true, werden Schlüssel, die in einer Ziel-Datei vorhanden sind, aber in der Quelle fehlen (die verwaisten Schlüssel des Vergleichs), aus der geschriebenen Datei und der Lock-Datei entfernt. Eine `prune`-Option pro Lauf auf `translate` (die CLI-Flag `--prune`) überschreibt dies. Es werden niemals andere als verwaiste Schlüssel entfernt.
 - **`generatePlurals`** (optional, boolean, Standard `false`): wenn true, synthetisiert verbatra die CLDR-Pluralformen, die eine Zielsprache benötigt, die Quelle aber nicht liefert (zum Beispiel Polnisch few/many). Wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden; DeepL, Nicht-i18next-Formate und unbekannte Zielsprachen fallen auf die Pluralwarnung pro Locale zurück. Anders als `prune` gibt es kein CLI-Flag `--generate-plurals`; setze dies daher in der Konfiguration. Der SDK-Eingang `translate()` akzeptiert eine `generatePlurals`-Option pro Lauf, die Vorrang hat.
+- **`maxBatchSize`** (optional, positive Ganzzahl, Standard `50`): die fehlenden und geänderten Einträge eines Locales werden in sequenzielle Sub-Batches aufgeteilt, die nicht größer als dieser Wert sind, damit eine einzelne übergroße Provider-Anfrage nicht das gesamte Locale scheitern lässt. Ein fehlgeschlagener Sub-Batch wird zurückgehalten und beim nächsten Lauf erneut versucht, während die übrigen trotzdem vorankommen. Dies ist ausschließlich über die Konfiguration steuerbar: Es gibt kein CLI-Flag und keine `translate()`-Überschreibung pro Lauf; setze es daher in der Konfiguration.
 
 Unbekannte Schlüssel auf oberster Ebene werden abgelehnt. Dies ist auch der Grund, warum ein API-Schlüssel nicht in der Konfiguration stehen kann: Schlüssel kommen aus der Umgebung, nicht aus der Datei.
 
@@ -69,6 +70,7 @@ export default defineConfig({
     "Sign in": "Anmelden",
   },
   tone: "formal",
+  maxBatchSize: 25,
   provider: {
     id: "anthropic",
     options: {

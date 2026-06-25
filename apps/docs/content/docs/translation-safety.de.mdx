@@ -11,7 +11,7 @@ Maschinenausgabe wird standardmäßig nicht vertraut. verbatra führt jede Über
 
 Ein übersetzter Wert muss dieselben Platzhalter tragen wie seine Quelle. Nach der Übersetzung vergleicht verbatra den Platzhalter-Satz jedes Ergebnisses mit dem Quellwert. Eine Übersetzung, die einen Platzhalter weglässt, hinzufügt oder verändert, besteht die Prüfung nicht und wird zurückgehalten, statt geschrieben zu werden. Der zurückgehaltene Schlüssel behält seinen vorherigen Lock-Hash, sodass der nächste Lauf ihn erneut versucht, und er wird pro Locale als Integritätskonflikt in der Lauf-Zusammenfassung gemeldet.
 
-Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next und ngx-translate, einfache geschweifte Klammern `{name}` und `{0}` für vue-i18n, und ICU-Argument- und Tag-Namen für next-intl. Siehe [Formate](/docs/formats) für die Syntax jedes einzelnen.
+Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next und ngx-translate, einfache geschweifte Klammern `{name}` und `{0}` für vue-i18n, und ICU-Argument- und Tag-Namen für next-intl. Bei i18next werden auch `$t(...)`-Verschachtelungsreferenzen geschützt: Eine Übersetzung, die eine `$t(...)`-Referenz entfernt, verändert oder übersetzt, besteht die Prüfung nicht und wird zurückgehalten. Siehe [Formate](/docs/formats) für die Syntax jedes einzelnen.
 
 ## ICU-Gültigkeit
 

@@ -11,12 +11,12 @@ verbatra works on JSON locale files through a format adapter. Every adapter read
 
 | `format` | For | Placeholders | Plurals | ICU |
 | --- | --- | --- | --- | --- |
-| `i18next-json` | i18next | `{{name}}` | CLDR plural suffix on the key | no |
+| `i18next-json` | i18next | `{{name}}` and `$t(...)` nesting references | CLDR plural suffix on the key | no |
 | `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | pipe in the value | no |
 | `next-intl-json` | next-intl | ICU argument and tag names | ICU plural or selectordinal | yes |
 | `ngx-translate-json` | ngx-translate | `{{name}}` | none | no |
 
-i18next and ngx-translate share the same `{{double-brace}}` interpolation. vue-i18n uses single braces and decides plural from a pipe in the value. next-intl values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. ngx-translate has no built-in plural or ICU, and its files may be flat with dotted keys or nested; verbatra preserves whichever style the file uses on write.
+i18next and ngx-translate share the same `{{double-brace}}` interpolation. i18next additionally extracts and guards its `$t()` nesting references (which splice another key's content into the value), for example `$t(common.foo)` and `$t(common.foo, { options })`, as placeholders, so a translation that drops or alters one fails the integrity check. Two limitations apply: nested parentheses inside the `$t()` options are not supported, and only the default `$t(` prefix is recognized. ngx-translate uses the same double-brace interpolation but has no `$t()` nesting. vue-i18n uses single braces and decides plural from a pipe in the value. next-intl values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. ngx-translate has no built-in plural or ICU, and its files may be flat with dotted keys or nested; verbatra preserves whichever style the file uses on write.
 
 ## Why the format matters
 

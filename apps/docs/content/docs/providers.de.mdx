@@ -92,3 +92,16 @@ Die optionalen Konfigurationsfelder `tone` und `glossary` (siehe [Konfiguration]
 
 - **Ton.** Die LLM-Provider erhalten den Ton mit der Anfrage und werden angewiesen, ihn zu berücksichtigen. DeepL ordnet ihn der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und auf den Standardwert herabgestuft, mit einem Hinweis im Ergebnis.
 - **Glossar.** Die LLM-Provider erhalten die `glossary`-Begriffszuordnung und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet keine generische Begriffszuordnung an; es vermerkt einen Hinweis und verwendet stattdessen die obige `glossaryId`-Option.
+
+## Ausgabe-Token-Limits
+
+Die drei LLM-Provider (Anthropic, OpenAI und Gemini) begrenzen, wie viele Tokens eine einzelne Antwort erzeugen darf. Wenn ein Provider stoppt, weil er dieses Limit erreicht hat (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), löst verbatra einen eigenen strukturierten Fehler mit dem Code `OUTPUT_TRUNCATED` aus, anstatt eines generischen Fehlers wegen einer fehlerhaften Antwort. Die Meldung ist fest:
+
+> The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
+
+Sie haben zwei Hebel, und jeder einzelne behebt das Problem:
+
+- Senken Sie `maxBatchSize` in Ihrer Konfiguration (siehe [Konfiguration](/docs/config-file)), damit jede Anfrage weniger Einträge übersetzt und eine kleinere Antwort erzeugt. Dies ist nur über die Konfiguration möglich und gilt für jeden Provider.
+- Erhöhen Sie das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI und Gemini (die Optionen aus den obigen Blöcken).
+
+DeepL ist nicht betroffen. Es ist ein maschineller Übersetzungsdienst und läuft nicht über die LLM-Schicht, daher gibt es keinen Fall einer Ausgabe-Token-Abschneidung.

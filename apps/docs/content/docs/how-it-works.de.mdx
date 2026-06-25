@@ -50,8 +50,12 @@ einen Lauf inkrementell hält: ein Provider wird nur für die Strings aufgerufen
 
 ### Aufruf des Providers
 
-Die Kandidaten-Einträge werden in einem Batch an den konfigurierten Provider gesendet, zusammen mit dem optionalen
-`glossary` und `tone` aus deiner Konfiguration. Wie diese angewendet werden, hängt vom Provider ab.
+Die Kandidaten-Einträge werden an den konfigurierten Provider gesendet, zusammen mit dem optionalen
+`glossary` und `tone` aus deiner Konfiguration. Sie werden in sequenzielle Teil-Batches von höchstens
+`maxBatchSize` aufgeteilt (Standard `50`, siehe [Konfiguration](/docs/config-file)), sodass eine
+überdimensionierte Anfrage nicht das gesamte Locale fehlschlagen lassen kann. Ein Teil-Batch, dessen
+Aufruf fehlschlägt, wird zurückgehalten und beim nächsten Lauf erneut versucht, während die übrigen
+weiterhin Fortschritte machen. Wie die Eingaben angewendet werden, hängt vom Provider ab.
 
 - Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten die Einträge, das Glossar und den Ton in einem
   strukturierten Daten-Payload und werden angewiesen, die Glossar-Begriffe als bindend zu behandeln und den
@@ -102,3 +106,8 @@ ungültige Konfiguration, eine unlesbare Quelle, ein unbekanntes Format, ein Pro
 (einschließlich eines fehlenden API-Schlüssels), oder eine beschädigte Lock-Datei, stoppt den Lauf mit einem strukturierten Fehler. Das
 Fehlschlagen eines einzelnen Locales ist nicht fatal: es wird im Eintrag dieses Locales mit einem Code und einer Nachricht aufgezeichnet,
 und die übrigen Locales laufen weiter.
+
+Wenn ein LLM-Provider (Anthropic, OpenAI, Gemini) stoppt, weil er das Ausgabe-Token-Limit erreicht hat,
+schlägt dieser Teil-Batch mit einem eigenen `OUTPUT_TRUNCATED`-Fehler fehl, der eine kleinere
+Batch-Größe oder mehr maximale Ausgabe-Tokens empfiehlt. Dies gilt nicht für DeepL. Siehe
+[Provider](/docs/providers).

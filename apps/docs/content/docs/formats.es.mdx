@@ -11,12 +11,12 @@ verbatra trabaja sobre archivos JSON de configuración regional a través de un 
 
 | `format` | Para | Marcadores de posición | Plurales | ICU |
 | --- | --- | --- | --- | --- |
-| `i18next-json` | i18next | `{{name}}` | sufijo de plural CLDR en la clave | no |
+| `i18next-json` | i18next | `{{name}}` y referencias de anidamiento `$t(...)` | sufijo de plural CLDR en la clave | no |
 | `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | barra vertical en el valor | no |
 | `next-intl-json` | next-intl | nombres de argumentos y etiquetas ICU | plural o selectordinal de ICU | sí |
 | `ngx-translate-json` | ngx-translate | `{{name}}` | ninguno | no |
 
-i18next y ngx-translate comparten la misma interpolación de `{{doble-llave}}`. vue-i18n usa llaves simples y decide el plural a partir de una barra vertical en el valor. Los valores de next-intl son ICU MessageFormat: los marcadores de posición son los nombres de los argumentos ICU y las etiquetas de texto enriquecido, el plural sigue un argumento plural o selectordinal de ICU, y el cuerpo ICU se mantiene literal a lo largo de la canalización. ngx-translate no tiene plural ni ICU integrados, y sus archivos pueden ser planos con claves con puntos o anidados; verbatra preserva el estilo que use el archivo al escribir.
+i18next y ngx-translate comparten la misma interpolación de `{{doble-llave}}`. i18next además extrae y protege sus referencias de anidamiento `$t()` (que insertan el contenido de otra clave en el valor) como marcadores de posición, por ejemplo `$t(common.foo)` y `$t(common.foo, { options })`, de modo que una traducción que elimine o altere alguna de ellas no pasa la comprobación de integridad. Se aplican dos limitaciones: no se admiten paréntesis anidados dentro de las opciones de `$t()`, y solo se reconoce el prefijo predeterminado `$t(`. ngx-translate usa la misma interpolación de doble llave pero no tiene anidamiento `$t()`. vue-i18n usa llaves simples y decide el plural a partir de una barra vertical en el valor. Los valores de next-intl son ICU MessageFormat: los marcadores de posición son los nombres de los argumentos ICU y las etiquetas de texto enriquecido, el plural sigue un argumento plural o selectordinal de ICU, y el cuerpo ICU se mantiene literal a lo largo de la canalización. ngx-translate no tiene plural ni ICU integrados, y sus archivos pueden ser planos con claves con puntos o anidados; verbatra preserva el estilo que use el archivo al escribir.
 
 ## Por qué importa el formato
 

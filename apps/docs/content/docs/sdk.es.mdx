@@ -120,7 +120,7 @@ for (const locale of summary.locales) {
 }
 ```
 
-Pasa `dryRun: true` para leer y comparar sin llamar a un proveedor ni escribir archivos. Pasa `prune: true` para eliminar las claves huérfanas, o `generatePlurals: true` para sintetizar las categorías plurales ausentes (solo i18next-JSON con un proveedor de LLM); cada una anula la opción de configuración correspondiente para esa ejecución.
+Pasa `dryRun: true` para leer y comparar sin llamar a un proveedor ni escribir archivos. Pasa `prune: true` para eliminar las claves huérfanas, o `generatePlurals: true` para sintetizar las categorías plurales ausentes (solo i18next-JSON con un proveedor de LLM); cada una anula la opción de configuración correspondiente para esa ejecución. A diferencia de `prune` y `generatePlurals`, `maxBatchSize` solo se define en la configuración (en el objeto de configuración, valor predeterminado 50): no existe ninguna anulación por ejecución en `translate()`.
 
 ## Modo de observación
 
