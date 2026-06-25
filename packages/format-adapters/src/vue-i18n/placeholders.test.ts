@@ -24,23 +24,23 @@ describe("extractVueI18nPlaceholders", () => {
     expect(extractVueI18nPlaceholders("see @:other.key for details")).toEqual([]);
   });
 
-  it("does not extract a phantom token from double-brace text (H2)", () => {
+  it("does not extract a phantom token from double-brace text", () => {
     // vue-i18n has no {{...}} syntax; the old extractor wrongly captured the inner {name}.
     expect(extractVueI18nPlaceholders("Hello {{name}}")).toEqual([]);
   });
 
-  it("normalizes whitespace inside braces to a canonical token (H2)", () => {
+  it("normalizes whitespace inside braces to a canonical token", () => {
     // vue-i18n's compiler skips inner whitespace, so "{ name }" === "{name}".
     expect(extractVueI18nPlaceholders("hi { name }")).toEqual(["{name}"]);
     expect(extractVueI18nPlaceholders("{  count\t}")).toEqual(["{count}"]);
   });
 
-  it("does not treat literal interpolation as a placeholder (H2)", () => {
+  it("does not treat literal interpolation as a placeholder", () => {
     // {'...'} is a string literal (used to escape @, {, }), not a variable.
     expect(extractVueI18nPlaceholders("{account}{'@'}{domain}")).toEqual(["{account}", "{domain}"]);
   });
 
-  it("accepts the full vue-i18n named-key character set (H2)", () => {
+  it("accepts the full vue-i18n named-key character set", () => {
     // Named keys may contain letters, digits, underscores, hyphens, and dollar signs.
     expect(extractVueI18nPlaceholders("{user-id} {val$2} {_x}")).toEqual([
       "{user-id}",
@@ -49,7 +49,7 @@ describe("extractVueI18nPlaceholders", () => {
     ]);
   });
 
-  it("does not treat literal braces with non-key content as placeholders (H2)", () => {
+  it("does not treat literal braces with non-key content as placeholders", () => {
     expect(extractVueI18nPlaceholders("use {curly braces} here")).toEqual([]);
   });
 

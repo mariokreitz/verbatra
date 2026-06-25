@@ -27,19 +27,19 @@ describe("extractI18nextPlaceholders", () => {
     expect(extractI18nextPlaceholders("{{val, number}}")).toEqual(["{{val, number}}"]);
   });
 
-  it("extracts a $t() nesting reference (H3)", () => {
+  it("extracts a $t() nesting reference", () => {
     expect(extractI18nextPlaceholders("see $t(common.foo) for details")).toEqual([
       "$t(common.foo)",
     ]);
   });
 
-  it("extracts a $t() reference with options verbatim (H3)", () => {
+  it("extracts a $t() reference with options verbatim", () => {
     expect(extractI18nextPlaceholders('$t(common.foo, {"count": 3})')).toEqual([
       '$t(common.foo, {"count": 3})',
     ]);
   });
 
-  it("extracts braces and $t() together in document order, with multiplicity (H3)", () => {
+  it("extracts braces and $t() together in document order, with multiplicity", () => {
     expect(extractI18nextPlaceholders("$t(a) {{name}} $t(a)")).toEqual([
       "$t(a)",
       "{{name}}",
@@ -47,7 +47,7 @@ describe("extractI18nextPlaceholders", () => {
     ]);
   });
 
-  it("stays linear on a long run of unclosed $t( (H3)", () => {
+  it("stays linear on a long run of unclosed $t(", () => {
     const hostile = "$t(".repeat(200_000);
     const start = Date.now();
     expect(extractI18nextPlaceholders(hostile)).toEqual([]);

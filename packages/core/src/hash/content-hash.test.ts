@@ -41,26 +41,26 @@ describe("contentHash", () => {
     expect(contentHash(a)).not.toBe(contentHash(b));
   });
 
-  it("is equal for Unicode-equivalent values (NFC vs NFD) (H6)", () => {
+  it("is equal for Unicode-equivalent values (NFC vs NFD)", () => {
     expect(NFC).not.toBe(NFD); // the raw inputs really do differ byte-for-byte
     expect(contentHash(entry({ key: "a", value: NFC }))).toBe(
       contentHash(entry({ key: "a", value: NFD })),
     );
   });
 
-  it("is equal regardless of line endings (CRLF, CR, LF) (H6)", () => {
+  it("is equal regardless of line endings (CRLF, CR, LF)", () => {
     const lf = contentHash(entry({ key: "a", value: "a\nb" }));
     expect(contentHash(entry({ key: "a", value: "a\r\nb" }))).toBe(lf);
     expect(contentHash(entry({ key: "a", value: "a\rb" }))).toBe(lf);
   });
 
-  it("normalizes context fields too (description NFC/NFD, meaning CRLF/LF) (H6)", () => {
+  it("normalizes context fields too (description NFC/NFD, meaning CRLF/LF)", () => {
     const a = entry({ key: "a", value: "v", description: NFD, meaning: "x\r\ny" });
     const b = entry({ key: "a", value: "v", description: NFC, meaning: "x\ny" });
     expect(contentHash(a)).toBe(contentHash(b));
   });
 
-  it("normalizes placeholders so Unicode-equivalent tokens agree (H6)", () => {
+  it("normalizes placeholders so Unicode-equivalent tokens agree", () => {
     const a = entry({ key: "a", placeholders: [`{${NFD}}`] });
     const b = entry({ key: "a", placeholders: [`{${NFC}}`] });
     expect(contentHash(a)).toBe(contentHash(b));
