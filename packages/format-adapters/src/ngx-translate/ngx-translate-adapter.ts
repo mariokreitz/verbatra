@@ -1,12 +1,12 @@
 import type { FormatAdapter } from "../adapter.js";
-import { extractI18nextPlaceholders } from "../i18next/placeholders.js";
+import { extractDoubleBracePlaceholders } from "../i18next/placeholders.js";
 import { createJsonFileAdapter } from "../json/json-file-adapter.js";
 import { assertNotMixed, buildNgxWriteTree } from "./structure.js";
 
 /**
- * The ngx-translate JSON adapter. Interpolation is `{{double-brace}}` (reused from the i18next
- * extractor). ngx-translate has no built-in plural or ICU, so isPlural is always false and no ICU
- * validity is computed. Files may be flat (dotted keys) or nested; the original style is preserved on
+ * The ngx-translate JSON adapter. Interpolation is `{{double-brace}}` (the brace-only extractor
+ * shared with i18next; ngx-translate has no i18next `$t()` nesting). ngx-translate has no built-in
+ * plural or ICU, so isPlural is always false and no ICU validity is computed. Files may be flat (dotted keys) or nested; the original style is preserved on
  * write.
  *
  * @returns A `FormatAdapter` for `ngx-translate-json`. Its `read` throws the shared structured
@@ -22,9 +22,9 @@ import { assertNotMixed, buildNgxWriteTree } from "./structure.js";
 export function createNgxTranslateJsonAdapter(): FormatAdapter {
   return createJsonFileAdapter({
     format: "ngx-translate-json",
-    extractPlaceholders: extractI18nextPlaceholders,
+    extractPlaceholders: extractDoubleBracePlaceholders,
     deriveEntry: (_key, value) => ({
-      placeholders: extractI18nextPlaceholders(value),
+      placeholders: extractDoubleBracePlaceholders(value),
       isPlural: false,
     }),
     validateTree: assertNotMixed,
