@@ -9,7 +9,7 @@ import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 // before they reached core, which silently defeated core's multiset integrity check.
 // A translation that drops one of two required occurrences must now be reported as a
 // mismatch end to end (adapter extraction -> core checkPlaceholders).
-describe("placeholder integrity is multiset-aware end to end (C1)", () => {
+describe("placeholder integrity is multiset-aware end to end", () => {
   it("i18next: dropping a repeated occurrence is a mismatch", () => {
     const adapter = createI18nextJsonAdapter();
     const source = adapter.extractPlaceholders("{{count}} of {{count}}");
@@ -19,7 +19,7 @@ describe("placeholder integrity is multiset-aware end to end (C1)", () => {
     expect(result.missing).toEqual(["{{count}}"]);
   });
 
-  it("i18next: dropping a $t() nesting reference is a mismatch (H3)", () => {
+  it("i18next: dropping a $t() nesting reference is a mismatch", () => {
     const adapter = createI18nextJsonAdapter();
     const source = adapter.extractPlaceholders("$t(common.greeting) {{name}}");
     const translated = adapter.extractPlaceholders("Hallo {{name}}");
