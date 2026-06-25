@@ -26,15 +26,19 @@ Requires Node.js `>=22.14.0`.
 
 The package exports six functions and the types a caller touches.
 
-- `defineConfig(config: VerbatraConfig): VerbatraConfig` returns its argument unchanged. It exists
-  only to give you type inference and autocomplete when you author a config in TypeScript.
+- `defineConfig(config): VerbatraConfig` returns its argument unchanged. It exists only to give you
+  type inference and autocomplete when you author a config in TypeScript; the `model` field is
+  restricted to the selected provider's known models, so another provider's model is a type error.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` discovers and validates the
   config. `LoadConfigOptions` accepts `cwd`, an explicit `configPath`, or an in-memory
   `configOverride`. It throws an `SdkError` when no config is found or validation fails.
 - `translate(input: TranslateInput): Promise<RunSummary>` runs the read, diff, translate, write flow
-  over every target locale. `TranslateInput` is `{ config, cwd?, dryRun? }`. It resolves to a
-  `RunSummary`; whole-run problems throw an `SdkError`, while per-locale outcomes are data on the
-  summary.
+  over every target locale. `TranslateInput` is `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+  `prune` (default off) removes orphaned keys from the written file and the lock; `generatePlurals`
+  (default off) synthesizes the CLDR plural forms a target language needs but the source lacks
+  (i18next-JSON with an LLM provider only). Each per-run flag, when set, overrides the matching config
+  option for that run. It resolves to a `RunSummary`; whole-run problems throw an `SdkError`, while
+  per-locale outcomes are data on the summary.
 - `watch(input: WatchInput): Promise<WatchController>` watches the source file and re-runs on each
   debounced change. `WatchInput` is `{ config, cwd?, debounceMs?, onRun }`, where `onRun` receives a
   `WatchRunResult` per run. The returned `WatchController` has a single method, `stop()`, which closes
@@ -65,20 +69,27 @@ interface LocaleSummary {
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   unchanged: string[];           // keys already up to date
-  orphaned: string[];            // target keys with no matching source key
+  orphaned: string[];            // target keys with no matching source key (reported regardless of pruning)
+  pruned: string[];              // orphaned keys removed this run; empty unless pruning is on (subset of orphaned)
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
   integrityMismatches: string[]; // translations withheld for a placeholder mismatch
-  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
+  notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
   error?: { code: string; message: string }; // present only when status is "failed"
 }
+
+// A notice is either a provider-emitted notice or an SDK-emitted one.
+type LocaleNotice = ProviderNotice | SdkNotice;
 
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Notices are per locale, on `LocaleSummary.notices`. There is no top-level notices list on
-`RunSummary`.
+Notices are per locale, on `LocaleSummary.notices`, and cover both provider notices (for example a
+DeepL graceful degradation) and SDK notices (for example a target language needing more CLDR plural
+categories than the source supplies, code `PLURAL_CATEGORIES_INCOMPLETE`). There is no top-level
+notices list on `RunSummary`.
 
 `SdkError` is the single error type the SDK throws for whole-run failures. It carries a stable `code`
 and a secret-free `message`. The codes are:
@@ -112,7 +123,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },
@@ -122,7 +133,7 @@ export default defineConfig({
 ## Run a one-shot translation
 
 `translate` resolves to the run summary. Read `succeeded` and `failed` for the headline, and walk
-`locales` for the detail, including any provider notices.
+`locales` for the detail, including any notices (provider or SDK).
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -139,7 +150,11 @@ for (const locale of summary.locales) {
 }
 ```
 
-Pass `dryRun: true` to read and diff without calling a provider or writing files.
+Pass `dryRun: true` to read and diff without calling a provider or writing files. Pass
+`prune: true` to remove orphaned keys, or `generatePlurals: true` to synthesize missing plural
+categories (i18next-JSON with an LLM provider only); each overrides the matching config option for
+that run. Unlike `prune` and `generatePlurals`, `maxBatchSize` is config-only (set on the config
+object, default 50): there is no per-run `translate()` override for it.
 
 ## Watch mode
 

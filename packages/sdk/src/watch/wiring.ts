@@ -25,7 +25,7 @@ export const defaultCreateWatcher: CreateWatcher = (paths) => {
   };
 };
 
-/** The production run: the slice-1 one-shot translate(), with the non-secret deps passed through. */
+/** The production run: the one-shot translate(), with the non-secret deps passed through. */
 export function defaultRunTranslate(deps: WatchDeps): RunTranslate {
   return (input) =>
     translate(input, {

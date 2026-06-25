@@ -11,7 +11,7 @@ La sortie de la machine n'est pas digne de confiance par défaut. verbatra fait 
 
 Une valeur traduite doit porter les mêmes espaces réservés que sa source. Après la traduction, verbatra compare l'ensemble des espaces réservés de chaque résultat à la valeur source. Une traduction qui supprime, ajoute ou altère un espace réservé échoue à la vérification et est retenue plutôt qu'écrite. La clé retenue conserve son hachage de verrouillage précédent, de sorte que l'exécution suivante la réessaie, et elle est signalée par locale comme une non-concordance d'intégrité sur le résumé de l'exécution.
 
-Ce qui compte comme un espace réservé dépend du format : les jetons `{{double-brace}}` pour i18next et ngx-translate, les accolades simples `{name}` et `{0}` pour vue-i18n, et les noms d'argument et de balise ICU pour next-intl. Voir [Formats](/docs/formats) pour la syntaxe de chacun.
+Ce qui compte comme un espace réservé dépend du format : les jetons `{{double-brace}}` pour i18next et ngx-translate, les accolades simples `{name}` et `{0}` pour vue-i18n, et les noms d'argument et de balise ICU pour next-intl. Pour i18next, les références d'imbrication `$t(...)` sont également protégées : une traduction qui supprime, modifie ou traduit une référence `$t(...)` échoue à la vérification et est retenue. Voir [Formats](/docs/formats) pour la syntaxe de chacun.
 
 ## Validité ICU
 
@@ -27,4 +27,4 @@ Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs,
 
 ## Ce que tu vois
 
-Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles retenues pour une non-concordance d'espace réservé, les clés source ignorées pour ICU invalide, et toute notification du fournisseur. Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir [Comment ça marche](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.
+Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles retenues pour une non-concordance d'espace réservé, les clés source ignorées pour ICU invalide, et toute notification. Les notifications incluent les notifications du fournisseur et les notifications du SDK, telles qu'un avertissement de catégorie de pluriel (code `PLURAL_CATEGORIES_INCOMPLETE`) lorsqu'une langue cible a besoin de plus de catégories de pluriel que la source n'en fournit ; voir [Ajouter une langue](/docs/add-a-language) pour savoir comment synthétiser ces formes à la place. Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir [Comment ça marche](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.

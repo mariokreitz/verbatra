@@ -22,6 +22,8 @@ Wenn verbatra ein Ziel-Locale liest, vergleicht es die Quelle gegen dieses Local
 
 Nur neue und geänderte Schlüssel werden an den Provider gesendet. Unveränderte Schlüssel bleiben unberührt, weshalb ein zweiter Lauf ohne Quell-Bearbeitungen den Provider für nichts aufruft.
 
+Der Content-Hash behandelt kanonisch gleichwertiges Unicode (NFC) und unterschiedliche Zeilenenden (CRLF gegenüber LF) als denselben Inhalt, sodass das erneute Speichern einer Quelldatei mit einer anderen Normalisierungsform oder anderen Zeilenenden einen Schlüssel weder als geändert markiert noch eine Neuübersetzung auslöst.
+
 ## Wie sie aktualisiert wird
 
 Nachdem ein Locale geschrieben wurde, aktualisiert verbatra die Lock-Datei mit den aktuellen Quell-Hashes, mit einer bewussten Ausnahme. Ein Schlüssel, der in diesem Lauf zurückgehalten wurde, weil seine Übersetzung die Platzhalter-Prüfung nicht bestanden hat oder sein Quell-ICU ungültig war, behält seinen vorherigen Hash. Der nächste Lauf sieht ihn dann immer noch als zu bearbeiten an und versucht ihn erneut, statt ihn als erledigt aufzuzeichnen. Verwaiste Schlüssel erhalten keinen Eintrag.

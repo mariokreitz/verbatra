@@ -1,8 +1,23 @@
 import { readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { defaultFs } from "./fs.js";
+import { defaultFs, tempFileName } from "./fs.js";
 import { makeTempDir } from "./test-support.js";
+
+describe("tempFileName", () => {
+  it("is unique for the same target across calls in immediate succession (same ms, same pid)", () => {
+    const path = "/proj/locales/de.json";
+    const names = new Set([tempFileName(path), tempFileName(path), tempFileName(path)]);
+    expect(names.size).toBe(3);
+  });
+
+  it("places the temp as a hidden sibling in the target's own directory", () => {
+    const path = "/proj/locales/de.json";
+    const name = tempFileName(path);
+    expect(dirname(name)).toBe(dirname(path));
+    expect(basename(name).startsWith(".de.json.tmp-")).toBe(true);
+  });
+});
 
 describe("defaultFs binary read/write", () => {
   it("readBytesBounded returns bytes below the cap, too-large above it, missing when absent", async () => {

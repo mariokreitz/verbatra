@@ -22,6 +22,8 @@ Cuando verbatra lee una configuración regional de destino, compara el origen co
 
 Solo las claves nuevas y modificadas se envían al proveedor. Las claves sin cambios se dejan intactas, por lo que una segunda ejecución sin ediciones de origen no llama al proveedor para nada.
 
+El hash de contenido trata el Unicode canónicamente equivalente (NFC) y los finales de línea distintos (CRLF frente a LF) como el mismo contenido, por lo que volver a guardar un archivo de origen con una forma de normalización o finales de línea diferentes no marca una clave como modificada ni desencadena una retraducción.
+
 ## Cómo se actualiza
 
 Después de escribir una configuración regional, verbatra actualiza el bloqueo con los hashes de origen actuales, con una excepción deliberada. Una clave que se retuvo en esta ejecución, porque su traducción no superó la comprobación de marcadores de posición o su ICU de origen no era válido, conserva su hash anterior. La siguiente ejecución la sigue viendo como que necesita trabajo y la reintenta, en lugar de registrarla como hecha. Las claves huérfanas no obtienen entrada.

@@ -24,7 +24,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },
@@ -42,6 +42,12 @@ verbatra translate
 La nouvelle locale n'a pas encore de fichier cible, donc verbatra la considère comme vide et y traduit chaque clé source, en écrivant le fichier à partir de `files.pattern` (par exemple `locales/fr.json`). Tes locales existantes restent inchangées, sauf si leurs chaînes source ont été modifiées, car le fichier de verrouillage les enregistre toujours comme actuelles.
 
 Prévisualise d'abord avec `verbatra translate --dry-run` si tu souhaites voir les clés de la nouvelle locale avant tout appel de fournisseur.
+
+## Langues avec plus de catégories de pluriel
+
+Certaines langues ont besoin de plus de catégories de pluriel CLDR que ta source n'en fournit. L'anglais en a deux (`one` et `other`), tandis que le polonais, l'arabe et le russe en ont davantage. Par défaut, verbatra traduit les formes plurielles présentes dans la source et ne synthétise pas les catégories supplémentaires : l'exécution réussit quand même et émet un avertissement de catégorie de pluriel par locale (code de notification `PLURAL_CATEGORIES_INCOMPLETE`) nommant la locale et les catégories manquantes.
+
+Pour que verbatra synthétise plutôt les formes manquantes, définis `generatePlurals: true` dans ta configuration (ou passe une option `generatePlurals` par exécution). La génération est prise en charge pour les projets i18next-JSON traduits par un fournisseur LLM uniquement ; DeepL, les autres formats et les langues cibles inconnues retombent sur l'avertissement et n'échouent jamais. Les formes générées sont vérifiées pour leur intégrité comme toute traduction et signalées séparément des clés traduites dans le résumé de l'exécution.
 
 ## Maintenir la locale source
 

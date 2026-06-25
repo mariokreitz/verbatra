@@ -26,7 +26,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>", // replace with your provider's model id
+      model: "claude-sonnet-4-6", // replace with your provider's model id
       maxTokens: 4096,
     },
   },
@@ -36,7 +36,7 @@ export default defineConfig({
 `defineConfig` est une fonction utilitaire d'identité de `@verbatra/sdk`. Elle renvoie son argument inchangé et n'existe que pour te fournir l'inférence de type et l'autocomplétion de l'éditeur.
 
 <Callout title="Autocomplétion des modèles en TypeScript">
-Lorsque tu écris la configuration en TypeScript, ton éditeur suggère pour `options.model` les identifiants de modèle connus du fournisseur sélectionné, restreints par l'`id` de fournisseur que tu as choisi. La liste provient du SDK du fournisseur lui-même (`@anthropic-ai/sdk`, `openai`, `@google/genai`), de sorte qu'elle reste à jour avec la version du SDK que tu as installée. C'est une suggestion, pas une restriction : toute autre chaîne est toujours acceptée, y compris un tout nouveau modèle que le SDK n'a pas encore ajouté.
+Lorsque tu écris la configuration en TypeScript, ton éditeur propose pour `options.model` les identifiants de modèle connus du fournisseur sélectionné, restreints par l'`id` de fournisseur que tu as choisi. La liste provient du SDK du fournisseur lui-même (`@anthropic-ai/sdk`, `openai`, `@google/genai`), de sorte qu'elle reste à jour avec la version du SDK que tu as installée. Le champ est restreint aux modèles de ce fournisseur : un modèle d'un autre fournisseur (par exemple un modèle Claude avec `id: "gemini"`) est une erreur de type. À l'exécution, `model` n'est validé que comme une chaîne non vide, de sorte qu'un tout nouveau modèle que le SDK ne liste pas encore fonctionne à l'exécution même si l'éditeur le signale.
 </Callout>
 
 ## Champs
@@ -45,9 +45,12 @@ Lorsque tu écris la configuration en TypeScript, ton éditeur suggère pour `op
 - **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`.
 - **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json` ou `ngx-translate-json`.
 - **`files.pattern`** (chaîne de caractères) : le chemin vers chaque fichier de locale. Il doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale (par exemple, `locales/{locale}.json` se résout en `locales/de.json`).
-- **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` complète automatiquement les identifiants de modèle connus du fournisseur choisi. Voir [Fournisseurs](/docs/providers).
+- **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` est restreint aux identifiants de modèle connus du fournisseur choisi (le modèle d'un autre fournisseur est une erreur de type). Voir [Fournisseurs](/docs/providers).
 - **`glossary`** (facultatif, objet) : une carte des termes source vers les termes cibles préférés. Les fournisseurs LLM (Anthropic, OpenAI, Gemini) la reçoivent avec la requête et sont invités à traiter ses termes comme contraignants. DeepL n'applique pas cette carte de termes ; il enregistre une notification et applique à la place un glossaire configuré par id (voir [Fournisseurs](/docs/providers)).
 - **`tone`** (facultatif) : l'un des `"formal"`, `"informal"` ou `"neutral"`. Les fournisseurs LLM le reçoivent et sont invités à le respecter. DeepL le mappe à la formalité : `formal` devient plus formel, `informal` devient moins formel, et `neutral` ou un ton absent est omis. Avec une clé DeepL gratuite, un ton non par défaut n'est pas pris en charge et se dégrade au ton par défaut avec une notification.
+- **`prune`** (facultatif, booléen, par défaut `false`) : lorsqu'il vaut true, les clés présentes dans un fichier cible mais absentes de la source (les clés orphelines du diff) sont supprimées du fichier écrit et du verrouillage. Une option `prune` par exécution sur `translate` (le drapeau CLI `--prune`) la remplace. Seules les clés orphelines sont jamais supprimées.
+- **`generatePlurals`** (facultatif, booléen, par défaut `false`) : lorsqu'il vaut true, verbatra synthétise les formes plurielles CLDR qu'une langue cible requiert mais que la source ne fournit pas (par exemple few/many en polonais). Pris en charge pour les projets i18next-JSON traduits par un fournisseur LLM uniquement ; DeepL, les formats non-i18next et les langues cibles inconnues retombent sur l'avertissement de pluriel par locale. Contrairement à `prune`, il n'y a pas de drapeau CLI `--generate-plurals` ; définis-le donc dans la configuration ; l'entrée `translate()` du SDK accepte bien une option `generatePlurals` par exécution qui a la priorité.
+- **`maxBatchSize`** (facultatif, entier positif, par défaut `50`) : les entrées manquantes et modifiées d'une locale sont réparties en sous-lots séquentiels ne dépassant pas cette valeur, afin qu'une seule requête de fournisseur surdimensionnée ne puisse pas faire échouer toute la locale. Un sous-lot en échec est retenu et réessayé à l'exécution suivante pendant que les autres continuent d'avancer. Cela se règle uniquement dans la configuration : il n'y a pas de drapeau CLI ni de remplacement `translate()` par exécution ; définis-le donc dans la configuration.
 
 Les clés de niveau supérieur inconnues sont rejetées. C'est aussi pourquoi une clé API ne peut pas résider dans la configuration : les clés proviennent de l'environnement, pas du fichier.
 
@@ -67,10 +70,11 @@ export default defineConfig({
     "Sign in": "Anmelden",
   },
   tone: "formal",
+  maxBatchSize: 25,
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },

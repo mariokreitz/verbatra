@@ -36,4 +36,32 @@ describe("unflattenEntries", () => {
     expect(({} as Record<string, unknown>).x).toBeUndefined();
     expect(JSON.stringify(tree)).toBe('{"__proto__":{"x":"v"}}');
   });
+
+  it("restores an encoded literal dotted leaf as a single leaf, not re-nested", () => {
+    const tree = unflattenEntries(new Map([["foo\\.bar", entry("foo\\.bar", "Hi")]]));
+    expect(plain(tree)).toEqual({ "foo.bar": "Hi" });
+  });
+
+  it("restores a multi-dot literal leaf in full", () => {
+    const tree = unflattenEntries(new Map([["a\\.b\\.c", entry("a\\.b\\.c", "Hi")]]));
+    expect(plain(tree)).toEqual({ "a.b.c": "Hi" });
+  });
+
+  it("keeps an encoded literal leaf and a sibling nested path distinct", () => {
+    const tree = unflattenEntries(
+      new Map([
+        ["a\\.b", entry("a\\.b", "x")],
+        ["c.d", entry("c.d", "y")],
+      ]),
+    );
+    expect(plain(tree)).toEqual({ "a.b": "x", c: { d: "y" } });
+  });
+
+  it("throws when a leaf is set where a nested object already exists (reverse collision)", () => {
+    const entries = new Map([
+      ["a.b", entry("a.b", "Y")],
+      ["a", entry("a", "X")],
+    ]);
+    expect(() => unflattenEntries(entries)).toThrow(AdapterError);
+  });
 });

@@ -24,7 +24,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },
@@ -42,6 +42,12 @@ verbatra translate
 The new locale has no target file yet, so verbatra treats it as empty and translates every source key into it, writing the file from `files.pattern` (for example `locales/fr.json`). Your existing locales are left untouched unless their source strings changed, because the lock file still records them as current.
 
 Preview first with `verbatra translate --dry-run` if you want to see the new locale's keys before any provider call.
+
+## Languages with more plural categories
+
+Some languages need more CLDR plural categories than your source supplies. English has two (`one` and `other`), while Polish, Arabic, and Russian have more. By default verbatra translates the plural forms present in the source and does not synthesize the extra categories: the run still succeeds and emits a per-locale plural-category warning (notice code `PLURAL_CATEGORIES_INCOMPLETE`) naming the locale and the missing categories.
+
+To have verbatra synthesize the missing forms instead, set `generatePlurals: true` in your config (or pass a per-run `generatePlurals` override). Generation is supported for i18next-JSON projects translated by an LLM provider only; DeepL, the other formats, and unknown target languages fall back to the warning and never fail. Generated forms are integrity-checked like any translation and reported separately from translated keys in the run summary.
 
 ## Maintaining the source locale
 

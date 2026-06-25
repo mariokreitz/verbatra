@@ -30,8 +30,10 @@ export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummar
     translated: [],
     unchanged: [],
     orphaned: [],
+    pruned: [],
     invalidIcuSource: [],
     integrityMismatches: [],
+    generated: [],
     notices: [],
     ...overrides,
   };

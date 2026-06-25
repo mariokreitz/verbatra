@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
+import { OUTPUT_TRUNCATED_MESSAGE } from "../llm/truncation.js";
 import type { TranslateRequest } from "../provider.js";
-import { entry, firstCall, regexExtractor, stubClient, toolMessage } from "../test-support.js";
+import {
+  entry,
+  firstCall,
+  regexExtractor,
+  stubClient,
+  toolMessage,
+  truncatedToolMessage,
+} from "../test-support.js";
 import { createAnthropicProvider, toIntegrityInputs, toUsage } from "./anthropic-provider.js";
 import type { AnthropicConfig } from "./config.js";
 import { SYSTEM_RULES } from "./request.js";
@@ -150,6 +158,60 @@ describe("createAnthropicProvider: mapping and integrity", () => {
     const { client } = stubClient(toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]));
     const result = await createAnthropicProvider(config, { client }).translateBatch(request());
     expect(result.integrity.get("greeting")?.matches).toBe(true);
+  });
+});
+
+describe("createAnthropicProvider: output truncation", () => {
+  it("reports an output-token truncation as OUTPUT_TRUNCATED, distinct from a malformed response", async () => {
+    const { client } = stubClient(
+      truncatedToolMessage([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    let caught: unknown;
+    try {
+      await createAnthropicProvider(config, { client }).translateBatch(request());
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    expect((caught as ProviderError).code).toBe("OUTPUT_TRUNCATED");
+  });
+
+  it("carries only the fixed safe remedy message, no key, SDK text, or translatable content", async () => {
+    const { client } = stubClient(
+      truncatedToolMessage([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    let caught: unknown;
+    try {
+      await createAnthropicProvider(config, { client }).translateBatch(request());
+    } catch (error) {
+      caught = error;
+    }
+    const message = (caught as ProviderError).message;
+    expect(message).toBe(OUTPUT_TRUNCATED_MESSAGE);
+    expect(message).toContain("Reduce the batch size");
+    expect(message).toContain("max output tokens");
+    expect(message).not.toContain("Hallo");
+    expect(message).not.toContain("greeting");
+  });
+
+  it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
+    // The tool input is schema-valid but carries an extra key; reconciliation would normally fail
+    // as INVALID_RESPONSE. Truncation must win because it is detected first.
+    const { client } = stubClient(
+      truncatedToolMessage([
+        { key: "greeting", value: "Hallo {{name}}" },
+        { key: "extra", value: "Z" },
+      ]),
+    );
+    await expect(
+      createAnthropicProvider(config, { client }).translateBatch(request()),
+    ).rejects.toMatchObject({ code: "OUTPUT_TRUNCATED" });
+  });
+
+  it("parses and reconciles a normal message that did not truncate", async () => {
+    const { client } = stubClient(toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const result = await createAnthropicProvider(config, { client }).translateBatch(request());
+    expect(result.values.get("greeting")).toBe("Hallo {{name}}");
   });
 });
 

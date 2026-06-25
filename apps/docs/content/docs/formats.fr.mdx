@@ -11,12 +11,12 @@ verbatra travaille sur des fichiers de locale JSON via un adaptateur de format. 
 
 | `format` | Pour | Espaces réservés | Pluriels | ICU |
 | --- | --- | --- | --- | --- |
-| `i18next-json` | i18next | `{{name}}` | suffixe de pluriel CLDR sur la clé | non |
+| `i18next-json` | i18next | `{{name}}` et références d'imbrication `$t(...)` | suffixe de pluriel CLDR sur la clé | non |
 | `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | barre verticale dans la valeur | non |
 | `next-intl-json` | next-intl | noms d'argument et de balise ICU | pluriel ICU ou selectordinal | oui |
 | `ngx-translate-json` | ngx-translate | `{{name}}` | aucun | non |
 
-i18next et ngx-translate partagent la même interpolation `{{double-brace}}`. vue-i18n utilise des accolades simples et détermine le pluriel à partir d'une barre verticale dans la valeur. Les valeurs next-intl sont au format ICU MessageFormat : les espaces réservés sont les noms d'argument ICU et les noms de balise de texte enrichi, le pluriel suit un argument ICU plural ou selectordinal, et le corps ICU est conservé tel quel tout au long du pipeline. ngx-translate n'a ni pluriel ni ICU intégré, et ses fichiers peuvent être plats avec des clés pointées ou imbriqués ; verbatra préserve à l'écriture le style utilisé par le fichier.
+i18next et ngx-translate partagent la même interpolation `{{double-brace}}`. i18next extrait et protège en plus ses références d'imbrication `$t()` (qui insèrent le contenu d'une autre clé dans la valeur) en tant qu'espaces réservés, par exemple `$t(common.foo)` et `$t(common.foo, { options })`, de sorte qu'une traduction qui en supprime ou en modifie une échoue à la vérification d'intégrité. Deux limitations s'appliquent : les parenthèses imbriquées à l'intérieur des options de `$t()` ne sont pas prises en charge, et seul le préfixe par défaut `$t(` est reconnu. ngx-translate utilise la même interpolation à double accolade mais n'a pas d'imbrication `$t()`. vue-i18n utilise des accolades simples et détermine le pluriel à partir d'une barre verticale dans la valeur. Les valeurs next-intl sont au format ICU MessageFormat : les espaces réservés sont les noms d'argument ICU et les noms de balise de texte enrichi, le pluriel suit un argument ICU plural ou selectordinal, et le corps ICU est conservé tel quel tout au long du pipeline. ngx-translate n'a ni pluriel ni ICU intégré, et ses fichiers peuvent être plats avec des clés pointées ou imbriqués ; verbatra préserve à l'écriture le style utilisé par le fichier.
 
 ## Pourquoi le format compte
 
@@ -25,6 +25,10 @@ Le format indique à verbatra deux choses dont il a besoin pour une exécution s
 ## Comment les fichiers sont lus et écrits
 
 verbatra plafonne la taille d'entrée et la profondeur d'imbrication à la lecture, et résiste à un fichier qui change en dessous de lui. Il écrit de façon atomique : il écrit dans un fichier temporaire, puis le renomme en place, de sorte qu'une écriture interrompue ne laisse jamais un fichier de locale à moitié terminé. Lorsque verbatra ne peut pas traiter un fichier, il lève une erreur structurée et sans secret plutôt qu'une erreur brute, par exemple pour un JSON invalide, une structure trop profonde, ou, pour ngx-translate uniquement, un fichier qui mélange des clés pointées plates avec des objets imbriqués.
+
+## Clés pointées
+
+Pour i18next, vue-i18n et next-intl, une feuille pointée littérale (une clé telle que `"foo.bar"` utilisée comme une seule feuille) fait un aller-retour sans perte : verbatra la lit et la réécrit en préservant sa forme sur le disque, sans la ré-imbriquer en `foo` puis `bar`. Les vrais chemins imbriqués restent imbriqués. Le seul cas qui échoue encore par conception est une véritable collision, où un fichier exprime le même chemin effectif à la fois comme une feuille pointée littérale et comme un vrai chemin imbriqué (par exemple `"foo.bar"` aux côtés de `"foo": { "bar": ... }`) ; cette exécution échoue avec `INVALID_STRUCTURE` plutôt que de deviner ou de corrompre les données. ngx-translate reste inchangé : une clé pointée y désigne un chemin imbriqué, donc sa gestion existante plat-contre-imbriqué s'applique et un fichier qui mélange des clés pointées plates avec des objets imbriqués échoue toujours.
 
 ## Choisir un format
 

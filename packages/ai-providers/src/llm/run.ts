@@ -69,8 +69,9 @@ export interface LlmMechanism {
    * @param input - The serialized data payload and the keys the model must return.
    * @returns The model's raw per-key output (validated downstream) plus optional usage.
    * @throws {@link ProviderError} (secret-free): `PROVIDER_ERROR` for an unbound SDK throw (via the guard),
-   *   and the provider's own code for a refusal or block (`PROVIDER_REFUSED` on OpenAI, `PROVIDER_BLOCKED`
-   *   on Gemini, `INVALID_RESPONSE` for unparseable or truncated output).
+   *   and the provider's own code for a refusal, block, or truncation (`PROVIDER_REFUSED` on OpenAI,
+   *   `PROVIDER_BLOCKED` on Gemini, `OUTPUT_TRUNCATED` on an output-token truncation, `INVALID_RESPONSE`
+   *   for unparseable output).
    */
   translate(input: LlmCompletionInput): Promise<LlmCompletion>;
 }

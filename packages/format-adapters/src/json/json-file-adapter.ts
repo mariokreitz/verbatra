@@ -4,7 +4,7 @@ import type { FormatAdapter, ReadResult } from "../adapter.js";
 import { AdapterError } from "../errors.js";
 import { atomicWriteFile } from "./atomic-write.js";
 import { readBounded } from "./bounded-read.js";
-import { type DeriveEntry, flattenTree } from "./flatten.js";
+import { type DeriveEntry, flattenTree, type KeyMode } from "./flatten.js";
 import { type JsonRecord, parseJsonObject } from "./json-tree.js";
 import { unflattenEntries } from "./unflatten.js";
 
@@ -41,6 +41,12 @@ export interface JsonFileAdapterOptions {
   readonly validateTree?: ValidateTree;
   /** Optional; builds the object to write (defaults to nested via unflattenEntries). */
   readonly buildWriteTree?: BuildWriteTree;
+  /**
+   * Optional; how a dotted string key is interpreted. Defaults to `literal-leaf` (a
+   * dotted string key is a single literal leaf and round-trips with its shape preserved).
+   * ngx-translate sets `path-notation` because a dotted key there denotes a nested path.
+   */
+  readonly keyMode?: KeyMode;
 }
 
 function namespaceOf(filePath: string): string {
@@ -69,12 +75,13 @@ function toEntries(
   content: string,
   namespace: string,
   deriveEntry: DeriveEntry,
+  keyMode: KeyMode,
   validateTree?: ValidateTree,
 ): Map<string, TranslationEntry> {
   try {
     const tree = parseJsonObject(content);
     validateTree?.(tree);
-    return flattenTree(tree, namespace, deriveEntry);
+    return flattenTree(tree, namespace, deriveEntry, keyMode);
   } catch (error) {
     rethrowStructured(error, "The file could not be read as JSON.");
   }
@@ -110,9 +117,11 @@ function computeIcu(
  * `INVALID_STRUCTURE` (the path is not a regular file, the root is not a JSON object, a leaf is not a
  * string, or a supplied hook throws a non-AdapterError), or `INPUT_TOO_LARGE` (the file exceeds the
  * size cap), plus any `AdapterError` a supplied `validateTree` raises (for example, ngx-translate's
- * `MIXED_STRUCTURE`). A missing or unopenable path instead rejects with the underlying filesystem
- * error. `write` raises `AdapterError` `INVALID_STRUCTURE` when a leaf key collides with a nested key
- * path, and rejects with the underlying filesystem error on a write failure.
+ * `MIXED_STRUCTURE`). In the default `literal-leaf` key mode, `read` also raises `INVALID_STRUCTURE`
+ * when a literal dotted leaf key and a real nested path resolve to the same effective path within one
+ * file. A missing or unopenable path instead rejects with the underlying filesystem error. `write`
+ * raises `AdapterError` `INVALID_STRUCTURE` when a leaf key collides with a nested key path, and
+ * rejects with the underlying filesystem error on a write failure.
  *
  * @param options - The format-specific behavior: the `format` tag, `deriveEntry` (placeholders and
  *   plurality per leaf), `extractPlaceholders`, and the optional `computeInvalidIcuKeys`,
@@ -146,6 +155,7 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
     validateMessage,
     validateTree,
     buildWriteTree,
+    keyMode = "literal-leaf",
   } = options;
   return {
     format,
@@ -162,7 +172,7 @@ export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAd
         throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
       }
       const namespace = namespaceOf(filePath);
-      const entries = toEntries(outcome.content, namespace, deriveEntry, validateTree);
+      const entries = toEntries(outcome.content, namespace, deriveEntry, keyMode, validateTree);
       const resource: LocaleResource = { locale, namespace, format, entries };
       const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
       return { resource, invalidIcuKeys };

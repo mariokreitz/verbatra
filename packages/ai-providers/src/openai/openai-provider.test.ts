@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
 import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
+import { OUTPUT_TRUNCATED_MESSAGE } from "../llm/truncation.js";
 import type { TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
@@ -10,6 +11,7 @@ import {
   openAiResult,
   openAiStubClient,
   regexExtractor,
+  truncatedOpenAiCompletion,
 } from "../test-support.js";
 import { createOpenAiProvider } from "./openai-provider.js";
 import { OPENAI_SYSTEM_RULES } from "./request.js";
@@ -223,6 +225,64 @@ describe("createOpenAiProvider: refusal handling", () => {
     expect(caught).toBeInstanceOf(ProviderError);
     expect((caught as ProviderError).code).toBe("PROVIDER_REFUSED");
     expect((caught as ProviderError).message).not.toContain("cannot help");
+  });
+});
+
+describe("createOpenAiProvider: output truncation", () => {
+  it("reports an output-token truncation as OUTPUT_TRUNCATED, distinct from a malformed response", async () => {
+    const { client } = openAiStubClient(
+      truncatedOpenAiCompletion([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    let caught: unknown;
+    try {
+      await createOpenAiProvider(config, { client }).translateBatch(request());
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(ProviderError);
+    expect((caught as ProviderError).code).toBe("OUTPUT_TRUNCATED");
+  });
+
+  it("carries only the fixed safe remedy message, no key, SDK text, or translatable content", async () => {
+    const { client } = openAiStubClient(
+      truncatedOpenAiCompletion([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    let caught: unknown;
+    try {
+      await createOpenAiProvider(config, { client }).translateBatch(request());
+    } catch (error) {
+      caught = error;
+    }
+    const message = (caught as ProviderError).message;
+    expect(message).toBe(OUTPUT_TRUNCATED_MESSAGE);
+    expect(message).toContain("Reduce the batch size");
+    expect(message).toContain("max output tokens");
+    expect(message).not.toContain("Hallo");
+    expect(message).not.toContain("greeting");
+  });
+
+  it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
+    // The body is schema-valid but has an extra key; a non-truncated response would fail
+    // reconciliation as INVALID_RESPONSE. Truncation must win because it is detected first.
+    const { client } = openAiStubClient(
+      truncatedOpenAiCompletion([
+        { key: "greeting", value: "Hallo {{name}}" },
+        { key: "extra", value: "Z" },
+      ]),
+    );
+    await expect(
+      createOpenAiProvider(config, { client }).translateBatch(request()),
+    ).rejects.toMatchObject({ code: "OUTPUT_TRUNCATED" });
+  });
+
+  it("parses and reconciles a normal completion that did not truncate", async () => {
+    const { client } = openAiStubClient(
+      openAiCompletion({
+        content: JSON.stringify({ translations: [{ key: "greeting", value: "Hallo {{name}}" }] }),
+      }),
+    );
+    const result = await createOpenAiProvider(config, { client }).translateBatch(request());
+    expect(result.values.get("greeting")).toBe("Hallo {{name}}");
   });
 });
 

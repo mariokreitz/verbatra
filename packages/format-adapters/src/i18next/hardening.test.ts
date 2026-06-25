@@ -30,6 +30,7 @@ describe("placeholder extraction is linear (HIGH)", () => {
       "{{name}}",
       "{{count}}",
       "{{val, number}}",
+      "{{name}}",
     ]);
     expect(adapter.extractPlaceholders("none")).toEqual([]);
   });

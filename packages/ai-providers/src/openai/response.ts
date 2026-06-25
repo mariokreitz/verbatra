@@ -1,5 +1,6 @@
 import { ProviderError } from "../errors.js";
 import type { LlmCompletion } from "../llm/run.js";
+import { assertNotTruncated } from "../llm/truncation.js";
 import type { Usage } from "../provider.js";
 import type { OpenAiCompletion } from "./types.js";
 
@@ -33,15 +34,20 @@ function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
  *
  * @param completion - The raw Chat Completions response.
  * @returns The schema-bound raw output plus optional usage.
+ * @throws {@link ProviderError} `OUTPUT_TRUNCATED`: the choice stopped on the output-token limit
+ *   (`finish_reason === "length"`); checked before parsing, so a truncated-but-valid body still reports
+ *   truncation.
  * @throws {@link ProviderError} `PROVIDER_REFUSED`: the model populated the refusal field.
  * @throws {@link ProviderError} `INVALID_RESPONSE`: there was no message, no content, or unparseable
  *   content.
  */
 export function extractOpenAiResult(completion: OpenAiCompletion): LlmCompletion {
-  const message = completion.choices[0]?.message;
-  if (message === undefined) {
+  const choice = completion.choices[0];
+  if (choice === undefined) {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no message.");
   }
+  assertNotTruncated(choice.finish_reason === "length");
+  const message = choice.message;
   if (message.refusal !== undefined && message.refusal !== null && message.refusal !== "") {
     throw new ProviderError("PROVIDER_REFUSED", "The provider refused the translation request.");
   }

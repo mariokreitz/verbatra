@@ -66,6 +66,31 @@ describe("render: human run summary", () => {
     expect(text).toContain("1 orphaned");
     expect(text).toContain("1 integrity-withheld");
     expect(text).not.toContain("notices");
+    expect(text).not.toContain("pruned"); // pruned is zero here, so the line is omitted
+  });
+
+  it("shows the generated count when plural forms were synthesized", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ translated: ["a"], generated: ["items_few", "items_many"] })],
+      }),
+    );
+    expect(text).toContain("2 generated");
+  });
+
+  it("omits the generated count when nothing was generated", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("generated");
+  });
+
+  it("shows the pruned count when keys were pruned", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ orphaned: ["x", "y"], pruned: ["x", "y"] })],
+      }),
+    );
+    expect(text).toContain("2 orphaned");
+    expect(text).toContain("2 pruned");
   });
 
   it("renders a failed locale with its structured code and message", () => {
@@ -123,5 +148,20 @@ describe("render: watch run result", () => {
     expect(JSON.parse(renderRunResultNdjson(ok))).toEqual(ok);
     expect(renderRunResultHuman(ok)).toContain("1 succeeded");
     expect(renderRunResultHuman(bad)).toBe("verbatra: error [SOURCE_INVALID] x");
+  });
+
+  it("carries the pruned count and keys in the watch NDJSON record", () => {
+    const result: WatchRunResult = {
+      status: "succeeded",
+      summary: makeSummary({
+        locales: [makeLocale({ orphaned: ["x"], pruned: ["x"] })],
+        succeeded: ["de"],
+      }),
+    };
+    const parsed = JSON.parse(renderRunResultNdjson(result)) as typeof result;
+    expect(parsed.status).toBe("succeeded");
+    if (parsed.status === "succeeded") {
+      expect(parsed.summary.locales[0]?.pruned).toEqual(["x"]);
+    }
   });
 });

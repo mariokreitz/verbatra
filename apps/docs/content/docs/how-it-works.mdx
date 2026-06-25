@@ -43,13 +43,18 @@ source key into one of four buckets:
 - orphaned keys present in the target but no longer in the source.
 
 Only the new and changed keys are candidates for translation. Unchanged keys are left alone, and
-orphaned keys are reported but not removed. Any candidate flagged invalid ICU is set aside as well.
-This is what keeps a run incremental: a provider is called only for the strings that actually changed.
+orphaned keys are reported and, by default, left in place. To opt in to removing them, pass `--prune`
+(or set `prune: true` in the config): verbatra then removes exactly the orphaned keys from the target
+file and the lock, and nothing else. Any candidate flagged invalid ICU is set aside as well. This is
+what keeps a run incremental: a provider is called only for the strings that actually changed.
 
 ### Calling the provider
 
-The candidate entries are sent to the configured provider in one batch, along with the optional
-`glossary` and `tone` from your config. How those are applied depends on the provider.
+The candidate entries are sent to the configured provider, along with the optional `glossary` and
+`tone` from your config. They are split into sequential sub-batches of at most `maxBatchSize`
+(default `50`, see [Config file](/docs/config-file)), so one oversized request cannot fail the whole
+locale. A sub-batch whose call fails is withheld and retried on the next run while the others still
+make progress. How the inputs are applied depends on the provider.
 
 - The LLM providers (Anthropic, OpenAI, Gemini) receive the entries, the glossary, and the tone in a
   structured data payload, and are instructed to treat the glossary terms as binding and to honor the
@@ -85,10 +90,13 @@ than being silently overwritten.
 
 A run returns a summary across all target locales: the locales that succeeded, the ones that failed,
 and a per-locale breakdown. Each locale entry reports the keys translated, the keys left unchanged,
-the orphaned keys, any source keys skipped for invalid ICU, any translations withheld for a
-placeholder mismatch, and any provider notices (such as the DeepL cases above). A dry run produces the
-same summary shape, listing the keys that would be translated, without calling a provider or writing
-anything.
+the orphaned keys, the orphaned keys actually pruned this run (empty unless pruning is on), any source
+keys skipped for invalid ICU, any translations withheld for a placeholder mismatch, any plural forms
+generated this run (empty unless plural generation is on), and any notices. Notices cover both
+provider notices (such as the DeepL cases above) and SDK notices, including a plural-category warning
+(code `PLURAL_CATEGORIES_INCOMPLETE`) when a target language needs more CLDR plural categories than
+the source supplies. A dry run produces the same summary shape, listing the keys that would be
+translated, without calling a provider or writing anything.
 
 ## Errors
 
@@ -97,3 +105,7 @@ invalid config, an unreadable source, an unknown format, a provider that cannot 
 (including a missing API key), or a corrupt lock file, stops the run with a structured error. A
 single locale failing is not fatal: it is recorded on that locale's entry with a code and a message,
 and the rest of the locales still run.
+
+When an LLM provider (Anthropic, OpenAI, Gemini) stops because it hit the output-token limit, that
+sub-batch fails with a distinct `OUTPUT_TRUNCATED` error advising a smaller batch size or a higher
+max output tokens. This does not apply to DeepL. See [Providers](/docs/providers).

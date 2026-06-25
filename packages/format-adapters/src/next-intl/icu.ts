@@ -1,7 +1,10 @@
 import { type MessageFormatElement, parse, TYPE } from "@formatjs/icu-messageformat-parser";
 
 export interface IcuAnalysis {
-  /** Argument names ({name}/{count}) and tag names (<link>), first-appearance order. */
+  /**
+   * Argument names ({name}/{count}) and tag names (<link>) in document order, with every
+   * occurrence preserved (not deduplicated) so integrity's multiset check sees true counts.
+   */
   readonly placeholders: readonly string[];
   /** True when a plural or selectordinal argument appears at any nesting level. */
   readonly isPlural: boolean;
@@ -72,16 +75,12 @@ export function analyzeIcuValue(value: string): IcuAnalysis {
   }
   try {
     const ast = parse(value);
-    const seen = new Set<string>();
     const placeholders: string[] = [];
     const state = { isPlural: false };
     collect(
       ast,
       (token) => {
-        if (!seen.has(token)) {
-          seen.add(token);
-          placeholders.push(token);
-        }
+        placeholders.push(token);
       },
       state,
     );

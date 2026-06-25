@@ -1,11 +1,11 @@
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { LocaleResource } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "../errors.js";
 import { createI18nextJsonAdapter } from "../i18next/i18next-adapter.js";
-import { type AtomicWriteOps, atomicWriteFile } from "./atomic-write.js";
+import { type AtomicWriteOps, atomicWriteFile, tempFileName } from "./atomic-write.js";
 
 const realOps: AtomicWriteOps = {
   writeFile: (path, data) => writeFile(path, data, "utf8"),
@@ -16,6 +16,21 @@ const realOps: AtomicWriteOps = {
 function makeDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "verbatra-aw-"));
 }
+
+describe("tempFileName", () => {
+  it("is unique for the same target across calls in immediate succession (same ms, same pid)", () => {
+    const path = "/proj/locales/de.json";
+    const names = new Set([tempFileName(path), tempFileName(path), tempFileName(path)]);
+    expect(names.size).toBe(3);
+  });
+
+  it("places the temp as a hidden sibling in the target's own directory", () => {
+    const path = "/proj/locales/de.json";
+    const name = tempFileName(path);
+    expect(dirname(name)).toBe(dirname(path));
+    expect(basename(name).startsWith(".de.json.tmp-")).toBe(true);
+  });
+});
 
 describe("atomicWriteFile", () => {
   it("writes the exact bytes and creates the temp in the SAME directory as the target", async () => {

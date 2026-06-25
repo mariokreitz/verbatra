@@ -108,7 +108,7 @@ const config = await loadConfig({
     targetLocales: ["de", "fr"],
     format: "i18next-json",
     files: { pattern: "locales/{locale}.json" },
-    provider: { id: "anthropic", options: { model: "<your-model>", maxTokens: 4096 } },
+    provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } },
   },
 });
 

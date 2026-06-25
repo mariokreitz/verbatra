@@ -26,15 +26,21 @@ Nécessite Node.js `>=22.14.0`.
 
 Le paquet exporte six fonctions et les types qu'un appelant manipule.
 
-- `defineConfig(config: VerbatraConfig): VerbatraConfig` renvoie son argument inchangé. Elle n'existe
-  que pour te fournir l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript.
+- `defineConfig(config): VerbatraConfig` renvoie son argument inchangé. Elle n'existe que pour te fournir
+  l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript ; le champ `model`
+  est restreint aux modèles connus du fournisseur choisi, de sorte que le modèle d'un autre fournisseur est une
+  erreur de type.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la
   configuration. `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride`
   en mémoire. Elle lève une `SdkError` lorsqu'aucune configuration n'est trouvée ou que la validation échoue.
 - `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, diffuser, traduire, écrire
-  sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun? }`. Elle se résout en un
-  `RunSummary` ; les problèmes sur toute l'exécution lèvent une `SdkError`, tandis que les résultats par locale sont des données sur le
-  résumé.
+  sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+  `prune` (désactivé par défaut) supprime les clés orphelines du fichier écrit et du verrouillage ;
+  `generatePlurals` (désactivé par défaut) synthétise les formes plurielles CLDR dont une langue cible a
+  besoin mais que la source ne fournit pas (i18next-JSON avec un fournisseur LLM uniquement). Chaque option
+  par exécution, lorsqu'elle est définie, remplace l'option de configuration correspondante pour cette
+  exécution. Elle se résout en un `RunSummary` ; les problèmes sur toute l'exécution lèvent une `SdkError`,
+  tandis que les résultats par locale sont des données sur le résumé.
 - `watch(input: WatchInput): Promise<WatchController>` surveille le fichier source et se réexécute à chaque
   changement débondi. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, où `onRun` reçoit un
   `WatchRunResult` par exécution. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
@@ -65,20 +71,27 @@ interface LocaleSummary {
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   unchanged: string[];           // keys already up to date
-  orphaned: string[];            // target keys with no matching source key
+  orphaned: string[];            // target keys with no matching source key (reported regardless of pruning)
+  pruned: string[];              // orphaned keys removed this run; empty unless pruning is on (subset of orphaned)
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
   integrityMismatches: string[]; // translations withheld for a placeholder mismatch
-  notices: ProviderNotice[];     // provider notices (DeepL only); empty for the LLM providers
+  generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
+  notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
   error?: { code: string; message: string }; // present only when status is "failed"
 }
+
+// A notice is either a provider-emitted notice or an SDK-emitted one.
+type LocaleNotice = ProviderNotice | SdkNotice;
 
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Les notifications sont par locale, sur `LocaleSummary.notices`. Il n'y a pas de liste de notifications de niveau supérieur sur
-`RunSummary`.
+Les notifications sont par locale, sur `LocaleSummary.notices`, et couvrent à la fois les notifications du
+fournisseur (par exemple une dégradation gracieuse de DeepL) et les notifications du SDK (par exemple une
+langue cible qui a besoin de plus de catégories de pluriel CLDR que la source n'en fournit, code
+`PLURAL_CATEGORIES_INCOMPLETE`). Il n'y a pas de liste de notifications de niveau supérieur sur `RunSummary`.
 
 `SdkError` est le type d'erreur unique que le SDK lève pour les échecs sur toute l'exécution. Il porte un `code` stable
 et un `message` sans secret. Les codes sont :
@@ -112,7 +125,7 @@ export default defineConfig({
   provider: {
     id: "anthropic",
     options: {
-      model: "<your-model>",
+      model: "claude-sonnet-4-6",
       maxTokens: 4096,
     },
   },
@@ -122,7 +135,7 @@ export default defineConfig({
 ## Exécuter une traduction unique
 
 `translate` se résout en le résumé de l'exécution. Lis `succeeded` et `failed` pour l'essentiel, et parcours
-`locales` pour le détail, y compris toute notification du fournisseur.
+`locales` pour le détail, y compris toute notification (du fournisseur ou du SDK).
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -139,7 +152,12 @@ for (const locale of summary.locales) {
 }
 ```
 
-Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers.
+Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers. Passe
+`prune: true` pour supprimer les clés orphelines, ou `generatePlurals: true` pour synthétiser les
+catégories de pluriel manquantes (i18next-JSON avec un fournisseur LLM uniquement) ; chacune remplace
+l'option de configuration correspondante pour cette exécution. Contrairement à `prune` et `generatePlurals`,
+`maxBatchSize` se définit uniquement dans la configuration (sur l'objet de configuration, valeur par défaut 50) :
+il n'existe aucune surcharge par exécution dans `translate()`.
 
 ## Mode surveillance
 

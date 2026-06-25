@@ -11,7 +11,7 @@ Maschinenausgabe wird standardmäßig nicht vertraut. verbatra führt jede Über
 
 Ein übersetzter Wert muss dieselben Platzhalter tragen wie seine Quelle. Nach der Übersetzung vergleicht verbatra den Platzhalter-Satz jedes Ergebnisses mit dem Quellwert. Eine Übersetzung, die einen Platzhalter weglässt, hinzufügt oder verändert, besteht die Prüfung nicht und wird zurückgehalten, statt geschrieben zu werden. Der zurückgehaltene Schlüssel behält seinen vorherigen Lock-Hash, sodass der nächste Lauf ihn erneut versucht, und er wird pro Locale als Integritätskonflikt in der Lauf-Zusammenfassung gemeldet.
 
-Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next und ngx-translate, einfache geschweifte Klammern `{name}` und `{0}` für vue-i18n, und ICU-Argument- und Tag-Namen für next-intl. Siehe [Formate](/docs/formats) für die Syntax jedes einzelnen.
+Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next und ngx-translate, einfache geschweifte Klammern `{name}` und `{0}` für vue-i18n, und ICU-Argument- und Tag-Namen für next-intl. Bei i18next werden auch `$t(...)`-Verschachtelungsreferenzen geschützt: Eine Übersetzung, die eine `$t(...)`-Referenz entfernt, verändert oder übersetzt, besteht die Prüfung nicht und wird zurückgehalten. Siehe [Formate](/docs/formats) für die Syntax jedes einzelnen.
 
 ## ICU-Gültigkeit
 
@@ -27,4 +27,4 @@ API-Schlüssel werden nur aus der Umgebung gelesen, von den Providern, niemals a
 
 ## Was du siehst
 
-Jedes dieser Ergebnisse ist Daten in der Lauf-Zusammenfassung, pro Locale: die übersetzten Schlüssel, die wegen eines Platzhalter-Konflikts zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quell-Schlüssel und alle Provider-Hinweise. Nichts wird verborgen, und das Fehlschlagen eines einzelnen Locales stoppt die anderen nicht. Siehe [Wie es funktioniert](/docs/how-it-works) dafür, wo jede Prüfung im Lauf sitzt.
+Jedes dieser Ergebnisse ist Daten in der Lauf-Zusammenfassung, pro Locale: die übersetzten Schlüssel, die wegen eines Platzhalter-Konflikts zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quell-Schlüssel und alle Hinweise. Hinweise umfassen Provider-Hinweise und SDK-Hinweise, etwa eine Pluralkategorie-Warnung (Code `PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr Pluralkategorien benötigt, als die Quelle liefert; siehe [Sprache hinzufügen](/docs/add-a-language) dafür, wie du diese Formen stattdessen synthetisierst. Nichts wird verborgen, und das Fehlschlagen eines einzelnen Locales stoppt die anderen nicht. Siehe [Wie es funktioniert](/docs/how-it-works) dafür, wo jede Prüfung im Lauf sitzt.

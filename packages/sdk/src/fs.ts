@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { access, type FileHandle, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
@@ -115,12 +116,27 @@ async function readBoundedBytes(path: string, maxBytes: number): Promise<Bounded
 }
 
 /**
+ * Build a collision-proof temp-file name for the atomic write: a hidden sibling of the target
+ * in the SAME directory, carrying the pid and timestamp for legibility plus a random UUID so two
+ * writes to the same target in the same millisecond from the same process never collide (e.g. a
+ * future parallelization, or a pattern that maps two locales to one path).
+ *
+ * NOTE: a deliberate twin of `tempFileName` in `@verbatra/format-adapters`
+ * (`src/json/atomic-write.ts`). They are duplicated rather than shared because each sits in its
+ * own layer (the SDK fs seam vs the JSON adapter) with no common low-level package below both;
+ * keep the two in sync, or extract a shared util if a third copy ever appears.
+ */
+export function tempFileName(path: string): string {
+  return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
+}
+
+/**
  * Write to a temp file in the same directory, then rename over the target. rename is
  * atomic on POSIX, so a reader sees either the old valid file or the new one, never a
  * truncated middle; a crash before the rename leaves the original untouched.
  */
 async function atomicWrite(path: string, data: string | Uint8Array): Promise<void> {
-  const tmp = join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}`);
+  const tmp = tempFileName(path);
   await (typeof data === "string" ? writeFile(tmp, data, "utf8") : writeFile(tmp, data));
   try {
     await rename(tmp, path);

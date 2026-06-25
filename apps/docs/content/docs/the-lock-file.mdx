@@ -22,6 +22,8 @@ When verbatra reads a target locale, it diffs the source against that locale usi
 
 Only new and changed keys are sent to the provider. Unchanged keys are left untouched, which is why a second run with no source edits calls the provider for nothing.
 
+The content hash treats canonically equivalent Unicode (NFC) and differing line endings (CRLF vs LF) as the same content, so re-saving a source file with a different normalization form or line endings does not mark a key as changed or trigger a re-translation.
+
 ## How it is refreshed
 
 After a locale is written, verbatra refreshes the lock with the current source hashes, with one deliberate exception. A key that was withheld this run, because its translation failed the placeholder check or its source ICU was invalid, keeps its prior hash. The next run then still sees it as needing work and retries it, rather than recording it as done. Orphaned keys get no entry.

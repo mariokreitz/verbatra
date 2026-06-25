@@ -32,6 +32,7 @@ interface SharedOpts {
 }
 interface TranslateOpts extends SharedOpts {
   readonly dryRun?: boolean;
+  readonly prune?: boolean;
   readonly json?: boolean;
 }
 interface WatchOpts extends SharedOpts {
@@ -98,6 +99,7 @@ async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams
       config,
       cwd,
       ...(opts.dryRun === true ? { dryRun: true } : {}),
+      ...(opts.prune === true ? { prune: true } : {}),
     });
     streams.out(opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`);
     return summary.failed.length > 0 ? 1 : 0;
@@ -231,6 +233,10 @@ function buildProgram(
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--dry-run", "preview changes without calling a provider or writing files")
+    .option(
+      "--prune",
+      "remove orphaned keys (in a target file but absent from source) from the written file",
+    )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: TranslateOpts) => {
       setCode(await runTranslate(opts, deps, streams));
@@ -242,6 +248,8 @@ function buildProgram(
         "Examples:",
         "  $ verbatra translate                 translate once using the config it finds",
         "  $ verbatra translate --dry-run       preview changes without calling a provider",
+        "  $ verbatra translate --prune         also remove orphaned keys from target files",
+        "  $ verbatra translate --prune --dry-run  preview the keys that would be pruned",
         "  $ verbatra translate --json          machine-readable summary on stdout",
       ].join("\n"),
     );
@@ -348,9 +356,9 @@ function buildProgram(
  * @param streams - The stdout/stderr sink the CLI writes through.
  * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
  * @returns The process exit code:
- *   `0` success (or `--help`/`--version`); `1` `translate` finished but some locales failed (translate
- *   only: a `watch` per-run failure is a stream record, not an exit code); `2` could not run, covering
- *   BOTH a whole-run `SdkError` and a commander usage error; `130` `watch` was force-stopped by a second
+ *   `0` success (or `--help`/`--version`); `1` `translate` or `import` finished but some locales failed
+ *   (a `watch` per-run failure is a stream record, not an exit code); `2` could not run, covering BOTH a
+ *   whole-run `SdkError` and a commander usage error; `130` `watch` was force-stopped by a second
  *   interrupt (a single interrupt stops gracefully and resolves `0`).
  * @throws Re-throws a non-`CommanderError` thrown during parsing (an unexpected error); commander usage
  *   errors are mapped to an exit code, not thrown.

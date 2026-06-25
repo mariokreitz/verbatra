@@ -23,8 +23,8 @@ export interface OpenAiDeps {
  * @param config - The model and output-token limit; never a key.
  * @param deps - Optional injected client; when omitted, the production client is built.
  * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `PROVIDER_REFUSED` (the model's refusal path), or
- *   `PROVIDER_ERROR`, never `PROVIDER_BLOCKED`.
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED`, `PROVIDER_REFUSED` (the model's refusal
+ *   path), or `PROVIDER_ERROR`, never `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
  * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `OPENAI_API_KEY` is unset (the default client reads the env key eagerly).

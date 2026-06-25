@@ -8,7 +8,7 @@ description: Die vier Übersetzungs-Provider, ihre Optionen und der API-Schlüss
 verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration, mittels `id`.
 
 <Callout title="Modell-Autovervollständigung in TypeScript">
-Wenn du die Konfiguration in TypeScript mit `defineConfig` schreibst, vervollständigt das Feld `model` automatisch die bekannten Modell-IDs des gewählten Providers, die aus dem SDK des jeweiligen Providers stammen. Jeder andere String wird weiterhin akzeptiert. DeepL hat kein `model`-Feld.
+Wenn du die Konfiguration in TypeScript mit `defineConfig` schreibst, ist das Feld `model` auf die bekannten Modell-IDs des gewählten Providers beschränkt, die aus dem SDK des jeweiligen Providers stammen: Ein Modell eines anderen Providers (zum Beispiel ein Claude-Modell unter `id: "gemini"`) ist ein Typfehler. Zur Laufzeit wird weiterhin jeder nicht-leere String akzeptiert, sodass ein nicht gelistetes Modell läuft, auch wenn der Editor es markiert. DeepL hat kein `model`-Feld.
 </Callout>
 
 ## Schlüssel kommen aus der Umgebung
@@ -30,7 +30,7 @@ Setze die Variable in `.env` (welches `verbatra init` ignoriert) oder exportiere
 provider: {
   id: "anthropic",
   options: {
-    model: "<your-model>",
+    model: "claude-sonnet-4-6",
     maxTokens: 4096,
   },
 }
@@ -44,7 +44,7 @@ Liest `ANTHROPIC_API_KEY`. `model` und `maxTokens` sind beide erforderlich.
 provider: {
   id: "openai",
   options: {
-    model: "<your-model>",
+    model: "gpt-5.4-mini",
     maxOutputTokens: 4096,
   },
 }
@@ -58,7 +58,7 @@ Liest `OPENAI_API_KEY`. `model` und `maxOutputTokens` sind beide erforderlich.
 provider: {
   id: "gemini",
   options: {
-    model: "<your-model>",
+    model: "gemini-2.5-flash",
     maxOutputTokens: 4096,
   },
 }
@@ -92,3 +92,16 @@ Die optionalen Konfigurationsfelder `tone` und `glossary` (siehe [Konfiguration]
 
 - **Ton.** Die LLM-Provider erhalten den Ton mit der Anfrage und werden angewiesen, ihn zu berücksichtigen. DeepL ordnet ihn der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und auf den Standardwert herabgestuft, mit einem Hinweis im Ergebnis.
 - **Glossar.** Die LLM-Provider erhalten die `glossary`-Begriffszuordnung und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet keine generische Begriffszuordnung an; es vermerkt einen Hinweis und verwendet stattdessen die obige `glossaryId`-Option.
+
+## Ausgabe-Token-Limits
+
+Die drei LLM-Provider (Anthropic, OpenAI und Gemini) begrenzen, wie viele Tokens eine einzelne Antwort erzeugen darf. Wenn ein Provider stoppt, weil er dieses Limit erreicht hat (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), löst verbatra einen eigenen strukturierten Fehler mit dem Code `OUTPUT_TRUNCATED` aus, anstatt eines generischen Fehlers wegen einer fehlerhaften Antwort. Die Meldung ist fest:
+
+> The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
+
+Sie haben zwei Hebel, und jeder einzelne behebt das Problem:
+
+- Senken Sie `maxBatchSize` in Ihrer Konfiguration (siehe [Konfiguration](/docs/config-file)), damit jede Anfrage weniger Einträge übersetzt und eine kleinere Antwort erzeugt. Dies ist nur über die Konfiguration möglich und gilt für jeden Provider.
+- Erhöhen Sie das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI und Gemini (die Optionen aus den obigen Blöcken).
+
+DeepL ist nicht betroffen. Es ist ein maschineller Übersetzungsdienst und läuft nicht über die LLM-Schicht, daher gibt es keinen Fall einer Ausgabe-Token-Abschneidung.

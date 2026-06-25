@@ -10,7 +10,6 @@
  *  5 Translation  - the only editable cell.
  *  6 Source hash  - the export-time source content hash. Hidden, read-only (drift detection).
  */
-
 export const COLUMN = {
   key: 1,
   source: 2,

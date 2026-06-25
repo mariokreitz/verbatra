@@ -8,7 +8,7 @@ description: Les quatre fournisseurs de traduction, leurs options et la clé API
 verbatra propose quatre fournisseurs derrière une seule interface : Anthropic, OpenAI et Gemini sont des modèles de langage étendus, et DeepL est un service de traduction automatique. Tu en sélectionnes un dans le bloc `provider` de ta configuration, par `id`.
 
 <Callout title="Autocomplétion des modèles en TypeScript">
-Lorsque tu écris la configuration en TypeScript avec `defineConfig`, le champ `model` complète automatiquement les identifiants de modèle connus du fournisseur choisi, issus du SDK du fournisseur lui-même. Toute autre chaîne est toujours acceptée. DeepL n'a pas de champ `model`.
+Lorsque tu écris la configuration en TypeScript avec `defineConfig`, le champ `model` est restreint aux identifiants de modèle connus du fournisseur choisi, issus du SDK du fournisseur lui-même : un modèle d'un autre fournisseur (par exemple un modèle Claude avec `id: "gemini"`) est une erreur de type. À l'exécution, toute chaîne non vide reste acceptée, de sorte qu'un modèle non listé fonctionne même si l'éditeur le signale. DeepL n'a pas de champ `model`.
 </Callout>
 
 ## Les clés proviennent de l'environnement
@@ -30,7 +30,7 @@ Définis la variable dans `.env` (que `verbatra init` ignore via git) ou exporte
 provider: {
   id: "anthropic",
   options: {
-    model: "<your-model>",
+    model: "claude-sonnet-4-6",
     maxTokens: 4096,
   },
 }
@@ -44,7 +44,7 @@ Lit `ANTHROPIC_API_KEY`. `model` et `maxTokens` sont tous deux requis.
 provider: {
   id: "openai",
   options: {
-    model: "<your-model>",
+    model: "gpt-5.4-mini",
     maxOutputTokens: 4096,
   },
 }
@@ -58,7 +58,7 @@ Lit `OPENAI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
 provider: {
   id: "gemini",
   options: {
-    model: "<your-model>",
+    model: "gemini-2.5-flash",
     maxOutputTokens: 4096,
   },
 }
@@ -92,3 +92,16 @@ Les champs de configuration facultatifs `tone` et `glossary` (voir [Configuratio
 
 - **Tonalité.** Les fournisseurs de LLM reçoivent la tonalité avec la requête et sont invités à la respecter. DeepL la mappe à la formalité : `formal` devient plus formel, `informal` devient moins formel, et `neutral` ou une tonalité absente est omise. Avec une clé DeepL de niveau gratuit, une tonalité non par défaut n'est pas prise en charge et se dégrade à la valeur par défaut, avec une notification sur le résultat.
 - **Glossaire.** Les fournisseurs de LLM reçoivent la carte de termes `glossary` et sont invités à traiter ses termes comme contraignants. DeepL n'applique pas de carte de termes générique ; il enregistre une notification et utilise plutôt l'option `glossaryId` ci-dessus.
+
+## Limites de tokens de sortie
+
+Les trois fournisseurs de LLM (Anthropic, OpenAI et Gemini) limitent le nombre de tokens qu'une seule réponse peut produire. Lorsqu'un fournisseur s'arrête parce qu'il a atteint cette limite (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), verbatra lève une erreur structurée dédiée avec le code `OUTPUT_TRUNCATED` au lieu d'un échec générique pour réponse mal formée. Le message est fixe :
+
+> The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
+
+Vous disposez de deux leviers, et l'un ou l'autre résout le problème :
+
+- Réduisez `maxBatchSize` dans votre configuration (voir [Configuration](/docs/config-file)) afin que chaque requête traduise moins d'entrées et produise une réponse plus petite. Cela se fait uniquement via la configuration et s'applique à tous les fournisseurs.
+- Augmentez le budget de tokens par réponse chez le fournisseur : `maxTokens` pour Anthropic, ou `maxOutputTokens` pour OpenAI et Gemini (les options présentées dans les blocs ci-dessus).
+
+DeepL n'est pas concerné. C'est un service de traduction automatique qui ne passe pas par la couche LLM, il n'a donc aucun cas de troncature liée aux tokens de sortie.

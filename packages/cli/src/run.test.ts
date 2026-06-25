@@ -82,6 +82,40 @@ describe("run translate: SDK delegation and rendering", () => {
     expect(JSON.parse(cap.out().trim())).toEqual(summary); // stdout parses cleanly as the summary
     expect(cap.err()).toBe("");
   });
+
+  it("--prune passes prune:true to the SDK translate call", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--prune"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.prune).toBe(true);
+  });
+
+  it("without --prune, no prune field is sent (off by default)", async () => {
+    const { deps, calls } = recordingDeps();
+    await run(["translate"], deps, captureStreams().streams);
+    expect(calls.translate[0]).not.toHaveProperty("prune");
+  });
+
+  it("renders the pruned count in the human summary and the pruned keys under --json", async () => {
+    const summary = makeSummary({
+      locales: [makeLocale({ orphaned: ["x", "y"], pruned: ["x", "y"] })],
+      succeeded: ["de"],
+    });
+    const { deps } = recordingDeps({ translate: async () => summary });
+
+    const human = captureStreams();
+    await run(["translate", "--prune"], deps, human.streams);
+    expect(human.out()).toContain("2 pruned");
+    expect(human.out()).toContain("2 orphaned");
+
+    const json = captureStreams();
+    await run(["translate", "--prune", "--json"], deps, json.streams);
+    const parsed = JSON.parse(json.out().trim()) as typeof summary;
+    expect(parsed.locales[0]?.pruned).toEqual(["x", "y"]);
+  });
 });
 
 describe("run translate: exit codes", () => {

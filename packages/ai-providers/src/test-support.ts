@@ -37,6 +37,13 @@ export function toolMessage(
   return usage === undefined ? { content } : { content, usage };
 }
 
+/** Build an Anthropic tool-use response that stopped on the output-token limit. */
+export function truncatedToolMessage(
+  translations: ReadonlyArray<{ key: string; value: string }>,
+): AnthropicMessage {
+  return { ...toolMessage(translations), stop_reason: "max_tokens" };
+}
+
 /** An offline stub client that records every request body it receives. */
 export function stubClient(message: AnthropicMessage): {
   client: MessagesClient;
@@ -78,6 +85,15 @@ export function openAiResult(
   usage?: { prompt_tokens?: number; completion_tokens?: number },
 ): OpenAiCompletion {
   return openAiCompletion({ content: JSON.stringify({ translations }) }, usage);
+}
+
+/** Build a schema-conforming OpenAI completion whose choice stopped on the output-token limit. */
+export function truncatedOpenAiCompletion(
+  translations: ReadonlyArray<{ key: string; value: string }>,
+): OpenAiCompletion {
+  return {
+    choices: [{ message: { content: JSON.stringify({ translations }) }, finish_reason: "length" }],
+  };
 }
 
 /** An offline OpenAI stub client that records every request body it receives. */

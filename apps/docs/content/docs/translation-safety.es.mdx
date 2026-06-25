@@ -11,7 +11,7 @@ La salida de las máquinas no es de confianza por defecto. verbatra somete cada 
 
 Un valor traducido debe llevar los mismos marcadores de posición que su origen. Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada resultado con el valor de origen. Una traducción que elimina, añade o altera un marcador de posición no supera la comprobación y se retiene en lugar de escribirse. La clave retenida conserva su hash de bloqueo anterior, por lo que la siguiente ejecución la reintenta, y se informa por configuración regional como una discrepancia de integridad en el resumen de la ejecución.
 
-Lo que cuenta como marcador de posición depende del formato: tokens de `{{doble-llave}}` para i18next y ngx-translate, `{name}` y `{0}` de llave simple para vue-i18n, y nombres de argumentos y etiquetas ICU para next-intl. Consulta [Formatos](/docs/formats) para la sintaxis de cada uno.
+Lo que cuenta como marcador de posición depende del formato: tokens de `{{doble-llave}}` para i18next y ngx-translate, `{name}` y `{0}` de llave simple para vue-i18n, y nombres de argumentos y etiquetas ICU para next-intl. Para i18next, las referencias de anidamiento `$t(...)` también están protegidas: una traducción que elimina, altera o traduce una referencia `$t(...)` no supera la comprobación y se retiene. Consulta [Formatos](/docs/formats) para la sintaxis de cada uno.
 
 ## Validez de ICU
 
@@ -27,4 +27,4 @@ Las claves API se leen únicamente del entorno, por los proveedores, nunca de tu
 
 ## Lo que ves
 
-Cada uno de estos resultados es un dato en el resumen de la ejecución, por configuración regional: las claves traducidas, las retenidas por una discrepancia de marcador de posición, las claves de origen omitidas por ICU no válido y cualquier aviso del proveedor. Nada se oculta, y que una sola configuración regional falle no detiene las demás. Consulta [Cómo funciona](/docs/how-it-works) para ver dónde se ubica cada comprobación en la ejecución.
+Cada uno de estos resultados es un dato en el resumen de la ejecución, por configuración regional: las claves traducidas, las retenidas por una discrepancia de marcador de posición, las claves de origen omitidas por ICU no válido y cualquier aviso. Los avisos incluyen avisos del proveedor y avisos del SDK, como una advertencia de categoría plural (código `PLURAL_CATEGORIES_INCOMPLETE`) cuando una lengua de destino necesita más categorías plurales de las que aporta el origen; consulta [Añadir un idioma](/docs/add-a-language) para saber cómo sintetizar esas formas en su lugar. Nada se oculta, y que una sola configuración regional falle no detiene las demás. Consulta [Cómo funciona](/docs/how-it-works) para ver dónde se ubica cada comprobación en la ejecución.

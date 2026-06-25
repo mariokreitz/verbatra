@@ -14,6 +14,13 @@ export type { FormatAdapter, ReadResult } from "./adapter.js";
 export { createDefaultRegistry } from "./default-registry.js";
 export { AdapterError, type AdapterErrorCode } from "./errors.js";
 export { createI18nextJsonAdapter } from "./i18next/i18next-adapter.js";
+export {
+  type I18nextPluralCategory,
+  isPluralKey,
+  makePluralKey,
+  pluralBaseKey,
+  pluralCategoryOf,
+} from "./i18next/plural.js";
 export { createNextIntlJsonAdapter } from "./next-intl/next-intl-adapter.js";
 export { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-adapter.js";
 export { AdapterRegistry, type AdapterResolution, type ResolveOptions } from "./registry.js";
