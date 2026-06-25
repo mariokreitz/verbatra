@@ -10,8 +10,10 @@ describe("extractVueI18nPlaceholders", () => {
     expect(extractVueI18nPlaceholders("{0} and {1}")).toEqual(["{0}", "{1}"]);
   });
 
-  it("deduplicates in first-appearance order", () => {
-    expect(extractVueI18nPlaceholders("{count} of {count}")).toEqual(["{count}"]);
+  it("preserves every occurrence of a repeated placeholder in document order", () => {
+    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence
+    // must be detectable. Collapsing duplicates here would hide that.
+    expect(extractVueI18nPlaceholders("{count} of {count}")).toEqual(["{count}", "{count}"]);
   });
 
   it("returns an empty array when there is no interpolation", () => {
