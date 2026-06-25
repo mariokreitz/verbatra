@@ -1,7 +1,7 @@
 import type { ProviderNotice } from "@verbatra/ai-providers";
 
 /** A stable code for an SDK-originated notice (not a provider notice). */
-export type SdkNoticeCode = "PLURAL_CATEGORIES_INCOMPLETE";
+export type SdkNoticeCode = "PLURAL_CATEGORIES_INCOMPLETE" | "SUB_BATCH_FAILED";
 
 /**
  * A notice raised by the SDK itself (not a provider), structurally identical to a {@link ProviderNotice}

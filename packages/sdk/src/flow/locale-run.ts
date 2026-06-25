@@ -1,7 +1,7 @@
 import type {
-  ProviderNotice,
   Tone,
   TranslateRequest,
+  TranslateResult,
   TranslationProvider,
 } from "@verbatra/ai-providers";
 import {
@@ -23,7 +23,7 @@ import {
   targetPluralSetIncomplete,
 } from "./plural-categories.js";
 import { type GeneratedForm, generatePluralForms } from "./plural-generation.js";
-import type { LocaleNotice, LocaleSummary } from "./summary.js";
+import type { LocaleNotice, LocaleSummary, SdkNotice } from "./summary.js";
 
 export interface LocaleRunParams {
   readonly source: LocaleResource;
@@ -47,6 +47,13 @@ export interface LocaleRunParams {
    * the PLURAL_CATEGORIES_INCOMPLETE warning. Off mirrors today's detect-and-warn behavior exactly.
    */
   readonly generatePlurals: boolean;
+  /**
+   * Maximum number of entries per provider request. A locale's entries to translate are split into
+   * sequential sub-batches no larger than this; a sub-batch that throws or fails integrity is withheld
+   * without sinking the locale. Reaches the run only through the validated config (its default lives at the
+   * config boundary). Must be a positive integer; the config schema guarantees that.
+   */
+  readonly maxBatchSize: number;
   readonly fs: SdkFs;
 }
 
@@ -146,7 +153,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 
   const accepted = new Map<string, Accepted>();
   const integrityMismatches: string[] = [];
-  const providerNotices = await translateAndCheck(
+  const subBatchNotices = await translateAndCheck(
     provider,
     params,
     entries,
@@ -185,7 +192,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   // category is still missing (a withheld form or an unsupported case). When generation was off, keep
   // the source-derived warning unchanged.
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
-  const notices: readonly LocaleNotice[] = [...pluralNotices, ...providerNotices];
+  const notices: readonly LocaleNotice[] = [...pluralNotices, ...subBatchNotices];
 
   const withheld = new Set([...integrityMismatches, ...invalidIcuSource, ...generation.withheld]);
   return {
@@ -274,18 +281,53 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
   };
 }
 
+/**
+ * Split entries to translate into sequential sub-batches of at most `maxBatchSize` and run each as its
+ * own provider request. Every entry lands in exactly one sub-batch, so no key is dropped or duplicated.
+ * A sub-batch at or below the maximum count yields a single request, preserving the common-case behavior.
+ * A sub-batch whose call throws is isolated: its keys are withheld (pushed to `integrityMismatches`, so
+ * they are not locked and retry next run) and a secret-free `SUB_BATCH_FAILED` notice is recorded, but the
+ * remaining sub-batches still run. Per-key integrity failures within a successful sub-batch are withheld
+ * exactly as before. The raw provider error is never bound or surfaced (see `runSubBatch`).
+ */
 async function translateAndCheck(
   provider: TranslationProvider,
   params: LocaleRunParams,
   entries: readonly TranslationEntry[],
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
-): Promise<readonly ProviderNotice[]> {
-  if (entries.length === 0) {
-    return [];
+): Promise<readonly LocaleNotice[]> {
+  const notices: LocaleNotice[] = [];
+  for (const batch of chunk(entries, params.maxBatchSize)) {
+    const subNotices = await runSubBatch(provider, params, batch, accepted, integrityMismatches);
+    notices.push(...subNotices);
   }
-  const result = await provider.translateBatch(buildRequest(params, entries));
-  for (const entry of entries) {
+  return notices;
+}
+
+/**
+ * Run one sub-batch and fold its result into `accepted` / `integrityMismatches`. On a thrown provider
+ * call the error is caught with an unbound catch and never re-thrown, logged, or surfaced: the whole
+ * sub-batch is withheld and a static, secret-free notice is returned, so a single oversized or failing
+ * sub-batch cannot sink the locale and no raw SDK error reaches an output path.
+ */
+async function runSubBatch(
+  provider: TranslationProvider,
+  params: LocaleRunParams,
+  batch: readonly TranslationEntry[],
+  accepted: Map<string, Accepted>,
+  integrityMismatches: string[],
+): Promise<readonly LocaleNotice[]> {
+  let result: TranslateResult;
+  try {
+    result = await provider.translateBatch(buildRequest(params, batch));
+  } catch {
+    for (const entry of batch) {
+      integrityMismatches.push(entry.key);
+    }
+    return [subBatchFailedNotice(batch.length)];
+  }
+  for (const entry of batch) {
     const value = result.values.get(entry.key);
     const integrity = result.integrity.get(entry.key);
     if (value !== undefined && integrity?.matches === true) {
@@ -295,6 +337,23 @@ async function translateAndCheck(
     }
   }
   return readNotices(result);
+}
+
+/** A static, secret-free notice for a sub-batch whose provider call failed; carries only a count, never a key. */
+function subBatchFailedNotice(count: number): SdkNotice {
+  return {
+    code: "SUB_BATCH_FAILED",
+    message: `A sub-batch of ${count} entries failed and was withheld; it will be retried next run.`,
+  };
+}
+
+/** Split a list into consecutive chunks of at most `size`, preserving order. `size` is a positive integer. */
+function chunk<T>(items: readonly T[], size: number): readonly (readonly T[])[] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 /**
