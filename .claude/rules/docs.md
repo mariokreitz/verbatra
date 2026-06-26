@@ -57,3 +57,5 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 
 This is the docs-writer surface. Documentation changes belong here; do not push
 product logic into the docs app, and do not change the SDK or CLI from this package.
+
+<!-- snyk re-import verification: remove with this throwaway PR -->
