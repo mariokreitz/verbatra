@@ -1,163 +1,144 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude when working in the verbatra repository. Follow it exactly; it
+overrides general defaults.
 
-verbatra is an i18n translation-automation tool. It is open source; English is the project
-language for all code, comments, and documentation.
+## What this is
 
-## Project state
+verbatra is an i18n translation automation tool. Open source, MIT, npm scope
+`@verbatra`. Repository: github.com/mariokreitz/verbatra. It is a pnpm workspaces
+monorepo orchestrated by Turborepo, published with Changesets.
 
-This is a pnpm + Turborepo + Changesets monorepo. The packages implemented today are:
+## Language and style (hard rules)
 
-- `@verbatra/config` - shared build/TS/lint config (tsconfig base, Biome config, tsup preset).
-- `@verbatra/core` - the pure domain center (model, diffing, hashing, placeholder integrity,
-  validation).
-- `@verbatra/format-adapters` - file to neutral-IR adapters for JSON i18n formats (i18next,
-  vue-i18n, next-intl, ngx-translate).
-- `@verbatra/ai-providers` - translation provider strategies behind a registry (OpenAI, Anthropic,
-  Gemini, DeepL).
-- `@verbatra/exchange` - translator interchange: a neutral, format-agnostic row model turned into a
-  styled `.xlsx` workbook (`buildWorkbook`) and back (`readWorkbook`), for manual translation.
-  Depends on `core` only, composed by `sdk`.
-- `@verbatra/sdk` - the central orchestration API: one-shot `translate()`, long-running `watch()`,
-  manual-translation `exportWorkbook()` / `importWorkbook()`, and config loading (`loadConfig`,
-  including an explicit `configPath`).
-- `@verbatra/cli` - the `verbatra` binary, a thin wrapper over the SDK. Commands: `translate`,
-  `watch`, `export`, `import`, `init`.
-- `@verbatra/github-action` - a composite action that runs the CLI in CI (v1.1). Private (consumed
-  via `uses:`), not published to npm.
+- All repository content (code, comments, docs, commit messages) is English. English
+  overrides any other default.
+- No emojis. No decorative formatting. Natural writing style.
+- The em dash character (U+2014) must never appear anywhere in the repository. Use a
+  spaced hyphen, a colon, or parentheses instead.
 
-Note: any `docs/` directory (specs, architecture notes, the `docs/cowork/` team operating system)
-is **gitignored, local-only** planning material and is not present in a fresh clone. Do not rely on
-it or point instructions at it. This file is self-contained.
+## Toolchain
+
+- Node >=22.14.0, pnpm pinned at 11.6.0 (`packageManager` in the root package.json).
+- TypeScript, Biome, Turborepo, Vitest, Changesets, lefthook, commitlint, tsup.
+- `.npmrc` sets `verify-deps-before-run=false`; lockfile integrity is enforced
+  explicitly by the lefthook `lockfile` hook and by frozen installs in CI. Do not
+  remove that setting.
 
 ## Commands
 
-Run from the repo root (pnpm + Turborepo orchestrate per-package tasks):
+Run from the repository root unless noted.
 
-- `pnpm build` - `turbo run build` across all packages (tsup to ESM+CJS+dts in `dist/`)
-- `pnpm test` - `turbo run test` (Vitest with v8 coverage)
-- `pnpm lint` - `turbo run lint` (Biome per package)
-- `pnpm check` - `biome check .` (lint + format, whole repo)
-- `pnpm format` - `biome format --write .`
-- `pnpm changeset` - add a changeset (required for any package change that should publish)
-- `pnpm release` - `changeset publish`
+- Install: `pnpm install`
+- Build all: `pnpm build` (turbo run build)
+- Lint all: `pnpm lint` (turbo run lint)
+- Test all: `pnpm test` (turbo run test, Vitest)
+- Format: `pnpm format` (biome format --write .)
+- Check format and lint without writing: `pnpm check` (biome check .)
+- Add a changeset: `pnpm changeset`
+- Publish: `pnpm release` (changeset publish; normally run by CI)
 
-Single package / single test:
+Per package (run inside a package directory or with a turbo filter):
 
-- `pnpm --filter @verbatra/core build` - one package only (also `test`, `lint`, `typecheck`)
-- `pnpm --filter @verbatra/ai-providers typecheck` - type-check one package (`tsc --noEmit`)
-- `pnpm vitest run path/to/file.test.ts` - one test file
-- `pnpm vitest run -t "name of test"` - tests matching a name
+- `pnpm typecheck` runs the package tsc check. Most packages have it (config and
+  github-action do not).
+- `pnpm test:watch` runs Vitest in watch mode (most packages have it).
+- Filter a single package from the root, for example:
+  `pnpm turbo run test --filter=@verbatra/core`.
 
-Each package's `test` runs `vitest run --coverage` (v8 provider) with **90% thresholds** on
-lines, functions, statements, and branches. Requires Node `>=22.14.0` and pnpm `>=11` (pinned
-`pnpm@11.6.0`).
+Turbo task graph: build, lint, and test all depend on `^build`. Test outputs
+`coverage/**`; build outputs `dist/**`.
 
-## Architecture
+## Linting and type checking
 
-The dependency graph is strictly acyclic, inner to outer. Arrows point at what is imported;
-never import against the arrow, and never introduce a cycle:
+- Biome (config in `packages/config/biome.json`, extended by the root `biome.json`)
+  handles formatting and most linting. `noExplicitAny` is an error; no `any`.
+- There is no ESLint config in the repo today. Type safety is enforced by the
+  per-package `typecheck` (tsc) scripts. If type-aware lint rules are added later,
+  wire them through `@verbatra/config`, not ad hoc per package.
 
-```
-config  ←  core  ←  format-adapters
-                 ←  ai-providers
-                 ←  exchange
-                          ↓
-                         sdk  ←  cli / github-action / framework-adapters
-```
+## Packages
 
-- **`core` is the pure domain center**: domain model (`TranslationEntry`, `LocaleResource`,
-  `SupportedFormat`), diffing (missing / stale / orphaned / unchanged keys), content hashing,
-  placeholder-integrity comparison, and validation reporting. It performs **no I/O, no network,
-  no file system**, knows nothing about specific formats or providers, and imports nothing from
-  `sdk`/`cli`. It only operates on data handed to it, and depends only on `zod`. Placeholder
-  *extraction* and ICU *parsing* are explicitly not core's job: core compares placeholder
-  multisets and aggregates ICU-validity results it is given. Placeholder integrity is multiset
-  (count) aware, so a dropped or duplicated placeholder is reported as missing/extra rather than a
-  pure reorder, and the check always fails safe (a non-matching multiset is never `matches: true`).
+Published (public): `@verbatra/sdk` and `@verbatra/cli`. These two are version-locked
+together (Changesets `fixed`). Everything else is private or internal and must not be
+published by accident.
 
-- **`format-adapters`** convert files to and from a format-neutral intermediate representation. v1
-  is JSON only: i18next, vue-i18n, next-intl, ngx-translate. All JSON adapters are built on the
-  single `createJsonFileAdapter(options)` factory (`src/json/json-file-adapter.ts`) and registered
-  in an `AdapterRegistry` via `createDefaultRegistry()`. Read, write, and detection are shared; only
-  the format-specific parts vary (placeholder extraction, plural detection, ICU validity). ICU
-  formats validate via `@formatjs/icu-messageformat-parser`. When adding a format, build on the
-  factory and register it: do not reimplement read/write/detection.
+- `@verbatra/config` (private): shared build, TS, and lint config (tsconfig base,
+  Biome config, tsup preset). New publishable packages extend this rather than
+  redefining build or lint settings.
+- `@verbatra/core` (private): pure domain center (model, diffing, hashing, placeholder
+  integrity, validation). No I/O, no network, no file system. Depends only on zod.
+- `@verbatra/format-adapters` (private): file to neutral-IR adapters for JSON i18n
+  formats. Built on the single `createJsonFileAdapter` factory, registered via
+  `createDefaultRegistry`. v1 adapters: i18next, vue-i18n, next-intl, ngx-translate.
+- `@verbatra/ai-providers` (private): translation provider strategies behind a
+  registry. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
+  `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
+  implements `translateBatch` directly. All sit behind one `TranslationProvider`
+  interface resolved through `ProviderRegistry`.
+- `@verbatra/exchange` (private): translator interchange. Builds and reads styled
+  Excel workbooks over a neutral, format-agnostic row model.
+- `@verbatra/sdk` (public): central orchestration API. One-shot `translate()`,
+  long-running `watch()`, config loading.
+- `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
+  `dist/index.js`). Thin wrapper over the SDK. Deps: `@verbatra/sdk`, commander, zod.
+- `@verbatra/github-action` (private): composite action that runs the CLI in CI
+  (v1.1). Consumed via `uses:`, not published to npm.
+- `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
+  Scripts: dev, build, start, typecheck, i18n.
 
-- **`ai-providers`** are Strategy implementations behind a registry. The `TranslationProvider`
-  interface (`src/provider.ts`) is resolved through a `ProviderRegistry`. The three LLM providers
-  (Anthropic, OpenAI, Gemini) all run through the shared layer `runLlmTranslation(request,
-  mechanism)` (`src/llm/run.ts`). There is one canonical zod schema, `translationsResultSchema`, as
-  the single source of truth; `deriveJsonSchema` feeds it to each SDK's structured-output mechanism
-  (Anthropic tool `input_schema`, OpenAI `json_schema`, Gemini `responseSchema`) so the model
-  constraint and the validation cannot drift. When adding an LLM provider, build an `LlmMechanism`
-  and delegate to `runLlmTranslation` rather than wiring a bespoke flow. DeepL is a
-  machine-translation provider: it implements `translateBatch` directly and does NOT use the LLM
-  layer, reusing only the cross-cutting pieces (request validation, batch integrity, error
-  redaction), proof the provider interface is shape-agnostic, not over-fit to LLMs.
+## Architecture rules (binding)
 
-- **`exchange`** is the manual-translation interchange layer. It owns a neutral, format-agnostic
-  row model and turns it into a styled `.xlsx` (`buildWorkbook`) and back (`readWorkbook`). It
-  depends on `core` only and is composed by `sdk`; it imports nothing from `format-adapters`,
-  `sdk`, or `cli`, runs no translation check, and touches no locale or lock file (the SDK does
-  that). The xlsx library (exceljs) is confined to two internal modules and never appears on the
-  public surface. A returned workbook is untrusted input: the parse is bounded (entry,
-  decompressed-byte, sheet, row, and cell caps) and the XML is rejected if it declares a DTD or
-  entity, with every structural problem surfacing as a structured, secret-free `ExchangeError`.
+- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
+  `github-action` stay thin. Do not push logic into the wrappers.
+- Acyclic dependency direction:
+  config <- core <- format-adapters / ai-providers <- sdk <- cli / github-action /
+  framework-adapters. Never import against the arrow. Never create a cycle.
+- Keep `@verbatra/core` pure: no I/O, no network, no file system.
+- Reuse the provider registry and the `createJsonFileAdapter` factory. Do not
+  reimplement provider plumbing or adapter read, write, and detection logic. When
+  adding a format, build on the factory and register it.
+- zod at boundaries only (config, CLI args, action inputs, provider responses). Keep
+  it out of hot paths.
 
-- **`sdk`** composes core/adapters/providers/exchange into the end-to-end flows and is the central
-  API: `translate()`, `watch()`, `exportWorkbook()` / `importWorkbook()`, and `loadConfig()`.
-  **`cli`** and **`github-action`** (and the post-v1 `framework-adapters` / editor extensions) are
-  thin consumers of `sdk`: the cli wraps the SDK flows, the action runs the cli in CI. They must not
-  reach around the SDK into core/adapters/providers/exchange directly, and they add no
-  orchestration/translation/diff/lock logic of their own.
+## Code principles
 
-## Security invariants
+- Strict TypeScript: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes,
+  verbatimModuleSyntax, isolatedModules, NodeNext. No `any`. Cognitive complexity
+  capped at 15.
+- DRY, KISS, SOLID. Clear, descriptive names. Small functions and files.
+- Tests with Vitest, co-located as `*.test.ts`. CI enforces 90% coverage on lines,
+  functions, statements, and branches.
+- Conventional Commits, enforced by commitlint via the lefthook `commit-msg` hook.
+  Example: `feat(ai-providers): add Gemini provider`.
+- Any publishable `src` change ships a changeset with the right bump level.
 
-These are properties of the actual code and must be preserved in any change:
+## Security
 
-- **Secrets come only from environment variables** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
-  `GEMINI_API_KEY`, `DEEPL_API_KEY`) via the readers in `packages/ai-providers/src/env.ts`, never
-  from config files, CLI args, or function arguments. Never log secrets. `redact()`
-  (`packages/ai-providers/src/redaction.ts`) is a standalone utility for an explicit debug sink, not
-  the active error path: provider errors are secret-free by construction (see next point), so
-  nothing sensitive reaches a string that would need scrubbing.
-- **Errors are structured**, never raw SDK errors (provider SDK errors can carry request headers /
-  keys). `guardProviderCall` catches with an unbound `catch` and throws a static `ProviderError`,
-  so the raw error is never bound, logged, or re-thrown. Other layers map to their own structured
-  errors (`AdapterError`, `ExchangeError`, `SdkError`) the same way.
-- **Prompt-injection boundary**: system rules are compile-time constants. All untrusted variable
-  input (entries to translate, glossary, tone) travels only in the user-turn JSON data payload,
-  never spliced into the instruction channel. Provider output is schema-bound and validated, and
-  placeholder integrity is enforced after translation. Treat translatable strings as untrusted.
-- **Untrusted file input is bounded.** Reads are TOCTOU-safe (one handle, `fstat`, bounded byte
-  count) and writes are atomic (write to a uniquely named temp file in the same directory, then
-  rename over the target). The workbook parse in `exchange` adds entry / decompressed-byte / sheet /
-  row / cell caps and rejects DTD/entity declarations.
-- **Supply chain**: the lockfile is committed, releases go through Changesets, and npm provenance
-  is enabled (`publishConfig.provenance` in each publishable package).
+- API keys come only from environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY,
+  GEMINI_API_KEY, DEEPL_API_KEY), read through `packages/ai-providers/src/env.ts`.
+  Never from config files, CLI args, or function arguments. Never log or commit a
+  key. Error messages name the variable but never include a key value.
+- Errors are structured `ProviderError`s, never raw SDK errors.
+- Prompt-injection boundary: system rules are compile-time constants; untrusted input
+  travels only in the user-turn JSON payload; provider output is schema-bound and
+  validated; placeholder and ICU integrity is enforced after every translation. Treat
+  translatable strings as untrusted.
+- Publishing: npm Trusted Publishing via OIDC (no NPM_TOKEN), automatic provenance,
+  `repository.url` matching exactly, least-privilege GITHUB_TOKEN, GitHub Actions
+  pinned to commit SHAs, committed lockfile.
 
-## Conventions enforced by tooling
+## Git hooks (lefthook)
 
-- **TypeScript is maximally strict** (`packages/config/tsconfig.base.json`):
-  `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`,
-  `isolatedModules`, NodeNext modules. Write code that satisfies these, e.g. indexed access is
-  `T | undefined`, and type-only imports must use `import type`.
-- **Biome** is the linter/formatter (`packages/config/biome.json`): double quotes, always
-  semicolons, trailing commas everywhere, 2-space indent, 100-col width, organize-imports on.
-  `any` is an **error** (`noExplicitAny`); cognitive complexity is capped at 15.
-- **No em dashes anywhere.** The U+2014 character must never appear in any file (prose, code,
-  comments, docs, changelogs, JSON). Use a spaced hyphen (` - `), a colon, parentheses, or a
-  reworked sentence. English only, no emojis, no decorative formatting.
-- **Validate at boundaries with `zod`** (config, file contents, provider responses); keep it out
-  of hot paths.
-- **Git hooks (lefthook)**: `pre-commit` runs `biome check` on staged JS/TS/JSON; `commit-msg`
-  runs commitlint. **Conventional Commits** are required. Keep commits scoped and conventional.
-- **Changesets**: any package `src/**` change that should publish ships a `.changeset/*.md`.
-- **New publishable packages extend `@verbatra/config`** rather than redefining build/lint
-  settings, e.g. `tsconfig.json` uses `"extends": "@verbatra/config/tsconfig.base.json"`, and
-  `tsup.config.ts` is `import { createTsupConfig } from "@verbatra/config/tsup";
-  export default createTsupConfig();`.
-- **Tests** are Vitest, co-located as `*.test.ts`; new behavior ships with tests and keeps
-  coverage at or above the 90% thresholds.
+- pre-commit: Biome check on staged JS/TS/JSON, and a lockfile-sync check when a
+  package.json or lockfile changed.
+- commit-msg: commitlint (Conventional Commits).
+  If a hook fails, fix the cause (run `pnpm check` or `pnpm format`, or
+  `pnpm install` to sync the lockfile) and re-stage. Do not bypass hooks.
+
+## The verbatra team agents
+
+`.claude/agents/` holds nine role agents (product owner, software architect,
+developer, code reviewer, QA, security reviewer, release manager, docs writer, devops)
+that mirror the Cowork delivery team. Dispatch them for the matching stage of work.
+They follow the rules in this file. This setup is local and gitignored.
