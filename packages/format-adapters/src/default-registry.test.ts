@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createDefaultRegistry } from "./default-registry.js";
 
 describe("createDefaultRegistry", () => {
-  it("registers all v1 JSON adapters, so a bare .json is ambiguous", () => {
+  it("registers all JSON adapters, so a bare .json is ambiguous", () => {
     const result = createDefaultRegistry().resolve("locales/en/common.json");
     expect(result.status).toBe("ambiguous");
     if (result.status === "ambiguous") {
@@ -23,7 +23,29 @@ describe("createDefaultRegistry", () => {
     }
   });
 
-  it("reports no-match for a non-json file", () => {
-    expect(createDefaultRegistry().resolve("messages.yaml").status).toBe("no-match");
+  it.each([
+    ["xliff", "messages.xlf"],
+    ["xliff", "messages.xliff"],
+    ["yaml", "en.yml"],
+    ["yaml", "en.yaml"],
+    ["arb", "app_en.arb"],
+  ] as const)("resolves the %s adapter by detection from %s", (format, file) => {
+    const result = createDefaultRegistry().resolve(file);
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
+      expect(result.adapter.format).toBe(format);
+    }
+  });
+
+  it.each(["xliff", "yaml", "arb"] as const)("resolves %s by explicit format", (format) => {
+    const result = createDefaultRegistry().resolve("file", { format });
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") {
+      expect(result.adapter.format).toBe(format);
+    }
+  });
+
+  it("reports no-match for an unsupported extension", () => {
+    expect(createDefaultRegistry().resolve("messages.po").status).toBe("no-match");
   });
 });

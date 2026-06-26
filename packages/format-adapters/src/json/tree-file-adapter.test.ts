@@ -1,0 +1,148 @@
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { TranslationEntry } from "@verbatra/core";
+import { describe, expect, it } from "vitest";
+import { AdapterError } from "../errors.js";
+import type { JsonRecord } from "./json-tree.js";
+import { createTreeFileAdapter, type TreeFileAdapterOptions } from "./tree-file-adapter.js";
+
+const baseOptions: TreeFileAdapterOptions = {
+  format: "yaml",
+  extensions: [".tree", ".tr"],
+  parse: (content) => JSON.parse(content) as JsonRecord,
+  serialize: (tree) => JSON.stringify(tree),
+  deriveEntry: () => ({ placeholders: [], isPlural: false }),
+  extractPlaceholders: () => [],
+};
+
+function makeAdapter(overrides: Partial<TreeFileAdapterOptions> = {}) {
+  return createTreeFileAdapter({ ...baseOptions, ...overrides });
+}
+
+async function tempFile(name: string, content: string): Promise<string> {
+  const path = join(await mkdtemp(join(tmpdir(), "verbatra-tree-")), name);
+  await writeFile(path, content);
+  return path;
+}
+
+async function readError(promise: Promise<unknown>): Promise<unknown> {
+  return promise.catch((error: unknown) => error);
+}
+
+function entry(key: string, value: string): TranslationEntry {
+  return { key, namespace: "f", value, placeholders: [], isPlural: false };
+}
+
+describe("createTreeFileAdapter canHandle", () => {
+  it("accepts every configured extension, case-insensitively", () => {
+    const adapter = makeAdapter();
+    expect(adapter.canHandle("a.tree")).toBe(true);
+    expect(adapter.canHandle("a.TR")).toBe(true);
+    expect(adapter.canHandle("a.json")).toBe(false);
+  });
+
+  it("applies the sniff only when a sample is provided", () => {
+    const adapter = makeAdapter({ sniff: (sample) => sample.startsWith("ok") });
+    expect(adapter.canHandle("a.tree")).toBe(true);
+    expect(adapter.canHandle("a.tree", "ok content")).toBe(true);
+    expect(adapter.canHandle("a.tree", "no")).toBe(false);
+  });
+});
+
+describe("createTreeFileAdapter read", () => {
+  it("uses the injected parse and flattens the result", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("f.tree", JSON.stringify({ a: { b: "x" }, c: "y" }));
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["a.b", "c"]);
+    expect(resource.format).toBe("yaml");
+    expect(resource.namespace).toBe("f");
+  });
+
+  it("wraps a non-AdapterError from parse as INVALID_STRUCTURE", async () => {
+    const adapter = makeAdapter({
+      parse: () => {
+        throw new Error("raw /secret parse failure");
+      },
+    });
+    const error = await readError(adapter.read(await tempFile("f.tree", "x"), "en"));
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+    expect((error as Error).message).not.toContain("/secret");
+  });
+
+  it("passes an AdapterError from parse through unchanged", async () => {
+    const adapter = makeAdapter({
+      parse: () => {
+        throw new AdapterError("INVALID_YAML", "bad");
+      },
+    });
+    const error = await readError(adapter.read(await tempFile("f.tree", "x"), "en"));
+    expect((error as AdapterError).code).toBe("INVALID_YAML");
+  });
+
+  it("runs a supplied validateTree before flattening", async () => {
+    const adapter = makeAdapter({
+      validateTree: () => {
+        throw new AdapterError("MIXED_STRUCTURE", "mixed");
+      },
+    });
+    const error = await readError(adapter.read(await tempFile("f.tree", "{}"), "en"));
+    expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
+  });
+
+  it("reports invalidIcuKeys from a supplied computeInvalidIcuKeys", async () => {
+    const adapter = makeAdapter({
+      computeInvalidIcuKeys: (entries) => [...entries.keys()],
+    });
+    const { invalidIcuKeys } = await adapter.read(await tempFile("f.tree", '{"k":"v"}'), "en");
+    expect(invalidIcuKeys).toEqual(["k"]);
+  });
+});
+
+describe("createTreeFileAdapter write", () => {
+  it("serializes the default nested tree through the injected serialize", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("out.tree", "{}");
+    await adapter.write(
+      {
+        locale: "en",
+        namespace: "f",
+        format: "yaml",
+        entries: new Map([["a.b", entry("a.b", "x")]]),
+      },
+      path,
+    );
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ a: { b: "x" } });
+  });
+
+  it("uses a supplied buildWriteTree to control the on-disk shape", async () => {
+    const adapter = makeAdapter({
+      buildWriteTree: (entries) => ({ flat: [...entries.keys()] }),
+    });
+    const path = await tempFile("out.tree", "{}");
+    await adapter.write(
+      {
+        locale: "en",
+        namespace: "f",
+        format: "yaml",
+        entries: new Map([["k", entry("k", "v")]]),
+      },
+      path,
+    );
+    expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ flat: ["k"] });
+  });
+});
+
+describe("createTreeFileAdapter validateMessage", () => {
+  it("defaults to accepting every value", () => {
+    expect(makeAdapter().validateMessage("anything")).toBe(true);
+  });
+
+  it("uses a supplied validator", () => {
+    const adapter = makeAdapter({ validateMessage: (v) => v !== "bad" });
+    expect(adapter.validateMessage("ok")).toBe(true);
+    expect(adapter.validateMessage("bad")).toBe(false);
+  });
+});

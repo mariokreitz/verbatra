@@ -1,5 +1,16 @@
+import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
-import { analyzeIcuValue } from "./icu.js";
+import {
+  analyzeIcuValue,
+  icuDeriveEntry,
+  icuInvalidKeys,
+  icuIsValid,
+  icuPlaceholders,
+} from "./analyze.js";
+
+function entry(key: string, value: string): TranslationEntry {
+  return { key, namespace: "n", value, placeholders: [], isPlural: false };
+}
 
 describe("analyzeIcuValue: extraction", () => {
   it("extracts a simple {name} argument", () => {
@@ -24,16 +35,12 @@ describe("analyzeIcuValue: extraction", () => {
   });
 
   it("extracts arguments nested inside a plural branch; '#' is not a placeholder", () => {
-    // ICU bodies are preserved verbatim by translation, so each branch's occurrence of
-    // {author} is required: the multiset reports it once per branch, not collapsed.
     const a = analyzeIcuValue("{count, plural, one {# by {author}} other {# by {author}}}");
     expect(a.placeholders).toEqual(["{count}", "{author}", "{author}"]);
     expect(a.isPlural).toBe(true);
   });
 
   it("preserves every occurrence in document order (multiset, not deduplicated)", () => {
-    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence
-    // must be detectable. Collapsing duplicates here would hide that.
     const a = analyzeIcuValue("{name} then {name} and {count, plural, other {#}}");
     expect(a.placeholders).toEqual(["{name}", "{name}", "{count}"]);
   });
@@ -76,5 +83,31 @@ describe("analyzeIcuValue: validity", () => {
     const a = analyzeIcuValue("it's a '{' literal brace");
     expect(a.valid).toBe(true);
     expect(a.placeholders).toEqual([]);
+  });
+});
+
+describe("ICU adapter hooks", () => {
+  it("icuPlaceholders returns the analysis placeholders", () => {
+    expect(icuPlaceholders("hi {name}")).toEqual(["{name}"]);
+  });
+
+  it("icuIsValid mirrors parse validity", () => {
+    expect(icuIsValid("Hello")).toBe(true);
+    expect(icuIsValid("{count, plural, one {x")).toBe(false);
+  });
+
+  it("icuDeriveEntry reports placeholders and plurality, ignoring the key", () => {
+    expect(icuDeriveEntry("any", "{count, plural, other {#}}")).toEqual({
+      placeholders: ["{count}"],
+      isPlural: true,
+    });
+  });
+
+  it("icuInvalidKeys lists only the keys whose values fail to parse", () => {
+    const entries = new Map<string, TranslationEntry>([
+      ["ok", entry("ok", "hi {name}")],
+      ["bad", entry("bad", "{count, plural, one {x")],
+    ]);
+    expect(icuInvalidKeys(entries)).toEqual(["bad"]);
   });
 });

@@ -30,6 +30,6 @@ describe("localeResourceSchema", () => {
   });
 
   it("rejects an unknown format", () => {
-    expect(localeResourceSchema.safeParse({ ...valid, format: "yaml" }).success).toBe(false);
+    expect(localeResourceSchema.safeParse({ ...valid, format: "toml" }).success).toBe(false);
   });
 });

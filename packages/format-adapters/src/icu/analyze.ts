@@ -1,4 +1,5 @@
 import { type MessageFormatElement, parse, TYPE } from "@formatjs/icu-messageformat-parser";
+import type { TranslationEntry } from "@verbatra/core";
 
 export interface IcuAnalysis {
   /**
@@ -88,4 +89,34 @@ export function analyzeIcuValue(value: string): IcuAnalysis {
   } catch {
     return INVALID;
   }
+}
+
+/** The ICU placeholders of a value, the `extractPlaceholders` hook for ICU formats (next-intl, ARB). */
+export function icuPlaceholders(value: string): readonly string[] {
+  return analyzeIcuValue(value).placeholders;
+}
+
+/** Whether a value parses as ICU MessageFormat, the `validateMessage` hook for ICU formats. */
+export function icuIsValid(value: string): boolean {
+  return analyzeIcuValue(value).valid;
+}
+
+/** The `deriveEntry` hook for ICU formats: placeholders and plurality from the ICU analysis. */
+export function icuDeriveEntry(
+  _key: string,
+  value: string,
+): { readonly placeholders: readonly string[]; readonly isPlural: boolean } {
+  const analysis = analyzeIcuValue(value);
+  return { placeholders: analysis.placeholders, isPlural: analysis.isPlural };
+}
+
+/** The `computeInvalidIcuKeys` hook for ICU formats: the keys whose values fail to parse. */
+export function icuInvalidKeys(entries: ReadonlyMap<string, TranslationEntry>): readonly string[] {
+  const invalid: string[] = [];
+  for (const [key, entry] of entries) {
+    if (!icuIsValid(entry.value)) {
+      invalid.push(key);
+    }
+  }
+  return invalid;
 }

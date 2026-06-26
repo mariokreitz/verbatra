@@ -2,7 +2,8 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { readBounded } from "./bounded-read.js";
+import { AdapterError } from "../errors.js";
+import { readBounded, readFileContent } from "./bounded-read.js";
 import { MAX_INPUT_BYTES } from "./limits.js";
 
 async function tempDir(): Promise<string> {
@@ -38,5 +39,24 @@ describe("readBounded", () => {
 
   it("rejects for a missing path (callers handle it)", async () => {
     await expect(readBounded(join(await tempDir(), "absent.json"))).rejects.toThrow();
+  });
+});
+
+describe("readFileContent", () => {
+  it("returns the content for a regular file", async () => {
+    expect(await readFileContent(await tempFile("hi"))).toBe("hi");
+  });
+
+  it("maps a directory to a structured INVALID_STRUCTURE", async () => {
+    const error = await readFileContent(await tempDir()).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("maps an over-size file to a structured INPUT_TOO_LARGE", async () => {
+    const error = await readFileContent(await tempFile(new Uint8Array(MAX_INPUT_BYTES + 1))).catch(
+      (e: unknown) => e,
+    );
+    expect((error as AdapterError).code).toBe("INPUT_TOO_LARGE");
   });
 });
