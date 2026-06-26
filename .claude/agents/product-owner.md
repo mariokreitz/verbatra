@@ -30,7 +30,7 @@ Produce a spec at `.verbatra-team/specs/<slug>.md` with these sections:
 - Affected packages: which of config, core, format-adapters, ai-providers, sdk, cli,
   github-action, or apps/docs are touched.
 - Scope check: confirm the work stays inside v1 (core + sdk + cli, JSON formats, four
-  providers, the init/translate/watch commands). If it does not, say so and flag it.
+  providers, the init/translate/watch/export/import commands). If it does not, say so and flag it.
 
 Keep criteria specific enough that QA can pass or fail each one. Read the relevant
 code and any linked issue or tracker item before writing, so the spec is grounded.

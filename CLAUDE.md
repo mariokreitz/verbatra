@@ -92,8 +92,9 @@ published by accident.
 - SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
   `github-action` stay thin. Do not push logic into the wrappers.
 - Acyclic dependency direction:
-  config <- core <- format-adapters / ai-providers <- sdk <- cli / github-action /
-  framework-adapters. Never import against the arrow. Never create a cycle.
+  config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
+  github-action / framework-adapters. Never import against the arrow. Never create
+  a cycle.
 - Keep `@verbatra/core` pure: no I/O, no network, no file system.
 - Reuse the provider registry and the `createJsonFileAdapter` factory. Do not
   reimplement provider plumbing or adapter read, write, and detection logic. When
