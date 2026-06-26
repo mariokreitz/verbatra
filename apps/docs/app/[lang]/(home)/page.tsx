@@ -26,6 +26,12 @@ import {
   softwareApplicationLd,
 } from "@/lib/structured-data";
 
+// Daily ISR: the home page revalidates on the same 24h window as the social-proof fetches, so the
+// running server refreshes the page (and its stats) at most once per day without a rebuild. Next.js
+// requires this segment config to be a static literal, so it cannot import REVALIDATE_SECONDS from
+// lib/social-stats; 86400 seconds = 24 hours mirrors that constant and the two must stay in sync.
+export const revalidate = 86_400;
+
 const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
