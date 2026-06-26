@@ -2,6 +2,11 @@ packages:
   - "packages/*"
   - "apps/*"
 
+overrides:
+  # Force the patched postcss for the vulnerable copy only (next bundles 8.4.31).
+  # GHSA-qx2v-qp2m-jg93: XSS via unescaped </style> in CSS stringify output.
+  postcss@<8.5.10: ">=8.5.10"
+
 allowBuilds:
   '@google/genai': false
   '@parcel/watcher': false
