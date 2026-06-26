@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   renderCheckHuman,
   renderCheckJson,
+  renderDiffHuman,
+  renderDiffJson,
   renderError,
   renderExportHuman,
   renderExportJson,
@@ -64,6 +66,94 @@ describe("render: check summary", () => {
       locales: [{ locale: "de", missing: 1, stale: 0, upToDate: 2, inSync: false }],
     };
     expect(JSON.parse(renderCheckJson(summary))).toEqual(summary);
+  });
+});
+
+describe("render: diff summary", () => {
+  it("renders a header, a per-locale count header, and the grouped key lists", () => {
+    const text = renderDiffHuman({
+      hasPendingChanges: true,
+      locales: [
+        {
+          locale: "de",
+          missing: ["app.title", "nav.home"],
+          changed: ["footer.copyright"],
+          orphaned: ["legacy.banner"],
+          hasPendingChanges: true,
+        },
+      ],
+    });
+    expect(text).toContain("verbatra diff");
+    expect(text).toContain("de: 2 to add, 1 to re-translate, 1 orphaned");
+    expect(text).toContain("add:");
+    expect(text).toContain("app.title, nav.home");
+    expect(text).toContain("re-translate:");
+    expect(text).toContain("footer.copyright");
+    expect(text).toContain("orphaned:");
+    expect(text).toContain("legacy.banner");
+    expect(text).toContain("1 locale, pending changes");
+  });
+
+  it("omits empty groups and lists every key without truncation", () => {
+    const many = Array.from({ length: 60 }, (_, i) => `k${i}`);
+    const text = renderDiffHuman({
+      hasPendingChanges: true,
+      locales: [
+        { locale: "de", missing: many, changed: [], orphaned: [], hasPendingChanges: true },
+      ],
+    });
+    expect(text).toContain("de: 60 to add, 0 to re-translate, 0 orphaned");
+    expect(text).toContain("add:");
+    expect(text).not.toContain("re-translate:");
+    expect(text).not.toContain("orphaned:");
+    for (const key of many) {
+      expect(text).toContain(key);
+    }
+  });
+
+  it("collapses a locale with no missing, changed, or orphaned keys to one line", () => {
+    const text = renderDiffHuman({
+      hasPendingChanges: false,
+      locales: [{ locale: "fr", missing: [], changed: [], orphaned: [], hasPendingChanges: false }],
+    });
+    expect(text).toContain("fr: no pending changes");
+    expect(text).toContain("1 locale, no pending changes");
+    expect(text).not.toContain("add:");
+  });
+
+  it("shows orphaned-only locales without collapsing and trailer stays no pending changes", () => {
+    const text = renderDiffHuman({
+      hasPendingChanges: false,
+      locales: [
+        {
+          locale: "de",
+          missing: [],
+          changed: [],
+          orphaned: ["legacy.banner"],
+          hasPendingChanges: false,
+        },
+      ],
+    });
+    expect(text).toContain("de: 0 to add, 0 to re-translate, 1 orphaned");
+    expect(text).toContain("orphaned:");
+    expect(text).toContain("legacy.banner");
+    expect(text).toContain("1 locale, no pending changes");
+  });
+
+  it("renders the diff summary as compact JSON", () => {
+    const summary = {
+      hasPendingChanges: true,
+      locales: [
+        {
+          locale: "de",
+          missing: ["a"],
+          changed: [],
+          orphaned: [],
+          hasPendingChanges: true,
+        },
+      ],
+    };
+    expect(JSON.parse(renderDiffJson(summary))).toEqual(summary);
   });
 });
 

@@ -1,6 +1,8 @@
 import type {
   CheckInput,
   CheckSummary,
+  DiffInput,
+  DiffSummary,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -55,6 +57,10 @@ export function makeCheckSummary(overrides: Partial<CheckSummary> = {}): CheckSu
   return { inSync: true, locales: [], ...overrides };
 }
 
+export function makeDiffSummary(overrides: Partial<DiffSummary> = {}): DiffSummary {
+  return { hasPendingChanges: false, locales: [], ...overrides };
+}
+
 /** Accumulating stream sink: captures everything written to out and err. */
 export function captureStreams(): { streams: Streams; out: () => string; err: () => string } {
   let outBuf = "";
@@ -80,6 +86,7 @@ export interface DepCalls {
   exportWorkbook: ExportWorkbookInput[];
   importWorkbook: ImportWorkbookInput[];
   check: CheckInput[];
+  diff: DiffInput[];
 }
 
 /** Recording stub of the SDK deps. Override any of them to control behavior or throw. */
@@ -91,6 +98,7 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     exportWorkbook: [],
     importWorkbook: [],
     check: [],
+    diff: [],
   };
   const deps: CliDeps = {
     loadConfig: async (options) => {
@@ -116,6 +124,10 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     check: async (input) => {
       calls.check.push(input);
       return impl.check ? impl.check(input) : makeCheckSummary();
+    },
+    diff: async (input) => {
+      calls.diff.push(input);
+      return impl.diff ? impl.diff(input) : makeDiffSummary();
     },
   };
   return { deps, calls };

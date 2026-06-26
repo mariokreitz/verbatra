@@ -1,4 +1,11 @@
-import type { CheckSummary, LocaleSummary, RunSummary, WatchRunResult } from "@verbatra/sdk";
+import type {
+  CheckSummary,
+  DiffSummary,
+  LocaleDiff,
+  LocaleSummary,
+  RunSummary,
+  WatchRunResult,
+} from "@verbatra/sdk";
 
 /** A structured, secret-free error projection (matches the SDK's failed-result shape). */
 export interface RenderableError {
@@ -142,6 +149,55 @@ export function renderCheckHuman(summary: CheckSummary): string {
 
 /** The `check --json` contract: the SDK check summary as one compact JSON object on one line. */
 export function renderCheckJson(summary: CheckSummary): string {
+  return JSON.stringify(summary);
+}
+
+/** Column width that aligns the diff group keys past the longest label ("re-translate:"). */
+const DIFF_GROUP_WIDTH = 14;
+
+/** One grouped key line (`add:`, `re-translate:`, or `orphaned:`), or nothing when the group is empty. */
+function renderDiffGroup(label: string, keys: readonly string[]): string | undefined {
+  if (keys.length === 0) {
+    return undefined;
+  }
+  return `    ${`${label}:`.padEnd(DIFF_GROUP_WIDTH)}${keys.join(", ")}`;
+}
+
+/** Render one locale: a "no pending changes" line, or a count header followed by its non-empty groups. */
+function renderDiffLocale(locale: LocaleDiff): readonly string[] {
+  const total = locale.missing.length + locale.changed.length + locale.orphaned.length;
+  if (total === 0) {
+    return [`  ${locale.locale}: no pending changes`];
+  }
+  const header = `  ${locale.locale}: ${locale.missing.length} to add, ${locale.changed.length} to re-translate, ${locale.orphaned.length} orphaned`;
+  const groups = [
+    renderDiffGroup("add", locale.missing),
+    renderDiffGroup("re-translate", locale.changed),
+    renderDiffGroup("orphaned", locale.orphaned),
+  ].filter((line): line is string => line !== undefined);
+  return [header, ...groups];
+}
+
+/**
+ * Human-readable diff report: a header, then per locale a count header line and the key lists grouped
+ * as add / re-translate / orphaned (every key listed, no truncation), then an aggregate trailer. A
+ * locale with nothing missing, changed, or orphaned collapses to a single "no pending changes" line.
+ * Plain text, no emoji.
+ *
+ * @param summary - The SDK diff summary.
+ * @returns The multi-line human report (no trailing newline).
+ */
+export function renderDiffHuman(summary: DiffSummary): string {
+  const localeLines = summary.locales.flatMap(renderDiffLocale);
+  const count = summary.locales.length;
+  const trailer = `${count} ${count === 1 ? "locale" : "locales"}, ${
+    summary.hasPendingChanges ? "pending changes" : "no pending changes"
+  }`;
+  return ["verbatra diff", ...localeLines, trailer].join("\n");
+}
+
+/** The `diff --json` contract: the SDK diff summary as one compact JSON object on one line. */
+export function renderDiffJson(summary: DiffSummary): string {
   return JSON.stringify(summary);
 }
 

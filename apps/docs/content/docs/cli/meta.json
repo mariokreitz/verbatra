@@ -1,4 +1,4 @@
 {
   "title": "CLI",
-  "pages": ["index", "init", "translate", "watch", "check", "export", "import"]
+  "pages": ["index", "init", "translate", "watch", "check", "diff", "export", "import"]
 }

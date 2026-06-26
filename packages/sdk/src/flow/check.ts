@@ -1,11 +1,8 @@
-import { diffResources, type LocaleResource } from "@verbatra/core";
-import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
+import type { DiffResult } from "@verbatra/core";
+import type { AdapterRegistry } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
-import { defaultFs, type SdkFs } from "../fs.js";
-import { baselineFor, lockFilePath, readLockFile } from "../lock/lock-file.js";
-import { localeFilePath } from "../paths.js";
-import { selectAdapter } from "../selection/select-adapter.js";
-import { readSource } from "./source.js";
+import type { SdkFs } from "../fs.js";
+import { diffLocales } from "./diff-locales.js";
 
 /** Per-locale drift status: counts only, no key lists. */
 export interface LocaleCheckSummary {
@@ -45,39 +42,8 @@ export interface CheckDeps {
   readonly fs?: SdkFs;
 }
 
-/** Read a locale's existing target resource, or an empty resource when the file does not exist. */
-async function readTarget(
-  cwd: string,
-  config: VerbatraConfig,
-  adapter: FormatAdapter,
-  fs: SdkFs,
-  locale: string,
-): Promise<LocaleResource> {
-  const path = localeFilePath(cwd, config.files.pattern, locale);
-  if (!(await fs.fileExists(path))) {
-    return { locale, namespace: "", format: config.format, entries: new Map() };
-  }
-  return (await adapter.read(path, locale)).resource;
-}
-
-/** Resolve which target locales to check: all configured ones, or the requested subset in config order. */
-function selectedLocales(config: VerbatraConfig, requested?: readonly string[]): readonly string[] {
-  if (requested === undefined) {
-    return config.targetLocales;
-  }
-  const wanted = new Set(requested);
-  // Preserve config order; silently ignore a requested locale that is not configured.
-  return config.targetLocales.filter((locale) => wanted.has(locale));
-}
-
-/** Diff one locale against the source and project it to a counts-only per-locale status. */
-function checkLocale(
-  source: LocaleResource,
-  target: LocaleResource,
-  baseline: ReadonlyMap<string, string>,
-  locale: string,
-): LocaleCheckSummary {
-  const diff = diffResources(source, target, { baseline });
+/** Project one raw per-locale diff to a counts-only per-locale status. */
+function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
   return {
     locale,
     missing: diff.missing.length,
@@ -89,11 +55,11 @@ function checkLocale(
 
 /**
  * Report which keys are missing or stale per target locale, without calling a provider, writing any
- * file, or touching the lock. Reuses the same source read, adapter selection, and lock baseline the
- * translate and export flows use, then runs `diffResources` per target locale and maps the result to
- * counts only (missing, stale, up-to-date). `inSync` for a locale means nothing is missing and nothing
- * is stale; the top-level `inSync` is the AND across all checked locales. Orphaned keys and integrity
- * are ignored by design: they concern a write, which `check` never performs.
+ * file, or touching the lock. Reuses the shared {@link diffLocales} read-plus-diff orchestration (the
+ * same source read, adapter selection, and lock baseline the translate and export flows use), then maps
+ * each raw `DiffResult` to counts only (missing, stale, up-to-date). `inSync` for a locale means nothing
+ * is missing and nothing is stale; the top-level `inSync` is the AND across all checked locales. Orphaned
+ * keys and integrity are ignored by design: they concern a write, which `check` never performs.
  *
  * @param input - The validated config and which locales to check.
  * @param deps - Optional composition seams (registry, file system) for tests.
@@ -102,20 +68,7 @@ function checkLocale(
  *   with the same meanings as in `translate`.
  */
 export async function check(input: CheckInput, deps: CheckDeps = {}): Promise<CheckSummary> {
-  const config = input.config;
-  const cwd = input.cwd ?? process.cwd();
-  const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
-
-  const source = await readSource(config, cwd, fs, adapter);
-  const lock = await readLockFile(lockFilePath(cwd), fs);
-
-  const locales = await Promise.all(
-    selectedLocales(config, input.locales).map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
-      return checkLocale(source.resource, target, baselineFor(lock, locale), locale);
-    }),
-  );
-
+  const results = await diffLocales(input, deps);
+  const locales = results.map(({ locale, diff }) => toCheckSummary(locale, diff));
   return { inSync: locales.every((entry) => entry.inSync), locales };
 }

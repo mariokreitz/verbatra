@@ -24,6 +24,13 @@ export {
   check,
   type LocaleCheckSummary,
 } from "./flow/check.js";
+export {
+  type DiffDeps,
+  type DiffInput,
+  type DiffSummary,
+  diff,
+  type LocaleDiff,
+} from "./flow/diff.js";
 export type {
   LocaleNotice,
   LocaleSummary,

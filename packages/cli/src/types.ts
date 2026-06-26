@@ -1,6 +1,8 @@
 import type {
   CheckInput,
   CheckSummary,
+  DiffInput,
+  DiffSummary,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -37,6 +39,8 @@ export interface CliDeps {
   importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>;
   /** Report missing and stale keys per locale without writing (the SDK's `check`). */
   check(input: CheckInput): Promise<CheckSummary>;
+  /** List the keys that would be added, re-translated, or orphaned per locale (the SDK's `diff`). */
+  diff(input: DiffInput): Promise<DiffSummary>;
 }
 
 /** A long-running watch run. The bin shim wires SIGINT to requestStop; tests call it directly. */
