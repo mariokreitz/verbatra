@@ -1,3 +1,5 @@
+import { redact } from "./redaction.js";
+
 /**
  * Stable, machine-readable codes for provider failures. Each names a distinct boundary condition:
  *
@@ -35,10 +37,16 @@ export class ProviderError extends Error {
 
   /**
    * @param code - The stable failure code.
-   * @param message - A fixed, safe message; callers must never pass key, SDK, or request-derived text.
+   * @param message - A fixed, safe message; callers must never pass key, SDK, or request-derived
+   *   text. By-construction safety is the guarantee; the {@link redact} call below is a
+   *   defense-in-depth backstop, not a license to pass dynamic text.
    */
   constructor(code: ProviderErrorCode, message: string) {
-    super(message);
+    // Pattern-scrub every message as a backstop. Pass "" explicitly so the `ANTHROPIC_API_KEY`
+    // default is not re-applied (JS re-applies a default only on `undefined`; "" is falsy and
+    // selects pattern-only scrubbing): a generic four-provider error must not couple to one
+    // provider's environment variable.
+    super(redact(message, ""));
     this.name = "ProviderError";
     this.code = code;
   }

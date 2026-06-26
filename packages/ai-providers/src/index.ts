@@ -6,8 +6,10 @@
  * validates every model against one single-source schema ({@link translationsResultSchema}) so the
  * constraint and the validation cannot drift. Failures surface as secret-free {@link ProviderError}s,
  * by construction, not by scrubbing: an underlying SDK throw is mapped to a static error and raw SDK text
- * is never bound. {@link redact} is a separate standalone utility. API keys are read only from the
- * environment; translatable strings are treated as untrusted and travel only in the data channel.
+ * is never bound. That construction is the primary control. {@link redact} is also wired into the
+ * {@link ProviderError} constructor as a defense-in-depth backstop that pattern-scrubs every message.
+ * API keys are read only from the environment; translatable strings are treated as untrusted and travel
+ * only in the data channel.
  *
  * @packageDocumentation
  */
@@ -62,7 +64,7 @@ export type {
   TranslationProvider,
   Usage,
 } from "./provider.js";
-// Redaction utility (a standalone scrubber for an explicit log/error sink; NOT the provider error path,
-// which is secret-free by construction)
+// Redaction utility. Provider errors are secret-free by construction (the primary control); redact is
+// also wired into the ProviderError constructor as a defense-in-depth pattern scrub of every message.
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
