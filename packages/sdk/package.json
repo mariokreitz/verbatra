@@ -67,6 +67,7 @@
     "@anthropic-ai/sdk": "0.105.0",
     "@formatjs/icu-messageformat-parser": "3.5.11",
     "@google/genai": "2.9.0",
+    "@xmldom/xmldom": "0.9.10",
     "chokidar": "5.0.0",
     "cosmiconfig": "9.0.2",
     "cosmiconfig-typescript-loader": "6.3.0",
@@ -75,6 +76,7 @@
     "jszip": "3.10.1",
     "loglevel": "1.9.2",
     "openai": "6.44.0",
+    "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
