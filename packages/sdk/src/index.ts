@@ -12,6 +12,7 @@
  * @packageDocumentation
  */
 
+export type { SupportedFormat } from "@verbatra/core";
 export { defineConfig } from "./config/define-config.js";
 export { type LoadConfigOptions, loadConfig } from "./config/load-config.js";
 export type { ProviderConfig, ProviderId } from "./config/provider-config.js";
@@ -56,6 +57,7 @@ export {
   importWorkbook,
 } from "./flow/workbook/import-workbook.js";
 export type { SdkFs } from "./fs.js";
+export { scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";
 export {
   type CreateWatcher,

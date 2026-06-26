@@ -1,6 +1,19 @@
 import { ProviderError } from "./errors.js";
 
 /**
+ * Provider id -> the environment variable its API key is read from. This is the single
+ * canonical source of the variable names: the per-provider readers below resolve through
+ * it, so a variable name lives in exactly one place and cannot drift between the reader
+ * and any table that lists it.
+ */
+export const PROVIDER_ENV = {
+  anthropic: "ANTHROPIC_API_KEY",
+  openai: "OPENAI_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  deepl: "DEEPL_API_KEY",
+} as const;
+
+/**
  * Read a required API key from the environment only. Keys are never read from
  * config, function arguments, or files. A missing or empty value yields a
  * structured error that names the variable but contains no key value.
@@ -20,20 +33,20 @@ function readRequiredEnv(name: string): string {
 
 /** The Anthropic API key, read only from ANTHROPIC_API_KEY. */
 export function requireAnthropicKey(): string {
-  return readRequiredEnv("ANTHROPIC_API_KEY");
+  return readRequiredEnv(PROVIDER_ENV.anthropic);
 }
 
 /** The OpenAI API key, read only from OPENAI_API_KEY. */
 export function requireOpenAiKey(): string {
-  return readRequiredEnv("OPENAI_API_KEY");
+  return readRequiredEnv(PROVIDER_ENV.openai);
 }
 
 /** The Gemini API key, read only from GEMINI_API_KEY. */
 export function requireGeminiKey(): string {
-  return readRequiredEnv("GEMINI_API_KEY");
+  return readRequiredEnv(PROVIDER_ENV.gemini);
 }
 
 /** The DeepL API key, read only from DEEPL_API_KEY. */
 export function requireDeepLKey(): string {
-  return readRequiredEnv("DEEPL_API_KEY");
+  return readRequiredEnv(PROVIDER_ENV.deepl);
 }

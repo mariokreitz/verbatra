@@ -36,6 +36,7 @@ export type {
   ProviderNotice,
   ProviderNoticeCode,
 } from "./deepl/types.js";
+export { PROVIDER_ENV } from "./env.js";
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
 export {
   type GeminiConfig,
@@ -68,3 +69,4 @@ export type {
 // also wired into the ProviderError constructor as a defense-in-depth pattern scrub of every message.
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
+export { SCAFFOLD_MODELS } from "./scaffold.js";

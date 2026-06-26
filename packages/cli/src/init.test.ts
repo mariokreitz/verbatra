@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { defineConfig } from "@verbatra/sdk";
+import { defineConfig, scaffoldingMetadata } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_MODEL, type InitDeps, runInit } from "./init.js";
 import { captureStreams } from "./test-support.js";
@@ -296,5 +296,45 @@ describe("runInit", () => {
     const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(gitignore).toContain("node_modules\n");
     expect(gitignore.split("\n")).toContain(".env");
+  });
+
+  it("lists exactly the four detectable JSON formats in the undetected format comment", async () => {
+    // Byte guard: the comment must list the detectable JSON subset, NOT core's full seven-member
+    // SUPPORTED_FORMATS set. If this lists xliff/yaml/arb, the metadata derivation drifted.
+    const cap = captureStreams();
+    await runInit({ cwd: dir, yes: true, provider: "deepl" }, cap.streams, nonInteractive);
+    const config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");
+    expect(config).toContain(
+      "// TODO: set your locale file format (one of: i18next-json, vue-i18n-json, next-intl-json, ngx-translate-json).",
+    );
+    expect(config).not.toContain("xliff");
+    expect(config).not.toContain("yaml");
+    expect(config).not.toContain("arb");
+  });
+});
+
+describe("init metadata derivation", () => {
+  it("derives provider env-var names from the SDK scaffolding metadata", () => {
+    expect(scaffoldingMetadata.providerEnv).toEqual({
+      anthropic: "ANTHROPIC_API_KEY",
+      openai: "OPENAI_API_KEY",
+      gemini: "GEMINI_API_KEY",
+      deepl: "DEEPL_API_KEY",
+    });
+  });
+
+  it("derives the default scaffold models from the SDK scaffolding metadata", () => {
+    expect(DEFAULT_MODEL).toBe(scaffoldingMetadata.scaffoldModels);
+    expect(DEFAULT_MODEL).toEqual({
+      anthropic: "claude-sonnet-4-6",
+      openai: "gpt-5.4-mini",
+      gemini: "gemini-2.5-flash",
+    });
+  });
+
+  it("keeps every detectable format id a member of the canonical supported formats", () => {
+    for (const id of ["i18next-json", "vue-i18n-json", "next-intl-json", "ngx-translate-json"]) {
+      expect(scaffoldingMetadata.supportedFormats).toContain(id);
+    }
   });
 });
