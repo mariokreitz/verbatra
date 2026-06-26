@@ -160,7 +160,7 @@
   of searching. When given, the loader resolves the path (relative against `cwd`, absolute as-is) and
   loads it through cosmiconfig's `load()`, which reuses the same loaders search uses (.json/.yaml/.ts via
   the TypeScript loader), then validates it through the same zod boundary. A genuinely missing file is
-  `CONFIG_NOT_FOUND`; a present-but-unparseable or invalid file is `CONFIG_INVALID` — both existing
+  `CONFIG_NOT_FOUND`; a present-but-unparseable or invalid file is `CONFIG_INVALID` - both existing
   codes, no new error code. Precedence is `configOverride` > `configPath` > search. Purely additive: when
   `configPath` is absent, `loadConfig` behaves exactly as before (the existing config-loading tests are
   unchanged). This unblocks the CLI's `--config <path>` flag as a thin pass-through.
@@ -191,7 +191,7 @@
   one-shot `translate()` on each settled change. Runs are serialized and coalesced through an
   IDLE/RUNNING state machine with a single boolean pending-rerun flag: a change during a run never
   starts a concurrent run, and any number of mid-run changes collapse into exactly one immediate
-  follow-up (no fresh debounce). Watch adds no translation, diff, or lock logic of its own — each run
+  follow-up (no fresh debounce). Watch adds no translation, diff, or lock logic of its own - each run
   is the slice-1 flow unchanged, so the lock-file and per-locale atomic writes are reused as-is. An
   initial run happens on startup; a missing source path at startup is a hard `SOURCE_UNREADABLE`
   error, while a run that fails after start is reported and watching continues. Run summaries and

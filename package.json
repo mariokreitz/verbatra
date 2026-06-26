@@ -25,6 +25,7 @@
     "test": "turbo run test",
     "format": "biome format --write .",
     "check": "biome check .",
+    "check:no-em-dash": "node scripts/check-no-em-dash.mjs",
     "changeset": "changeset",
     "release": "changeset publish"
   },

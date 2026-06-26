@@ -14,6 +14,12 @@ pre-commit:
         pnpm-lock.yaml is out of sync with a package.json (a dependency was
         added/changed/removed without updating the lockfile). Run `pnpm install`,
         then `git add pnpm-lock.yaml` and commit again.
+    no-em-dash:
+      run: pnpm check:no-em-dash
+      fail_text: |
+        The em dash character (U+2014) is banned everywhere in the repo.
+        Replace each flagged occurrence with a spaced hyphen, a colon, or
+        parentheses, then re-stage.
 
 commit-msg:
   commands:
