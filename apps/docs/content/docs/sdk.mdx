@@ -24,7 +24,7 @@ Requires Node.js `>=22.14.0`.
 
 ## The public surface
 
-The package exports six functions and the types a caller touches.
+The package exports seven functions and the types a caller touches.
 
 - `defineConfig(config): VerbatraConfig` returns its argument unchanged. It exists only to give you
   type inference and autocomplete when you author a config in TypeScript; the `model` field is
@@ -53,6 +53,11 @@ The package exports six functions and the types a caller touches.
   is `{ config, workbook, cwd?, dryRun? }`. It resolves to the same `RunSummary` as `translate`, so a
   per-locale failure is data on the summary rather than a throw. `DEFAULT_WORKBOOK_PATH` is the
   default export path (`verbatra-translations.xlsx`).
+- `check(input: CheckInput): Promise<CheckSummary>` runs the same read and diff as `translate` but
+  stops before any provider call: it reports per-locale drift and writes nothing. `CheckInput` is
+  `{ config, cwd?, locales? }`. It resolves to a `CheckSummary` whose `inSync` is true exactly when
+  every checked locale has no missing and no stale keys. No provider is called, no file is written,
+  and the lock is not touched. See [`verbatra check`](/docs/cli/check).
 
 The result types:
 
@@ -84,6 +89,19 @@ type LocaleNotice = ProviderNotice | SdkNotice;
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
+
+interface CheckSummary {
+  inSync: boolean;                 // true exactly when every locale is in sync
+  locales: LocaleCheckSummary[];   // one entry per checked locale, in config order
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;                 // in source, absent from target
+  stale: number;                   // source changed since last translated
+  upToDate: number;                // target matches the current source
+  inSync: boolean;                 // missing === 0 && stale === 0
+}
 ```
 
 Notices are per locale, on `LocaleSummary.notices`, and cover both provider notices (for example a
