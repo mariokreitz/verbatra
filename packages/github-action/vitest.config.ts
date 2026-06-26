@@ -1,21 +1,10 @@
-import { defineConfig } from "vitest/config";
+import { createVitestConfig } from "@verbatra/config/vitest";
 
-export default defineConfig({
-  test: {
-    include: ["**/*.test.mjs"],
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "lcov"],
-      include: ["*.mjs"],
-      // annotate.mjs is the I/O entry (argv, file reads, $GITHUB_STEP_SUMMARY append, process.exit),
-      // a runner seam, coverage-excluded like the CLI bin shim. The pure core report.mjs is covered.
-      exclude: ["**/*.test.mjs", "annotate.mjs"],
-      thresholds: {
-        lines: 90,
-        functions: 90,
-        statements: 90,
-        branches: 90,
-      },
-    },
-  },
+// github-action targets .mjs, not src/. The preset's src-shaped base excludes are inert here.
+// annotate.mjs is the I/O entry (argv, file reads, $GITHUB_STEP_SUMMARY append, process.exit),
+// a runner seam, coverage-excluded like the CLI bin shim. The pure core report.mjs is covered.
+export default createVitestConfig({
+  testInclude: ["**/*.test.mjs"],
+  coverageInclude: ["*.mjs"],
+  coverageExclude: ["**/*.test.mjs", "annotate.mjs"],
 });
