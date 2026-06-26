@@ -1,13 +1,30 @@
 name: Release
 
-# Release is gated on CI. It does not trigger directly on push to main on purpose.
+# Release is gated on CI and runs with least privilege.
+#
+# BTS-22 gate: Release does not trigger directly on push to main on purpose.
 # A push to main first runs the CI workflow (name: "CI"); only after that CI run
-# completes does this workflow fire via the workflow_run event below. The release
-# job then runs only when that CI run succeeded for a push to main, and it checks
-# out the exact commit CI validated (workflow_run.head_sha), not the moving tip of
-# main. A failed or cancelled CI run still creates a Release run, but the job is
-# skipped, which is the visible blocked-publish signal in the Actions UI.
-# See .verbatra-team/adr/gate-release-on-ci.md (BTS-22).
+# completes does this workflow fire via the workflow_run event below. The build
+# and publish jobs run only when that CI run succeeded for a push to main, and
+# they check out the exact commit CI validated (workflow_run.head_sha), not the
+# moving tip of main. A failed or cancelled CI run still creates a Release run,
+# but the jobs are skipped, which is the visible blocked-publish signal in the
+# Actions UI. See .verbatra-team/adr/gate-release-on-ci.md (BTS-22).
+#
+# BTS-26 least privilege: the workflow default grants only contents: read, so no
+# step inherits a write scope. The work is split into two jobs. The build job is
+# a write-free verification pre-flight: it compiles head_sha with contents: read
+# and no write scope, so a misbehaving or compromised build runs in a
+# zero-write-scope sandbox. Only the publish job (needs: build) carries the write
+# scopes that changesets/action actually needs: contents: write and
+# pull-requests: write to open or update the Version Packages PR, and
+# id-token: write for npm OIDC Trusted Publishing. The publish job rebuilds
+# dist/** itself rather than transferring an artifact, so it builds and publishes
+# from the same head_sha checkout (no upload/download-artifact is introduced).
+# Both checkouts set persist-credentials: false because nothing relies on the
+# checkout-persisted git credential: changesets/action authenticates via the
+# GITHUB_TOKEN passed through env. See
+# .verbatra-team/adr/harden-release-permissions.md (BTS-26).
 
 on:
   workflow_run:
@@ -19,17 +36,20 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
+# Workflow default: no step inherits a write scope.
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
 
 jobs:
-  release:
-    name: Version or publish
+  build:
+    name: Verify build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Gate: proceed only when the triggering CI run succeeded for a push to main.
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # BTS-22 gate: proceed only when the triggering CI run succeeded for a push
+    # to main. A failed or cancelled CI run skips this job, and because publish
+    # declares needs: build, a skipped build also skips publish.
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: Checkout
@@ -37,6 +57,45 @@ jobs:
         with:
           # Pin the exact commit CI validated, not the moving tip of main.
           ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22.14.0"
+
+      - name: Enable corepack and activate pnpm
+        run: corepack enable && corepack prepare pnpm@11.6.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+  publish:
+    name: Version or publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Write scopes live only here, on the one job that runs changesets/action:
+    # contents and pull-requests to open or update the Version Packages PR, and
+    # id-token for npm OIDC Trusted Publishing.
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    # BTS-22 gate, replicated as defensive redundancy: it documents the intent at
+    # the job that actually publishes and keeps the gate intact if the needs edge
+    # is ever refactored.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Pin the exact commit CI validated, not the moving tip of main.
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -50,6 +109,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Rebuild dist/** in this job rather than transferring an artifact, so the
+      # bytes published come from the same head_sha checkout that publishes them.
       - name: Build
         run: pnpm build
 
