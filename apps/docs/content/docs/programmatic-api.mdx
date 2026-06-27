@@ -42,16 +42,35 @@ if (summary.failed.length > 0) {
 
 ## Check without writing
 
-Pass `dryRun: true` to read and diff without calling a provider or writing files. The summary lists the keys that would be translated, so you can detect missing or stale translations in CI and fail if there is work to do.
+`check` reads and diffs without calling a provider or writing files, and reports per-locale drift split into missing, stale, and up-to-date counts. Its `inSync` flag is true exactly when nothing is missing or stale, so it is the natural CI gate.
 
 ```ts
-import { loadConfig, translate } from "@verbatra/sdk";
+import { check, loadConfig } from "@verbatra/sdk";
 
-const summary = await translate({ config: await loadConfig(), dryRun: true });
-const pending = summary.locales.flatMap((locale) => locale.translated);
+const summary = await check({ config: await loadConfig() });
 
-if (pending.length > 0) {
-  console.error(`${pending.length} keys are missing or stale. Run verbatra translate.`);
+if (!summary.inSync) {
+  const drifted = summary.locales.filter((locale) => !locale.inSync).map((locale) => locale.locale);
+  console.error(`Out of sync: ${drifted.join(", ")}. Run verbatra translate.`);
+  process.exitCode = 1;
+}
+```
+
+`translate({ dryRun: true })` is an alternative when you want the full run summary (the keys that would be translated) rather than only the drift counts.
+
+`diff` is the read-only sibling of `check`: it runs the same computation but returns the actual key lists (`missing`, `changed`, `orphaned`) per locale instead of counts, with the same `hasPendingChanges` gate. Reach for it when you need which keys, not just how many.
+
+```ts
+import { diff, loadConfig } from "@verbatra/sdk";
+
+const summary = await diff({ config: await loadConfig() });
+
+if (summary.hasPendingChanges) {
+  for (const locale of summary.locales) {
+    if (locale.hasPendingChanges) {
+      console.log(`${locale.locale}: add ${locale.missing.join(", ")}; re-translate ${locale.changed.join(", ")}`);
+    }
+  }
   process.exitCode = 1;
 }
 ```

@@ -1,14 +1,11 @@
 import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
 import type { OpenAiConfig } from "./config.js";
 
-/** The name given to the Structured Outputs schema. */
 const RESULT_SCHEMA_NAME = "translations";
 
 /**
- * INVARIANT: OPENAI_SYSTEM_RULES is a compile-time constant. Nothing variable is
- * ever spliced into it. All variable input travels in the user-turn JSON payload.
- * Same prompt-injection boundary as the Anthropic provider; only the final line
- * differs because the output mechanism is Structured Outputs, not tool-use.
+ * The static system rules. Prompt-injection boundary: this is a compile-time constant
+ * with nothing variable spliced in; all variable input travels in the user-turn payload.
  */
 export const OPENAI_SYSTEM_RULES = [
   "You are a translation engine for software localization.",
@@ -41,10 +38,9 @@ export interface OpenAiRequest {
 }
 
 /**
- * Build the Chat Completions body from the shared data payload (already serialized).
- * The static system rules carry all instructions; the user turn carries the JSON
- * payload. Output is constrained by a json_schema DERIVED from the canonical per-key
- * schema (single source of truth), so the model's output is schema-bound.
+ * Build the Chat Completions body from the serialized data payload. The static system
+ * rules carry all instructions; the user turn carries the payload. Output is constrained
+ * by a json_schema derived from the canonical schema, so the model's output is schema-bound.
  */
 export function buildOpenAiRequest(config: OpenAiConfig, payloadJson: string): OpenAiRequest {
   return {

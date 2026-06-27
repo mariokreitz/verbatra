@@ -43,9 +43,7 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
   );
 }
 
-// `stars` / `downloads` are already-formatted display strings (locale-grouped integers) passed in
-// from the server page, or null when the stat is hidden (below floor, or its build-time fetch
-// failed). Both null renders the strip exactly as before (building-block chips only).
+// `stars` and `downloads` are pre-formatted display strings, or null when the stat is hidden.
 export function TrustStrip({
   stars = null,
   downloads = null,
@@ -55,8 +53,6 @@ export function TrustStrip({
 } = {}): ReactNode {
   const t = useTranslations("landing.trust");
   const items = Object.values(t.raw("items") as Record<string, string>);
-  // The unit (chip & stat) shares one type/spacing rule; the qualitative chips and the live stats
-  // only differ in their leading mark (glow dot vs. monochrome icon) and value styling.
   const unitClass =
     "inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground";
   return (
@@ -66,8 +62,7 @@ export function TrustStrip({
           {t("eyebrow")}
         </p>
         <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          {/* Group 1 - qualitative building-block chips. The two separate <ul>s give each group
-              native list semantics so assistive tech announces them as distinct groups. */}
+          {/* Separate <ul>s give each group native list semantics so assistive tech announces them as distinct groups. */}
           <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
             {items.map((item) => (
               <li key={item} className={unitClass}>
@@ -81,17 +76,11 @@ export function TrustStrip({
             ))}
           </ul>
 
-          {/* Quiet divider: a vertical hairline on desktop. It only renders when the stats group
-              is non-empty - version is always present, so in practice it always renders. */}
           <span
             aria-hidden="true"
             className="hidden sm:block w-px self-stretch min-h-5 bg-fd-border"
           />
 
-          {/* Group 2 - live proof stats, fixed order: version -> downloads -> stars. Version is
-              always present; downloads/stars are build-time snapshots shown only when present.
-              On mobile the divider is hidden and this group gets a top rule so the two sets still
-              read as distinct after wrapping. */}
           <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 max-sm:w-full max-sm:border-t max-sm:border-fd-border max-sm:pt-3.5">
             <li
               className={unitClass}
@@ -147,8 +136,7 @@ export function GithubIcon({
   );
 }
 
-// Simple Icons has no neutral "tag" glyph, so the version stat's leading mark is inlined here
-// following the GithubIcon/OpenAiIcon pattern (monochrome, currentColor, no new dep).
+// Inlined because Simple Icons has no neutral "tag" glyph.
 function TagIcon({ size = 14, className }: { size?: number; className?: string }): ReactNode {
   return (
     <svg
@@ -168,8 +156,7 @@ function TagIcon({ size = 14, className }: { size?: number; className?: string }
   );
 }
 
-// OpenAI's brand mark is not shipped by Simple Icons, so its logomark is inlined here for the
-// "works with" marquee. Monochrome (fill: currentColor), tinted by the chip like the Si chips.
+// Inlined because Simple Icons does not ship the OpenAI brand mark.
 function OpenAiIcon({ size = 16, className }: { size?: number; className?: string }): ReactNode {
   return (
     <svg
@@ -285,10 +272,7 @@ const FRAMEWORK_CHIPS: ReadonlyArray<Chip> = [
   { name: "ngx-translate", sub: "json" },
 ];
 
-// Only 4 unique providers. The track later duplicates whatever it is given (×2), so with the
-// marquee band now capped at 1600px we repeat the four providers four times here to guarantee
-// each half of the doubled track is wider than the band - otherwise the -50% loop would show a
-// gap. The two halves stay identical, so the loop is seamless.
+// Repeated four times below so each half of the doubled marquee track stays wider than the band, keeping the loop seamless.
 const UNIQUE_PROVIDERS: ReadonlyArray<Chip> = [
   { name: "Anthropic", sub: "LLM" },
   { name: "OpenAI", sub: "LLM" },
@@ -303,9 +287,6 @@ const PROVIDER_CHIPS: ReadonlyArray<Chip> = [
   ...UNIQUE_PROVIDERS,
 ];
 
-// Brand icons (monochrome, tinted via currentColor on the chip). OpenAI is rendered separately
-// from an inlined logomark (see OpenAiIcon) since Simple Icons does not ship it. The remaining
-// names without a brand mark (the library/format chips) fall back to the glow dot.
 const CHIP_ICONS: Readonly<Record<string, IconType>> = {
   React: SiReact,
   "Next.js": SiNextdotjs,
@@ -475,9 +456,7 @@ export function WhyUse(): ReactNode {
   );
 }
 
-// The items are passed in from the server page, which reads them once from the catalog and feeds
-// the same array to the FAQPage JSON-LD, so the visible accordion and the structured data share
-// one source and never drift.
+// Items come from the server page, which feeds the same array to the FAQPage JSON-LD so the two cannot drift.
 export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const t = useTranslations("landing.faq");
   const [open, setOpen] = useState(0);
@@ -532,16 +511,11 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   );
 }
 
-// A footer link's visible text is either a catalog key under `landing.footer.cols.<col>`
-// (human labels, translated) or a literal proper noun (brand/package names, kept verbatim).
+// A footer link's text is either a translated catalog key (`labelKey`) or a verbatim proper noun (`literal`).
 type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
 type FooterCol = { col: string; titleKey: string; links: ReadonlyArray<FooterLink> };
 
-// Internal hrefs point at the canonical (unprefixed) English routes: /docs and the legal pages
-// are English-only for now (docs content i18n is deferred), and `fallbackLanguage: "en"` would
-// only ever serve English under a /de prefix anyway, so prefixing them would route a localized
-// reader to a fallback page for no gain. The link labels are translated; the targets stay
-// canonical. When docs content is localized, locale-prefix these here.
+// Internal hrefs stay unprefixed English routes because docs and legal pages are English-only for now; locale-prefix them once docs content is localized.
 const FOOTER_COLS: ReadonlyArray<FooterCol> = [
   {
     col: "product",

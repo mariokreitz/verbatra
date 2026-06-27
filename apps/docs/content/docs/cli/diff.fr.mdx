@@ -1,0 +1,98 @@
+---
+title: verbatra diff
+description: Liste les clés exactes qui seraient ajoutées, retraduites ou sont orphelines par locale, en lecture seule, sans appeler de fournisseur ni écrire de fichiers.
+---
+
+# verbatra diff
+
+Affiche, par locale cible, les changements de traduction en attente réels sous forme de listes de clés : les clés qui seraient ajoutées, les clés qui seraient retraduites, et les clés désormais orphelines dans la cible. `diff` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) avant d'appeler un fournisseur, mais s'arrête là : il n'appelle aucun fournisseur, n'écrit aucun fichier et ne touche jamais au [fichier de verrouillage](/docs/the-lock-file).
+
+```bash
+verbatra diff
+```
+
+`diff` est la commande sœur détaillée de [`verbatra check`](/docs/cli/check). Là où `check` répond "combien a dérivé" avec des décomptes par locale, `diff` répond "quelles clés" avec les listes explicites. Toutes deux exécutent le calcul identique en lecture seule.
+
+## Les trois listes de clés
+
+Pour chaque locale cible, `diff` signale trois groupes :
+
+- **à ajouter** (`missing`) : les clés présentes dans la locale source mais absentes de la cible. Une exécution les ajouterait.
+- **à retraduire** (`changed`) : les clés présentes dans les deux, où la chaîne source a changé depuis sa dernière traduction. Une exécution les retraduirait.
+- **orphelines** (`orphaned`) : les clés présentes dans la cible mais absentes de la source. Elles sont seulement signalées. Une exécution `translate` par défaut ne les élague pas, donc les clés orphelines seules ne comptent pas comme du travail en attente (seul [`verbatra translate --prune`](/docs/cli/translate) les supprime).
+
+Une locale a des changements en attente lorsqu'elle a au moins une clé à ajouter ou à retraduire. Les clés orphelines seules ne rendent pas une locale en attente.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
+| `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
+| `--locales <list>` | sous-ensemble de locales cibles séparées par des virgules (par défaut toutes celles configurées) |
+| `--json` | afficher le résumé du diff au format JSON |
+
+Il n'y a pas de `--dry-run` : `diff` est par nature une lecture à blanc. Il n'a besoin d'aucune clé API.
+
+## Sortie
+
+Sans `--json`, `diff` affiche un en-tête de décompte par locale, puis les clés regroupées sous à ajouter, à retraduire et orphelines. Une locale sans rien à ajouter, retraduire ou orpheline se réduit à une seule ligne. Chaque clé est listée, sans troncature ; redirige vers un pager si tu en veux un.
+
+```
+verbatra diff
+  de: 3 to add, 1 to re-translate, 2 orphaned
+    add:          app.title, nav.home, nav.about
+    re-translate: footer.copyright
+    orphaned:     legacy.banner, legacy.promo
+  fr: no pending changes
+2 locales, pending changes
+```
+
+Avec `--json`, il affiche le résumé sous forme d'un seul objet JSON sur stdout. Le `hasPendingChanges` de niveau supérieur est vrai exactement lorsqu'au moins une locale a une clé à ajouter ou à retraduire (et exactement lorsque la commande quitte avec `1`) :
+
+```json
+{
+  "hasPendingChanges": true,
+  "locales": [
+    {
+      "locale": "de",
+      "missing": ["app.title", "nav.home", "nav.about"],
+      "changed": ["footer.copyright"],
+      "orphaned": ["legacy.banner", "legacy.promo"],
+      "hasPendingChanges": true
+    },
+    {
+      "locale": "fr",
+      "missing": [],
+      "changed": [],
+      "orphaned": [],
+      "hasPendingChanges": false
+    }
+  ]
+}
+```
+
+Le `hasPendingChanges` de chaque locale vaut `missing.length > 0 || changed.length > 0` ; `orphaned` est exclu. Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
+
+## Exemples
+
+```bash
+# list the keys that would be added, re-translated, or are orphaned (exit 1 if pending)
+verbatra diff
+
+# only diff the German and French locales
+verbatra diff --locales de,fr
+
+# machine-readable key lists on stdout for tooling or a PR comment
+verbatra diff --json
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | aucun changement en attente : aucune locale n'a de clé à ajouter ou à retraduire |
+| `1` | changements en attente : au moins une locale a une clé manquante ou modifiée (le rapport complet est tout de même affiché) |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+
+Les clés orphelines seules ne produisent jamais le code de sortie `1`, car une exécution par défaut ne les élague pas. Pour `diff`, le code de sortie `1` signifie "il y a du travail en attente", pas un échec par locale : l'exécution elle-même a réussi. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

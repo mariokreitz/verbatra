@@ -3,15 +3,13 @@ import { ExchangeError } from "./errors.js";
 import type { WorkbookLimits } from "./limits.js";
 
 /**
- * Rejects a workbook XML part that declares a DTD or an entity, a defense-in-depth guard against
- * XXE and entity-expansion attacks independent of the XML parser's defaults. Runs on every
- * decompressed entry because several part types (including markup parts such as .vml) are parsed,
- * so a DOCTYPE or ENTITY in any of them must be caught before parsing. A well-formed xlsx contains
- * neither construct.
+ * Reject a workbook XML part that declares a DTD or entity, a defense-in-depth guard against XXE and
+ * entity-expansion independent of the parser's defaults. Runs on every decompressed entry because
+ * non-.xml markup parts (such as .vml) are also parsed; a well-formed xlsx declares neither.
  *
  * @param name - the workbook part name, used in the error message
  * @param xml - the decompressed part contents to scan
- * @throws {@link ExchangeError} with code `WORKBOOK_INVALID` if a DTD or entity is declared
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` if a DTD or entity is declared
  */
 function assertNoDoctype(name: string, xml: string): void {
   if (/<!DOCTYPE/i.test(xml) || /<!ENTITY/i.test(xml)) {
@@ -22,12 +20,7 @@ function assertNoDoctype(name: string, xml: string): void {
   }
 }
 
-/**
- * The declared uncompressed size of a JSZip entry, read from the zip metadata when present.
- *
- * @param file - the JSZip entry to inspect
- * @returns the declared uncompressed byte count, or `undefined` when the metadata omits it
- */
+/** The declared uncompressed size of a JSZip entry, or `undefined` when the metadata omits it. */
 function declaredSize(file: JSZip.JSZipObject): number | undefined {
   const data = (file as { _data?: { uncompressedSize?: unknown } })._data;
   const size = data?.uncompressedSize;
@@ -35,17 +28,9 @@ function declaredSize(file: JSZip.JSZipObject): number | undefined {
 }
 
 /**
- * Bound an untrusted workbook before exceljs parses it. The on-disk size is already capped by the
- * SDK's bounded read; this guard caps what the bytes expand into:
- *
- * - entry count (a zip with a huge central directory),
- * - total decompressed bytes, checked both against the declared sizes AND against the bytes
- *   actually produced as each entry is decompressed (so a lying header cannot bypass the cap),
- * - and, for every decompressed entry, the DTD/entity rejection ({@link assertNoDoctype}).
- *
- * Every breach raises a structured {@link ExchangeError} (`WORKBOOK_INVALID`); no raw library
- * throw, buffer, or path escapes. It returns nothing: the caller hands the same validated bytes
- * to exceljs only after this resolves.
+ * Bound an untrusted workbook before exceljs parses it: cap the entry count and the total
+ * decompressed bytes, checked against both the declared sizes and the bytes actually produced so a
+ * lying header cannot bypass the cap, and reject any DTD or entity ({@link assertNoDoctype}).
  *
  * @param bytes - the untrusted workbook bytes
  * @param limits - the caps to enforce

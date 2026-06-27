@@ -5,7 +5,11 @@ description: Führe verbatra in GitHub Actions aus - übersetze in CI, annotiere
 
 # GitHub Action
 
-verbatra liefert eine zusammengesetzte GitHub Action, die `verbatra translate --json` in CI ausführt, etwaige Fehler annotiert, eine Job-Zusammenfassung schreibt und dann mit dem Exit-Code der CLI beendet. Sie wird direkt aus dem Repository mit `uses:` eingebunden; sie wird nicht auf npm veröffentlicht.
+verbatra liefert eine zusammengesetzte GitHub Action, die `verbatra translate --json` in CI ausführt, etwaige Fehler annotiert, eine Job-Zusammenfassung schreibt und sich dann mit dem Exit-Code des CLI beendet. Du konsumierst sie direkt aus dem Repository über `uses:`; auf npm wird sie nicht veröffentlicht.
+
+## Verfügbarkeit
+
+Diese Action ist nur über das Repository verfügbar. Du referenzierst sie direkt aus dem Repository mit `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, fixiert auf einen Commit-SHA. Auf npm wird sie nicht veröffentlicht, und sie hat keinen GitHub-Marketplace-Eintrag oder versionierten Action-Tag; der einzige unterstützte Weg, sie zu konsumieren, ist die pfadbasierte `uses:`-Referenz, die auf einen Commit-SHA fixiert ist.
 
 ## Verwendung
 
@@ -25,33 +29,33 @@ jobs:
       - uses: actions/checkout@<commit-sha>
       - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
         with:
-          version: 1.2.3 # pin @verbatra/cli to an exact version
+          version: 0.3.0 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-Die Action führt die CLI aus, sodass der API-Schlüssel des Providers aus der Umgebung gelesen wird. Gib ihn aus deinen Repository-Geheimnissen als die zu deinem Provider passende Variable an (siehe [Provider](/docs/providers)) - zum Beispiel `ANTHROPIC_API_KEY` oben.
+Die Action führt das CLI aus, daher wird der API-Schlüssel des Providers aus der Umgebung gelesen. Stelle ihn aus deinen Repository-Secrets als die passende Variable für deinen Provider bereit (siehe [Provider](/docs/providers)) - zum Beispiel `ANTHROPIC_API_KEY` oben.
 
 ## Eingaben
 
 | Eingabe | Erforderlich | Standard | Beschreibung |
 | --- | --- | --- | --- |
-| `version` | ja | - | die `@verbatra/cli`-Version, die ausgeführt werden soll, z. B. `1.2.3`. Pinne dies auf eine exakte Version; verwende kein bewegliches Tag wie `latest` |
-| `config-path` | nein | `""` | explizite Konfigurationsdatei zum Laden (entspricht `--config`); leer verwendet die normale Konfigurationssuche |
+| `version` | ja | - | die `@verbatra/cli`-Version, die ausgeführt werden soll, z. B. `0.3.0`. Fixiere dies auf eine exakte Version; verwende keinen gleitenden Tag wie `latest` |
+| `config-path` | nein | `""` | explizite Konfigurationsdatei, die geladen werden soll (entspricht `--config`); leer verwendet die normale Konfigurationssuche |
 | `working-directory` | nein | `""` | Verzeichnis, gegen das Konfigurations- und Locale-Dateien aufgelöst werden (entspricht `--cwd`) |
 | `dry-run` | nein | `"false"` | auf `"true"` setzen, um zu melden, was sich ändern würde, ohne einen Provider aufzurufen oder zu schreiben (entspricht `--dry-run`) |
-| `node-version` | nein | `"24"` | Node.js-Version, die zum Ausführen der CLI eingerichtet werden soll |
+| `node-version` | nein | `"24"` | Node.js-Version, die zum Ausführen des CLI eingerichtet wird |
 
-Die Action führt immer `translate --json` aus; sie führt weder `init` noch `watch` aus.
+Die Action führt immer `translate --json` aus; sie führt nicht `init` oder `watch` aus.
 
-## Verhalten beim Beenden
+## Exit-Verhalten
 
-Die Action erfasst stdout und Exit-Code der CLI, ohne frühzeitig fehlzuschlagen, annotiert Fehler und schreibt die Job-Zusammenfassung, und propagiert dann den Exit-Code der CLI - sodass der Schritt bei `1` (einige Locales fehlgeschlagen) oder `2` (konnte nicht ausgeführt werden) erst fehlschlägt, nachdem die Annotationen und die Zusammenfassung erstellt wurden. Die [CLI-Exit-Codes](/docs/cli#exit-codes) definieren, was jeder Code bedeutet.
+Die Action erfasst stdout und den Exit-Code des CLI, ohne frühzeitig fehlzuschlagen, annotiert Fehler und schreibt die Job-Zusammenfassung und propagiert dann den Exit-Code des CLI - sodass der Schritt bei `1` (einige Locales sind fehlgeschlagen) oder `2` (konnte nicht ausgeführt werden) erst fehlschlägt, nachdem die Annotationen und die Zusammenfassung erstellt wurden. Die [CLI-Exit-Codes](/docs/cli#exit-codes) definieren, was jeder Code bedeutet.
 
 ## Übersetzungen persistieren
 
-Ohne `dry-run` schreibt `translate` aktualisierte Locale-Dateien in den Checkout des Runners, aber die Action committet sie nicht. Um die Änderungen zu behalten, füge deinen eigenen Schritt hinzu, um zu committen und zu pushen oder einen Pull Request zu öffnen. Verwende `dry-run: "true"`, wenn CI nur auf fehlende oder veraltete Übersetzungen prüfen soll.
+Ohne `dry-run` schreibt `translate` aktualisierte Locale-Dateien in das Checkout des Runners, aber die Action committet sie nicht. Um die Änderungen zu behalten, füge deinen eigenen Schritt hinzu, um zu committen und zu pushen, oder einen Pull Request zu öffnen. Verwende `dry-run: "true"`, wenn du nur möchtest, dass CI auf fehlende oder veraltete Übersetzungen prüft.
 
 ## Sicherheit
 
-Pinne sowohl die Action als auch die CLI auf exakte Referenzen: pinne `uses:` auf einen Commit-SHA und pinne die `version`-Eingabe auf ein exaktes `@verbatra/cli`-Release statt auf ein bewegliches Tag, sodass ein Lauf reproduzierbar ist und nicht automatisch ein kompromittiertes Release ziehen kann. Gib dem Workflow nur die geringsten benötigten Rechte - `contents: read` für eine Prüfung; füge `contents: write` und `pull-requests: write` nur hinzu, wenn ein späterer Schritt committet oder einen Pull Request öffnet. Eingaben werden der CLI als Daten übergeben, niemals in die Shell gespleißt, sodass ein präparierter Eingabewert ein Argument bleibt statt ausführbarer Code.
+Fixiere sowohl die Action als auch das CLI auf exakte Referenzen: Fixiere `uses:` auf einen Commit-SHA und fixiere die `version`-Eingabe auf eine exakte `@verbatra/cli`-Veröffentlichung statt auf einen gleitenden Tag, sodass ein Lauf reproduzierbar ist und nicht automatisch eine kompromittierte Veröffentlichung ziehen kann. Gib dem Workflow die geringsten Rechte, die er benötigt - `contents: read` für eine Prüfung; füge `contents: write` und `pull-requests: write` nur hinzu, wenn ein späterer Schritt committet oder einen Pull Request öffnet. Eingaben werden dem CLI als Daten übergeben, niemals in die Shell gespleißt, sodass ein gestalteter Eingabewert ein Argument bleibt statt ausführbarer Code.

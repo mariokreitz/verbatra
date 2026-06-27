@@ -6,10 +6,9 @@ import { SdkError } from "../errors.js";
 export type CreateProvider = (config: ProviderConfig) => TranslationProvider;
 
 /**
- * Select and construct the configured provider. Construction reads the API key from the
- * environment (inside the provider factory); the SDK never sees, passes, or stores the
- * key. A missing key or invalid provider config surfaces here as a structured,
- * secret-free error (provider errors are already secret-free).
+ * Construct the configured provider. The provider factory reads the API key from the environment;
+ * the SDK never sees or passes the key. A missing key or invalid config surfaces here as a
+ * structured, secret-free {@link SdkError}.
  */
 export function selectProvider(
   config: ProviderConfig,

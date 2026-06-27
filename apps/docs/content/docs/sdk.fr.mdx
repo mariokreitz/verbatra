@@ -24,7 +24,7 @@ Nécessite Node.js `>=22.14.0`.
 
 ## La surface publique
 
-Le paquet exporte six fonctions et les types qu'un appelant manipule.
+Le paquet exporte huit fonctions et les types qu'un appelant manipule.
 
 - `defineConfig(config): VerbatraConfig` renvoie son argument inchangé. Elle n'existe que pour te fournir
   l'inférence de type et l'autocomplétion lorsque tu rédiges une configuration en TypeScript ; le champ `model`
@@ -55,6 +55,20 @@ Le paquet exporte six fonctions et les types qu'un appelant manipule.
   `ImportWorkbookInput` est `{ config, workbook, cwd?, dryRun? }`. Elle se résout en le même `RunSummary`
   que `translate`, de sorte qu'un échec par locale est une donnée sur le résumé plutôt qu'une exception.
   `DEFAULT_WORKBOOK_PATH` est le chemin d'export par défaut (`verbatra-translations.xlsx`).
+- `check(input: CheckInput): Promise<CheckSummary>` exécute la même lecture et le même diff que `translate`
+  mais s'arrête avant tout appel de fournisseur : il signale la dérive par locale et n'écrit rien. `CheckInput`
+  est `{ config, cwd?, locales? }`. Elle se résout en un `CheckSummary` dont `inSync` est vrai exactement
+  lorsque chaque locale vérifiée n'a aucune clé manquante ni obsolète. Aucun fournisseur n'est appelé, aucun
+  fichier n'est écrit, et le verrouillage n'est pas touché. Voir [`verbatra check`](/docs/cli/check). Pour les
+  clés derrière ces décomptes, utilise `diff` ci-dessous.
+- `diff(input: DiffInput): Promise<DiffSummary>` est la fonction sœur en lecture seule de `check` : elle
+  exécute la même lecture et le même diff mais signale des listes de clés au lieu de décomptes. `DiffInput`
+  est `{ config, cwd?, locales? }`. Elle se résout en un `DiffSummary` dont les entrées par locale portent
+  `missing` (clés qui seraient ajoutées), `changed` (clés qui seraient retraduites), et `orphaned` (clés
+  dans la cible mais pas dans la source, seulement signalées). Son `hasPendingChanges` est vrai exactement
+  lorsqu'une locale a une clé manquante ou modifiée ; les clés orphelines seules ne le définissent pas.
+  Aucun fournisseur n'est appelé, aucun fichier n'est écrit, et le verrouillage n'est pas touché. Voir
+  [`verbatra diff`](/docs/cli/diff).
 
 Les types de résultat :
 
@@ -86,6 +100,32 @@ type LocaleNotice = ProviderNotice | SdkNotice;
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
+
+interface CheckSummary {
+  inSync: boolean;                 // true exactly when every locale is in sync
+  locales: LocaleCheckSummary[];   // one entry per checked locale, in config order
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;                 // in source, absent from target
+  stale: number;                   // source changed since last translated
+  upToDate: number;                // target matches the current source
+  inSync: boolean;                 // missing === 0 && stale === 0
+}
+
+interface DiffSummary {
+  hasPendingChanges: boolean;      // true when some locale has a missing or changed key
+  locales: LocaleDiff[];           // one entry per checked locale, in config order
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];               // in source, absent from target: would be added
+  changed: string[];               // source changed since last translated: would be re-translated
+  orphaned: string[];              // in target, absent from source: reported only
+  hasPendingChanges: boolean;      // missing.length > 0 || changed.length > 0
+}
 ```
 
 Les notifications sont par locale, sur `LocaleSummary.notices`, et couvrent à la fois les notifications du

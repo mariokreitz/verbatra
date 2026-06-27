@@ -1,0 +1,75 @@
+---
+title: verbatra check
+description: Informa qué configuraciones regionales tienen cadenas faltantes o desactualizadas, de solo lectura, sin llamar a un proveedor ni escribir archivos.
+---
+
+# verbatra check
+
+Informa, por cada configuración regional de destino, cuántas cadenas faltan, están desactualizadas o están actualizadas, y luego termina con un código sobre el que un paso de CI puede bifurcar. `check` ejecuta la misma lectura y el mismo diff que [`verbatra translate`](/docs/cli/translate) realiza antes de llamar a un proveedor, pero se detiene ahí: no llama a ningún proveedor, no escribe archivos y nunca toca el [archivo de bloqueo](/docs/the-lock-file). Es la forma barata y de solo lectura de preguntar "¿están mis traducciones sincronizadas?" antes de que alguien pague a un proveedor.
+
+```bash
+verbatra check
+```
+
+Una clave está **faltante** cuando está en la configuración regional de origen pero ausente del destino. Una clave está **desactualizada** cuando el destino la tiene pero la cadena de origen cambió desde la última vez que se tradujo. Una clave está **actualizada** cuando el destino coincide con el origen actual. Una configuración regional está sincronizada cuando no tiene claves faltantes ni desactualizadas.
+
+`check` informa recuentos. Para ver las claves reales detrás de esos recuentos (qué claves se añadirían, se volverían a traducir o están huérfanas), usa [`verbatra diff`](/docs/cli/diff), su hermano detallado que ejecuta el mismo cálculo de solo lectura.
+
+## Opciones
+
+| Opción | Descripción |
+| --- | --- |
+| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
+| `--locales <list>` | subconjunto de configuraciones regionales de destino separadas por comas (por defecto todas las configuradas) |
+| `--json` | imprime el resumen de check como JSON |
+
+No hay `--dry-run`: `check` es inherentemente una lectura en seco. No necesita ninguna clave de API.
+
+## Salida
+
+Sin `--json`, `check` imprime una línea por configuración regional con sus recuentos y un marcador de sincronización, y luego una línea general:
+
+```
+verbatra check
+  de: 3 missing, 1 stale, 120 up-to-date (out of sync)
+  fr: 0 missing, 0 stale, 124 up-to-date (in sync)
+out of sync (run verbatra translate to update)
+```
+
+Con `--json`, imprime el estado como un único objeto JSON en stdout. El `inSync` de nivel superior es true exactamente cuando todas las configuraciones regionales están sincronizadas (y exactamente cuando el comando termina con `0`):
+
+```json
+{
+  "inSync": false,
+  "locales": [
+    { "locale": "de", "missing": 3, "stale": 1, "upToDate": 120, "inSync": false },
+    { "locale": "fr", "missing": 0, "stale": 0, "upToDate": 124, "inSync": true }
+  ]
+}
+```
+
+verbatra escribe cualquier error de toda la ejecución en stderr, así que stdout queda limpio y lo puedes canalizar con `--json`.
+
+## Ejemplos
+
+```bash
+# informa las claves faltantes y desactualizadas por configuración regional (sale con 1 si hay desviación)
+verbatra check
+
+# solo comprueba las configuraciones regionales alemana y francesa
+verbatra check --locales de,fr
+
+# estado legible por máquina en stdout para CI
+verbatra check --json
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | sincronizado: ninguna configuración regional de destino tiene claves faltantes ni desactualizadas |
+| `1` | fuera de sincronización: al menos una configuración regional tiene una clave faltante o desactualizada (el informe completo se sigue imprimiendo) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración faltante o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
+
+Para `check`, el código de salida `1` significa "fuera de sincronización", no un fallo por configuración regional: la ejecución en sí tuvo éxito, pero el resultado no está completamente en verde. Esto convierte a `check` en una puerta de CI de una línea que falla cuando las traducciones se han desviado. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.

@@ -18,7 +18,10 @@ verbatra translate
 | `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
 | `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
 | `--dry-run` | prévisualiser les changements sans appeler de fournisseur ni écrire de fichiers |
+| `--prune` | supprimer les clés orphelines (dans un fichier cible mais absentes de la source) du fichier écrit et du verrouillage |
 | `--json` | afficher le résumé de l'exécution au format JSON |
+
+Par défaut, une exécution ne supprime jamais rien : les clés orphelines (présentes dans un fichier cible mais qui ne sont plus dans la source) sont signalées et laissées en place. Passe `--prune` pour supprimer exactement ces clés du fichier écrit et du verrouillage, et rien d'autre. Cette option par exécution remplace l'option `prune` de ta [configuration](/docs/config-file) ; combine-la avec `--dry-run` pour prévisualiser les clés qui seraient élaguées. Pour voir quelles clés sont orphelines avant une exécution, utilise [`verbatra diff`](/docs/cli/diff).
 
 ## Sortie
 
@@ -27,13 +30,19 @@ Sans `--json`, `translate` affiche un résumé d'exécution lisible par un humai
 ## Exemples
 
 ```bash
-# traduire une fois en utilisant la configuration trouvée
+# translate once using the config it finds
 verbatra translate
 
-# prévisualiser les changements sans appeler de fournisseur ni écrire de fichiers
+# preview changes without calling a provider or writing files
 verbatra translate --dry-run
 
-# résumé lisible par machine sur stdout
+# also remove orphaned keys from target files
+verbatra translate --prune
+
+# preview the keys that would be pruned
+verbatra translate --prune --dry-run
+
+# machine-readable summary on stdout
 verbatra translate --json
 ```
 

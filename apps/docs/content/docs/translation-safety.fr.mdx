@@ -11,11 +11,11 @@ La sortie de la machine n'est pas digne de confiance par défaut. verbatra fait 
 
 Une valeur traduite doit porter les mêmes espaces réservés que sa source. Après la traduction, verbatra compare l'ensemble des espaces réservés de chaque résultat à la valeur source. Une traduction qui supprime, ajoute ou altère un espace réservé échoue à la vérification et est retenue plutôt qu'écrite. La clé retenue conserve son hachage de verrouillage précédent, de sorte que l'exécution suivante la réessaie, et elle est signalée par locale comme une non-concordance d'intégrité sur le résumé de l'exécution.
 
-Ce qui compte comme un espace réservé dépend du format : les jetons `{{double-brace}}` pour i18next et ngx-translate, les accolades simples `{name}` et `{0}` pour vue-i18n, et les noms d'argument et de balise ICU pour next-intl. Pour i18next, les références d'imbrication `$t(...)` sont également protégées : une traduction qui supprime, modifie ou traduit une référence `$t(...)` échoue à la vérification et est retenue. Voir [Formats](/docs/formats) pour la syntaxe de chacun.
+Ce qui compte comme un espace réservé dépend du format : les jetons `{{double-brace}}` pour i18next, ngx-translate et YAML, les accolades simples `{name}` et `{0}` pour vue-i18n, les noms d'argument et de balise ICU pour next-intl et ARB, et les identifiants d'espace réservé en ligne pour XLIFF. Pour i18next, les références d'imbrication `$t(...)` sont également protégées : une traduction qui supprime, modifie ou traduit une référence `$t(...)` échoue à la vérification et est retenue. Voir [Formats](/docs/formats) pour la syntaxe de chacun.
 
 ## Validité ICU
 
-Pour le format ICU, next-intl, verbatra analyse chaque valeur source. Une clé source dont la valeur n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutôt qu'envoyée dans un état défectueux, et elle est signalée comme ICU invalide sur le résumé. Le corps ICU est conservé tel quel tout au long du pipeline ; rien n'est résolu ni réécrit.
+Pour les formats ICU, next-intl et ARB, verbatra analyse chaque valeur source. Une clé source dont la valeur n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutôt qu'envoyée dans un état défectueux, et elle est signalée comme ICU invalide sur le résumé. Le corps ICU est conservé tel quel tout au long du pipeline ; rien n'est résolu ni réécrit.
 
 ## La limite d'injection de prompt
 
@@ -23,7 +23,7 @@ Les chaînes que tu traduis ne sont pas dignes de confiance : elles peuvent cont
 
 ## Les secrets ne fuient jamais
 
-Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs, jamais depuis ta configuration ni tes arguments. Tout texte qui pourrait contenir une clé est acheminé par une étape de rédaction centrale avant d'être journalisé, et verbatra lève ses propres erreurs structurées plutôt que les erreurs brutes du SDK du fournisseur, qui peuvent porter des en-têtes de requête. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
+Les clés API sont lues uniquement depuis l'environnement, par les fournisseurs, jamais depuis ta configuration ni tes arguments. Lorsqu'un appel au SDK d'un fournisseur échoue, son erreur brute (qui peut porter des en-têtes de requête ou une clé) est jetée, jamais liée, journalisée ni relancée. À sa place, verbatra lève sa propre erreur structurée avec un message statique et sans secret. Les clés sont sans secret par construction : rien de sensible n'atteint jamais une chaîne qui aurait besoin d'être expurgée. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
 
 ## Ce que tu vois
 

@@ -105,9 +105,8 @@ export async function readTextFile(path: string): Promise<string> {
 }
 
 /**
- * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op
- * ("missing" reads, accepted writes), and any subset can be overridden. Keeps test fakes
- * from having to spell out every interface method when they only care about one of them.
+ * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op ("missing" reads,
+ * accepted writes), and any subset can be overridden.
  */
 export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
   return {

@@ -49,8 +49,8 @@ describe("atomicWriteFile", () => {
 
     expect(await readFile(target, "utf8")).toBe("DATA\n");
     expect(tempPath).toBeDefined();
-    expect(dirname(tempPath as string)).toBe(dir); // same directory as the target, not the OS temp dir
-    expect(await readdir(dir)).toEqual(["en.json"]); // temp renamed away, none left behind
+    expect(dirname(tempPath as string)).toBe(dir);
+    expect(await readdir(dir)).toEqual(["en.json"]);
   });
 
   it("default node ops write the file with no leftover temp", async () => {
@@ -72,8 +72,8 @@ describe("atomicWriteFile", () => {
       },
     };
     await expect(atomicWriteFile(target, "NEW\n", ops)).rejects.toThrow("RENAME_FAIL");
-    expect(await readFile(target, "utf8")).toBe("OLD\n"); // prior content intact, never truncated
-    expect(await readdir(dir)).toEqual(["en.json"]); // temp cleaned up
+    expect(await readFile(target, "utf8")).toBe("OLD\n");
+    expect(await readdir(dir)).toEqual(["en.json"]);
   });
 
   it("a temp-write failure leaves the prior target intact and leaves no temp", async () => {
@@ -109,8 +109,8 @@ describe("atomicWriteFile", () => {
     } catch (e) {
       caught = e;
     }
-    expect((caught as Error).message).toBe("RENAME_FAIL"); // the ORIGINAL fs error, never the cleanup error
-    expect(caught).not.toBeInstanceOf(AdapterError); // no new structured error introduced
+    expect((caught as Error).message).toBe("RENAME_FAIL");
+    expect(caught).not.toBeInstanceOf(AdapterError);
   });
 
   it("cleanup never masks the original error: temp-write fails AND cleanup fails", async () => {
@@ -141,7 +141,7 @@ describe("atomicWriteFile", () => {
     await mkdir(target); // a directory at the target path makes the rename fail
     await expect(atomicWriteFile(target, "X\n")).rejects.toThrow();
     const leftovers = (await readdir(dir)).filter((name) => name.startsWith("."));
-    expect(leftovers).toEqual([]); // default rm cleaned the temp, none left behind
+    expect(leftovers).toEqual([]);
   });
 });
 
@@ -165,6 +165,6 @@ describe("atomic write integration (byte-identical adapter output)", () => {
     await adapter.write(resource, target);
 
     expect(await readFile(target, "utf8")).toBe(`{\n  "greeting": "Hi"\n}\n`);
-    expect(await readdir(dir)).toEqual(["en.json"]); // routed through the atomic write, no temp litter
+    expect(await readdir(dir)).toEqual(["en.json"]);
   });
 });

@@ -4,12 +4,9 @@ import { ProviderError } from "./errors.js";
 export const PROVIDER_CALL_FAILED_MESSAGE = "The translation provider request failed.";
 
 /**
- * Run a provider's raw SDK call and, on ANY throw, discard the caught error and throw a
- * static secret-free ProviderError. This is the one place the security invariant lives:
- * a raw SDK/axios error (which can carry an auth header, request data, or a key) is never
- * bound, logged, or re-thrown. Wrap ONLY the raw SDK call; structured errors raised after
- * it (refusal, blocked, invalid-response) are thrown outside the guard and propagate
- * unchanged.
+ * Run a provider's raw SDK call and, on any throw, discard the caught error and throw a static
+ * secret-free {@link ProviderError}, since a raw SDK error can carry an auth header, request data,
+ * or a key. Wrap only the raw SDK call; structured errors raised after it propagate unchanged.
  *
  * @param call - A thunk performing exactly the raw SDK call.
  * @returns The call's resolved value, unchanged, on success.

@@ -99,9 +99,9 @@ Les trois fournisseurs de LLM (Anthropic, OpenAI et Gemini) limitent le nombre d
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Vous disposez de deux leviers, et l'un ou l'autre résout le problème :
+Tu as deux leviers, et l'un ou l'autre règle le problème :
 
-- Réduisez `maxBatchSize` dans votre configuration (voir [Configuration](/docs/config-file)) afin que chaque requête traduise moins d'entrées et produise une réponse plus petite. Cela se fait uniquement via la configuration et s'applique à tous les fournisseurs.
-- Augmentez le budget de tokens par réponse chez le fournisseur : `maxTokens` pour Anthropic, ou `maxOutputTokens` pour OpenAI et Gemini (les options présentées dans les blocs ci-dessus).
+- Réduis `maxBatchSize` dans ta configuration (voir [Configuration](/docs/config-file)) pour que chaque requête traduise moins d'entrées et produise une réponse plus courte. Cela se règle uniquement via la configuration et vaut pour tous les fournisseurs.
+- Augmente le budget de tokens par réponse chez le fournisseur : `maxTokens` pour Anthropic, ou `maxOutputTokens` pour OpenAI et Gemini (les options montrées dans les blocs ci-dessus).
 
 DeepL n'est pas concerné. C'est un service de traduction automatique qui ne passe pas par la couche LLM, il n'a donc aucun cas de troncature liée aux tokens de sortie.

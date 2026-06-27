@@ -1,25 +1,6 @@
-import type { TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "../adapter.js";
+import { icuDeriveEntry, icuInvalidKeys, icuIsValid, icuPlaceholders } from "../icu/analyze.js";
 import { createJsonFileAdapter } from "../json/json-file-adapter.js";
-import { analyzeIcuValue } from "./icu.js";
-
-function extractPlaceholders(value: string): readonly string[] {
-  return analyzeIcuValue(value).placeholders;
-}
-
-function validateMessage(value: string): boolean {
-  return analyzeIcuValue(value).valid;
-}
-
-function computeInvalidIcuKeys(entries: ReadonlyMap<string, TranslationEntry>): readonly string[] {
-  const invalid: string[] = [];
-  for (const [key, entry] of entries) {
-    if (!validateMessage(entry.value)) {
-      invalid.push(key);
-    }
-  }
-  return invalid;
-}
 
 /**
  * The next-intl JSON adapter. Values are ICU MessageFormat: placeholders are the ICU argument names
@@ -39,12 +20,9 @@ function computeInvalidIcuKeys(entries: ReadonlyMap<string, TranslationEntry>): 
 export function createNextIntlJsonAdapter(): FormatAdapter {
   return createJsonFileAdapter({
     format: "next-intl-json",
-    extractPlaceholders,
-    deriveEntry: (_key, value) => {
-      const analysis = analyzeIcuValue(value);
-      return { placeholders: analysis.placeholders, isPlural: analysis.isPlural };
-    },
-    computeInvalidIcuKeys,
-    validateMessage,
+    extractPlaceholders: icuPlaceholders,
+    deriveEntry: icuDeriveEntry,
+    computeInvalidIcuKeys: icuInvalidKeys,
+    validateMessage: icuIsValid,
   });
 }

@@ -1,0 +1,75 @@
+---
+title: verbatra check
+description: Report which locales are missing or stale strings, read-only, without calling a provider or writing files.
+---
+
+# verbatra check
+
+Report, per target locale, how many strings are missing, stale, or up to date, then exit with a code a CI step can branch on. `check` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does before it would call a provider, but it stops there: it calls no provider, writes no files, and never touches the [lock file](/docs/the-lock-file). It is the cheap, read-only way to ask "are my translations in sync?" before anyone pays a provider.
+
+```bash
+verbatra check
+```
+
+A key is **missing** when it is in the source locale but absent from the target. A key is **stale** when the target has it but the source string changed since it was last translated. A key is **up to date** when the target matches the current source. A locale is in sync when it has no missing and no stale keys.
+
+`check` reports counts. To see the actual keys behind those counts (which keys would be added, re-translated, or are orphaned), use [`verbatra diff`](/docs/cli/diff), its detailed sibling that runs the identical read-only computation.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | resolve config and locale files from this directory |
+| `--config <path>` | load this config file instead of searching for one |
+| `--locales <list>` | comma-separated subset of target locales (default all configured) |
+| `--json` | print the check summary as JSON |
+
+There is no `--dry-run`: `check` is inherently a dry read. It needs no API key.
+
+## Output
+
+Without `--json`, `check` prints one line per locale with its counts and an in-sync marker, then an overall line:
+
+```
+verbatra check
+  de: 3 missing, 1 stale, 120 up-to-date (out of sync)
+  fr: 0 missing, 0 stale, 124 up-to-date (in sync)
+out of sync (run verbatra translate to update)
+```
+
+With `--json`, it prints the status as one JSON object on stdout. The top-level `inSync` is true exactly when every locale is in sync (and exactly when the command exits `0`):
+
+```json
+{
+  "inSync": false,
+  "locales": [
+    { "locale": "de", "missing": 3, "stale": 1, "upToDate": 120, "inSync": false },
+    { "locale": "fr", "missing": 0, "stale": 0, "upToDate": 124, "inSync": true }
+  ]
+}
+```
+
+A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+
+## Examples
+
+```bash
+# report missing and stale keys per locale (exit 1 if drifted)
+verbatra check
+
+# only check the German and French locales
+verbatra check --locales de,fr
+
+# machine-readable status on stdout for CI
+verbatra check --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | in sync: every target locale has no missing and no stale keys |
+| `1` | out of sync: at least one locale has a missing or stale key (the full report is still printed) |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
+
+For `check`, exit `1` means "out of sync", not a per-locale failure: the run itself succeeded, but the result is not all-green. This makes `check` a one-line CI gate that fails when translations have drifted. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

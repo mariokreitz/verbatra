@@ -4,6 +4,10 @@ import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
 import { runInit } from "./init.js";
 import {
+  renderCheckHuman,
+  renderCheckJson,
+  renderDiffHuman,
+  renderDiffJson,
   renderError,
   renderExportHuman,
   renderExportJson,
@@ -14,10 +18,8 @@ import {
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-// INVARIANT: package.json sits one directory above the running module. That holds for both
-// src/run.ts (tests) and the bundled dist/index.js (built and published bin), so the same
-// "../package.json" offset resolves in both. If the tsup output depth changes, preserve this
-// offset, or the built bin breaks while the in-process test stays green.
+// The "../package.json" offset must resolve from both src/run.ts and the bundled dist/index.js;
+// preserve it if the tsup output depth changes.
 function readPackageVersion(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);
   const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
@@ -40,11 +42,7 @@ interface WatchOpts extends SharedOpts {
   readonly json?: boolean;
 }
 
-/**
- * zod schemas for the export/import command flags. Commander hands strings (or undefined) and
- * booleans; the schema is the typed boundary between untrusted argv and the SDK call. `locales`
- * is a comma-separated list, normalized to a trimmed non-empty array (or omitted).
- */
+// A comma-separated locale list normalized to a trimmed non-empty array (or omitted).
 const localeListSchema = z
   .string()
   .optional()
@@ -73,12 +71,46 @@ const importOptsSchema = z.object({
   json: z.boolean().optional(),
 });
 
-/** loadConfig options from the resolved working directory and the explicit-config flag. */
+const checkOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  locales: localeListSchema,
+  json: z.boolean().optional(),
+});
+
+const diffOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  locales: localeListSchema,
+  json: z.boolean().optional(),
+});
+
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
   return {
     cwd,
     ...(opts.config !== undefined ? { configPath: opts.config } : {}),
   };
+}
+
+/**
+ * Shared whole-run error scaffold for the one-shot commands: load the config and run the body in one
+ * try, mapping any thrown SdkError to stderr and exit `2` while leaving stdout clean for `--json`. A
+ * `1` comes only from a body that returns it without throwing. The `await` on `body` is load-bearing:
+ * returning it unawaited would let a rejection escape this try as an unhandled rejection.
+ */
+async function withWholeRunErrors(
+  deps: CliDeps,
+  streams: Streams,
+  loadOpts: { cwd: string; configPath?: string },
+  body: (config: Awaited<ReturnType<CliDeps["loadConfig"]>>) => Promise<number>,
+): Promise<number> {
+  try {
+    const config = await deps.loadConfig(loadOpts);
+    return await body(config);
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
 }
 
 function parseDebounce(value: string | undefined): number | undefined {
@@ -92,9 +124,7 @@ function parseDebounce(value: string | undefined): number | undefined {
 async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams): Promise<number> {
   const cwd = opts.cwd ?? process.cwd();
   loadEnvFiles(cwd);
-  let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
-  try {
-    config = await deps.loadConfig(loadOptions(opts, cwd));
+  return withWholeRunErrors(deps, streams, loadOptions(opts, cwd), async (config) => {
     const summary = await deps.translate({
       config,
       cwd,
@@ -103,12 +133,7 @@ async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams
     });
     streams.out(opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`);
     return summary.failed.length > 0 ? 1 : 0;
-  } catch (error) {
-    // A whole-run failure (config/format/provider/source/lock) is a structured SdkError: render it
-    // to stderr (so stdout stays empty/pipeable under --json) and exit 2 ("could not run").
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  });
 }
 
 async function runWatchCommand(
@@ -142,45 +167,35 @@ async function runWatchCommand(
 }
 
 /**
- * Run the `export` command: validate the flags, load the config, call the SDK's `exportWorkbook`,
- * and render the result. Returns `0` on success and `2` when the run could not start (a structured
- * SdkError, rendered to stderr). Export has no per-locale failure mode, so it never returns `1`.
- *
- * @param rawOpts - the raw commander options (validated by `exportOptsSchema`)
- * @returns the process exit code (`0` success, `2` whole-run failure)
+ * Run the `export` command. Returns `0` on success and `2` when the run could not start. Export has
+ * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = exportOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const result = await deps.exportWorkbook({
-      config,
-      cwd,
-      ...(opts.out !== undefined ? { out: opts.out } : {}),
-      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-      ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
-    );
-    return 0;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const result = await deps.exportWorkbook({
+        config,
+        cwd,
+        ...(opts.out !== undefined ? { out: opts.out } : {}),
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+        ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+      );
+      return 0;
+    },
+  );
 }
 
 /**
- * Run the `import` command: validate the flags, load the config, call the SDK's `importWorkbook`,
- * and render the run summary. The exit-code rule matches `translate`: `1` when any locale failed,
- * `0` when all succeeded, and `2` when the run could not start (a structured SdkError to stderr).
- *
- * @param workbook - the path to the filled workbook to import
- * @param rawOpts - the raw commander options (validated by `importOptsSchema`)
- * @returns the process exit code (`0` all locales succeeded, `1` a locale failed, `2` whole-run failure)
+ * Run the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
+ * failed, `2` the run could not start.
  */
 async function runImport(
   workbook: string,
@@ -190,25 +205,73 @@ async function runImport(
 ): Promise<number> {
   const opts = importOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const summary = await deps.importWorkbook({
-      config,
-      workbook,
-      cwd,
-      ...(opts.dryRun === true ? { dryRun: true } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
-    );
-    // Identical exit-code rule to translate: 1 when any locale failed, else 0.
-    return summary.failed.length > 0 ? 1 : 0;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.importWorkbook({
+        config,
+        workbook,
+        cwd,
+        ...(opts.dryRun === true ? { dryRun: true } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+      );
+      return summary.failed.length > 0 ? 1 : 0;
+    },
+  );
+}
+
+/**
+ * Run the read-only `check` command. Exit codes: `0` every locale in sync, `1` at least one locale
+ * has a missing or stale key, `2` the run could not start.
+ */
+async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const opts = checkOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.check({
+        config,
+        cwd,
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
+      );
+      return summary.inSync ? 0 : 1;
+    },
+  );
+}
+
+/**
+ * Run the read-only `diff` command. Exit codes: `0` no pending changes, `1` at least one locale has a
+ * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
+ */
+async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const opts = diffOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.diff({
+        config,
+        cwd,
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
+      );
+      return summary.hasPendingChanges ? 1 : 0;
+    },
+  );
 }
 
 function buildProgram(
@@ -315,6 +378,50 @@ function buildProgram(
     );
 
   program
+    .command("check")
+    .description("Report which keys are missing or stale per locale without writing files")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
+    .option("--json", "print the check summary as JSON")
+    .action(async (opts: unknown) => {
+      setCode(await runCheck(opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra check                  report missing and stale keys per locale (exit 1 if drifted)",
+        "  $ verbatra check --locales de,fr  only check the German and French locales",
+        "  $ verbatra check --json           machine-readable status on stdout for CI",
+      ].join("\n"),
+    );
+
+  program
+    .command("diff")
+    .description(
+      "Show the keys that would be added, re-translated, or orphaned per locale without writing files",
+    )
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
+    .option("--json", "print the diff summary as JSON")
+    .action(async (opts: unknown) => {
+      setCode(await runDiff(opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra diff                  list the pending keys per locale (exit 1 if any are pending)",
+        "  $ verbatra diff --locales de,fr  only diff the German and French locales",
+        "  $ verbatra diff --json           machine-readable key lists on stdout for CI",
+      ].join("\n"),
+    );
+
+  program
     .command("init")
     .description("Create a verbatra config and .env example for this project")
     .option("--cwd <path>", "write the config and env files to this directory")
@@ -347,21 +454,17 @@ function buildProgram(
 }
 
 /**
- * The CLI core: parse argv, dispatch to one SDK entry point, render, and RETURN an exit code. It
- * never calls process.exit and never touches process streams. The bin shim wires those. Usage
- * errors (commander) map to 2; --help/--version exit 0.
+ * The CLI core: parse argv, dispatch to one SDK entry point, render, and return an exit code. It never
+ * calls process.exit and never touches process streams; the bin shim wires those.
  *
  * @param argv - The user arguments (process.argv without node and the script path).
  * @param deps - The SDK entry points to call (injected so tests pass offline stubs).
  * @param streams - The stdout/stderr sink the CLI writes through.
  * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
- * @returns The process exit code:
- *   `0` success (or `--help`/`--version`); `1` `translate` or `import` finished but some locales failed
- *   (a `watch` per-run failure is a stream record, not an exit code); `2` could not run, covering BOTH a
- *   whole-run `SdkError` and a commander usage error; `130` `watch` was force-stopped by a second
- *   interrupt (a single interrupt stops gracefully and resolves `0`).
- * @throws Re-throws a non-`CommanderError` thrown during parsing (an unexpected error); commander usage
- *   errors are mapped to an exit code, not thrown.
+ * @returns The process exit code: `0` success (or `--help`/`--version`); `1` some locales failed; `2`
+ *   could not run (a whole-run `SdkError` or a commander usage error); `130` `watch` force-stopped.
+ * @throws Re-throws a non-`CommanderError` thrown during parsing; commander usage errors are mapped to
+ *   an exit code, not thrown.
  */
 export async function run(
   argv: readonly string[],
@@ -377,8 +480,6 @@ export async function run(
     await program.parseAsync([...argv], { from: "user" });
   } catch (error) {
     if (error instanceof CommanderError) {
-      // --help / --version resolve to exitCode 0; any usage error -> 2 ("could not run"),
-      // distinct from a per-locale failure (1).
       return error.exitCode === 0 ? 0 : 2;
     }
     throw error;

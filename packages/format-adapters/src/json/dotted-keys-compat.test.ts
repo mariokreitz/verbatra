@@ -20,10 +20,7 @@ afterAll(() => {
   dirs.length = 0;
 });
 
-/**
- * A realistic dotted-free fixture: nested objects and flat keys, but no key segment
- * contains a literal dot. Its only dots are inside VALUES, which the change never touches.
- */
+// A dotted-free fixture: no key segment contains a literal dot; its only dots are inside values.
 const DOTTED_FREE = [
   "{",
   '  "common": {',
@@ -61,8 +58,6 @@ describe("compatibility: dotted-free files are unaffected", () => {
   it("keeps content hashes stable (the hash never depended on key encoding)", async () => {
     const inPath = await tempFile("in.json", DOTTED_FREE);
     const { resource } = await adapter.read(inPath, "en");
-    // Hash is a pure function of content; these are the values the prior version produced,
-    // since neither the canonicalized fields nor the map keys changed for a dotted-free file.
     const greeting = resource.entries.get("common.greeting");
     expect(greeting).toBeDefined();
     if (greeting) {
@@ -73,8 +68,7 @@ describe("compatibility: dotted-free files are unaffected", () => {
         placeholders: ["{{name}}"],
         isPlural: false,
       });
-      // Same content, different identity (key/namespace) -> identical hash, proving the
-      // map-key encoding cannot influence the hash.
+      // Same content but a different key/namespace yields an identical hash: the map-key encoding cannot influence it.
       expect(contentHash(greeting)).toBe(direct);
     }
   });

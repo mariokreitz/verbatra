@@ -68,9 +68,12 @@ published by accident.
   redefining build or lint settings.
 - `@verbatra/core` (private): pure domain center (model, diffing, hashing, placeholder
   integrity, validation). No I/O, no network, no file system. Depends only on zod.
-- `@verbatra/format-adapters` (private): file to neutral-IR adapters for JSON i18n
-  formats. Built on the single `createJsonFileAdapter` factory, registered via
-  `createDefaultRegistry`. v1 adapters: i18next, vue-i18n, next-intl, ngx-translate.
+- `@verbatra/format-adapters` (private): file to neutral-IR adapters for i18n
+  formats. Built on two shared factories, `createTreeFileAdapter` (nested-tree
+  formats, with `createJsonFileAdapter` as the JSON specialization) and
+  `createFlatFileAdapter` (flat key/value formats), registered via
+  `createDefaultRegistry`. Adapters: i18next, vue-i18n, next-intl, ngx-translate,
+  XLIFF, YAML, and Flutter ARB.
 - `@verbatra/ai-providers` (private): translation provider strategies behind a
   registry. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
   `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
@@ -92,12 +95,14 @@ published by accident.
 - SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
   `github-action` stay thin. Do not push logic into the wrappers.
 - Acyclic dependency direction:
-  config <- core <- format-adapters / ai-providers <- sdk <- cli / github-action /
-  framework-adapters. Never import against the arrow. Never create a cycle.
+  config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
+  github-action / framework-adapters. Never import against the arrow. Never create
+  a cycle.
 - Keep `@verbatra/core` pure: no I/O, no network, no file system.
-- Reuse the provider registry and the `createJsonFileAdapter` factory. Do not
-  reimplement provider plumbing or adapter read, write, and detection logic. When
-  adding a format, build on the factory and register it.
+- Reuse the provider registry and the shared adapter factories
+  (`createTreeFileAdapter` or `createFlatFileAdapter`). Do not reimplement provider
+  plumbing or adapter read, write, and detection logic. When adding a format, build
+  on the matching factory and register it.
 - zod at boundaries only (config, CLI args, action inputs, provider responses). Keep
   it out of hot paths.
 
@@ -141,4 +146,10 @@ published by accident.
 `.claude/agents/` holds nine role agents (product owner, software architect,
 developer, code reviewer, QA, security reviewer, release manager, docs writer, devops)
 that mirror the Cowork delivery team. Dispatch them for the matching stage of work.
-They follow the rules in this file. This setup is local and gitignored.
+They follow the rules in this file.
+
+The team's runtime workspace lives under `.verbatra/` (gitignored, local to the
+clone): specs in `.verbatra/specs/`, the audit log in `.verbatra/log/`, architecture
+decision records in `.verbatra/adr/`, and each agent's persistent memory in
+`.verbatra/agent-memory/<role>/`. The agent definitions in `.claude/` are tracked; the
+`.verbatra/` workspace is not.

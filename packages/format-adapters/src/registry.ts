@@ -59,8 +59,8 @@ export class AdapterRegistry {
     if (first === undefined) {
       return { status: "no-match", filePath, triedFormats: this.formats() };
     }
-    // All JSON adapters claim a `.json` file, so detection alone usually cannot pick one. Rather than
-    // guess, report "ambiguous" and let the caller disambiguate with an explicit format.
+    // Multiple adapters can claim one file (all JSON adapters claim `.json`); report ambiguity rather
+    // than guess.
     if (matches.length > 1) {
       return { status: "ambiguous", filePath, candidates: matches.map((m) => m.format) };
     }

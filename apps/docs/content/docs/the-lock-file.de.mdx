@@ -5,11 +5,11 @@ description: Was verbatra.lock.json aufzeichnet, warum sie die Basislinie für i
 
 # Die Lock-Datei
 
-verbatra führt eine einzelne festgeschriebene Datei, `verbatra.lock.json`, in deinem Projekt. Sie ist der Datensatz dessen, was verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf vergleicht deine Quelle gegen diese Basislinie und ruft den Provider nur für die Schlüssel auf, die sich tatsächlich geändert haben.
+verbatra führt eine einzelne festgeschriebene Datei, `verbatra.lock.json`, in deinem Projekt. Diese Datei hält fest, was verbatra bereits übersetzt hat, und genau das macht jeden Lauf inkrementell: Jeder Lauf vergleicht deine Quelle mit dieser Basislinie und ruft den Provider nur für die Schlüssel auf, die sich tatsächlich geändert haben.
 
 ## Was sie aufzeichnet
 
-Für jedes Ziel-Locale speichert die Lock-Datei einen Content-Hash für jeden übersetzten Quell-Schlüssel. Der Hash wird aus dem Quellwert gebildet, sodass er genau den Text erfasst, der die vorhandene Übersetzung erzeugt hat. Die Lock-Datei enthält keine Übersetzungen und keine API-Schlüssel. Sie enthält Hashes.
+Für jedes Ziel-Locale speichert die Lock-Datei einen Content-Hash für jeden übersetzten Quell-Schlüssel. Der Hash wird aus dem Quellwert gebildet, sodass er genau den Text erfasst, der die vorhandene Übersetzung erzeugt hat. Die Lock-Datei enthält keine Übersetzungen und keine API-Schlüssel, nur Hashes.
 
 ## Wie ein Lauf sie verwendet
 
@@ -34,4 +34,4 @@ Eine fehlende Lock-Datei wird als erster Lauf behandelt: jeder Ziel-Schlüssel i
 
 ## Committe sie
 
-Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Sie ist die gemeinsame Basislinie, gegen die dein Team und deine CI vergleichen, sodass sie in der Versionskontrolle zu halten das ist, was inkrementelle Läufe maschinenübergreifend reproduzierbar macht. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Lauf-Pipeline und [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Diese Datei ist die gemeinsame Basislinie, gegen die dein Team und deine CI vergleichen: Hältst du sie in der Versionskontrolle, werden inkrementelle Läufe maschinenübergreifend reproduzierbar. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Lauf-Pipeline und [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.

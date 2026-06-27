@@ -17,9 +17,7 @@ const config = {
       },
     ];
   },
-  // App-layer security headers for every route. CSP and Strict-Transport-Security are
-  // intentionally deferred to a follow-up / edge config: CSP needs careful allowlisting of
-  // the font and inline needs, and HSTS belongs at the host/edge (an ops decision).
+  // App-layer security headers for every route; CSP and HSTS are handled at the host/edge, not here.
   async headers() {
     return [
       {
@@ -39,8 +37,7 @@ const config = {
 };
 
 const withMDX = createMDX();
-// next-intl as a message-catalog provider only (Fumadocs owns routing). Points the plugin
-// at the per-request config that resolves the active locale and loads messages/{locale}.json.
+// next-intl acts as a message-catalog provider only; Fumadocs owns routing.
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 export default withNextIntl(withMDX(config));

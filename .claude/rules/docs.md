@@ -31,21 +31,33 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 
 ## Internationalization (the docs site dogfoods verbatra)
 
-- Locales: `en` is the source of truth; `de`, `es`, `fr` are generated.
-- Doc pages use locale-suffixed MDX: `page.mdx` is the English source, `page.de.mdx`,
-  `page.es.mdx`, and `page.fr.mdx` are produced from it. UI strings live in
-  `messages/<locale>.json` with `en.json` as the source.
-- Do not hand-translate or hand-edit the generated locale files. Edit the English
-  source (the unsuffixed `.mdx` or `messages/en.json`), then run `pnpm i18n` to
-  regenerate the other locales. Treat translated files as build output.
+- Locales: `en` is the source of truth; `de`, `es`, and `fr` must be kept in step with
+  it. The docs MUST stay current in every available language.
+- UI strings live in `messages/<locale>.json` with `en.json` as the source. These are
+  generated: edit `messages/en.json`, then run `pnpm i18n` (verbatra translate) to
+  regenerate the locale files. Do not hand-edit the generated `messages/<locale>.json`.
+- Doc pages use locale-suffixed MDX: `page.mdx` is the English source and
+  `page.de.mdx`, `page.es.mdx`, `page.fr.mdx` are its translations. `pnpm i18n` does
+  NOT translate these (verbatra translates JSON, XLIFF, YAML, and ARB, not Markdown),
+  so the docs team maintains them by hand: whenever you change or add an English
+  `.mdx`, update or create its translation for every locale in the same change.
+- When translating a page, translate the prose and the frontmatter `title` and
+  `description` values only; keep code blocks, inline code, CLI flags, file paths,
+  URLs, JSON keys and values, MDX component names, and frontmatter keys verbatim; keep
+  the glossary terms from `apps/docs/verbatra.config.ts` untranslated; never use the em
+  dash.
+- Register: the audience is developers and users, so write a direct, technical, concise
+  tone with informal personal address in every language: German `du` (never `Sie` or
+  `Ihr` forms), Spanish `tú` (never `usted`), French `tu` (never `vous`). Prefer active
+  voice and imperatives over impersonal or passive phrasing.
 
 ## Authoring rules
 
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. v1 CLI is `init`, `translate`, and `watch`.
-  `check` and `diff` are planned and must not be documented as if they ship.
+- Only document features that exist. v1 CLI is `init`, `translate`, `watch`,
+  `check`, `diff`, `export`, and `import`.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.

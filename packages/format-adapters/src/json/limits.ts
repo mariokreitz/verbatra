@@ -1,14 +1,6 @@
 /**
- * Bounds on untrusted input for JSON read paths. Both comfortably exceed any
- * realistic translation file while sitting far below the runtime limits a crafted
- * file could otherwise exploit.
- */
-
-/**
- * Maximum object nesting depth accepted by read. Real files nest only a handful of
- * levels; this ceiling is well below the call-stack depth at which recursive
- * parsing/flattening would overflow. Exceeding it yields AdapterError
- * "MAX_DEPTH_EXCEEDED".
+ * Maximum object nesting depth accepted by read, kept well below the call-stack depth at which
+ * recursive parsing or flattening would overflow. Exceeding it yields AdapterError "MAX_DEPTH_EXCEEDED".
  */
 export const MAX_DEPTH = 100;
 

@@ -75,7 +75,6 @@ describe("readWorkbook: structural rejection", () => {
     );
     sheet.getRow(2).getCell(1).value = "k1";
     sheet.getRow(2).getCell(4).value = "new";
-    // Row 3 is left entirely blank.
     sheet.getRow(4).getCell(1).value = "k2";
     sheet.getRow(4).getCell(4).value = "new";
     const buffer = await workbook.xlsx.writeBuffer();

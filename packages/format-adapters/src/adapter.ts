@@ -6,32 +6,17 @@ import type { LocaleResource, SupportedFormat } from "@verbatra/core";
 export interface ReadResult {
   /** The parsed locale resource. */
   readonly resource: LocaleResource;
-  /**
-   * Keys whose values are invalid for the format's message syntax, the exact shape core's
-   * validation layer consumes. Empty for formats that are not ICU-based.
-   */
+  /** Keys whose values are invalid for the format's message syntax. Empty for non-ICU formats. */
   readonly invalidIcuKeys: readonly string[];
 }
 
 /**
  * The contract every format adapter implements. A new format attaches by implementing this interface
- * and registering it in an {@link AdapterRegistry}; no existing code changes.
+ * and registering it in an {@link AdapterRegistry}.
  *
- * Implementer invariants:
- * - `read` maps malformed, oversized, or structurally invalid file CONTENT to a structured
- *   {@link AdapterError}, never a raw parser throw and never echoing file content or a host path. A
- *   missing or unopenable PATH is the exception: it rejects with the underlying filesystem error,
- *   because there is no content to map.
- * - `write` preserves key order and structure and is atomic. An interrupted write must never leave a
- *   half-written locale file.
- * - `canHandle` is best-effort and side-effect-free. Multiple adapters may claim the same file (all
- *   JSON adapters claim `.json`); disambiguation is the caller's, by explicit format, not by sniffing.
- * - `extractPlaceholders` reports the format's placeholder tokens and resolves nothing; the provider
- *   integrity check later validates a translation against exactly this set.
- *
- * For a JSON-family format, implement via {@link createJsonFileAdapter} rather than from scratch (see
- * its example). A non-JSON format implements this interface directly, and first needs its format added
- * to core's `SupportedFormat`.
+ * For a JSON-family format, implement via {@link createJsonFileAdapter} rather than from scratch. A
+ * non-JSON format implements this interface directly and first needs its format added to core's
+ * `SupportedFormat`.
  *
  * @example
  * ```ts
@@ -89,14 +74,12 @@ export interface FormatAdapter {
   extractPlaceholders(value: string): readonly string[];
 
   /**
-   * Validate a single, not-yet-persisted value against the format's message syntax, the same
-   * check {@link ReadResult.invalidIcuKeys} reports on read but applied to one value before it is
-   * written. Lets a caller (for example the manual-import path) reject a bad value WITHOUT first
-   * writing it to disk. For non-ICU formats (i18next, vue-i18n, ngx-translate) every value is
-   * valid, so this returns true. Does not throw; an unparseable value returns false.
+   * Validate a single value against the format's message syntax before it is written. Non-ICU formats
+   * (i18next, vue-i18n, ngx-translate) treat every value as valid and return true.
    *
    * @param value - The candidate translated value to validate.
-   * @returns True when the value is valid for the format's message syntax.
+   * @returns True when the value is valid for the format's message syntax. Does not throw; an
+   *   unparseable value returns false.
    */
   validateMessage(value: string): boolean;
 }

@@ -1,13 +1,11 @@
 /**
  * Translation providers behind a single {@link TranslationProvider} contract and a
  * {@link ProviderRegistry}. v1 ships four: three LLM providers (Anthropic, OpenAI, Gemini) built on the
- * shared LLM layer via the {@link LlmMechanism} extension point and {@link runLlmTranslation}, and DeepL,
- * a machine-translation provider that implements the contract directly. The LLM layer constrains and
- * validates every model against one single-source schema ({@link translationsResultSchema}) so the
- * constraint and the validation cannot drift. Failures surface as secret-free {@link ProviderError}s,
- * by construction, not by scrubbing: an underlying SDK throw is mapped to a static error and raw SDK text
- * is never bound. {@link redact} is a separate standalone utility. API keys are read only from the
- * environment; translatable strings are treated as untrusted and travel only in the data channel.
+ * shared {@link runLlmTranslation} layer, and DeepL, a machine-translation provider that implements the
+ * contract directly. Failures surface as secret-free {@link ProviderError}s by construction (an SDK throw
+ * is mapped to a static error, raw SDK text is never bound); {@link redact} is a defense-in-depth backstop
+ * in the constructor. API keys are read only from the environment; translatable strings are untrusted and
+ * travel only in the data channel.
  *
  * @packageDocumentation
  */
@@ -34,6 +32,7 @@ export type {
   ProviderNotice,
   ProviderNoticeCode,
 } from "./deepl/types.js";
+export { PROVIDER_ENV } from "./env.js";
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
 export {
   type GeminiConfig,
@@ -62,7 +61,6 @@ export type {
   TranslationProvider,
   Usage,
 } from "./provider.js";
-// Redaction utility (a standalone scrubber for an explicit log/error sink; NOT the provider error path,
-// which is secret-free by construction)
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
+export { SCAFFOLD_MODELS } from "./scaffold.js";

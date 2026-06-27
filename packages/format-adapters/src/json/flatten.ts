@@ -3,11 +3,7 @@ import { AdapterError } from "../errors.js";
 import type { JsonRecord } from "./json-tree.js";
 import { encodeSegment, joinEncodedSegments } from "./key-encoding.js";
 
-/**
- * Derive the format-specific parts of an entry from its leaf key and value. Each
- * adapter supplies its own (i18next decides isPlural from the key suffix, vue-i18n
- * from a pipe in the value, and so on).
- */
+/** Derive the format-specific parts of an entry (placeholders, plurality) from its leaf key and value. */
 export type DeriveEntry = (
   key: string,
   value: string,
@@ -16,12 +12,9 @@ export type DeriveEntry = (
 /**
  * How a JSON adapter treats a dotted string key.
  *
- * - `literal-leaf` (i18next, vue-i18n, next-intl): a dotted string key is a single
- *   literal leaf. Its dots are encoded so the flattened map key stays distinct from a
- *   real nested path, and the leaf round-trips with its original shape on write.
- * - `path-notation` (ngx-translate flat style): a dotted string key denotes a nested
- *   path. No encoding is applied, preserving the pre-existing behavior exactly; the
- *   flat-vs-nested write style is handled by the adapter's own write-tree builder.
+ * - `literal-leaf`: a dotted string key is a single literal leaf; its dots are encoded so the
+ *   map key stays distinct from a real nested path, and the leaf round-trips unchanged on write.
+ * - `path-notation`: a dotted string key denotes a nested path and is flattened without encoding.
  */
 export type KeyMode = "literal-leaf" | "path-notation";
 
@@ -33,11 +26,6 @@ interface FlattenContext {
   readonly claimed: Map<string, string>;
 }
 
-/**
- * Record a leaf, encoding its segment path into a map key and rejecting a genuine
- * collision: a literal dotted leaf and a real nested path that resolve to the same
- * effective logical path within one file are ambiguous and fail loudly.
- */
 function addLeaf(
   ctx: FlattenContext,
   segments: readonly string[],
@@ -57,7 +45,6 @@ function addLeaf(
   ctx.out.set(mapKey, { key: mapKey, namespace: ctx.namespace, value, placeholders, isPlural });
 }
 
-/** Walk a node, building encoded leaf keys from the segment path to each string value. */
 function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRecord): void {
   for (const [key, value] of Object.entries(node)) {
     const segments = [...prefix, key];
@@ -69,7 +56,7 @@ function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRe
   }
 }
 
-/** Path-notation flatten: join segments with a plain dot, no encoding (legacy behavior). */
+/** Path-notation flatten: join segments with a plain dot, no encoding. */
 function addPathEntries(
   node: JsonRecord,
   prefix: string,
@@ -89,18 +76,19 @@ function addPathEntries(
 }
 
 /**
- * Flatten a nested JSON object into ordered TranslationEntry records keyed by dotted
- * path, deriving placeholders and isPlural per the adapter's rule. A Map is used
- * (never a plain object), so hostile keys such as __proto__ are inert data and cannot
- * pollute any prototype. Document order is preserved.
+ * Flatten a nested JSON object into ordered TranslationEntry records keyed by dotted path,
+ * preserving document order and deriving placeholders and isPlural per the adapter's rule.
+ * A Map (never a plain object) keeps hostile keys such as __proto__ as inert data.
  *
- * In `literal-leaf` mode (the default), a dotted string key is a single literal leaf:
- * its dots are encoded so its map key is distinct from a real nested path, and a true
- * collision between a literal leaf and a nested path resolving to the same effective
- * path throws `INVALID_STRUCTURE`. In `path-notation` mode (ngx-translate flat style)
- * a dotted string key denotes a nested path and is flattened without encoding, exactly
- * as before. A segment containing no dot or backslash encodes to itself, so dotted-free
- * files produce byte-identical map keys in either mode.
+ * In `literal-leaf` mode (the default) a dotted string key is a single literal leaf and a true
+ * collision with a nested path resolving to the same effective path throws `INVALID_STRUCTURE`.
+ * In `path-notation` mode a dotted string key denotes a nested path and is flattened without encoding.
+ *
+ * @param tree - The parsed nested object.
+ * @param namespace - The namespace recorded on each entry.
+ * @param derive - Per-leaf placeholder and plurality derivation.
+ * @param keyMode - How dotted string keys are interpreted (defaults to `literal-leaf`).
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` on a literal-leaf vs nested-path collision.
  */
 export function flattenTree(
   tree: JsonRecord,

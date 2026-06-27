@@ -42,8 +42,7 @@ function params(over: Partial<ImportLocaleParams> & { sheet: WorkbookSheet }): I
 
 describe("importLocale", () => {
   it("skips a filled row whose source key was deleted since export (orphaned source)", () => {
-    // "gone" exists in the target file but no longer in the source: a row may still carry it from
-    // an earlier export. It must not be accepted, not be judged, and not be treated as unknown.
+    // "gone" exists in the target but no longer in the source: a stale row from an earlier export must not be accepted, judged, or treated as unknown.
     const sheet: WorkbookSheet = { locale: "de", rows: [row("gone", "Weg", "stale-hash")] };
     const result = importLocale(
       params({

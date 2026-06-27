@@ -5,12 +5,26 @@ description: Ejecuta verbatra en CI, lee sus códigos de salida y consume su sal
 
 # CI y códigos de salida
 
-verbatra es una dependencia de desarrollo, por lo que los mismos comandos que ejecutas localmente se ejecutan en CI. Instálalo, proporciona la clave del proveedor desde tu almacén de secretos de CI como la variable de entorno correspondiente y ejecuta `verbatra translate`. Usa `--dry-run` cuando quieras comprobar si faltan traducciones o están desactualizadas sin escribir archivos.
+verbatra es una dependencia de desarrollo, por lo que los mismos comandos que ejecutas localmente se ejecutan en CI. Instálalo, pasa la clave del proveedor desde tu almacén de secretos de CI como la variable de entorno correspondiente y ejecuta `verbatra translate`.
 
 ```bash
 pnpm add -D @verbatra/cli
 # ANTHROPIC_API_KEY es proporcionada por el almacén de secretos de CI como una variable de entorno
 verbatra translate --json
+```
+
+Para hacer fallar una canalización cuando las traducciones se han desviado, sin llamar a un proveedor ni necesitar una clave, ejecuta [`verbatra check`](/docs/cli/check): termina con `1` cuando alguna configuración regional está fuera de sincronización.
+
+```bash
+# puerta de solo lectura: sale con 1 si alguna configuración regional tiene cadenas faltantes o desactualizadas
+verbatra check
+```
+
+Para ver las claves exactas detrás de esa desviación (por ejemplo, para publicarlas en un comentario de pull request), ejecuta [`verbatra diff`](/docs/cli/diff): la misma puerta de solo lectura, pero lista las claves que se añadirían, se volverían a traducir o están huérfanas en lugar de solo contarlas.
+
+```bash
+# puerta de solo lectura con las listas de claves: sale con 1 si alguna configuración regional tiene cambios pendientes
+verbatra diff
 ```
 
 ## Códigos de salida
@@ -19,8 +33,8 @@ verbatra usa su código de salida como el contrato sobre el que se ramifica un p
 
 | Código | Significado |
 | --- | --- |
-| `0` | éxito |
-| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron |
+| `0` | éxito (para `check`, todas las configuraciones regionales están sincronizadas; para `diff`, sin cambios pendientes) |
+| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron, `check` encontró una configuración regional fuera de sincronización, o `diff` encontró cambios pendientes |
 | `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso) |
 | `130` | `watch` fue detenido forzosamente por una segunda interrupción |
 
@@ -28,7 +42,7 @@ Un fallo por ejecución en `watch` se informa como un registro de flujo, no como
 
 ## Salida JSON
 
-Los comandos `translate`, `watch`, `export` e `import` aceptan `--json` para una salida legible por máquina.
+Los comandos `translate`, `watch`, `check`, `diff`, `export` e `import` aceptan `--json` para una salida legible por máquina.
 
 `verbatra translate --json` imprime el resumen de la ejecución como un único objeto JSON con esta forma:
 
@@ -50,3 +64,37 @@ type WatchRunResult =
 ```
 
 Una ejecución fallida durante `watch` es uno de estos registros en el flujo; no detiene el observador y no establece un código de salida distinto de cero.
+
+`verbatra check --json` imprime un documento de estado de solo lectura como un único objeto JSON. El `inSync` de nivel superior es true exactamente cuando todas las configuraciones regionales están sincronizadas, que es exactamente cuando el comando termina con `0`:
+
+```ts
+interface CheckSummary {
+  inSync: boolean;             // true exactly when the command exits 0
+  locales: LocaleCheckSummary[];
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;             // in source, absent from target
+  stale: number;               // source changed since last translated
+  upToDate: number;            // target matches the current source
+  inSync: boolean;             // missing === 0 && stale === 0
+}
+```
+
+`verbatra diff --json` imprime el mismo cálculo de solo lectura como listas de claves en lugar de recuentos. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos una configuración regional tiene una clave para añadir o volver a traducir, que es exactamente cuando el comando termina con `1`. Las claves huérfanas se listan pero no establecen `hasPendingChanges`:
+
+```ts
+interface DiffSummary {
+  hasPendingChanges: boolean;  // true exactly when the command exits 1
+  locales: LocaleDiff[];
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];           // in source, absent from target: would be added
+  changed: string[];           // source changed since last translated: would be re-translated
+  orphaned: string[];          // in target, absent from source: reported only
+  hasPendingChanges: boolean;  // missing.length > 0 || changed.length > 0
+}
+```

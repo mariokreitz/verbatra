@@ -38,12 +38,11 @@ function setPath(root: MutableTree, segments: readonly string[], value: string):
 }
 
 /**
- * Rebuild a nested object from ordered entries, splitting dotted keys back into
- * structure. Each map key is decoded on its unescaped dots, so a literal dotted leaf
- * (whose dots were encoded on flatten) is restored as a single leaf rather than being
- * re-nested, while a real nested path's segments split as before. Containers are
- * null-prototype objects, so segments like __proto__ are inert. Insertion order follows
- * entry order, preserving the original key order.
+ * Rebuild a nested object from ordered entries, decoding each map key on its unescaped dots so a
+ * literal dotted leaf is restored as a single leaf and a real nested path splits into structure.
+ * Containers are null-prototype objects so segments like __proto__ stay inert. Entry order is preserved.
+ *
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` when a leaf key collides with a nested key path.
  */
 export function unflattenEntries(entries: ReadonlyMap<string, TranslationEntry>): MutableTree {
   const root = emptyNode();

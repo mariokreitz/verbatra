@@ -55,11 +55,6 @@ async function readTarget(
   return (await adapter.read(path, locale)).resource;
 }
 
-/**
- * Build one locale's rows from the diff: missing keys as "new" and changed keys as "changed" (plus
- * unchanged keys when requested), each carrying the source value, current target, and the export-time
- * source hash, with an empty translation. Rows are returned in a single stable total order by key.
- */
 function buildRows(
   source: LocaleResource,
   target: LocaleResource,
@@ -89,27 +84,24 @@ function buildRows(
   if (includeUnchanged) {
     add(diff.unchanged, "changed");
   }
-  // Keys arrive already sorted within each bucket from diffResources; re-sort the whole sheet by
-  // key so the row order is a single stable total order (deterministic re-export).
+  // Re-sort across buckets so the whole sheet has a deterministic total order by key.
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 
-/** Resolve which target locales to export: all configured ones, or the requested subset in config order. */
 function selectedLocales(config: VerbatraConfig, requested?: readonly string[]): readonly string[] {
   if (requested === undefined) {
     return config.targetLocales;
   }
   const wanted = new Set(requested);
-  // Preserve config order; silently ignore a requested locale that is not configured.
+  // Keep config order and silently ignore a requested locale that is not configured.
   return config.targetLocales.filter((locale) => wanted.has(locale));
 }
 
 /**
- * Export the strings needing human translation into a styled `.xlsx` workbook. Reuses the same
- * source read, adapter selection, and lock baseline the translate flow uses, runs `diffResources`
- * per target locale to pick the rows (missing and changed by default; add unchanged with
- * `includeUnchanged`), hands the neutral row model to `@verbatra/exchange`'s `buildWorkbook`, and
- * writes the bytes through the {@link SdkFs} seam. No provider is called and no lock-file is written.
+ * Export the strings needing human translation into a styled `.xlsx` workbook. Each target locale is
+ * diffed against the source and lock baseline to pick the rows (missing and changed by default; add
+ * unchanged with `includeUnchanged`), and the bytes are written to `out`. No provider is called and no
+ * lock-file is written.
  *
  * @param input - The validated config and export options.
  * @param deps - Optional composition seams (registry, file system) for tests.
@@ -145,7 +137,6 @@ export async function exportWorkbook(
 
   const model: WorkbookModel = { sheets };
   const bytes = await buildWorkbook(model);
-  // The workbook output is a plain (non-locale) path: resolve it directly against cwd.
   const path = resolve(cwd, input.out ?? DEFAULT_WORKBOOK_PATH);
   await fs.writeBytes(path, bytes);
 

@@ -9,11 +9,7 @@ function isNotice(value: unknown): value is ProviderNotice {
   );
 }
 
-/**
- * Read the optional provider notices off a translate result. Only machine-translation
- * results (DeepL) carry notices, attached structurally; LLM results have none. Notices
- * are surfaced to the caller, never swallowed.
- */
+/** Read the optional provider notices off a translate result; only DeepL carries them, LLM results have none. */
 export function readNotices(result: TranslateResult): readonly ProviderNotice[] {
   const candidate = (result as { notices?: unknown }).notices;
   if (!Array.isArray(candidate)) {

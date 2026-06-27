@@ -20,9 +20,8 @@ function toItem(entry: TranslationEntry): ItemPayload {
 
 /**
  * Assemble the structured data channel for an LLM request: locales, optional tone
- * and glossary, and the untrusted items. This object is what providers serialize
- * into their user turn. Nothing here is ever spliced into an instruction string;
- * that separation is the prompt-injection boundary, owned by the shared layer.
+ * and glossary, and the untrusted items. Nothing here is spliced into an instruction
+ * string; that separation is the prompt-injection boundary.
  *
  * @param data - The validated request data (locales, entries, optional glossary/tone).
  * @returns A plain object for the user-turn payload; its `items[].value` fields are untrusted.

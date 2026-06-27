@@ -2,11 +2,7 @@ import { randomUUID } from "node:crypto";
 import { rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
-/**
- * The file-system operations the atomic write needs, injectable so tests can force a
- * failure at the temp-write, rename, or cleanup step without touching the real disk path.
- * Production uses the node:fs/promises bindings below.
- */
+/** The file-system operations the atomic write needs, injectable so tests can force a failure at any step. */
 export interface AtomicWriteOps {
   writeFile(path: string, data: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
@@ -19,10 +15,6 @@ const nodeOps: AtomicWriteOps = {
   rm: (path) => rm(path, { force: true }),
 };
 
-/**
- * Best-effort temp removal that must NEVER mask the original failure: its own error is
- * swallowed so the caller observes the real temp-write/rename error, not a cleanup error.
- */
 async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
   try {
     await ops.rm(tmp);
@@ -32,25 +24,18 @@ async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
 }
 
 /**
- * Build a collision-proof temp-file name: a hidden sibling of the target in the SAME directory,
- * carrying the pid and timestamp for legibility plus a random UUID so two writes to the same
- * target in the same millisecond from the same process can never collide on the temp name.
- *
- * NOTE: a deliberate twin of `tempFileName` in `@verbatra/sdk` (`src/fs.ts`). They are duplicated
- * rather than shared because each sits in its own layer with no common low-level package below
- * both; keep the two in sync, or extract a shared util if a third copy ever appears.
+ * Build a collision-proof temp-file name: a hidden sibling of the target in the same directory.
+ * The random UUID keeps two writes to the same target in the same millisecond from colliding.
  */
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
 }
 
 /**
- * Write bytes to a target file atomically: write to a temp file in the SAME directory as
- * the target, then rename it over the target. The temp must be same-directory so source
- * and destination share a filesystem; rename is atomic only then, so a reader sees either
- * the complete old file or the complete new file, never a truncated middle, and an
- * interrupted write leaves the prior target intact. On any failure the temp is cleaned up
- * (best effort) and the ORIGINAL fs error propagates unchanged. No structured wrapping.
+ * Write bytes to a target file atomically by writing a temp file in the same directory and
+ * renaming it over the target. Same-directory placement keeps source and destination on one
+ * filesystem so the rename is atomic; a reader never sees a truncated file. On failure the temp
+ * is cleaned up best-effort and the original fs error propagates unchanged.
  */
 export async function atomicWriteFile(
   path: string,

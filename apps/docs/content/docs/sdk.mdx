@@ -24,7 +24,7 @@ Requires Node.js `>=22.14.0`.
 
 ## The public surface
 
-The package exports six functions and the types a caller touches.
+The package exports eight functions and the types a caller touches.
 
 - `defineConfig(config): VerbatraConfig` returns its argument unchanged. It exists only to give you
   type inference and autocomplete when you author a config in TypeScript; the `model` field is
@@ -53,6 +53,19 @@ The package exports six functions and the types a caller touches.
   is `{ config, workbook, cwd?, dryRun? }`. It resolves to the same `RunSummary` as `translate`, so a
   per-locale failure is data on the summary rather than a throw. `DEFAULT_WORKBOOK_PATH` is the
   default export path (`verbatra-translations.xlsx`).
+- `check(input: CheckInput): Promise<CheckSummary>` runs the same read and diff as `translate` but
+  stops before any provider call: it reports per-locale drift and writes nothing. `CheckInput` is
+  `{ config, cwd?, locales? }`. It resolves to a `CheckSummary` whose `inSync` is true exactly when
+  every checked locale has no missing and no stale keys. No provider is called, no file is written,
+  and the lock is not touched. See [`verbatra check`](/docs/cli/check). For the keys behind those
+  counts, use `diff` below.
+- `diff(input: DiffInput): Promise<DiffSummary>` is the read-only sibling of `check`: it runs the
+  same read and diff but reports key lists instead of counts. `DiffInput` is `{ config, cwd?, locales? }`.
+  It resolves to a `DiffSummary` whose per-locale entries carry `missing` (keys that would be added),
+  `changed` (keys that would be re-translated), and `orphaned` (keys in the target but not the source,
+  reported only). Its `hasPendingChanges` is true exactly when some locale has a missing or changed key;
+  orphaned keys alone do not set it. No provider is called, no file is written, and the lock is not
+  touched. See [`verbatra diff`](/docs/cli/diff).
 
 The result types:
 
@@ -84,6 +97,32 @@ type LocaleNotice = ProviderNotice | SdkNotice;
 type WatchRunResult =
   | { status: "succeeded"; summary: RunSummary }
   | { status: "failed"; error: { code: string; message: string } };
+
+interface CheckSummary {
+  inSync: boolean;                 // true exactly when every locale is in sync
+  locales: LocaleCheckSummary[];   // one entry per checked locale, in config order
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;                 // in source, absent from target
+  stale: number;                   // source changed since last translated
+  upToDate: number;                // target matches the current source
+  inSync: boolean;                 // missing === 0 && stale === 0
+}
+
+interface DiffSummary {
+  hasPendingChanges: boolean;      // true when some locale has a missing or changed key
+  locales: LocaleDiff[];           // one entry per checked locale, in config order
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];               // in source, absent from target: would be added
+  changed: string[];               // source changed since last translated: would be re-translated
+  orphaned: string[];              // in target, absent from source: reported only
+  hasPendingChanges: boolean;      // missing.length > 0 || changed.length > 0
+}
 ```
 
 Notices are per locale, on `LocaleSummary.notices`, and cover both provider notices (for example a

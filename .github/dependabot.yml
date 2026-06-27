@@ -13,7 +13,32 @@ updates:
     labels:
       - "dependencies"
     groups:
+      deepl-logging:
+        patterns:
+          - "deepl-node"
+          - "loglevel"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      actions-minor-patch:
         update-types:
           - "minor"
           - "patch"

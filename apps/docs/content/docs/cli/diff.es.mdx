@@ -1,0 +1,98 @@
+---
+title: verbatra diff
+description: Lista las claves exactas que se añadirían, se volverían a traducir o están huérfanas por configuración regional, de solo lectura, sin llamar a un proveedor ni escribir archivos.
+---
+
+# verbatra diff
+
+Muestra, por cada configuración regional de destino, los cambios de traducción pendientes reales como listas de claves: las claves que se añadirían, las claves que se volverían a traducir y las claves que ahora están huérfanas en el destino. `diff` ejecuta la misma lectura y el mismo diff que [`verbatra translate`](/docs/cli/translate) realiza antes de llamar a un proveedor, pero se detiene ahí: no llama a ningún proveedor, no escribe archivos y nunca toca el [archivo de bloqueo](/docs/the-lock-file).
+
+```bash
+verbatra diff
+```
+
+`diff` es el hermano detallado de [`verbatra check`](/docs/cli/check). Donde `check` responde "cuánto se ha desviado" con recuentos por configuración regional, `diff` responde "qué claves" con las listas explícitas. Ambos ejecutan el mismo cálculo de solo lectura.
+
+## Las tres listas de claves
+
+Para cada configuración regional de destino, `diff` informa tres grupos:
+
+- **add** (`missing`): claves presentes en la configuración regional de origen pero ausentes del destino. Una ejecución las añadiría.
+- **re-translate** (`changed`): claves presentes en ambos, donde la cadena de origen cambió desde la última vez que se tradujo. Una ejecución las volvería a traducir.
+- **orphaned**: claves presentes en el destino pero ausentes del origen. Solo se informan. Una ejecución `translate` por defecto no las elimina, por lo que las claves huérfanas por sí solas no cuentan como trabajo pendiente (solo [`verbatra translate --prune`](/docs/cli/translate) las elimina).
+
+Una configuración regional tiene cambios pendientes cuando tiene al menos una clave para añadir o volver a traducir. Las claves huérfanas por sí solas no hacen que una configuración regional esté pendiente.
+
+## Opciones
+
+| Opción | Descripción |
+| --- | --- |
+| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
+| `--locales <list>` | subconjunto de configuraciones regionales de destino separadas por comas (por defecto todas las configuradas) |
+| `--json` | imprime el resumen de diff como JSON |
+
+No hay `--dry-run`: `diff` es inherentemente una lectura en seco. No necesita ninguna clave de API.
+
+## Salida
+
+Sin `--json`, `diff` imprime un encabezado de recuento por configuración regional y luego las claves agrupadas bajo add, re-translate y orphaned. Una configuración regional sin nada que añadir, volver a traducir o sin huérfanas se reduce a una sola línea. Cada clave se lista, sin truncamiento; canaliza a un paginador si quieres uno.
+
+```
+verbatra diff
+  de: 3 to add, 1 to re-translate, 2 orphaned
+    add:          app.title, nav.home, nav.about
+    re-translate: footer.copyright
+    orphaned:     legacy.banner, legacy.promo
+  fr: no pending changes
+2 locales, pending changes
+```
+
+Con `--json`, imprime el resumen como un único objeto JSON en stdout. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos una configuración regional tiene una clave para añadir o volver a traducir (y exactamente cuando el comando termina con `1`):
+
+```json
+{
+  "hasPendingChanges": true,
+  "locales": [
+    {
+      "locale": "de",
+      "missing": ["app.title", "nav.home", "nav.about"],
+      "changed": ["footer.copyright"],
+      "orphaned": ["legacy.banner", "legacy.promo"],
+      "hasPendingChanges": true
+    },
+    {
+      "locale": "fr",
+      "missing": [],
+      "changed": [],
+      "orphaned": [],
+      "hasPendingChanges": false
+    }
+  ]
+}
+```
+
+El `hasPendingChanges` de cada configuración regional es `missing.length > 0 || changed.length > 0`; `orphaned` queda excluido. verbatra escribe cualquier error de toda la ejecución en stderr, así que stdout queda limpio y lo puedes canalizar con `--json`.
+
+## Ejemplos
+
+```bash
+# lista las claves que se añadirían, se volverían a traducir o están huérfanas (sale con 1 si hay pendientes)
+verbatra diff
+
+# solo hace diff de las configuraciones regionales alemana y francesa
+verbatra diff --locales de,fr
+
+# listas de claves legibles por máquina en stdout para herramientas o un comentario de PR
+verbatra diff --json
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | sin cambios pendientes: ninguna configuración regional tiene una clave para añadir o volver a traducir |
+| `1` | cambios pendientes: al menos una configuración regional tiene una clave faltante o modificada (el informe completo se sigue imprimiendo) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración faltante o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
+
+Las claves huérfanas por sí solas nunca producen el código de salida `1`, porque una ejecución por defecto no las elimina. Para `diff`, el código de salida `1` significa "hay trabajo pendiente", no un fallo por configuración regional: la ejecución en sí tuvo éxito. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.

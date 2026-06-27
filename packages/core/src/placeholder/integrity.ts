@@ -8,11 +8,7 @@ function counts(items: readonly string[]): Map<string, number> {
   return map;
 }
 
-/**
- * Multiset difference: every token whose count in `a` exceeds its count in `b`, emitted once
- * per surplus occurrence so a dropped/duplicated placeholder carries its multiplicity. The
- * result is sorted for deterministic output.
- */
+/** Each token whose count in `a` exceeds its count in `b`, repeated per surplus occurrence and sorted. */
 function multisetExcess(a: ReadonlyMap<string, number>, b: ReadonlyMap<string, number>): string[] {
   const excess: string[] = [];
   for (const [token, count] of a) {
@@ -29,16 +25,12 @@ function sameOrder(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /**
- * Compare source placeholders against the placeholders found in a translated value as MULTISETS,
- * reporting which placeholders are missing, which are extra, and whether an otherwise-matching
- * multiset was merely reordered. Counts matter: a dropped occurrence lands in `missing` and a
- * surplus occurrence lands in `extra`, each repeated by its multiplicity, so a duplicated or
- * dropped placeholder is never misreported as a pure reorder. It does not throw; a mismatch is
- * reported in the result, not raised.
+ * Compare source and translated placeholders as multisets (counts matter), reporting which are
+ * missing, which are extra, and whether a matching multiset was merely reordered. Does not throw.
  *
  * @param source - The placeholders present in the source value.
  * @param translated - The placeholders present in the translated value.
- * @returns The integrity result: whether the multisets match, plus the missing, extra, and reordered details.
+ * @returns Whether the multisets match, plus the missing, extra, and reordered details.
  * @example
  * ```ts
  * checkPlaceholders(["{name}"], ["{name}"]); // { matches: true, ... }
@@ -55,9 +47,7 @@ export function checkPlaceholders(
 
   const missing = multisetExcess(sourceCounts, translatedCounts);
   const extra = multisetExcess(translatedCounts, sourceCounts);
-  // Reordering is reported as its own category, distinct from a clean match: for positional
-  // placeholders (e.g. %s / {0}) the order carries meaning, so the same multiset in a different
-  // order can still be wrong. It applies only when nothing is missing or extra (same multiset).
+  // Order carries meaning for positional placeholders (e.g. %s, {0}), so flag a same-multiset reorder on its own.
   const reordered = missing.length === 0 && extra.length === 0 && !sameOrder(source, translated);
 
   return {

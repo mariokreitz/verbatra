@@ -1,17 +1,14 @@
+import { redact } from "./redaction.js";
+
 /**
- * Stable, machine-readable codes for provider failures. Each names a distinct boundary condition:
+ * Stable, machine-readable codes for provider failures:
  *
- * - `MISSING_API_KEY`: the required environment key is absent (raised by the env reader at construction).
+ * - `MISSING_API_KEY`: the required environment key is absent.
  * - `INVALID_REQUEST`: the request failed boundary validation (missing extractor or malformed data).
- * - `INVALID_RESPONSE`: provider output was malformed, incomplete, or failed reconciliation (extra,
- *   duplicate, or missing key; a DeepL positional length mismatch).
- * - `OUTPUT_TRUNCATED`: the model stopped because it hit the output-token limit (OpenAI
- *   `finish_reason === "length"`, Anthropic `stop_reason === "max_tokens"`, Gemini `MAX_TOKENS`); the
- *   remedy is a smaller batch or a higher max output tokens. Checked before result parsing, so a
- *   truncated-but-valid JSON body is still reported as truncation, not reconciliation failure.
- * - `PROVIDER_REFUSED`: the model declined to answer (OpenAI's refusal path only).
- * - `PROVIDER_BLOCKED`: the request or response was safety-blocked, had no candidate, or was filtered
- *   (Gemini's safety paths only).
+ * - `INVALID_RESPONSE`: provider output was malformed, incomplete, or failed reconciliation.
+ * - `OUTPUT_TRUNCATED`: the model hit its output-token limit; remedy is a smaller batch or higher limit.
+ * - `PROVIDER_REFUSED`: the model declined to answer.
+ * - `PROVIDER_BLOCKED`: the request or response was safety-blocked, filtered, or had no candidate.
  * - `PROVIDER_ERROR`: an underlying SDK call threw; mapped to a static, secret-free error by the guard.
  */
 export type ProviderErrorCode =
@@ -38,7 +35,9 @@ export class ProviderError extends Error {
    * @param message - A fixed, safe message; callers must never pass key, SDK, or request-derived text.
    */
   constructor(code: ProviderErrorCode, message: string) {
-    super(message);
+    // redact(message, "") passes an empty string so the ANTHROPIC_API_KEY default is not re-applied,
+    // keeping this generic error decoupled from one provider's environment variable.
+    super(redact(message, ""));
     this.name = "ProviderError";
     this.code = code;
   }

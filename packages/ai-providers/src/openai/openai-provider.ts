@@ -16,9 +16,8 @@ export interface OpenAiDeps {
 }
 
 /**
- * Create the OpenAI LLM provider. Structured Outputs is its mechanism behind the
- * shared layer's extension point; the model and output-token limit come from config
- * and the API key is read only from the environment (via the default client).
+ * Create the OpenAI LLM provider. The model and output-token limit come from config;
+ * the API key is read only from the environment via the default client.
  *
  * @param config - The model and output-token limit; never a key.
  * @param deps - Optional injected client; when omitted, the production client is built.
@@ -51,7 +50,6 @@ export function createOpenAiProvider(
   };
 }
 
-/** OpenAI's mechanism: build the Structured Outputs request, call it, extract raw output. */
 function createMechanism(client: OpenAiClient, config: OpenAiConfig): LlmMechanism {
   return {
     translate: async ({ payloadJson }): Promise<ReturnType<typeof extractOpenAiResult>> => {

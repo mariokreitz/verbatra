@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-/**
- * The closed set of source formats a LocaleResource can originate from.
- * v1 is JSON only; non-JSON formats (XLIFF, YAML, ARB) are post-v1.
- */
+/** The closed set of source formats a LocaleResource can originate from. */
 export const SUPPORTED_FORMATS = [
   "i18next-json",
   "vue-i18n-json",
   "next-intl-json",
   "ngx-translate-json",
+  "xliff",
+  "yaml",
+  "arb",
 ] as const;
 
 /** Zod schema accepting exactly one of {@link SUPPORTED_FORMATS}. */

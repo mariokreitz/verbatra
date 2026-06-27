@@ -21,7 +21,6 @@ describe("loadEnvFiles", () => {
   });
 
   afterEach(() => {
-    // Restore process.env exactly: drop anything added during the test, reinstate the snapshot.
     for (const key of Object.keys(process.env)) {
       if (!(key in savedEnv)) {
         delete process.env[key];

@@ -7,6 +7,10 @@ description: Run verbatra in GitHub Actions - translate in CI, annotate failures
 
 verbatra ships a composite GitHub Action that runs `verbatra translate --json` in CI, annotates any failures, writes a job summary, and then exits with the CLI's exit code. It is consumed directly from the repository with `uses:`; it is not published to npm.
 
+## Availability
+
+This action is repository-only. You reference it directly from the repository with `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, pinned to a commit SHA. It is not published to npm and it has no GitHub Marketplace listing or versioned action tag; the only supported way to consume it is the path-based `uses:` reference pinned to a commit SHA.
+
 ## Usage
 
 ```yaml
@@ -25,7 +29,7 @@ jobs:
       - uses: actions/checkout@<commit-sha>
       - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
         with:
-          version: 1.2.3 # pin @verbatra/cli to an exact version
+          version: 0.3.0 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -36,7 +40,7 @@ The action runs the CLI, so the provider's API key is read from the environment.
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | - | the `@verbatra/cli` version to run, e.g. `1.2.3`. Pin this to an exact version; do not use a floating tag such as `latest` |
+| `version` | yes | - | the `@verbatra/cli` version to run, e.g. `0.3.0`. Pin this to an exact version; do not use a floating tag such as `latest` |
 | `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
 | `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
 | `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |

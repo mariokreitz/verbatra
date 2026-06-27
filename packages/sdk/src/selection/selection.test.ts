@@ -12,6 +12,29 @@ describe("selectAdapter", () => {
     expect(selectAdapter("ngx-translate-json").format).toBe("ngx-translate-json");
   });
 
+  it("resolves the non-JSON formats (XLIFF, YAML, ARB)", () => {
+    expect(selectAdapter("xliff").format).toBe("xliff");
+    expect(selectAdapter("yaml").format).toBe("yaml");
+    expect(selectAdapter("arb").format).toBe("arb");
+  });
+
+  it("names the supported formats, including the new ones, in the error message", () => {
+    const empty = new AdapterRegistry();
+    const error = (() => {
+      try {
+        selectAdapter("xliff", empty);
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(SdkError);
+    const message = (error as SdkError).message;
+    expect(message).toContain("xliff");
+    expect(message).toContain("yaml");
+    expect(message).toContain("arb");
+  });
+
   it("throws a structured UNKNOWN_FORMAT when no adapter is registered", () => {
     const empty = new AdapterRegistry();
     const error = (() => {

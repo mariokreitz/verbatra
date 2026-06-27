@@ -30,4 +30,4 @@ What you expected to happen instead.
 ## Additional context
 
 Add a config snippet or logs if they help. Do not paste API keys or other
-secrets — redact them before posting.
+secrets: redact them before posting.

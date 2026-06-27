@@ -31,20 +31,16 @@ export interface LlmCompletionInput {
  * schema-bound per-key translations as raw data (validated by the shared layer), never free text. It
  * surfaces refusals and SDK errors as secret-free {@link ProviderError}s.
  *
- * This is one half of the LLM-provider-add path: implement the mechanism (below), then wire it with
- * {@link runLlmTranslation} (whose example shows the wiring that consumes this mechanism).
- *
  * Implementer invariants:
- * - The system rules are compile-time constants; `input.payloadJson` is UNTRUSTED and travels only as
- *   user-turn data. Never splice it into the instruction channel.
- * - Constrain the SDK to the single source of truth via {@link deriveJsonSchema} over
- *   `translationsResultSchema`, so the model constraint and the shared validation cannot drift.
- * - Read the key only from the environment (inside the SDK client). Wrap the SDK call with the guard so a
- *   raw SDK throw becomes a static, secret-free `PROVIDER_ERROR` and never leaks a key or headers.
+ * - The system rules are compile-time constants; `input.payloadJson` is untrusted and travels only as
+ *   user-turn data, never spliced into the instruction channel.
+ * - Constrain the SDK via {@link deriveJsonSchema} over `translationsResultSchema` so the model constraint
+ *   and the shared validation cannot drift.
+ * - Read the key only from the environment, and wrap the SDK call with the guard so a raw SDK throw becomes
+ *   a secret-free `PROVIDER_ERROR` and never leaks a key or headers.
  *
  * @example
  * ```ts
- * // The per-provider body. Modeled on the in-repo LLM providers (Anthropic/OpenAI/Gemini).
  * function createMyLlmMechanism(client: MySdk): LlmMechanism {
  *   return {
  *     async translate({ payloadJson, requestedKeys }) {
@@ -54,8 +50,7 @@ export interface LlmCompletionInput {
  *           user: payloadJson, // untrusted data channel only
  *           responseSchema: deriveJsonSchema(translationsResultSchema), // single source of truth
  *         }),
- *       ); // an unbound SDK throw -> secret-free PROVIDER_ERROR
- *       // A provider-specific refusal/block maps to a secret-free ProviderError here.
+ *       );
  *       return { raw: extractJson(response, requestedKeys), usage: toUsage(response) };
  *     },
  *   };
@@ -77,11 +72,10 @@ export interface LlmMechanism {
 }
 
 /**
- * The provider-agnostic LLM flow every LLM provider runs. This is the promoted reuse lever for adding an LLM
- * provider. It validates the request (the mandatory-extractor gate fires here, before any mechanism call),
- * builds the structured data channel, delegates schema-bound output to the mechanism, then validates,
- * maps, and integrity-checks on our side. An LLM provider's `translateBatch` is a one-line delegation to
- * this; only the {@link LlmMechanism} differs per provider.
+ * The provider-agnostic LLM flow every LLM provider runs. It validates the request (the mandatory-extractor
+ * gate fires here, before any mechanism call), builds the structured data channel, delegates schema-bound
+ * output to the mechanism, then reconciles and runs placeholder-integrity checks on our side. An LLM
+ * provider's `translateBatch` is a one-line delegation to this; only the {@link LlmMechanism} differs.
  *
  * @param request - The provider-neutral batch request.
  * @param mechanism - The per-provider SDK body (see {@link LlmMechanism}).
@@ -91,15 +85,13 @@ export interface LlmMechanism {
  *   extra, duplicate, or missing key; plus any `ProviderError` the mechanism itself raises.
  * @example
  * ```ts
- * // The wiring. Given the mechanism from LlmMechanism's example, an LLM provider rides the shared flow:
  * function createMyLlmProvider(client: MySdk): TranslationProvider {
- *   const mechanism = createMyLlmMechanism(client); // the per-provider body from the example above
+ *   const mechanism = createMyLlmMechanism(client);
  *   return {
  *     id: "my-llm",
  *     kind: "llm",
  *     supportsGlossary: true,
- *     translateBatch: (request) => runLlmTranslation(request, mechanism), // validate -> payload ->
- *     // mechanism -> reconcile -> integrity, all shared
+ *     translateBatch: (request) => runLlmTranslation(request, mechanism),
  *   };
  * }
  * ```

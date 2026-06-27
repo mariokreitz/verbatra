@@ -1,0 +1,75 @@
+---
+title: verbatra check
+description: Signale quelles locales ont des chaînes manquantes ou obsolètes, en lecture seule, sans appeler de fournisseur ni écrire de fichiers.
+---
+
+# verbatra check
+
+Signale, par locale cible, combien de chaînes sont manquantes, obsolètes ou à jour, puis quitte avec un code sur lequel une étape de CI peut s'embrancher. `check` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) avant d'appeler un fournisseur, mais s'arrête là : il n'appelle aucun fournisseur, n'écrit aucun fichier et ne touche jamais au [fichier de verrouillage](/docs/the-lock-file). C'est le moyen économique, en lecture seule, de demander "mes traductions sont-elles synchronisées ?" avant que quiconque ne paie un fournisseur.
+
+```bash
+verbatra check
+```
+
+Une clé est **manquante** lorsqu'elle est dans la locale source mais absente de la cible. Une clé est **obsolète** lorsque la cible la possède mais que la chaîne source a changé depuis sa dernière traduction. Une clé est **à jour** lorsque la cible correspond à la source actuelle. Une locale est synchronisée lorsqu'elle n'a aucune clé manquante ni obsolète.
+
+`check` signale des décomptes. Pour voir les clés réelles derrière ces décomptes (quelles clés seraient ajoutées, retraduites ou sont orphelines), utilise [`verbatra diff`](/docs/cli/diff), sa commande sœur détaillée qui exécute le calcul identique en lecture seule.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
+| `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
+| `--locales <list>` | sous-ensemble de locales cibles séparées par des virgules (par défaut toutes celles configurées) |
+| `--json` | afficher le résumé de la vérification au format JSON |
+
+Il n'y a pas de `--dry-run` : `check` est par nature une lecture à blanc. Il n'a besoin d'aucune clé API.
+
+## Sortie
+
+Sans `--json`, `check` affiche une ligne par locale avec ses décomptes et un marqueur de synchronisation, puis une ligne globale :
+
+```
+verbatra check
+  de: 3 missing, 1 stale, 120 up-to-date (out of sync)
+  fr: 0 missing, 0 stale, 124 up-to-date (in sync)
+out of sync (run verbatra translate to update)
+```
+
+Avec `--json`, il affiche le statut sous forme d'un seul objet JSON sur stdout. Le `inSync` de niveau supérieur est vrai exactement lorsque chaque locale est synchronisée (et exactement lorsque la commande quitte avec `0`) :
+
+```json
+{
+  "inSync": false,
+  "locales": [
+    { "locale": "de", "missing": 3, "stale": 1, "upToDate": 120, "inSync": false },
+    { "locale": "fr", "missing": 0, "stale": 0, "upToDate": 124, "inSync": true }
+  ]
+}
+```
+
+Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
+
+## Exemples
+
+```bash
+# report missing and stale keys per locale (exit 1 if drifted)
+verbatra check
+
+# only check the German and French locales
+verbatra check --locales de,fr
+
+# machine-readable status on stdout for CI
+verbatra check --json
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | synchronisé : chaque locale cible n'a aucune clé manquante ni obsolète |
+| `1` | désynchronisé : au moins une locale a une clé manquante ou obsolète (le rapport complet est tout de même affiché) |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+
+Pour `check`, le code de sortie `1` signifie "désynchronisé", pas un échec par locale : l'exécution elle-même a réussi, mais le résultat n'est pas entièrement au vert. Cela fait de `check` un garde-fou de CI sur une ligne qui échoue lorsque les traductions ont dérivé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

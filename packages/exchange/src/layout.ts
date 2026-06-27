@@ -1,14 +1,8 @@
 /**
- * The fixed column layout shared by the builder and the reader, so write and read can never
- * drift on which column carries which field. v1 ships exactly this layout (no config).
- *
- * Columns, left to right:
- *  1 Key          - the dotted key path; the sole round-trip identity. Read-only, shaded.
- *  2 Source       - the source-locale value. Read-only, shaded.
- *  3 Current      - the existing target value, if any. Read-only, shaded.
- *  4 Status       - the diff bucket ("new" or "changed"). Read-only, shaded.
- *  5 Translation  - the only editable cell.
- *  6 Source hash  - the export-time source content hash. Hidden, read-only (drift detection).
+ * The fixed column layout shared by the builder and the reader so they cannot drift on which column
+ * carries which field. Columns, left to right: Key (the round-trip identity), Source, Current (the
+ * existing target), Status ("new" or "changed"), Translation (the only editable cell), and Source
+ * hash (the export-time source hash, hidden, used for drift detection).
  */
 export const COLUMN = {
   key: 1,

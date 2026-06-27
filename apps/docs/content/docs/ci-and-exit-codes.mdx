@@ -5,12 +5,26 @@ description: Run verbatra in CI, read its exit codes, and consume its JSON outpu
 
 # CI and exit codes
 
-verbatra is a development dependency, so the same commands you run locally run in CI. Install it, provide the provider key from your CI secret store as the matching environment variable, and run `verbatra translate`. Use `--dry-run` when you want to check for missing or stale translations without writing files.
+verbatra is a development dependency, so the same commands you run locally run in CI. Install it, provide the provider key from your CI secret store as the matching environment variable, and run `verbatra translate`.
 
 ```bash
 pnpm add -D @verbatra/cli
 # ANTHROPIC_API_KEY is provided by the CI secret store as an environment variable
 verbatra translate --json
+```
+
+To fail a pipeline when translations have drifted, without calling a provider or needing a key, run [`verbatra check`](/docs/cli/check): it exits `1` when any locale is out of sync.
+
+```bash
+# read-only gate: exit 1 if any locale is missing or stale
+verbatra check
+```
+
+To see the exact keys behind that drift (for example to post them in a pull request comment), run [`verbatra diff`](/docs/cli/diff): same read-only gate, but it lists the keys that would be added, re-translated, or are orphaned instead of just counting them.
+
+```bash
+# read-only gate with the key lists: exit 1 if any locale has pending changes
+verbatra diff
 ```
 
 ## Exit codes
@@ -19,8 +33,8 @@ verbatra uses its exit code as the contract a CI step branches on:
 
 | Code | Meaning |
 | --- | --- |
-| `0` | success |
-| `1` | `translate` or `import` finished but some locales failed |
+| `0` | success (for `check`, every locale is in sync; for `diff`, no pending changes) |
+| `1` | `translate` or `import` finished but some locales failed, `check` found a locale out of sync, or `diff` found pending changes |
 | `2` | could not run (a whole-run error, or a usage error) |
 | `130` | `watch` was force-stopped by a second interrupt |
 
@@ -28,7 +42,7 @@ A per-run failure in `watch` is reported as a stream record, not an exit code; a
 
 ## JSON output
 
-The `translate`, `watch`, `export`, and `import` commands accept `--json` for machine-readable output.
+The `translate`, `watch`, `check`, `diff`, `export`, and `import` commands accept `--json` for machine-readable output.
 
 `verbatra translate --json` prints the run summary as one JSON object with this shape:
 
@@ -50,3 +64,37 @@ type WatchRunResult =
 ```
 
 A failed run during `watch` is one of these records on the stream; it does not stop the watcher and does not set a non-zero exit code.
+
+`verbatra check --json` prints a read-only status document as one JSON object. The top-level `inSync` is true exactly when every locale is in sync, which is exactly when the command exits `0`:
+
+```ts
+interface CheckSummary {
+  inSync: boolean;             // true exactly when the command exits 0
+  locales: LocaleCheckSummary[];
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;             // in source, absent from target
+  stale: number;               // source changed since last translated
+  upToDate: number;            // target matches the current source
+  inSync: boolean;             // missing === 0 && stale === 0
+}
+```
+
+`verbatra diff --json` prints the same read-only computation as key lists rather than counts. The top-level `hasPendingChanges` is true exactly when at least one locale has a key to add or re-translate, which is exactly when the command exits `1`. Orphaned keys are listed but do not set `hasPendingChanges`:
+
+```ts
+interface DiffSummary {
+  hasPendingChanges: boolean;  // true exactly when the command exits 1
+  locales: LocaleDiff[];
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];           // in source, absent from target: would be added
+  changed: string[];           // source changed since last translated: would be re-translated
+  orphaned: string[];          // in target, absent from source: reported only
+  hasPendingChanges: boolean;  // missing.length > 0 || changed.length > 0
+}
+```

@@ -1,12 +1,9 @@
 import { z } from "zod";
 
 /**
- * The canonical per-key translation result. This is the SINGLE SOURCE OF TRUTH:
- * the shared layer validates provider output against this schema, and every
- * provider's API-specific schema form (Anthropic tool input_schema, OpenAI
- * json_schema, and, via the Gemini transform, Gemini responseSchema) is derived
- * from it. The constraint a provider imposes on the model and the validation the
- * shared layer performs therefore cannot drift apart.
+ * The canonical per-key translation result and single source of truth: the shared layer validates provider
+ * output against this schema, and every provider's API-specific schema form is derived from it, so the
+ * model constraint and the shared validation cannot drift apart.
  */
 export const translationsResultSchema = z.object({
   translations: z.array(z.object({ key: z.string(), value: z.string() })),

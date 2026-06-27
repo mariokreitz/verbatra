@@ -1,14 +1,13 @@
 import { checkPlaceholders } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
+import { createArbAdapter } from "./arb/arb-adapter.js";
 import { createI18nextJsonAdapter } from "./i18next/i18next-adapter.js";
-import { analyzeIcuValue } from "./next-intl/icu.js";
+import { analyzeIcuValue } from "./icu/analyze.js";
 import { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-adapter.js";
 import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
+import { createXliffAdapter } from "./xliff/xliff-adapter.js";
+import { createYamlAdapter } from "./yaml/yaml-adapter.js";
 
-// Regression guard for C1 (issue #20): adapters used to Set-deduplicate placeholders
-// before they reached core, which silently defeated core's multiset integrity check.
-// A translation that drops one of two required occurrences must now be reported as a
-// mismatch end to end (adapter extraction -> core checkPlaceholders).
 describe("placeholder integrity is multiset-aware end to end", () => {
   it("i18next: dropping a repeated occurrence is a mismatch", () => {
     const adapter = createI18nextJsonAdapter();
@@ -51,6 +50,37 @@ describe("placeholder integrity is multiset-aware end to end", () => {
     ).placeholders;
     expect(checkPlaceholders(source, translated).matches).toBe(false);
     expect(checkPlaceholders(source, translated).missing).toEqual(["{author}"]);
+  });
+
+  it("yaml: dropping a repeated {{count}} occurrence is a mismatch", () => {
+    const adapter = createYamlAdapter();
+    const source = adapter.extractPlaceholders("{{count}} of {{count}}");
+    const translated = adapter.extractPlaceholders("{{count}} total");
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{{count}}"]);
+  });
+
+  it("arb: dropping {author} from one ICU plural branch is a mismatch", () => {
+    const adapter = createArbAdapter();
+    const source = adapter.extractPlaceholders(
+      "{count, plural, one {# by {author}} other {# by {author}}}",
+    );
+    const translated = adapter.extractPlaceholders(
+      "{count, plural, one {# by {author}} other {#}}",
+    );
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{author}"]);
+  });
+
+  it("xliff: dropping an inline placeholder element is a mismatch", () => {
+    const adapter = createXliffAdapter();
+    const source = adapter.extractPlaceholders('Hello <x id="1"/> and <x id="2"/>');
+    const translated = adapter.extractPlaceholders('Hallo <x id="1"/>');
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(['<x id="2"/>']);
   });
 
   it("a faithful translation that preserves every occurrence still matches", () => {

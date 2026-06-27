@@ -1,21 +1,14 @@
 import { type FileHandle, open } from "node:fs/promises";
+import { AdapterError } from "../errors.js";
 import { MAX_INPUT_BYTES } from "./limits.js";
 
-/**
- * The result of a bounded read. `not-a-file` and `too-large` let callers pick their
- * own policy (the JSON adapter raises a structured error; the ngx-translate write path
- * silently defaults to nested) without re-checking on a second path resolution.
- */
+/** The result of a bounded read, with `not-a-file` and `too-large` left for callers to map to their own policy. */
 export type BoundedReadOutcome =
   | { readonly kind: "ok"; readonly content: string }
   | { readonly kind: "not-a-file" }
   | { readonly kind: "too-large" };
 
-/**
- * Read at most `size` bytes from an already-open handle as UTF-8, looping over partial
- * reads and stopping at EOF. The read never advances past `size`, so even if the file
- * grows after it was sized the result stays bounded.
- */
+// The read never advances past `size`, so a file growing after it was sized stays bounded.
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
   const buffer = Buffer.allocUnsafe(size);
   let offset = 0;
@@ -30,18 +23,12 @@ async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string
 }
 
 /**
- * Read a file through a single handle so a path swap between the size check and the
- * read cannot bypass the size cap (a stat-then-read TOCTOU). The handle is `fstat`'d
- * and the read is bounded to that size; both operate on the same inode, so replacing
- * the path with a larger file in the meantime has no effect.
- *
- * A missing path rejects (the underlying `open` throws); callers decide how to treat
- * that, matching the prior behavior where a missing file propagated from `stat`.
+ * Read a file through a single handle so a path swap between the size check and the read cannot
+ * bypass the size cap (a stat-then-read TOCTOU): the fstat and the bounded read share one inode.
  *
  * @param filePath - The file to read.
  * @returns A {@link BoundedReadOutcome}: `ok` with the content, `not-a-file`, or `too-large`.
- * @throws Rejects with the underlying filesystem error if the path cannot be opened (for example, it
- *   does not exist). It raises no `AdapterError` of its own.
+ * @throws Rejects with the underlying filesystem error if the path cannot be opened. Raises no `AdapterError`.
  */
 export async function readBounded(filePath: string): Promise<BoundedReadOutcome> {
   const handle = await open(filePath, "r");
@@ -57,4 +44,24 @@ export async function readBounded(filePath: string): Promise<BoundedReadOutcome>
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * Run the bounded read and map its non-`ok` outcomes to structured {@link AdapterError}s. A missing or
+ * unopenable path still rejects with the underlying filesystem error from {@link readBounded}.
+ *
+ * @param filePath - The file to read.
+ * @returns The file content as UTF-8.
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` when the path is not a regular file, or
+ *   `INPUT_TOO_LARGE` when it exceeds the size cap.
+ */
+export async function readFileContent(filePath: string): Promise<string> {
+  const outcome = await readBounded(filePath);
+  if (outcome.kind === "not-a-file") {
+    throw new AdapterError("INVALID_STRUCTURE", "The path is not a regular file.");
+  }
+  if (outcome.kind === "too-large") {
+    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
+  }
+  return outcome.content;
 }

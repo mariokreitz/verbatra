@@ -19,8 +19,8 @@ upgrade to the latest release to receive them.
 
 | Version | Supported |
 | ------- | --------- |
-| 0.2.x   | yes       |
-| < 0.2.0 | no        |
+| 0.3.x   | yes       |
+| < 0.3.0 | no        |
 
 ## Handling of API keys
 

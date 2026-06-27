@@ -7,6 +7,7 @@ import { run } from "./run.js";
 import {
   captureStreams,
   flush,
+  makeCheckSummary,
   makeConfig,
   makeLocale,
   makeSummary,
@@ -31,7 +32,7 @@ describe("run translate: SDK delegation and rendering", () => {
 
     expect(code).toBe(0);
     expect(calls.translate).toHaveLength(1);
-    expect(calls.translate[0]).toEqual({ config: cfg, cwd: process.cwd() }); // resolved cwd, no dryRun
+    expect(calls.translate[0]).toEqual({ config: cfg, cwd: process.cwd() });
     expect(cap.out()).toContain("de: 1 translated");
     expect(cap.err()).toBe("");
   });
@@ -57,7 +58,6 @@ describe("run translate: SDK delegation and rendering", () => {
   });
 
   it("--dry-run passes dryRun:true and does a single translate call", async () => {
-    // The stub echoes dryRun like the SDK does, since the CLI renders what the SDK returns.
     const { deps, calls } = recordingDeps({
       translate: async (input) => makeSummary({ dryRun: input.dryRun === true }),
     });
@@ -79,7 +79,7 @@ describe("run translate: SDK delegation and rendering", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(JSON.parse(cap.out().trim())).toEqual(summary); // stdout parses cleanly as the summary
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
     expect(cap.err()).toBe("");
   });
 
@@ -161,6 +161,60 @@ describe("run translate: exit codes", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).toContain("[CONFIG_INVALID] bad config");
+  });
+});
+
+describe("run: shared whole-run error helper (withWholeRunErrors)", () => {
+  it("passes a successful body return through unchanged (export always 0, stderr clean)", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["export"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(cap.out()).not.toBe("");
+    expect(cap.err()).toBe("");
+  });
+
+  it("passes a data-driven 1 from a non-throwing body through without turning it into 2", async () => {
+    // A non-throwing body that returns 1 must not be remapped to the catch-to-2 path.
+    const { deps } = recordingDeps({ check: async () => makeCheckSummary({ inSync: false }) });
+    const cap = captureStreams();
+
+    const code = await run(["check"], deps, cap.streams);
+
+    expect(code).toBe(1);
+    expect(cap.err()).toBe("");
+  });
+
+  it("maps a whole-run SdkError thrown by loadConfig to 2 with clean stdout (export)", async () => {
+    const { deps } = recordingDeps({
+      loadConfig: async () => {
+        throw new SdkError("CONFIG_INVALID", "bad config");
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["export"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[CONFIG_INVALID] bad config");
+  });
+
+  it("maps a SdkError thrown inside the body (the SDK call) to 2 (check)", async () => {
+    const { deps } = recordingDeps({
+      check: async () => {
+        throw new SdkError("SOURCE_UNREADABLE", "no source");
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["check"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[SOURCE_UNREADABLE] no source");
   });
 });
 

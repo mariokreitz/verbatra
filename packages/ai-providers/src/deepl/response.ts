@@ -6,11 +6,9 @@ import type { DeepLTextResult } from "./types.js";
 const MISMATCH_MESSAGE = "The provider returned a mismatched number of translations.";
 
 /**
- * Zip DeepL's ordered result array back to the original entry keys BY POSITION. The
- * result array must have exactly one entry per input, in order; a length mismatch
- * (fewer OR more results than inputs) is rejected as INVALID_RESPONSE rather than
- * silently zipped, since a misaligned zip would produce confidently-wrong key->value
- * mappings. Returns the per-key value map and the integrity inputs for the shared check.
+ * Zip DeepL's ordered result array back to the original entry keys by position. A length
+ * mismatch is rejected as INVALID_RESPONSE rather than silently zipped, since a misaligned
+ * zip would produce confidently-wrong key-to-value mappings.
  *
  * @param entries - The original entries, in request order.
  * @param results - DeepL's ordered result array, expected one-per-entry.

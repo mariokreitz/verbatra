@@ -95,7 +95,7 @@ describe("lock-file", () => {
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "2" });
     const entries = await readdir(dir);
-    expect(entries).toEqual(["verbatra.lock.json"]); // temp file renamed/cleaned, none left behind
+    expect(entries).toEqual(["verbatra.lock.json"]);
   });
 
   it("a failed write leaves the prior lock-file intact", async () => {
@@ -113,7 +113,6 @@ describe("lock-file", () => {
     const next = updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" });
     await expect(writeLockFile(path, next, throwingFs)).rejects.toThrow();
 
-    // the prior, valid lock-file is untouched
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "1" });
   });

@@ -1,15 +1,17 @@
 ---
 title: CLI
-description: El comando verbatra - sus cinco subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida.
+description: El comando verbatra - sus siete subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida.
 ---
 
 # CLI
 
-`@verbatra/cli` proporciona el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Incluye cinco comandos:
+`@verbatra/cli` proporciona el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Incluye siete comandos:
 
 - [`init`](/docs/cli/init): genera una configuración y un `.env.example`.
 - [`translate`](/docs/cli/translate): traduce cada configuración regional de destino una vez y luego termina.
 - [`watch`](/docs/cli/watch): vuelve a traducir con cada cambio del origen hasta que se interrumpe.
+- [`check`](/docs/cli/check): informa qué configuraciones regionales tienen cadenas faltantes o desactualizadas, de solo lectura, sin llamar a un proveedor.
+- [`diff`](/docs/cli/diff): lista las claves exactas que se añadirían, se volverían a traducir o están huérfanas por configuración regional, de solo lectura.
 - [`export`](/docs/cli/export): exporta las cadenas sin traducir a un libro de Excel para un traductor humano.
 - [`import`](/docs/cli/import): importa un libro rellenado de vuelta a tus archivos de configuración regional.
 
@@ -44,7 +46,7 @@ verbatra utiliza su código de salida como el contrato sobre el que un paso de C
 | Código | Significado |
 | --- | --- |
 | `0` | éxito (también `--help` y `--version`) |
-| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron |
+| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron, `check` encontró una configuración regional fuera de sincronización, o `diff` encontró cambios pendientes |
 | `2` | no se pudo ejecutar: un error de ejecución completa o un error de uso |
 | `130` | `watch` fue detenido a la fuerza por una segunda interrupción |
 

@@ -17,8 +17,8 @@ export interface GeminiResponse {
 }
 
 /**
- * The minimal client surface this provider depends on. Tests inject a stub so the
- * network is never touched; production wraps the real @google/genai client.
+ * The minimal client surface this provider depends on. Tests inject a stub; production
+ * wraps the real @google/genai client.
  */
 export interface GeminiClient {
   models: { generateContent(request: GeminiRequest): Promise<GeminiResponse> };

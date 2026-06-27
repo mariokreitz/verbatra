@@ -18,7 +18,10 @@ verbatra translate
 | `--cwd <path>` | resolve config and locale files from this directory |
 | `--config <path>` | load this config file instead of searching for one |
 | `--dry-run` | preview changes without calling a provider or writing files |
+| `--prune` | remove orphaned keys (in a target file but absent from the source) from the written file and the lock |
 | `--json` | print the run summary as JSON |
+
+By default a run never deletes anything: orphaned keys (present in a target file but no longer in the source) are reported and left in place. Pass `--prune` to remove exactly those keys from the written file and the lock, and nothing else. This per-run flag overrides the `prune` option in your [config](/docs/config-file); combine it with `--dry-run` to preview the keys that would be pruned. To see which keys are orphaned before a run, use [`verbatra diff`](/docs/cli/diff).
 
 ## Output
 
@@ -32,6 +35,12 @@ verbatra translate
 
 # preview changes without calling a provider or writing files
 verbatra translate --dry-run
+
+# also remove orphaned keys from target files
+verbatra translate --prune
+
+# preview the keys that would be pruned
+verbatra translate --prune --dry-run
 
 # machine-readable summary on stdout
 verbatra translate --json

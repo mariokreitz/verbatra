@@ -11,8 +11,7 @@ describe("extractVueI18nPlaceholders", () => {
   });
 
   it("preserves every occurrence of a repeated placeholder in document order", () => {
-    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence
-    // must be detectable. Collapsing duplicates here would hide that.
+    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence must be detectable.
     expect(extractVueI18nPlaceholders("{count} of {count}")).toEqual(["{count}", "{count}"]);
   });
 
@@ -25,7 +24,7 @@ describe("extractVueI18nPlaceholders", () => {
   });
 
   it("does not extract a phantom token from double-brace text", () => {
-    // vue-i18n has no {{...}} syntax; the old extractor wrongly captured the inner {name}.
+    // vue-i18n has no {{...}} syntax, so the inner {name} must not be captured.
     expect(extractVueI18nPlaceholders("Hello {{name}}")).toEqual([]);
   });
 
@@ -41,7 +40,6 @@ describe("extractVueI18nPlaceholders", () => {
   });
 
   it("accepts the full vue-i18n named-key character set", () => {
-    // Named keys may contain letters, digits, underscores, hyphens, and dollar signs.
     expect(extractVueI18nPlaceholders("{user-id} {val$2} {_x}")).toEqual([
       "{user-id}",
       "{val$2}",
