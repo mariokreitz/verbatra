@@ -42,16 +42,35 @@ if (summary.failed.length > 0) {
 
 ## Vérifier sans écrire
 
-Passe `dryRun: true` pour lire et diffuser sans appeler de fournisseur ni écrire de fichiers. Le résumé liste les clés qui seraient traduites, de sorte que tu peux détecter les traductions manquantes ou obsolètes en CI et échouer s'il y a du travail à faire.
+`check` lit et compare sans appeler de fournisseur ni écrire de fichiers, et signale la dérive par locale répartie en décomptes de clés manquantes, obsolètes et à jour. Son drapeau `inSync` est vrai exactement lorsque rien n'est manquant ni obsolète, c'est donc le garde-fou naturel pour la CI.
 
 ```ts
-import { loadConfig, translate } from "@verbatra/sdk";
+import { check, loadConfig } from "@verbatra/sdk";
 
-const summary = await translate({ config: await loadConfig(), dryRun: true });
-const pending = summary.locales.flatMap((locale) => locale.translated);
+const summary = await check({ config: await loadConfig() });
 
-if (pending.length > 0) {
-  console.error(`${pending.length} keys are missing or stale. Run verbatra translate.`);
+if (!summary.inSync) {
+  const drifted = summary.locales.filter((locale) => !locale.inSync).map((locale) => locale.locale);
+  console.error(`Out of sync: ${drifted.join(", ")}. Run verbatra translate.`);
+  process.exitCode = 1;
+}
+```
+
+`translate({ dryRun: true })` est une alternative lorsque tu veux le résumé d'exécution complet (les clés qui seraient traduites) plutôt que seulement les décomptes de dérive.
+
+`diff` est la commande sœur en lecture seule de `check` : il exécute le même calcul mais renvoie les listes de clés réelles (`missing`, `changed`, `orphaned`) par locale au lieu de décomptes, avec le même garde-fou `hasPendingChanges`. Tourne-toi vers lui lorsque tu as besoin de savoir quelles clés, et pas seulement combien.
+
+```ts
+import { diff, loadConfig } from "@verbatra/sdk";
+
+const summary = await diff({ config: await loadConfig() });
+
+if (summary.hasPendingChanges) {
+  for (const locale of summary.locales) {
+    if (locale.hasPendingChanges) {
+      console.log(`${locale.locale}: add ${locale.missing.join(", ")}; re-translate ${locale.changed.join(", ")}`);
+    }
+  }
   process.exitCode = 1;
 }
 ```

@@ -25,10 +25,14 @@ Internal refactors that do not change the public surface need no doc change; say
   and tone. Place new pages where a reader would look for them.
 - Write in clear English. No emojis. The em dash character (U+2014) must never
   appear; use a spaced hyphen, a colon, or parentheses.
-- Show real, runnable examples that match the shipped behavior. Keep them inside v1
-  scope (the init, translate, and watch commands; JSON formats; the four providers).
-  Do not document planned-but-unbuilt features like the check and diff commands as if
-  they exist.
+- Show real, runnable examples that match the shipped behavior. Only document features
+  that exist: the init, translate, watch, check, diff, export, and import commands; the
+  JSON, XLIFF, YAML, and ARB formats; and the four providers.
+- Keep the docs current in every available language. When you add or change an English
+  `.mdx`, update or create its `.de.mdx`, `.es.mdx`, and `.fr.mdx` translation in the
+  same change (translate prose only; keep code, paths, and glossary terms verbatim; no
+  em dash). `pnpm i18n` regenerates only the `messages/<locale>.json` UI strings, not
+  the doc pages.
 - Keep it concise. Document what changed, not the whole surface again.
 
 Use Read, Grep, and Glob to find the right pages, and Write and Edit to update them.

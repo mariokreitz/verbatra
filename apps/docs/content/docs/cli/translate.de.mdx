@@ -5,7 +5,7 @@ description: Übersetzt jedes Ziel-Locale einmal und beendet sich dann.
 
 # verbatra translate
 
-Führt den Ablauf aus Lesen, Diffen, Übersetzen, Schreiben einmal über jedes Ziel-Locale aus und beendet sich dann. verbatra liest das Quell-Locale, vergleicht es mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen oder geänderten Strings an den Provider; Übersetzungen, die noch aktuell sind, bleiben unberührt.
+Führt den Ablauf aus Lesen, Diff, Übersetzen, Schreiben über jedes Ziel-Locale einmal aus und beendet sich dann. verbatra liest das Quell-Locale, vergleicht es mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen oder geänderten Strings an den Provider; Übersetzungen, die noch aktuell sind, bleiben unberührt.
 
 ```bash
 verbatra translate
@@ -17,12 +17,15 @@ verbatra translate
 | --- | --- |
 | `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
 | `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--dry-run` | zeigt eine Vorschau der Änderungen, ohne einen Provider aufzurufen oder Dateien zu schreiben |
+| `--dry-run` | zeigt Änderungen in der Vorschau, ohne einen Provider aufzurufen oder Dateien zu schreiben |
+| `--prune` | entfernt verwaiste Schlüssel (in einer Zieldatei, aber nicht in der Quelle vorhanden) aus der geschriebenen Datei und der Lock-Datei |
 | `--json` | gibt die Lauf-Zusammenfassung als JSON aus |
+
+Standardmäßig löscht ein Lauf niemals etwas: Verwaiste Schlüssel (in einer Zieldatei vorhanden, aber nicht mehr in der Quelle) werden gemeldet und bleiben an Ort und Stelle. Übergib `--prune`, um genau diese Schlüssel aus der geschriebenen Datei und der Lock-Datei zu entfernen und sonst nichts. Dieses Pro-Lauf-Flag überschreibt die `prune`-Option in deiner [Konfiguration](/docs/config-file); kombiniere es mit `--dry-run`, um die Schlüssel in der Vorschau zu sehen, die entfernt würden. Um zu sehen, welche Schlüssel vor einem Lauf verwaist sind, verwende [`verbatra diff`](/docs/cli/diff).
 
 ## Ausgabe
 
-Ohne `--json` gibt `translate` eine menschenlesbare Lauf-Zusammenfassung aus. Mit `--json` gibt es die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout aus - siehe die [`RunSummary`-Struktur in der SDK-Referenz](/docs/sdk). Ein Lauf-weiter Fehler wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
+Ohne `--json` gibt `translate` eine menschenlesbare Lauf-Zusammenfassung aus. Mit `--json` gibt es die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout aus - siehe die [`RunSummary`-Struktur in der SDK-Referenz](/docs/sdk). Ein Fehler des gesamten Laufs wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
 
 ## Beispiele
 
@@ -33,6 +36,12 @@ verbatra translate
 # preview changes without calling a provider or writing files
 verbatra translate --dry-run
 
+# also remove orphaned keys from target files
+verbatra translate --prune
+
+# preview the keys that would be pruned
+verbatra translate --prune --dry-run
+
 # machine-readable summary on stdout
 verbatra translate --json
 ```
@@ -42,7 +51,7 @@ verbatra translate --json
 | Code | Bedeutung |
 | --- | --- |
 | `0` | jedes Ziel-Locale war erfolgreich |
-| `1` | der Lauf wurde beendet, aber ein oder mehrere Locales sind fehlgeschlagen |
-| `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, ein Provider, der nicht aufgebaut werden konnte, einschließlich eines fehlenden API-Schlüssels, oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `1` | der Lauf wurde beendet, aber eines oder mehrere Locales sind fehlgeschlagen |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, ein Provider, der nicht gebaut werden konnte, einschließlich eines fehlenden API-Schlüssels, oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
 
-Ein einzelnes fehlgeschlagenes Locale ist nicht fatal und ergibt Exit `1`; das Detail pro Locale steht in der Zusammenfassung. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.
+Ein einzelnes fehlschlagendes Locale ist nicht fatal und ergibt Exit `1`; das Detail pro Locale steht in der Zusammenfassung. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.

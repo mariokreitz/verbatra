@@ -5,7 +5,11 @@ description: Ejecuta verbatra en GitHub Actions - traduce en CI, anota los fallo
 
 # GitHub Action
 
-verbatra incluye una GitHub Action compuesta que ejecuta `verbatra translate --json` en CI, anota cualquier fallo, escribe un resumen del trabajo y luego sale con el código de salida de la CLI. Se consume directamente desde el repositorio con `uses:`; no se publica en npm.
+verbatra incluye una GitHub Action compuesta que ejecuta `verbatra translate --json` en CI, anota cualquier fallo, escribe un resumen del trabajo y luego termina con el código de salida de la CLI. Se consume directamente desde el repositorio con `uses:`; no se publica en npm.
+
+## Disponibilidad
+
+Esta action es solo de repositorio. La referencias directamente desde el repositorio con `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, fijada a un SHA de commit. No se publica en npm y no tiene una ficha en GitHub Marketplace ni una etiqueta de action versionada; la única forma compatible de consumirla es la referencia `uses:` basada en ruta y fijada a un SHA de commit.
 
 ## Uso
 
@@ -25,33 +29,33 @@ jobs:
       - uses: actions/checkout@<commit-sha>
       - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
         with:
-          version: 1.2.3 # pin @verbatra/cli to an exact version
+          version: 0.3.0 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-La action ejecuta la CLI, por lo que la clave API del proveedor se lee del entorno. Proporciónala desde los secretos de tu repositorio como la variable correspondiente a tu proveedor (consulta [Proveedores](/docs/providers)) - por ejemplo `ANTHROPIC_API_KEY` arriba.
+La action ejecuta la CLI, por lo que la clave de API del proveedor se lee del entorno. Proporciónala desde los secretos de tu repositorio como la variable correspondiente a tu proveedor (consulta [Proveedores](/docs/providers)): por ejemplo `ANTHROPIC_API_KEY` arriba.
 
 ## Entradas
 
 | Entrada | Obligatoria | Por defecto | Descripción |
 | --- | --- | --- | --- |
-| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar, p. ej. `1.2.3`. Fíjala a una versión exacta; no uses una etiqueta flotante como `latest` |
-| `config-path` | no | `""` | archivo de configuración explícito a cargar (se mapea a `--config`); vacío usa la búsqueda de configuración normal |
-| `working-directory` | no | `""` | directorio sobre el que resolver la configuración y los archivos de configuración regional (se mapea a `--cwd`) |
-| `dry-run` | no | `"false"` | establécelo en `"true"` para informar qué cambiaría sin llamar a un proveedor ni escribir (se mapea a `--dry-run`) |
+| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar, p. ej. `0.3.0`. Fíjala a una versión exacta; no uses una etiqueta flotante como `latest` |
+| `config-path` | no | `""` | archivo de configuración explícito a cargar (mapea a `--config`); vacío usa la búsqueda de configuración normal |
+| `working-directory` | no | `""` | directorio sobre el que resolver los archivos de configuración y de configuración regional (mapea a `--cwd`) |
+| `dry-run` | no | `"false"` | establece en `"true"` para informar qué cambiaría sin llamar a un proveedor ni escribir (mapea a `--dry-run`) |
 | `node-version` | no | `"24"` | versión de Node.js a configurar para ejecutar la CLI |
 
 La action siempre ejecuta `translate --json`; no ejecuta `init` ni `watch`.
 
 ## Comportamiento de salida
 
-La action captura el stdout y el código de salida de la CLI sin fallar de inmediato, anota los fallos y escribe el resumen del trabajo, y luego propaga el código de salida de la CLI, de modo que el paso falla con `1` (algunas configuraciones regionales fallaron) o `2` (no se pudo ejecutar) solo después de que se produzcan las anotaciones y el resumen. Los [códigos de salida de la CLI](/docs/cli#exit-codes) definen lo que significa cada código.
+La action captura el stdout y el código de salida de la CLI sin fallar antes de tiempo, anota los fallos y escribe el resumen del trabajo, y luego propaga el código de salida de la CLI: de modo que el paso falla con `1` (algunas configuraciones regionales fallaron) o `2` (no se pudo ejecutar) solo después de que se producen las anotaciones y el resumen. Los [códigos de salida de la CLI](/docs/cli#exit-codes) definen lo que significa cada código.
 
 ## Persistir las traducciones
 
-Sin `dry-run`, `translate` escribe los archivos de configuración regional actualizados en el checkout del runner, pero la action no los confirma. Para conservar los cambios, añade tu propio paso para confirmar y empujar, o abrir una pull request. Usa `dry-run: "true"` cuando solo quieras que CI compruebe si faltan traducciones o están desactualizadas.
+Sin `dry-run`, `translate` escribe los archivos de configuración regional actualizados en el checkout del runner, pero la action no los confirma. Para conservar los cambios, añade tu propio paso para confirmar y hacer push, o abrir un pull request. Usa `dry-run: "true"` cuando solo quieras que CI compruebe si faltan traducciones o están desactualizadas.
 
 ## Seguridad
 
-Fija tanto la action como la CLI a referencias exactas: fija `uses:` a un SHA de commit, y fija la entrada `version` a una versión exacta de `@verbatra/cli` en lugar de una etiqueta flotante, de modo que una ejecución sea reproducible y no pueda extraer automáticamente una versión comprometida. Otorga al flujo de trabajo el menor privilegio que necesite - `contents: read` para una comprobación; añade `contents: write` y `pull-requests: write` solo si un paso posterior confirma o abre una pull request. Las entradas se pasan a la CLI como datos, nunca se insertan en el shell, por lo que un valor de entrada manipulado sigue siendo un argumento y no código ejecutable.
+Fija tanto la action como la CLI a referencias exactas: fija `uses:` a un SHA de commit, y fija la entrada `version` a una versión exacta de `@verbatra/cli` en lugar de una etiqueta flotante, de modo que una ejecución sea reproducible y no pueda extraer automáticamente una versión comprometida. Otorga al workflow el menor privilegio que necesite: `contents: read` para una comprobación; añade `contents: write` y `pull-requests: write` solo si un paso posterior confirma o abre un pull request. Las entradas se pasan a la CLI como datos, nunca se insertan en el shell, de modo que un valor de entrada manipulado sigue siendo un argumento y no código ejecutable.

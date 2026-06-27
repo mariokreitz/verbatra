@@ -7,7 +7,7 @@ description: Le schéma de configuration de verbatra, l'ordre de découverte et 
 
 verbatra lit un petit objet de configuration non secret et le valide avant d'effectuer tout travail. Il ne contient aucune clé API ; le fournisseur lit sa clé depuis l'environnement.
 
-<Callout title="Keys come from the environment">
+<Callout title="Les clés viennent de l'environnement">
 Aucune clé API n'est jamais lue depuis ce fichier. Chaque fournisseur lit sa clé depuis une variable d'environnement, de sorte que la configuration reste sûre à commettre. Voir [Fournisseurs](/docs/providers).
 </Callout>
 
@@ -43,7 +43,7 @@ Lorsque tu écris la configuration en TypeScript, ton éditeur propose pour `opt
 
 - **`sourceLocale`** (chaîne de caractères) : la locale dans laquelle tes chaînes source sont écrites.
 - **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`.
-- **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json` ou `ngx-translate-json`.
+- **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` ou `xliff`. Voir [Formats](/docs/formats) pour ce que chacun détecte et comment il gère les espaces réservés.
 - **`files.pattern`** (chaîne de caractères) : le chemin vers chaque fichier de locale. Il doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale (par exemple, `locales/{locale}.json` se résout en `locales/de.json`).
 - **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` est restreint aux identifiants de modèle connus du fournisseur choisi (le modèle d'un autre fournisseur est une erreur de type). Voir [Fournisseurs](/docs/providers).
 - **`glossary`** (facultatif, objet) : une carte des termes source vers les termes cibles préférés. Les fournisseurs LLM (Anthropic, OpenAI, Gemini) la reçoivent avec la requête et sont invités à traiter ses termes comme contraignants. DeepL n'applique pas cette carte de termes ; il enregistre une notification et applique à la place un glossaire configuré par id (voir [Fournisseurs](/docs/providers)).

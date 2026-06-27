@@ -1,13 +1,13 @@
 ---
 title: Formats
-description: Les formats i18n JSON pris en charge par verbatra, comment il les lit, et comment chacun gère les espaces réservés, les pluriels et l'ICU.
+description: Les formats i18n pris en charge par verbatra, comment il les lit, et comment chacun gère les espaces réservés, les pluriels et l'ICU.
 ---
 
 # Formats
 
-verbatra travaille sur des fichiers de locale JSON via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. La v1 prend en charge quatre formats JSON, sélectionnés avec le champ `format` de ta configuration.
+verbatra travaille sur des fichiers de locale via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. Tu sélectionnes le format avec le champ `format` de ta configuration. Quatre formats JSON ont été livrés en v1, et trois autres (ARB, YAML et XLIFF) sont désormais disponibles à leurs côtés.
 
-## Les quatre formats
+## Les quatre formats JSON
 
 | `format` | Pour | Espaces réservés | Pluriels | ICU |
 | --- | --- | --- | --- | --- |
@@ -17,6 +17,22 @@ verbatra travaille sur des fichiers de locale JSON via un adaptateur de format. 
 | `ngx-translate-json` | ngx-translate | `{{name}}` | aucun | non |
 
 i18next et ngx-translate partagent la même interpolation `{{double-brace}}`. i18next extrait et protège en plus ses références d'imbrication `$t()` (qui insèrent le contenu d'une autre clé dans la valeur) en tant qu'espaces réservés, par exemple `$t(common.foo)` et `$t(common.foo, { options })`, de sorte qu'une traduction qui en supprime ou en modifie une échoue à la vérification d'intégrité. Deux limitations s'appliquent : les parenthèses imbriquées à l'intérieur des options de `$t()` ne sont pas prises en charge, et seul le préfixe par défaut `$t(` est reconnu. ngx-translate utilise la même interpolation à double accolade mais n'a pas d'imbrication `$t()`. vue-i18n utilise des accolades simples et détermine le pluriel à partir d'une barre verticale dans la valeur. Les valeurs next-intl sont au format ICU MessageFormat : les espaces réservés sont les noms d'argument ICU et les noms de balise de texte enrichi, le pluriel suit un argument ICU plural ou selectordinal, et le corps ICU est conservé tel quel tout au long du pipeline. ngx-translate n'a ni pluriel ni ICU intégré, et ses fichiers peuvent être plats avec des clés pointées ou imbriqués ; verbatra préserve à l'écriture le style utilisé par le fichier.
+
+## ARB, YAML et XLIFF
+
+Trois formats supplémentaires sont désormais disponibles au-delà de la famille JSON. Ils utilisent le même pipeline d'adaptateur, la même représentation neutre vis-à-vis du format, et les mêmes vérifications d'intégrité des espaces réservés et de l'ICU. Sélectionne chacun avec son tag `format`.
+
+| `format` | Pour | Extensions | Espaces réservés | Comportement notable |
+| --- | --- | --- | --- | --- |
+| `arb` | Flutter | `.arb` | ICU | les métadonnées préfixées par `@` sont préservées et jamais traduites |
+| `yaml` | i18n YAML | `.yml`, `.yaml` | `{{name}}` | arbre imbriqué, interpolation de style i18next |
+| `xliff` | XLIFF (XML) | `.xlf`, `.xliff` | identifiants d'espace réservé en ligne | met à jour les éléments `<target>` existants en place ; le fichier cible doit déjà exister |
+
+ARB (Flutter Application Resource Bundle) est basé sur JSON, avec des clés de métadonnées préfixées par `@` (métadonnées par message `@key` et globales préfixées par `@@` telles que `@@locale`) qui côtoient les clés de message. verbatra préserve ces métadonnées et les réécrit inchangées : elles ne sont jamais envoyées pour traduction. Les valeurs de message ARB sont au format ICU MessageFormat, de sorte que les espaces réservés, la gestion des pluriels et la validation ICU fonctionnent exactement comme pour next-intl.
+
+YAML est un arbre imbriqué en syntaxe YAML, la même forme qu'un fichier JSON imbriqué. Le format `yaml` suppose une interpolation `{{double-brace}}` compatible i18next. Un aller-retour préserve l'arbre et ses valeurs ; les commentaires YAML ne sont pas conservés lors d'une écriture, de la même manière que JSON n'a pas de notion de commentaire.
+
+XLIFF est du XML, une liste plate de trans-units plutôt qu'un arbre imbriqué. verbatra lit à la fois XLIFF 1.2 (`file/body/trans-unit`) et XLIFF 2.0 (`file/unit/segment`), en indexant chaque entrée par son `id` de trans-unit et en prenant la valeur de `<target>` lorsqu'il est présent, sinon de `<source>`. À l'écriture, il met à jour chaque `<target>` en place et laisse `<source>`, les attributs et les éléments `<note>` intacts, de sorte que le document fait un aller-retour. Parce qu'une simple carte clé/valeur plate ne peut pas reconstruire un document XLIFF, le fichier de destination doit déjà exister : verbatra met à jour les cibles dans un fichier cible pré-amorcé (le flux de travail XLIFF standard) et ne crée pas un fichier cible manquant. Les éléments d'espace réservé en ligne (`x`, `g`, `bx`, `ex`, `ph`, `it`, `mrk`) sont extraits par id et protégés tout au long de la traduction.
 
 ## Pourquoi le format compte
 
@@ -32,4 +48,4 @@ Pour i18next, vue-i18n et next-intl, une feuille pointée littérale (une clé t
 
 ## Choisir un format
 
-Fais correspondre le format à ton framework : `i18next-json` pour i18next, `vue-i18n-json` pour vue-i18n, `next-intl-json` pour next-intl, et `ngx-translate-json` pour ngx-translate. XLIFF, YAML et ARB sont prévus pour des versions ultérieures. Voir [Fichier de configuration](/docs/config-file) pour savoir où se situe `format` dans la configuration.
+Fais correspondre le format à ton framework : `i18next-json` pour i18next, `vue-i18n-json` pour vue-i18n, `next-intl-json` pour next-intl, et `ngx-translate-json` pour ngx-translate. Pour les sources non-JSON, utilise `arb` pour Flutter, `yaml` pour l'i18n basé sur YAML, et `xliff` pour les fichiers XLIFF. Voir [Fichier de configuration](/docs/config-file) pour savoir où se situe `format` dans la configuration.
