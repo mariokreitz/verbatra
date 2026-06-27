@@ -213,9 +213,6 @@ importers:
 
   packages/exchange:
     dependencies:
-      '@verbatra/core':
-        specifier: workspace:*
-        version: link:../core
       exceljs:
         specifier: 4.4.0
         version: 4.4.0

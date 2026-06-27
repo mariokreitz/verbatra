@@ -1,9 +1,9 @@
 /**
  * Translator interchange for verbatra: the workbook as a data artifact only. This package owns a
  * neutral, format-agnostic row model and turns it into a styled `.xlsx` ({@link buildWorkbook}) and
- * back ({@link readWorkbook}). It depends on `@verbatra/core` only, is composed by `@verbatra/sdk`,
- * and depends on neither `format-adapters`, `sdk`, nor `cli`. It runs no translation check and
- * touches no locale or lock file: the SDK does that.
+ * back ({@link readWorkbook}). It works over a neutral, format-agnostic row model and is composed
+ * by `@verbatra/sdk`. It depends on none of `@verbatra/core`, `format-adapters`, `sdk`, or `cli`.
+ * It runs no translation check and touches no locale or lock file: the SDK does that.
  *
  * The xlsx library (exceljs) is used in exactly two internal modules (build and read) and never
  * appears in this public surface. A returned workbook is untrusted input: its parse is bounded
