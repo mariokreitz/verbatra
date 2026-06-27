@@ -11,11 +11,11 @@ Machine output is not trusted by default. verbatra runs every translation throug
 
 A translated value must carry the same placeholders as its source. After translation, verbatra compares the placeholder set of each result against the source value. A translation that drops, adds, or alters a placeholder fails the check and is withheld rather than written. The withheld key keeps its prior lock hash, so the next run retries it, and it is reported per locale as an integrity mismatch on the run summary.
 
-What counts as a placeholder depends on the format: `{{double-brace}}` tokens for i18next and ngx-translate, single-brace `{name}` and `{0}` for vue-i18n, and ICU argument and tag names for next-intl. For i18next, `$t(...)` nesting references are guarded too: a translation that drops, alters, or translates a `$t(...)` reference fails the check and is withheld. See [Formats](/docs/formats) for the syntax of each.
+What counts as a placeholder depends on the format: `{{double-brace}}` tokens for i18next, ngx-translate, and YAML, single-brace `{name}` and `{0}` for vue-i18n, ICU argument and tag names for next-intl and ARB, and inline placeholder ids for XLIFF. For i18next, `$t(...)` nesting references are guarded too: a translation that drops, alters, or translates a `$t(...)` reference fails the check and is withheld. See [Formats](/docs/formats) for the syntax of each.
 
 ## ICU validity
 
-For the ICU format, next-intl, verbatra parses each source value. A source key whose value is not valid ICU is set aside and skipped for translation rather than sent in a broken state, and it is reported as invalid ICU on the summary. The ICU body is kept verbatim through the pipeline; nothing is resolved or rewritten.
+For the ICU formats, next-intl and ARB, verbatra parses each source value. A source key whose value is not valid ICU is set aside and skipped for translation rather than sent in a broken state, and it is reported as invalid ICU on the summary. The ICU body is kept verbatim through the pipeline; nothing is resolved or rewritten.
 
 ## The prompt-injection boundary
 
