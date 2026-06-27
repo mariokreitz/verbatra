@@ -36,7 +36,7 @@ XLIFF es XML, una lista plana de trans-units en lugar de un árbol anidado. verb
 
 ## Por qué importa el formato
 
-El formato le dice a verbatra dos cosas que necesita para una ejecución segura. Primero, la sintaxis de los marcadores de posición, para que la [comprobación de integridad de marcadores de posición](/docs/translation-safety) sepa qué comparar antes y después de la traducción. Segundo, para ICU, qué valores validar, de modo que una clave de origen con ICU no válido se omita en lugar de enviarse en un estado roto. El formato equivocado compara los tokens equivocados, así que hazlo coincidir con tu biblioteca de i18n.
+El formato le dice a verbatra dos cosas que necesita para una ejecución segura. Primero, la sintaxis de los marcadores de posición, para que la [comprobación de integridad de marcadores de posición](/docs/translation-safety) sepa qué comparar antes y después de la traducción. Segundo, para ICU, qué valores validar, para que una clave de origen con ICU no válido se omita en lugar de enviarse en un estado roto. El formato equivocado compara los tokens equivocados, así que hazlo coincidir con tu biblioteca de i18n.
 
 ## Cómo se leen y escriben los archivos
 

@@ -5,11 +5,11 @@ description: Las comprobaciones de integridad y los límites de seguridad que de
 
 # Seguridad de la traducción
 
-La salida de la máquina no es de confianza por defecto. verbatra pasa cada traducción por comprobaciones de integridad antes de escribir, y mantiene el texto no confiable lejos de las instrucciones que envía al proveedor. Esta página cubre cuáles son esas comprobaciones y qué protegen.
+La salida de la máquina no es de fiar por defecto. verbatra pasa cada traducción por comprobaciones de integridad antes de escribir, y mantiene el texto no fiable lejos de las instrucciones que envía al proveedor. Esta página cubre cuáles son esas comprobaciones y qué protegen.
 
 ## Integridad de los marcadores de posición
 
-Un valor traducido debe llevar los mismos marcadores de posición que su origen. Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada resultado con el valor de origen. Una traducción que elimina, añade o altera un marcador de posición falla la comprobación y se retiene en lugar de escribirse. La clave retenida conserva su hash de bloqueo anterior, de modo que la siguiente ejecución la reintenta, y se informa por configuración regional como una discrepancia de integridad en el resumen de la ejecución.
+Un valor traducido debe llevar los mismos marcadores de posición que su origen. Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada resultado con el valor de origen. Una traducción que elimina, añade o altera un marcador de posición falla la comprobación y se retiene en lugar de escribirse. La clave retenida conserva su hash de bloqueo anterior, así que la siguiente ejecución la reintenta, y se informa por configuración regional como una discrepancia de integridad en el resumen de la ejecución.
 
 Lo que cuenta como marcador de posición depende del formato: tokens `{{double-brace}}` para i18next, ngx-translate y YAML, `{name}` y `{0}` de llave simple para vue-i18n, nombres de argumento y de etiqueta ICU para next-intl y ARB, e ids de marcador de posición en línea para XLIFF. Para i18next, las referencias de anidamiento `$t(...)` también se protegen: una traducción que elimina, altera o traduce una referencia `$t(...)` falla la comprobación y se retiene. Consulta [Formatos](/docs/formats) para la sintaxis de cada uno.
 

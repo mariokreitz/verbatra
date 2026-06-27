@@ -19,7 +19,7 @@ Für die ICU-Formate, next-intl und ARB, parst verbatra jeden Quellwert. Ein Que
 
 ## Die Prompt-Injection-Grenze
 
-Die Strings, die du übersetzt, sind nicht vertrauenswürdig: Sie können Text enthalten, der wie eine Instruktion aussieht. verbatra behandelt sie so. Die Systemregeln, die es einem Provider sendet, sind Konstanten zur Kompilierzeit. Alle variablen Eingaben, die zu übersetzenden Einträge zusammen mit deinem Glossar und Ton, reisen nur in der Daten-Nutzlast des Benutzer-Turns, niemals in den Instruktionskanal gespleißt. Die Provider-Ausgabe wird auf ein Schema beschränkt und validiert, und die Platzhalter-Prüfung läuft auf allem, was zurückkommt. Ein String, der versucht, das Modell umzuleiten, kann die Regeln nicht erreichen, und ein Ergebnis, das einen Platzhalter zerstört, wird zurückgehalten.
+Die Strings, die du übersetzt, sind nicht vertrauenswürdig und können Text enthalten, der wie eine Instruktion aussieht. verbatra behandelt sie so. Die Systemregeln, die es einem Provider sendet, sind Konstanten zur Kompilierzeit. Alle variablen Eingaben, die zu übersetzenden Einträge zusammen mit deinem Glossar und Ton, reisen nur in der Daten-Nutzlast des Benutzer-Turns, niemals in den Instruktionskanal gespleißt. Die Provider-Ausgabe wird auf ein Schema beschränkt und validiert, und die Platzhalter-Prüfung läuft auf allem, was zurückkommt. Ein String, der versucht, das Modell umzuleiten, kann die Regeln nicht erreichen, und ein Ergebnis, das einen Platzhalter zerstört, wird zurückgehalten.
 
 ## Geheimnisse leaken niemals
 

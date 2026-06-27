@@ -5,7 +5,7 @@ description: Die vier Übersetzungs-Provider, ihre Optionen und der API-Schlüss
 
 # Provider
 
-verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration, mittels `id`.
+verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration über seine `id`.
 
 <Callout title="Modell-Autovervollständigung in TypeScript">
 Wenn du die Konfiguration in TypeScript mit `defineConfig` schreibst, ist das Feld `model` auf die bekannten Modell-IDs des gewählten Providers beschränkt, die aus dem SDK des jeweiligen Providers stammen: Ein Modell eines anderen Providers (zum Beispiel ein Claude-Modell unter `id: "gemini"`) ist ein Typfehler. Zur Laufzeit wird weiterhin jeder nicht-leere String akzeptiert, sodass ein nicht gelistetes Modell läuft, auch wenn der Editor es markiert. DeepL hat kein `model`-Feld.
@@ -99,9 +99,9 @@ Die drei LLM-Provider (Anthropic, OpenAI und Gemini) begrenzen, wie viele Tokens
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Sie haben zwei Hebel, und jeder einzelne behebt das Problem:
+Du hast zwei Hebel, und jeder einzelne behebt das Problem:
 
-- Senken Sie `maxBatchSize` in Ihrer Konfiguration (siehe [Konfiguration](/docs/config-file)), damit jede Anfrage weniger Einträge übersetzt und eine kleinere Antwort erzeugt. Dies ist nur über die Konfiguration möglich und gilt für jeden Provider.
-- Erhöhen Sie das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI und Gemini (die Optionen aus den obigen Blöcken).
+- Senke `maxBatchSize` in deiner Konfiguration (siehe [Konfiguration](/docs/config-file)), damit jede Anfrage weniger Einträge übersetzt und eine kleinere Antwort erzeugt. Das geht nur über die Konfiguration und gilt für jeden Provider.
+- Erhöhe das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI und Gemini (die Optionen aus den obigen Blöcken).
 
 DeepL ist nicht betroffen. Es ist ein maschineller Übersetzungsdienst und läuft nicht über die LLM-Schicht, daher gibt es keinen Fall einer Ausgabe-Token-Abschneidung.

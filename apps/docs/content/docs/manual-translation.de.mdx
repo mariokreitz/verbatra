@@ -90,7 +90,7 @@ await exportWorkbook({ config });
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
 ```
 
-Beide nehmen die validierte Konfiguration von [`loadConfig`](/docs/sdk), und `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate`. Die Arbeitsmappe selbst wird von `@verbatra/exchange` erstellt und geparst, einem internen Paket, das ein neutrales, formatunabhängiges Zeilenmodell und die gestaltete `.xlsx` besitzt, in die und aus der es serialisiert. Sie wird vom SDK zusammengesetzt; du interagierst mit ihr über `exportWorkbook` / `importWorkbook` statt direkt.
+Beide nehmen die validierte Konfiguration von [`loadConfig`](/docs/sdk), und `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate`. Die Arbeitsmappe selbst wird von `@verbatra/exchange` erstellt und geparst, einem internen Paket, das ein neutrales, formatunabhängiges Zeilenmodell und die gestaltete `.xlsx` besitzt, in die und aus der es serialisiert. Das SDK setzt sie zusammen; du interagierst über `exportWorkbook` / `importWorkbook` mit ihr, nicht direkt.
 
 ## Weiter
 

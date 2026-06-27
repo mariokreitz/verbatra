@@ -5,11 +5,11 @@ description: Führe verbatra in GitHub Actions aus - übersetze in CI, annotiere
 
 # GitHub Action
 
-verbatra liefert eine zusammengesetzte GitHub Action, die `verbatra translate --json` in CI ausführt, etwaige Fehler annotiert, eine Job-Zusammenfassung schreibt und sich dann mit dem Exit-Code des CLI beendet. Sie wird direkt aus dem Repository mit `uses:` konsumiert; sie wird nicht auf npm veröffentlicht.
+verbatra liefert eine zusammengesetzte GitHub Action, die `verbatra translate --json` in CI ausführt, etwaige Fehler annotiert, eine Job-Zusammenfassung schreibt und sich dann mit dem Exit-Code des CLI beendet. Du konsumierst sie direkt aus dem Repository über `uses:`; auf npm wird sie nicht veröffentlicht.
 
 ## Verfügbarkeit
 
-Diese Action ist nur über das Repository verfügbar. Du referenzierst sie direkt aus dem Repository mit `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, fixiert auf einen Commit-SHA. Sie wird nicht auf npm veröffentlicht und hat keinen GitHub-Marketplace-Eintrag oder versionierten Action-Tag; der einzige unterstützte Weg, sie zu konsumieren, ist die pfadbasierte `uses:`-Referenz, die auf einen Commit-SHA fixiert ist.
+Diese Action ist nur über das Repository verfügbar. Du referenzierst sie direkt aus dem Repository mit `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, fixiert auf einen Commit-SHA. Auf npm wird sie nicht veröffentlicht, und sie hat keinen GitHub-Marketplace-Eintrag oder versionierten Action-Tag; der einzige unterstützte Weg, sie zu konsumieren, ist die pfadbasierte `uses:`-Referenz, die auf einen Commit-SHA fixiert ist.
 
 ## Verwendung
 

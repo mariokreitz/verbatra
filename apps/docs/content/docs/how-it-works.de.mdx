@@ -15,7 +15,7 @@ Ergebnis und schreibe. Diese Seite geht jeden Schritt durch, damit du genau wei�
 
 Ein Lauf beginnt mit dem Laden der Konfiguration. verbatra sucht vom Arbeitsverzeichnis aufwärts und
 verwendet die erste Quelle, die es findet: ein `"verbatra"`-Schlüssel in `package.json`, dann eine der
-`.verbatrarc.*`-Dateien, dann eine `verbatra.config.*`-Datei. Die Konfiguration wird validiert, bevor mit der Arbeit begonnen wird. Wenn nichts
+`.verbatrarc.*`-Dateien, dann eine `verbatra.config.*`-Datei. verbatra validiert die Konfiguration, bevor es mit der Arbeit beginnt. Wenn nichts
 gefunden wird, schlägt der Lauf mit `CONFIG_NOT_FOUND` fehl; wenn eine Konfiguration vorhanden, aber ungültig ist, schlägt er mit
 `CONFIG_INVALID` fehl. Die Konfiguration enthält keinen API-Schlüssel; der Provider liest seinen Schlüssel aus der Umgebung.
 
@@ -51,8 +51,8 @@ einen Lauf inkrementell hält: ein Provider wird nur für die Strings aufgerufen
 ### Aufruf des Providers
 
 Die Kandidaten-Einträge werden an den konfigurierten Provider gesendet, zusammen mit dem optionalen
-`glossary` und `tone` aus deiner Konfiguration. Sie werden in sequenzielle Teil-Batches von höchstens
-`maxBatchSize` aufgeteilt (Standard `50`, siehe [Konfiguration](/docs/config-file)), sodass eine
+`glossary` und `tone` aus deiner Konfiguration. verbatra teilt sie in sequenzielle Teil-Batches von höchstens
+`maxBatchSize` auf (Standard `50`, siehe [Konfiguration](/docs/config-file)), sodass eine
 überdimensionierte Anfrage nicht das gesamte Locale fehlschlagen lassen kann. Ein Teil-Batch, dessen
 Aufruf fehlschlägt, wird zurückgehalten und beim nächsten Lauf erneut versucht, während die übrigen
 weiterhin Fortschritte machen. Wie die Eingaben angewendet werden, hängt vom Provider ab.

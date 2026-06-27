@@ -28,7 +28,7 @@ El paquete exporta ocho funciones y los tipos que un consumidor toca.
 
 - `defineConfig(config): VerbatraConfig` devuelve su argumento sin cambios. Existe solo para darte
   inferencia de tipos y autocompletado cuando escribes una configuración en TypeScript; el campo `model` está
-  restringido a los modelos conocidos del proveedor seleccionado, de modo que el modelo de otro proveedor es un error de tipo.
+  restringido a los modelos conocidos del proveedor seleccionado, así que el modelo de otro proveedor es un error de tipo.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` descubre y valida la
   configuración. `LoadConfigOptions` acepta `cwd`, un `configPath` explícito o un `configOverride`
   en memoria. Lanza un `SdkError` cuando no se encuentra ninguna configuración o la validación falla.
@@ -50,7 +50,7 @@ El paquete exporta ocho funciones y los tipos que un consumidor toca.
   archivo de bloqueo. Consulta [Traducción manual](/docs/manual-translation).
 - `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` lee un libro rellenado de vuelta a
   los archivos de configuración regional, ejecutando las mismas comprobaciones de marcadores de posición e ICU que `translate`. `ImportWorkbookInput`
-  es `{ config, workbook, cwd?, dryRun? }`. Se resuelve al mismo `RunSummary` que `translate`, de modo que un
+  es `{ config, workbook, cwd?, dryRun? }`. Se resuelve al mismo `RunSummary` que `translate`, así que un
   fallo por configuración regional es un dato en el resumen en lugar de un throw. `DEFAULT_WORKBOOK_PATH` es la
   ruta de exportación por defecto (`verbatra-translations.xlsx`).
 - `check(input: CheckInput): Promise<CheckSummary>` ejecuta la misma lectura y el mismo diff que `translate` pero
