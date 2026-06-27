@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   commands:
     check:
-      glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+      glob: "*.{js,mjs,cjs,ts,jsx,tsx,json,jsonc}"
       run: pnpm biome check --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
       fail_text: |
         Biome found lint/format issues. Run `pnpm check` to see them,

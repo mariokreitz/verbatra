@@ -1,8 +1,8 @@
 /**
  * The neutral, format-agnostic row model the exchange package builds workbooks from and
  * parses workbooks back into. It carries no xlsx types: it is plain data the SDK composes
- * from core resources and judges with core checks. The exchange package never runs a check,
- * never touches a locale file, and never touches the lock-file.
+ * and hands to this package. The exchange package never runs a check, never touches a locale
+ * file, and never touches the lock-file.
  */
 
 /** The diff bucket a row was exported under, shown to the translator as the row's status. */
@@ -19,7 +19,8 @@ export interface WorkbookRow {
   /** The diff bucket this row was exported under. */
   readonly status: RowStatus;
   /**
-   * The source content hash captured at export time (core's contentHash). Carried hidden and
+   * The source content hash captured upstream at export time and carried in the row model by the
+   * SDK (it originates conceptually in core but reaches exchange as plain data). Carried hidden and
    * read-only so import can detect a source that changed since export. Empty on a row the
    * translator added by hand (which import rejects as an unknown key anyway).
    */
