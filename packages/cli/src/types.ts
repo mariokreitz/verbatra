@@ -1,4 +1,6 @@
 import type {
+  CheckInput,
+  CheckSummary,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -33,6 +35,8 @@ export interface CliDeps {
   exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>;
   /** Import a filled workbook back into the locale files (the SDK's `importWorkbook`). */
   importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>;
+  /** Report missing and stale keys per locale without writing (the SDK's `check`). */
+  check(input: CheckInput): Promise<CheckSummary>;
 }
 
 /** A long-running watch run. The bin shim wires SIGINT to requestStop; tests call it directly. */

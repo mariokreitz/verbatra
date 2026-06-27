@@ -1,4 +1,4 @@
-import type { LocaleSummary, RunSummary, WatchRunResult } from "@verbatra/sdk";
+import type { CheckSummary, LocaleSummary, RunSummary, WatchRunResult } from "@verbatra/sdk";
 
 /** A structured, secret-free error projection (matches the SDK's failed-result shape). */
 export interface RenderableError {
@@ -118,6 +118,31 @@ export function renderExportHuman(result: ExportRenderable): string {
 /** The `export --json` contract: the SDK export result as one compact JSON object on one line. */
 export function renderExportJson(result: ExportRenderable): string {
   return JSON.stringify(result);
+}
+
+/**
+ * Human-readable check report: a header, one line per locale with its missing, stale, and up-to-date
+ * counts plus an in-sync marker, then an overall in-sync line. Plain text, no emoji.
+ *
+ * @param summary - The SDK check summary.
+ * @returns The multi-line human report (no trailing newline).
+ */
+export function renderCheckHuman(summary: CheckSummary): string {
+  const localeLines = summary.locales.map(
+    (l) =>
+      `  ${l.locale}: ${l.missing} missing, ${l.stale} stale, ${l.upToDate} up-to-date (${
+        l.inSync ? "in sync" : "out of sync"
+      })`,
+  );
+  const overall = summary.inSync
+    ? "all locales in sync"
+    : "out of sync (run verbatra translate to update)";
+  return ["verbatra check", ...localeLines, overall].join("\n");
+}
+
+/** The `check --json` contract: the SDK check summary as one compact JSON object on one line. */
+export function renderCheckJson(summary: CheckSummary): string {
+  return JSON.stringify(summary);
 }
 
 /**

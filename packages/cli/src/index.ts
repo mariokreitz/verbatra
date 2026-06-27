@@ -28,7 +28,7 @@
  */
 
 import process from "node:process";
-import { exportWorkbook, importWorkbook, loadConfig, translate, watch } from "@verbatra/sdk";
+import { check, exportWorkbook, importWorkbook, loadConfig, translate, watch } from "@verbatra/sdk";
 import { run } from "./run.js";
 
 // The bin shim: the ONLY part touching process global state. It wires the real SDK, the real
@@ -36,7 +36,7 @@ import { run } from "./run.js";
 // Kept tiny and coverage-excluded, like the SDK's wiring.ts and the providers' client.ts seams.
 const code = await run(
   process.argv.slice(2),
-  { loadConfig, translate, watch, exportWorkbook, importWorkbook },
+  { loadConfig, translate, watch, exportWorkbook, importWorkbook, check },
   {
     out: (text) => {
       process.stdout.write(text);

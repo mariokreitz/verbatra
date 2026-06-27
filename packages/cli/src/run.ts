@@ -4,6 +4,8 @@ import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
 import { runInit } from "./init.js";
 import {
+  renderCheckHuman,
+  renderCheckJson,
   renderError,
   renderExportHuman,
   renderExportJson,
@@ -70,6 +72,13 @@ const importOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   dryRun: z.boolean().optional(),
+  json: z.boolean().optional(),
+});
+
+const checkOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  locales: localeListSchema,
   json: z.boolean().optional(),
 });
 
@@ -211,6 +220,38 @@ async function runImport(
   }
 }
 
+/**
+ * Run the `check` command: validate the flags, load the config, call the SDK's read-only `check`, and
+ * render the per-locale drift status. The command writes nothing and calls no provider. Exit codes:
+ * `0` when every locale is in sync, `1` when at least one locale has a missing or stale key (the full
+ * report is printed first), and `2` when the run could not start (a structured SdkError to stderr,
+ * leaving stdout clean for `--json` piping).
+ *
+ * @param rawOpts - the raw commander options (validated by `checkOptsSchema`)
+ * @returns the process exit code (`0` in sync, `1` out of sync, `2` whole-run failure)
+ */
+async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const opts = checkOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  try {
+    const config = await deps.loadConfig(
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    );
+    const summary = await deps.check({
+      config,
+      cwd,
+      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+    });
+    streams.out(
+      opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
+    );
+    return summary.inSync ? 0 : 1;
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+}
+
 function buildProgram(
   deps: CliDeps,
   streams: Streams,
@@ -311,6 +352,27 @@ function buildProgram(
         "Examples:",
         "  $ verbatra import translations.xlsx             import the filled workbook",
         "  $ verbatra import translations.xlsx --dry-run   validate and report, write nothing",
+      ].join("\n"),
+    );
+
+  program
+    .command("check")
+    .description("Report which keys are missing or stale per locale without writing files")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
+    .option("--json", "print the check summary as JSON")
+    .action(async (opts: unknown) => {
+      setCode(await runCheck(opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra check                  report missing and stale keys per locale (exit 1 if drifted)",
+        "  $ verbatra check --locales de,fr  only check the German and French locales",
+        "  $ verbatra check --json           machine-readable status on stdout for CI",
       ].join("\n"),
     );
 

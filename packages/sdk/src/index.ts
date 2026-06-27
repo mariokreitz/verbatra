@@ -17,6 +17,13 @@ export { type LoadConfigOptions, loadConfig } from "./config/load-config.js";
 export type { ProviderConfig, ProviderId } from "./config/provider-config.js";
 export { type VerbatraConfig, verbatraConfigSchema } from "./config/schema.js";
 export { SdkError, type SdkErrorCode } from "./errors.js";
+export {
+  type CheckDeps,
+  type CheckInput,
+  type CheckSummary,
+  check,
+  type LocaleCheckSummary,
+} from "./flow/check.js";
 export type {
   LocaleNotice,
   LocaleSummary,

@@ -1,4 +1,6 @@
 import type {
+  CheckInput,
+  CheckSummary,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -49,6 +51,10 @@ export function makeExportResult(
   return { path: "/proj/verbatra-translations.xlsx", locales: [], ...overrides };
 }
 
+export function makeCheckSummary(overrides: Partial<CheckSummary> = {}): CheckSummary {
+  return { inSync: true, locales: [], ...overrides };
+}
+
 /** Accumulating stream sink: captures everything written to out and err. */
 export function captureStreams(): { streams: Streams; out: () => string; err: () => string } {
   let outBuf = "";
@@ -73,6 +79,7 @@ export interface DepCalls {
   watch: WatchInput[];
   exportWorkbook: ExportWorkbookInput[];
   importWorkbook: ImportWorkbookInput[];
+  check: CheckInput[];
 }
 
 /** Recording stub of the SDK deps. Override any of them to control behavior or throw. */
@@ -83,6 +90,7 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     watch: [],
     exportWorkbook: [],
     importWorkbook: [],
+    check: [],
   };
   const deps: CliDeps = {
     loadConfig: async (options) => {
@@ -104,6 +112,10 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     importWorkbook: async (input) => {
       calls.importWorkbook.push(input);
       return impl.importWorkbook ? impl.importWorkbook(input) : makeSummary();
+    },
+    check: async (input) => {
+      calls.check.push(input);
+      return impl.check ? impl.check(input) : makeCheckSummary();
     },
   };
   return { deps, calls };
