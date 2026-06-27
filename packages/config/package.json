@@ -8,20 +8,24 @@
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./biome.json": "./biome.json",
-    "./tsup": "./tsup.base.mjs"
+    "./tsup": "./tsup.base.mjs",
+    "./vitest": "./vitest.base.mjs"
   },
   "files": [
     "tsconfig.base.json",
     "biome.json",
-    "tsup.base.mjs"
+    "tsup.base.mjs",
+    "vitest.base.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "biome check .",
-    "test": "exit 0"
+    "test": "vitest run --coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.9",
     "tsup": "8.5.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
   }
 }
