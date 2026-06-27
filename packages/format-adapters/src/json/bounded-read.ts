@@ -1,4 +1,5 @@
 import { type FileHandle, open } from "node:fs/promises";
+import { AdapterError } from "../errors.js";
 import { MAX_INPUT_BYTES } from "./limits.js";
 
 /**
@@ -57,4 +58,27 @@ export async function readBounded(filePath: string): Promise<BoundedReadOutcome>
   } finally {
     await handle.close();
   }
+}
+
+/**
+ * The shared read prelude every file adapter (tree and flat) uses: run the bounded read and
+ * map its non-`ok` outcomes to structured {@link AdapterError}s, so the outcome switch lives in one
+ * place instead of being duplicated per factory. `not-a-file` becomes `INVALID_STRUCTURE`,
+ * `too-large` becomes `INPUT_TOO_LARGE`. A missing or unopenable path still rejects with the
+ * underlying filesystem error (from {@link readBounded}), because there is no content to map.
+ *
+ * @param filePath - The file to read.
+ * @returns The file content as UTF-8.
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` when the path is not a regular file, or
+ *   `INPUT_TOO_LARGE` when it exceeds the size cap.
+ */
+export async function readFileContent(filePath: string): Promise<string> {
+  const outcome = await readBounded(filePath);
+  if (outcome.kind === "not-a-file") {
+    throw new AdapterError("INVALID_STRUCTURE", "The path is not a regular file.");
+  }
+  if (outcome.kind === "too-large") {
+    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
+  }
+  return outcome.content;
 }

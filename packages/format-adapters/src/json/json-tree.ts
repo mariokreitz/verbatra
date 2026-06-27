@@ -40,6 +40,29 @@ function assertWithinDepth(value: unknown, max: number): void {
 }
 
 /**
+ * Validate an already-parsed value as a tree of nested string values: enforce the depth cap and the
+ * "object root, string leaves" shape. Parser-agnostic on purpose, so every tree format (JSON, YAML,
+ * ARB) shares the exact same depth, structure, and null-prototype guarantees with only the syntactic
+ * parser swapped ahead of it. Over-deep nesting is MAX_DEPTH_EXCEEDED; a non-object root or a
+ * non-string leaf is INVALID_STRUCTURE. Never echoes file content or key paths.
+ *
+ * @param value - The already-parsed value to validate.
+ * @returns The validated {@link JsonRecord}.
+ * @throws {@link AdapterError} `MAX_DEPTH_EXCEEDED` or `INVALID_STRUCTURE`.
+ */
+export function assertJsonRecord(value: unknown): JsonRecord {
+  assertWithinDepth(value, MAX_DEPTH);
+  const result = rootSchema.safeParse(value);
+  if (!result.success) {
+    throw new AdapterError(
+      "INVALID_STRUCTURE",
+      "The file is not a valid object (expected nested objects of string values).",
+    );
+  }
+  return result.data;
+}
+
+/**
  * Parse untrusted file content into a validated JSON object of nested strings.
  * Throws a structured AdapterError (never a raw parser error) and never echoes file
  * content or key paths: malformed syntax is INVALID_JSON, over-deep nesting is
@@ -52,13 +75,10 @@ export function parseJsonObject(content: string): JsonRecord {
   } catch {
     throw new AdapterError("INVALID_JSON", "The file is not valid JSON.");
   }
-  assertWithinDepth(parsed, MAX_DEPTH);
-  const result = rootSchema.safeParse(parsed);
-  if (!result.success) {
-    throw new AdapterError(
-      "INVALID_STRUCTURE",
-      "The file is not a valid JSON object (expected nested objects of string values).",
-    );
-  }
-  return result.data;
+  return assertJsonRecord(parsed);
+}
+
+/** Serialize a tree to pretty-printed JSON text with a trailing newline (the JSON and ARB policy). */
+export function serializeJsonTree(tree: unknown): string {
+  return `${JSON.stringify(tree, null, 2)}\n`;
 }

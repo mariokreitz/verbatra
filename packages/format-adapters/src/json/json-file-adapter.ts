@@ -1,12 +1,8 @@
-import { basename, extname } from "node:path";
-import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
-import type { FormatAdapter, ReadResult } from "../adapter.js";
-import { AdapterError } from "../errors.js";
-import { atomicWriteFile } from "./atomic-write.js";
-import { readBounded } from "./bounded-read.js";
-import { type DeriveEntry, flattenTree, type KeyMode } from "./flatten.js";
-import { type JsonRecord, parseJsonObject } from "./json-tree.js";
-import { unflattenEntries } from "./unflatten.js";
+import type { SupportedFormat, TranslationEntry } from "@verbatra/core";
+import type { FormatAdapter } from "../adapter.js";
+import type { DeriveEntry, KeyMode } from "./flatten.js";
+import { type JsonRecord, parseJsonObject, serializeJsonTree } from "./json-tree.js";
+import { createTreeFileAdapter } from "./tree-file-adapter.js";
 
 /** Per-value placeholder extraction, exposed on the adapter for consumers. */
 type ExtractPlaceholders = (value: string) => readonly string[];
@@ -49,68 +45,13 @@ export interface JsonFileAdapterOptions {
   readonly keyMode?: KeyMode;
 }
 
-function namespaceOf(filePath: string): string {
-  return basename(filePath, extname(filePath));
-}
-
-function canHandle(filePath: string, sample?: string): boolean {
-  if (extname(filePath).toLowerCase() !== ".json") {
-    return false;
-  }
-  return sample === undefined || sample.trimStart().startsWith("{");
-}
-
-/**
- * Rethrow an existing structured `AdapterError` unchanged, or convert any other throw
- * into one so boundary failures never escape `read` as a raw error.
- */
-function rethrowStructured(error: unknown, message: string): never {
-  if (error instanceof AdapterError) {
-    throw error;
-  }
-  throw new AdapterError("INVALID_STRUCTURE", message);
-}
-
-function toEntries(
-  content: string,
-  namespace: string,
-  deriveEntry: DeriveEntry,
-  keyMode: KeyMode,
-  validateTree?: ValidateTree,
-): Map<string, TranslationEntry> {
-  try {
-    const tree = parseJsonObject(content);
-    validateTree?.(tree);
-    return flattenTree(tree, namespace, deriveEntry, keyMode);
-  } catch (error) {
-    rethrowStructured(error, "The file could not be read as JSON.");
-  }
-}
-
-/**
- * Compute the format's invalid-message keys inside the structured-error wrap. The only
- * current analyzer (next-intl) is total, but wrapping keeps a future non-total analyzer
- * from leaking a raw error out of `read`.
- */
-function computeIcu(
-  entries: ReadonlyMap<string, TranslationEntry>,
-  compute?: ComputeInvalidIcuKeys,
-): readonly string[] {
-  if (!compute) {
-    return [];
-  }
-  try {
-    return compute(entries);
-  } catch (error) {
-    rethrowStructured(error, "The file could not be analyzed for message validity.");
-  }
-}
-
 /**
  * Build a JSON {@link FormatAdapter} from format-specific behavior. This is the shared shell every
- * JSON adapter (i18next, vue-i18n, next-intl, ngx-translate) is built on, and the in-repo lever for
- * adding a new JSON-family format: supply the format-specific parts and the shell provides detection,
- * the bounded TOCTOU-safe read, structured errors, and the atomic order-preserving write.
+ * JSON adapter (i18next, vue-i18n, next-intl, ngx-translate) is built on. It is a thin specialization
+ * of {@link createTreeFileAdapter}: it fixes the `.json` extension, the leading-`{` content sniff,
+ * `parseJsonObject`, and the pretty-printed-with-trailing-newline JSON serializer, and passes the
+ * format-specific parts straight through. So detection, the bounded TOCTOU-safe read, structured
+ * errors, and the atomic order-preserving write are all the shared tree shell.
  *
  * The returned adapter's methods throw as follows. `read` raises {@link AdapterError} with
  * `INVALID_JSON` (content is not valid JSON), `MAX_DEPTH_EXCEEDED` (nesting exceeds the depth cap),
@@ -125,63 +66,27 @@ function computeIcu(
  *
  * @param options - The format-specific behavior: the `format` tag, `deriveEntry` (placeholders and
  *   plurality per leaf), `extractPlaceholders`, and the optional `computeInvalidIcuKeys`,
- *   `validateTree`, and `buildWriteTree` hooks.
+ *   `validateMessage`, `validateTree`, `buildWriteTree`, and `keyMode` hooks.
  * @returns A ready-to-register `FormatAdapter` for the given format.
  * @example
  * ```ts
- * // `format` must be a SupportedFormat from core. To add a brand-new format, extend core's
- * // SupportedFormat enum first; here we reuse an existing one for illustration.
  * export function createMyJsonAdapter(): FormatAdapter {
- *   // Under noUncheckedIndexedAccess, match[0] is string | undefined, so filter to satisfy
- *   // extractPlaceholders' readonly string[] return type (the real extractors guard the same way).
  *   const extract = (value: string): readonly string[] =>
  *     [...value.matchAll(/\{\{\w+\}\}/g)].map((m) => m[0]).filter((t): t is string => t !== undefined);
  *   return createJsonFileAdapter({
  *     format: "i18next-json",
  *     extractPlaceholders: extract,
  *     deriveEntry: (key, value) => ({ placeholders: extract(value), isPlural: key.endsWith("_other") }),
- *     // optional: validateTree (reject a structure), computeInvalidIcuKeys (ICU formats),
- *     // buildWriteTree (a custom on-disk shape)
  *   });
  * }
  * ```
  */
 export function createJsonFileAdapter(options: JsonFileAdapterOptions): FormatAdapter {
-  const {
-    format,
-    deriveEntry,
-    extractPlaceholders,
-    computeInvalidIcuKeys,
-    validateMessage,
-    validateTree,
-    buildWriteTree,
-    keyMode = "literal-leaf",
-  } = options;
-  return {
-    format,
-    canHandle,
-    extractPlaceholders,
-    // Non-ICU formats supply no validator: every value is valid for their syntax.
-    validateMessage: validateMessage ?? ((): boolean => true),
-    async read(filePath, locale): Promise<ReadResult> {
-      const outcome = await readBounded(filePath);
-      if (outcome.kind === "not-a-file") {
-        throw new AdapterError("INVALID_STRUCTURE", "The path is not a regular file.");
-      }
-      if (outcome.kind === "too-large") {
-        throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
-      }
-      const namespace = namespaceOf(filePath);
-      const entries = toEntries(outcome.content, namespace, deriveEntry, keyMode, validateTree);
-      const resource: LocaleResource = { locale, namespace, format, entries };
-      const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
-      return { resource, invalidIcuKeys };
-    },
-    async write(resource, filePath): Promise<void> {
-      const tree = buildWriteTree
-        ? await buildWriteTree(resource.entries, filePath)
-        : unflattenEntries(resource.entries);
-      await atomicWriteFile(filePath, `${JSON.stringify(tree, null, 2)}\n`);
-    },
-  };
+  return createTreeFileAdapter({
+    ...options,
+    extensions: [".json"],
+    sniff: (sample) => sample.trimStart().startsWith("{"),
+    parse: parseJsonObject,
+    serialize: serializeJsonTree,
+  });
 }
