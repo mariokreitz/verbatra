@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createAnthropicProvider } from "./anthropic/anthropic-provider.js";
 import type { MessagesClient } from "./anthropic/types.js";
-import type { ProviderError } from "./errors.js";
+import { ProviderError } from "./errors.js";
 import type { TranslateRequest } from "./provider.js";
 import { entry, regexExtractor, stubClient, toolMessage } from "./test-support.js";
 
@@ -124,5 +124,37 @@ describe("ProviderError messages never carry variable input across every error p
     );
     expect(error.code).toBe("PROVIDER_ERROR");
     assertNoSentinel(error);
+  });
+});
+
+describe("ProviderError constructor scrubs key shapes as a defense-in-depth backstop", () => {
+  it("redacts all four v1 key shapes from a key-bearing message", () => {
+    const openAiKey = "sk-proj-ABCDEFGH1234567890";
+    const anthropicKey = "sk-ant-api03-ABCdef12345_-XYZ";
+    const geminiKey = "AIzaabcdefghijklmnopqrstuvwxyz012345678";
+    const deepLKey = "abcdef12-3456-7890-abcd-ef1234567890:fx";
+    const error = new ProviderError(
+      "PROVIDER_ERROR",
+      `leak ${openAiKey} ${anthropicKey} ${geminiKey} ${deepLKey}`,
+    );
+    for (const key of [openAiKey, anthropicKey, geminiKey, deepLKey]) {
+      expect(error.message).not.toContain(key);
+    }
+    expect(error.message).toContain("[REDACTED]");
+  });
+
+  it("does not couple the scrub to ANTHROPIC_API_KEY (env default is not re-applied)", () => {
+    const saved = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = "envonlysecret";
+    try {
+      const error = new ProviderError("PROVIDER_ERROR", "carrying envonlysecret verbatim");
+      expect(error.message).toContain("envonlysecret");
+    } finally {
+      if (saved === undefined) {
+        delete process.env.ANTHROPIC_API_KEY;
+      } else {
+        process.env.ANTHROPIC_API_KEY = saved;
+      }
+    }
   });
 });
