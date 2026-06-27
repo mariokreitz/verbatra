@@ -113,11 +113,11 @@ iterations. If it does not converge, raise a blocker rather than looping forever
 
 ## Artifacts (audit trail)
 
-All artifacts are markdown in the repository, under `.verbatra-team/`:
-- Spec: `.verbatra-team/specs/<slug>.md`
-- Audit log: `.verbatra-team/log/<slug>.md`, one timestamped line per stage entry
+All artifacts are markdown in the repository, under `.verbatra/`:
+- Spec: `.verbatra/specs/<slug>.md`
+- Audit log: `.verbatra/log/<slug>.md`, one timestamped line per stage entry
   recording the role, the decision, findings, and the routing result.
-- Architecture decision records, when written, go under `.verbatra-team/adr/`.
+- Architecture decision records, when written, go under `.verbatra/adr/`.
 
 Use a short kebab-case `<slug>` derived from the work title. Keep every artifact in
 English with no emojis and no em dashes.

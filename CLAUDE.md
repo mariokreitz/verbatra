@@ -142,4 +142,10 @@ published by accident.
 `.claude/agents/` holds nine role agents (product owner, software architect,
 developer, code reviewer, QA, security reviewer, release manager, docs writer, devops)
 that mirror the Cowork delivery team. Dispatch them for the matching stage of work.
-They follow the rules in this file. This setup is local and gitignored.
+They follow the rules in this file.
+
+The team's runtime workspace lives under `.verbatra/` (gitignored, local to the
+clone): specs in `.verbatra/specs/`, the audit log in `.verbatra/log/`, architecture
+decision records in `.verbatra/adr/`, and each agent's persistent memory in
+`.verbatra/agent-memory/<role>/`. The agent definitions in `.claude/` are tracked; the
+`.verbatra/` workspace is not.

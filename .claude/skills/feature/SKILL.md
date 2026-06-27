@@ -18,7 +18,7 @@ a brief (feature, bug, chore, or docs request). Carry it through every stage.
    artifacts are written there. The GitHub connector is read-only: use it to read
    issues, pull requests, and code, never to branch or push.
 3. Pick a short kebab-case `<slug>` from the work title. Create the audit log at
-   `.verbatra-team/log/<slug>.md` and append one line per stage as you go.
+   `.verbatra/log/<slug>.md` and append one line per stage as you go.
 
 ## Execution mode
 
@@ -62,7 +62,7 @@ defined in workflow.md. In summary:
 
 ## Recording
 
-After each stage, append to `.verbatra-team/log/<slug>.md`: the date, the role, a one
+After each stage, append to `.verbatra/log/<slug>.md`: the date, the role, a one
 or two line summary of the decision or findings, and where the work routed next.
 Keep the log in English, no emojis, no em dashes.
 

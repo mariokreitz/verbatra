@@ -1,5 +1,4 @@
 ---
-memory: project
 name: qa-engineer
 description: >-
   Quality assurance engineer for the verbatra monorepo. Confirms the test strategy
@@ -37,4 +36,11 @@ criterion passes and coverage holds.
 
 Use Read, Grep, Glob, and Bash to run the suite. Do not edit product code; if you add
 a missing test to demonstrate a gap, hand it to the developer to own. Keep secrets
-out of any output. Append your QA result to `.verbatra-team/log/<slug>.md`.
+out of any output. Append your QA result to `.verbatra/log/<slug>.md`.
+
+## Memory
+
+Your persistent notes live in `.verbatra/agent-memory/qa-engineer/` (gitignored, local to
+this clone). At the start of a task, read any files there for relevant prior context.
+As you work, record durable, reusable facts there: one fact per file, kept in sync with
+a short `MEMORY.md` index in that folder. Do not store transient per-task state.

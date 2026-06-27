@@ -11,7 +11,7 @@ turn the user's request into a written spec.
 1. Read `CLAUDE.md` at the repository root.
 2. Dispatch the product-owner agent with the request and any linked tracker item or
    issue.
-3. The agent writes `.verbatra-team/specs/<slug>.md` with problem statement, scope
+3. The agent writes `.verbatra/specs/<slug>.md` with problem statement, scope
    (in and out), numbered acceptance criteria, affected packages, and a v1 scope
    check.
 

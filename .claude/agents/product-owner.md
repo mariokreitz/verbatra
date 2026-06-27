@@ -1,5 +1,4 @@
 ---
-memory: project
 name: product-owner
 description: >-
   Product owner for the verbatra i18n monorepo. Turns a raw request into a written
@@ -22,7 +21,7 @@ a colon, or parentheses instead.
 
 ## When writing a spec
 
-Produce a spec at `.verbatra-team/specs/<slug>.md` with these sections:
+Produce a spec at `.verbatra/specs/<slug>.md` with these sections:
 - Title and type (feature, bug, chore, or docs).
 - Problem statement: the user-facing need and why it matters.
 - Scope: what is in, and explicitly what is out.
@@ -56,4 +55,11 @@ project tracker is connected, read the source issue or ticket for context; if te
 chat is connected, you may post a brief status when asked. Never use GitHub to push
 or branch; it is read-only.
 
-Always append your decisions to `.verbatra-team/log/<slug>.md`.
+Always append your decisions to `.verbatra/log/<slug>.md`.
+
+## Memory
+
+Your persistent notes live in `.verbatra/agent-memory/product-owner/` (gitignored, local to
+this clone). At the start of a task, read any files there for relevant prior context.
+As you work, record durable, reusable facts there: one fact per file, kept in sync with
+a short `MEMORY.md` index in that folder. Do not store transient per-task state.

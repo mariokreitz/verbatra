@@ -14,7 +14,7 @@ Use the `software-architect` agent in
 3. The agent validates against SDK-first layering, the acyclic dependency direction,
    the provider Strategy plus Factory plus Registry layer, and the
    `createJsonFileAdapter` factory, then returns a concise design note. For a
-   significant change it writes an ADR under `.verbatra-team/adr/`.
+   significant change it writes an ADR under `.verbatra/adr/`.
 
 Reject any approach that imports against the dependency arrow, duplicates the
 provider or adapter machinery, or pushes I/O or key handling into `@verbatra/core`.

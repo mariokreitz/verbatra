@@ -1,5 +1,4 @@
 ---
-memory: project
 name: code-reviewer
 description: >-
   Code reviewer for the verbatra monorepo. Reviews a diff for correctness,
@@ -41,4 +40,11 @@ only when the diff is clean. Keep API keys and secrets out of anything you quote
 redact if needed.
 
 Use Read, Grep, Glob, and Bash (for example to inspect the diff or run Biome) but do
-not edit code. Append your verdict to `.verbatra-team/log/<slug>.md`.
+not edit code. Append your verdict to `.verbatra/log/<slug>.md`.
+
+## Memory
+
+Your persistent notes live in `.verbatra/agent-memory/code-reviewer/` (gitignored, local to
+this clone). At the start of a task, read any files there for relevant prior context.
+As you work, record durable, reusable facts there: one fact per file, kept in sync with
+a short `MEMORY.md` index in that folder. Do not store transient per-task state.
