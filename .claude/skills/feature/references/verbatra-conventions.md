@@ -28,8 +28,9 @@ and route the issue back rather than shipping around it.
   `@verbatra/github-action` are thin wrappers. Published packages are
   `@verbatra/sdk` and `@verbatra/cli`; the others are internal or private.
 - Acyclic dependency direction:
-  config <- core <- format-adapters / ai-providers <- sdk <- cli / github-action /
-  framework-adapters. Never import against the arrow. Never introduce a cycle.
+  config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
+  github-action / framework-adapters. Never import against the arrow. Never
+  introduce a cycle.
 - Abstract provider layer (Strategy + Factory + Registry) for OpenAI, Anthropic,
   Gemini (@google/genai), and DeepL. The three LLM providers run through the shared
   `runLlmTranslation` layer with one canonical zod schema fed to each SDK's
@@ -93,7 +94,7 @@ and route the issue back rather than shipping around it.
 ## v1 scope (deliberately lean)
 
 - core + sdk + cli, JSON formats, four providers.
-- CLI commands implemented today: `init`, `translate`, `watch`. (`check` and `diff`
-  are planned but not yet implemented.)
+- CLI commands implemented today: `init`, `translate`, `watch`, `export`, `import`.
+  (`check` and `diff` are planned but not yet implemented.)
 - Do not build everything at once. Keep changes within v1 scope unless the brief
   explicitly expands it, and flag scope expansion to the product owner.
