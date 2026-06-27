@@ -296,17 +296,16 @@ describe("runInit", () => {
     expect(gitignore.split("\n")).toContain(".env");
   });
 
-  it("lists exactly the four detectable JSON formats in the undetected format comment", async () => {
-    // The comment must list the detectable JSON subset, not core's full source-format set.
+  it("lists every supported format in the undetected format comment", async () => {
     const cap = captureStreams();
     await runInit({ cwd: dir, yes: true, provider: "deepl" }, cap.streams, nonInteractive);
     const config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");
     expect(config).toContain(
-      "// TODO: set your locale file format (one of: i18next-json, vue-i18n-json, next-intl-json, ngx-translate-json).",
+      `// TODO: set your locale file format (one of: ${scaffoldingMetadata.supportedFormats.join(", ")}).`,
     );
-    expect(config).not.toContain("xliff");
-    expect(config).not.toContain("yaml");
-    expect(config).not.toContain("arb");
+    for (const format of scaffoldingMetadata.supportedFormats) {
+      expect(config).toContain(format);
+    }
   });
 });
 

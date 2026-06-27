@@ -21,8 +21,6 @@ const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["next-intl", "next-intl-json"],
   ["@ngx-translate/core", "ngx-translate-json"],
 ];
-// The format comment lists the detectable JSON subset, not core's full source-format set.
-const SUPPORTED_FORMATS = FORMAT_BY_DEP.map(([, format]) => format);
 const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
 // An alias of the SDK's per-provider scaffold models, not a source of truth.
 export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
@@ -136,7 +134,7 @@ function renderConfig(
 ): string {
   const formatComment = detected
     ? "  // Locale file format, detected from your dependencies."
-    : `  // TODO: set your locale file format (one of: ${SUPPORTED_FORMATS.join(", ")}).`;
+    : `  // TODO: set your locale file format (one of: ${scaffoldingMetadata.supportedFormats.join(", ")}).`;
   return [
     `import { defineConfig } from ${JSON.stringify(importName)};`,
     "",
