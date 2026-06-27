@@ -1,10 +1,6 @@
 /**
- * Map a standard JSON Schema type keyword to Google's Schema Type enum (uppercase).
- * Gemini's responseSchema dialect uses UPPERCASE type names and has no
- * additionalProperties concept, so the canonical derivation must be transformed.
- *
- * responseSchema (Google dialect) is used over responseJsonSchema (raw JSON Schema,
- * typed `unknown`) so the request boundary stays type-checked.
+ * Map a standard JSON Schema type keyword to Google's Schema Type enum. Gemini's
+ * responseSchema dialect uses uppercase type names and has no additionalProperties.
  */
 const TYPE_MAP: Record<string, string> = {
   string: "STRING",
@@ -16,12 +12,9 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 /**
- * Keywords the transform recognizes: either intentionally transformed/recursed, or
- * intentionally dropped because Google's Schema dialect rejects them. Any keyword
- * NOT in this set is unsupported and throws, so a future addition to the canonical
- * schema (enum, format, nullable, minItems, ...) surfaces loudly instead of being
- * silently dropped and weakening the model-side constraint. The accompanying test
- * (gemini/schema.test.ts) documents this supported subset.
+ * Keywords the transform recognizes: transformed or recursed, or intentionally dropped
+ * because Google's Schema dialect rejects them. Any other keyword throws so a future
+ * addition to the canonical schema surfaces loudly instead of being silently dropped.
  */
 const HANDLED_KEYWORDS = new Set([
   // transformed or recursed
@@ -39,19 +32,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Transform a derived JSON Schema (the canonical derivation, deriveJsonSchema) into
- * Gemini's responseSchema dialect: uppercase types, recursed properties and items,
- * carried required. `additionalProperties` and `$schema` are dropped (not part of
- * Google's Schema). The INPUT is the single canonical derivation; this is a transform
- * of that one source, never an independent schema. An unrecognized keyword throws
- * rather than being silently dropped.
+ * Transform a derived JSON Schema (the canonical derivation) into Gemini's responseSchema
+ * dialect: uppercase types, recursed properties and items, carried required.
+ * `additionalProperties` and `$schema` are dropped. An unrecognized keyword throws rather
+ * than being silently dropped.
  *
  * @param schema - The canonical derivation ({@link deriveJsonSchema} output) to transform.
  * @returns The same schema in Gemini's responseSchema dialect.
- * @throws A plain `Error` (NOT a {@link ProviderError}) when the input carries a JSON Schema keyword the
- *   transform does not handle. This is a developer-facing build invariant (the make-drift-fail-loudly
- *   guard): it fires only if the canonical schema gains a keyword without this transform being extended,
- *   never on provider input at runtime.
+ * @throws A plain `Error` (not a {@link ProviderError}) when the input carries a JSON Schema keyword the
+ *   transform does not handle. This is a developer-facing build invariant, never provider input at runtime.
  */
 export function toGeminiSchema(schema: Record<string, unknown>): Record<string, unknown> {
   for (const keyword of Object.keys(schema)) {

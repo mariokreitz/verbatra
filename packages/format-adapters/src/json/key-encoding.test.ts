@@ -56,7 +56,6 @@ describe("decodeKeyToSegments compatibility", () => {
   });
 
   it("does not throw on a malformed trailing escape (never produced by encodeSegment)", () => {
-    // A lone trailing backslash is dropped by the decoder; the point is it must not throw.
     expect(() => decodeKeyToSegments("a\\")).not.toThrow();
     expect(decodeKeyToSegments("a\\")).toEqual(["a"]);
   });

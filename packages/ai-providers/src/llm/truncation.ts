@@ -1,9 +1,8 @@
 import { ProviderError } from "../errors.js";
 
 /**
- * The single, fixed, secret-free message for an output-token truncation, shared by every LLM provider so
- * the wording is identical across OpenAI, Anthropic, and Gemini. It names the actionable remedy and carries
- * no key, raw SDK text, header, or translatable content.
+ * The single, fixed, secret-free message for an output-token truncation, shared by every LLM provider. It
+ * names the actionable remedy and carries no key, raw SDK text, header, or translatable content.
  */
 export const OUTPUT_TRUNCATED_MESSAGE =
   "The provider stopped because the output-token limit was reached. " +

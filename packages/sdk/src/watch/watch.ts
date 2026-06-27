@@ -69,8 +69,6 @@ export interface WatchController {
 }
 
 function describeError(error: unknown): { code: string; message: string } {
-  // A {code, message} projection of the run's failure (the underlying errors are secret-free).
-  // "WATCH_RUN_FAILED" is a fallback label for the rare non-coded throw, not an SdkErrorCode.
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;
     return { code: typeof code === "string" ? code : "WATCH_RUN_FAILED", message: error.message };
@@ -79,16 +77,11 @@ function describeError(error: unknown): { code: string; message: string } {
 }
 
 /**
- * Start watching the source file and re-run the one-shot translate on each debounced change.
- * Watch adds no translation/diff/lock logic: it watches, debounces, serializes, and invokes the
- * existing translate() unchanged. The state machine is IDLE <-> RUNNING with a single boolean
- * pending-rerun flag (mid-run changes collapse into one immediate follow-up; never two runs at
- * once). A missing source at startup is a hard error; a run that fails after start is reported and
- * watching continues. Returns a controller whose stop() closes the watcher and awaits the in-flight
- * run (the caller wires any signal, e.g. SIGINT, to it).
- *
- * Only the startup source check throws; every run outcome after start is surfaced through `onRun` as a
- * {@link WatchRunResult} (a failed run never rejects the in-flight promise).
+ * Start watching the source file and re-run the one-shot {@link translate} on each debounced change.
+ * Runs are serialized: changes during a run collapse into a single follow-up, so two runs never
+ * overlap. A missing source at startup throws; every run outcome after start is surfaced through
+ * `onRun` as a {@link WatchRunResult} and watching continues. Returns a controller whose `stop()`
+ * closes the watcher and awaits the in-flight run.
  *
  * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
  * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
@@ -144,8 +137,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     try {
       input.onRun({ status: "succeeded", summary: await runTranslate(runInput) });
     } catch (error) {
-      // Caught so the in-flight promise NEVER rejects: a transient failure is reported and the
-      // machine stays alive (a rejecting promise would break onRunComplete and stop the watcher).
+      // Caught so the in-flight promise never rejects, which would break onRunComplete.
       input.onRun({ status: "failed", error: describeError(error) });
     }
   }
@@ -164,7 +156,8 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     }
     if (pending) {
       pending = false;
-      startRun(); // immediate follow-up: the source is known-stale, so no fresh debounce window
+      // Immediate follow-up: the source is known-stale, so no fresh debounce window.
+      startRun();
       return;
     }
     state = "idle";
@@ -172,13 +165,12 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   }
 
   function onSettledChange(): void {
-    // Reached only via the debounce timer, and stop() clears that timer before it can fire, so the
-    // machine is never stopped here; no stopped-guard is needed (and adding one would be dead code).
+    // stop() clears the debounce timer before it can fire, so no stopped-guard is needed here.
     debounceTimer = undefined;
     if (state === "idle") {
       startRun();
     } else {
-      pending = true; // collapse: any number of mid-run changes set the one flag
+      pending = true;
     }
   }
 
@@ -186,7 +178,6 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     if (stopped) {
       return;
     }
-    // One timer, always restarted: a burst of raw events keeps resetting it, settling to one change.
     if (debounceTimer !== undefined) {
       clearTimeout(debounceTimer);
     }
@@ -196,7 +187,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   const watcher = (deps.createWatcher ?? defaultCreateWatcher)([sourcePath]);
   watcher.onChange(onRawEvent);
 
-  startRun(); // initial run on startup, so state is current at once
+  startRun();
 
   async function stop(): Promise<void> {
     stopped = true;

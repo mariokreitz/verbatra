@@ -12,13 +12,9 @@ import {
 import { z } from "zod";
 
 /**
- * The provider section of the config: a discriminated union over the provider id,
- * reusing each provider's own exported config schema. There is no key field anywhere
- * in this union. The provider reads its API key from the environment at construction.
- *
- * This union and the factory table below are co-located on purpose: adding a provider
- * is a single edit here (one union variant plus one table entry), and the mapped-type
- * table makes the two sets provably identical at compile time.
+ * The provider section of the config: a discriminated union over the provider id, reusing each
+ * provider's own config schema. There is no key field anywhere in this union; the provider reads its
+ * API key from the environment at construction.
  */
 export const providerConfigSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("anthropic"), options: anthropicConfigSchema.strict() }),
@@ -30,11 +26,7 @@ export const providerConfigSchema = z.discriminatedUnion("id", [
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 export type ProviderId = ProviderConfig["id"];
 
-/**
- * id -> ai-providers factory. The mapped type keys this exactly to the union's id set:
- * a provider added to the union but missing here (or vice versa) fails to compile, so
- * the two can never drift. Each factory receives that id's already-validated options.
- */
+// Keyed to the union's id set by the mapped type, so a provider in one but not the other fails to compile.
 type ProviderFactories = {
   [K in ProviderId]: (
     options: Extract<ProviderConfig, { id: K }>["options"],
@@ -48,12 +40,7 @@ const providerFactories: ProviderFactories = {
   deepl: (options) => createDeepLProvider(options),
 };
 
-/**
- * Construct the configured provider from its validated config. The id and options are
- * correlated by the discriminated union; re-associate them for the indexed factory
- * call. The mapped-type table guarantees a factory exists for every id. The factory
- * reads the API key from the environment; this function never sees or passes a key.
- */
+// The factory reads the API key from the environment; this function never sees or passes a key.
 export function buildProvider(config: ProviderConfig): TranslationProvider {
   const create = providerFactories[config.id] as (
     options: ProviderConfig["options"],

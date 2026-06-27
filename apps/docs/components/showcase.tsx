@@ -2,14 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// A mocked, automated verbatra run. No network, no provider call, no key: the German
-// values are hardcoded and the output is deterministic. It dramatizes the real mechanics
-// from the docs: a run sorts keys into buckets (new, changed, unchanged), sends only new
-// and changed keys, and returns a RunSummary. The loop plays a first run, then changes one
-// source value and reruns, so verbatra touches exactly that one key. It starts when the
-// panel scrolls into view and honors prefers-reduced-motion by showing the settled end
-// state with no animation.
-
+// A mocked, deterministic verbatra run (no network or provider call) that starts when scrolled into view and honors prefers-reduced-motion by showing the settled end state.
 const KEYS = [
   "cart.checkout",
   "cart.empty",
@@ -57,10 +50,7 @@ const FINAL_TARGET: Record<string, string> = {
   "auth.signin": "Anmelden",
 };
 
-// A static, labeled transcript of the run the animation dramatizes. The animated grid above
-// is decorative flat text to a machine; this table (and the sentence before it) give answer
-// engines and screen readers the same facts in structured form. It mirrors the settled end
-// state: the one changed key is re-translated, the rest are left untouched.
+// Static transcript that gives answer engines and screen readers the run's facts in structured form, mirroring the settled end state.
 const TRANSCRIPT: ReadonlyArray<{ key: string; en: string; de: string; status: string }> = [
   {
     key: "cart.checkout",
@@ -253,8 +243,7 @@ export function Showcase() {
         </table>
       </div>
 
-      {/* The animated transcript is decorative; the sr-only table above is its accessible,
-          machine-readable equivalent, so hide this branch from assistive tech. */}
+      {/* The animated transcript is decorative; the sr-only table above is its accessible equivalent, so hide this branch from assistive tech. */}
       <div aria-hidden="true">
         <div className="flex items-center gap-3 border-b border-fd-border px-5 py-3">
           <span className="font-mono text-xs text-fd-muted-foreground">

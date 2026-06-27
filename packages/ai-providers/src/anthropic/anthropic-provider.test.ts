@@ -79,7 +79,6 @@ describe("createAnthropicProvider: request building", () => {
     );
     const body = calls[0];
     expect(body?.system).toBe(SYSTEM_RULES);
-    // No variable input may appear in the instruction channel.
     expect(body?.system).not.toContain("formal");
     expect(body?.system).not.toContain("Servus");
     expect(body?.system).not.toContain("{{name}}");
@@ -120,12 +119,9 @@ describe("createAnthropicProvider: prompt-injection defense", () => {
       request({ entries: [entry("greeting", hostile, [])] }),
     );
     const body = firstCall(calls);
-    // The hostile string never enters the instruction channel...
     expect(body.system).toBe(SYSTEM_RULES);
     expect(body.system).not.toContain("ignore previous instructions");
-    // ...it lives only in the data payload as an item value.
     expect(payloadOf(body).items[0]?.value).toBe(hostile);
-    // A compliant response still maps normally.
     expect(result.values.get("greeting")).toBe("harmlos");
   });
 });
@@ -146,7 +142,6 @@ describe("createAnthropicProvider: mapping and integrity", () => {
   });
 
   it("reports a placeholder mismatch per key instead of swallowing it", async () => {
-    // source has {{name}} but the translation drops it
     const { client } = stubClient(toolMessage([{ key: "greeting", value: "Hallo" }]));
     const result = await createAnthropicProvider(config, { client }).translateBatch(request());
     const outcome = result.integrity.get("greeting");
@@ -195,8 +190,7 @@ describe("createAnthropicProvider: output truncation", () => {
   });
 
   it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
-    // The tool input is schema-valid but carries an extra key; reconciliation would normally fail
-    // as INVALID_RESPONSE. Truncation must win because it is detected first.
+    // The extra key would normally fail reconciliation, but truncation is detected first and must win.
     const { client } = stubClient(
       truncatedToolMessage([
         { key: "greeting", value: "Hallo {{name}}" },

@@ -1,30 +1,7 @@
 name: Release
 
-# Release is gated on CI and runs with least privilege.
-#
-# BTS-22 gate: Release does not trigger directly on push to main on purpose.
-# A push to main first runs the CI workflow (name: "CI"); only after that CI run
-# completes does this workflow fire via the workflow_run event below. The build
-# and publish jobs run only when that CI run succeeded for a push to main, and
-# they check out the exact commit CI validated (workflow_run.head_sha), not the
-# moving tip of main. A failed or cancelled CI run still creates a Release run,
-# but the jobs are skipped, which is the visible blocked-publish signal in the
-# Actions UI. See .verbatra-team/adr/gate-release-on-ci.md (BTS-22).
-#
-# BTS-26 least privilege: the workflow default grants only contents: read, so no
-# step inherits a write scope. The work is split into two jobs. The build job is
-# a write-free verification pre-flight: it compiles head_sha with contents: read
-# and no write scope, so a misbehaving or compromised build runs in a
-# zero-write-scope sandbox. Only the publish job (needs: build) carries the write
-# scopes that changesets/action actually needs: contents: write and
-# pull-requests: write to open or update the Version Packages PR, and
-# id-token: write for npm OIDC Trusted Publishing. The publish job rebuilds
-# dist/** itself rather than transferring an artifact, so it builds and publishes
-# from the same head_sha checkout (no upload/download-artifact is introduced).
-# Both checkouts set persist-credentials: false because nothing relies on the
-# checkout-persisted git credential: changesets/action authenticates via the
-# GITHUB_TOKEN passed through env. See
-# .verbatra-team/adr/harden-release-permissions.md (BTS-26).
+# Release fires via workflow_run after CI completes (never directly on push) so it only runs against a
+# commit CI validated, and splits work into a write-free build pre-flight and a least-privilege publish.
 
 on:
   workflow_run:
@@ -36,7 +13,7 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-# Workflow default: no step inherits a write scope.
+# Default to read-only so no step inherits a write scope.
 permissions:
   contents: read
 
@@ -47,9 +24,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
-    # BTS-22 gate: proceed only when the triggering CI run succeeded for a push
-    # to main. A failed or cancelled CI run skips this job, and because publish
-    # declares needs: build, a skipped build also skips publish.
+    # Proceed only when the triggering CI run succeeded for a push to main; publish needs: build, so a skip here skips publish too.
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: Checkout
@@ -78,16 +53,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Write scopes live only here, on the one job that runs changesets/action:
-    # contents and pull-requests to open or update the Version Packages PR, and
-    # id-token for npm OIDC Trusted Publishing.
+    # Write scopes live only on this job: contents and pull-requests for the Version Packages PR, id-token for npm OIDC.
     permissions:
       contents: write
       pull-requests: write
       id-token: write
-    # BTS-22 gate, replicated as defensive redundancy: it documents the intent at
-    # the job that actually publishes and keeps the gate intact if the needs edge
-    # is ever refactored.
+    # Restate the CI gate here so it survives any refactor of the needs edge.
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
     steps:
       - name: Checkout
@@ -109,8 +80,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Rebuild dist/** in this job rather than transferring an artifact, so the
-      # bytes published come from the same head_sha checkout that publishes them.
+      # Rebuild here rather than transfer an artifact, so published bytes come from the checkout that publishes them.
       - name: Build
         run: pnpm build
 

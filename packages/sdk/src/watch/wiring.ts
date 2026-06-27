@@ -2,17 +2,11 @@ import { watch as chokidarWatch } from "chokidar";
 import { translate } from "../flow/translate-project.js";
 import type { CreateWatcher, RunTranslate, WatchDeps } from "./watch.js";
 
-/**
- * Production wiring for watch: the two seams that reach real IO and are therefore excluded from
- * coverage (like the providers' client.ts seams): the chokidar watcher, and the runner that calls
- * the real one-shot translate(). The state machine in watch.ts injects these in tests.
- */
+/** Production wiring for watch: the two IO seams (chokidar watcher and real translate runner) tests inject. */
 
 /**
- * The production watcher: wraps chokidar. It watches the given file path(s) NARROWLY (a specific
- * file, not a directory tree). ignoreInitial is set because watch does its own initial run, and
- * chokidar's default atomic handling coalesces the editor/adapter temp+rename pattern into a single
- * change. Both change and add map to one "source changed" signal; the caller debounces.
+ * The production watcher wrapping chokidar; watches the given paths narrowly (a specific file).
+ * ignoreInitial because watch does its own initial run. Both change and add map to one signal.
  */
 export const defaultCreateWatcher: CreateWatcher = (paths) => {
   const fsWatcher = chokidarWatch([...paths], { persistent: true, ignoreInitial: true });

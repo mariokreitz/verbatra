@@ -191,7 +191,7 @@ describe("render: human run summary", () => {
     expect(text).toContain("1 orphaned");
     expect(text).toContain("1 integrity-withheld");
     expect(text).not.toContain("notices");
-    expect(text).not.toContain("pruned"); // pruned is zero here, so the line is omitted
+    expect(text).not.toContain("pruned");
   });
 
   it("shows the generated count when plural forms were synthesized", () => {

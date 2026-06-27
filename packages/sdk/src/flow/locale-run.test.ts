@@ -72,7 +72,7 @@ describe("runLocale: dry-run", () => {
     expect(summary.unchanged).toEqual(["a"]);
     expect(lockEntries).toEqual({});
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de).toEqual({ a: "da" }); // untouched
+    expect(de).toEqual({ a: "da" });
   });
 });
 
@@ -153,7 +153,7 @@ describe("runLocale: invalid-ICU source keys", () => {
     const { summary, lockEntries } = await runLocale(params);
 
     expect(summary.invalidIcuSource).toEqual(["a"]);
-    expect(summary.translated).toEqual(["b"]); // only the valid key is sent
+    expect(summary.translated).toEqual(["b"]);
     expect(stub.calls.flatMap((c) => c.request.entries.map((e) => e.key))).toEqual(["b"]);
     expect(lockEntries.a).toBeUndefined();
     expect(lockEntries.b).toBeDefined();
@@ -217,10 +217,7 @@ describe("runLocale: plural generation", () => {
   });
 
   it("keeps an orphaned generated-plural-shaped target key out of orphaned and pruned", async () => {
-    // The target carries a source-absent plural-shaped key (items_few) and a genuine orphan. With
-    // generation on, items_few is a generated form (not a true orphan) and must stay out of orphaned;
-    // the genuine orphan is still reported. This exercises the generated-plural protection filter and
-    // the non-generated early return of the lock-carry helper.
+    // With generation on, a source-absent plural-shaped key (items_few) is a generated form, not a true orphan, so only the genuine orphan is reported.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -238,17 +235,14 @@ describe("runLocale: plural generation", () => {
     // items_few is filtered out of orphaned (it is a generated form); only the genuine orphan remains.
     expect(summary.orphaned).toEqual(["orphan"]);
     expect(summary.pruned).toEqual([]);
-    // The genuine orphan is source-absent and not plural-shaped, so the lock-carry helper returns early
-    // and never gives it a lock entry.
+    // The genuine orphan is source-absent and not plural-shaped, so it never gets a lock entry.
     expect(lockEntries.orphan).toBeUndefined();
     // items_few is regenerated this run, so it does get a fresh lock entry.
     expect(lockEntries.items_few).toBeDefined();
   });
 
   it("carries the prior baseline lock hash for a previously generated plural key not regenerated", async () => {
-    // First run generates the Polish forms and locks them. A second run with that lock as baseline must
-    // skip regeneration (the governing source forms are unchanged) yet carry the prior lock hash forward,
-    // so the generated key's lock entry survives. This exercises the carry-prior-hash branch.
+    // A second run with the prior lock as baseline skips regeneration yet carries the prior lock hash forward.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -275,8 +269,7 @@ describe("runLocale: plural generation", () => {
   });
 
   it("re-emits the incomplete warning when generation cannot complete the plural set", async () => {
-    // Polish needs one/few/many/other. Generation withholds items_many (integrity failure), so the
-    // written set stays incomplete and the PLURAL_CATEGORIES_INCOMPLETE warning is re-emitted.
+    // Generation withholds items_many (integrity failure), so the set stays incomplete and the warning is re-emitted.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -295,8 +288,7 @@ describe("runLocale: plural generation", () => {
   });
 
   it("emits no plural warning for a non-i18next format when generation is on", async () => {
-    // The post-generation plural-warning recompute is an i18next-only concern: a non-i18next format
-    // takes the early-return path and produces no plural notice.
+    // The post-generation plural-warning recompute is i18next-only, so a non-i18next format produces no plural notice.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",

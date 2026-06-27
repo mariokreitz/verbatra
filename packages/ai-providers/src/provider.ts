@@ -117,9 +117,8 @@ export type ValidatedRequestData = z.infer<typeof requestDataSchema>;
 
 /**
  * Validate a request at the boundary before any provider call, returning only its plain-data fields.
- *
- * The extractor is mandatory: a request without a usable extractor is rejected here, so the output
- * integrity check can never be skipped for lack of an extractor. Data fields are checked with zod.
+ * The extractor is mandatory and rejected here when missing, so the output integrity check can never
+ * be skipped for lack of an extractor.
  *
  * @param request - The batch request to validate.
  * @returns The request's plain-data fields (locales, entries, optional glossary/tone), extractor omitted.

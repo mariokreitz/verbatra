@@ -101,11 +101,8 @@ describe("createDeepLProvider: free-key formality degradation", () => {
       request({ tone: "formal", entries: [entry("k", "v")] }),
     )) as DeepLTranslateResult;
 
-    // no unsupported option sent, no error
     expect(firstDeeplCall(calls).options.formality).toBeUndefined();
-    // observable degradation signal
     expect(noticeCodes(result)).toContain("FORMALITY_DOWNGRADED");
-    // the notice leaks no key
     const message = result.notices.map((n) => n.message).join(" ");
     expect(message).not.toContain(":fx");
     expect(message).not.toContain("sk-");
@@ -135,11 +132,8 @@ describe("createDeepLProvider: glossary", () => {
     const result = (await createDeepLProvider(config, { client }).translateBatch(
       request({ glossary: { Hello: "Hallo" }, entries: [entry("k", "Hello")] }),
     )) as DeepLTranslateResult;
-    // the generic term-map is not turned into a DeepL glossary option
     expect(firstDeeplCall(calls).options.glossary).toBeUndefined();
-    // but its non-application is observable
     expect(noticeCodes(result)).toContain("GLOSSARY_IGNORED");
-    // and it is not an error: the translation proceeded
     expect(result.values.get("k")).toBe("x");
   });
 });
@@ -209,7 +203,7 @@ describe("createDeepLProvider: errors and secrets", () => {
     let caught: unknown;
     try {
       await createDeepLProvider(config, { client }).translateBatch(
-        // generic glossary supplied so a notice WOULD be computed, but the call fails
+        // glossary supplied so a notice would be computed, but the failing call discards it
         request({ glossary: { Hello: "Hallo" }, entries: [entry("a", "A?"), entry("b", "B?")] }),
       );
     } catch (error) {

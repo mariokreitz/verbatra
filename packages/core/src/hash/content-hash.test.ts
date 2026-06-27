@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { entry } from "../testing/factories.js";
 import { contentHash } from "./content-hash.js";
 
-// The same grapheme in two normalization forms, byte-distinct on purpose:
-// NFC uses the precomposed e-acute (U+00E9); NFD uses "e" + combining acute (U+0301).
+// The same grapheme in two byte-distinct normalization forms: precomposed NFC vs decomposed NFD.
 const NFC = "caf\u00e9";
 const NFD = "cafe\u0301";
 
@@ -42,7 +41,7 @@ describe("contentHash", () => {
   });
 
   it("is equal for Unicode-equivalent values (NFC vs NFD)", () => {
-    expect(NFC).not.toBe(NFD); // the raw inputs really do differ byte-for-byte
+    expect(NFC).not.toBe(NFD);
     expect(contentHash(entry({ key: "a", value: NFC }))).toBe(
       contentHash(entry({ key: "a", value: NFD })),
     );

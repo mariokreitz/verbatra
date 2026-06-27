@@ -4,7 +4,6 @@ import { assertNotTruncated } from "../llm/truncation.js";
 import type { Usage } from "../provider.js";
 import type { OpenAiCompletion } from "./types.js";
 
-/** Parse the message content as JSON, rejecting unparseable content cleanly. */
 function parseContent(content: string): unknown {
   try {
     return JSON.parse(content);
@@ -13,7 +12,6 @@ function parseContent(content: string): unknown {
   }
 }
 
-/** Map OpenAI usage to our Usage shape, or undefined when not fully reported. */
 function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
   if (usage === undefined) {
     return undefined;
@@ -26,11 +24,9 @@ function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
 }
 
 /**
- * Extract schema-bound raw output from a Chat Completions response. A refusal is a
- * distinct, clean outcome surfaced as PROVIDER_REFUSED, never parsed as a
- * translation and never silently dropped. The returned raw object is validated
- * against the canonical schema by the shared layer (our side), regardless of any
- * SDK parsing. Errors here carry no key, header, or content.
+ * Extract schema-bound raw output from a Chat Completions response. A refusal is
+ * surfaced as PROVIDER_REFUSED, never parsed as a translation. Errors raised here
+ * carry no key, header, or content.
  *
  * @param completion - The raw Chat Completions response.
  * @returns The schema-bound raw output plus optional usage.

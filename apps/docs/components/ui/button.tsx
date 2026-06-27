@@ -50,8 +50,7 @@ export default function Button({
     </>
   );
 
-  // Render as a link only when an href is set and the button is enabled; a disabled
-  // link is meaningless, so fall back to a disabled <button>.
+  // A disabled link is meaningless, so only render a link when enabled and fall back to a disabled <button>.
   if (href && !disabled) {
     return (
       <Link href={href} className={classes} style={style}>

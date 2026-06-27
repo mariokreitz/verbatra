@@ -55,15 +55,12 @@ function toEntries(
 
 /**
  * Build a flat-file {@link FormatAdapter} for a format whose entries are a flat list keyed by a native
- * id rather than a nested tree (XLIFF trans-units). It reuses the exact same shared shell as the tree
- * factory: detection from `extensions` plus an optional `sniff`, the bounded TOCTOU-safe
- * {@link readFileContent}, structured errors, the ICU wrap, and the atomic {@link atomicWriteFile}.
- * Only `parseEntries` and `serializeEntries` are format-specific.
+ * id rather than a nested tree (XLIFF trans-units), supplying only `parseEntries` and
+ * `serializeEntries` over the shared detection, bounded read, structured-error, and atomic-write shell.
  *
- * `read` raises {@link AdapterError} with the code `parseEntries` throws (for example `INVALID_XML`,
- * `INVALID_STRUCTURE`), `INVALID_STRUCTURE` (the path is not a regular file, or `parseEntries` throws
- * a non-AdapterError), or `INPUT_TOO_LARGE`. A missing path rejects with the underlying filesystem
- * error. `write` delegates to `serializeEntries` and persists its output atomically.
+ * `read` raises {@link AdapterError} with the code `parseEntries` throws, `INVALID_STRUCTURE` (the
+ * path is not a regular file, or `parseEntries` throws a non-AdapterError), or `INPUT_TOO_LARGE`.
+ * `write` delegates to `serializeEntries` and persists its output atomically.
  *
  * @param options - The format-specific behavior.
  * @returns A ready-to-register `FormatAdapter`.

@@ -2,11 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// The signature element: a tiny live diff that shows "translate only what changed".
-// Unchanged keys sit dim; the one changed value types in on the deep brand purple and
-// settles to the glow lavender. Honors prefers-reduced-motion by rendering the final
-// state with no animation, and renders the final state on the server / without JS.
-
+// Live diff demonstrating "translate only what changed"; renders the final state on the server and honors prefers-reduced-motion.
 type Row = {
   key: string;
   source: string;
@@ -51,7 +47,6 @@ export function DiffPanel({
     let typer: ReturnType<typeof setInterval> | undefined;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
 
-    // Reset to empty, then type in once the panel scrolls into view.
     setCount(0);
     setSettled(false);
 

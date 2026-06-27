@@ -96,11 +96,7 @@ describe("detectMissingPluralCategories", () => {
 });
 
 describe("planPluralGeneration: representative source form (divergent placeholders)", () => {
-  // When source plural forms of one base key DIVERGE in placeholders across categories, each generated
-  // form is drawn from a single representative form (prefer _other, then _one). The integrity check then
-  // validates the generated form against THAT representative's placeholder set. These tests pin which
-  // form is the representative; the documented assumption is that real i18next plural forms share the
-  // count placeholder, so the representative set stands in for the base key.
+  // When source plural forms diverge in placeholders across categories, each generated form is drawn from a single representative form (prefer _other, then _one), against whose placeholder set integrity is checked.
   it("draws every generated form from the _other form when categories diverge", () => {
     // items_one carries an extra {{unit}} that items_other omits; _other is the representative.
     const src = sourceWith([

@@ -18,8 +18,7 @@ function extractToolInput(content: readonly unknown[]): unknown {
 
 /**
  * Extract the forced tool-use input from the response, or reject when the model
- * returned no such block. This is the Anthropic-specific step; the schema
- * validation and key reconciliation are the shared layer's job.
+ * returned no such block.
  *
  * @param content - The response content blocks.
  * @returns The forced tool-use input, as unparsed data for the shared layer to validate.
@@ -34,9 +33,8 @@ export function requireToolInput(content: readonly unknown[]): unknown {
 }
 
 /**
- * Parse and validate the model output: extract the tool-use input, then validate
- * and reconcile it against the requested keys via the shared layer. Output is
- * treated strictly as data, never executed or interpreted.
+ * Parse the model output: extract the tool-use input, then validate and reconcile it
+ * against the requested keys. Output is treated strictly as data, never interpreted.
  */
 export function parseTranslations(
   content: readonly unknown[],

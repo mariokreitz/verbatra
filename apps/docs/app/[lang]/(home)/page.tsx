@@ -26,10 +26,7 @@ import {
   softwareApplicationLd,
 } from "@/lib/structured-data";
 
-// Daily ISR: the home page revalidates on the same 24h window as the social-proof fetches, so the
-// running server refreshes the page (and its stats) at most once per day without a rebuild. Next.js
-// requires this segment config to be a static literal, so it cannot import REVALIDATE_SECONDS from
-// lib/social-stats; 86400 seconds = 24 hours mirrors that constant and the two must stay in sync.
+// Must be a static literal, so it mirrors REVALIDATE_SECONDS (24h) in lib/social-stats; the two must stay in sync.
 export const revalidate = 86_400;
 
 const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
@@ -41,20 +38,16 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
   const locale = lang as Locale;
   const t = await getTranslations({ locale, namespace: "landing" });
 
-  // FAQ items are read once here (server) and handed to BOTH the visible accordion and the
-  // FAQPage JSON-LD, so the two can never drift (the plan's FAQ↔JSON-LD coupling note).
+  // Shared with the FAQPage JSON-LD so the visible accordion and structured data cannot drift.
   const faqItems = Object.values(t.raw("faq.items") as Record<string, FaqItem>);
 
-  // The four pipeline steps are read once here (server) so the HowTo JSON-LD stays coupled to
-  // the same catalog copy the <HowItWorks> section renders. Order follows HOW_STEP_KEYS.
+  // Shared with the HowTo JSON-LD so it stays coupled to the same copy <HowItWorks> renders.
   const howStepCopy = t.raw("how.steps") as Record<string, { title: string; body: string }>;
   const howSteps: ReadonlyArray<HowToStepItem> = HOW_STEP_KEYS.map((key) => {
     const step = howStepCopy[key];
     return { name: step?.title ?? "", text: step?.body ?? "" };
   });
 
-  // Build-time social-proof stats (GitHub stars, summed npm last-month downloads). Fetched once
-  // at build, formatted with the active locale's grouping; null stats are simply not shown.
   const stats = await getSocialStats();
   const numberFormat = new Intl.NumberFormat(locale);
   const formattedStars = stats.stars != null ? numberFormat.format(stats.stars) : null;
@@ -74,10 +67,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
             style={{ background: "var(--wash-hero)", zIndex: -1 }}
           />
           <div>
-            {/* Fluid hero size: the clamp floor (2rem) keeps the longest localized headline
-                (German "Übersetze nur das, was sich geändert hat.") from clipping or forcing
-                horizontal scroll at 360-390px, while the 3.75rem ceiling matches the previous
-                desktop text-6xl. Scoped to the hero; the global --text-h1 token is untouched. */}
+            {/* Clamp floor (2rem) keeps the longest localized headline (German) from clipping at 360-390px; the 3.75rem ceiling matches the desktop size. */}
             <h1
               className="mb-5 max-w-[14ch] font-semibold text-fd-foreground"
               style={{

@@ -1,18 +1,14 @@
 /**
- * Shared build, TypeScript, and lint configuration for the verbatra monorepo. Packages consume the
- * tsconfig and Biome JSON files by reference and the tsup preset via {@link createTsupConfig}.
+ * Shared tsup preset for the verbatra monorepo, consumed via {@link createTsupConfig}.
  *
- * This file is plain ESM (`.mjs`) on purpose: tsup externalizes the `@verbatra/config/tsup` import
- * when it loads each package's `tsup.config.ts`, so Node imports this module directly at build time.
- * Keeping it as `.mjs` means it loads natively on every supported Node, including the 22.14.0 engines
- * floor, without relying on experimental type stripping (default only from Node 22.18 / 23.6).
+ * Kept as `.mjs` so Node imports it directly at build time on every supported Node, including the
+ * 22.14.0 engines floor, without experimental type stripping.
  *
  * @packageDocumentation
  */
 
 /**
- * Build the shared tsup preset (ESM + CJS, type declarations, sourcemaps, clean, treeshake), with
- * per-package overrides merged on top.
+ * Build the shared tsup preset with per-package overrides merged on top.
  *
  * @param {import("tsup").Options} [overrides] tsup options merged over the preset; keys present here win over the defaults.
  * @returns {import("tsup").Options} The resolved tsup options for a package's `tsup.config.ts`.

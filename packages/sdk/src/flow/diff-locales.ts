@@ -7,25 +7,20 @@ import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { readSource } from "./source.js";
 
-/** One target locale paired with its raw core diff against the source under the lock baseline. */
+/** A target locale paired with its core diff against the source. */
 export interface LocaleDiffResult {
-  /** The target locale this diff reports on. */
   readonly locale: string;
-  /** The raw `diffResources` partition (missing, changed, orphaned, unchanged), each sorted. */
   readonly diff: DiffResult;
 }
 
-/** Input for {@link diffLocales}: the validated config and which locales to diff. */
 export interface DiffLocalesInput {
-  /** The validated configuration (typically from `loadConfig`). */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
+  /** Directory the pattern and lock-file resolve against; defaults to cwd. */
   readonly cwd?: string;
-  /** Subset of target locales to diff; defaults to all configured target locales. */
+  /** Subset of target locales to diff; defaults to all configured. */
   readonly locales?: readonly string[];
 }
 
-/** Composition seam for {@link diffLocales}: inject a registry and a file system for tests. */
 export interface DiffLocalesDeps {
   readonly adapterRegistry?: AdapterRegistry;
   readonly fs?: SdkFs;
@@ -58,15 +53,7 @@ function selectedLocales(config: VerbatraConfig, requested?: readonly string[]):
 
 /**
  * Read the source, the lock baseline, and each selected target locale, then run core's `diffResources`
- * per locale. Returns the raw per-locale `DiffResult` for a caller to project: `check` to counts, `diff`
- * to key lists. This is the single shared read-plus-diff orchestration both flows consume. It calls no
- * provider, writes no file, and never mutates the lock (it reads the baseline only).
- *
- * @param input - The validated config and which locales to diff.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The raw per-locale diff results, one entry per selected target locale in config order.
- * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`.
+ * per locale. Reads only: it calls no provider, writes no file, and never mutates the lock.
  */
 export async function diffLocales(
   input: DiffLocalesInput,

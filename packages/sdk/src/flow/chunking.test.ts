@@ -69,7 +69,7 @@ describe("translate: sub-batch chunking, success path", () => {
       { createProvider: () => stub.provider },
     );
 
-    // 7 entries / 3 -> 3 calls of 3, 3, 1; none exceeds the maximum.
+    // 7 entries / 3 -> calls of 3, 3, 1.
     expect(stub.calls.map((c) => c.request.entries.length)).toEqual([3, 3, 1]);
     for (const call of stub.calls) {
       expect(call.request.entries.length).toBeLessThanOrEqual(3);
@@ -87,7 +87,7 @@ describe("translate: sub-batch chunking, success path", () => {
 
     const sent = stub.calls.flatMap((c) => c.request.entries.map((e) => e.key));
     expect(sent.sort()).toEqual(["k0", "k1", "k2", "k3", "k4", "k5", "k6"]);
-    expect(new Set(sent).size).toBe(sent.length); // no duplicates
+    expect(new Set(sent).size).toBe(sent.length);
   });
 
   it("writes one file with every accepted translation and a fresh lock hash for every key", async () => {
@@ -153,7 +153,6 @@ describe("translate: sub-batch chunking, success path", () => {
   });
 });
 
-/** A provider that throws when the batch contains `throwKey`, otherwise translates everything. */
 function throwingBatchProvider(throwKey: string): {
   provider: TranslationProvider;
   calls: TranslateRequest[];
@@ -198,7 +197,7 @@ describe("translate: sub-batch chunking, failure isolation", () => {
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de.k0).toBe("[de] v0");
     expect(de.k1).toBe("[de] v1");
-    expect(de.k2).toBeUndefined(); // failed sub-batch absent from the file
+    expect(de.k2).toBeUndefined();
     expect(de.k3).toBeUndefined();
   });
 
@@ -212,7 +211,7 @@ describe("translate: sub-batch chunking, failure isolation", () => {
     );
 
     const lock = await readLock(dir);
-    expect(Object.keys(lock.de ?? {}).sort()).toEqual(["k0", "k1"]); // k2,k3 not locked
+    expect(Object.keys(lock.de ?? {}).sort()).toEqual(["k0", "k1"]);
   });
 
   it("surfaces a chunk-level provider failure as a notice without throwing out of the locale", async () => {
@@ -243,7 +242,7 @@ describe("translate: sub-batch chunking, failure isolation", () => {
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["k0", "k1", "k2"]);
     expect(summary.locales[0]?.integrityMismatches).toEqual(["k3"]);
     const lock = await readLock(dir);
-    expect(Object.keys(lock.de ?? {}).sort()).toEqual(["k0", "k1", "k2"]); // k3 not locked
+    expect(Object.keys(lock.de ?? {}).sort()).toEqual(["k0", "k1", "k2"]);
   });
 });
 
@@ -266,7 +265,7 @@ describe("translate: sub-batch chunking, forward progress", () => {
     );
 
     const sent = second.calls.flatMap((c) => c.request.entries.map((e) => e.key));
-    expect(sent.sort()).toEqual(["k2", "k3"]); // k0,k1 not re-requested
+    expect(sent.sort()).toEqual(["k2", "k3"]);
     expect([...(run2.locales[0]?.translated ?? [])].sort()).toEqual(["k2", "k3"]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de.k2).toBe("[de] v2");

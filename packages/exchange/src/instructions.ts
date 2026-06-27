@@ -1,7 +1,6 @@
 /**
- * The plain-language instructions sheet content. v1 ships this fixed text (no config). It tells
- * a non-technical translator which column to fill, what not to touch, how to treat placeholders
- * and ICU, and what the status values mean.
+ * The plain-language instructions sheet content: it tells a non-technical translator which column to
+ * fill, what not to touch, how to treat placeholders and ICU, and what the status values mean.
  */
 export const INSTRUCTIONS_LINES: readonly string[] = [
   "How to use this workbook",

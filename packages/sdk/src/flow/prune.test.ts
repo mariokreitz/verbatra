@@ -67,7 +67,7 @@ describe("translate: orphan pruning (--prune)", () => {
     expect(summary.locales[0]?.orphaned).toEqual(["stale"]);
     expect(summary.locales[0]?.pruned).toEqual([]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.stale).toBe("Alt"); // current behavior preserved
+    expect(de.stale).toBe("Alt");
   });
 
   it("the config option alone enables pruning (no flag passed)", async () => {
@@ -120,10 +120,10 @@ describe("translate: orphan pruning (--prune)", () => {
     expect(summary.locales[0]?.pruned).toEqual(["orphan"]);
     expect(summary.locales[0]?.integrityMismatches).toEqual(["f"]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.orphan).toBeUndefined(); // only the orphan removed
-    expect(de.u).toBeDefined(); // unchanged survives
-    expect(de.f).toBeDefined(); // integrity-withheld (source-present) survives
-    expect(de.m).toBeDefined(); // missing was translated and written
+    expect(de.orphan).toBeUndefined();
+    expect(de.u).toBeDefined();
+    expect(de.f).toBeDefined(); // integrity-withheld but source-present, so it survives pruning
+    expect(de.m).toBeDefined();
   });
 
   it("dry-run with prune reports the prune set and writes neither the file nor the lock", async () => {
@@ -134,9 +134,7 @@ describe("translate: orphan pruning (--prune)", () => {
 
     expect(summary.dryRun).toBe(true);
     expect(summary.locales[0]?.pruned).toEqual(["stale"]);
-    // file is byte-identical (nothing written)
     expect(await readTextFile(targetPath(dir, "de"))).toBe(beforeFile);
-    // no lock-file written
     await expect(readTextFile(lockPath(dir))).rejects.toThrow();
   });
 
@@ -172,7 +170,7 @@ describe("translate: orphan pruning (--prune)", () => {
     );
 
     const lock = (await readJsonFile(lockPath(dir))) as LockShape;
-    expect(lock.locales.de?.stale).toBeUndefined(); // stale entry dropped, lock in sync with file
+    expect(lock.locales.de?.stale).toBeUndefined();
   });
 
   it("a no-orphan prune run produces a file identical to a non-prune run", async () => {

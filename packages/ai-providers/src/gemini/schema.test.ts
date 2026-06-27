@@ -34,9 +34,6 @@ describe("toGeminiSchema", () => {
     expect(out.required).toEqual(["x"]);
   });
 
-  // The supported subset: anything outside it throws loudly so a future canonical-schema
-  // keyword cannot be silently dropped (which would weaken the model-side constraint
-  // without the single-source test noticing, since both sides apply the same transform).
   it("throws naming a top-level unsupported keyword instead of dropping it", () => {
     expect(() => toGeminiSchema({ type: "array", minItems: 1 })).toThrow(/minItems/);
   });

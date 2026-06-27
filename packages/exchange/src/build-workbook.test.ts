@@ -61,10 +61,10 @@ describe("buildWorkbook: translator-facing properties", () => {
     const workbook = await loadBuilt();
     const sheet = workbook.getWorksheet("de");
     const dataRow = sheet?.getRow(HEADER_ROW + 1);
-    // locked: true is exceljs's cell default, which it may omit from the serialized XML; a reloaded
-    // locked cell is therefore either { locked: true } or undefined (default-locked). Either way it
-    // is NOT explicitly unlocked. The translation cell carries the non-default locked: false, which
-    // exceljs always serializes and reads back exactly, so it is asserted strictly.
+    // locked: true is exceljs's default and may be omitted from the serialized XML, so a reloaded
+    // locked cell reads as { locked: true } or undefined; either way it is not explicitly unlocked.
+    // The translation cell carries the non-default locked: false, which always round-trips, so it is
+    // asserted strictly.
     const lockedColumns = [
       COLUMN.key,
       COLUMN.source,
@@ -75,8 +75,6 @@ describe("buildWorkbook: translator-facing properties", () => {
     for (const column of lockedColumns) {
       expect(dataRow?.getCell(column).protection?.locked).not.toBe(false);
     }
-    // Only the translation cell carries the non-default locked: false; every other column,
-    // including the hidden source-hash column, stays locked.
     expect(dataRow?.getCell(COLUMN.translation).protection?.locked).toBe(false);
   });
 
@@ -95,11 +93,9 @@ describe("buildWorkbook: translator-facing properties", () => {
     if (keyFill?.type === "pattern") {
       expect(keyFill.fgColor?.argb).toBe("FFF1F3F5");
     }
-    // The editable translation cell is not shaded with the read-only fill. It carries a protection
-    // style (locked: false), and exceljs materializes a default unshaded fill for any styled cell:
-    // either no fill, or the "none" pattern with no fgColor. What matters is that it is NOT the
-    // solid read-only shading the locked columns carry, so the translation column reads as the
-    // visibly blank one to fill.
+    // The editable translation cell is not shaded with the read-only fill: exceljs materializes a
+    // default unshaded fill (no fill, or the "none" pattern with no fgColor) for a styled cell, so
+    // what matters is only that it is not the solid read-only shading the locked columns carry.
     const translationFill = dataRow?.getCell(COLUMN.translation).fill as ExcelJS.Fill | undefined;
     if (translationFill?.type === "pattern") {
       expect(translationFill.pattern).not.toBe("solid");

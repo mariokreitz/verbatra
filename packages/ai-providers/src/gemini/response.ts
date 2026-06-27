@@ -14,7 +14,6 @@ const BLOCKED_FINISH_REASONS = new Set([
   "SPII",
 ]);
 
-/** Parse the response text as JSON, rejecting unparseable content cleanly. */
 function parseContent(text: string): unknown {
   try {
     return JSON.parse(text);
@@ -23,7 +22,6 @@ function parseContent(text: string): unknown {
   }
 }
 
-/** Map Gemini usage to our Usage shape, or undefined when not fully reported. */
 function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
   if (usage === undefined) {
     return undefined;
@@ -36,15 +34,10 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
 }
 
 /**
- * Extract schema-bound raw output from a generateContent response. A blocked, empty,
- * or safety-filtered result is a distinct, clean outcome surfaced as PROVIDER_BLOCKED,
- * never parsed as a translation and never silently dropped. Blocked reasons are
- * checked BEFORE reading the text, so the SDK's non-STOP text warning is never
- * reached on a blocked result. A token-limit truncation (MAX_TOKENS) is not a block:
- * it is its own actionable outcome surfaced as OUTPUT_TRUNCATED, checked before the
- * text is read so a truncated-but-valid body still reports truncation rather than a
- * key mismatch. The raw object is validated against the canonical schema by the shared
- * layer. Errors here carry no key, header, or content.
+ * Extract schema-bound raw output from a generateContent response. Blocked, empty, or
+ * safety-filtered results surface as PROVIDER_BLOCKED and a MAX_TOKENS truncation as
+ * OUTPUT_TRUNCATED, both checked before the text is read so a truncated-but-valid body
+ * still reports truncation. Errors here carry no key, header, or content.
  *
  * @param response - The raw generateContent response.
  * @returns The schema-bound raw output plus optional usage.
@@ -55,9 +48,8 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
  * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty or unparseable.
  */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
-  // An empty-string blockReason is treated as "not blocked": only a present,
-  // non-empty reason indicates the prompt was actually blocked (see the test fixture
-  // in gemini/response.test.ts).
+  // An empty-string blockReason means not blocked: only a present, non-empty reason
+  // indicates the prompt was actually blocked.
   const blockReason = response.promptFeedback?.blockReason;
   if (blockReason !== undefined && blockReason !== "") {
     throw new ProviderError("PROVIDER_BLOCKED", "The provider blocked the translation request.");

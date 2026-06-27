@@ -1,10 +1,6 @@
 import type { LocaleSummary } from "./summary.js";
 
-/**
- * Project a caught value to a structured, secret-free `{ code, message }`. Per-locale failures are
- * Adapter/Provider/Exchange errors (all secret-free) which carry a string `code`; an SdkError is an
- * Error with a `code` too. Anything without a string code falls back to `"LOCALE_FAILED"`.
- */
+/** Project a caught value to a structured, secret-free `{ code, message }`. */
 export function describeError(error: unknown): { code: string; message: string } {
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;

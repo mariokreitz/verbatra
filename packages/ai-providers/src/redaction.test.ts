@@ -54,17 +54,11 @@ describe("redact", () => {
   });
 
   it("does not over-redact ordinary prose or wrong-length hex runs", () => {
-    // Ordinary prose and a UUID-looking but wrong-length string (too few hex chars in the
-    // final group) must pass through unchanged. DeepL UUID over-match is accepted by design:
-    // a real 8-4-4-4-12 UUID in content would be redacted, which is the safe direction. We
-    // assert only the non-key shapes stay intact.
     const input = "a well-known state-of-the-art plan with id 12345678-1234-1234-1234-12345";
     expect(redact(input, undefined)).toBe(input);
   });
 
   it("does not redact `sk-` runs that sit mid-word (no word boundary)", () => {
-    // The `\b` anchor on the OpenAI / Anthropic pattern means an "sk-" preceded by a word
-    // character is not a key prefix, so common hyphenated words pass through unchanged.
     for (const word of ["risk-assessment", "task-management", "desk-organizer", "ask-question"]) {
       expect(redact(word, undefined)).toBe(word);
     }
@@ -97,9 +91,6 @@ describe("redact", () => {
   });
 
   it("returns promptly on a long pathological near-miss input (ReDoS-safe)", () => {
-    // Long near-miss runs that never complete a key shape: a hex run with no UUID dashes,
-    // a bare "sk" with no dash, and "AIz" missing the trailing "a". Each quantifier is over a
-    // single class, so matching is linear and cannot backtrack catastrophically.
     const nearMiss = `${"abcdef0123456789".repeat(8000)} sk ${"AIz".repeat(8000)}`;
     const start = Date.now();
     const out = redact(nearMiss, undefined);

@@ -83,11 +83,8 @@ interface Buckets {
 }
 
 /**
- * Apply the fail-safe row rules. Empty cells are skipped first (not translated). An invented key
- * (in neither source nor target) is a broken-round-trip error and is thrown for the orchestrator to
- * turn into a whole-locale failure. A filled row whose source key was deleted (orphaned) is left to
- * the orphaned bucket and not written. Every other filled row is judged; a failure is withheld and
- * reported, a pass is accepted.
+ * Apply the fail-safe row rules: empty cells are skipped, an invented key throws {@link UnknownKeyError},
+ * an orphaned source key is left unwritten, and every other filled row is judged (accepted or withheld).
  */
 function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
   for (const row of params.sheet.rows) {
@@ -113,19 +110,17 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
 }
 
 /**
- * Judge one locale's filled rows with the existing core checks (drift, placeholder, ICU) reused
- * exactly as the provider path runs them, and partition its keys into the RunSummary buckets via
- * `diffResources`. It writes nothing and updates no lock: it returns the accepted values and the
- * withheld set for the orchestrator to act on. Throws {@link UnknownKeyError} on a broken round trip.
+ * Judge one locale's filled rows with the core checks (drift, placeholder, ICU) and partition its keys
+ * into the summary buckets. Writes nothing and updates no lock; throws {@link UnknownKeyError} on a
+ * broken round trip.
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
   const buckets: Buckets = { accepted: new Map(), mismatches: [], withheld: new Set() };
   classifyRows(params, buckets);
 
-  // Surface source keys that are invalid-ICU AND appear as a row in this sheet, the same meaning
-  // the provider path gives invalidIcuSource (source-side, not the filled value's ICU validity,
-  // which is reported under integrityMismatches when it fails).
+  // Surface source keys that are invalid-ICU and appear as a row in this sheet (source-side, not the
+  // filled value's ICU validity, which is reported under integrityMismatches).
   const rowKeys = new Set(params.sheet.rows.map((row) => row.key));
   const invalidIcuSource = [...new Set(params.sourceInvalidIcuKeys)]
     .filter((key) => rowKeys.has(key))

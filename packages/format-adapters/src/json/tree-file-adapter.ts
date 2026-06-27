@@ -73,21 +73,16 @@ function toEntries(
 }
 
 /**
- * Build a tree-file {@link FormatAdapter} from format-specific behavior. This is the shared shell every
- * nested-tree adapter (the JSON family, ARB, YAML) is built on: supply detection (`extensions` plus an
- * optional `sniff`), `parse` and `serialize`, and the per-leaf hooks, and the shell provides the
- * bounded TOCTOU-safe read, structured errors, the flatten/unflatten mapping, and the atomic
- * order-preserving write.
- *
- * `read` raises {@link AdapterError} with the code the supplied `parse` throws (for example
- * `INVALID_JSON`, `INVALID_YAML`, `MAX_DEPTH_EXCEEDED`, `INVALID_STRUCTURE`), `INVALID_STRUCTURE`
- * (the path is not a regular file, or a supplied hook throws a non-AdapterError), or `INPUT_TOO_LARGE`,
- * plus any `AdapterError` a `validateTree` raises. A missing path rejects with the underlying
- * filesystem error. `write` builds the tree via `buildWriteTree` (default `unflattenEntries`) and
- * persists `serialize(tree)` atomically.
+ * Build a tree-file {@link FormatAdapter} from format-specific behavior. The shared shell every nested-tree
+ * adapter (the JSON family, ARB, YAML) is built on: supply detection (`extensions` plus an optional
+ * `sniff`), `parse` and `serialize`, and the per-leaf hooks, and the shell provides the bounded
+ * TOCTOU-safe read, structured errors, the flatten/unflatten mapping, and the atomic write.
  *
  * @param options - The format-specific behavior.
  * @returns A ready-to-register `FormatAdapter`.
+ * @throws {@link AdapterError} from `read` (the code `parse` throws, plus `INVALID_STRUCTURE`,
+ *   `INPUT_TOO_LARGE`, or any `validateTree` error). A missing path rejects with the underlying
+ *   filesystem error.
  */
 export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAdapter {
   const {

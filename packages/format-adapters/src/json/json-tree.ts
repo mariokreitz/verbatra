@@ -14,11 +14,7 @@ const jsonTreeSchema: z.ZodType<JsonTree> = z.lazy(() =>
 
 const rootSchema: z.ZodType<JsonRecord> = z.record(z.string(), jsonTreeSchema);
 
-/**
- * Reject input nested deeper than max before any recursive work runs. Iterative
- * (explicit stack), so measuring depth never itself overflows, and it bounds the
- * depth the recursive schema and flattening will later see.
- */
+// Iterative (explicit stack) so measuring depth never itself overflows before the cap is checked.
 function assertWithinDepth(value: unknown, max: number): void {
   const stack: Array<{ node: unknown; depth: number }> = [{ node: value, depth: 1 }];
   while (stack.length > 0) {
@@ -41,10 +37,8 @@ function assertWithinDepth(value: unknown, max: number): void {
 
 /**
  * Validate an already-parsed value as a tree of nested string values: enforce the depth cap and the
- * "object root, string leaves" shape. Parser-agnostic on purpose, so every tree format (JSON, YAML,
- * ARB) shares the exact same depth, structure, and null-prototype guarantees with only the syntactic
- * parser swapped ahead of it. Over-deep nesting is MAX_DEPTH_EXCEEDED; a non-object root or a
- * non-string leaf is INVALID_STRUCTURE. Never echoes file content or key paths.
+ * "object root, string leaves" shape. Parser-agnostic so JSON, YAML, and ARB share it. Error messages
+ * never echo file content or key paths.
  *
  * @param value - The already-parsed value to validate.
  * @returns The validated {@link JsonRecord}.
@@ -63,10 +57,10 @@ export function assertJsonRecord(value: unknown): JsonRecord {
 }
 
 /**
- * Parse untrusted file content into a validated JSON object of nested strings.
- * Throws a structured AdapterError (never a raw parser error) and never echoes file
- * content or key paths: malformed syntax is INVALID_JSON, over-deep nesting is
- * MAX_DEPTH_EXCEEDED, a non-object root or non-string leaf is INVALID_STRUCTURE.
+ * Parse untrusted file content into a validated JSON object of nested strings, throwing a structured
+ * AdapterError (never a raw parser error) whose message never echoes file content or key paths.
+ *
+ * @throws {@link AdapterError} `INVALID_JSON`, `MAX_DEPTH_EXCEEDED`, or `INVALID_STRUCTURE`.
  */
 export function parseJsonObject(content: string): JsonRecord {
   let parsed: unknown;
@@ -78,7 +72,7 @@ export function parseJsonObject(content: string): JsonRecord {
   return assertJsonRecord(parsed);
 }
 
-/** Serialize a tree to pretty-printed JSON text with a trailing newline (the JSON and ARB policy). */
+/** Serialize a tree to pretty-printed JSON text with a trailing newline. */
 export function serializeJsonTree(tree: unknown): string {
   return `${JSON.stringify(tree, null, 2)}\n`;
 }

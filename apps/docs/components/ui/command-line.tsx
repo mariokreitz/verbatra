@@ -20,8 +20,6 @@ export default function CommandLine({ command, link }: CommandLineProps): ReactN
     }
   }
 
-  // Optionally turn one token (the package name) into a subtle npm link. Copy still
-  // writes the plain command string, and clicking the link does not trigger a copy.
   const tokenAt = link ? command.indexOf(link.token) : -1;
 
   return (

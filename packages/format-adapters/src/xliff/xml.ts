@@ -35,7 +35,7 @@ function unitKey(element: Element, index: number): string {
   return element.getAttribute("id") ?? element.getAttribute("resname") ?? `unit-${index}`;
 }
 
-/** Throw on a fatal parse error so malformed XML surfaces; non-fatal levels are ignored silently. */
+/** Throw on a fatal parse error so malformed XML surfaces; non-fatal levels are ignored. */
 function onFatal(level: "warning" | "error" | "fatalError"): void {
   if (level === "fatalError") {
     throw new Error("malformed XML");
@@ -43,10 +43,8 @@ function onFatal(level: "warning" | "error" | "fatalError"): void {
 }
 
 /**
- * Reject XLIFF content that declares a DTD or an entity before it reaches the DOM parser. The
- * @xmldom/xmldom parser is entity-inert by default, but this is a defense-in-depth guard against
- * XXE and entity-expansion attacks independent of the parser's defaults, mirroring the exchange
- * workbook guard. Well-formed XLIFF contains neither construct.
+ * Reject XLIFF that declares a DTD or entity before it reaches the parser, a defense-in-depth guard
+ * against XXE and entity-expansion attacks; well-formed XLIFF contains neither.
  *
  * @param content - the raw file contents to scan
  * @throws {@link AdapterError} `INVALID_XML` when a DTD or entity is declared
@@ -115,7 +113,6 @@ function innerXml(serializer: XMLSerializer, element: Element): string {
     .join("");
 }
 
-/** The unit value: the target inner markup when present and non-empty, else the source inner markup. */
 function unitValue(serializer: XMLSerializer, unit: Unit): string {
   if (unit.target !== null) {
     const targetXml = innerXml(serializer, unit.target);
@@ -127,10 +124,9 @@ function unitValue(serializer: XMLSerializer, unit: Unit): string {
 }
 
 /**
- * Parse XLIFF (1.2 trans-units or 2.0 unit/segment, dispatched on the root version) into flat entries
- * keyed by the trans-unit id (falling back to resname). The value is the target inner markup when
- * present and non-empty, otherwise the source inner markup. Malformed XML is `INVALID_XML`; a
- * non-XLIFF document is `INVALID_STRUCTURE`.
+ * Parse XLIFF 1.2 or 2.0 into flat entries keyed by the trans-unit id (falling back to resname),
+ * taking the target inner markup when present and non-empty, otherwise the source. Malformed XML is
+ * `INVALID_XML`; a non-XLIFF document is `INVALID_STRUCTURE`.
  */
 export function parseXliffEntries(
   content: string,
@@ -177,10 +173,7 @@ function fragmentNodes(parser: DOMParser, value: string): Node[] | null {
   }
 }
 
-/**
- * Replace a target element's children with the translated value, re-parsing it as a fragment so inline
- * placeholder elements survive; a value that does not parse as XML falls back to a single text node.
- */
+/** Re-parse the value as an XML fragment so inline placeholder elements survive; otherwise fall back to a single text node. */
 function setTargetValue(doc: Document, parser: DOMParser, element: Element, value: string): void {
   while (element.firstChild !== null) {
     element.removeChild(element.firstChild);
@@ -196,11 +189,10 @@ function setTargetValue(doc: Document, parser: DOMParser, element: Element, valu
 }
 
 /**
- * Serialize entries by mutating the destination XLIFF in place: re-read it, write each entry's value
- * into its trans-unit `<target>` (creating one when absent), and leave `<source>`, every attribute,
- * and every `<note>` untouched, so attributes and notes round-trip by construction. A missing
- * destination raises `INVALID_STRUCTURE`: XLIFF carries source, target, and attributes in one file,
- * so a flat key/value map alone cannot synthesize it (standard tooling seeds the target file first).
+ * Serialize entries by mutating the destination XLIFF in place: write each value into its trans-unit
+ * `<target>` (creating one when absent) and leave source, attributes, and notes untouched. A missing
+ * destination raises `INVALID_STRUCTURE`, since a flat key/value map cannot synthesize source,
+ * target, and attributes on its own.
  */
 export async function serializeXliffEntries(
   entries: ReadonlyMap<string, TranslationEntry>,

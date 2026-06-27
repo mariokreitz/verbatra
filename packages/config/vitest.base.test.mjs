@@ -48,8 +48,6 @@ describe("createVitestConfig", () => {
   });
 
   it("exposes no parameter that can change the locked thresholds", () => {
-    // The factory accepts only the three include and exclude globs; any other key is ignored, so a
-    // consumer cannot weaken the gate by passing a thresholds override.
     const config = createVitestConfig(
       /** @type {Record<string, unknown>} */ ({ thresholds: { lines: 0 } }),
     );
@@ -67,8 +65,7 @@ describe("AC3 guard: every consumer vitest.config goes through the preset", () =
     const configs = [];
 
     for (const entry of entries) {
-      // The config package is the preset owner and imports the factory by relative path, so it is
-      // not a consumer of the published subpath and is excluded from this guard.
+      // The config package owns the preset and imports it by relative path, so it is not a consumer.
       if (!entry.isDirectory() || entry.name === "config") {
         continue;
       }
@@ -78,7 +75,7 @@ describe("AC3 guard: every consumer vitest.config goes through the preset", () =
         try {
           configs.push({ pkg: entry.name, path, source: readFileSync(path, "utf8") });
         } catch {
-          // No config file with this name in this package; keep looking.
+          // A missing config file for this name is expected; keep looking.
         }
       }
     }

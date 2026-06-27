@@ -4,17 +4,13 @@ import { SdkError } from "../errors.js";
 import type { SdkFs } from "../fs.js";
 import type { LockEntries, LockFile } from "./types.js";
 
-/** The committed lock-file name. Chosen to be obviously JSON and to NOT match a `*.lock` ignore rule. */
+/** The committed lock-file name, chosen to be obviously JSON and to not match a `*.lock` ignore rule. */
 export const LOCK_FILE_NAME = "verbatra.lock.json";
 
 const CURRENT_VERSION = 1;
 const EMPTY_LOCK: LockFile = { version: CURRENT_VERSION, locales: {} };
 
-/**
- * Size cap for the lock-file read. The lock-file is committed and therefore tamperable
- * (untrusted input), so its read is bounded with the same discipline the format adapters
- * apply to locale files; this comfortably exceeds any realistic lock-file.
- */
+/** Size cap for the lock-file read: it is committed and tamperable, so the read is bounded. */
 const MAX_LOCK_FILE_BYTES = 16 * 1024 * 1024;
 
 const lockFileSchema = z.object({
@@ -27,8 +23,8 @@ export function lockFilePath(cwd: string): string {
 }
 
 /**
- * Read the lock-file. A missing file degrades gracefully to an empty lock (first-run);
- * a present-but-corrupt file is a structured error so it is never silently overwritten.
+ * Read the lock-file. A missing file degrades to an empty lock (first-run); a corrupt file is a
+ * structured error so it is never silently overwritten.
  */
 export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
   const read = await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES);

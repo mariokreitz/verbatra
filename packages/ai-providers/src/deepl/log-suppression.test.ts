@@ -28,17 +28,14 @@ function makeFake(onSet: (level: "silent") => void) {
 
 describe("DeepL SDK log suppression", () => {
   it("actually silences the 'deepl' logger our loglevel import returns (AC3)", () => {
-    // Raise the SDK's logger as a host application might, then suppress and verify the
-    // suppression took effect on that same singleton logger (shared via loglevel dedupe).
+    // A host app might raise this logger; verify suppression wins on the same shared singleton.
     log.getLogger("deepl").setLevel("debug");
     silenceSdkLogging();
     expect(log.getLogger("deepl").getLevel()).toBe(log.levels.SILENT);
   });
 
   it("silences the 'deepl' logger on the instance deepl-node actually resolves (AC1)", () => {
-    // Exercise the handle deepl-node logs through, not merely our import, via the same
-    // resolution seam production uses. The resolved instance is the real loglevel module, so
-    // it exposes getLevel/levels; read them back through that concrete type.
+    // Exercise the instance deepl-node resolves, not just our import, via the production resolution seam.
     const resolved = resolveDeeplLoglevel();
     expect(resolved).toBeDefined();
     const deeplNodeLog = resolved as unknown as typeof log;
@@ -48,8 +45,7 @@ describe("DeepL SDK log suppression", () => {
   });
 
   it("silences BOTH instances under a split, proving no content reaches a separate logger (AC2)", () => {
-    // Two distinct fake loglevel instances stand in for a dedupe split: our import and the
-    // instance deepl-node resolves. A naive fix touching only one would leave the other open.
+    // Two fakes stand in for a dedupe split; a fix touching only one would leave the other open.
     const ours = createFakeLoglevel();
     const deeplNodes = createFakeLoglevel();
     silenceDeeplLogger([ours.instance, deeplNodes.instance]);

@@ -82,9 +82,9 @@ describe("translate: dry-run", () => {
     );
 
     expect(summary.dryRun).toBe(true);
-    expect(summary.locales[0]?.translated).toEqual(["b"]); // what WOULD be translated
+    expect(summary.locales[0]?.translated).toEqual(["b"]); // what would be translated
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de).toEqual({ a: "da" }); // unchanged
+    expect(de).toEqual({ a: "da" });
     expect(await exists(join(dir, "verbatra.lock.json"))).toBe(false);
   });
 });

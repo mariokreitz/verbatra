@@ -3,7 +3,6 @@ import type { PlaceholderIntegrityResult } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { readNotices } from "./notices.js";
 
-/** Build a result carrying an arbitrary `notices` value (the field the reader probes structurally). */
 function resultWith(notices: unknown): TranslateResult {
   const values = new Map<string, string>();
   const integrity = new Map<string, PlaceholderIntegrityResult>();

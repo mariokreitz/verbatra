@@ -5,8 +5,7 @@ import { ProviderError } from "./errors.js";
 import type { TranslateRequest } from "./provider.js";
 import { entry, regexExtractor, stubClient, toolMessage } from "./test-support.js";
 
-// Sentinels that must never surface in any thrown error's message or stack: a
-// key-shaped secret, a piece of translatable content, and SDK auth-header text.
+// Sentinels that must never surface in any thrown error's message or stack.
 const FAKE_KEY = "sk-ant-SENTINELKEY123";
 const CONTENT = "TRANSLATABLE-CONTENT-SENTINEL";
 const SENTINELS = [FAKE_KEY, CONTENT, "x-api-key", "Bearer"];
@@ -95,7 +94,6 @@ describe("ProviderError messages never carry variable input across every error p
   });
 
   it("INVALID_RESPONSE", async () => {
-    // The model returns an unexpected extra key, carrying sentinels in the payload.
     const { client } = stubClient(
       toolMessage([
         { key: CONTENT, value: CONTENT },

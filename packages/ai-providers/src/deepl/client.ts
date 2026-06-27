@@ -4,10 +4,10 @@ import { silenceSdkLogging } from "./log-suppression.js";
 import type { DeepLClientBundle, DeepLTextResult, DeepLTranslateClient } from "./types.js";
 
 /**
- * Build the production client by wrapping the real deepl-node Translator. The key is read
- * here and the free-account flag is derived from it (ends in ":fx") WITHOUT logging it, so
- * the mechanism never sees the key. The SDK type coupling and the only key read are
- * confined to this one adapter.
+ * Build the production DeepL client. Reads the key from the environment and derives the
+ * free-account flag (key ends in ":fx") without logging the key.
+ *
+ * @returns The DeepL client plus the key-derived free-account flag.
  */
 export function createDefaultClient(): DeepLClientBundle {
   silenceSdkLogging();

@@ -1,11 +1,6 @@
 import { ProviderError } from "./errors.js";
 
-/**
- * Provider id -> the environment variable its API key is read from. This is the single
- * canonical source of the variable names: the per-provider readers below resolve through
- * it, so a variable name lives in exactly one place and cannot drift between the reader
- * and any table that lists it.
- */
+/** Provider id to the environment variable its API key is read from; the single source of each name. */
 export const PROVIDER_ENV = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -14,13 +9,11 @@ export const PROVIDER_ENV = {
 } as const;
 
 /**
- * Read a required API key from the environment only. Keys are never read from
- * config, function arguments, or files. A missing or empty value yields a
- * structured error that names the variable but contains no key value.
+ * Read a required API key from the environment only, never from config, arguments, or files.
  *
  * @param name - The environment variable to read.
  * @returns The non-empty value.
- * @throws {@link ProviderError} `MISSING_API_KEY`: the variable is unset or empty. The message names the
+ * @throws {@link ProviderError} `MISSING_API_KEY`: the variable is unset or empty; the message names the
  *   variable but never includes a key value.
  */
 function readRequiredEnv(name: string): string {

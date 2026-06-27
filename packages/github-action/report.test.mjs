@@ -36,8 +36,6 @@ describe("buildReport: exit code is a literal pass-through", () => {
   });
 
   it("exitStatus mirrors the CLI code exactly, not re-derived from summary.failed", () => {
-    // A clean summary but a (hypothetical) non-zero exit: the action copies the code, it does not
-    // recompute from the summary.
     expect(buildReport(summary({ succeeded: ["de"] }), 0).exitStatus).toBe(0);
     expect(buildReport(summary({ succeeded: ["de"] }), 2).exitStatus).toBe(2);
   });
@@ -64,7 +62,6 @@ describe("buildReport: per-locale failure (exit 1): the conjunction criterion", 
     });
     const report = buildReport(s, 1);
 
-    // BOTH must hold together: diagnostics present AND the build fails.
     expect(report.annotations).toHaveLength(2);
     expect(report.exitStatus).not.toBe(0);
     expect(report.exitStatus).toBe(1);
@@ -104,15 +101,15 @@ describe("buildReport: dry-run mirrors the CLI", () => {
   it("exit 0 with pending work: no failure, the would-change summary is still produced", () => {
     const s = summary({
       dryRun: true,
-      locales: [locale({ translated: ["pending1", "pending2"] })], // would-be translations
+      locales: [locale({ translated: ["pending1", "pending2"] })],
       succeeded: ["de"],
     });
     const report = buildReport(s, 0);
     expect(report.annotations).toEqual([]);
-    expect(report.exitStatus).toBe(0); // pending work does NOT fail the build
+    expect(report.exitStatus).toBe(0);
     expect(report.summary).toContain("(dry run)");
     expect(report.summary).toContain("dry run: nothing written");
-    expect(report.summary).toContain("| de | ok | 2 |"); // the 2 would-translate keys are shown
+    expect(report.summary).toContain("| de | ok | 2 |");
     noEmoji(report.summary);
   });
 });
@@ -121,7 +118,7 @@ describe("parseSummaryJson: empty-stdout handling (no JSON.parse crash)", () => 
   it("returns null for empty/blank stdout and an object for real JSON", () => {
     expect(parseSummaryJson("")).toBeNull();
     expect(parseSummaryJson("   \n  ")).toBeNull();
-    expect(parseSummaryJson("not json")).toBeNull(); // robust: unparseable -> null, not a throw
+    expect(parseSummaryJson("not json")).toBeNull();
     expect(parseSummaryJson(JSON.stringify(summary({ succeeded: ["de"] })))).toMatchObject({
       succeeded: ["de"],
     });
@@ -141,7 +138,7 @@ describe("parseSummaryJson: empty-stdout handling (no JSON.parse crash)", () => 
 describe("buildReport: defensive branches", () => {
   it("a failed locale with no error object falls back to LOCALE_FAILED / 'locale failed'", () => {
     const s = summary({
-      locales: [locale({ locale: "fr", status: "failed" })], // no error field
+      locales: [locale({ locale: "fr", status: "failed" })],
       failed: ["fr"],
     });
     const report = buildReport(s, 1);
@@ -179,8 +176,8 @@ describe("extractCliError and workflow-command escaping", () => {
       failed: ["x:y"],
     });
     const report = buildReport(s, 1);
-    expect(report.annotations[0]).toContain("verbatra%3A x%3Ay"); // ':' -> %3A in the title property
-    expect(report.annotations[0]).toContain("50%25 off%0Aline2"); // '%' -> %25, '\n' -> %0A in data
-    expect(report.annotations[0]).not.toContain("\n"); // the emitted line carries no raw newline
+    expect(report.annotations[0]).toContain("verbatra%3A x%3Ay");
+    expect(report.annotations[0]).toContain("50%25 off%0Aline2");
+    expect(report.annotations[0]).not.toContain("\n");
   });
 });
