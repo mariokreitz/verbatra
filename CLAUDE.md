@@ -88,8 +88,8 @@ published by accident.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
   `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
   `check`, `diff`, `export`, `import`. Deps: `@verbatra/sdk`, commander, zod.
-- `@verbatra/github-action` (private): composite action that runs the CLI in CI
-  (v1.1). Consumed via `uses:`, not published to npm.
+- `@verbatra/github-action` (private): composite action that runs the CLI in CI.
+  Consumed via `uses:`, not published to npm.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
   Scripts: dev, build, start, typecheck, i18n.
 
