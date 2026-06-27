@@ -1,4 +1,4 @@
-import { PACKAGE_VERSION, SITE_URL } from "@/lib/site";
+import { SITE_URL } from "@/lib/site";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
@@ -14,16 +14,17 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
-/** SoftwareApplication and SoftwareSourceCode facts for the homepage; `description` and `inLanguage` follow the active locale. */
+/** SoftwareApplication and SoftwareSourceCode facts for the homepage; `description`, `inLanguage`, and `version` follow the active locale and the resolved package version. */
 export function softwareApplicationLd(args: {
   description: string;
   lang: string;
+  version: string;
 }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": ["SoftwareApplication", "SoftwareSourceCode"],
     name: "verbatra",
-    softwareVersion: PACKAGE_VERSION,
+    softwareVersion: args.version,
     description: args.description,
     inLanguage: args.lang,
     url: SITE_URL,

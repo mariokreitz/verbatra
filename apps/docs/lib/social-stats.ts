@@ -6,6 +6,8 @@ import { z } from "zod";
 const GITHUB_REPO_URL = "https://api.github.com/repos/mariokreitz/verbatra";
 const NPM_DOWNLOADS_BASE = "https://api.npmjs.org/downloads/point/last-month";
 const NPM_PACKAGES = ["@verbatra/cli", "@verbatra/sdk"] as const;
+// The published @verbatra/cli version drives the displayed version (sdk and cli are version-locked).
+const NPM_VERSION_URL = "https://registry.npmjs.org/@verbatra/cli/latest";
 
 // Below these floors a stat reads as weakness and is hidden rather than printed.
 const STARS_FLOOR = 25;
@@ -16,6 +18,7 @@ export const REVALIDATE_SECONDS = 86_400;
 
 const githubRepoSchema = z.object({ stargazers_count: z.number().int().nonnegative() });
 const npmDownloadsSchema = z.object({ downloads: z.number().int().nonnegative() });
+const npmVersionSchema = z.object({ version: z.string().min(1) });
 
 export type SocialStats = {
   readonly stars: number | null;
@@ -69,4 +72,14 @@ async function fetchDownloads(): Promise<number | null> {
 export async function getSocialStats(): Promise<SocialStats> {
   const [stars, downloads] = await Promise.all([fetchStars(), fetchDownloads()]);
   return { stars, downloads };
+}
+
+/**
+ * Resolves the latest published @verbatra/cli version from the npm registry under the same 24h ISR
+ * window as the stats, so the displayed version refreshes daily and on every build. Returns `null`
+ * on any failure; callers fall back to the build-time PACKAGE_VERSION.
+ */
+export async function getLatestVersion(): Promise<string | null> {
+  const parsed = npmVersionSchema.safeParse(await fetchJson(NPM_VERSION_URL));
+  return parsed.success ? parsed.data.version : null;
 }

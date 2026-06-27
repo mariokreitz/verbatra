@@ -17,7 +17,6 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { VMark } from "@/components/landing";
 import Button from "@/components/ui/button";
-import { PACKAGE_VERSION } from "@/lib/site";
 import type { FaqItem } from "@/lib/structured-data";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
@@ -43,14 +42,17 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
   );
 }
 
-// `stars` and `downloads` are pre-formatted display strings, or null when the stat is hidden.
+// `version` is the resolved package version to display; `stars` and `downloads` are pre-formatted
+// display strings, or null when the stat is hidden.
 export function TrustStrip({
+  version,
   stars = null,
   downloads = null,
 }: {
+  version: string;
   stars?: string | null;
   downloads?: string | null;
-} = {}): ReactNode {
+}): ReactNode {
   const t = useTranslations("landing.trust");
   const items = Object.values(t.raw("items") as Record<string, string>);
   const unitClass =
@@ -82,12 +84,9 @@ export function TrustStrip({
           />
 
           <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 max-sm:w-full max-sm:border-t max-sm:border-fd-border max-sm:pt-3.5">
-            <li
-              className={unitClass}
-              aria-label={t("stats.versionAria", { version: PACKAGE_VERSION })}
-            >
+            <li className={unitClass} aria-label={t("stats.versionAria", { version })}>
               <TagIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
-              <span className="whitespace-nowrap text-fd-foreground">v{PACKAGE_VERSION}</span>
+              <span className="whitespace-nowrap text-fd-foreground">v{version}</span>
             </li>
             {downloads != null && (
               <li className={unitClass}>

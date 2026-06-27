@@ -17,7 +17,8 @@ import {
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n";
-import { getSocialStats } from "@/lib/social-stats";
+import { PACKAGE_VERSION } from "@/lib/site";
+import { getLatestVersion, getSocialStats } from "@/lib/social-stats";
 import {
   type FaqItem,
   faqPageLd,
@@ -48,14 +49,17 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
     return { name: step?.title ?? "", text: step?.body ?? "" };
   });
 
-  const stats = await getSocialStats();
+  const [stats, latestVersion] = await Promise.all([getSocialStats(), getLatestVersion()]);
+  const version = latestVersion ?? PACKAGE_VERSION;
   const numberFormat = new Intl.NumberFormat(locale);
   const formattedStars = stats.stars != null ? numberFormat.format(stats.stars) : null;
   const formattedDownloads = stats.downloads != null ? numberFormat.format(stats.downloads) : null;
 
   return (
     <div className="vk-home w-full">
-      <JsonLd data={softwareApplicationLd({ description: t("meta.definition"), lang: locale })} />
+      <JsonLd
+        data={softwareApplicationLd({ description: t("meta.definition"), lang: locale, version })}
+      />
       <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
@@ -97,7 +101,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
         </div>
       </section>
 
-      <TrustStrip stars={formattedStars} downloads={formattedDownloads} />
+      <TrustStrip version={version} stars={formattedStars} downloads={formattedDownloads} />
 
       <Compatibility />
 
