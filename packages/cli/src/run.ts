@@ -99,6 +99,32 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
   };
 }
 
+/**
+ * The shared whole-run error scaffold for the one-shot commands: load the config and run the command
+ * body inside one try, mapping any thrown structured SdkError (from the load OR the SDK call) to stderr
+ * and exit `2`, leaving stdout clean for `--json` piping. The data-driven `1` only comes from a body
+ * that returns it without throwing, exactly as the per-handler copies did.
+ *
+ * `return await body(config)` MUST await: returning the promise unawaited would let a body rejection
+ * escape this local try, turning a thrown SdkError from `2` into an unhandled rejection. The await is
+ * load-bearing. `runWatch` is deliberately NOT routed through here: it is long-running with its own
+ * error model and a `130` force-stop path, and shares only the load-config guard.
+ */
+async function withWholeRunErrors(
+  deps: CliDeps,
+  streams: Streams,
+  loadOpts: { cwd: string; configPath?: string },
+  body: (config: Awaited<ReturnType<CliDeps["loadConfig"]>>) => Promise<number>,
+): Promise<number> {
+  try {
+    const config = await deps.loadConfig(loadOpts);
+    return await body(config);
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+}
+
 function parseDebounce(value: string | undefined): number | undefined {
   if (value === undefined) {
     return undefined;
@@ -110,9 +136,7 @@ function parseDebounce(value: string | undefined): number | undefined {
 async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams): Promise<number> {
   const cwd = opts.cwd ?? process.cwd();
   loadEnvFiles(cwd);
-  let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
-  try {
-    config = await deps.loadConfig(loadOptions(opts, cwd));
+  return withWholeRunErrors(deps, streams, loadOptions(opts, cwd), async (config) => {
     const summary = await deps.translate({
       config,
       cwd,
@@ -121,12 +145,7 @@ async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams
     });
     streams.out(opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`);
     return summary.failed.length > 0 ? 1 : 0;
-  } catch (error) {
-    // A whole-run failure (config/format/provider/source/lock) is a structured SdkError: render it
-    // to stderr (so stdout stays empty/pipeable under --json) and exit 2 ("could not run").
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  });
 }
 
 async function runWatchCommand(
@@ -170,25 +189,24 @@ async function runWatchCommand(
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = exportOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const result = await deps.exportWorkbook({
-      config,
-      cwd,
-      ...(opts.out !== undefined ? { out: opts.out } : {}),
-      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-      ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
-    );
-    return 0;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const result = await deps.exportWorkbook({
+        config,
+        cwd,
+        ...(opts.out !== undefined ? { out: opts.out } : {}),
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+        ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+      );
+      return 0;
+    },
+  );
 }
 
 /**
@@ -208,25 +226,24 @@ async function runImport(
 ): Promise<number> {
   const opts = importOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const summary = await deps.importWorkbook({
-      config,
-      workbook,
-      cwd,
-      ...(opts.dryRun === true ? { dryRun: true } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
-    );
-    // Identical exit-code rule to translate: 1 when any locale failed, else 0.
-    return summary.failed.length > 0 ? 1 : 0;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.importWorkbook({
+        config,
+        workbook,
+        cwd,
+        ...(opts.dryRun === true ? { dryRun: true } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+      );
+      // Identical exit-code rule to translate: 1 when any locale failed, else 0.
+      return summary.failed.length > 0 ? 1 : 0;
+    },
+  );
 }
 
 /**
@@ -242,23 +259,22 @@ async function runImport(
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = checkOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const summary = await deps.check({
-      config,
-      cwd,
-      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
-    );
-    return summary.inSync ? 0 : 1;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.check({
+        config,
+        cwd,
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
+      );
+      return summary.inSync ? 0 : 1;
+    },
+  );
 }
 
 /**
@@ -274,23 +290,22 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = diffOptsSchema.parse(rawOpts);
   const cwd = opts.cwd ?? process.cwd();
-  try {
-    const config = await deps.loadConfig(
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    );
-    const summary = await deps.diff({
-      config,
-      cwd,
-      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-    });
-    streams.out(
-      opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
-    );
-    return summary.hasPendingChanges ? 1 : 0;
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
+  return withWholeRunErrors(
+    deps,
+    streams,
+    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    async (config) => {
+      const summary = await deps.diff({
+        config,
+        cwd,
+        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+      });
+      streams.out(
+        opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
+      );
+      return summary.hasPendingChanges ? 1 : 0;
+    },
+  );
 }
 
 function buildProgram(

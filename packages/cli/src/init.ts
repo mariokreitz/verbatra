@@ -1,40 +1,36 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
-import { verbatraConfigSchema } from "@verbatra/sdk";
+import {
+  type ProviderId,
+  type SupportedFormat,
+  scaffoldingMetadata,
+  verbatraConfigSchema,
+} from "@verbatra/sdk";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
-// Provider id -> the environment variable its key is read from (matches ai-providers/src/env.ts).
-const PROVIDER_KEYS = {
-  anthropic: "ANTHROPIC_API_KEY",
-  openai: "OPENAI_API_KEY",
-  gemini: "GEMINI_API_KEY",
-  deepl: "DEEPL_API_KEY",
-} as const;
-type ProviderId = keyof typeof PROVIDER_KEYS;
-const PROVIDER_IDS = Object.keys(PROVIDER_KEYS) as ProviderId[];
+// Provider, env-var, and model truth is owned by core and ai-providers and surfaced through the SDK
+// scaffolding metadata; the CLI reads it here rather than restating it (which would silently drift).
+const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ProviderId[];
 
-// Dependency id -> the locale format id it implies (cheap detection; no file/AST scanning).
-const FORMAT_BY_DEP: ReadonlyArray<readonly [string, string]> = [
+// Dependency id -> the locale format id it implies (cheap detection; no file/AST scanning). This map
+// is npm-packaging knowledge, not format semantics, so it stays CLI-local; the format ids are typed
+// against the SDK's SupportedFormat so a renamed or removed core format id breaks this compile.
+const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["i18next", "i18next-json"],
   ["vue-i18n", "vue-i18n-json"],
   ["next-intl", "next-intl-json"],
   ["@ngx-translate/core", "ngx-translate-json"],
 ];
+// The display list for the scaffold's format comment is the DETECTABLE JSON subset (derived from
+// FORMAT_BY_DEP), not core's full source-format set, so the emitted bytes stay identical.
 const SUPPORTED_FORMATS = FORMAT_BY_DEP.map(([, format]) => format);
-const DEFAULT_FORMAT = "i18next-json";
-// A clearly-marked placeholder: it validates (a non-empty string) but never goes stale and forces a
-// deliberate choice. The user replaces it; translate fails with a clear provider error until they do.
-// A sensible default model per LLM provider for the scaffold. These are real model IDs (not a
-// placeholder), so a freshly scaffolded config type-checks immediately under the per-provider model
-// restriction; the user changes it to any model the provider supports. They may go stale as the
-// provider SDKs add models, which is cosmetic: the runtime accepts any non-empty model string.
-export const DEFAULT_MODEL = {
-  anthropic: "claude-sonnet-4-6",
-  openai: "gpt-5.4-mini",
-  gemini: "gemini-2.5-flash",
-} as const;
+const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
+// A cosmetic default model per LLM provider for the scaffold, owned by ai-providers. Re-exported here
+// under the historical name so the model-pinning test keeps a stable handle; this is an alias, not a
+// source of truth.
+export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
 const TOKEN_LIMIT = 4096;
 
 /** Prompting seams, injected so the decision logic is tested without a real TTY. */
@@ -178,7 +174,7 @@ function renderConfig(
 function renderEnvExample(id: ProviderId): string {
   return [
     `# Copy this file to .env and set your ${id} API key. Do not commit your real key.`,
-    `${PROVIDER_KEYS[id]}=`,
+    `${scaffoldingMetadata.providerEnv[id]}=`,
     "",
   ].join("\n");
 }

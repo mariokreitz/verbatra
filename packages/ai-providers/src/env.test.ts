@@ -1,6 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { requireAnthropicKey } from "./env.js";
+import { PROVIDER_ENV, requireAnthropicKey } from "./env.js";
 import { ProviderError } from "./errors.js";
+
+describe("PROVIDER_ENV", () => {
+  it("maps every provider id to its canonical environment variable name", () => {
+    expect(PROVIDER_ENV).toEqual({
+      anthropic: "ANTHROPIC_API_KEY",
+      openai: "OPENAI_API_KEY",
+      gemini: "GEMINI_API_KEY",
+      deepl: "DEEPL_API_KEY",
+    });
+  });
+
+  it("covers exactly the four v1 providers", () => {
+    expect(Object.keys(PROVIDER_ENV).sort()).toEqual(["anthropic", "deepl", "gemini", "openai"]);
+  });
+});
 
 describe("requireAnthropicKey", () => {
   let saved: string | undefined;

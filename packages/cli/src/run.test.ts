@@ -7,6 +7,7 @@ import { run } from "./run.js";
 import {
   captureStreams,
   flush,
+  makeCheckSummary,
   makeConfig,
   makeLocale,
   makeSummary,
@@ -161,6 +162,61 @@ describe("run translate: exit codes", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).toContain("[CONFIG_INVALID] bad config");
+  });
+});
+
+describe("run: shared whole-run error helper (withWholeRunErrors)", () => {
+  it("passes a successful body return through unchanged (export always 0, stderr clean)", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["export"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(cap.out()).not.toBe("");
+    expect(cap.err()).toBe("");
+  });
+
+  it("passes a data-driven 1 from a non-throwing body through without turning it into 2", async () => {
+    // check returns inSync:false (drift). The helper must forward that 1 untouched; only a THROWN
+    // SdkError maps to 2. This proves the 1 is not swallowed into the catch-to-2 shell.
+    const { deps } = recordingDeps({ check: async () => makeCheckSummary({ inSync: false }) });
+    const cap = captureStreams();
+
+    const code = await run(["check"], deps, cap.streams);
+
+    expect(code).toBe(1);
+    expect(cap.err()).toBe("");
+  });
+
+  it("maps a whole-run SdkError thrown by loadConfig to 2 with clean stdout (export)", async () => {
+    const { deps } = recordingDeps({
+      loadConfig: async () => {
+        throw new SdkError("CONFIG_INVALID", "bad config");
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["export"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[CONFIG_INVALID] bad config");
+  });
+
+  it("maps a SdkError thrown inside the body (the SDK call) to 2 (check)", async () => {
+    const { deps } = recordingDeps({
+      check: async () => {
+        throw new SdkError("SOURCE_UNREADABLE", "no source");
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["check"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[SOURCE_UNREADABLE] no source");
   });
 });
 
