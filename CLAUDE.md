@@ -82,9 +82,12 @@ published by accident.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
   Excel workbooks over a neutral, format-agnostic row model.
 - `@verbatra/sdk` (public): central orchestration API. One-shot `translate()`,
-  long-running `watch()`, config loading.
+  long-running `watch()`, read-only `check()` and `diff()` (per-locale drift over the
+  core `diffResources`, no provider call), `exportWorkbook()` and `importWorkbook()`
+  for the Excel handoff, and config loading.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
-  `dist/index.js`). Thin wrapper over the SDK. Deps: `@verbatra/sdk`, commander, zod.
+  `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
+  `check`, `diff`, `export`, `import`. Deps: `@verbatra/sdk`, commander, zod.
 - `@verbatra/github-action` (private): composite action that runs the CLI in CI
   (v1.1). Consumed via `uses:`, not published to npm.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
