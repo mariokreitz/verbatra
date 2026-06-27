@@ -46,6 +46,10 @@ Run inside `apps/docs` (or with a turbo filter from the root):
   URLs, JSON keys and values, MDX component names, and frontmatter keys verbatim; keep
   the glossary terms from `apps/docs/verbatra.config.ts` untranslated; never use the em
   dash.
+- Register: the audience is developers and users, so write a direct, technical, concise
+  tone with informal personal address in every language: German `du` (never `Sie` or
+  `Ihr` forms), Spanish `tú` (never `usted`), French `tu` (never `vous`). Prefer active
+  voice and imperatives over impersonal or passive phrasing.
 
 ## Authoring rules
 
