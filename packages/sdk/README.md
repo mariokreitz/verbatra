@@ -16,7 +16,7 @@
 
 ## Description
 
-`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
+`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, check or diff your locales without writing, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
 
 ## Requirements
 
@@ -70,7 +70,7 @@ export default defineConfig({
 });
 ```
 
-`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, and `ngx-translate-json`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output. The optional `prune` boolean (off by default) opts in to removing orphaned keys (present in a target file but absent from the source) from the written target files and the lock; the `translate --prune` flag overrides it per run. The optional `generatePlurals` boolean (off by default) opts in to synthesizing the CLDR plural forms a richer target language requires but the source lacks (i18next-JSON projects translated by an LLM provider only; DeepL, non-i18next formats, and unknown languages fall back to the per-locale plural warning and never fail); a per-run `generatePlurals` override on `translate` takes precedence, and generated keys are reported separately from translated keys on the summary. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
+`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`; both are enforced when the config is validated. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, and `arb`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output. The optional `prune` boolean (off by default) opts in to removing orphaned keys (present in a target file but absent from the source) from the written target files and the lock; the `translate --prune` flag overrides it per run. The optional `generatePlurals` boolean (off by default) opts in to synthesizing the CLDR plural forms a richer target language requires but the source lacks (i18next-JSON projects translated by an LLM provider only; DeepL, non-i18next formats, and unknown languages fall back to the per-locale plural warning and never fail); a per-run `generatePlurals` override on `translate` takes precedence, and generated keys are reported separately from translated keys on the summary. OpenAI and Gemini take `{ model, maxOutputTokens }`; DeepL takes `{}` (with an optional `glossaryId`). API keys are never part of the config. Each provider reads its own environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`).
 
 ## API reference
 
@@ -105,6 +105,32 @@ const controller = await watch({
 
 // Stop cleanly on Ctrl-C.
 process.on("SIGINT", () => void controller.stop());
+```
+
+### `check(input): Promise<CheckSummary>`
+
+Reports per-locale drift without calling a provider, writing any file, or touching the lock. `input` is `{ config, cwd?, locales? }`, where `locales` narrows the check to a subset of target locales (defaults to all configured). Resolves to a `CheckSummary` whose `locales` lists one `LocaleCheckSummary` each (counts only: `missing`, `stale`, `upToDate`, and a per-locale `inSync`); the top-level `inSync` is true only when every checked locale is in sync.
+
+```ts
+import { check, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await check({ config });
+
+if (!summary.inSync) {
+  console.log("Locales are out of sync; run verbatra translate.");
+}
+```
+
+### `diff(input): Promise<DiffSummary>`
+
+Lists the keys a run would touch, without writing anything. `input` is the same `{ config, cwd?, locales? }` shape as `check`. Resolves to a `DiffSummary` whose `locales` lists one `LocaleDiff` each, with the key arrays `missing` (would be added), `changed` (would be re-translated), and `orphaned` (present in the target but absent from the source).
+
+```ts
+import { diff, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const summary = await diff({ config });
 ```
 
 ### `exportWorkbook(input): Promise<ExportWorkbookResult>`
