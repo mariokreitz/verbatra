@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
 
-// Dark-only manifest: colors match --color-fd-background (#0B0B12); icons reuse the existing app/ assets.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "verbatra",

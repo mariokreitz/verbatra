@@ -1,10 +1,6 @@
 import { z } from "zod";
 
-/**
- * The closed set of source formats a LocaleResource can originate from.
- * The first four are the JSON i18n family; XLIFF, YAML, and ARB are the
- * shipped non-JSON formats that join them.
- */
+/** The closed set of source formats a LocaleResource can originate from. */
 export const SUPPORTED_FORMATS = [
   "i18next-json",
   "vue-i18n-json",

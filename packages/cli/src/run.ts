@@ -18,10 +18,8 @@ import {
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-// INVARIANT: package.json sits one directory above the running module. That holds for both
-// src/run.ts (tests) and the bundled dist/index.js (built and published bin), so the same
-// "../package.json" offset resolves in both. If the tsup output depth changes, preserve this
-// offset, or the built bin breaks while the in-process test stays green.
+// The "../package.json" offset must resolve from both src/run.ts and the bundled dist/index.js;
+// preserve it if the tsup output depth changes.
 function readPackageVersion(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);
   const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
@@ -44,11 +42,7 @@ interface WatchOpts extends SharedOpts {
   readonly json?: boolean;
 }
 
-/**
- * zod schemas for the export/import command flags. Commander hands strings (or undefined) and
- * booleans; the schema is the typed boundary between untrusted argv and the SDK call. `locales`
- * is a comma-separated list, normalized to a trimmed non-empty array (or omitted).
- */
+// A comma-separated locale list normalized to a trimmed non-empty array (or omitted).
 const localeListSchema = z
   .string()
   .optional()
@@ -91,7 +85,6 @@ const diffOptsSchema = z.object({
   json: z.boolean().optional(),
 });
 
-/** loadConfig options from the resolved working directory and the explicit-config flag. */
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
   return {
     cwd,
@@ -100,15 +93,10 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
 }
 
 /**
- * The shared whole-run error scaffold for the one-shot commands: load the config and run the command
- * body inside one try, mapping any thrown structured SdkError (from the load OR the SDK call) to stderr
- * and exit `2`, leaving stdout clean for `--json` piping. The data-driven `1` only comes from a body
- * that returns it without throwing, exactly as the per-handler copies did.
- *
- * `return await body(config)` MUST await: returning the promise unawaited would let a body rejection
- * escape this local try, turning a thrown SdkError from `2` into an unhandled rejection. The await is
- * load-bearing. `runWatch` is deliberately NOT routed through here: it is long-running with its own
- * error model and a `130` force-stop path, and shares only the load-config guard.
+ * Shared whole-run error scaffold for the one-shot commands: load the config and run the body in one
+ * try, mapping any thrown SdkError to stderr and exit `2` while leaving stdout clean for `--json`. A
+ * `1` comes only from a body that returns it without throwing. The `await` on `body` is load-bearing:
+ * returning it unawaited would let a rejection escape this try as an unhandled rejection.
  */
 async function withWholeRunErrors(
   deps: CliDeps,
@@ -179,12 +167,8 @@ async function runWatchCommand(
 }
 
 /**
- * Run the `export` command: validate the flags, load the config, call the SDK's `exportWorkbook`,
- * and render the result. Returns `0` on success and `2` when the run could not start (a structured
- * SdkError, rendered to stderr). Export has no per-locale failure mode, so it never returns `1`.
- *
- * @param rawOpts - the raw commander options (validated by `exportOptsSchema`)
- * @returns the process exit code (`0` success, `2` whole-run failure)
+ * Run the `export` command. Returns `0` on success and `2` when the run could not start. Export has
+ * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = exportOptsSchema.parse(rawOpts);
@@ -210,13 +194,8 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
 }
 
 /**
- * Run the `import` command: validate the flags, load the config, call the SDK's `importWorkbook`,
- * and render the run summary. The exit-code rule matches `translate`: `1` when any locale failed,
- * `0` when all succeeded, and `2` when the run could not start (a structured SdkError to stderr).
- *
- * @param workbook - the path to the filled workbook to import
- * @param rawOpts - the raw commander options (validated by `importOptsSchema`)
- * @returns the process exit code (`0` all locales succeeded, `1` a locale failed, `2` whole-run failure)
+ * Run the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
+ * failed, `2` the run could not start.
  */
 async function runImport(
   workbook: string,
@@ -240,21 +219,14 @@ async function runImport(
       streams.out(
         opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
       );
-      // Identical exit-code rule to translate: 1 when any locale failed, else 0.
       return summary.failed.length > 0 ? 1 : 0;
     },
   );
 }
 
 /**
- * Run the `check` command: validate the flags, load the config, call the SDK's read-only `check`, and
- * render the per-locale drift status. The command writes nothing and calls no provider. Exit codes:
- * `0` when every locale is in sync, `1` when at least one locale has a missing or stale key (the full
- * report is printed first), and `2` when the run could not start (a structured SdkError to stderr,
- * leaving stdout clean for `--json` piping).
- *
- * @param rawOpts - the raw commander options (validated by `checkOptsSchema`)
- * @returns the process exit code (`0` in sync, `1` out of sync, `2` whole-run failure)
+ * Run the read-only `check` command. Exit codes: `0` every locale in sync, `1` at least one locale
+ * has a missing or stale key, `2` the run could not start.
  */
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = checkOptsSchema.parse(rawOpts);
@@ -278,14 +250,8 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
 }
 
 /**
- * Run the `diff` command: validate the flags, load the config, call the SDK's read-only `diff`, and
- * render the per-locale key lists (added, re-translate, orphaned). The command writes nothing and calls
- * no provider. Exit codes: `0` when no locale has pending changes, `1` when at least one locale has a
- * missing or changed key (the full report is printed first; orphaned keys alone never produce `1`), and
- * `2` when the run could not start (a structured SdkError to stderr, leaving stdout clean for `--json`).
- *
- * @param rawOpts - the raw commander options (validated by `diffOptsSchema`)
- * @returns the process exit code (`0` no pending changes, `1` pending changes, `2` whole-run failure)
+ * Run the read-only `diff` command. Exit codes: `0` no pending changes, `1` at least one locale has a
+ * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
  */
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const opts = diffOptsSchema.parse(rawOpts);
@@ -488,21 +454,17 @@ function buildProgram(
 }
 
 /**
- * The CLI core: parse argv, dispatch to one SDK entry point, render, and RETURN an exit code. It
- * never calls process.exit and never touches process streams. The bin shim wires those. Usage
- * errors (commander) map to 2; --help/--version exit 0.
+ * The CLI core: parse argv, dispatch to one SDK entry point, render, and return an exit code. It never
+ * calls process.exit and never touches process streams; the bin shim wires those.
  *
  * @param argv - The user arguments (process.argv without node and the script path).
  * @param deps - The SDK entry points to call (injected so tests pass offline stubs).
  * @param streams - The stdout/stderr sink the CLI writes through.
  * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
- * @returns The process exit code:
- *   `0` success (or `--help`/`--version`); `1` `translate` or `import` finished but some locales failed
- *   (a `watch` per-run failure is a stream record, not an exit code); `2` could not run, covering BOTH a
- *   whole-run `SdkError` and a commander usage error; `130` `watch` was force-stopped by a second
- *   interrupt (a single interrupt stops gracefully and resolves `0`).
- * @throws Re-throws a non-`CommanderError` thrown during parsing (an unexpected error); commander usage
- *   errors are mapped to an exit code, not thrown.
+ * @returns The process exit code: `0` success (or `--help`/`--version`); `1` some locales failed; `2`
+ *   could not run (a whole-run `SdkError` or a commander usage error); `130` `watch` force-stopped.
+ * @throws Re-throws a non-`CommanderError` thrown during parsing; commander usage errors are mapped to
+ *   an exit code, not thrown.
  */
 export async function run(
   argv: readonly string[],
@@ -518,8 +480,6 @@ export async function run(
     await program.parseAsync([...argv], { from: "user" });
   } catch (error) {
     if (error instanceof CommanderError) {
-      // --help / --version resolve to exitCode 0; any usage error -> 2 ("could not run"),
-      // distinct from a per-locale failure (1).
       return error.exitCode === 0 ? 0 : 2;
     }
     throw error;

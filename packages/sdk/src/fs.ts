@@ -15,28 +15,19 @@ export type BoundedBytesRead =
   | { readonly kind: "too-large" };
 
 /**
- * The minimal file-system surface the SDK needs: existence checks, the lock-file read/write,
- * and the untrusted workbook bytes read/write for the export/import flow. Reads are bounded
- * (see {@link readFileBounded} / {@link readBytesBounded}) and writes are atomic. Injectable so
- * tests stay deterministic; the format adapters do their own file IO and are not routed through
- * this seam.
+ * The minimal file-system surface the SDK needs. Reads are bounded and writes are atomic. Injectable so
+ * tests stay deterministic; the format adapters do their own file IO and bypass this seam.
  */
 export interface SdkFs {
   /** Whether a readable file exists at the path. */
   fileExists(path: string): Promise<boolean>;
   /**
-   * Read a file as UTF-8 through a single handle, bounded to maxBytes. TOCTOU-safe: the
-   * handle is fstat'd and the read never advances past the sized length, so swapping the
-   * path for a larger file after the size check cannot bypass the cap. A missing or
-   * unreadable path is "missing" (first-run); a file over the cap is "too-large".
+   * Read a file as UTF-8 through a single handle, bounded to maxBytes. TOCTOU-safe: the handle is
+   * fstat'd and the read never advances past the sized length, so swapping in a larger file cannot
+   * bypass the cap. A missing or unreadable path is "missing"; a file over the cap is "too-large".
    */
   readFileBounded(path: string, maxBytes: number): Promise<BoundedFileRead>;
-  /**
-   * Read a file as raw bytes through a single handle, bounded to maxBytes, with the SAME
-   * TOCTOU-safe discipline as {@link readFileBounded}: the handle is fstat'd and the read never
-   * advances past the sized length. Used for the untrusted workbook on import; a file over the
-   * cap is "too-large", a missing path is "missing".
-   */
+  /** Read a file as raw bytes with the same TOCTOU-safe, bounded discipline as {@link readFileBounded}. */
   readBytesBounded(path: string, maxBytes: number): Promise<BoundedBytesRead>;
   /** Write atomically: a temp file in the same directory, then rename over the target. */
   writeFile(path: string, data: string): Promise<void>;
@@ -62,7 +53,7 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   try {
     handle = await open(path, "r");
   } catch {
-    // Missing or unreadable: treated as first-run, matching prior existence-check semantics.
+    // Missing or unreadable: treated as first-run.
     return { kind: "missing" };
   }
   try {
@@ -80,8 +71,7 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
 }
 
 async function readBoundedBytesInto(handle: FileHandle, size: number): Promise<Uint8Array> {
-  // A dedicated, non-pooled buffer (allocUnsafeSlow) so the returned view owns its memory and is
-  // never aliased by a later allocation from Buffer's shared pool.
+  // A non-pooled buffer so the returned view owns its memory and is never aliased by a later allocation.
   const buffer = Buffer.allocUnsafeSlow(size);
   let offset = 0;
   while (offset < size) {
@@ -116,24 +106,16 @@ async function readBoundedBytes(path: string, maxBytes: number): Promise<Bounded
 }
 
 /**
- * Build a collision-proof temp-file name for the atomic write: a hidden sibling of the target
- * in the SAME directory, carrying the pid and timestamp for legibility plus a random UUID so two
- * writes to the same target in the same millisecond from the same process never collide (e.g. a
- * future parallelization, or a pattern that maps two locales to one path).
- *
- * NOTE: a deliberate twin of `tempFileName` in `@verbatra/format-adapters`
- * (`src/json/atomic-write.ts`). They are duplicated rather than shared because each sits in its
- * own layer (the SDK fs seam vs the JSON adapter) with no common low-level package below both;
- * keep the two in sync, or extract a shared util if a third copy ever appears.
+ * Build a collision-proof temp-file name for the atomic write: a hidden sibling of the target in the same
+ * directory, carrying the pid, timestamp, and a random UUID so concurrent writes never collide.
  */
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
 }
 
 /**
- * Write to a temp file in the same directory, then rename over the target. rename is
- * atomic on POSIX, so a reader sees either the old valid file or the new one, never a
- * truncated middle; a crash before the rename leaves the original untouched.
+ * Write to a temp file in the same directory, then rename over the target. rename is atomic on POSIX, so a
+ * reader sees either the old or the new file, never a truncated middle.
  */
 async function atomicWrite(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = tempFileName(path);

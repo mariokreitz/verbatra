@@ -8,19 +8,19 @@ import { diffLocales } from "./diff-locales.js";
 export interface LocaleDiff {
   /** The target locale this entry reports on. */
   readonly locale: string;
-  /** `diff.missing`: keys present in source, absent in target; would be ADDED by a run. */
+  /** Keys present in source but absent from the target; would be added by a run. */
   readonly missing: readonly string[];
-  /** `diff.changed`: keys whose source changed since last translated; would be RE-TRANSLATED. */
+  /** Keys whose source changed since last translated; would be re-translated. */
   readonly changed: readonly string[];
-  /** `diff.orphaned`: keys present in target, absent from source; report-only, never pending. */
+  /** Keys present in target but absent from source; report-only, never pending. */
   readonly orphaned: readonly string[];
-  /** `missing.length > 0 || changed.length > 0`; orphaned is excluded by design. */
+  /** True when the locale has missing or changed keys; orphaned keys do not count. */
   readonly hasPendingChanges: boolean;
 }
 
 /** The aggregate read-only diff across all checked target locales. */
 export interface DiffSummary {
-  /** OR of every locale's `hasPendingChanges`; true exactly when the command exits 1. */
+  /** True when any checked locale has pending changes. */
   readonly hasPendingChanges: boolean;
   /** One entry per checked target locale, in config order. */
   readonly locales: readonly LocaleDiff[];
@@ -42,7 +42,6 @@ export interface DiffDeps {
   readonly fs?: SdkFs;
 }
 
-/** Project one raw per-locale diff to its key lists, surfacing the core partition verbatim. */
 function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
   return {
     locale,
@@ -56,11 +55,9 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
 /**
  * Report the exact pending change per target locale as three key lists (missing, changed, orphaned),
  * without calling a provider, writing any file, or touching the lock. This is the detailed sibling of
- * {@link check}: it reuses the same shared {@link diffLocales} read-plus-diff orchestration, then maps
- * each raw `DiffResult` to the sorted key lists core already produced (it re-sorts nothing). A locale's
- * `hasPendingChanges` is driven by missing or changed only; orphaned keys are reported but never flip
- * it, because a default `translate` run does not prune. The top-level `hasPendingChanges` is the OR
- * across all checked locales. `unchanged` is not surfaced (that is `check`'s up-to-date count).
+ * {@link check}. A locale's `hasPendingChanges` is driven by missing or changed only; orphaned keys are
+ * reported but do not flip it, since a default `translate` run does not prune. The top-level
+ * `hasPendingChanges` is true when any checked locale has pending changes.
  *
  * @param input - The validated config and which locales to diff.
  * @param deps - Optional composition seams (registry, file system) for tests.

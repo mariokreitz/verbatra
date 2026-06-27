@@ -15,8 +15,7 @@ describe("extractI18nextPlaceholders", () => {
   });
 
   it("preserves every occurrence of a repeated placeholder in document order", () => {
-    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence
-    // must be detectable. Collapsing duplicates here would hide that.
+    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence must be detectable.
     expect(extractI18nextPlaceholders("{{count}} of {{count}}")).toEqual([
       "{{count}}",
       "{{count}}",

@@ -8,19 +8,19 @@ import { diffLocales } from "./diff-locales.js";
 export interface LocaleCheckSummary {
   /** The target locale this entry reports on. */
   readonly locale: string;
-  /** `diff.missing.length`: keys present in source but absent from the target. */
+  /** Keys present in source but absent from the target. */
   readonly missing: number;
-  /** `diff.changed.length`: keys whose source changed since the target was last translated. */
+  /** Keys whose source changed since the target was last translated. */
   readonly stale: number;
-  /** `diff.unchanged.length`: keys whose recorded baseline still matches the source. */
+  /** Keys whose recorded baseline still matches the source. */
   readonly upToDate: number;
-  /** `missing === 0 && stale === 0`: nothing needs (re)translating for this locale. */
+  /** True when nothing needs (re)translating for this locale. */
   readonly inSync: boolean;
 }
 
 /** The aggregate read-only status across all checked target locales. */
 export interface CheckSummary {
-  /** AND of every locale's `inSync`; true exactly when the command exits 0. */
+  /** True only when every checked locale is in sync. */
   readonly inSync: boolean;
   /** One entry per checked target locale, in config order. */
   readonly locales: readonly LocaleCheckSummary[];
@@ -42,7 +42,6 @@ export interface CheckDeps {
   readonly fs?: SdkFs;
 }
 
-/** Project one raw per-locale diff to a counts-only per-locale status. */
 function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
   return {
     locale,
@@ -55,11 +54,9 @@ function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
 
 /**
  * Report which keys are missing or stale per target locale, without calling a provider, writing any
- * file, or touching the lock. Reuses the shared {@link diffLocales} read-plus-diff orchestration (the
- * same source read, adapter selection, and lock baseline the translate and export flows use), then maps
- * each raw `DiffResult` to counts only (missing, stale, up-to-date). `inSync` for a locale means nothing
- * is missing and nothing is stale; the top-level `inSync` is the AND across all checked locales. Orphaned
- * keys and integrity are ignored by design: they concern a write, which `check` never performs.
+ * file, or touching the lock. Each locale is reported as counts only (missing, stale, up-to-date);
+ * a locale is `inSync` when nothing is missing or stale, and the top-level `inSync` is true only when
+ * every checked locale is. Orphaned keys and integrity are not reported, since they concern a write.
  *
  * @param input - The validated config and which locales to check.
  * @param deps - Optional composition seams (registry, file system) for tests.

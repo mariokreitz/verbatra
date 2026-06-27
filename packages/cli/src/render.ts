@@ -30,11 +30,10 @@ export function toRenderableError(error: unknown): RenderableError {
 }
 
 /**
- * Human-readable run summary: one line per locale, then an aggregate. Plain text, no emoji.
+ * Human-readable run summary: one line per locale, then an aggregate.
  *
  * @param summary - The SDK run summary to render.
- * @param command - The command label for the header (defaults to "translate"); `import` reuses this
- *   same formatter unchanged, so the per-locale lines and exit-code rule are shared with no special case.
+ * @param command - The command label for the header (defaults to "translate"); `import` reuses it.
  * @returns The multi-line human report (no trailing newline).
  */
 export function renderHuman(summary: RunSummary, command = "translate"): string {
@@ -69,8 +68,7 @@ function renderLocaleLine(locale: LocaleSummary): string {
 }
 
 /**
- * The `translate --json` output contract: the SDK's `RunSummary` as one compact JSON object on a single
- * line, surfaced verbatim (no CLI-side reshaping).
+ * The `translate --json` output contract: the SDK's `RunSummary` as one compact JSON object on a line.
  *
  * @param summary - The SDK run summary.
  * @returns A single-line JSON object string.
@@ -80,8 +78,7 @@ export function renderJson(summary: RunSummary): string {
 }
 
 /**
- * The `watch --json` output contract: one `WatchRunResult` per run as a single NDJSON record (success
- * carries the summary; failure the error), surfaced verbatim from the SDK.
+ * The `watch --json` output contract: one `WatchRunResult` per run as a single NDJSON record.
  *
  * @param result - The outcome of one watch run.
  * @returns A single-line JSON record string (one NDJSON line).
@@ -129,7 +126,7 @@ export function renderExportJson(result: ExportRenderable): string {
 
 /**
  * Human-readable check report: a header, one line per locale with its missing, stale, and up-to-date
- * counts plus an in-sync marker, then an overall in-sync line. Plain text, no emoji.
+ * counts plus an in-sync marker, then an overall in-sync line.
  *
  * @param summary - The SDK check summary.
  * @returns The multi-line human report (no trailing newline).
@@ -180,9 +177,8 @@ function renderDiffLocale(locale: LocaleDiff): readonly string[] {
 
 /**
  * Human-readable diff report: a header, then per locale a count header line and the key lists grouped
- * as add / re-translate / orphaned (every key listed, no truncation), then an aggregate trailer. A
- * locale with nothing missing, changed, or orphaned collapses to a single "no pending changes" line.
- * Plain text, no emoji.
+ * as add / re-translate / orphaned (every key listed), then an aggregate trailer. A locale with nothing
+ * missing, changed, or orphaned collapses to a single "no pending changes" line.
  *
  * @param summary - The SDK diff summary.
  * @returns The multi-line human report (no trailing newline).

@@ -11,13 +11,9 @@ import type { SdkNotice } from "./summary.js";
 export type CldrPluralCategory = I18nextPluralCategory;
 
 /**
- * A curated, static map of language subtag to the CLDR cardinal plural categories that language
- * requires, for languages whose category set is RICHER than the {one, other} pair that English
- * and most Western European languages use. Source: the Unicode CLDR cardinal plural rules.
- * Languages not listed here are treated as {one, other}; "other" is universal and therefore
- * omitted (it is always available). This is a static lookup, NOT a CLDR plural-rule engine: the
- * only question it answers is "does the target language USE more categories than the source
- * supplied", which needs the category SET per language, not the number-to-category mapping.
+ * Static map of language subtag to the CLDR cardinal plural categories it requires, for languages richer
+ * than {one, other}. A static lookup, not a plural-rule engine: it only answers whether the target uses
+ * more categories than the source supplied. Languages not listed are treated as {one, other}.
  */
 const LANGUAGE_CATEGORIES: Readonly<Record<string, readonly CldrPluralCategory[]>> = {
   ar: ["zero", "one", "two", "few", "many", "other"],
@@ -43,11 +39,7 @@ function requiredCategories(locale: string): readonly CldrPluralCategory[] {
   return LANGUAGE_CATEGORIES[subtag] ?? ["one", "other"];
 }
 
-/**
- * Group the source's i18next plural entries by base key. Non-plural keys are ignored.
- * The format-specific suffix grammar is read via the i18next adapter helpers, so the SDK
- * never encodes the `_few` suffix shape itself.
- */
+/** Group the source's i18next plural entries by base key; non-plural keys are ignored. */
 function groupPluralSources(
   source: LocaleResource,
 ): Map<string, Map<CldrPluralCategory, TranslationEntry>> {
@@ -79,16 +71,8 @@ function suppliedCategories(
 }
 
 /**
- * Emit a per-locale notice when the TARGET language requires more CLDR plural categories than the
- * SOURCE supplies. This is the fallback for cases generation does not cover (non-i18next, DeepL, an
- * unknown language, or a withheld/partial generation). The check only applies to i18next-style sources
- * (the only v1 format whose keys encode per-category coverage); for other formats, or when the source
- * supplies no plural keys at all, no notice is produced. Returns undefined when nothing is missing.
- *
- * @param source - The source locale resource (its keys carry the plural-category suffixes).
- * @param targetLocale - The target locale being translated into.
- * @param format - The project format; the check is a no-op unless it is "i18next-json".
- * @returns A single notice when the target needs categories the source lacks, otherwise undefined.
+ * Emit a per-locale notice when the target language requires more CLDR plural categories than the source
+ * supplies. A no-op unless the format is "i18next-json"; returns undefined when nothing is missing.
  */
 export function detectMissingPluralCategories(
   source: LocaleResource,
@@ -117,16 +101,8 @@ export function detectMissingPluralCategories(
 }
 
 /**
- * Per-base-key completeness check over a WRITTEN target's keys (post-generation). The target plural set
- * is complete only when, for every plural base key present, every category the target language requires
- * is present. A single gap (a withheld form, or a base key generation could not cover) makes it
- * incomplete, so the caller keeps the PLURAL_CATEGORIES_INCOMPLETE warning. Unlike the source-union check
- * in {@link detectMissingPluralCategories}, this is per base key so one complete base key cannot mask
- * another's gap.
- *
- * @param targetKeys - The keys actually present in the written target file.
- * @param targetLocale - The target locale whose required category set applies.
- * @returns True when at least one plural base key is missing a required category.
+ * Per-base-key completeness check over a written target's keys: true when some plural base key is missing
+ * a category the target language requires. Per base key, so one complete base key cannot mask another's gap.
  */
 export function targetPluralSetIncomplete(
   targetKeys: Iterable<string>,
@@ -152,12 +128,7 @@ export function targetPluralSetIncomplete(
   return false;
 }
 
-/**
- * The set of source base keys that carry at least one plural form. A target plural key whose base is in
- * this set is a generated plural form (or a source plural form), NOT a true orphan: the source key
- * `items_few` may be absent while `items_one` / `items_other` exist. Used to keep generated plural forms
- * out of orphan pruning so they are not deleted and regenerated on the next run.
- */
+/** The set of source base keys that carry at least one plural form. */
 export function sourcePluralBaseKeys(source: LocaleResource): ReadonlySet<string> {
   const bases = new Set<string>();
   for (const key of source.entries.keys()) {
@@ -204,20 +175,8 @@ export interface PluralGenerationPlan {
 }
 
 /**
- * Pick the source plural entry a generated category should be drawn from: prefer the `other` form
- * (the canonical fallback in CLDR), then `one`, then any present form. Groups are only ever passed
- * here when non-empty, so a form is always found.
- *
- * A single representative is sufficient because the source plural forms of one base key share the same
- * placeholder set: they are the same message rendered for different counts, so the count placeholder (and
- * any other interpolation) is common to every category. The generated form is therefore integrity-checked
- * against this one representative's placeholders, and that set stands in for the whole base key. If a real
- * source ever DID diverge across categories (for example `items_one` interpolating an extra `{{unit}}`
- * that `items_other` omits), generation validates against the chosen representative (`_other`, then
- * `_one`): a generated form that does not carry exactly that representative's placeholder set is withheld
- * by the standard integrity check, never silently written. This is intentional, not a gap: the
- * representative is the canonical form and divergent extra placeholders in a non-representative form are
- * not propagated.
+ * Pick the source plural entry a generated category is drawn from: prefer `other`, then `one`, then any.
+ * The forms of one base key share a placeholder set, so one representative stands in for the base key.
  */
 function representativeEntry(
   group: ReadonlyMap<CldrPluralCategory, TranslationEntry>,
@@ -226,19 +185,9 @@ function representativeEntry(
 }
 
 /**
- * Plan plural-category generation for a supported case (i18next-JSON + an LLM provider + a target
- * language whose static set is richer than what the source supplies). For each source plural base key,
- * it derives the target forms for the categories the source lacks but the language requires. The result
- * never includes a category the source already supplies for that base key, so a source that is already
- * complete yields an empty plan (no spurious generation).
- *
- * Unsupported cases (non-i18next, an unknown language) yield an empty plan; the caller falls back to the
- * warning. DeepL gating is the caller's concern (this module has no provider knowledge).
- *
- * @param source - The source locale resource carrying the plural suffixes.
- * @param targetLocale - The target locale being generated into.
- * @param format - The project format; generation is a no-op unless it is "i18next-json".
- * @returns The per-base-key generation items, or an empty plan when nothing applies.
+ * Plan plural-category generation: for each source plural base key, derive the target forms for the
+ * categories the source lacks but the language requires. Unsupported cases (non-i18next, an unknown
+ * language) yield an empty plan.
  */
 export function planPluralGeneration(
   source: LocaleResource,

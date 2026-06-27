@@ -36,7 +36,6 @@ function entry(value: string, placeholders: readonly string[] = []): Translation
   return { key: "k", namespace: "en", value, placeholders, isPlural: false };
 }
 
-/** Read a workbook the export wrote and overwrite one locale's filled translations by key. */
 async function fillWorkbook(
   path: string,
   locale: string,
@@ -144,7 +143,7 @@ describe("importWorkbook", () => {
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.greeting).toBe("Hallo");
     expect(de.farewell).toBe("Tschuss");
-    expect(de.stale).toBe("Veraltet"); // orphaned value left in place, not removed
+    expect(de.stale).toBe("Veraltet");
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;

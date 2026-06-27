@@ -13,13 +13,10 @@ interface LoglevelInstance {
 const DEEPL_LOGGER = "deepl";
 
 /**
- * Resolve the loglevel instance deepl-node itself uses, via public module resolution only:
- * `require.resolve("deepl-node")` yields deepl-node's entry, and a `createRequire` rooted at
- * that entry loads the exact loglevel module deepl-node logs through. Returns `undefined` and
- * never throws if resolution fails, so a logging concern can never break client creation. The
- * `requireFn` parameter is a test seam: pass one whose `resolve` throws to exercise the
- * safe-degrade path.
+ * Resolve the exact loglevel instance deepl-node logs through. Returns `undefined` and never
+ * throws if resolution fails, so a logging concern can never break client creation.
  *
+ * @param requireFn - Test seam; pass one whose `resolve` throws to exercise the safe-degrade path.
  * @internal
  */
 export function resolveDeeplLoglevel(
@@ -47,23 +44,10 @@ export function silenceDeeplLogger(instances: readonly (LoglevelInstance | undef
 
 /**
  * Silence the deepl-node SDK's own request logging. deepl-node logs the request body
- * (translatable content) at debug via a shared loglevel logger named "deepl"; it is off by
- * default (warn), but the surrounding application could raise the global loglevel for its own
- * reasons and start logging user content. Pinning that logger to silent defends against this
- * regardless of host-app config. (The auth header is never passed to any log call, so the key
- * itself cannot leak via logging.)
- *
- * Suppression silences TWO loglevel instances. First, unconditionally, our own `loglevel`
- * import. Second, the loglevel instance deepl-node itself resolves (loaded via `createRequire`
- * from deepl-node's resolved entry). When pnpm dedupes both sides to one module, the two are
- * the same singleton and the second call is a harmless no-op; when a transitive change or a
- * deepl-node loglevel-range bump splits the install into two instances, the deepl-node-resolved
- * branch still silences the logger the SDK actually logs through. Suppression therefore no
- * longer depends on the dedupe outcome. Our own import is silenced first, so even if resolution
- * fails the package degrades to its current shipped behavior, not a regression.
- *
- * deepl-node and loglevel are pinned together by the `deepl-logging` Dependabot group, so a
- * loglevel range split is reviewed as a single PR rather than introduced silently.
+ * (translatable content) at debug through a shared loglevel logger named "deepl"; pinning it
+ * to silent prevents a host app that raises the global loglevel from leaking user content.
+ * Both our own loglevel import and the instance deepl-node resolves are silenced, so the
+ * defense holds whether or not pnpm dedupes them to one module.
  */
 export function silenceSdkLogging(): void {
   silenceDeeplLogger([log, resolveDeeplLoglevel()]);

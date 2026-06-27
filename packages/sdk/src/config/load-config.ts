@@ -8,10 +8,7 @@ import { type VerbatraConfig, verbatraConfigSchema } from "./schema.js";
 
 const MODULE_NAME = "verbatra";
 
-/**
- * Search places in cosmiconfig precedence order. The first one found wins; multiple
- * present sources are not an ambiguity error. .ts is loaded via the TypeScript loader.
- */
+// Search places in cosmiconfig precedence order; the first found wins.
 const SEARCH_PLACES = [
   "package.json",
   `.${MODULE_NAME}rc`,
@@ -35,12 +32,10 @@ export interface LoadConfigOptions {
    */
   readonly configOverride?: unknown;
   /**
-   * An explicit config file to load instead of searching. A relative path resolves
-   * against `cwd` (an absolute path is used as given), then cosmiconfig's load() parses
-   * it with the same loaders search uses (.json/.yaml/.ts), and it is zod-validated at
-   * the boundary exactly like a searched file. A missing file is CONFIG_NOT_FOUND; a
-   * present-but-unparseable/invalid file is CONFIG_INVALID. Precedence: configOverride
-   * wins over configPath, which wins over search.
+   * An explicit config file to load instead of searching. A relative path resolves against `cwd`; an
+   * absolute path is used as given. Parsed and zod-validated exactly like a searched file: a missing
+   * file is `CONFIG_NOT_FOUND`, a present but invalid one is `CONFIG_INVALID`. Takes precedence over
+   * search, but `configOverride` takes precedence over it.
    */
   readonly configPath?: string;
 }
@@ -50,8 +45,7 @@ function formatIssues(error: z.ZodError): string {
     .map((issue) => {
       const path = issue.path.join(".");
       const base = path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-      // An unrecognized key (zod names the field, never its value) most often means a
-      // secret was placed in config; teach that keys come from the environment instead.
+      // An unrecognized key most often means a secret was placed in config; point to the environment.
       return issue.code === "unrecognized_keys"
         ? `${base} (API keys are read from the environment, not the config)`
         : base;
@@ -70,15 +64,9 @@ function validate(input: unknown): VerbatraConfig {
   return parsed.data;
 }
 
-/**
- * Load and validate config from one explicit file via cosmiconfig's load(), which reuses the same
- * loaders search uses (.json/.yaml/.ts). A relative path resolves against cwd; an absolute path is
- * used as given. A genuinely missing file is CONFIG_NOT_FOUND. The existsSync pre-check only buys the
- * nicer not-found message and is not load-bearing: a file that passes the check but then fails to load
- * (a parse error, or the file vanishing between the check and the load) is caught here and surfaced as
- * CONFIG_INVALID. A raw fs/ENOENT error never escapes. Validation reuses the same zod boundary as the
- * search path, so a present-but-invalid (or empty) file is CONFIG_INVALID, identical in shape.
- */
+// The existsSync pre-check only buys the nicer not-found message; a file that passes it but then fails
+// to load (parse error, or vanishing between check and load) is still caught and surfaced as
+// CONFIG_INVALID, so no raw fs error escapes.
 async function loadExplicit(
   explorer: ReturnType<typeof cosmiconfig>,
   configPath: string,

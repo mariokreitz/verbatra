@@ -7,9 +7,8 @@ import {
 import { SdkError } from "../errors.js";
 
 /**
- * Select the adapter for the configured format from the registry, by EXPLICIT format
- * (never by content sniffing). An unregistered format yields a structured error naming
- * the format and the supported set, before any file is read.
+ * Select the adapter for the configured format from the registry by explicit format (never content
+ * sniffing). An unregistered format yields a structured error before any file is read.
  */
 export function selectAdapter(
   format: SupportedFormat,

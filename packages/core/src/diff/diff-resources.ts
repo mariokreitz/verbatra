@@ -13,8 +13,7 @@ function isStale(
   baseline: ReadonlyMap<string, string> | undefined,
 ): boolean {
   const previousHash = baseline?.get(key);
-  // With no recorded baseline hash for this key, there is nothing to compare against, so we cannot
-  // know the content changed. Treat it as not-stale rather than re-translating it on every run.
+  // No baseline hash means no basis for comparison, so treat the key as not stale.
   if (previousHash === undefined) {
     return false;
   }

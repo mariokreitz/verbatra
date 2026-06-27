@@ -62,12 +62,11 @@ describe("translate: one-shot flow", () => {
     expect(summary.succeeded).toEqual(["de"]);
     expect(summary.locales[0]?.translated).toEqual(["farewell"]);
     expect(summary.locales[0]?.unchanged).toEqual(["greeting"]);
-    // only the missing key was sent to the provider
     expect(stub.calls[0]?.request.entries.map((e) => e.key)).toEqual(["farewell"]);
 
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.greeting).toBe("Hallo"); // untouched
-    expect(de.farewell).toBe("[de] Bye"); // translated
+    expect(de.greeting).toBe("Hallo");
+    expect(de.farewell).toBe("[de] Bye");
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
@@ -126,18 +125,18 @@ describe("translate: integrity withholding", () => {
     expect(run1.locales[0]?.integrityMismatches).toEqual(["a"]);
     expect(run1.locales[0]?.translated).toEqual([]);
     const de1 = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de1.a).toBeUndefined(); // not written
+    expect(de1.a).toBeUndefined();
     const lock1 = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    expect(lock1.locales.de?.a).toBeUndefined(); // not locked
+    expect(lock1.locales.de?.a).toBeUndefined();
 
     const passing = makeStubProvider();
     const run2 = await translate(
       { config: cfg(), cwd: dir },
       { createProvider: () => passing.provider },
     );
-    expect(run2.locales[0]?.translated).toEqual(["a"]); // retried
+    expect(run2.locales[0]?.translated).toEqual(["a"]);
     const de2 = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de2.a).toBe("[de] A");
   });
@@ -162,13 +161,13 @@ describe("translate: integrity withholding", () => {
 
     expect(run1.locales[0]?.integrityMismatches).toEqual(["a"]);
     const de1 = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de1.a).toBe("[de] A0"); // prior translation retained, NOT the mangled new value
-    expect(de1.c).toBe("[de] C1"); // sibling updated
+    expect(de1.a).toBe("[de] A0"); // prior translation retained, not the mangled new value
+    expect(de1.c).toBe("[de] C1");
     const lock1 = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    expect(lock1.locales.de?.a).toBe(priorA); // prior hash retained (frozen)
-    expect(lock1.locales.de?.c).not.toBe(priorC); // sibling refreshed
+    expect(lock1.locales.de?.a).toBe(priorA);
+    expect(lock1.locales.de?.c).not.toBe(priorC);
 
     // a is still source != lock-hash -> retried and now succeeds
     const passing = makeStubProvider();
@@ -195,7 +194,7 @@ describe("translate: change detection and first run", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => rerun.provider },
     );
-    expect(rerun.calls).toHaveLength(0); // unchanged -> provider not called
+    expect(rerun.calls).toHaveLength(0);
     expect(run2.locales[0]?.translated).toEqual([]);
 
     await writeJsonFile(join(dir, "locales", "en.json"), { a: "A-changed" });
@@ -204,7 +203,7 @@ describe("translate: change detection and first run", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => changed.provider },
     );
-    expect(run3.locales[0]?.translated).toEqual(["a"]); // changed source re-translated
+    expect(run3.locales[0]?.translated).toEqual(["a"]);
   });
 
   it("first run adopts the current source as baseline without retroactively re-translating", async () => {
@@ -215,13 +214,13 @@ describe("translate: change detection and first run", () => {
       { createProvider: () => stub.provider },
     );
 
-    expect(stub.calls).toHaveLength(0); // already-present key not re-translated
+    expect(stub.calls).toHaveLength(0);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.a).toBe("da-existing"); // untouched
+    expect(de.a).toBe("da-existing");
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    expect(lock.locales.de?.a).toBeDefined(); // adopted as baseline
+    expect(lock.locales.de?.a).toBeDefined();
     expect(run.locales[0]?.unchanged).toEqual(["a"]);
   });
 });
@@ -236,8 +235,7 @@ describe("translate: per-locale isolation", () => {
       { createProvider: () => stub.provider },
     );
 
-    // A chunk-level provider throw no longer sinks the locale: it stays succeeded, its keys are
-    // withheld for retry, and a notice surfaces. The run continues across all locales.
+    // A chunk-level provider throw does not sink the locale: it stays succeeded with keys withheld for retry, and the run continues.
     expect([...summary.succeeded].sort()).toEqual(["de", "es", "fr"]);
     expect(summary.failed).toEqual([]);
     const fr = summary.locales.find((s) => s.locale === "fr");
@@ -261,8 +259,7 @@ describe("translate: per-locale isolation", () => {
   it("isolates a non-provider per-locale failure (lock write) as a failed locale; the run continues", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
     const stub = makeStubProvider();
-    // The lock write (an SdkFs.writeFile, not an adapter call) happens per-locale inside the run's
-    // try; throwing it only for the locale being recorded leaves a genuine failed summary.
+    // Throwing the per-locale lock write only for fr yields a genuine failed-locale summary.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -311,8 +308,7 @@ describe("translate: error shapes and orphaned keys", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => provider },
     );
-    // The raw provider error is caught and never surfaced: the locale succeeds with a notice and the
-    // key is withheld for retry. No provider code or message leaks onto the summary.
+    // The raw provider error is caught and never surfaced: no provider code or message leaks onto the summary.
     expect(summary.succeeded).toEqual(["de"]);
     expect(summary.locales[0]?.status).toBe("succeeded");
     expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
@@ -324,8 +320,7 @@ describe("translate: error shapes and orphaned keys", () => {
   it("captures a non-Error throw on a non-provider path as a structured LOCALE_FAILED summary", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const stub = makeStubProvider();
-    // A non-Error thrown from the lock write (an SdkFs call, not the provider) still reaches the
-    // structured per-locale failure path and falls back to the LOCALE_FAILED code.
+    // A non-Error thrown on a non-provider path still falls back to the LOCALE_FAILED code.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -351,11 +346,11 @@ describe("translate: error shapes and orphaned keys", () => {
     );
     expect(summary.locales[0]?.orphaned).toEqual(["extra"]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.extra).toBe("x"); // not deleted
+    expect(de.extra).toBe("x");
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    expect(lock.locales.de?.extra).toBeUndefined(); // orphaned -> no lock entry
+    expect(lock.locales.de?.extra).toBeUndefined();
     expect(lock.locales.de?.a).toBeDefined();
   });
 });
@@ -440,9 +435,9 @@ describe("translate: round-trip fidelity and dry-run", () => {
     const summary = await translate({ config: cfg(), cwd: dir, dryRun: true });
 
     expect(summary.dryRun).toBe(true);
-    expect(summary.locales[0]?.translated).toEqual(["b"]); // what WOULD be translated
+    expect(summary.locales[0]?.translated).toEqual(["b"]); // what would be translated
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de).toEqual({ a: "da" }); // unchanged
-    expect(await exists(join(dir, "verbatra.lock.json"))).toBe(false); // no lock write
+    expect(de).toEqual({ a: "da" });
+    expect(await exists(join(dir, "verbatra.lock.json"))).toBe(false);
   });
 });

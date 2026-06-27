@@ -13,9 +13,7 @@ export interface DeepLTranslateOptions {
 
 /**
  * The minimal DeepL client surface this provider depends on. Tests inject a stub so the
- * network is never touched; production wraps the real deepl-node Translator/DeepLClient.
- * The `freeAccount` flag is derived from the auth key (ends in ":fx") at construction,
- * so the mechanism never sees the key itself.
+ * network is never touched; production wraps the real deepl-node Translator.
  */
 export interface DeepLTranslateClient {
   translateText(
@@ -54,9 +52,7 @@ export interface ProviderNotice {
 }
 
 /**
- * The DeepL-specific result: the shared TranslateResult plus observable notices. DeepL's
- * translateBatch is typed as Promise<TranslateResult> so the shared interface stays
- * untouched; the concrete object additionally carries `notices`, exposed via this type.
+ * The DeepL-specific result: the shared TranslateResult plus observable notices.
  */
 export type DeepLTranslateResult = TranslateResult & {
   /** Graceful-degradation notices for this batch; empty when nothing was degraded. */

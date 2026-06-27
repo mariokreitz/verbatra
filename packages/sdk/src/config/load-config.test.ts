@@ -105,9 +105,9 @@ describe("loadConfig", () => {
     expect(caught).toBeInstanceOf(SdkError);
     const error = caught as SdkError;
     expect(error.code).toBe("CONFIG_INVALID");
-    expect(error.message).toContain("apiKey"); // names the offending field
-    expect(error.message).not.toContain("SECRET-VALUE-xyz"); // never echoes the value
-    expect(error.message.toLowerCase()).toContain("environment"); // teaches keys are env-only
+    expect(error.message).toContain("apiKey");
+    expect(error.message).not.toContain("SECRET-VALUE-xyz");
+    expect(error.message.toLowerCase()).toContain("environment");
   });
 
   it("a config file that throws while loading is a structured CONFIG_INVALID", async () => {
@@ -117,9 +117,7 @@ describe("loadConfig", () => {
   });
 
   it("defineConfig returns its argument unchanged", () => {
-    // baseConfig() is typed as the runtime VerbatraConfig (model widened to string); the
-    // authoring parameter restricts model to a provider's known literals, so cast to feed
-    // the runtime-shaped value through the identity helper and assert it returns the same ref.
+    // The cast feeds a runtime-shaped value through an identity helper whose parameter restricts model to a provider's known literals.
     const cfg = baseConfig();
     expect(defineConfig(cfg as AuthoringConfig)).toBe(cfg);
   });
@@ -130,7 +128,7 @@ describe("loadConfig", () => {
     const off = await loadConfig({ configOverride: { ...baseConfig(), prune: false } });
     expect(off.prune).toBe(false);
     const absent = await loadConfig({ configOverride: baseConfig() });
-    expect(absent.prune).toBeUndefined(); // off by default when absent
+    expect(absent.prune).toBeUndefined();
   });
 
   it("rejects a non-boolean prune option", async () => {

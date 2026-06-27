@@ -8,10 +8,6 @@ import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 import { createXliffAdapter } from "./xliff/xliff-adapter.js";
 import { createYamlAdapter } from "./yaml/yaml-adapter.js";
 
-// Regression guard for C1 (issue #20): adapters used to Set-deduplicate placeholders
-// before they reached core, which silently defeated core's multiset integrity check.
-// A translation that drops one of two required occurrences must now be reported as a
-// mismatch end to end (adapter extraction -> core checkPlaceholders).
 describe("placeholder integrity is multiset-aware end to end", () => {
   it("i18next: dropping a repeated occurrence is a mismatch", () => {
     const adapter = createI18nextJsonAdapter();

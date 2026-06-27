@@ -13,10 +13,8 @@ export interface IntegrityInput {
 }
 
 /**
- * Run the per-key placeholder-integrity check for a batch. For each value the
- * caller-supplied extractor produces the translated placeholder set, which core's
- * checkPlaceholders compares against the source set. A mismatch is recorded, never
- * thrown and never silently dropped, so a corrupted translation cannot pass as clean.
+ * Run the per-key placeholder-integrity check for a batch. A mismatch is recorded, never thrown
+ * and never silently dropped, so a corrupted translation cannot pass as clean.
  *
  * @param inputs - One {@link IntegrityInput} per key.
  * @param extract - The placeholder extractor for the translated value (the request's extractor).

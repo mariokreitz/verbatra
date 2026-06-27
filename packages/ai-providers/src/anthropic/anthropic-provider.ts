@@ -55,14 +55,12 @@ export function createAnthropicProvider(
   };
 }
 
-/** Anthropic's mechanism: build the forced-tool-use request, call it, return raw tool input. */
 function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMechanism {
   return {
     translate: async ({ payloadJson }): Promise<LlmCompletion> => {
       const body = buildRequest(config, payloadJson);
       const message = await callClient(client, body);
-      // Detect an output-token truncation before parsing or reconciling the tool input, so a
-      // truncated-but-valid body still reports truncation rather than a key mismatch.
+      // Detect truncation before parsing so a truncated-but-valid body reports truncation, not a key mismatch.
       assertNotTruncated(message.stop_reason === "max_tokens");
       const raw = requireToolInput(message.content);
       const usage = toUsage(message.usage);

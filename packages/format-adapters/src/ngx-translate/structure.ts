@@ -9,8 +9,7 @@ type Style = "flat" | "nested";
 
 /**
  * Reject a file that mixes the two styles at the top level (a nested object sibling
- * to a flat dotted string key). ngx-translate documents that the styles should not be
- * mixed; an ambiguous file is rejected rather than guessed.
+ * to a flat dotted string key), since such a file is ambiguous rather than guessable.
  */
 export function assertNotMixed(tree: JsonRecord): void {
   let hasNested = false;
@@ -30,13 +29,8 @@ export function assertNotMixed(tree: JsonRecord): void {
   }
 }
 
-/**
- * Detect the structure style of the file currently at filePath, so a write can
- * preserve it. A top-level object value means nested; otherwise flat. A missing,
- * unreadable, or over-size destination (larger than MAX_INPUT_BYTES) is not read and
- * defaults to nested (the documented preference), so the write path is bounded by the
- * same limit as the read path.
- */
+// A missing, unreadable, or over-size destination is not read and defaults to nested, so the write
+// path stays bounded by the same limit as the read path.
 async function detectStyle(filePath: string): Promise<Style> {
   let parsed: unknown;
   try {

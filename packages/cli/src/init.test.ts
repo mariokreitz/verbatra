@@ -68,10 +68,8 @@ describe("runInit", () => {
   });
 
   it("pins each scaffold default model as valid for its provider (compile-time)", () => {
-    // Routing the DEFAULT_MODEL values through defineConfig pins them against the exact per-provider
-    // model restriction a scaffolded config faces. If a provider SDK drops or renames a model literal,
-    // this stops type-checking in CI (`tsc --noEmit`) instead of only surfacing in a freshly scaffolded
-    // user project. The runtime assertion just keeps the calls live; the real check is the type-check.
+    // Routing DEFAULT_MODEL through defineConfig fails the type-check if a provider drops or renames a
+    // model literal; the runtime assertion just keeps the calls live.
     const anthropic = defineConfig({
       sourceLocale: "en",
       targetLocales: ["de"],
@@ -299,8 +297,7 @@ describe("runInit", () => {
   });
 
   it("lists exactly the four detectable JSON formats in the undetected format comment", async () => {
-    // Byte guard: the comment must list the detectable JSON subset, NOT core's full seven-member
-    // SUPPORTED_FORMATS set. If this lists xliff/yaml/arb, the metadata derivation drifted.
+    // The comment must list the detectable JSON subset, not core's full source-format set.
     const cap = captureStreams();
     await runInit({ cwd: dir, yes: true, provider: "deepl" }, cap.streams, nonInteractive);
     const config = readFileSync(join(dir, "verbatra.config.ts"), "utf8");

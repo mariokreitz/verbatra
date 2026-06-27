@@ -1,11 +1,7 @@
 import { ProviderError } from "../errors.js";
 import { translationsResultSchema } from "./schema.js";
 
-/**
- * Reconcile the returned translations against the requested keys: reject any extra
- * key, any duplicate key, and any missing key. The result is a complete map keyed
- * by the original entry keys (key-in equals key-out).
- */
+/** Reject any extra, duplicate, or missing key and return a complete key-in equals key-out map. */
 function reconcile(
   translations: readonly { readonly key: string; readonly value: string }[],
   requestedKeys: readonly string[],
@@ -31,10 +27,8 @@ function reconcile(
 }
 
 /**
- * The single validation boundary for every LLM provider. The raw schema-bound
- * output is validated against the canonical schema (our side, regardless of any
- * SDK parsing) and reconciled with the requested keys. Any malformed, extra-,
- * duplicate-, or missing-key output is rejected with a structured error; output is
+ * The single validation boundary for every LLM provider: the raw output is validated
+ * against the canonical schema and reconciled with the requested keys. Output is
  * treated strictly as data, never executed or interpreted.
  *
  * @param raw - The mechanism's unparsed per-key output.

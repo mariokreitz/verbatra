@@ -18,14 +18,7 @@ import {
 } from "../test-support.js";
 import { translate } from "./translate-project.js";
 
-/**
- * An LLM provider that mirrors the real integrity path: it extracts the source entry's placeholders
- * (which, for a generated form, are the chosen REPRESENTATIVE source plural form's placeholders) and the
- * produced value's placeholders, and reports integrity from comparing the two. `produce` decides the
- * output value per key, so a test can make a generated form carry a placeholder set that does or does not
- * match the representative. This lets the divergent-placeholder case assert WHICH source form the
- * generated form is validated against, without the keyed-failIntegrity shortcut of the shared stub.
- */
+// An LLM provider that mirrors the real integrity path so a test can assert which source form a generated form is validated against.
 function makeIntegrityProvider(
   produce: (entryValue: string, key: string) => string,
 ): TranslationProvider {
@@ -120,8 +113,8 @@ describe("translate: plural-category generation (supported case)", () => {
     );
 
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
-    expect(pl.items_few).toBeUndefined(); // withheld, not written
-    expect(pl.items_many).toBeDefined(); // the passing form is written
+    expect(pl.items_few).toBeUndefined();
+    expect(pl.items_many).toBeDefined();
 
     const locale = summary.locales[0];
     expect(locale?.generated).toEqual(["items_many"]);
@@ -131,18 +124,9 @@ describe("translate: plural-category generation (supported case)", () => {
 });
 
 describe("translate: divergent source placeholders across plural categories", () => {
-  // items_one carries an extra {{unit}} that items_other omits. The representative is items_other
-  // (preferred), so a generated form is integrity-checked against ITS set ({{count}} only): a generated
-  // value that reproduces only {{count}} passes, and one that adds {{unit}} (matching the non-representative
-  // items_one) is withheld as an extra placeholder. This pins the representative-form choice. The
-  // documented assumption (real i18next plural forms share the count placeholder) holds; divergent extra
-  // placeholders in a non-representative form are intentionally not propagated, not silently written.
+  // items_one carries an extra {{unit}} that items_other omits; items_other is the preferred representative, so generated forms are integrity-checked against its {{count}}-only set.
   const DIVERGENT = { items_one: "{{count}} {{unit}}", items_other: "{{count}} items" };
-  // Seed the target with the source plural forms already present and placeholder-valid. With no lock
-  // baseline for these keys, the diff reports them as unchanged (see core diffResources): they are NOT
-  // re-translated, so they never pass through the integrity provider below. Only the generated few/many
-  // forms flow through it, which isolates the behavior under test (a generated form is validated against
-  // the items_other representative set, not the non-representative items_one set).
+  // Seeded source forms are unchanged with no lock baseline, so they are not re-translated; only the generated few/many forms flow through the integrity provider.
   const SEEDED_TARGET = { items_one: "{{count}} sztuka", items_other: "{{count}} sztuk" };
 
   it("validates a generated form against the _other representative set and writes a matching form", async () => {
@@ -167,17 +151,14 @@ describe("translate: divergent source placeholders across plural categories", ()
   it("withholds a generated form whose placeholders match items_one but not the items_other representative", async () => {
     const dir = await project(DIVERGENT, { pl: SEEDED_TARGET });
 
-    // Produce a value that ADDS {{unit}} (the non-representative items_one set). Against the items_other
-    // representative ({{count}} only) this is an extra placeholder, so the form is withheld. The seeded
-    // source forms are unchanged and not re-translated, so they never reach the injecting stub: only the
-    // generated few/many forms are withheld, isolating the representative-set check under test.
+    // The produced value adds {{unit}} (the non-representative items_one set), an extra placeholder against the items_other representative, so the generated forms are withheld.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       { createProvider: () => makeIntegrityProvider((value) => `[pl] ${value} {{unit}}`) },
     );
 
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
-    expect(pl.items_few).toBeUndefined(); // withheld, not written
+    expect(pl.items_few).toBeUndefined();
     expect(pl.items_many).toBeUndefined();
     // The seeded source forms survive untouched (unchanged, not re-translated).
     expect(pl.items_one).toBe("{{count}} sztuka");
@@ -213,8 +194,7 @@ describe("translate: multiple plural base keys, mixed completeness", () => {
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.done_few).toBeDefined(); // translated from source, not generated
     expect(pl.items_few).toBeDefined();
-    // The complete base did not by itself mask the incomplete one, but here items is now complete too,
-    // so the per-base check clears the warning for the locale.
+    // items is now complete too, so the per-base check clears the warning for the locale.
     expect(hasNotice(summary.locales[0]?.notices ?? [])).toBe(false);
   });
 
@@ -248,8 +228,7 @@ describe("translate: a language needing more than two missing categories (Arabic
     // ar requires zero/one/two/few/many/other; source supplies one/other, so four are missing.
     const dir = await project(PLURAL_SOURCE, { ar: {} });
 
-    // two and many are withheld for integrity; zero and few pass. This exercises the per-item loop
-    // beyond two categories and a partial result.
+    // two and many are withheld for integrity; zero and few pass, exercising the per-item loop beyond two categories.
     const summary = await translate(
       { config: cfg({ targetLocales: ["ar"] }), cwd: dir, generatePlurals: true },
       {
@@ -261,8 +240,8 @@ describe("translate: a language needing more than two missing categories (Arabic
     const ar = (await readJsonFile(targetPath(dir, "ar"))) as Record<string, string>;
     expect(ar.items_zero).toBeDefined();
     expect(ar.items_few).toBeDefined();
-    expect(ar.items_two).toBeUndefined(); // withheld
-    expect(ar.items_many).toBeUndefined(); // withheld
+    expect(ar.items_two).toBeUndefined();
+    expect(ar.items_many).toBeUndefined();
 
     const locale = summary.locales[0];
     expect(locale?.generated).toEqual(["items_few", "items_zero"]);
@@ -418,7 +397,6 @@ describe("translate: plural generation lock and re-run", () => {
     );
 
     expect(summary.locales[0]?.generated).toEqual([]);
-    // The generated keys are still present in the file and the lock.
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeDefined();
     const lock = (await readJsonFile(lockPath(dir))) as LockShape;
@@ -508,9 +486,7 @@ describe("translate: plural generation determinism", () => {
 });
 
 describe("translate: generation off does not protect a source-absent plural-shaped key from pruning", () => {
-  // Source has only items_one / items_other. The target carries a stale items_few (a leftover a prior
-  // generation-on run may have written) that has no corresponding source form. With generation OFF (the
-  // default) this is a true orphan: it must be reported and, with prune on, removed.
+  // The target carries a stale items_few with no corresponding source form; with generation off it is a true orphan, reported and (with prune on) removed.
   const STALE_TARGET = {
     items_one: "{{count}} sztuka",
     items_other: "{{count}} sztuk",
@@ -563,8 +539,7 @@ describe("translate: generation off does not protect a source-absent plural-shap
 
     expect(summary.locales[0]?.orphaned).toEqual([]);
     expect(summary.locales[0]?.pruned).toEqual([]);
-    // The key is protected from pruning (its base has source plural forms). With no prior lock entry it
-    // is also regenerated this run, but the point under test is that it is never reported/pruned.
+    // The key is protected from pruning because its base has source plural forms; it is regenerated this run, but the point is it is never reported or pruned.
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeDefined();
   });

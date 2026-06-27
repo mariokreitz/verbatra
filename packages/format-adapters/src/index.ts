@@ -1,11 +1,9 @@
 /**
  * Read and write locale files in each supported format into and out of core's intermediate
  * representation. Provides the {@link FormatAdapter} extension point and an {@link AdapterRegistry} to
- * resolve one for a file; the four v1 JSON adapters (i18next, vue-i18n, next-intl, ngx-translate) all
- * built on the shared {@link createJsonFileAdapter} factory; the placeholder-syntax knowledge the
- * provider integrity check validates against; and the security hardening of the read/write paths
- * (atomic temp-then-rename writes, a bounded TOCTOU-safe read with size and depth caps, and structured
- * secret-free {@link AdapterError}s).
+ * resolve one for a file, the placeholder-syntax knowledge the provider integrity check validates
+ * against, and hardened read/write paths (atomic writes, bounded reads with size and depth caps, and
+ * structured secret-free {@link AdapterError}s).
  *
  * @packageDocumentation
  */

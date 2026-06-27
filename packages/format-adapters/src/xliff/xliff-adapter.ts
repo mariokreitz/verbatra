@@ -3,24 +3,15 @@ import { createFlatFileAdapter } from "../flat/flat-file-adapter.js";
 import { extractXliffPlaceholders } from "./placeholders.js";
 import { parseXliffEntries, serializeXliffEntries } from "./xml.js";
 
-/** Match a leading `<xliff` or `<?xml` token, the reliable XLIFF leading-byte signature. */
 function sniffXliff(sample: string): boolean {
   const head = sample.trimStart();
   return head.startsWith("<xliff") || head.startsWith("<?xml");
 }
 
 /**
- * The XLIFF adapter. XLIFF is XML (`.xlf` and `.xliff`): a flat list of trans-units rather than a
- * nested tree, so it rides {@link createFlatFileAdapter}. Parsing handles XLIFF 1.2 (file/body/
- * trans-unit) and 2.0 (file/unit/segment), keyed by the trans-unit id (falling back to resname), and
- * reads the target value over the source when present.
- *
- * Write updates the target in place: it re-reads the destination XML, writes each entry's value into
- * its `<target>` text (creating one when absent), and leaves the source, all attributes, and all
- * notes untouched, so they round-trip by construction. A missing destination raises a structured
- * `INVALID_STRUCTURE`, because source, target, and attributes cannot be synthesized from a flat
- * key/value map; standard tooling seeds the target file first. There is no native XLIFF plural, so
- * isPlural is always false and message validity is enforced at parse (so `validateMessage` is true).
+ * The XLIFF adapter for `.xlf` and `.xliff`. Handles XLIFF 1.2 and 2.0, keyed by the trans-unit id
+ * (falling back to resname), reading the target value over the source when present, and writing each
+ * value into its `<target>` while leaving source, attributes, and notes untouched.
  *
  * @returns A `FormatAdapter` for `xliff`.
  * @example

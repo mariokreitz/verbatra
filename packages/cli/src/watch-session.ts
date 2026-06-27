@@ -20,17 +20,14 @@ export interface WatchOptions {
 }
 
 /**
- * Start a watch session over the SDK's watch(). Per-run results (success AND failure) are rendered
- * to stdout (under --json they are the NDJSON stream, so a failure is a record, not noise); the
- * startup line, "stopping" notice, and any startup or stop error go to stderr. The session resolves
- * an exit code: 0 on a clean stop, 130 on a forced second stop, 2 if watch() fails to start OR the
- * stop itself rejects.
+ * Start a watch session over the SDK's watch(). Per-run results are rendered to stdout; the startup
+ * line, "stopping" notice, and any startup or stop error go to stderr.
  *
  * @param options - The config, cwd/debounce, and output mode.
  * @param deps - The SDK entry points (its `watch` is used here).
  * @param streams - The stdout/stderr sink.
  * @returns A {@link WatchSession}: `done` resolves the exit code (0 clean stop, 130 forced second stop,
- *   2 startup OR stop failure); `requestStop` is wired to the interrupt signals by the bin shim.
+ *   2 startup or stop failure); `requestStop` is wired to the interrupt signals by the bin shim.
  */
 export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams): WatchSession {
   let resolveDone!: (code: number) => void;
@@ -42,9 +39,8 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
   let stopping = false;
   let startupFailed = false;
 
-  // Stop the controller and resolve the exit code. A clean stop resolves 0; a rejected stop
-  // renders the error and resolves 2 (a shutdown failure, alongside the startup-failure code).
-  // resolveDone is idempotent, so a failed stop only wins if a clean 0 has not already resolved.
+  // A clean stop resolves 0; a rejected stop renders the error and resolves 2. resolveDone is
+  // idempotent, so a failed stop only wins if a clean 0 has not already resolved.
   const stopController = (c: { stop(): Promise<void> }): void => {
     void c
       .stop()
@@ -97,11 +93,10 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
       if (controller !== undefined) {
         stopController(controller);
       }
-      // else: the watch() .then above will stop once the controller is ready.
       return;
     }
-    // Second stop while the first is still in flight: force immediate exit (bounded-safe by the
-    // SDK's atomic writes). resolveDone is idempotent, so this wins only if 0 has not resolved yet.
+    // A second stop while the first is in flight forces an immediate exit. resolveDone is idempotent,
+    // so this wins only if 0 has not resolved yet.
     resolveDone(130);
   };
 

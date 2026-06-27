@@ -14,11 +14,7 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
-/**
- * SoftwareApplication + SoftwareSourceCode facts for the homepage. The `description` is the
- * active-locale `landing.meta.definition`, and `inLanguage` follows the active locale, so the
- * JSON-LD never drifts from the rendered language.
- */
+/** SoftwareApplication and SoftwareSourceCode facts for the homepage; `description` and `inLanguage` follow the active locale. */
 export function softwareApplicationLd(args: {
   description: string;
   lang: string;
@@ -60,12 +56,7 @@ export function softwareApplicationLd(args: {
 
 export type FaqItem = { question: string; answer: string };
 
-/**
- * FAQPage facts mirroring the on-page FAQ. The `items` are read once from the active-locale
- * catalog (`landing.faq.items`) by the server page and passed both here and to the visible
- * `<Faq>` accordion, so the JSON-LD and the rendered FAQ can never drift. `inLanguage` follows
- * the active locale.
- */
+/** FAQPage facts mirroring the on-page FAQ; `inLanguage` follows the active locale. */
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;
@@ -84,12 +75,7 @@ export function faqPageLd(args: {
 
 export type HowToStepItem = { name: string; text: string };
 
-/**
- * HowTo facts mirroring the on-page "How it works" pipeline. The `steps` are read once from
- * the active-locale catalog (`landing.how.steps.{configure,diff,translate,verifyWrite}`) by
- * the server page and passed here in order, so the JSON-LD and the rendered steps can never
- * drift. `inLanguage` follows the active locale.
- */
+/** HowTo facts mirroring the on-page "How it works" pipeline; `inLanguage` follows the active locale. */
 export function howToLd(args: {
   name: string;
   steps: ReadonlyArray<HowToStepItem>;

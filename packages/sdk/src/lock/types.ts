@@ -1,7 +1,6 @@
 /**
- * The lock-file shape. For each target locale, a map of key -> the SOURCE content hash
- * (core's contentHash) from which that target key was last translated. This is the
- * baseline core's diff consumes to detect changed source strings.
+ * The lock-file shape: for each target locale, a map of key to the source content hash from which that
+ * target key was last translated. The baseline core's diff consumes to detect changed source strings.
  */
 export interface LockFile {
   readonly version: number;

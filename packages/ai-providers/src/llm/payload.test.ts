@@ -12,7 +12,6 @@ function data(overrides: Partial<ValidatedRequestData> = {}): ValidatedRequestDa
   };
 }
 
-/** Read the items array off the structured data payload with a concrete element type. */
 function itemsOf(payload: Record<string, unknown>): Array<Record<string, unknown>> {
   return payload.items as Array<Record<string, unknown>>;
 }

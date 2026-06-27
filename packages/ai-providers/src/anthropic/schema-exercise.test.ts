@@ -15,10 +15,6 @@ function request(): TranslateRequest {
   };
 }
 
-// The bytes Anthropic sends genuinely changed (the tool schema is now derived from
-// the canonical schema). This test exercises that path end-to-end: it proves the
-// derived schema is actually what goes on the wire AND that the provider still maps a
-// schema-conforming response to correct per-key values.
 describe("Anthropic derived-schema is exercised through the provider", () => {
   it("carries the derived schema on the built request and still maps the response", async () => {
     const { client, calls } = stubClient(
@@ -30,7 +26,6 @@ describe("Anthropic derived-schema is exercised through the provider", () => {
     expect(body.tools[0].input_schema).toEqual(deriveJsonSchema(translationsResultSchema));
     expect(body.tools[0].name).toBe("submit_translations");
 
-    // The derived constraint did not break the mechanism: a conforming response maps.
     expect(result.values.get("greeting")).toBe("Hallo {{name}}");
     expect(result.integrity.get("greeting")?.matches).toBe(true);
   });

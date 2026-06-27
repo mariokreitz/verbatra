@@ -34,7 +34,6 @@ function payloadOf(body: { messages: ReadonlyArray<{ content: string }> }): {
   glossary?: Record<string, string>;
   items: Array<{ key: string; value: string; description?: string; meaning?: string }>;
 } {
-  // messages[0] is the system turn; messages[1] is the user data turn.
   const user = body.messages[1];
   if (user === undefined) throw new Error("no user message");
   return JSON.parse(user.content);
@@ -262,8 +261,7 @@ describe("createOpenAiProvider: output truncation", () => {
   });
 
   it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
-    // The body is schema-valid but has an extra key; a non-truncated response would fail
-    // reconciliation as INVALID_RESPONSE. Truncation must win because it is detected first.
+    // Truncation must win over reconciliation because it is detected first.
     const { client } = openAiStubClient(
       truncatedOpenAiCompletion([
         { key: "greeting", value: "Hallo {{name}}" },
@@ -373,7 +371,6 @@ describe("createOpenAiProvider: registry", () => {
   it("resolves under id openai without disturbing an existing provider", () => {
     const { client } = openAiStubClient(openAiResult([]));
     const existing = createOpenAiProvider(config, { client });
-    // Pre-register a different provider, then add openai; the first must be untouched.
     const registry = new ProviderRegistry();
     const other = { ...existing, id: "anthropic" };
     registry.register(other).register(createOpenAiProvider(config, { client }));

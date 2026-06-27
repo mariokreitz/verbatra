@@ -70,7 +70,7 @@ describe("run watch: wiring and rendering", () => {
     expect(calls.watch[0]?.cwd).toBe("/p");
     expect(typeof calls.watch[0]?.onRun).toBe("function");
     expect(cap.err()).toContain("watching en");
-    expect(settled).toBe(false); // long-running: not resolved until stop
+    expect(settled).toBe(false);
 
     session.requestStop();
     h.finishStop();
@@ -123,7 +123,7 @@ describe("run watch: wiring and rendering", () => {
     });
     await flush();
     expect(cap.out()).toContain("[SOURCE_INVALID] bad");
-    expect(settled).toBe(false); // a failed run does NOT stop watching
+    expect(settled).toBe(false);
 
     h.fire({ status: "succeeded", summary: makeSummary({ succeeded: ["de"] }) });
     expect(cap.out()).toContain("1 succeeded");
@@ -161,7 +161,7 @@ describe("run watch: shutdown and exit codes", () => {
       settled = true;
     });
     await flush();
-    expect(settled).toBe(false); // awaits the in-flight stop, not instant
+    expect(settled).toBe(false);
 
     h.finishStop();
     expect(await done).toBe(0);
@@ -174,8 +174,8 @@ describe("run watch: shutdown and exit codes", () => {
     const cap = captureStreams();
     const { done, session } = await startWatch(["watch"], deps, cap.streams);
 
-    session.requestStop(); // first: stop() in flight, not finished
-    session.requestStop(); // second: force
+    session.requestStop();
+    session.requestStop();
     expect(await done).toBe(130);
   });
 
@@ -188,7 +188,7 @@ describe("run watch: shutdown and exit codes", () => {
 
     expect(await done).toBe(2);
     expect(cap.err()).toContain("[SOURCE_UNREADABLE] missing source");
-    // A SIGINT arriving after the startup error is a harmless no-op.
+    // A SIGINT after the startup error must be a harmless no-op.
     expect(() => session.requestStop()).not.toThrow();
   });
 
@@ -222,7 +222,8 @@ describe("run watch: shutdown and exit codes", () => {
     });
     await flush();
 
-    session?.requestStop(); // controller not ready yet -> the stop is deferred
+    // The controller is not ready yet, so the stop is deferred until watch() resolves.
+    session?.requestStop();
     resolveWatch({
       stop: () =>
         new Promise<void>((resolve) => {

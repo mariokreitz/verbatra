@@ -22,10 +22,9 @@ export default async function ImprintPage(props: { params: Promise<{ lang: strin
 
   return (
     <main className="container mx-auto max-w-3xl px-6 py-16 prose">
-      {/* The H1 stays the literal statutory term "Impressum" in every locale. */}
+      {/* "Impressum" is the statutory term, kept literal in every locale. */}
       <h1>Impressum</h1>
-      {/* Localized chrome: a one-line intro and the "Last updated" label. The German legal body
-          below is statutory and is kept verbatim and byte-identical across all four locales. */}
+      {/* The German legal body below is statutory and kept verbatim across all locales; only the intro and label are localized. */}
       <p>{t("intro")}</p>
       <p>
         <em>

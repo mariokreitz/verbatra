@@ -5,12 +5,9 @@ import type { AnthropicConfig } from "./config.js";
 export const SUBMIT_TOOL_NAME = "submit_translations";
 
 /**
- * INVARIANT: SYSTEM_RULES is a compile-time constant. Nothing variable is ever
- * spliced into it: not entry values, not the glossary, not the tone. Every
- * variable input travels exclusively in the user-turn JSON payload built by the
- * shared data-payload builder. This separation is the prompt-injection boundary: an
- * untrusted string can only ever land in the data channel, never in the instruction
- * channel. The moment any variable is interpolated here, that boundary is broken.
+ * Prompt-injection boundary: SYSTEM_RULES must stay a compile-time constant with no
+ * variable ever spliced in, so untrusted input only ever reaches the data channel
+ * (the user-turn JSON payload), never the instruction channel.
  */
 export const SYSTEM_RULES = [
   "You are a translation engine for software localization.",
@@ -24,11 +21,7 @@ export const SYSTEM_RULES = [
   `Return results only by calling the ${SUBMIT_TOOL_NAME} tool: exactly one entry per requested key, no commentary, no extra keys, and no key that was not requested.`,
 ].join("\n");
 
-/**
- * The forced tool. Its input_schema is DERIVED from the canonical per-key schema
- * (single source of truth), so the constraint imposed on the model and the shared
- * layer's validation cannot diverge.
- */
+/** input_schema is derived from the canonical schema so the model constraint and the shared validation cannot diverge. */
 const SUBMIT_TOOL = {
   name: SUBMIT_TOOL_NAME,
   description: "Submit the translated string for every requested key.",
@@ -46,10 +39,8 @@ export interface BuiltRequest {
 }
 
 /**
- * Build the message-create body from the shared data payload (already serialized).
- * The static system rules carry all instructions; the user turn carries the JSON
- * payload with every variable input. The model is forced to answer through the
- * submit_translations tool, so the output channel is schema-bound.
+ * Build the message-create body from the already-serialized data payload, forcing the
+ * model to answer through the submit_translations tool so the output is schema-bound.
  */
 export function buildRequest(config: AnthropicConfig, payloadJson: string): BuiltRequest {
   return {

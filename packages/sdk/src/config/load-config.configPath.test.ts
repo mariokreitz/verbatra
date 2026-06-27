@@ -5,7 +5,6 @@ import type { SdkErrorCode } from "../errors.js";
 import { baseConfig, makeTempDir } from "../test-support.js";
 import { loadConfig } from "./load-config.js";
 
-/** Run loadConfig, assert it rejects with an SdkError of the given code, and return the error. */
 async function expectReject(
   promise: Promise<unknown>,
   code: SdkErrorCode,

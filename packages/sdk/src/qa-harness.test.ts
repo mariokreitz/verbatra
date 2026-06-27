@@ -31,16 +31,15 @@ describe("QA independent: invalid-ICU source handling", () => {
     const locale = summary.locales[0];
     expect(locale?.invalidIcuSource).toEqual(["bad"]);
     expect(locale?.translated).toEqual(["ok"]);
-    // the invalid-ICU key was never sent to the provider
     expect(stub.calls[0]?.request.entries.map((e) => e.key)).toEqual(["ok"]);
 
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.ok).toBe("[de] Hello {name}");
-    expect(de.bad).toBeUndefined(); // not written
+    expect(de.bad).toBeUndefined();
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as Lock;
     expect(lock.locales.de?.ok).toBeDefined();
-    expect(lock.locales.de?.bad).toBeUndefined(); // not lock-updated -> retries when ICU fixed
+    expect(lock.locales.de?.bad).toBeUndefined(); // not lock-updated, so it retries once the ICU is fixed
   });
 });
 
@@ -57,7 +56,6 @@ describe("QA independent: malformed existing target", () => {
 
     expect(summary.failed).toEqual(["de"]);
     expect(summary.locales[0]?.error?.code).toBeDefined();
-    // the malformed file is left untouched, and no lock entry is created for it
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json")).catch(() => undefined)) as
       | Lock
       | undefined;

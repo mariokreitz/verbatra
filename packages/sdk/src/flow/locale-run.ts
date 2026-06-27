@@ -42,16 +42,13 @@ export interface LocaleRunParams {
   /** When true, orphaned keys (diff.orphaned) are removed from the written file and the lock. */
   readonly prune: boolean;
   /**
-   * When true, synthesize the CLDR plural forms a richer target language needs but the source lacks.
-   * Only acts for an i18next-JSON project translated by an LLM provider; every other case falls back to
-   * the PLURAL_CATEGORIES_INCOMPLETE warning. Off mirrors today's detect-and-warn behavior exactly.
+   * When true, synthesize the CLDR plural forms a richer target language needs but the source lacks
+   * (i18next-JSON + LLM provider only); every other case falls back to the warning.
    */
   readonly generatePlurals: boolean;
   /**
-   * Maximum number of entries per provider request. A locale's entries to translate are split into
-   * sequential sub-batches no larger than this; a sub-batch that throws or fails integrity is withheld
-   * without sinking the locale. Reaches the run only through the validated config (its default lives at the
-   * config boundary). Must be a positive integer; the config schema guarantees that.
+   * Maximum entries per provider request. Entries are split into sequential sub-batches no larger than
+   * this. A positive integer, guaranteed by the config schema.
    */
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
@@ -94,26 +91,19 @@ function buildRequest(
 }
 
 /**
- * Run one target locale: read + diff + (translate + integrity + write) + compute the
- * lock entries. A dry-run (provider undefined) stops after the diff and reports what
- * would be translated, calling no provider and writing nothing. May throw
- * (provider/adapter/IO); the orchestrator isolates that as a per-locale failure.
+ * Run one target locale: read, diff, translate, integrity-check, write, and compute the lock entries.
+ * A dry-run (provider undefined) stops after the diff. May throw; the orchestrator isolates that as a
+ * per-locale failure.
  */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
   const target = await readTarget(params);
   const diff = diffResources(params.source, target, { baseline: params.baseline });
 
-  // Generated plural forms (a target plural key whose base key has source plural forms) are not true
-  // orphans: the source `items_few` may be absent while `items_one` / `items_other` exist. This protection
-  // applies ONLY when generation is enabled: those forms will be regenerated, so keep them out of `orphaned`
-  // and out of pruning. With generation off (the default), a source-absent plural-shaped key is a genuine
-  // orphan and reported/pruned exactly like any other (pre-feature behavior).
+  // Generated plural forms are not true orphans, so when generation is on keep them out of orphaned/pruning.
   const orphaned = params.generatePlurals
     ? diff.orphaned.filter((key) => !isGeneratedPluralKey(key, sourcePluralBaseKeys(params.source)))
     : diff.orphaned;
 
-  // Pruning removes exactly the orphaned keys, and only when on. `orphaned` is already sorted, so the
-  // pruned list is deterministic; an empty list means "report orphans, remove nothing" (the default).
   const pruned: readonly string[] = params.prune ? orphaned : [];
 
   const invalidIcu = new Set(params.sourceInvalidIcuKeys);
@@ -130,7 +120,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 
   const provider = params.provider;
   if (provider === undefined) {
-    // Dry-run: report what would be translated and what would be pruned; write nothing.
+    // Dry-run: report what would change, write nothing.
     return {
       summary: baseSummary({
         locale: params.targetLocale,
@@ -162,13 +152,12 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   );
 
   const merged = new Map(target.entries);
-  // When pruning is on, drop orphaned keys before translations are merged in. Only diff.orphaned keys
-  // (source-absent) are removed; accepted translations are all source-present and so never collide here.
+  // Drop pruned (source-absent) orphans before merging; accepted keys are source-present and never collide.
   for (const key of pruned) {
     merged.delete(key);
   }
   for (const [key, { value, source }] of accepted) {
-    // Carry the source entry's fields but the TARGET's namespace and the translated value.
+    // Carry the source entry's fields but the target's namespace and the translated value.
     merged.set(key, { ...source, value, namespace: target.namespace });
   }
 
@@ -188,9 +177,6 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     path,
   );
 
-  // When generation ran, the warning is decided from the WRITTEN set: it remains only if a required
-  // category is still missing (a withheld form or an unsupported case). When generation was off, keep
-  // the source-derived warning unchanged.
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
   const notices: readonly LocaleNotice[] = [...pluralNotices, ...subBatchNotices];
 
@@ -203,7 +189,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       invalidIcuSource,
       translated: [...accepted.keys()],
       generated: generation.accepted.map((form) => form.targetKey).sort(),
-      // Withheld generated forms surface alongside withheld translations (spec D4): both failed integrity.
+      // Withheld generated forms surface alongside withheld translations: both failed integrity.
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
       pruned,
       notices,
@@ -212,10 +198,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   };
 }
 
-/**
- * Run plural generation when enabled and the provider is an LLM. DeepL (machine-translation) and a
- * disabled option both skip generation so the run falls back to the warning, never a hard failure.
- */
+/** Run plural generation when enabled and the provider is an LLM; otherwise skip and fall back to the warning. */
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
@@ -236,11 +219,7 @@ async function runGeneration(
   });
 }
 
-/**
- * The plural warning recomputed per base key against the written target (post-generation). It remains
- * only if a required category is still missing for some base key (a withheld form or an unsupported
- * case); a complete generated set clears it. A no-op for non-i18next (no plural keys are present).
- */
+/** Recompute the plural warning per base key against the written target; a complete generated set clears it. */
 function pluralNoticeFor(
   params: LocaleRunParams,
   merged: ReadonlyMap<string, TranslationEntry>,
@@ -281,15 +260,7 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
   };
 }
 
-/**
- * Split entries to translate into sequential sub-batches of at most `maxBatchSize` and run each as its
- * own provider request. Every entry lands in exactly one sub-batch, so no key is dropped or duplicated.
- * A sub-batch at or below the maximum count yields a single request, preserving the common-case behavior.
- * A sub-batch whose call throws is isolated: its keys are withheld (pushed to `integrityMismatches`, so
- * they are not locked and retry next run) and a secret-free `SUB_BATCH_FAILED` notice is recorded, but the
- * remaining sub-batches still run. Per-key integrity failures within a successful sub-batch are withheld
- * exactly as before. The raw provider error is never bound or surfaced (see `runSubBatch`).
- */
+/** Split entries into sequential sub-batches of at most `maxBatchSize` and run each as its own request. */
 async function translateAndCheck(
   provider: TranslationProvider,
   params: LocaleRunParams,
@@ -306,10 +277,8 @@ async function translateAndCheck(
 }
 
 /**
- * Run one sub-batch and fold its result into `accepted` / `integrityMismatches`. On a thrown provider
- * call the error is caught with an unbound catch and never re-thrown, logged, or surfaced: the whole
- * sub-batch is withheld and a static, secret-free notice is returned, so a single oversized or failing
- * sub-batch cannot sink the locale and no raw SDK error reaches an output path.
+ * Run one sub-batch and fold its result into `accepted` / `integrityMismatches`. A thrown provider call
+ * is caught and never surfaced: the whole sub-batch is withheld and a secret-free notice is returned.
  */
 async function runSubBatch(
   provider: TranslationProvider,
@@ -339,7 +308,7 @@ async function runSubBatch(
   return readNotices(result);
 }
 
-/** A static, secret-free notice for a sub-batch whose provider call failed; carries only a count, never a key. */
+/** A secret-free notice for a sub-batch whose provider call failed; carries only a count, never a key. */
 function subBatchFailedNotice(count: number): SdkNotice {
   return {
     code: "SUB_BATCH_FAILED",
@@ -357,17 +326,9 @@ function chunk<T>(items: readonly T[], size: number): readonly (readonly T[])[] 
 }
 
 /**
- * Lock entries for the written target: the current source hash for every source-present
- * key, EXCEPT keys withheld for integrity failure or invalid-ICU this run (those keep
- * their prior baseline hash, so they retry next run). Unchanged source-present keys are
- * refreshed; orphaned keys get no entry.
- *
- * Generated plural keys are source-ABSENT, so they get no source hash here. Each accepted generated form
- * carries its own governing-source hash ({@link GeneratedForm.lockHash}); these are recorded last so an
- * accepted generated key is not regenerated next run while its governing source forms are unchanged, and
- * IS reconsidered when they change. A previously-generated key that stays in the target but is NOT
- * regenerated this run carries its prior baseline hash forward, so its lock entry survives. A withheld
- * generated key gets no entry, so it is retried next run.
+ * Lock entries for the written target: the current source hash for every source-present key, except keys
+ * withheld this run (those keep their prior baseline hash so they retry). Generated plural keys are
+ * source-absent and instead carry their own governing-source hash ({@link GeneratedForm.lockHash}).
  */
 function computeLockEntries(
   params: LocaleRunParams,
@@ -380,9 +341,7 @@ function computeLockEntries(
   for (const key of merged.keys()) {
     const sourceEntry = params.source.entries.get(key);
     if (sourceEntry === undefined) {
-      // Carry a prior generated-plural lock entry forward so it is not lost when not regenerated.
-      // Only when generation is enabled: with generation off, a source-absent key is a true orphan and
-      // gets no lock entry carried forward (pre-feature behavior), so a pruned orphan loses its lock too.
+      // Carry a prior generated-plural lock entry forward (only when generation is enabled).
       if (params.generatePlurals) {
         carryGeneratedLock(lockEntries, params.baseline, key, sourceBaseKeys);
       }

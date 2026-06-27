@@ -6,18 +6,12 @@ import { DEFAULT_WORKBOOK_LIMITS, type WorkbookLimits } from "./limits.js";
 import type { RowStatus, WorkbookData, WorkbookRow, WorkbookSheet } from "./types.js";
 import { guardWorkbookBytes } from "./zip-guard.js";
 
-// exceljs is imported here and in build-workbook.ts only; no other module touches it.
-
 /** Options for {@link readWorkbook}; the caps default to {@link DEFAULT_WORKBOOK_LIMITS}. */
 export interface ReadWorkbookOptions {
   readonly limits?: WorkbookLimits;
 }
 
-/**
- * The validated shape of one parsed data row. zod is the boundary check on the untrusted
- * workbook content: the key must be a non-empty string and the status one of the known buckets.
- * The translation may be empty (skipped on import); the source columns are reference-only.
- */
+/** The zod boundary check on untrusted workbook content: key non-empty, status a known bucket. */
 const rowSchema = z.object({
   key: z.string().min(1),
   source: z.string(),
@@ -27,10 +21,7 @@ const rowSchema = z.object({
   translation: z.string(),
 });
 
-/**
- * Coerce a cell value to a string: empty for a blank cell, the value for a string, its stringified
- * form for a number or boolean, and the cell's rendered text for a rich-text/formula/hyperlink cell.
- */
+/** Coerce a cell value to a string, falling back to the cell's rendered text for object cells. */
 function cellString(cell: ExcelJS.Cell): string {
   const value = cell.value;
   if (value === null || value === undefined) {
@@ -42,7 +33,6 @@ function cellString(cell: ExcelJS.Cell): string {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
-  // Rich text / hyperlink / formula objects expose a `.text`; fall back to the cell's text.
   return typeof cell.text === "string" ? cell.text : "";
 }
 
@@ -117,9 +107,7 @@ function readDataSheet(sheet: ExcelJS.Worksheet, limits: WorkbookLimits): Workbo
     }
     rows.push(parseRow(sheet, row));
   }
-  // The locale round-trips through the worksheet name: it was set to the locale on build (see
-  // build-workbook's assertValidWorksheetName, which guards Excel's 31-char and forbidden-character
-  // limits) and is read back here. Keep this coupling in sync with the builder.
+  // The locale round-trips through the worksheet name: set to the locale on build and read back here.
   return { locale: sheet.name, rows };
 }
 
@@ -132,7 +120,7 @@ function readDataSheet(sheet: ExcelJS.Worksheet, limits: WorkbookLimits): Workbo
 async function loadWorkbook(bytes: Uint8Array): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   try {
-    // exceljs expects a Node Buffer/ArrayBuffer; wrap the bytes in a Buffer view (no copy).
+    // exceljs expects a Node Buffer; wrap the bytes in a Buffer view (no copy).
     const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   } catch {
@@ -143,19 +131,15 @@ async function loadWorkbook(bytes: Uint8Array): Promise<ExcelJS.Workbook> {
 
 /**
  * Parse a returned `.xlsx` back into the neutral row model. The bytes are first bounded by
- * {@link guardWorkbookBytes} (entry and decompressed-byte caps and the DTD/entity rejection),
- * then exceljs parses, then each data sheet (every sheet except the instructions sheet) is read
- * row by row with the per-sheet/per-row caps and a zod row-shape check.
+ * {@link guardWorkbookBytes}, then exceljs parses, then each data sheet (every sheet except the
+ * instructions sheet) is read with the per-sheet and per-row caps and a zod row-shape check. It
+ * decides no policy: it returns rows for the SDK to judge. Every structural problem surfaces as a
+ * structured {@link ExchangeError} (`WORKBOOK_INVALID`); no raw library throw, buffer, or path escapes.
  *
- * It decides no policy: it returns rows for the SDK to judge (placeholder, ICU, drift, diff).
- * Every structural problem (corrupt file, missing identifier column, cap breach, bad row shape)
- * surfaces as a structured, secret-free {@link ExchangeError} (`WORKBOOK_INVALID`); no raw
- * exceljs/jszip/saxes throw, buffer, or path escapes.
- *
- * @param bytes - The returned workbook bytes (already on-disk size-capped by the SDK's read).
- * @param options - Optional caps; defaults to {@link DEFAULT_WORKBOOK_LIMITS}.
- * @returns The parsed sheets in workbook order.
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` on any structural or cap failure.
+ * @param bytes - the returned workbook bytes (already on-disk size-capped by the SDK's read)
+ * @param options - optional caps; defaults to {@link DEFAULT_WORKBOOK_LIMITS}
+ * @returns the parsed sheets in workbook order
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on any structural or cap failure
  */
 export async function readWorkbook(
   bytes: Uint8Array,

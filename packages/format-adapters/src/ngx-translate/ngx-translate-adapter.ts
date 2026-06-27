@@ -29,8 +29,7 @@ export function createNgxTranslateJsonAdapter(): FormatAdapter {
     }),
     validateTree: assertNotMixed,
     buildWriteTree: buildNgxWriteTree,
-    // ngx-translate flat style uses dotted keys as path notation, not literal leaves;
-    // keep the legacy non-encoding flatten so its flat/nested round-trip is unchanged.
+    // ngx-translate flat style uses dotted keys as path notation, not literal leaves.
     keyMode: "path-notation",
   });
 }

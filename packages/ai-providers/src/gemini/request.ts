@@ -3,10 +3,8 @@ import type { GeminiConfig } from "./config.js";
 import { toGeminiSchema } from "./schema.js";
 
 /**
- * INVARIANT: GEMINI_SYSTEM_RULES is a compile-time constant. Nothing variable is
- * ever spliced into it. All variable input travels in the user-turn contents
- * payload. Same prompt-injection boundary as the other two providers; the wording
- * differs only because the output mechanism is responseSchema, not tool-use.
+ * Compile-time constant: no variable input is ever spliced in (the prompt-injection
+ * boundary). All variable input travels in the user-turn contents payload.
  */
 export const GEMINI_SYSTEM_RULES = [
   "You are a translation engine for software localization.",
@@ -35,10 +33,9 @@ export interface GeminiRequest {
 }
 
 /**
- * Build the generateContent body from the shared data payload (already serialized).
- * The static system rules go in config.systemInstruction (the instruction channel);
- * the user turn carries the JSON payload (the data channel). Output is constrained by
- * a responseSchema TRANSFORMED from the canonical derivation (single source of truth).
+ * Build the generateContent body from the serialized data payload. The static system
+ * rules go in the instruction channel and the user turn carries the JSON payload (the
+ * data channel); the responseSchema is transformed from the one canonical derivation.
  */
 export function buildGeminiRequest(config: GeminiConfig, payloadJson: string): GeminiRequest {
   return {

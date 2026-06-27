@@ -17,10 +17,9 @@ const GLOSSARY_IGNORED_MESSAGE =
 /**
  * Build the translateText options and the observable degradation notices. Tone maps to
  * formality (formal -> "more", informal -> "less", neutral/absent -> omitted). On a free
- * (":fx") key a non-default tone degrades gracefully to default formality (no option
- * sent) with a FORMALITY_DOWNGRADED notice. A configured glossary id is passed natively;
- * a supplied generic term map is ignored with a GLOSSARY_IGNORED notice. Notices carry
- * only a stable code and a static message, never a key or content.
+ * (":fx") key a non-default tone degrades to default formality with a FORMALITY_DOWNGRADED
+ * notice; a supplied generic term map is ignored with a GLOSSARY_IGNORED notice. Notices
+ * carry only a stable code and a static message, never a key or content.
  */
 export function buildTranslateOptions(input: TranslateOptionsInput): {
   options: DeepLTranslateOptions;
@@ -28,7 +27,7 @@ export function buildTranslateOptions(input: TranslateOptionsInput): {
 } {
   const notices: ProviderNotice[] = [];
 
-  // Branch on the tone literal so the formality value is derived without a type assertion.
+  // Branch on the tone literal so formality is derived without a type assertion.
   let formality: string | undefined;
   if (input.tone === "formal" || input.tone === "informal") {
     if (input.freeAccount) {

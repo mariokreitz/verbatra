@@ -6,9 +6,7 @@ export type SdkNoticeCode = "PLURAL_CATEGORIES_INCOMPLETE" | "SUB_BATCH_FAILED";
 /**
  * A notice raised by the SDK itself (not a provider), structurally identical to a {@link ProviderNotice}
  * so both share the {@link LocaleSummary.notices} channel. Carries only a stable code and a static,
- * secret-free message; never a key value or translatable content. The SDK keeps its own codes here so
- * the ai-providers `ProviderNoticeCode` union stays free of SDK concerns (the dependency arrow points
- * sdk -> ai-providers, never the reverse).
+ * secret-free message; never a key value or translatable content.
  */
 export interface SdkNotice {
   /** The stable {@link SdkNoticeCode} for what the SDK is reporting. */
@@ -46,10 +44,9 @@ export interface LocaleSummary {
   /** Translated keys that failed the placeholder-integrity check and were withheld. */
   readonly integrityMismatches: readonly string[];
   /**
-   * Plural-category keys verbatra SYNTHESIZED this run (for example a Polish `items_few` the source
-   * never supplied), kept distinct from {@link translated} because they were generated from the meaning
-   * of the source plural forms, not translated 1:1 from a source string. Empty unless plural generation
-   * was enabled and acted. In a dry-run this is empty (the provider is not called).
+   * Plural-category keys verbatra synthesized this run (for example a Polish `items_few` the source
+   * never supplied), kept distinct from {@link translated}. Empty unless plural generation was enabled
+   * and acted, and empty in a dry-run.
    */
   readonly generated: readonly string[];
   /**

@@ -38,19 +38,15 @@ export interface PluralGenerationResult {
 }
 
 /**
- * Lock basis for a source-absent generated key. A generated key (for example `items_few`) has no
- * source entry, so its lock entry hashes the GOVERNING source plural forms of its base key plus the
- * category. The hash is stable while those source forms are unchanged (so the key is not regenerated)
- * and changes when any of them changes (so it is reconsidered) - the determinism contract from the spec.
+ * Lock basis for a source-absent generated key: hash the governing source plural forms of its base key
+ * plus the category. Stable while those source forms are unchanged, changing when any of them changes.
  */
 export function generatedLockHash(
   governingEntries: readonly TranslationEntry[],
   category: CldrPluralCategory,
 ): string {
   const governingHashes = governingEntries.map(contentHash).sort();
-  // Reuse contentHash by feeding it a throwaway entry whose `value` encodes the category and the
-  // sorted governing-form hashes. Only the returned hash string is used (stored in the lock); this
-  // entry is never persisted, and its other fields are inert filler to satisfy the shape.
+  // Reuse contentHash with a throwaway entry whose value encodes the category and governing-form hashes.
   return contentHash({
     key: "",
     namespace: "",
@@ -97,15 +93,9 @@ function buildRequest(
 }
 
 /**
- * Generate the missing plural forms for one supported locale run. Only an i18next-JSON project with a
- * known richer target language yields any work (DeepL is gated out by the caller, which only calls this
- * for LLM providers). Generation rides the existing provider path: synthetic entries (the chosen source
- * form re-keyed, with the category as data context) are translated and integrity-checked exactly like any
- * other value. Forms whose placeholders do not match the source form are withheld. An item already locked
- * with an unchanged governing-source hash is skipped (no regeneration).
- *
- * @returns The accepted forms to write and the keys withheld for integrity failure. Empty when nothing
- *   applies, so the caller keeps the fallback warning.
+ * Generate the missing plural forms for one supported locale run. Synthetic entries are translated and
+ * integrity-checked like any other value; forms whose placeholders do not match are withheld, and an item
+ * already locked with an unchanged governing-source hash is skipped.
  */
 export async function generatePluralForms(
   context: PluralGenerationContext,

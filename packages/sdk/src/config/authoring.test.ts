@@ -5,18 +5,13 @@ import type { AuthoringConfig, AuthoringConfigFor } from "./authoring.js";
 import { defineConfig } from "./define-config.js";
 import { loadConfig } from "./load-config.js";
 
-// Compile-time assertion helpers, verified by `tsc --noEmit` (the typecheck script
-// type-checks these *.test.ts files). A failing assertion is a build failure.
+// Compile-time assertion helpers; a failing assertion is a typecheck build failure.
 type Extends<A, B> = A extends B ? true : false;
 type Expect<T extends true> = T;
 
-// Isolate the named literal members of an open model union `M | (string & {})`.
-// A widened `string` satisfies `string extends T`; a string literal does not. So
-// distributing over the union and dropping any arm the wide `string` extends leaves
-// exactly the SDK-shipped literals an editor offers as completions.
+// Isolate the named literal members of an open model union `M | (string & {})`, dropping the widened `string` arm.
 type LiteralMembers<T> = T extends string ? (string extends T ? never : T) : never;
 
-// The authoring type for one provider variant's model field.
 type ModelOf<Id extends AuthoringConfig["provider"]["id"]> =
   Extract<AuthoringConfig["provider"], { id: Id }> extends { options: { model: infer M } }
     ? M
@@ -26,11 +21,7 @@ type AnthropicModelField = ModelOf<"anthropic">;
 type OpenAiModelField = ModelOf<"openai">;
 type GeminiModelField = ModelOf<"gemini">;
 
-// The model field of one provider's concrete authoring config (the parameter type of that
-// provider's `defineConfig` overload). This is the property that makes editors with weaker
-// discriminated-union narrowing (for example JetBrains/WebStorm) offer only the selected
-// provider's models: each overload's argument is one concrete variant, so `options.model`
-// is never a cross-provider union and there is no nested union for the editor to narrow.
+// Collapsing to one concrete variant lets editors with weaker discriminated-union narrowing offer only the selected provider's models.
 type CollapsedModelOf<Id extends "anthropic" | "openai" | "gemini"> =
   AuthoringConfigFor<Id>["provider"] extends { options: { model: infer M } } ? M : never;
 
@@ -50,9 +41,6 @@ describe("provider model authoring suggestions (type-level)", () => {
   });
 
   it("sources each authoring field from the matching SDK model type", () => {
-    // The named literal members of the authoring field are exactly those of the SDK
-    // type the field is sourced from: the authoring layer restricts to those literals
-    // and adds no new or different ones.
     type Assertions = [
       Expect<Extends<LiteralMembers<AnthropicModelField>, LiteralMembers<AnthropicModel>>>,
       Expect<Extends<LiteralMembers<AnthropicModel>, LiteralMembers<AnthropicModelField>>>,
@@ -66,7 +54,6 @@ describe("provider model authoring suggestions (type-level)", () => {
   });
 
   it("narrows suggestions by provider id: a foreign literal is not a named member", () => {
-    // Narrowing is asserted over the named literal members the SDK unions distinguish.
     type Assertions = [
       Expect<Extends<Extends<"gpt-4o", LiteralMembers<AnthropicModelField>>, false>>,
       Expect<Extends<Extends<"gemini-2.5-flash", LiteralMembers<AnthropicModelField>>, false>>,
@@ -80,7 +67,6 @@ describe("provider model authoring suggestions (type-level)", () => {
   });
 
   it("rejects an unknown or foreign model string for every LLM provider (closed union)", () => {
-    // The field is the provider's known literals only; an unknown string is not assignable.
     type Assertions = [
       Expect<Extends<Extends<"some-future-model-2099", AnthropicModelField>, false>>,
       Expect<Extends<Extends<"some-future-model-2099", OpenAiModelField>, false>>,
@@ -91,10 +77,6 @@ describe("provider model authoring suggestions (type-level)", () => {
   });
 
   it("collapses defineConfig to the selected provider's model union for a literal id", () => {
-    // The collapsed call-site field carries exactly the matching SDK type's literals (the
-    // generic selects one variant) and is closed: no foreign provider's literals and no
-    // arbitrary string. This locks in the editor-robust per-provider restriction: there is
-    // no cross-provider union to narrow, and a wrong model is a type error.
     type Assertions = [
       Expect<Extends<LiteralMembers<CollapsedOpenAi>, LiteralMembers<OpenAiModel>>>,
       Expect<Extends<LiteralMembers<OpenAiModel>, LiteralMembers<CollapsedOpenAi>>>,
@@ -102,13 +84,11 @@ describe("provider model authoring suggestions (type-level)", () => {
       Expect<Extends<LiteralMembers<AnthropicModel>, LiteralMembers<CollapsedAnthropic>>>,
       Expect<Extends<LiteralMembers<CollapsedGemini>, LiteralMembers<GeminiModel>>>,
       Expect<Extends<LiteralMembers<GeminiModel>, LiteralMembers<CollapsedGemini>>>,
-      // No foreign-provider literal is assignable to a collapsed field.
       Expect<Extends<Extends<"claude-opus-4-8", CollapsedOpenAi>, false>>,
       Expect<Extends<Extends<"gemini-2.5-flash", CollapsedOpenAi>, false>>,
       Expect<Extends<Extends<"gpt-4o", CollapsedAnthropic>, false>>,
       Expect<Extends<Extends<"claude-opus-4-8", CollapsedGemini>, false>>,
       Expect<Extends<Extends<"gpt-4o", CollapsedGemini>, false>>,
-      // The union is closed: an arbitrary unknown string is not assignable either.
       Expect<Extends<Extends<"some-future-model-2099", CollapsedOpenAi>, false>>,
       Expect<Extends<Extends<"some-future-model-2099", CollapsedAnthropic>, false>>,
       Expect<Extends<Extends<"some-future-model-2099", CollapsedGemini>, false>>,

@@ -9,10 +9,6 @@ import { createNextIntlJsonAdapter } from "../next-intl/next-intl-adapter.js";
 import { createNgxTranslateJsonAdapter } from "../ngx-translate/ngx-translate-adapter.js";
 import { createVueI18nJsonAdapter } from "../vue-i18n/vue-i18n-adapter.js";
 
-// QA independent harness: every one of the four adapters now writes through the atomic
-// write. For a single flat key the serialized output is the same shape across all four;
-// this confirms the atomic path produces the expected bytes and leaves no temp litter,
-// for each adapter, not only i18next.
 const EXPECTED = `{\n  "greeting": "Hi"\n}\n`;
 
 const adapters: ReadonlyArray<{ format: SupportedFormat; make: () => FormatAdapter }> = [
@@ -43,7 +39,7 @@ describe("QA independent: byte-identical write through the atomic path, all four
       const target = join(dir, "en.json");
       await make().write(singleKey(format), target);
       expect(await readFile(target, "utf8")).toBe(EXPECTED);
-      expect(await readdir(dir)).toEqual(["en.json"]); // routed through atomic write, temp cleaned
+      expect(await readdir(dir)).toEqual(["en.json"]);
     });
   }
 });

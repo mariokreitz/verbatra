@@ -1,16 +1,11 @@
 #!/usr/bin/env node
-// Guards the repository against the em dash character (U+2014), which CLAUDE.md
-// bans everywhere in the repo. Scans git-tracked text files and fails (exit 1)
-// listing every offending file:line:col. The banned character is referenced only
-// by its code point here, so this script never contains a literal U+2014.
+// Fails if the em dash character (U+2014) appears in any git-tracked text file.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 
 const EM_DASH = String.fromCharCode(0x2014);
 
-// Tracked files that are skipped: the lockfile (large, generated) and obvious
-// binary formats by extension. A null byte in the content is a second guard.
 const SKIP_FILES = new Set(["pnpm-lock.yaml"]);
 const BINARY_EXTENSIONS = new Set([
   "png",
@@ -79,9 +74,7 @@ function scanLine(text, path, line) {
 }
 
 /**
- * `git ls-files` lists index entries; a file deleted on disk but not yet staged
- * is reported but cannot be read. A missing or unreadable file is not a
- * violation, so it is skipped rather than crashing the guard.
+ * A missing or unreadable tracked file is skipped rather than treated as a violation.
  * @param {string} path
  * @returns {Hit[]}
  */

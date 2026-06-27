@@ -74,9 +74,7 @@ describe("createArbAdapter read", () => {
   });
 
   it("reads metadata that carries numeric and nested leaves without rejecting it", async () => {
-    // Real Flutter metadata legitimately holds non-string, deeply nested leaves
-    // (optionalParameters.decimalDigits). These are dropped before message-tree validation,
-    // so a valid ARB file must not be rejected as INVALID_STRUCTURE or MAX_DEPTH_EXCEEDED.
+    // Real Flutter metadata holds non-string, deeply nested leaves, so a valid ARB file must not be rejected.
     const withRichMetadata = {
       "@@locale": "en",
       count: "{count, plural, one {# item} other {# items}}",

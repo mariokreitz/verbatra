@@ -15,7 +15,7 @@ export function namespaceOf(filePath: string): string {
 
 /**
  * Rethrow an existing structured {@link AdapterError} unchanged, or convert any other throw into one
- * so boundary failures never escape `read` as a raw error. Shared by the tree and flat factories.
+ * so boundary failures never escape `read` as a raw error.
  */
 export function rethrowStructured(error: unknown, message: string): never {
   if (error instanceof AdapterError) {
@@ -25,8 +25,8 @@ export function rethrowStructured(error: unknown, message: string): never {
 }
 
 /**
- * Compute the format's invalid-message keys inside the structured-error wrap, so a future non-total
- * analyzer cannot leak a raw error out of `read`. Formats without ICU pass no compute and get none.
+ * Compute the format's invalid-message keys, mapping any throw to a structured {@link AdapterError}.
+ * Formats without ICU pass no compute and get an empty result.
  */
 export function computeIcu(
   entries: ReadonlyMap<string, TranslationEntry>,
@@ -43,9 +43,9 @@ export function computeIcu(
 }
 
 /**
- * Build a `canHandle` from an extension allow-list plus an optional content sniff: the file extension
- * (lower-cased) must be in `extensions`, and when a sample and a `sniff` are both present, the sniff
- * must also accept it. With no sniff, the extension match alone decides.
+ * Build a `canHandle` from an extension allow-list plus an optional content sniff. The extension
+ * (lower-cased) must be in `extensions`; when both a sample and a `sniff` are present, the sniff must
+ * also accept it.
  */
 export function buildCanHandle(
   extensions: readonly string[],

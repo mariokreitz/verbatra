@@ -1,6 +1,4 @@
-// The marketing-hero globe: a lightweight line-art sphere with orbit rings and a few
-// glowing nodes, drawn in the brand glow. It is the marketing-home motif only; the docs
-// reading surface keeps the diff as its single signature. Scales crisply, no image asset.
+// Marketing-hero globe: a line-art sphere with orbit rings, used only on the marketing home.
 export function Globe({ className }: { className?: string }) {
   return (
     <svg

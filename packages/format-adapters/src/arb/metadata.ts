@@ -3,23 +3,14 @@ import { AdapterError } from "../errors.js";
 import { readBounded } from "../json/bounded-read.js";
 import { decodeKeyToSegments } from "../json/key-encoding.js";
 
-/**
- * Flutter ARB metadata keys are `@`-prefixed: `@messageId` per-message metadata (an object) and
- * `@@`-prefixed global metadata (for example `@@locale`). Both start with `@`, so one prefix test
- * covers them. Metadata is preserved on write and never translated.
- */
+/** Both per-message (`@id`) and global (`@@locale`) ARB metadata keys start with `@`. */
 function isMetadataKey(key: string): boolean {
   return key.startsWith("@");
 }
 
 /**
- * Parse raw ARB content into its top-level object, before any message-tree validation. Flutter ARB
- * metadata legitimately carries non-string leaves and deep nesting (for example
- * `"@count": { "placeholders": { "count": { "optionalParameters": { "decimalDigits": 2 } } } }`), so
- * the metadata must be dropped before string-leaf and depth validation runs, otherwise a valid ARB
- * file would be rejected for metadata it never translates. This stops at "is a JSON object root",
- * reporting malformed syntax as `INVALID_JSON` and a non-object root as `INVALID_STRUCTURE`; it never
- * echoes file content.
+ * Parse raw ARB content into its top-level object, before any message-tree validation, so metadata
+ * can be stripped first. Malformed syntax is `INVALID_JSON`; a non-object root is `INVALID_STRUCTURE`.
  *
  * @param content - The untrusted ARB file content.
  * @returns The parsed top-level object with raw (unvalidated) values.
@@ -42,10 +33,8 @@ export function parseArbObject(content: string): Record<string, unknown> {
 }
 
 /**
- * Drop every top-level `@`-prefixed metadata key from a parsed ARB object, so metadata never becomes
- * a {@link TranslationEntry} (never sent for translation), is never walked into spurious string
- * leaves, and is never subjected to message-tree validation (it commonly holds numeric and nested
- * leaves). The remaining keys are the translatable messages.
+ * Drop every top-level `@`-prefixed metadata key from a parsed ARB object, leaving the translatable
+ * messages.
  *
  * @param tree - The raw parsed ARB object.
  * @returns A null-prototype object of the message keys only, still carrying raw values.
@@ -60,12 +49,10 @@ export function stripArbMetadata(tree: Record<string, unknown>): Record<string, 
   return out;
 }
 
-/** Recover the original ARB message id from a flattened (literal-leaf encoded) entry key. */
 function originalKey(encoded: string): string {
   return decodeKeyToSegments(encoded).join(".");
 }
 
-/** Map the translated entries to their original ARB message ids, preserving entry order. */
 function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Map<string, string> {
   const out = new Map<string, string>();
   for (const [key, entry] of entries) {
@@ -74,10 +61,6 @@ function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Ma
   return out;
 }
 
-/**
- * Re-read the destination ARB as an ordered list of key/value pairs, or null when it is missing,
- * unreadable, over the size cap, or not a JSON object. Bounded by the same size cap as the read path.
- */
 async function readDestinationPairs(filePath: string): Promise<Array<[string, unknown]> | null> {
   let parsed: unknown;
   try {
@@ -97,10 +80,8 @@ async function readDestinationPairs(filePath: string): Promise<Array<[string, un
 
 /**
  * Build the object to write for ARB, preserving the destination's `@`-prefixed metadata and document
- * order: walk the destination in order, keeping each metadata key verbatim, overwriting each message
- * key with its translation (or keeping the destination value when a key was not translated), then
- * appending any brand-new message keys in entry order. A missing or unreadable destination (a fresh
- * target locale file, which in Flutter omits metadata) yields the messages only, in entry order.
+ * order: overwrite each message key with its translation, keep untranslated values, and append new
+ * keys in entry order. A missing or unreadable destination yields the messages only, in entry order.
  *
  * @param entries - The translated entries to persist.
  * @param filePath - The destination ARB file path.
