@@ -116,7 +116,7 @@
   resolving them, sets isPlural from a plural/selectordinal argument, and reports values that fail
   to parse via invalidIcuKeys; the ICU body is kept verbatim on round-trip. ICU parsing uses
   @formatjs/icu-messageformat-parser (the canonical FormatJS parser next-intl builds on) and is
-  bounded — a value too deep or malformed is reported as invalid, never thrown. Internally, the
+  bounded - a value too deep or malformed is reported as invalid, never thrown. Internally, the
   shared adapter shell was extracted into createJsonFileAdapter and the i18next and vue-i18n
   adapters were reimplemented on it (no behavior change).
 - bde1174: Add the ngx-translate JSON adapter (createNgxTranslateJsonAdapter), registered in the default
@@ -138,7 +138,7 @@
 
 - 2ab85ca: Make the target-file write atomic: the serialized content is written to a temp file in the same
   directory as the target and then renamed over it, so a crash or interruption mid-write can no
-  longer leave a truncated/corrupt target file — a reader sees either the complete prior file or the
+  longer leave a truncated/corrupt target file - a reader sees either the complete prior file or the
   complete new file. Behavior-preserving otherwise: the serialized bytes are byte-identical across
   all four adapters, a write failure still surfaces as the raw fs error (no new error type/code), and
   temp cleanup is best-effort and never masks the original error. Parity with the SDK's lock-file
