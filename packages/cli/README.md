@@ -16,7 +16,7 @@
 
 ## Description
 
-`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, or export and import an Excel workbook for manual translation. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
+`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, check or diff your locales without writing, or export and import an Excel workbook for manual translation. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
 
 ## Requirements
 
@@ -54,12 +54,14 @@ Plural-category generation is opt-in too, but config/SDK only: set `generatePlur
 
 ## Commands
 
-verbatra ships five commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `export` (write untranslated strings to an Excel workbook for a human translator), and `import` (read the filled workbook back, with the same safety checks as `translate`). `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
+verbatra ships seven commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `check` (report per-locale missing, stale, and up-to-date counts without writing), `diff` (list the keys that would be added, re-translated, or are orphaned per locale, without writing), `export` (write untranslated strings to an Excel workbook for a human translator), and `import` (read the filled workbook back, with the same safety checks as `translate`). `check` and `diff` are read-only: they call no provider and write no file, so they suit CI gates. `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
 
 - [CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)
 - [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/cli/init)
 - [`verbatra translate`](https://verbatra.kreitz-webdev.de/docs/cli/translate)
 - [`verbatra watch`](https://verbatra.kreitz-webdev.de/docs/cli/watch)
+- [`verbatra check`](https://verbatra.kreitz-webdev.de/docs/cli/check)
+- [`verbatra diff`](https://verbatra.kreitz-webdev.de/docs/cli/diff)
 - [`verbatra export`](https://verbatra.kreitz-webdev.de/docs/cli/export)
 - [`verbatra import`](https://verbatra.kreitz-webdev.de/docs/cli/import)
 - [Manual translation workflow](https://verbatra.kreitz-webdev.de/docs/manual-translation)
@@ -72,8 +74,8 @@ The CLI returns codes you can branch on in CI and scripts:
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Success (also `--help` and `--version`). |
-| `1` | `translate` or `import` finished, but at least one locale failed. |
+| `0` | Success (also `--help` and `--version`); for `check` and `diff`, every locale is in sync. |
+| `1` | `translate` or `import` finished, but at least one locale failed; for `check` and `diff`, at least one locale is out of sync. |
 | `2` | Could not run: a whole-run error or a usage error. |
 | `130` | `watch` was force-stopped by a second interrupt (a single interrupt stops gracefully and exits `0`). |
 
