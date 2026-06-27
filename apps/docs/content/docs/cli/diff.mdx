@@ -1,0 +1,98 @@
+---
+title: verbatra diff
+description: List the exact keys that would be added, re-translated, or are orphaned per locale, read-only, without calling a provider or writing files.
+---
+
+# verbatra diff
+
+Show, per target locale, the actual pending translation changes as key lists: the keys that would be added, the keys that would be re-translated, and the keys that are now orphaned in the target. `diff` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does before it would call a provider, but it stops there: it calls no provider, writes no files, and never touches the [lock file](/docs/the-lock-file).
+
+```bash
+verbatra diff
+```
+
+`diff` is the detailed sibling of [`verbatra check`](/docs/cli/check). Where `check` answers "how much has drifted" with per-locale counts, `diff` answers "which keys" with the explicit lists. Both run the identical read-only computation.
+
+## The three key lists
+
+For each target locale, `diff` reports three groups:
+
+- **add** (`missing`): keys present in the source locale but absent from the target. A run would add these.
+- **re-translate** (`changed`): keys present in both, where the source string changed since it was last translated. A run would re-translate these.
+- **orphaned**: keys present in the target but absent from the source. These are reported only. A default `translate` run does not prune them, so orphaned keys on their own do not count as pending work (only [`verbatra translate --prune`](/docs/cli/translate) removes them).
+
+A locale has pending changes when it has at least one key to add or re-translate. Orphaned keys alone do not make a locale pending.
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--cwd <path>` | resolve config and locale files from this directory |
+| `--config <path>` | load this config file instead of searching for one |
+| `--locales <list>` | comma-separated subset of target locales (default all configured) |
+| `--json` | print the diff summary as JSON |
+
+There is no `--dry-run`: `diff` is inherently a dry read. It needs no API key.
+
+## Output
+
+Without `--json`, `diff` prints a count header per locale, then the keys grouped under add, re-translate, and orphaned. A locale with nothing to add, re-translate, or orphan collapses to a single line. Every key is listed, with no truncation; pipe to a pager if you want one.
+
+```
+verbatra diff
+  de: 3 to add, 1 to re-translate, 2 orphaned
+    add:          app.title, nav.home, nav.about
+    re-translate: footer.copyright
+    orphaned:     legacy.banner, legacy.promo
+  fr: no pending changes
+2 locales, pending changes
+```
+
+With `--json`, it prints the summary as one JSON object on stdout. The top-level `hasPendingChanges` is true exactly when at least one locale has a key to add or re-translate (and exactly when the command exits `1`):
+
+```json
+{
+  "hasPendingChanges": true,
+  "locales": [
+    {
+      "locale": "de",
+      "missing": ["app.title", "nav.home", "nav.about"],
+      "changed": ["footer.copyright"],
+      "orphaned": ["legacy.banner", "legacy.promo"],
+      "hasPendingChanges": true
+    },
+    {
+      "locale": "fr",
+      "missing": [],
+      "changed": [],
+      "orphaned": [],
+      "hasPendingChanges": false
+    }
+  ]
+}
+```
+
+Each locale's `hasPendingChanges` is `missing.length > 0 || changed.length > 0`; `orphaned` is excluded. A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+
+## Examples
+
+```bash
+# list the keys that would be added, re-translated, or are orphaned (exit 1 if pending)
+verbatra diff
+
+# only diff the German and French locales
+verbatra diff --locales de,fr
+
+# machine-readable key lists on stdout for tooling or a PR comment
+verbatra diff --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | no pending changes: no locale has a key to add or re-translate |
+| `1` | pending changes: at least one locale has a missing or changed key (the full report is still printed) |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
+
+Orphaned keys alone never produce exit `1`, because a default run does not prune them. For `diff`, exit `1` means "there is pending work", not a per-locale failure: the run itself succeeded. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

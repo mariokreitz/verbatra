@@ -6,6 +6,8 @@ import { runInit } from "./init.js";
 import {
   renderCheckHuman,
   renderCheckJson,
+  renderDiffHuman,
+  renderDiffJson,
   renderError,
   renderExportHuman,
   renderExportJson,
@@ -76,6 +78,13 @@ const importOptsSchema = z.object({
 });
 
 const checkOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  locales: localeListSchema,
+  json: z.boolean().optional(),
+});
+
+const diffOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   locales: localeListSchema,
@@ -252,6 +261,38 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
   }
 }
 
+/**
+ * Run the `diff` command: validate the flags, load the config, call the SDK's read-only `diff`, and
+ * render the per-locale key lists (added, re-translate, orphaned). The command writes nothing and calls
+ * no provider. Exit codes: `0` when no locale has pending changes, `1` when at least one locale has a
+ * missing or changed key (the full report is printed first; orphaned keys alone never produce `1`), and
+ * `2` when the run could not start (a structured SdkError to stderr, leaving stdout clean for `--json`).
+ *
+ * @param rawOpts - the raw commander options (validated by `diffOptsSchema`)
+ * @returns the process exit code (`0` no pending changes, `1` pending changes, `2` whole-run failure)
+ */
+async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const opts = diffOptsSchema.parse(rawOpts);
+  const cwd = opts.cwd ?? process.cwd();
+  try {
+    const config = await deps.loadConfig(
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+    );
+    const summary = await deps.diff({
+      config,
+      cwd,
+      ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+    });
+    streams.out(
+      opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
+    );
+    return summary.hasPendingChanges ? 1 : 0;
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+}
+
 function buildProgram(
   deps: CliDeps,
   streams: Streams,
@@ -373,6 +414,29 @@ function buildProgram(
         "  $ verbatra check                  report missing and stale keys per locale (exit 1 if drifted)",
         "  $ verbatra check --locales de,fr  only check the German and French locales",
         "  $ verbatra check --json           machine-readable status on stdout for CI",
+      ].join("\n"),
+    );
+
+  program
+    .command("diff")
+    .description(
+      "Show the keys that would be added, re-translated, or orphaned per locale without writing files",
+    )
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
+    .option("--json", "print the diff summary as JSON")
+    .action(async (opts: unknown) => {
+      setCode(await runDiff(opts, deps, streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra diff                  list the pending keys per locale (exit 1 if any are pending)",
+        "  $ verbatra diff --locales de,fr  only diff the German and French locales",
+        "  $ verbatra diff --json           machine-readable key lists on stdout for CI",
       ].join("\n"),
     );
 

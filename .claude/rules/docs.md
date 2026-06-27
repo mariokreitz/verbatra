@@ -44,8 +44,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. v1 CLI is `init`, `translate`, and `watch`.
-  `check` and `diff` are planned and must not be documented as if they ship.
+- Only document features that exist. v1 CLI is `init`, `translate`, `watch`,
+  `check`, `diff`, `export`, and `import`.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.

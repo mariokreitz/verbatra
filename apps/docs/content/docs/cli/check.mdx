@@ -13,6 +13,8 @@ verbatra check
 
 A key is **missing** when it is in the source locale but absent from the target. A key is **stale** when the target has it but the source string changed since it was last translated. A key is **up to date** when the target matches the current source. A locale is in sync when it has no missing and no stale keys.
 
+`check` reports counts. To see the actual keys behind those counts (which keys would be added, re-translated, or are orphaned), use [`verbatra diff`](/docs/cli/diff), its detailed sibling that runs the identical read-only computation.
+
 ## Options
 
 | Option | Description |

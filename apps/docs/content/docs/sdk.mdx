@@ -24,7 +24,7 @@ Requires Node.js `>=22.14.0`.
 
 ## The public surface
 
-The package exports seven functions and the types a caller touches.
+The package exports eight functions and the types a caller touches.
 
 - `defineConfig(config): VerbatraConfig` returns its argument unchanged. It exists only to give you
   type inference and autocomplete when you author a config in TypeScript; the `model` field is
@@ -57,7 +57,15 @@ The package exports seven functions and the types a caller touches.
   stops before any provider call: it reports per-locale drift and writes nothing. `CheckInput` is
   `{ config, cwd?, locales? }`. It resolves to a `CheckSummary` whose `inSync` is true exactly when
   every checked locale has no missing and no stale keys. No provider is called, no file is written,
-  and the lock is not touched. See [`verbatra check`](/docs/cli/check).
+  and the lock is not touched. See [`verbatra check`](/docs/cli/check). For the keys behind those
+  counts, use `diff` below.
+- `diff(input: DiffInput): Promise<DiffSummary>` is the read-only sibling of `check`: it runs the
+  same read and diff but reports key lists instead of counts. `DiffInput` is `{ config, cwd?, locales? }`.
+  It resolves to a `DiffSummary` whose per-locale entries carry `missing` (keys that would be added),
+  `changed` (keys that would be re-translated), and `orphaned` (keys in the target but not the source,
+  reported only). Its `hasPendingChanges` is true exactly when some locale has a missing or changed key;
+  orphaned keys alone do not set it. No provider is called, no file is written, and the lock is not
+  touched. See [`verbatra diff`](/docs/cli/diff).
 
 The result types:
 
@@ -101,6 +109,19 @@ interface LocaleCheckSummary {
   stale: number;                   // source changed since last translated
   upToDate: number;                // target matches the current source
   inSync: boolean;                 // missing === 0 && stale === 0
+}
+
+interface DiffSummary {
+  hasPendingChanges: boolean;      // true when some locale has a missing or changed key
+  locales: LocaleDiff[];           // one entry per checked locale, in config order
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];               // in source, absent from target: would be added
+  changed: string[];               // source changed since last translated: would be re-translated
+  orphaned: string[];              // in target, absent from source: reported only
+  hasPendingChanges: boolean;      // missing.length > 0 || changed.length > 0
 }
 ```
 

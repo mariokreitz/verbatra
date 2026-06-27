@@ -58,6 +58,23 @@ if (!summary.inSync) {
 
 `translate({ dryRun: true })` is an alternative when you want the full run summary (the keys that would be translated) rather than only the drift counts.
 
+`diff` is the read-only sibling of `check`: it runs the same computation but returns the actual key lists (`missing`, `changed`, `orphaned`) per locale instead of counts, with the same `hasPendingChanges` gate. Reach for it when you need which keys, not just how many.
+
+```ts
+import { diff, loadConfig } from "@verbatra/sdk";
+
+const summary = await diff({ config: await loadConfig() });
+
+if (summary.hasPendingChanges) {
+  for (const locale of summary.locales) {
+    if (locale.hasPendingChanges) {
+      console.log(`${locale.locale}: add ${locale.missing.join(", ")}; re-translate ${locale.changed.join(", ")}`);
+    }
+  }
+  process.exitCode = 1;
+}
+```
+
 ## Hand strings to a human translator
 
 Export the strings that need translating into an Excel workbook, then import the filled file back. `importWorkbook` returns the same `RunSummary` as `translate` and runs the same placeholder and ICU checks, so a manual handoff fits the same reporting and gating as an automated run. See [Manual translation](/docs/manual-translation).
