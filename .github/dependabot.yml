@@ -13,6 +13,14 @@ updates:
     labels:
       - "dependencies"
     groups:
+      deepl-logging:
+        patterns:
+          - "deepl-node"
+          - "loglevel"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
       npm-minor-patch:
         update-types:
           - "minor"
