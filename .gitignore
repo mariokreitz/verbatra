@@ -4,7 +4,9 @@ node_modules/
 # Build output
 dist/
 *.tsbuildinfo
-.verbatra-team
+
+# verbatra team workspace (audit trail, specs, ADRs, and agent memory; local only)
+.verbatra
 
 # Next.js / Fumadocs (docs app build artifacts)
 .next/

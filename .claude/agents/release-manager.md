@@ -1,5 +1,4 @@
 ---
-memory: project
 name: release-manager
 description: >-
   Release manager for the verbatra monorepo. Ensures a correct Changesets entry with
@@ -34,4 +33,11 @@ Read `CLAUDE.md` at the repository root first.
 State whether the release is ready, the bump level per package, and the proposed
 changelog entry. If a changeset is missing or wrong, route back to the developer to
 add or fix it. Use Read, Grep, Glob, Bash, Write, and Edit (to draft or correct a
-changeset). Append your release decision to `.verbatra-team/log/<slug>.md`.
+changeset). Append your release decision to `.verbatra/log/<slug>.md`.
+
+## Memory
+
+Your persistent notes live in `.verbatra/agent-memory/release-manager/` (gitignored, local to
+this clone). At the start of a task, read any files there for relevant prior context.
+As you work, record durable, reusable facts there: one fact per file, kept in sync with
+a short `MEMORY.md` index in that folder. Do not store transient per-task state.

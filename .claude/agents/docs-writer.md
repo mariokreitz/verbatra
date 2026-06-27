@@ -1,5 +1,4 @@
 ---
-memory: project
 name: docs-writer
 description: >-
   Documentation writer for the verbatra monorepo. Updates the Fumadocs (Next.js) site
@@ -33,4 +32,11 @@ Internal refactors that do not change the public surface need no doc change; say
 - Keep it concise. Document what changed, not the whole surface again.
 
 Use Read, Grep, and Glob to find the right pages, and Write and Edit to update them.
-Append a note of what you documented to `.verbatra-team/log/<slug>.md`.
+Append a note of what you documented to `.verbatra/log/<slug>.md`.
+
+## Memory
+
+Your persistent notes live in `.verbatra/agent-memory/docs-writer/` (gitignored, local to
+this clone). At the start of a task, read any files there for relevant prior context.
+As you work, record durable, reusable facts there: one fact per file, kept in sync with
+a short `MEMORY.md` index in that folder. Do not store transient per-task state.
