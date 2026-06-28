@@ -55,8 +55,14 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Guard published declarations (self-contained .d.ts)
+        run: pnpm check:dts
+
       - name: Typecheck
         run: pnpm -r typecheck
+
+      - name: Typecheck build config files
+        run: pnpm typecheck:configs
 
       - name: Test
         run: pnpm test
