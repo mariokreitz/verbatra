@@ -1,14 +1,13 @@
 import { createTsupConfig } from "@verbatra/config/tsup";
 
-// Bundle the private workspace internals into the published dist while keeping every real npm
-// dependency external. Transitive deps of those bundled packages (yaml, @xmldom/xmldom) must be
-// declared in @verbatra/sdk dependencies so tsup externalizes them rather than inlining them: yaml
-// is CommonJS and calls require() internally, which throws under the ESM bundle if inlined.
+const WORKSPACE_INTERNALS = [
+  "@verbatra/core",
+  "@verbatra/format-adapters",
+  "@verbatra/ai-providers",
+  "@verbatra/exchange",
+];
+
 export default createTsupConfig({
-  noExternal: [
-    "@verbatra/core",
-    "@verbatra/format-adapters",
-    "@verbatra/ai-providers",
-    "@verbatra/exchange",
-  ],
+  noExternal: WORKSPACE_INTERNALS,
+  dts: { resolve: WORKSPACE_INTERNALS },
 });

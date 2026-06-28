@@ -26,6 +26,8 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:no-em-dash": "node scripts/check-no-em-dash.mjs",
+    "check:dts": "node scripts/check-published-dts.mjs",
+    "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
     "release": "changeset publish"
   },

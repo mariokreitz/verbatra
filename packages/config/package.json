@@ -8,14 +8,22 @@
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./biome.json": "./biome.json",
-    "./tsup": "./tsup.base.mjs",
-    "./vitest": "./vitest.base.mjs"
+    "./tsup": {
+      "types": "./tsup.base.d.mts",
+      "default": "./tsup.base.mjs"
+    },
+    "./vitest": {
+      "types": "./vitest.base.d.mts",
+      "default": "./vitest.base.mjs"
+    }
   },
   "files": [
     "tsconfig.base.json",
     "biome.json",
     "tsup.base.mjs",
-    "vitest.base.mjs"
+    "tsup.base.d.mts",
+    "vitest.base.mjs",
+    "vitest.base.d.mts"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
