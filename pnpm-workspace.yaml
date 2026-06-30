@@ -2,10 +2,43 @@ packages:
   - "packages/*"
   - "apps/*"
 
+# Single-source duplicated versions. Default catalog holds the shared toolchain and zod;
+# the "bundled" catalog holds the runtime deps that @verbatra/sdk re-declares from the
+# internal packages it bundles, so the owning package and sdk always pin the same version.
+catalog:
+  "@types/node": 26.0.0
+  "@vitest/coverage-v8": 4.1.9
+  tsup: 8.5.1
+  typescript: 6.0.3
+  vitest: 4.1.9
+  zod: 4.4.3
+
+catalogs:
+  bundled:
+    "@anthropic-ai/sdk": 0.105.0
+    "@formatjs/icu-messageformat-parser": 3.5.11
+    "@google/genai": 2.9.0
+    "@xmldom/xmldom": 0.9.10
+    deepl-node: 1.27.0
+    exceljs: 4.4.0
+    jszip: 3.10.1
+    loglevel: 1.9.2
+    openai: 6.44.0
+    yaml: 2.9.0
+
 overrides:
   # Force the patched postcss for the vulnerable copy only (next bundles 8.4.31).
   # GHSA-qx2v-qp2m-jg93: XSS via unescaped </style> in CSS stringify output.
   postcss@<8.5.10: ">=8.5.10"
+  # GHSA-w5hq-g745-h8pq: missing buffer bounds check in uuid v3/v5/v6 with a buf argument.
+  # Vulnerable <11.1.1; lifts the copy exceljs pulls (uuid 8.3.2) on the published sdk/exchange path.
+  uuid@<11.1.1: ">=11.1.1"
+  # GHSA-h67p-54hq-rp68: quadratic-complexity DoS in js-yaml merge-key handling (dev-only, via @changesets/cli).
+  # Vulnerable <3.15.0; lifts the v3 copy (3.14.2) to the patched v3 line without forcing the v4 major.
+  js-yaml@<3.15.0: ">=3.15.0"
+  # GHSA-g7r4-m6w7-qqqr: esbuild dev-server arbitrary file read on Windows (dev-only, via vitest and tsup).
+  # Vulnerable >=0.27.3 <0.28.1; lifts the 0.27.7 copy.
+  esbuild@<0.28.1: ">=0.28.1"
 
 allowBuilds:
   '@google/genai': false

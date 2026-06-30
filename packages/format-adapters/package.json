@@ -37,18 +37,18 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@formatjs/icu-messageformat-parser": "3.5.11",
+    "@formatjs/icu-messageformat-parser": "catalog:bundled",
     "@verbatra/core": "workspace:*",
-    "@xmldom/xmldom": "0.9.10",
-    "yaml": "2.9.0",
-    "zod": "4.4.3"
+    "@xmldom/xmldom": "catalog:bundled",
+    "yaml": "catalog:bundled",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "26.0.0",
+    "@types/node": "catalog:",
     "@verbatra/config": "workspace:*",
-    "@vitest/coverage-v8": "4.1.9",
-    "tsup": "8.5.1",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "@vitest/coverage-v8": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

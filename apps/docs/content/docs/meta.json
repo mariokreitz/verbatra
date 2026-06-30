@@ -18,6 +18,7 @@
     "how-it-works",
     "the-lock-file",
     "translation-safety",
+    "testing",
     "---build on it---",
     "sdk",
     "programmatic-api"
