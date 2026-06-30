@@ -81,9 +81,9 @@
     },
     "hero": {
       "ctaGithub": "Mettre en favori sur GitHub",
-      "ctaStart": "Commencer maintenant",
       "headline": "Ne traduis que ce qui a changé.",
-      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis."
+      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis.",
+      "ctaQuickstart": "Lire le guide de démarrage rapide"
     },
     "how": {
       "eyebrow": "comment ça marche",
@@ -127,21 +127,6 @@
       "eyebrow": "voir une exécution se dérouler",
       "heading": "Regarde-le toucher exactement une clé."
     },
-    "trust": {
-      "eyebrow": "Blocs de construction fiables",
-      "items": {
-        "ciReady": "Prêt pour l'intégration continue (CI)",
-        "cliSdk": "CLI + SDK",
-        "incremental": "Incrémentiel",
-        "mitLicensed": "Sous licence MIT",
-        "placeholderSafe": "Sûr pour les placeholders"
-      },
-      "stats": {
-        "versionAria": "Version {version}",
-        "downloadsLabel": "téléchargements / mois",
-        "starsLabel": "étoiles GitHub"
-      }
-    },
     "why": {
       "eyebrow": "pourquoi verbatra",
       "heading": "Conçu pour les équipes qui livrent en plusieurs langues.",
@@ -171,6 +156,15 @@
           "title": "Sécurité de construction"
         }
       }
+    },
+    "status": {
+      "buildAlt": "Statut de la build d'intégration continue",
+      "cliVersionAlt": "Dernière version publiée de @verbatra/cli sur npm",
+      "coverageAlt": "Couverture des tests rapportée sur Codecov",
+      "downloadsAlt": "Téléchargements npm mensuels",
+      "label": "Statut de la build, couverture, versions des paquets, téléchargements et licence",
+      "licenseAlt": "Publié sous la licence MIT",
+      "sdkVersionAlt": "Dernière version publiée de @verbatra/sdk sur npm"
     }
   },
   "legal": {
