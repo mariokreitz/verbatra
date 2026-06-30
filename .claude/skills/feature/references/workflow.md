@@ -14,7 +14,7 @@ findings route work backward and downstream stages re-run after a fix.
 6. QA: qa-engineer
 7. Security review: security-reviewer
 8. Release prep: release-manager
-9. Docs: docs-writer
+9. Docs and design: docs-writer (prose) and docs-designer (visual and UX)
 10. CI and DevOps check: devops-engineer
 11. Sign-off: product-owner
 
@@ -77,10 +77,20 @@ Ensure a correct changeset exists with the right bump level and a clear summary.
 Confirm only the intended packages are marked publishable and that `repository.url`
 and provenance settings are intact. Prepare the changelog entry.
 
-### 9. Docs (docs-writer)
+### 9. Docs and design (docs-writer and docs-designer)
 If the change is user-facing (CLI flags, config keys, SDK surface, provider or
-adapter behavior), update the Fumadocs site in `apps/docs`. Keep docs in English,
-no emojis, no em dashes.
+adapter behavior), the docs-writer updates the Fumadocs site in `apps/docs`. Keep
+docs in English, no emojis, no em dashes.
+
+If the change touches the docs site's visual or UX layer (the landing page, the
+Fumadocs theme and chrome, the components under `apps/docs/components`, or the design
+system tokens in `apps/docs/app/global.css`), the docs-designer handles that layer:
+layout, typography, color, spacing, motion, responsiveness, and accessibility, working
+through the existing design system and staying on brand. The two run in tandem when a
+docs change needs both new prose and a visual change: the docs-designer shapes the
+layout and components and hands final wording to the docs-writer. Most code-only
+changes need neither; skip whichever does not apply. The docs-designer never touches
+the SDK, CLI, or any package outside `apps/docs`.
 
 ### 10. CI and DevOps check (devops-engineer)
 Verify the Turborepo pipeline still covers the change, the lockfile is committed and
@@ -90,8 +100,11 @@ files.
 
 ### 11. Sign-off (product-owner)
 Confirm every acceptance criterion is met and the spec is satisfied. If anything is
-unmet, route back to the responsible stage. When all criteria pass, mark the work
-done and summarize what shipped.
+unmet, route back to the responsible stage. A missing or inaccurate doc routes back to
+the docs-writer; a visual or UX regression on the docs site (broken layout, off-brand
+styling, a responsive or accessibility failure, or a design-system regression) routes
+back to the docs-designer. Re-run stage 9 and any other affected stage after the fix.
+When all criteria pass, mark the work done and summarize what shipped.
 
 ## Autonomous execution and blockers
 
