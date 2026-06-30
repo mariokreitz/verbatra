@@ -96,7 +96,7 @@ const SCAFFOLD_MODELS: Partial<Record<ProviderEnv["id"], string>> = {
 };
 
 export function providerFromEnv(): ProviderEnv | null {
-  const id = (process.env.E2E_PROVIDER ?? "deepl") as ProviderEnv["id"];
+  const id = (process.env.E2E_PROVIDER ?? "gemini") as ProviderEnv["id"];
   const envVar = PROVIDER_ENV_VARS[id];
   if (!envVar) {
     return null;
