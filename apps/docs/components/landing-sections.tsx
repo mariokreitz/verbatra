@@ -42,74 +42,86 @@ export function SectionHeading({ children }: { children: ReactNode }): ReactNode
   );
 }
 
-// `version` is the resolved package version to display; `stars` and `downloads` are pre-formatted
-// display strings, or null when the stat is hidden.
-export function TrustStrip({
-  version,
-  stars = null,
-  downloads = null,
-}: {
-  version: string;
-  stars?: string | null;
-  downloads?: string | null;
-}): ReactNode {
-  const t = useTranslations("landing.trust");
-  const items = Object.values(t.raw("items") as Record<string, string>);
-  const unitClass =
-    "inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground";
+type StatusBadge = {
+  key: string;
+  src: string;
+  href: string;
+  altKey: string;
+};
+
+// Shields query params that fit the dark theme: a dark label slot and the brand purple value.
+const SHIELDS_BASE = "style=flat&labelColor=1b1b2b";
+const SHIELDS_NPM = `${SHIELDS_BASE}&logo=npm&logoColor=white&color=9c27b0`;
+
+// The GitHub Actions and Codecov endpoints ship their own SVG and ignore shields params; the
+// other four are shields badges styled through query params. All values are sourced live.
+const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
+  {
+    key: "cli",
+    src: `https://img.shields.io/npm/v/@verbatra/cli?label=%40verbatra%2Fcli&${SHIELDS_NPM}`,
+    href: NPM_CLI,
+    altKey: "cliVersionAlt",
+  },
+  {
+    key: "sdk",
+    src: `https://img.shields.io/npm/v/@verbatra/sdk?label=%40verbatra%2Fsdk&${SHIELDS_NPM}`,
+    href: NPM_SDK,
+    altKey: "sdkVersionAlt",
+  },
+  {
+    key: "build",
+    src: `${GITHUB_URL}/actions/workflows/ci.yml/badge.svg?branch=main`,
+    href: `${GITHUB_URL}/actions/workflows/ci.yml`,
+    altKey: "buildAlt",
+  },
+  {
+    key: "coverage",
+    src: "https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg",
+    href: "https://codecov.io/gh/mariokreitz/verbatra",
+    altKey: "coverageAlt",
+  },
+  {
+    key: "downloads",
+    src: `https://img.shields.io/npm/dm/@verbatra/cli?label=downloads%2Fmonth&${SHIELDS_NPM}`,
+    href: NPM_CLI,
+    altKey: "downloadsAlt",
+  },
+  {
+    key: "license",
+    src: `https://img.shields.io/badge/license-MIT-9c27b0?${SHIELDS_BASE}`,
+    href: `${GITHUB_URL}/blob/main/LICENSE`,
+    altKey: "licenseAlt",
+  },
+];
+
+// Thin full-width trust ribbon under the hero: six linked, live-sourced badges, subordinate to the demo.
+export function StatusBand(): ReactNode {
+  const t = useTranslations("landing.status");
   return (
-    <section className="mx-auto max-w-5xl px-6">
-      <div className="border-y border-fd-border py-5">
-        <p className="mb-3 font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--accent)]">
-          {t("eyebrow")}
-        </p>
-        <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-          {/* Separate <ul>s give each group native list semantics so assistive tech announces them as distinct groups. */}
-          <ul className="flex flex-wrap items-center gap-x-8 gap-y-3">
-            {items.map((item) => (
-              <li key={item} className={unitClass}>
-                <span
-                  aria-hidden="true"
-                  className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
-                />
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          <span
-            aria-hidden="true"
-            className="hidden sm:block w-px self-stretch min-h-5 bg-fd-border"
-          />
-
-          <ul className="flex flex-wrap items-center gap-x-6 gap-y-3 max-sm:w-full max-sm:border-t max-sm:border-fd-border max-sm:pt-3.5">
-            <li className={unitClass} aria-label={t("stats.versionAria", { version })}>
-              <TagIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
-              <span className="whitespace-nowrap text-fd-foreground">v{version}</span>
-            </li>
-            {downloads != null && (
-              <li className={unitClass}>
-                <SiNpm
-                  size={14}
-                  color="currentColor"
-                  aria-hidden="true"
-                  className="shrink-0 text-[color:var(--accent)]"
-                />
-                <span className="text-fd-foreground">{downloads}</span>
-                <span>{t("stats.downloadsLabel")}</span>
-              </li>
-            )}
-            {stars != null && (
-              <li className={unitClass}>
-                <GithubIcon size={14} className="shrink-0 text-[color:var(--accent)]" />
-                <span className="text-fd-foreground">{stars}</span>
-                <span>{t("stats.starsLabel")}</span>
-              </li>
-            )}
-          </ul>
-        </div>
-      </div>
+    <section aria-label={t("label")} className="mx-auto max-w-5xl px-6">
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-3 border-y border-fd-border py-5">
+        {STATUS_BADGES.map((badge) => (
+          <li key={badge.key} className="inline-flex">
+            <a
+              href={badge.href}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex rounded transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-fd-background"
+            >
+              {/* A fixed 20px height slot reserves vertical space so the band does not shift as badges load. */}
+              {/* biome-ignore lint/performance/noImgElement: external SVG badge endpoints are not optimizable by next/image. */}
+              <img
+                src={badge.src}
+                alt={t(badge.altKey)}
+                height={20}
+                className="block h-5 w-auto"
+                loading="lazy"
+                decoding="async"
+              />
+            </a>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -131,26 +143,6 @@ export function GithubIcon({
       className={className ?? "shrink-0"}
     >
       <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.34-5.47-5.95 0-1.31.47-2.39 1.24-3.23-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.92 1.24 3.23 0 4.62-2.81 5.64-5.49 5.94.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z" />
-    </svg>
-  );
-}
-
-// Inlined because Simple Icons has no neutral "tag" glyph.
-function TagIcon({ size = 14, className }: { size?: number; className?: string }): ReactNode {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className={className}
-    >
-      <path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10l7.59 7.59a2 2 0 0 1 0 2.82zM7.5 7.5h.01" />
     </svg>
   );
 }
@@ -271,19 +263,12 @@ const FRAMEWORK_CHIPS: ReadonlyArray<Chip> = [
   { name: "ngx-translate", sub: "json" },
 ];
 
-// Repeated four times below so each half of the doubled marquee track stays wider than the band, keeping the loop seamless.
-const UNIQUE_PROVIDERS: ReadonlyArray<Chip> = [
+// Each provider appears once; MarqueeBand doubles the track for the seamless loop (the only duplication).
+const PROVIDER_CHIPS: ReadonlyArray<Chip> = [
   { name: "Anthropic", sub: "LLM" },
   { name: "OpenAI", sub: "LLM" },
   { name: "Gemini", sub: "LLM" },
   { name: "DeepL", sub: "machine translation" },
-];
-
-const PROVIDER_CHIPS: ReadonlyArray<Chip> = [
-  ...UNIQUE_PROVIDERS,
-  ...UNIQUE_PROVIDERS,
-  ...UNIQUE_PROVIDERS,
-  ...UNIQUE_PROVIDERS,
 ];
 
 const CHIP_ICONS: Readonly<Record<string, IconType>> = {
@@ -334,15 +319,18 @@ export function MarqueeBand({
   direction,
   duration,
   label,
+  maxWidth,
 }: {
   chips: ReadonlyArray<Chip>;
   direction: "left" | "right";
   duration: number;
   label: string;
+  // Caps the band width so one (doubled) track stays at least as wide as the band, keeping short tracks seamless.
+  maxWidth?: string;
 }): ReactNode {
   const animation = `vk-marquee-${direction} ${duration}s linear infinite`;
   return (
-    <div className="vk-band py-2">
+    <div className="vk-band py-2" style={maxWidth ? { maxWidth } : undefined}>
       {/* One readable list for assistive tech; the visual track below is duplicated and hidden. */}
       <ul className="sr-only">
         <li>{label}:</li>
@@ -386,8 +374,9 @@ export function Compatibility(): ReactNode {
         <MarqueeBand
           chips={PROVIDER_CHIPS}
           direction="right"
-          duration={26}
+          duration={18}
           label={t("labelProviders")}
+          maxWidth="34rem"
         />
       </div>
     </section>
@@ -709,10 +698,13 @@ export function FinalClose(): ReactNode {
           </code>
         </pre>
       </div>
-      <div className="flex flex-col items-center gap-5">
-        <PackageInstall />
-        <Button href="/docs" variant="primary" size="lg" trailingArrow>
-          {tHero("ctaStart")}
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <Button href="/docs/your-first-translation" variant="primary" size="lg" trailingArrow>
+          {tHero("ctaQuickstart")}
+        </Button>
+        <Button href={GITHUB_URL} variant="secondary" size="lg">
+          <GithubIcon size={18} />
+          {tHero("ctaGithub")}
         </Button>
       </div>
     </section>

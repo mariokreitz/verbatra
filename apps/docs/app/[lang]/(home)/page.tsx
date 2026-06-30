@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { Globe } from "@/components/globe";
+import { DiffPanel } from "@/components/diff-panel";
 import { JsonLd } from "@/components/json-ld";
 import {
   Compatibility,
@@ -11,14 +11,13 @@ import {
   HowItWorks,
   PackageInstall,
   SectionHeading,
-  TrustStrip,
+  StatusBand,
   WhyUse,
 } from "@/components/landing-sections";
 import { Showcase } from "@/components/showcase";
 import Button from "@/components/ui/button";
 import type { Locale } from "@/lib/i18n";
 import { PACKAGE_VERSION } from "@/lib/site";
-import { getLatestVersion, getSocialStats } from "@/lib/social-stats";
 import {
   type FaqItem,
   faqPageLd,
@@ -26,9 +25,6 @@ import {
   howToLd,
   softwareApplicationLd,
 } from "@/lib/structured-data";
-
-// Must be a static literal, so it mirrors REVALIDATE_SECONDS (24h) in lib/social-stats; the two must stay in sync.
-export const revalidate = 86_400;
 
 const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
 
@@ -49,11 +45,8 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
     return { name: step?.title ?? "", text: step?.body ?? "" };
   });
 
-  const [stats, latestVersion] = await Promise.all([getSocialStats(), getLatestVersion()]);
-  const version = latestVersion ?? PACKAGE_VERSION;
-  const numberFormat = new Intl.NumberFormat(locale);
-  const formattedStars = stats.stars != null ? numberFormat.format(stats.stars) : null;
-  const formattedDownloads = stats.downloads != null ? numberFormat.format(stats.downloads) : null;
+  // The displayed status badges are live external images; the build-time version only feeds the JSON-LD.
+  const version = PACKAGE_VERSION;
 
   return (
     <div className="vk-home w-full">
@@ -86,8 +79,8 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
             <p className="mb-6 max-w-[48ch] text-lg text-fd-muted-foreground">{t("hero.lead")}</p>
             <PackageInstall />
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button href="/docs" variant="primary" size="lg" trailingArrow>
-                {t("hero.ctaStart")}
+              <Button href="/docs/your-first-translation" variant="primary" size="lg" trailingArrow>
+                {t("hero.ctaQuickstart")}
               </Button>
               <Button href={GITHUB_URL} variant="secondary" size="lg">
                 <GithubIcon size={18} />
@@ -95,13 +88,16 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
               </Button>
             </div>
           </div>
-          <div className="flex justify-center">
-            <Globe className="h-auto w-full max-w-[380px]" />
+          {/* DiffPanel is the hero teaser; it stacks under the CTAs on mobile so the headline still leads. */}
+          <div className="flex w-full justify-center md:justify-end">
+            <div className="w-full max-w-[30rem]">
+              <DiffPanel />
+            </div>
           </div>
         </div>
       </section>
 
-      <TrustStrip version={version} stars={formattedStars} downloads={formattedDownloads} />
+      <StatusBand />
 
       <Compatibility />
 

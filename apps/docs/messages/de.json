@@ -81,9 +81,9 @@
     },
     "hero": {
       "ctaGithub": "Auf GitHub starren",
-      "ctaStart": "Jetzt starten",
       "headline": "Übersetze nur das, was sich geändert hat.",
-      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus."
+      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus.",
+      "ctaQuickstart": "Schnellstart lesen"
     },
     "how": {
       "eyebrow": "so funktioniert's",
@@ -127,21 +127,6 @@
       "eyebrow": "sieh, wie ein Lauf abläuft",
       "heading": "Sieh zu, wie es genau einen Schlüssel berührt."
     },
-    "trust": {
-      "eyebrow": "Vertrauenswürdige Bausteine",
-      "items": {
-        "ciReady": "CI-bereit",
-        "cliSdk": "CLI + SDK",
-        "incremental": "Inkrementell",
-        "mitLicensed": "MIT-lizenziert",
-        "placeholderSafe": "Platzhaltersicher"
-      },
-      "stats": {
-        "versionAria": "Version {version}",
-        "downloadsLabel": "Downloads / Monat",
-        "starsLabel": "GitHub-Sterne"
-      }
-    },
     "why": {
       "eyebrow": "warum verbatra",
       "heading": "Gebaut für Teams, die in vielen Sprachen ausliefern.",
@@ -171,6 +156,15 @@
           "title": "Sicher durch Konstruktion"
         }
       }
+    },
+    "status": {
+      "buildAlt": "Build-Status der kontinuierlichen Integration",
+      "cliVersionAlt": "Neueste veröffentlichte @verbatra/cli-Version auf npm",
+      "coverageAlt": "Auf Codecov gemeldete Testabdeckung",
+      "downloadsAlt": "Monatliche npm-Downloads",
+      "label": "Build-Status, Abdeckung, Paketversionen, Downloads und Lizenz",
+      "licenseAlt": "Veröffentlicht unter der MIT-Lizenz",
+      "sdkVersionAlt": "Neueste veröffentlichte @verbatra/sdk-Version auf npm"
     }
   },
   "legal": {
