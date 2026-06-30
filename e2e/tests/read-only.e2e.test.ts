@@ -1,13 +1,21 @@
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
+import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
   makeConsumer,
+  readJsonIn,
   runVerbatra,
   writeFileIn,
   writeJsonIn,
 } from "../src/harness.js";
+
+// Workbook layout, mirrored from @verbatra/exchange: data rows start after the header, and the
+// editable target sits in the Translation column. The non-locale Instructions sheet is skipped.
+const HEADER_ROW = 1;
+const TRANSLATION_COLUMN = 5;
+const INSTRUCTIONS_SHEET = "Instructions";
 
 let consumer: Consumer;
 
@@ -97,6 +105,61 @@ describe("export (read-only, no provider)", () => {
     expect(result.exitCode).toBe(0);
     const { size } = await stat(out);
     expect(size).toBeGreaterThan(0);
+  });
+});
+
+describe("translate --dry-run (no provider)", () => {
+  it("previews the missing key without a key, a provider call, or a write", async () => {
+    const dir = await seedProject("translate-dry-run", i18nextConfig, {
+      "locales/en.json": { greeting: "Hello {{name}}", farewell: "Goodbye" },
+      "locales/de.json": { greeting: "Hallo {{name}}" },
+    });
+    // No ANTHROPIC_API_KEY is set; dry-run must still succeed because it never builds the provider.
+    const result = await runVerbatra(consumer, ["translate", "--dry-run", "--json", "--cwd", dir]);
+    expect(result.exitCode).toBe(0);
+
+    // The target file is untouched: the missing key is reported, not written.
+    const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
+    expect(de.farewell).toBeUndefined();
+  });
+});
+
+describe("export then import round-trip (no provider)", () => {
+  it("applies a human-filled workbook back into the locale files", async () => {
+    const dir = await seedProject("import-roundtrip", i18nextConfig, {
+      "locales/en.json": { greeting: "Hello {{name}}", farewell: "Goodbye" },
+      "locales/de.json": { greeting: "Hallo {{name}}" },
+    });
+    const workbookPath = join(dir, "verbatra-translations.xlsx");
+    const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
+    expect(exported.exitCode).toBe(0);
+
+    // Fill every exported row the way a translator would, leaving the hidden source-hash column intact.
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(workbookPath);
+    for (const sheet of workbook.worksheets) {
+      if (sheet.name === INSTRUCTIONS_SHEET) {
+        continue;
+      }
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === HEADER_ROW) {
+          return;
+        }
+        row.getCell(TRANSLATION_COLUMN).value = "Auf Wiedersehen";
+      });
+    }
+    await workbook.xlsx.writeFile(workbookPath);
+
+    const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir]);
+    expect(imported.exitCode).toBe(0);
+
+    const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
+    expect(de.farewell).toBe("Auf Wiedersehen");
+    expect(de.greeting).toContain("{{name}}");
+
+    // With the imported translation in place the project reads back in sync.
+    const checked = await runVerbatra(consumer, ["check", "--cwd", dir]);
+    expect(checked.exitCode).toBe(0);
   });
 });
 

@@ -1,9 +1,10 @@
 name: E2E
 
-# Installs the packed @verbatra/sdk and @verbatra/cli tarballs into a throwaway project
-# and drives the real `verbatra` binary. The no-key tier (init, check, diff, export, and
-# packaging) runs on every PR and push. The live translate tier runs only nightly and on
-# manual dispatch, and only when a provider key is present; otherwise the suite skips it.
+# Installs the packed @verbatra/sdk and @verbatra/cli tarballs into a throwaway project and
+# drives the real `verbatra` binary. The no-key tier (packaging, init, check, diff, export,
+# import round-trip, translate --dry-run) is deterministic and free. The live tier (translate
+# and watch against Gemini's free tier) also runs, using GEMINI_API_KEY. The secret is empty
+# on pull requests from forks, where the live tier skips cleanly.
 
 on:
   pull_request:
@@ -28,7 +29,7 @@ jobs:
     timeout-minutes: 20
     env:
       E2E_PROVIDER: gemini
-      GEMINI_API_KEY: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && secrets.GEMINI_API_KEY || '' }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0

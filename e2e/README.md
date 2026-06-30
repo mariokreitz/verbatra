@@ -17,11 +17,13 @@ project, `npm install`s both tarballs, and runs the binary via `src/harness.ts`.
 ## Tiers
 
 - **No-key tier** (`tests/read-only.e2e.test.ts`): packaging smoke, `init` scaffolding,
-  and `check` / `diff` / `export` across i18next, YAML, and ARB. These commands make no
-  provider call, so the tier runs free and deterministically on every PR.
-- **Key-gated tier** (`tests/translate.e2e.test.ts`): real `translate` against a live
-  provider. Skips unless `E2E_PROVIDER` (default `gemini`) and its API key are set, so it
-  only runs in the nightly job with a secret.
+  `check` / `diff` / `export` across i18next, YAML, and ARB, `translate --dry-run`, and a
+  full `export` then `import` round-trip (a workbook filled in code the way a translator
+  would). These commands make no provider call, so the tier runs free and deterministically.
+- **Key-gated tier** (`tests/translate.e2e.test.ts`, `tests/watch.e2e.test.ts`): real
+  `translate` and `watch` against a live provider. Skips unless `E2E_PROVIDER` (default
+  `gemini`) and its API key are set. CI runs it on every event using `GEMINI_API_KEY`
+  (Gemini has a free tier); it skips only where the secret is unavailable, such as fork PRs.
 
 ## Running locally
 
