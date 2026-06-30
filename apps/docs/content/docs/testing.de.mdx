@@ -1,0 +1,33 @@
+---
+title: Testen und Qualität
+description: Wie verbatra getestet wird und wo du den aktuellen Build-, Coverage- und End-to-End-Status siehst.
+---
+
+# Testen und Qualität
+
+verbatra ist darauf ausgelegt, dass du dich darauf verlassen kannst. Jede Änderung durchläuft eine mehrstufige Testsuite, und die Ergebnisse sind öffentlich, damit du sie vor einem Upgrade prüfen kannst.
+
+<p align="center">
+  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E" /></a>
+  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
+</p>
+
+## Was die Badges bedeuten
+
+- **CI**: Lint, Typprüfungen, Unit-Tests und der Produktions-Build laufen bei jedem Pull Request und auf `main`, über zwei Node-Versionen. CI erzwingt 90 Prozent Coverage für Zeilen, Funktionen, Anweisungen und Branches.
+- **E2E**: Die veröffentlichten Tarballs von `@verbatra/cli` und `@verbatra/sdk` werden in ein Wegwerf-Projekt installiert und über die echte Binary ausgeführt, sodass Packaging- und Bundling-Regressionen vor dem Release gefunden werden.
+- **Coverage**: Die aktuelle Coverage, die aus dem CI-Lauf auf `main` an Codecov gemeldet wird.
+
+## Wie getestet wird
+
+- **Unit-Tests** (Vitest) decken die Domänenlogik, die Format-Adapter, die Provider und das CLI in jedem Paket ab.
+- **End-to-End-Tests** installieren die echten Tarballs und üben die gesamte Befehlsfläche aus: `init`, `check`, `diff`, `export`, `import`, `translate` und `watch`. Eine Stufe ohne Schlüssel läuft bei jedem Pull Request; eine Live-Stufe übersetzt nächtlich und nach jedem Merge gegen einen echten Provider.
+
+## Coverage im Detail
+
+<p align="center">
+  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graphs/sunburst.svg?token=" alt="Coverage sunburst" /></a>
+</p>
+
+Jeder Block ist eine Datei: seine Größe ist die Anzahl der Anweisungen und seine Farbe die Coverage. Öffne ihn auf Codecov für den vollständigen, durchsuchbaren Bericht.
