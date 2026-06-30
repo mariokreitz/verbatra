@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@verbatra/config": "workspace:*",
-    "@vitest/coverage-v8": "4.1.9",
-    "vitest": "4.1.9"
+    "@vitest/coverage-v8": "catalog:",
+    "vitest": "catalog:"
   }
 }

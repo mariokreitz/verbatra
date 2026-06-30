@@ -2,6 +2,30 @@ packages:
   - "packages/*"
   - "apps/*"
 
+# Single-source duplicated versions. Default catalog holds the shared toolchain and zod;
+# the "bundled" catalog holds the runtime deps that @verbatra/sdk re-declares from the
+# internal packages it bundles, so the owning package and sdk always pin the same version.
+catalog:
+  "@types/node": 26.0.0
+  "@vitest/coverage-v8": 4.1.9
+  tsup: 8.5.1
+  typescript: 6.0.3
+  vitest: 4.1.9
+  zod: 4.4.3
+
+catalogs:
+  bundled:
+    "@anthropic-ai/sdk": 0.105.0
+    "@formatjs/icu-messageformat-parser": 3.5.11
+    "@google/genai": 2.9.0
+    "@xmldom/xmldom": 0.9.10
+    deepl-node: 1.27.0
+    exceljs: 4.4.0
+    jszip: 3.10.1
+    loglevel: 1.9.2
+    openai: 6.44.0
+    yaml: 2.9.0
+
 overrides:
   # Force the patched postcss for the vulnerable copy only (next bundles 8.4.31).
   # GHSA-qx2v-qp2m-jg93: XSS via unescaped </style> in CSS stringify output.

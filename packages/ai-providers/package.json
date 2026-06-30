@@ -37,20 +37,20 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.105.0",
-    "@google/genai": "2.9.0",
+    "@anthropic-ai/sdk": "catalog:bundled",
+    "@google/genai": "catalog:bundled",
     "@verbatra/core": "workspace:*",
-    "deepl-node": "1.27.0",
-    "loglevel": "1.9.2",
-    "openai": "6.44.0",
-    "zod": "4.4.3"
+    "deepl-node": "catalog:bundled",
+    "loglevel": "catalog:bundled",
+    "openai": "catalog:bundled",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "26.0.0",
+    "@types/node": "catalog:",
     "@verbatra/config": "workspace:*",
-    "@vitest/coverage-v8": "4.1.9",
-    "tsup": "8.5.1",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "@vitest/coverage-v8": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

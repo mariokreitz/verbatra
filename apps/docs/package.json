@@ -20,17 +20,17 @@
     "next-intl": "4.13.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "zod": "4.4.3"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.1",
     "@types/mdx": "2.0.14",
-    "@types/node": "26.0.0",
+    "@types/node": "catalog:",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
     "@verbatra/cli": "workspace:*",
     "@verbatra/sdk": "workspace:*",
     "tailwindcss": "4.3.1",
-    "typescript": "6.0.3"
+    "typescript": "catalog:"
   }
 }

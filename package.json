@@ -36,11 +36,11 @@
     "@changesets/cli": "2.31.0",
     "@commitlint/cli": "21.0.2",
     "@commitlint/config-conventional": "21.0.2",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/coverage-v8": "catalog:",
     "lefthook": "2.1.9",
-    "tsup": "8.5.1",
+    "tsup": "catalog:",
     "turbo": "2.9.18",
-    "typescript": "6.0.3",
-    "vitest": "4.1.9"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
