@@ -16,14 +16,20 @@ project, `npm install`s both tarballs, and runs the binary via `src/harness.ts`.
 
 ## Tiers
 
-- **No-key tier** (`tests/read-only.e2e.test.ts`): packaging smoke, `init` scaffolding,
-  `check` / `diff` / `export` across i18next, YAML, and ARB, `translate --dry-run`, and a
-  full `export` then `import` round-trip (a workbook filled in code the way a translator
-  would). These commands make no provider call, so the tier runs free and deterministically.
-- **Key-gated tier** (`tests/translate.e2e.test.ts`, `tests/watch.e2e.test.ts`): real
-  `translate` and `watch` against a live provider. Skips unless `E2E_PROVIDER` (default
-  `gemini`) and its API key are set. CI runs it on every event using `GEMINI_API_KEY`
-  (Gemini has a free tier); it skips only where the secret is unavailable, such as fork PRs.
+The suite is split by trust boundary so a provider secret never reaches code that a pull
+request can modify.
+
+- **No-key tier** (`tests/read-only.e2e.test.ts`, run with `npm run test:nokey`): packaging
+  smoke, the `watch` subcommand help, `init` scaffolding, `check` / `diff` / `export` across
+  i18next, YAML, and ARB, `translate --dry-run`, and a full `export` then `import` round-trip
+  (a workbook filled in code the way a translator would). It makes no provider call, so it is
+  deterministic and free, and gates every pull request and push via `.github/workflows/e2e.yml`.
+- **Live tier** (`tests/translate.e2e.test.ts`, `tests/watch.e2e.test.ts`, run with `npm test`):
+  real `translate` and `watch` against a live provider. It needs `E2E_PROVIDER` (default
+  `gemini`) and the matching API key, and skips otherwise. `.github/workflows/e2e-live.yml`
+  runs it on a nightly schedule, on push to `main`, and on manual dispatch only, never on a
+  pull request, with the key scoped to the `live-e2e` GitHub Environment. Its status is not a
+  required check, so a provider outage never blocks a merge.
 
 ## Running locally
 
@@ -38,9 +44,9 @@ npm install
 # no-key tier (no secrets needed)
 VERBATRA_SDK_TARBALL=/tmp/packs/verbatra-sdk-*.tgz \
 VERBATRA_CLI_TARBALL=/tmp/packs/verbatra-cli-*.tgz \
-  npm test
+  npm run test:nokey
 
-# add the live tier
+# full suite, adding the live tier
 E2E_PROVIDER=gemini GEMINI_API_KEY=... npm test
 ```
 

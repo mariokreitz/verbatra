@@ -43,13 +43,11 @@ describe.skipIf(provider === null)(`translate (live: ${provider?.id ?? "skipped"
     });
     expect(translated.exitCode).toBe(0);
 
-    // The previously missing key now exists and keeps the placeholder intact.
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
     const farewell = de.farewell ?? "";
     expect(farewell.length).toBeGreaterThan(0);
     expect(de.greeting ?? "").toContain("{{name}}");
 
-    // A follow-up check now reports the project in sync.
     const checked = await runVerbatra(consumer, ["check", "--cwd", dir]);
     expect(checked.exitCode).toBe(0);
   });

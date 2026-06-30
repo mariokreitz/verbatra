@@ -1,13 +1,15 @@
-name: E2E
+name: E2E (live)
 
-# No-key tier only. It never receives a provider secret, so it is safe to run on pull
-# requests, including from forks. Live provider coverage lives in e2e-live.yml.
+# Live tier: drives translate and watch against a real provider, so it needs GEMINI_API_KEY.
+# It never triggers on pull_request, so the secret is only ever exposed to already-merged or
+# maintainer-triggered code. The live-e2e environment scopes the secret to this job.
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,10 +19,14 @@ permissions:
   contents: read
 
 jobs:
-  e2e:
-    name: Install tarballs and drive the CLI
+  e2e-live:
+    name: Drive the CLI against a live provider
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    environment: live-e2e
+    env:
+      E2E_PROVIDER: gemini
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -53,6 +59,6 @@ jobs:
         working-directory: e2e
         run: npm install --no-audit --no-fund
 
-      - name: Run no-key E2E suite
+      - name: Run full E2E suite (no-key and live)
         working-directory: e2e
-        run: npm run test:nokey
+        run: npm test

@@ -11,8 +11,7 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-// Workbook layout, mirrored from @verbatra/exchange: data rows start after the header, and the
-// editable target sits in the Translation column. The non-locale Instructions sheet is skipped.
+// Column indices mirror @verbatra/exchange's fixed workbook layout.
 const HEADER_ROW = 1;
 const TRANSLATION_COLUMN = 5;
 const INSTRUCTIONS_SHEET = "Instructions";
@@ -52,6 +51,12 @@ describe("packaging", () => {
     for (const command of ["translate", "watch", "check", "diff", "export", "import", "init"]) {
       expect(result.stdout).toContain(command);
     }
+  });
+
+  it("exposes the watch subcommand without needing a provider key", async () => {
+    const result = await runVerbatra(consumer, ["watch", "--help"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("--debounce");
   });
 });
 
@@ -114,11 +119,9 @@ describe("translate --dry-run (no provider)", () => {
       "locales/en.json": { greeting: "Hello {{name}}", farewell: "Goodbye" },
       "locales/de.json": { greeting: "Hallo {{name}}" },
     });
-    // No ANTHROPIC_API_KEY is set; dry-run must still succeed because it never builds the provider.
     const result = await runVerbatra(consumer, ["translate", "--dry-run", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(0);
 
-    // The target file is untouched: the missing key is reported, not written.
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
     expect(de.farewell).toBeUndefined();
   });
@@ -134,7 +137,7 @@ describe("export then import round-trip (no provider)", () => {
     const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
     expect(exported.exitCode).toBe(0);
 
-    // Fill every exported row the way a translator would, leaving the hidden source-hash column intact.
+    // Touch only the Translation column so the hidden source-hash column survives the round-trip.
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(workbookPath);
     for (const sheet of workbook.worksheets) {
@@ -157,7 +160,6 @@ describe("export then import round-trip (no provider)", () => {
     expect(de.farewell).toBe("Auf Wiedersehen");
     expect(de.greeting).toContain("{{name}}");
 
-    // With the imported translation in place the project reads back in sync.
     const checked = await runVerbatra(consumer, ["check", "--cwd", dir]);
     expect(checked.exitCode).toBe(0);
   });

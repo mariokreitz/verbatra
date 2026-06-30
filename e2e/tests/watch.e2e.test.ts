@@ -45,8 +45,7 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     });
 
     try {
-      // Phase 1: the initial run on startup fills the key that is already missing. Reaching this
-      // point also proves the file watcher is live for phase 2.
+      // The startup run fills the missing key; reaching it also proves the watcher is live.
       await pollUntil(
         async () => {
           const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
@@ -55,7 +54,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
         { timeoutMs: 90_000, intervalMs: 1000 },
       );
 
-      // Phase 2: a source edit after startup triggers a re-translation of just the new key.
       await writeJsonIn(dir, "locales/en.json", {
         greeting: "Hello {{name}}",
         farewell: "Goodbye",
@@ -71,7 +69,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
 
       const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
       expect((de.farewell ?? "").length).toBeGreaterThan(0);
-      // The placeholder survives the re-translation.
       expect(de.welcome ?? "").toContain("{{name}}");
       expect(de.greeting ?? "").toContain("{{name}}");
     } finally {

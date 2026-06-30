@@ -53,11 +53,6 @@ export async function runVerbatra(
   return { exitCode: result.exitCode ?? 0, stdout: result.stdout, stderr: result.stderr };
 }
 
-/**
- * Start the binary as a long-lived process (for `watch`) and return the running subprocess so the
- * caller can drive it (mutate files, then interrupt it). `reject: false` keeps a non-zero exit from
- * throwing, so awaiting the handle after a SIGINT resolves with the result either way.
- */
 export function spawnVerbatra(
   consumer: Consumer,
   args: string[],
@@ -70,17 +65,12 @@ export function spawnVerbatra(
   });
 }
 
-/** A running verbatra subprocess: awaitable for its result, and killable with a signal. */
 export type Subprocess = ReturnType<typeof spawnVerbatra>;
 
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Poll an async predicate until it returns true or the timeout elapses. Used to wait on a `watch`
- * run landing a translation, where the write happens asynchronously after a file change.
- */
 export async function pollUntil(
   predicate: () => Promise<boolean> | boolean,
   options: { timeoutMs: number; intervalMs: number },
