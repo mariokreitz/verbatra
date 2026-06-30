@@ -1,0 +1,19 @@
+{
+  "name": "@verbatra/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end tests that install the published @verbatra/cli and @verbatra/sdk tarballs and drive real usage of the package.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "26.0.0",
+    "exceljs": "4.4.0",
+    "execa": "9.6.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.9"
+  }
+}
