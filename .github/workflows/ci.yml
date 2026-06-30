@@ -15,8 +15,8 @@ permissions:
   id-token: write
 
 jobs:
-  gate:
-    name: Build and test gate (Node ${{ matrix.node }})
+  build-and-test:
+    name: Build and test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -78,3 +78,19 @@ jobs:
         with:
           use_oidc: true
           files: ./packages/*/coverage/lcov.info
+
+  gate:
+    # Stable required status check. Aggregates the build-and-test matrix so the
+    # branch-protection context stays "Build and test gate" regardless of which
+    # Node versions the matrix runs.
+    name: Build and test gate
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Verify every matrix leg passed
+        run: |
+          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
+            echo "build-and-test matrix did not succeed: ${{ needs.build-and-test.result }}"
+            exit 1
+          fi
