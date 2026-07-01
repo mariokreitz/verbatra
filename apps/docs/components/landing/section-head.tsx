@@ -1,18 +1,15 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { Eyebrow } from "./eyebrow";
 
-// Eyebrow + display heading + optional lead. Presentational, so it stays a server
-// component (no "use client").
+// Display heading + optional lead. Presentational, so it stays a server component
+// (no "use client").
 export function SectionHead({
-  eyebrow,
   title,
   lead,
   align = "left",
   maxWidth = "640px",
   id,
 }: {
-  eyebrow?: ReactNode;
   title: ReactNode;
   lead?: ReactNode;
   align?: "left" | "center";
@@ -25,10 +22,9 @@ export function SectionHead({
       className={centered ? "mx-auto text-center" : "text-left"}
       style={centered ? { maxWidth } : undefined}
     >
-      {eyebrow ? <Eyebrow center={centered}>{eyebrow}</Eyebrow> : null}
       <h2
         id={id}
-        className="mt-4 font-semibold text-fd-foreground"
+        className="font-semibold text-fd-foreground"
         style={{
           fontFamily: "var(--font-display)",
           letterSpacing: "var(--tracking-tight)",

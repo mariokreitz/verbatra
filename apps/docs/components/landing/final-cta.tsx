@@ -23,13 +23,7 @@ export async function FinalCta(): Promise<ReactNode> {
         sparkleDensity={0.00012}
       />
       <div className="relative mx-auto max-w-3xl px-6 text-center">
-        <SectionHead
-          align="center"
-          maxWidth="640px"
-          eyebrow={t("eyebrow")}
-          title={t("heading")}
-          lead={t("lead")}
-        />
+        <SectionHead align="center" maxWidth="640px" title={t("heading")} lead={t("lead")} />
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button href="/docs/your-first-translation" variant="primary" size="lg" trailingArrow>
             {tHero("ctaQuickstart")}

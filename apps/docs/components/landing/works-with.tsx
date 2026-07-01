@@ -63,7 +63,7 @@ export async function WorksWith(): Promise<ReactNode> {
   return (
     <section className="mt-24">
       <div className="mx-auto max-w-5xl px-6">
-        <SectionHead eyebrow={t("eyebrow")} title={t("heading")} lead={t("body")} />
+        <SectionHead align="center" title={t("heading")} lead={t("body")} />
       </div>
       <div className="mt-12">
         <Marquee

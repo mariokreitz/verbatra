@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { Eyebrow } from "@/components/landing/eyebrow";
 import { Backdrop } from "@/components/landing/fx/backdrop";
 import { GithubIcon } from "@/components/landing/github-icon";
 import { GITHUB_URL } from "@/components/landing/links";
@@ -61,12 +60,11 @@ export async function LandingHero(): Promise<ReactNode> {
       <Backdrop />
       <div className="relative mx-auto max-w-5xl px-6 pt-20 pb-20 md:pt-24">
         <div className="mx-auto max-w-[820px] text-center">
-          <Eyebrow center>{t("eyebrow")}</Eyebrow>
           {/* The localized headline carries the lavender-to-violet gradient treatment. The
               protective clamp floor keeps the longest localized string (German) from clipping
               on narrow viewports. */}
           <h1
-            className="mx-auto mt-5 max-w-[16ch] font-semibold"
+            className="mx-auto max-w-[16ch] font-semibold"
             style={{
               fontFamily: "var(--font-display)",
               letterSpacing: "var(--tracking-tight)",

@@ -44,13 +44,7 @@ export async function ProvidersMarquee(): Promise<ReactNode> {
   return (
     <section className="mt-24">
       <div className="mx-auto max-w-5xl px-6">
-        <SectionHead
-          align="center"
-          maxWidth="620px"
-          eyebrow={t("eyebrow")}
-          title={t("heading")}
-          lead={t("lead")}
-        />
+        <SectionHead align="center" maxWidth="620px" title={t("heading")} lead={t("lead")} />
       </div>
       <div className="mt-12">
         <Marquee

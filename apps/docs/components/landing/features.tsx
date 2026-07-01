@@ -72,7 +72,7 @@ export async function Features(): Promise<ReactNode> {
   const reasons = Object.values(t.raw("reasons") as Record<string, Reason>);
   return (
     <Section width="lg">
-      <SectionHead eyebrow={t("eyebrow")} title={t("heading")} lead={t("lead")} />
+      <SectionHead title={t("heading")} lead={t("lead")} />
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {reasons.map((reason, i) => {
           const accent = FEATURE_ACCENTS[i];

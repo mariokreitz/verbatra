@@ -12,7 +12,7 @@ export async function HowItWorks(): Promise<ReactNode> {
   const steps = Object.values(t.raw("steps") as Record<string, Step>);
   return (
     <Section width="md">
-      <SectionHead eyebrow={t("eyebrow")} title={t("heading")} lead={t("lead")} />
+      <SectionHead title={t("heading")} lead={t("lead")} />
       <ol className="relative mt-12 list-none">
         {/* The glowing connector runs through the centers of the number badges (left 19px). */}
         <span

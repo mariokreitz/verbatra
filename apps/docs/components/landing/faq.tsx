@@ -88,7 +88,7 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
       <div className="grid gap-10 md:grid-cols-5 md:gap-12">
         {/* Left: sticky intro and CTAs. self-start lets it stick instead of stretching. */}
         <div className="md:col-span-2 md:sticky md:top-24 md:self-start">
-          <SectionHead eyebrow={t("eyebrow")} title={t("heading")} lead={t("supporting")} />
+          <SectionHead title={t("heading")} lead={t("supporting")} />
           <div className="mt-7 flex flex-col items-start gap-4">
             <Button href="/docs/your-first-translation" variant="secondary" size="md">
               {t("ctaDocs")}

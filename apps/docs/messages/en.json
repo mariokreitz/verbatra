@@ -7,7 +7,6 @@
       "definition": "verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider."
     },
     "hero": {
-      "eyebrow": "open-source i18n automation",
       "headline": "Translate only what changed.",
       "lead": "verbatra is a CLI and SDK that keeps your i18n locale files in sync. You maintain the source locale; it fills every other locale through the AI provider you choose.",
       "ctaQuickstart": "Read the quickstart",
@@ -29,19 +28,16 @@
       "copyAria": "Copy install command"
     },
     "compat": {
-      "eyebrow": "works with your stack",
       "heading": "One tool, every framework.",
       "body": "verbatra reads the JSON locale formats your framework already uses, and fills them through the provider you choose.",
       "labelFrameworks": "Frameworks and formats"
     },
     "providers": {
-      "eyebrow": "your choice of provider",
       "heading": "Translate through the model you trust.",
       "lead": "Anthropic, OpenAI, Gemini, or DeepL. Pick one in a single line of config and switch providers without touching your locale files.",
       "marqueeLabel": "Translation providers"
     },
     "how": {
-      "eyebrow": "how it works",
       "heading": "A run is a short, predictable pipeline.",
       "lead": "No magic, no background sync: a deterministic sequence you can read top to bottom.",
       "steps": {
@@ -64,7 +60,6 @@
       }
     },
     "why": {
-      "eyebrow": "why verbatra",
       "heading": "Built for teams that ship in many languages.",
       "lead": "Every choice favors predictability: small diffs, explicit config, and nothing written that was not verified first.",
       "reasons": {
@@ -95,7 +90,6 @@
       }
     },
     "faq": {
-      "eyebrow": "faq",
       "heading": "Frequently asked questions",
       "supporting": "Short, direct answers to the questions teams ask before adopting verbatra.",
       "ctaDocs": "Read the docs",
@@ -132,7 +126,6 @@
       }
     },
     "finalClose": {
-      "eyebrow": "one command",
       "heading": "Stop hand-syncing locale files.",
       "lead": "Add verbatra, commit the lock file, and let every run touch only what changed."
     },

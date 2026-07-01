@@ -7,7 +7,6 @@
       "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die Schlüssel übersetzt, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl."
     },
     "hero": {
-      "eyebrow": "quelloffene i18n-Automatisierung",
       "headline": "Übersetze nur, was sich geändert hat.",
       "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede weitere Locale über den KI-Anbieter, den du wählst.",
       "ctaQuickstart": "Zum Schnellstart",
@@ -29,19 +28,16 @@
       "copyAria": "Installationsbefehl kopieren"
     },
     "compat": {
-      "eyebrow": "passt zu deinem Stack",
       "heading": "Ein Werkzeug, jedes Framework.",
       "body": "verbatra liest die JSON-Locale-Formate, die dein Framework bereits verwendet, und füllt sie über den Anbieter, den du wählst.",
       "labelFrameworks": "Frameworks und Formate"
     },
     "providers": {
-      "eyebrow": "der Anbieter deiner Wahl",
       "heading": "Übersetze über das Modell, dem du vertraust.",
       "lead": "Anthropic, OpenAI, Gemini oder DeepL. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen.",
       "marqueeLabel": "Übersetzungsanbieter"
     },
     "how": {
-      "eyebrow": "so funktioniert es",
       "heading": "Ein Lauf ist eine kurze, vorhersehbare Pipeline.",
       "lead": "Keine Magie, keine Hintergrundsynchronisierung: eine deterministische Abfolge, die du von oben nach unten lesen kannst.",
       "steps": {
@@ -64,7 +60,6 @@
       }
     },
     "why": {
-      "eyebrow": "warum verbatra",
       "heading": "Gebaut für Teams, die in vielen Sprachen ausliefern.",
       "lead": "Jede Entscheidung begünstigt Vorhersehbarkeit: kleine Diffs, explizite Konfiguration und nichts, was nicht zuerst geprüft wurde, wird geschrieben.",
       "reasons": {
@@ -95,7 +90,6 @@
       }
     },
     "faq": {
-      "eyebrow": "faq",
       "heading": "Häufig gestellte Fragen",
       "supporting": "Kurze, direkte Antworten auf die Fragen, die Teams vor der Einführung von verbatra stellen.",
       "ctaDocs": "Zur Dokumentation",
@@ -132,7 +126,6 @@
       }
     },
     "finalClose": {
-      "eyebrow": "ein Befehl",
       "heading": "Schluss mit dem manuellen Synchronisieren von Locale-Dateien.",
       "lead": "Füge verbatra hinzu, checke die Lock-Datei ein und lass jeden Lauf nur das anfassen, was sich geändert hat."
     },
