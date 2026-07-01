@@ -79,7 +79,7 @@ export async function FullFooter(): Promise<ReactNode> {
   const t = await getTranslations("landing.footer");
   return (
     <footer
-      className="relative mt-24 overflow-hidden"
+      className="relative overflow-hidden"
       style={{
         background:
           "linear-gradient(to bottom, color-mix(in srgb, var(--v-void) 55%, var(--surface-card)), color-mix(in srgb, var(--v-void) 78%, var(--surface-card)))",
