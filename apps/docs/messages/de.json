@@ -39,6 +39,11 @@
       "heading": "Übersetze über das Modell, dem du vertraust.",
       "lead": "Anthropic, OpenAI, Gemini oder DeepL. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen."
     },
+    "terminal": {
+      "eyebrow": "die cli in aktion",
+      "heading": "verbatra in deinem Terminal.",
+      "lead": "Eine Konfiguration, dann eine Handvoll Befehle: Initialisiere ein Projekt, übersetze nur, was sich geändert hat, prüfe die Abweichungen pro Locale und halte jede Locale synchron, während du arbeitest."
+    },
     "how": {
       "eyebrow": "so funktioniert es",
       "heading": "Ein Lauf ist eine kurze, vorhersehbare Pipeline.",

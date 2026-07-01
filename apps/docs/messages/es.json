@@ -39,6 +39,11 @@
       "heading": "Traduce con el modelo en el que confías.",
       "lead": "Anthropic, OpenAI, Gemini o DeepL. Elige uno en una sola línea de configuración y cambia de proveedor sin tocar tus archivos de idioma."
     },
+    "terminal": {
+      "eyebrow": "la cli en acción",
+      "heading": "verbatra en tu terminal.",
+      "lead": "Una configuración y luego un puñado de comandos: inicializa un proyecto, traduce solo lo que cambió, inspecciona la deriva por idioma y mantén cada idioma sincronizado mientras trabajas."
+    },
     "how": {
       "eyebrow": "cómo funciona",
       "heading": "Una ejecución es un pipeline corto y predecible.",
