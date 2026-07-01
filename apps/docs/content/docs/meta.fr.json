@@ -9,7 +9,6 @@
     "config-file",
     "providers",
     "formats",
-    "---Ligne de commande---",
     "cli",
     "---Automatiser---",
     "github-action",

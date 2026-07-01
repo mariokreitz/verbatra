@@ -59,13 +59,10 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         </span>
       ),
     },
-    // A minimal, real link set. The main links render as text links on the navbar and in the
-    // mobile menu; the GitHub icon and search trigger sit in the right-side actions.
-    links: [
-      { text: t("docs"), url: localized(locale, "/docs") },
-      { text: t("providers"), url: localized(locale, "/docs/providers") },
-      { text: t("formats"), url: localized(locale, "/docs/formats") },
-    ],
+    // A minimal, real link set. Only "Docs" is a chrome link: Providers and Formats already sit
+    // in the docs sidebar tree, so listing them here too duplicated them in the docs rail. The
+    // GitHub icon and search trigger sit in the right-side actions.
+    links: [{ text: t("docs"), url: localized(locale, "/docs") }],
     githubUrl: "https://github.com/mariokreitz/verbatra",
     // The theme is forced dark via RootProvider, so the theme-switch control is removed.
     themeSwitch: { enabled: false },
