@@ -1,17 +1,14 @@
 ---
 title: verbatra import
-description: Importa un libro rellenado de vuelta a tus archivos de configuración regional, ejecutando las mismas comprobaciones de seguridad que una ejecución automatizada.
+description: Importa un libro rellenado de vuelta a tus archivos de locale, ejecutando las mismas comprobaciones de seguridad que una ejecución automatizada.
 ---
-
-# verbatra import
-
-Lee un libro rellenado por un traductor de vuelta a tus archivos de configuración regional. Import ejecuta las mismas comprobaciones de marcadores de posición e ICU que [`verbatra translate`](/docs/cli/translate): cada valor se valida, los que pasan se escriben y el [archivo de bloqueo](/docs/the-lock-file) se actualiza, y cualquier valor que falle una comprobación se retiene y se informa en lugar de escribirse.
+Lee un libro que un traductor rellenó de vuelta a tus archivos de locale. `import` ejecuta las mismas comprobaciones de marcadores de posición e ICU que [`verbatra translate`](/docs/cli/translate): cada valor se valida, los que pasan se escriben y el [archivo de bloqueo](/docs/the-lock-file) se actualiza, y cualquier valor que falle una comprobación se retiene y se informa en lugar de escribirse.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-El argumento es la ruta al libro producido por [`verbatra export`](/docs/cli/export) y rellenado por el traductor. Solo se lee la columna `Translation`; las celdas vacías se omiten, nunca se escriben como cadenas vacías. Consulta [Traducción manual](/docs/manual-translation) para ver el ciclo completo.
+El argumento es la ruta al libro producido por [`verbatra export`](/docs/cli/export) y rellenado por el traductor. Solo se lee la columna `Translation`; las celdas vacías se omiten, nunca se escriben como cadenas vacías. Consulta [Traducción humana](/docs/manual-translation) para ver el ciclo completo.
 
 ## Argumentos
 
@@ -23,16 +20,16 @@ El argumento es la ruta al libro producido por [`verbatra export`](/docs/cli/exp
 
 | Opción | Descripción |
 | --- | --- |
-| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--dry-run` | valida e informa sin escribir archivos de configuración regional ni actualizar el bloqueo |
+| `--dry-run` | valida e informa sin escribir archivos de locale ni actualizar el bloqueo |
 | `--json` | imprime el resumen de la ejecución como JSON |
 
 ## Salida
 
-Import reutiliza el resumen de la ejecución de `translate` sin cambios. Sin `--json`, imprime un resumen legible para humanos: una línea por configuración regional, luego un agregado. Cada línea de configuración regional informa cuántos valores fueron `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` e `integrity-withheld`. Con `--json`, imprime la misma [forma de `RunSummary`](/docs/sdk) como un único objeto JSON en stdout.
+`import` reutiliza el resumen de la ejecución de `translate` sin cambios. Sin `--json`, imprime un resumen legible para humanos: una línea por locale, luego un agregado. Cada línea de locale informa cuántos valores fueron `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` e `integrity-withheld`. Con `--json`, imprime la misma [forma de `RunSummary`](/docs/sdk) como un único objeto JSON en stdout.
 
-Un valor se **retiene** cuando rompe un marcador de posición, es ICU no válido, o su origen cambió desde que se exportó el libro (detectado a través de la columna oculta de hash de origen). Un valor retenido deja el archivo de configuración regional intacto para que puedas corregirlo y volver a importar. Consulta [Seguridad de la traducción](/docs/translation-safety) para conocer las comprobaciones.
+Un valor se **retiene** cuando rompe un marcador de posición, es ICU no válido, o su origen cambió desde que se exportó el libro (detectado a través de la columna oculta de hash de origen). Un valor retenido deja el archivo de locale intacto para que puedas corregirlo y volver a importar. Consulta [Seguridad de la traducción](/docs/translation-safety) para conocer las comprobaciones.
 
 ## Ejemplos
 
@@ -42,14 +39,23 @@ verbatra import verbatra-translations.xlsx
 
 # valida e informa, no escribe nada
 verbatra import verbatra-translations.xlsx --dry-run
+
+# importa contra un proyecto en otro directorio
+verbatra import verbatra-translations.xlsx --cwd packages/app
+
+# carga una configuración específica en lugar de buscar una
+verbatra import verbatra-translations.xlsx --config config/verbatra.config.ts
+
+# resumen legible por máquina en stdout
+verbatra import verbatra-translations.xlsx --json
 ```
 
 ## Códigos de salida
 
 | Código | Significado |
 | --- | --- |
-| `0` | cada configuración regional de destino tuvo éxito |
-| `1` | la ejecución terminó pero una o más configuraciones regionales fallaron |
-| `2` | no se pudo ejecutar: un error de ejecución completa (configuración ausente o no válida, un libro ilegible o no válido, formato desconocido, o un archivo de bloqueo corrupto), o un error de uso |
+| `0` | cada locale de destino tuvo éxito |
+| `1` | la ejecución terminó pero uno o más locales fallaron |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, un libro ilegible o no válido, formato desconocido, o un archivo de bloqueo corrupto), o un error de uso |
 
-El contrato del código de salida coincide con el de [`verbatra translate`](/docs/cli/translate), por lo que una entrega manual bifurca de la misma manera en CI: consulta [CI y automatización](/docs/ci-and-exit-codes).
+El contrato del código de salida coincide con el de [`verbatra translate`](/docs/cli/translate), así que una entrega manual bifurca de la misma manera en CI: consulta [CI y automatización](/docs/ci-and-exit-codes).

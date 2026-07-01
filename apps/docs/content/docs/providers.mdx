@@ -2,10 +2,17 @@
 title: Providers
 description: The four translation providers, their options, and the API key each one reads.
 ---
-
-# Providers
-
 verbatra ships four providers behind one interface: Anthropic, OpenAI, and Gemini are large language models, and DeepL is a machine-translation service. You select one in the `provider` block of your config, by `id`.
+
+## Which one should I pick?
+
+Any provider works with any format and command; the choice is about cost, quality, and how you get a key.
+
+- **Small or side project, want it free?** Use **Gemini**. It has a real free API tier, so you can translate a whole app at zero cost. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier is rate-limited (see the note below), which only matters on a large first-time run.
+- **Best translation quality for a production app?** Use **Anthropic** or **OpenAI**. Both are paid LLMs and read `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
+- **High volume, glossary-driven, or no LLM in the loop?** Use **DeepL**. It is a dedicated machine-translation API with a free and a paid tier, and supports a native glossary by id.
+
+Not sure? Start on Gemini's free tier, then switch providers later by editing one `id` in your config. Nothing else changes.
 
 <Callout title="Model autocomplete in TypeScript">
 When you author the config in TypeScript with `defineConfig`, the `model` field is restricted to the chosen provider's known model IDs, sourced from that provider's own SDK: a model from another provider (for example a Claude model under `id: "gemini"`) is a type error. The runtime still accepts any non-empty string, so a model the SDK has not listed yet runs even though the editor flags it. DeepL has no `model` field.
@@ -65,6 +72,10 @@ provider: {
 ```
 
 Reads `GEMINI_API_KEY`. `model` and `maxOutputTokens` are both required.
+
+<Callout title="The free tier and its limits">
+Gemini is the recommended starting point for small projects because its API has a free tier. Create a key at [Google AI Studio](https://aistudio.google.com/apikey), no billing required. The free tier caps requests per minute and per day (the exact numbers depend on the model and change over time, so check Google's current limits), and verbatra splits work into sequential sub-batches, so a first-time run over many locales can hit those caps. If it does, translate one locale at a time or lower `maxBatchSize`, then re-run: verbatra only picks up what is still missing, so runs are safe to repeat.
+</Callout>
 
 ## DeepL
 

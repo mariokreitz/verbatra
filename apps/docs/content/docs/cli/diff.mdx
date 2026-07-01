@@ -2,10 +2,7 @@
 title: verbatra diff
 description: List the exact keys that would be added, re-translated, or are orphaned per locale, read-only, without calling a provider or writing files.
 ---
-
-# verbatra diff
-
-Show, per target locale, the actual pending translation changes as key lists: the keys that would be added, the keys that would be re-translated, and the keys that are now orphaned in the target. `diff` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does before it would call a provider, but it stops there: it calls no provider, writes no files, and never touches the [lock file](/docs/the-lock-file).
+Show, per target locale, the actual pending translation changes as key lists: the keys that would be added, the keys that would be re-translated, and the keys now orphaned in the target. `diff` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does right before it would call a provider, then stops: no provider call, no files written, and it never touches the [lock file](/docs/the-lock-file).
 
 ```bash
 verbatra diff
@@ -19,9 +16,9 @@ For each target locale, `diff` reports three groups:
 
 - **add** (`missing`): keys present in the source locale but absent from the target. A run would add these.
 - **re-translate** (`changed`): keys present in both, where the source string changed since it was last translated. A run would re-translate these.
-- **orphaned**: keys present in the target but absent from the source. These are reported only. A default `translate` run does not prune them, so orphaned keys on their own do not count as pending work (only [`verbatra translate --prune`](/docs/cli/translate) removes them).
+- **orphaned**: keys present in the target but absent from the source. Reported only. A default `translate` run does not prune them, so orphaned keys on their own do not count as pending work (only [`verbatra translate --prune`](/docs/cli/translate) removes them).
 
-A locale has pending changes when it has at least one key to add or re-translate. Orphaned keys alone do not make a locale pending.
+A locale has pending changes when it has at least one key to add or re-translate. Orphaned keys alone never make a locale pending.
 
 ## Options
 
@@ -32,11 +29,11 @@ A locale has pending changes when it has at least one key to add or re-translate
 | `--locales <list>` | comma-separated subset of target locales (default all configured) |
 | `--json` | print the diff summary as JSON |
 
-There is no `--dry-run`: `diff` is inherently a dry read. It needs no API key.
+There is no `--dry-run`: `diff` is already a dry read. It needs no API key.
 
 ## Output
 
-Without `--json`, `diff` prints a count header per locale, then the keys grouped under add, re-translate, and orphaned. A locale with nothing to add, re-translate, or orphan collapses to a single line. Every key is listed, with no truncation; pipe to a pager if you want one.
+Without `--json`, `diff` prints a count header per locale, then the keys grouped under add, re-translate, and orphaned. A locale with nothing to add, re-translate, or orphan collapses to a single line. Every key is listed, no truncation; pipe to a pager if the list is long.
 
 ```
 verbatra diff
@@ -48,7 +45,7 @@ verbatra diff
 2 locales, pending changes
 ```
 
-With `--json`, it prints the summary as one JSON object on stdout. The top-level `hasPendingChanges` is true exactly when at least one locale has a key to add or re-translate (and exactly when the command exits `1`):
+With `--json`, it prints the summary as one JSON object on stdout. Top-level `hasPendingChanges` is true exactly when at least one locale has a key to add or re-translate (and exactly when the command exits `1`):
 
 ```json
 {
@@ -72,7 +69,7 @@ With `--json`, it prints the summary as one JSON object on stdout. The top-level
 }
 ```
 
-Each locale's `hasPendingChanges` is `missing.length > 0 || changed.length > 0`; `orphaned` is excluded. A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+Each locale's `hasPendingChanges` is `missing.length > 0 || changed.length > 0`; `orphaned` is excluded. A whole-run error goes to stderr, so stdout stays clean and pipeable under `--json`.
 
 ## Examples
 
@@ -82,6 +79,12 @@ verbatra diff
 
 # only diff the German and French locales
 verbatra diff --locales de,fr
+
+# diff a project in another directory
+verbatra diff --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra diff --config config/verbatra.config.ts
 
 # machine-readable key lists on stdout for tooling or a PR comment
 verbatra diff --json

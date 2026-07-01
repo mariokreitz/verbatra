@@ -1,11 +1,8 @@
 ---
 title: verbatra check
-description: Meldet, welchen Locales Strings fehlen oder veraltet sind, schreibgeschützt, ohne einen Provider aufzurufen oder Dateien zu schreiben.
+description: Meldet, welche Locales fehlende oder veraltete Strings haben, schreibgeschützt, ohne einen Provider aufzurufen oder Dateien zu schreiben.
 ---
-
-# verbatra check
-
-Meldet pro Ziel-Locale, wie viele Strings fehlend, veraltet oder aktuell sind, und beendet sich dann mit einem Code, auf den ein CI-Schritt verzweigen kann. `check` führt dieselbe Lese- und Diff-Operation aus, die [`verbatra translate`](/docs/cli/translate) macht, bevor es einen Provider aufrufen würde, hört aber dort auf: Es ruft keinen Provider auf, schreibt keine Dateien und berührt niemals die [Lock-Datei](/docs/the-lock-file). Es ist der günstige, schreibgeschützte Weg, um zu fragen "sind meine Übersetzungen synchron?", bevor jemand für einen Provider zahlt.
+Meldet pro Ziel-Locale, wie viele Strings fehlend, veraltet oder aktuell sind, und beendet sich dann mit einem Code, auf den ein CI-Schritt verzweigen kann. `check` führt dieselbe Lese- und Diff-Operation aus, die [`verbatra translate`](/docs/cli/translate) direkt macht, bevor es einen Provider aufrufen würde, hört aber dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, und es berührt niemals die [Lock-Datei](/docs/the-lock-file). Es ist der günstige, schreibgeschützte Weg, um zu fragen "sind meine Übersetzungen synchron?", bevor jemand für einen Provider zahlt.
 
 ```bash
 verbatra check
@@ -13,7 +10,7 @@ verbatra check
 
 Ein Schlüssel ist **fehlend**, wenn er im Quell-Locale vorhanden, aber im Ziel nicht vorhanden ist. Ein Schlüssel ist **veraltet**, wenn das Ziel ihn hat, aber sich der Quell-String geändert hat, seit er zuletzt übersetzt wurde. Ein Schlüssel ist **aktuell**, wenn das Ziel der aktuellen Quelle entspricht. Ein Locale ist synchron, wenn es keine fehlenden und keine veralteten Schlüssel hat.
 
-`check` meldet Anzahlen. Um die tatsächlichen Schlüssel hinter diesen Anzahlen zu sehen (welche Schlüssel hinzugefügt, neu übersetzt oder verwaist sind), verwende [`verbatra diff`](/docs/cli/diff), sein detailliertes Geschwister, das dieselbe schreibgeschützte Berechnung ausführt.
+`check` gibt dir Anzahlen. Du willst die tatsächlichen Schlüssel hinter diesen Anzahlen (welche hinzugefügt, neu übersetzt oder verwaist würden)? Greif zu [`verbatra diff`](/docs/cli/diff), seinem detaillierten Geschwister, das dieselbe schreibgeschützte Berechnung ausführt.
 
 ## Optionen
 
@@ -24,7 +21,7 @@ Ein Schlüssel ist **fehlend**, wenn er im Quell-Locale vorhanden, aber im Ziel 
 | `--locales <list>` | kommagetrennte Teilmenge der Ziel-Locales (Standard alle konfigurierten) |
 | `--json` | gibt die Check-Zusammenfassung als JSON aus |
 
-Es gibt kein `--dry-run`: `check` ist von Natur aus ein trockener Lesevorgang. Es benötigt keinen API-Schlüssel.
+Es gibt kein `--dry-run`: `check` ist von Natur aus schon ein trockener Lesevorgang. Es benötigt keinen API-Schlüssel.
 
 ## Ausgabe
 
@@ -60,6 +57,12 @@ verbatra check
 # only check the German and French locales
 verbatra check --locales de,fr
 
+# check a project in another directory
+verbatra check --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra check --config config/verbatra.config.ts
+
 # machine-readable status on stdout for CI
 verbatra check --json
 ```
@@ -72,4 +75,4 @@ verbatra check --json
 | `1` | nicht synchron: mindestens ein Locale hat einen fehlenden oder veralteten Schlüssel (der vollständige Bericht wird trotzdem ausgegeben) |
 | `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
 
-Bei `check` bedeutet Exit `1` "nicht synchron", nicht einen Fehlschlag eines einzelnen Locales: Der Lauf selbst war erfolgreich, aber das Ergebnis ist nicht durchgehend grün. Das macht `check` zu einem einzeiligen CI-Gate, das fehlschlägt, wenn Übersetzungen abgewichen sind. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.
+Bei `check` bedeutet Exit `1` "nicht synchron", nicht einen Fehlschlag eines einzelnen Locales: Der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht durchgehend grün. Das macht `check` zu einem einzeiligen CI-Gate, das fehlschlägt, wenn Übersetzungen abgewichen sind. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.

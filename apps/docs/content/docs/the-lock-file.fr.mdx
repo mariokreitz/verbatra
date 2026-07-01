@@ -2,36 +2,49 @@
 title: Le fichier de verrouillage
 description: Ce que verbatra.lock.json enregistre, pourquoi c'est la base de référence des exécutions incrémentielles, et pourquoi tu le commites.
 ---
-
-# Le fichier de verrouillage
-
-verbatra conserve un seul fichier commité, `verbatra.lock.json`, dans ton projet. C'est l'enregistrement de ce que verbatra a déjà traduit, et c'est ce qui rend une exécution incrémentielle : chaque exécution diffuse ta source par rapport à cette base de référence et n'appelle le fournisseur que pour les clés qui ont réellement changé.
+verbatra conserve un seul fichier commité, `verbatra.lock.json`, dans ton projet. C'est l'enregistrement de ce que
+verbatra a déjà traduit, et c'est ce qui rend une exécution incrémentielle : chaque exécution diffuse ta source
+par rapport à cette base de référence et n'appelle le provider que pour les clés qui ont réellement changé.
 
 ## Ce qu'il enregistre
 
-Pour chaque locale cible, le fichier de verrouillage stocke un hachage de contenu pour chaque clé source traduite. Le hachage est pris à partir de la valeur source, de sorte qu'il capture exactement le texte qui a produit la traduction existante. Le fichier de verrouillage ne contient aucune traduction et aucune clé API. Il contient des hachages.
+Pour chaque locale cible, le fichier de verrouillage stocke un hachage de contenu pour chaque clé source traduite. Le hachage
+vient de la valeur source, donc il capture exactement le texte qui a produit la traduction existante.
+Aucune traduction, aucune clé API. Juste des hachages.
 
 ## Comment une exécution l'utilise
 
-Lorsque verbatra lit une locale cible, il diffuse la source par rapport à cette locale en utilisant le fichier de verrouillage comme base de référence de ce qui a été traduit auparavant. Chaque clé source se trie dans l'un de quatre paniers :
+Quand verbatra lit une locale cible, il diffuse la source par rapport à cette locale en utilisant le fichier de verrouillage comme
+base de référence de ce qui a été traduit auparavant. Chaque clé source se trie dans l'un de quatre paniers :
 
 - nouvelle : la cible n'a pas encore la clé.
 - modifiée : la valeur source diffère du hachage enregistré dans le verrouillage.
 - inchangée : la valeur source correspond toujours au hachage enregistré.
 - orpheline : la clé est dans la cible mais n'est plus dans la source.
 
-Seules les clés nouvelles et modifiées sont envoyées au fournisseur. Les clés inchangées sont laissées intactes, ce qui explique pourquoi une seconde exécution sans modification de la source n'appelle le fournisseur pour rien.
+Seules les clés nouvelles et modifiées vont au provider. Les clés inchangées sont laissées intactes, ce qui explique pourquoi une seconde
+exécution sans modification de la source n'appelle le provider pour rien.
 
-Le hachage de contenu traite l'Unicode canoniquement équivalent (NFC) et les fins de ligne différentes (CRLF par rapport à LF) comme le même contenu, de sorte que réenregistrer un fichier source avec une forme de normalisation ou des fins de ligne différentes ne marque pas une clé comme modifiée ni ne déclenche une retraduction.
+Le hachage de contenu traite l'Unicode canoniquement équivalent (NFC) et les fins de ligne différentes (CRLF par rapport à LF)
+comme le même contenu. Ainsi réenregistrer un fichier source avec une forme de normalisation ou des fins de ligne différentes
+ne marque pas une clé comme modifiée ni ne déclenche une retraduction.
 
 ## Comment il est rafraîchi
 
-Après qu'une locale est écrite, verbatra rafraîchit le verrouillage avec les hachages source actuels, avec une exception délibérée. Une clé qui a été retenue lors de cette exécution, parce que sa traduction a échoué à la vérification des espaces réservés ou que son ICU source était invalide, conserve son hachage précédent. L'exécution suivante la voit alors toujours comme nécessitant du travail et la réessaie, plutôt que de l'enregistrer comme terminée. Les clés orphelines n'obtiennent aucune entrée.
+Après qu'une locale est écrite, verbatra rafraîchit le verrouillage avec les hachages source actuels, avec une
+exception délibérée. Une clé retenue lors de cette exécution (parce que sa traduction a échoué à la vérification de placeholder ou
+que son ICU source était invalide) conserve son hachage précédent. L'exécution suivante la voit alors toujours comme nécessitant du
+travail et la réessaie, plutôt que de l'enregistrer comme terminée. Les clés orphelines n'obtiennent aucune entrée.
 
 ## Première exécution, verrouillage manquant, verrouillage corrompu
 
-Un fichier de verrouillage manquant est traité comme une première exécution : chaque clé cible est nouvelle. Un verrouillage présent mais corrompu ou plus volumineux que le plafond de taille n'est pas silencieusement écrasé. L'exécution échoue avec `LOCK_FILE_INVALID` afin que tu puisses l'inspecter plutôt que de perdre la base de référence.
+Un fichier de verrouillage manquant compte comme une première exécution : chaque clé cible est nouvelle. Un verrouillage présent mais corrompu
+ou plus volumineux que le plafond de taille n'est pas silencieusement écrasé. L'exécution échoue avec `LOCK_FILE_INVALID` pour que tu
+puisses l'inspecter plutôt que de perdre la base de référence.
 
 ## Commite-le
 
-Commite `verbatra.lock.json` aux côtés de tes fichiers de locale. C'est la base de référence partagée par rapport à laquelle ton équipe et ton CI diffusent, donc le garder sous contrôle de version est ce qui rend les exécutions incrémentielles reproductibles d'une machine à l'autre. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline d'exécution complet, et [Sûreté de la traduction](/docs/translation-safety) pour les vérifications qui décident de ce qui est retenu.
+Commite `verbatra.lock.json` aux côtés de tes fichiers de locale. C'est la base de référence partagée par rapport à laquelle ton équipe et ton
+CI diffusent, donc le garder sous contrôle de version est ce qui rend les exécutions incrémentielles reproductibles d'une
+machine à l'autre. Voir [How it works](/docs/how-it-works) pour le pipeline d'exécution complet, et
+[Translation safety](/docs/translation-safety) pour les vérifications qui décident de ce qui est retenu.

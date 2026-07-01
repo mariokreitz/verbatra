@@ -2,13 +2,20 @@
 title: Proveedores
 description: Los cuatro proveedores de traducción, sus opciones y la clave API que lee cada uno.
 ---
-
-# Proveedores
-
 verbatra incluye cuatro proveedores bajo una única interfaz: Anthropic, OpenAI y Gemini son modelos de lenguaje grandes, y DeepL es un servicio de traducción automática. Seleccionas uno en el bloque `provider` de tu configuración, por `id`.
 
+## ¿Cuál debería elegir?
+
+Cualquier proveedor funciona con cualquier formato y comando; la elección tiene que ver con el coste, la calidad y cómo consigues una clave.
+
+- **¿Proyecto pequeño o personal y lo quieres gratis?** Usa **Gemini**. Tiene un nivel de API realmente gratuito, así que puedes traducir una app entera sin ningún coste. Consigue una clave en [Google AI Studio](https://aistudio.google.com/apikey) y establece `GEMINI_API_KEY`. El nivel gratuito tiene límites de tasa (consulta la nota más abajo), lo que solo importa en una primera ejecución grande.
+- **¿La mejor calidad de traducción para una app en producción?** Usa **Anthropic** u **OpenAI**. Ambos son LLM de pago y leen `ANTHROPIC_API_KEY` u `OPENAI_API_KEY`.
+- **¿Alto volumen, guiado por glosario o sin LLM de por medio?** Usa **DeepL**. Es una API de traducción automática dedicada con un nivel gratuito y uno de pago, y admite un glosario nativo por id.
+
+¿No lo tienes claro? Empieza con el nivel gratuito de Gemini y luego cambia de proveedor más adelante editando un único `id` en tu configuración. Nada más cambia.
+
 <Callout title="Autocompletado de modelos en TypeScript">
-Cuando escribes la configuración en TypeScript con `defineConfig`, el campo `model` está restringido a los IDs de modelo conocidos del proveedor elegido, tomados del propio SDK de ese proveedor: un modelo de otro proveedor (por ejemplo, un modelo de Claude con `id: "gemini"`) es un error de tipo. En tiempo de ejecución se sigue aceptando cualquier cadena no vacía, por lo que un modelo no listado funciona aunque el editor lo marque. DeepL no tiene campo `model`.
+Cuando escribes la configuración en TypeScript con `defineConfig`, el campo `model` está restringido a los IDs de modelo conocidos del proveedor elegido, tomados del propio SDK de ese proveedor: un modelo de otro proveedor (por ejemplo, un modelo de Claude con `id: "gemini"`) es un error de tipo. En tiempo de ejecución se sigue aceptando cualquier cadena no vacía, por lo que un modelo que el SDK aún no ha listado funciona aunque el editor lo marque. DeepL no tiene campo `model`.
 </Callout>
 
 ## Las claves provienen del entorno
@@ -65,6 +72,10 @@ provider: {
 ```
 
 Lee `GEMINI_API_KEY`. `model` y `maxOutputTokens` son ambos obligatorios.
+
+<Callout title="El nivel gratuito y sus límites">
+Gemini es el punto de partida recomendado para proyectos pequeños porque su API tiene un nivel gratuito. Crea una clave en [Google AI Studio](https://aistudio.google.com/apikey), sin necesidad de facturación. El nivel gratuito limita las solicitudes por minuto y por día (los números exactos dependen del modelo y cambian con el tiempo, así que consulta los límites actuales de Google), y verbatra divide el trabajo en sublotes secuenciales, por lo que una primera ejecución sobre muchos locales puede alcanzar esos límites. Si ocurre, traduce un locale a la vez o reduce `maxBatchSize`, y luego vuelve a ejecutar: verbatra solo retoma lo que sigue faltando, así que las ejecuciones se pueden repetir sin riesgo.
+</Callout>
 
 ## DeepL
 

@@ -2,10 +2,7 @@
 title: Konfigurationsdatei
 description: Das verbatra-Konfigurationsschema, die Erkennungsreihenfolge und wie das Arbeitsverzeichnis alles miteinander verbindet.
 ---
-
-# Konfigurationsdatei
-
-verbatra liest ein kleines, nicht geheimes Konfigurationsobjekt und validiert es, bevor es irgendeine Arbeit verrichtet. Es trägt keinen API-Schlüssel; der Provider liest seinen Schlüssel aus der Umgebung.
+verbatra liest ein kleines, nicht geheimes Konfigurationsobjekt und validiert es, bevor es irgendeine Arbeit verrichtet. Hier ist kein API-Schlüssel enthalten: Der Provider liest seinen Schlüssel aus der Umgebung, sodass diese Datei sicher zu committen ist.
 
 <Callout title="Schlüssel kommen aus der Umgebung">
 Aus dieser Datei wird niemals ein API-Schlüssel gelesen. Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable, sodass die Konfiguration sicher zu committen bleibt. Siehe [Provider](/docs/providers).
@@ -24,10 +21,10 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6", // replace with your provider's model id
-      maxTokens: 4096,
+      model: "gemini-2.5-flash", // replace with your provider's model id
+      maxOutputTokens: 4096,
     },
   },
 });
@@ -48,7 +45,7 @@ Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor die bekann
 - **`provider`** (object): der Übersetzungs-Provider, ausgewählt über `id`. Jeder Provider nimmt seine eigenen `options`, und in TypeScript ist das `model`-Feld auf die bekannten Modell-IDs des gewählten Providers beschränkt (ein Modell eines anderen Providers ist ein Typfehler). Siehe [Provider](/docs/providers).
 - **`glossary`** (optional, object): eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen. Die LLM-Provider (Anthropic, OpenAI, Gemini) erhalten sie mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet diese Begriffszuordnung nicht an; es vermerkt einen Hinweis und wendet stattdessen ein über die ID konfiguriertes Glossar an (siehe [Provider](/docs/providers)).
 - **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und mit einem Hinweis auf den Standardwert herabgestuft.
-- **`prune`** (optional, boolean, Standard `false`): wenn wahr, werden Schlüssel, die in einer Zieldatei vorhanden, aber nicht in der Quelle vorhanden sind (die verwaisten Schlüssel des Diffs), aus der geschriebenen Datei und der Lock-Datei entfernt. Eine Pro-Lauf-`prune`-Option bei `translate` (das CLI-Flag `--prune`) überschreibt dies. Es werden nur jemals verwaiste Schlüssel entfernt.
+- **`prune`** (optional, boolean, Standard `false`): wenn wahr, werden Schlüssel, die in einer Zieldatei vorhanden, aber nicht in der Quelle vorhanden sind (die verwaisten Schlüssel des Diffs), aus der geschriebenen Datei und der Lock-Datei entfernt. Eine Pro-Lauf-`prune`-Option bei `translate` (das CLI-Flag `--prune`) überschreibt dies. Es werden immer nur verwaiste Schlüssel entfernt.
 - **`generatePlurals`** (optional, boolean, Standard `false`): wenn wahr, synthetisiert verbatra die CLDR-Pluralformen, die eine Zielsprache benötigt, die Quelle aber nicht liefert (zum Beispiel Polnisch few/many). Wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden; DeepL, Nicht-i18next-Formate und unbekannte Zielsprachen fallen auf die Plural-Warnung pro Locale zurück. Anders als bei `prune` gibt es kein `--generate-plurals`-CLI-Flag, also setze dies in der Konfiguration; die SDK-`translate()`-Eingabe akzeptiert jedoch eine Pro-Lauf-`generatePlurals`-Überschreibung, die Vorrang hat.
 - **`maxBatchSize`** (optional, positive Ganzzahl, Standard `50`): die fehlend-plus-geänderten Einträge eines Locales werden in sequenzielle Teil-Batches aufgeteilt, die nicht größer als dieser Wert sind, sodass eine einzige übergroße Provider-Anfrage nicht das gesamte Locale fehlschlagen lassen kann. Ein fehlgeschlagener Teil-Batch wird zurückgehalten und beim nächsten Lauf erneut versucht, während die anderen weiterhin Fortschritt machen. Dies ist nur über die Konfiguration möglich: Es gibt kein CLI-Flag und keine Pro-Lauf-`translate()`-Überschreibung, also setze es in der Konfiguration.
 

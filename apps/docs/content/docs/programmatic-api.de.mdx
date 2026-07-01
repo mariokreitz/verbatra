@@ -1,15 +1,12 @@
 ---
-title: Programmatische API
-description: Praktische Rezepte, um verbatra aus deinen eigenen Skripten, Build-Schritten und CI-Jobs auszuführen.
+title: SDK-Rezepte
+description: Copy-paste-Rezepte, um verbatra aus deinen eigenen Skripten, Build-Schritten und CI-Jobs auszuführen.
 ---
-
-# Programmatische API
-
-Die [SDK-Referenz](/docs/sdk) dokumentiert jede Funktion und jeden Typ. Diese Seite ist der aufgabenorientierte Begleiter: ein paar End-to-End-Muster für die Verwendung von verbatra im Code. Greife zum SDK, wenn du Übersetzung in einem Skript, einem Build-Schritt oder einem CI-Job möchtest, mit voller Kontrolle über alles, was darum herum geschieht.
+Die [SDK-Referenz](/docs/sdk) deckt jede Funktion und jeden Typ ab. Diese Seite ist der praktische Begleiter: eine Handvoll End-to-End-Muster, um verbatra in Code einzubinden. Greif zum SDK, wenn du Übersetzung in einem Skript, einem Build-Schritt oder einem CI-Job möchtest, mit voller Kontrolle über alles drumherum.
 
 ## In einem Skript übersetzen
 
-Lade die Konfiguration, führe eine Übersetzung aus und melde die Schlagzeile. Probleme des gesamten Laufs werfen einen `SdkError`; Ergebnisse pro Locale sind Daten in der Zusammenfassung.
+Lade die Konfiguration, führe eine Übersetzung aus, gib die Schlagzeile aus. Gesamtlauf-Probleme werfen einen `SdkError`; Ergebnisse pro Locale sind Daten in der Zusammenfassung.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -22,7 +19,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Einen Build- oder CI-Schritt am Ergebnis ausrichten
 
-Die Zusammenfassung sagt dir, was sich geändert hat und was fehlgeschlagen ist, ohne Ausgabe zu parsen. Lass den Schritt fehlschlagen, wenn ein Locale fehlgeschlagen ist, und inspiziere das Detail pro Locale, um den Grund zu protokollieren.
+Die Zusammenfassung sagt dir, was sich geändert hat und was fehlgeschlagen ist, kein Ausgabe-Parsen nötig. Lass den Schritt fehlschlagen, wenn eine Locale fehlgeschlagen ist, und grabe dich in das Detail pro Locale, um zu protokollieren, warum.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -42,7 +39,7 @@ if (summary.failed.length > 0) {
 
 ## Prüfen ohne zu schreiben
 
-`check` liest und vergleicht, ohne einen Provider aufzurufen oder Dateien zu schreiben, und meldet die Abweichung pro Locale aufgeteilt in fehlende, veraltete und aktuelle Anzahlen. Sein `inSync`-Flag ist genau dann wahr, wenn nichts fehlend oder veraltet ist, sodass es das natürliche CI-Gate ist.
+`check` liest und diffe, ohne einen Provider aufzurufen oder Dateien zu schreiben, und meldet die Abweichung pro Locale, aufgeteilt in fehlende, veraltete und aktuelle Anzahlen. Sein `inSync`-Flag ist genau dann true, wenn nichts fehlend oder veraltet ist, was es zu deinem natürlichen CI-Gate macht.
 
 ```ts
 import { check, loadConfig } from "@verbatra/sdk";
@@ -56,9 +53,9 @@ if (!summary.inSync) {
 }
 ```
 
-`translate({ dryRun: true })` ist eine Alternative, wenn du die vollständige Lauf-Zusammenfassung möchtest (die Schlüssel, die übersetzt würden), statt nur der Abweichungs-Anzahlen.
+Willst du die vollständige Lauf-Zusammenfassung (die Keys, die übersetzt würden) statt nur der Abweichungs-Anzahlen? Nutze `translate({ dryRun: true })`.
 
-`diff` ist das schreibgeschützte Geschwister von `check`: Es führt dieselbe Berechnung aus, gibt aber die tatsächlichen Schlüssellisten (`missing`, `changed`, `orphaned`) pro Locale statt Anzahlen zurück, mit demselben `hasPendingChanges`-Gate. Greife dazu, wenn du wissen musst, welche Schlüssel, nicht nur wie viele.
+`diff` ist das schreibgeschützte Geschwister von `check`: dieselbe Berechnung, aber es gibt die tatsächlichen Key-Listen (`missing`, `changed`, `orphaned`) pro Locale statt Anzahlen zurück, mit demselben `hasPendingChanges`-Gate. Greif dazu, wenn du wissen musst, welche Keys, nicht nur wie viele.
 
 ```ts
 import { diff, loadConfig } from "@verbatra/sdk";
@@ -77,7 +74,7 @@ if (summary.hasPendingChanges) {
 
 ## Strings an einen menschlichen Übersetzer übergeben
 
-Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe und importiere dann die ausgefüllte Datei zurück. `importWorkbook` gibt dieselbe `RunSummary` wie `translate` zurück und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe in dasselbe Reporting und Gating wie ein automatisierter Lauf passt. Siehe [Manuelle Übersetzung](/docs/manual-translation).
+Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe, dann importiere die ausgefüllte Datei zurück. `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate` und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe genau in das Reporting und Gating passt, das du für einen automatisierten Lauf nutzt. Siehe [Menschliche Übersetzung](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
@@ -95,7 +92,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Neu übersetzen, während sich die Quelle ändert
 
-`watch` ruft dein `onRun` einmal pro entprellter Änderung auf und gibt einen Controller zurück, den du sauber stoppst.
+`watch` feuert dein `onRun` einmal pro entprellter Änderung und gibt einen Controller zurück, den du sauber stoppst.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";
@@ -116,7 +113,7 @@ process.on("SIGINT", () => {
 
 ## Eine Konfiguration ohne Datei
 
-`loadConfig` akzeptiert ein In-Memory-`configOverride`, sodass du verbatra vollständig aus dem Code heraus steuern kannst, ohne eine `verbatra.config.ts` auf der Festplatte.
+`loadConfig` nimmt ein In-Memory-`configOverride`, sodass du verbatra vollständig aus dem Code steuern kannst, ganz ohne `verbatra.config.ts` auf der Festplatte.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -134,4 +131,4 @@ const config = await loadConfig({
 await translate({ config });
 ```
 
-Für die vollständige Liste der Funktionen, die `RunSummary`- und `LocaleSummary`-Strukturen und jeden `SdkError`-Code siehe die [SDK-Referenz](/docs/sdk). Für den Exit-Code-Vertrag, wenn du stattdessen das CLI in CI ausführst, siehe [CI und Exit-Codes](/docs/ci-and-exit-codes).
+Für die vollständige Liste der Funktionen, die `RunSummary`- und `LocaleSummary`-Strukturen und jeden `SdkError`-Code siehe die [SDK-Referenz](/docs/sdk). Läufst du stattdessen die CLI in CI? Siehe den Exit-Code-Vertrag in [CI and exit codes](/docs/ci-and-exit-codes).

@@ -2,16 +2,13 @@
 title: verbatra import
 description: Importiert eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien und führt dieselben Sicherheitsprüfungen wie ein automatischer Lauf aus.
 ---
-
-# verbatra import
-
-Liest eine von einem Übersetzer ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien. Import führt dieselben Platzhalter- und ICU-Prüfungen aus wie [`verbatra translate`](/docs/cli/translate): jeder Wert wird validiert, die bestandenen werden geschrieben und die [Lock-Datei](/docs/the-lock-file) wird aktualisiert, und jeder Wert, der eine Prüfung nicht besteht, wird zurückgehalten und gemeldet, anstatt geschrieben zu werden.
+Liest eine von einem Übersetzer ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien. `import` führt dieselben Platzhalter- und ICU-Prüfungen aus wie [`verbatra translate`](/docs/cli/translate): jeder Wert wird validiert, die bestandenen werden geschrieben und die [Lock-Datei](/docs/the-lock-file) wird aktualisiert, und jeder Wert, der eine Prüfung nicht besteht, wird zurückgehalten und gemeldet, anstatt geschrieben zu werden.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs/cli/export) erzeugt und vom Übersetzer ausgefüllt wurde. Nur die `Translation`-Spalte wird gelesen; leere Zellen werden übersprungen, niemals als leere Strings geschrieben. Siehe [Manuelle Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs/cli/export) erzeugt und vom Übersetzer ausgefüllt wurde. Nur die `Translation`-Spalte wird gelesen; leere Zellen werden übersprungen, niemals als leere Strings geschrieben. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
 
 ## Argumente
 
@@ -30,7 +27,7 @@ Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs
 
 ## Ausgabe
 
-Import verwendet die `translate`-Lauf-Zusammenfassung unverändert wieder. Ohne `--json` gibt es eine menschenlesbare Zusammenfassung aus: eine Zeile pro Locale, dann eine Aggregation. Jede Locale-Zeile meldet, wie viele Werte `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` und `integrity-withheld` waren. Mit `--json` gibt es dieselbe [`RunSummary`-Struktur](/docs/sdk) als ein JSON-Objekt auf stdout aus.
+`import` verwendet die `translate`-Lauf-Zusammenfassung unverändert wieder. Ohne `--json` gibt es eine menschenlesbare Zusammenfassung aus: eine Zeile pro Locale, dann eine Aggregation. Jede Locale-Zeile meldet, wie viele Werte `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` und `integrity-withheld` waren. Mit `--json` gibt es dieselbe [`RunSummary`-Struktur](/docs/sdk) als ein JSON-Objekt auf stdout aus.
 
 Ein Wert wird **zurückgehalten**, wenn er einen Platzhalter zerbricht, ungültiges ICU ist oder sich seine Quelle geändert hat, seit die Arbeitsmappe exportiert wurde (erkannt über die verborgene Quell-Hash-Spalte). Ein zurückgehaltener Wert lässt die Locale-Datei unberührt, sodass du ihn korrigieren und erneut importieren kannst. Siehe [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen.
 
@@ -42,6 +39,15 @@ verbatra import verbatra-translations.xlsx
 
 # validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
+
+# import against a project in another directory
+verbatra import verbatra-translations.xlsx --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra import verbatra-translations.xlsx --config config/verbatra.config.ts
+
+# machine-readable summary on stdout
+verbatra import verbatra-translations.xlsx --json
 ```
 
 ## Exit-Codes
@@ -50,6 +56,6 @@ verbatra import verbatra-translations.xlsx --dry-run
 | --- | --- |
 | `0` | jedes Ziel-Locale war erfolgreich |
 | `1` | der Lauf wurde beendet, aber ein oder mehrere Locales sind fehlgeschlagen |
-| `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler (fehlende oder ungültige Konfiguration, eine nicht lesbare oder ungültige Arbeitsmappe, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, eine nicht lesbare oder ungültige Arbeitsmappe, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
 
-Der Exit-Code-Vertrag entspricht dem von [`verbatra translate`](/docs/cli/translate), sodass eine manuelle Übergabe in CI auf dieselbe Weise verzweigt - siehe [CI und Automatisierung](/docs/ci-and-exit-codes).
+Der Exit-Code-Vertrag entspricht dem von [`verbatra translate`](/docs/cli/translate), sodass eine manuelle Übergabe in CI auf dieselbe Weise verzweigt: siehe [CI und Automatisierung](/docs/ci-and-exit-codes).
