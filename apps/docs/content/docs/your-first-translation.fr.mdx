@@ -1,57 +1,65 @@
 ---
 title: Ta première traduction
-description: Exécute verbatra pour la première fois, lis le résumé de l'exécution et comprends les réexécutions incrémentielles.
+description: Lance verbatra pour la première fois, lis le résumé de l'exécution, et vois pourquoi les réexécutions ne touchent que ce qui a changé.
 ---
 
 # Ta première traduction
 
-Avec le CLI installé, une configuration échafaudée et ta clé de fournisseur dans l'environnement (voir [Démarrer](/docs)), tu es prêt à traduire.
+Le CLI est installé, la configuration est échafaudée, et la clé de ton fournisseur est dans l'environnement (sinon, commence par le [démarrage rapide](/docs)). Il est temps de traduire.
 
-## Exécuter une traduction
+## Lance-le
 
-Exécute une traduction unique pour chaque locale cible :
+Une seule commande traduit chaque locale cible puis se termine :
 
 ```bash
 verbatra translate
 ```
 
-verbatra lit la locale source, la compare à ce qu'elle a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées. Les traductions qui sont toujours à jour sont laissées intactes. Chaque fichier de locale cible est écrit sur place, de sorte que `locales/de.json` et les autres apparaissent ou se mettent à jour à côté de ton fichier source.
+Voici ce qui se passe sous le capot : verbatra lit ta locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie à ton fournisseur que les chaînes nouvelles et modifiées. Tout ce qui est encore à jour est laissé intact. Chaque fichier cible est écrit sur place, de sorte que `locales/de.json` et les autres apparaissent (ou se mettent à jour) juste à côté de ton fichier source.
 
-## Lire le résumé de l'exécution
+## Lis le résumé de l'exécution
 
-Une exécution se termine par un résumé pour chaque locale cible : quelles locales ont réussi, lesquelles ont échoué, et une ventilation par locale des clés traduites, des clés laissées inchangées, des clés orphelines (présentes dans une cible mais plus dans la source), et des notifications du fournisseur. L'échec d'une seule locale n'arrête pas les autres ; il est signalé sur la ligne de cette locale avec un code et un message.
+Chaque exécution se termine par un résumé. Tu obtiens l'essentiel (quelles locales ont réussi, lesquelles ont échoué) et une ventilation par locale : clés traduites, clés laissées inchangées, clés orphelines (présentes dans une cible mais disparues de la source), et toute notification du fournisseur. L'échec d'une seule locale n'arrête pas les autres ; il est signalé sur la ligne de cette locale avec un code et un message.
 
-Pour une sortie lisible par machine, ajoute `--json` et verbatra affichera le résumé sous forme d'un objet JSON. Voir [CI et codes de sortie](/docs/ci-and-exit-codes) pour la structure et le contrat des codes de sortie.
+Tu le veux lisible par machine ? Ajoute `--json` et verbatra affiche tout le résumé sous forme d'un seul objet JSON :
 
-## Prévisualiser avec une exécution à blanc
+```bash
+verbatra translate --json
+```
 
-Pour voir ce qui changerait sans appeler de fournisseur ni écrire de fichiers :
+Voir [CI et codes de sortie](/docs/ci-and-exit-codes) pour la structure du JSON et le contrat des codes de sortie.
+
+## Prévisualise avant de dépenser un token
+
+Pour voir exactement ce qu'une exécution ferait sans appeler de fournisseur ni écrire un seul fichier, fais une exécution à blanc :
 
 ```bash
 verbatra translate --dry-run
 ```
 
-Une exécution à blanc produit le même résumé, listant les clés qui seraient traduites, mais n'effectue aucun appel au fournisseur et n'écrit rien. C'est le moyen sûr de vérifier ce qu'une exécution fera.
+Tu obtiens le même résumé, listant les clés qui seraient traduites, mais rien n'est envoyé et rien n'est écrit. C'est le moyen sûr de vérifier une exécution avant qu'elle ne te coûte quoi que ce soit, ce qui est particulièrement pratique avec une clé de niveau gratuit.
 
-## Les réexécutions sont incrémentielles
+## Les réexécutions ne touchent que ce qui a changé
 
-Exécute `verbatra translate` à nouveau sans modifier ta source et rien n'est envoyé au fournisseur : chaque clé est déjà à jour. Modifie une chaîne source et seule cette clé est retraduite lors de la prochaine exécution. C'est le comportement fondamental. verbatra conserve un fichier de verrouillage (`verbatra.lock.json`) enregistré, qui consigne ce qu'il a traduit, et effectue des comparaisons à chaque exécution afin que le fournisseur ne soit appelé que pour ce qui a réellement changé. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline complet.
+C'est ce qui rend verbatra économique à lancer souvent. Relance `verbatra translate` sans modifier ta source et rien ne part vers le fournisseur : chaque clé est déjà à jour. Modifie une seule chaîne source et seule cette clé est retraduite à la prochaine exécution.
+
+L'astuce est un fichier de verrouillage versionné (`verbatra.lock.json`) qui enregistre ce qui a été traduit. Chaque exécution le compare, de sorte que le fournisseur n'est appelé que pour ce qui a réellement changé. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline complet.
 
 <Callout title="Commite le fichier de verrouillage">
-verbatra écrit `verbatra.lock.json` lors de la première exécution. Commite-le avec tes fichiers de locale afin que chaque machine et ta CI se comparent à la même base de référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).
+verbatra écrit `verbatra.lock.json` lors de la première exécution. Commite-le avec tes fichiers de locale afin que chaque machine, et ta CI, se comparent à la même base de référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).
 </Callout>
 
-## Traduis au fur et à mesure
+## Traduis pendant que tu travailles
 
-Pour retraduire automatiquement pendant que tu édites, surveille la source et laisse verbatra se réexécuter à chaque modification :
+Tu ne veux pas relancer à la main ? Surveille la source et laisse verbatra retraduire à chaque modification :
 
 ```bash
 verbatra watch
 ```
 
-La surveillance continue de s'exécuter jusqu'à ce que tu l'interrompes avec Ctrl-C.
+Il continue de tourner jusqu'à ce que tu l'arrêtes avec Ctrl-C.
 
 ## Suivant
 
-- [Ajouter une langue](/docs/add-a-language) : ajoute une locale cible à une configuration existante.
-- [Comment ça marche](/docs/how-it-works) : ce qu'une exécution fait de bout en bout.
+- [Ajouter une langue](/docs/add-a-language) : ajoute une nouvelle locale cible à une configuration existante.
+- [Comment ça marche](/docs/how-it-works) : ce qu'une exécution fait, de bout en bout.

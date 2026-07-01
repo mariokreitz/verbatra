@@ -5,7 +5,7 @@ description: Die von verbatra unterstützten i18n-Formate, wie es sie liest und 
 
 # Formate
 
-verbatra arbeitet über einen Format-Adapter an Locale-Dateien. Jeder Adapter liest eine Datei in eine format-neutrale Repräsentation ein, auf der die Diff-, Hashing- und Integritätsprüfungen operieren, und schreibt sie in der ursprünglichen Form der Datei zurück. Du wählst das Format mit dem `format`-Feld in deiner Konfiguration. Vier JSON-Formate kamen in v1, und drei weitere (ARB, YAML und XLIFF) sind nun daneben verfügbar.
+verbatra arbeitet über einen Format-Adapter an deinen Locale-Dateien. Jeder Adapter liest eine Datei in eine format-neutrale Form ein, auf der die Diff-, Hashing- und Integritätsprüfungen laufen, und schreibt sie dann in der ursprünglichen Form der Datei zurück. Du wählst das Format mit dem `format`-Feld in deiner Konfiguration. Sieben werden unterstützt: vier JSON-Varianten, plus ARB, YAML und XLIFF.
 
 ## Die vier JSON-Formate
 
@@ -20,7 +20,7 @@ i18next und ngx-translate teilen sich dieselbe `{{double-brace}}`-Interpolation.
 
 ## ARB, YAML und XLIFF
 
-Drei weitere Formate sind nun jenseits der JSON-Familie verfügbar. Alle drei verwenden dieselbe Adapter-Pipeline, dieselbe format-neutrale Repräsentation und dieselben Platzhalter- und ICU-Integritätsprüfungen. Wähle jedes mit seinem `format`-Tag.
+Drei weitere Formate sind nun jenseits der JSON-Familie verfügbar. Diese drei nutzen dieselbe Adapter-Pipeline, dieselbe format-neutrale Repräsentation und dieselben Platzhalter- und ICU-Integritätsprüfungen. Wähle jedes mit seinem `format`-Tag.
 
 | `format` | Für | Erweiterungen | Platzhalter | Bemerkenswertes Verhalten |
 | --- | --- | --- | --- | --- |
@@ -28,7 +28,7 @@ Drei weitere Formate sind nun jenseits der JSON-Familie verfügbar. Alle drei ve
 | `yaml` | YAML i18n | `.yml`, `.yaml` | `{{name}}` | verschachtelter Baum, i18next-artige Interpolation |
 | `xliff` | XLIFF (XML) | `.xlf`, `.xliff` | Inline-Platzhalter-IDs | aktualisiert vorhandene `<target>`-Elemente an Ort und Stelle; die Zieldatei muss bereits existieren |
 
-ARB (Flutter Application Resource Bundle) ist JSON-basiert, mit `@`-präfixierten Metadaten-Schlüsseln (`@key` für Metadaten pro Nachricht und `@@`-präfixierte Globals wie `@@locale`), die neben den Nachrichtenschlüsseln stehen. verbatra bewahrt diese Metadaten und schreibt sie unverändert zurück; zur Übersetzung gesendet werden sie nie. ARB-Nachrichtenwerte sind ICU MessageFormat, sodass die Platzhalter, die Plural-Behandlung und die ICU-Validierung genau so funktionieren wie bei next-intl.
+ARB (Flutter Application Resource Bundle) ist JSON-basiert, mit `@`-präfixierten Metadaten-Schlüsseln (`@key` für Metadaten pro Nachricht und `@@`-präfixierte Globals wie `@@locale`), die neben den Nachrichtenschlüsseln stehen. verbatra bewahrt diese Metadaten und schreibt sie unverändert zurück: Zur Übersetzung gesendet werden sie nie. ARB-Nachrichtenwerte sind ICU MessageFormat, sodass die Platzhalter, die Plural-Behandlung und die ICU-Validierung genau so funktionieren wie bei next-intl.
 
 YAML ist ein verschachtelter Baum in YAML-Syntax, dieselbe Form wie eine verschachtelte JSON-Datei. Das `yaml`-Format nimmt i18next-kompatible `{{double-brace}}`-Interpolation an. Ein Round-Trip bewahrt den Baum und seine Werte; YAML-Kommentare werden über ein Schreiben hinweg nicht übertragen, genauso wie JSON kein Kommentar-Konzept hat.
 

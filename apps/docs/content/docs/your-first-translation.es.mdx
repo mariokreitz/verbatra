@@ -1,57 +1,65 @@
 ---
 title: Tu primera traducción
-description: Ejecuta verbatra por primera vez, lee el resumen de la ejecución y comprende las re-ejecuciones incrementales.
+description: Ejecuta verbatra por primera vez, lee el resumen de la ejecución y descubre por qué las reejecuciones solo tocan lo que cambió.
 ---
 
 # Tu primera traducción
 
-Con el CLI instalado, una configuración andamiada y tu clave de proveedor en el entorno (consulta [Primeros pasos](/docs)), estás listo para traducir.
+La CLI está instalada, la configuración está generada y la clave de tu proveedor está en el entorno (si no, empieza por la [guía rápida](/docs)). Es hora de traducir.
 
-## Ejecutar una traducción
+## Ejecútalo
 
-Ejecuta una traducción única sobre cada configuración regional de destino:
+Un solo comando traduce cada locale de destino y sale:
 
 ```bash
 verbatra translate
 ```
 
-verbatra lee la configuración regional de origen, la compara con lo que tradujo la última vez y envía solo las cadenas nuevas o modificadas al proveedor. Las traducciones que aún están actualizadas se dejan intactas. Cada archivo de configuración regional de destino se escribe en su lugar, por lo que `locales/de.json` y el resto aparecen o se actualizan junto a tu archivo de origen.
+Esto es lo que ocurre internamente: verbatra lee tu locale de origen, lo compara con lo que tradujo la última vez y envía a tu proveedor solo las cadenas nuevas y modificadas. Todo lo que sigue vigente se deja intacto. Cada archivo de destino se escribe en su sitio, así que `locales/de.json` y sus compañeros aparecen (o se actualizan) justo al lado de tu archivo de origen.
 
-## Leer el resumen de la ejecución
+## Lee el resumen de la ejecución
 
-Una ejecución finaliza con un resumen de cada configuración regional de destino: qué configuraciones regionales tuvieron éxito, cuáles fallaron, y un desglose por configuración regional de las claves traducidas, las claves sin cambios, las claves huérfanas (presentes en un destino pero ya no en el origen) y cualquier aviso del proveedor. Que una sola configuración regional falle no detiene a las demás; se informa en la línea de esa configuración regional con un código y un mensaje.
+Cada ejecución termina con un resumen. Obtienes el titular (qué locales tuvieron éxito, cuáles fallaron) y un desglose por locale: claves traducidas, claves sin cambios, claves huérfanas (presentes en un destino pero desaparecidas del origen) y cualquier aviso del proveedor. Que un locale falle no detiene el resto; aparece en la línea de ese locale con un código y un mensaje.
 
-Para una salida legible por máquina, añade `--json` y verbatra imprimirá el resumen como un objeto JSON. Consulta [CI y códigos de salida](/docs/ci-and-exit-codes) para conocer la forma y el contrato del código de salida.
+¿Lo quieres en formato legible por máquina? Añade `--json` y verbatra imprime todo el resumen como un único objeto JSON:
 
-## Previsualizar con una ejecución de prueba
+```bash
+verbatra translate --json
+```
 
-Para ver qué cambiaría sin llamar a un proveedor ni escribir archivos:
+Consulta [CI y códigos de salida](/docs/ci-and-exit-codes) para conocer la forma del JSON y el contrato de códigos de salida.
+
+## Previsualiza antes de gastar un token
+
+Para ver exactamente qué haría una ejecución sin llamar a un proveedor ni escribir un solo archivo, haz una ejecución en seco:
 
 ```bash
 verbatra translate --dry-run
 ```
 
-Una ejecución de prueba produce el mismo resumen, listando las claves que se traducirían, pero no realiza llamadas al proveedor ni escribe nada. Es la forma segura de verificar lo que hará una ejecución.
+Obtienes el mismo resumen, con la lista de las claves que se traducirían, pero no se envía nada y no se escribe nada. Es la forma segura de comprobar una ejecución antes de que te cueste nada, algo especialmente práctico con una clave de nivel gratuito.
 
-## Las re-ejecuciones son incrementales
+## Las reejecuciones solo tocan lo que cambió
 
-Ejecuta `verbatra translate` de nuevo sin cambiar tu origen y no se envía nada al proveedor: cada clave ya está actualizada. Cambia una cadena de origen y solo esa clave se volverá a traducir en la siguiente ejecución. Este es el comportamiento principal. verbatra mantiene un archivo de bloqueo (`verbatra.lock.json`) que registra lo que tradujo, y compara con él en cada ejecución para que el proveedor sea llamado solo por lo que realmente cambió. Consulta [Cómo funciona](/docs/how-it-works) para ver el flujo completo.
+Esta es la parte que hace que verbatra sea barato de ejecutar a menudo. Ejecuta `verbatra translate` de nuevo sin editar tu origen y nada llega al proveedor: todas las claves ya están vigentes. Cambia una cadena de origen y solo esa clave se vuelve a traducir en la siguiente ejecución.
 
-<Callout title="Confirma el archivo de bloqueo">
-verbatra escribe `verbatra.lock.json` en la primera ejecución. Confírmalo con tus archivos de configuración regional para que cada máquina y tu CI comparen con la misma línea base. Consulta [El archivo de bloqueo](/docs/the-lock-file).
+El truco es un archivo de bloqueo versionado (`verbatra.lock.json`) que registra lo que se tradujo. Cada ejecución lo compara, así que el proveedor se llama únicamente para lo que realmente cambió. Consulta [Cómo funciona](/docs/how-it-works) para ver el flujo completo.
+
+<Callout title="Versiona el archivo de bloqueo">
+verbatra escribe `verbatra.lock.json` en la primera ejecución. Versiónalo junto a tus archivos de locale para que cada máquina, y tu CI, comparen con la misma línea base. Consulta [El archivo de bloqueo](/docs/the-lock-file).
 </Callout>
 
 ## Traduce mientras trabajas
 
-Para volver a traducir automáticamente mientras editas, observa el origen y deja que verbatra se vuelva a ejecutar con cada cambio:
+¿No quieres reejecutar a mano? Observa el origen y deja que verbatra vuelva a traducir con cada cambio:
 
 ```bash
 verbatra watch
 ```
 
-Watch sigue ejecutándose hasta que lo interrumpas con Ctrl-C.
+Sigue ejecutándose hasta que lo detengas con Ctrl-C.
 
 ## Siguiente
 
-- [Añadir un idioma](/docs/add-a-language): añade una configuración regional de destino a una configuración existente.
-- [Cómo funciona](/docs/how-it-works): lo que hace una ejecución de principio a fin.
+- [Añade un idioma](/docs/add-a-language): incorpora un nuevo locale de destino a una configuración existente.
+- [Cómo funciona](/docs/how-it-works): qué hace una ejecución, de principio a fin.

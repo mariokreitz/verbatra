@@ -5,7 +5,7 @@ description: Los formatos de i18n que verbatra admite, cómo los lee y cómo cad
 
 # Formatos
 
-verbatra trabaja sobre los archivos de configuración regional a través de un adaptador de formato. Cada adaptador lee un archivo a una representación neutra respecto al formato sobre la que operan el diff, el hashing y las comprobaciones de integridad, y lo vuelve a escribir en la forma original del archivo. Seleccionas el formato con el campo `format` en tu configuración. Cuatro formatos JSON se incluyeron en la v1, y otros tres (ARB, YAML y XLIFF) ya están disponibles junto a ellos.
+verbatra trabaja sobre tus archivos de locale a través de un adaptador de formato. Cada adaptador lee un archivo a una forma neutra respecto al formato sobre la que operan el diff, el hashing y las comprobaciones de integridad, y lo vuelve a escribir en la forma original del archivo. Seleccionas el formato con el campo `format` en tu configuración. Se admiten siete: cuatro variantes de JSON, más ARB, YAML y XLIFF.
 
 ## Los cuatro formatos JSON
 
@@ -40,7 +40,7 @@ El formato le dice a verbatra dos cosas que necesita para una ejecución segura.
 
 ## Cómo se leen y escriben los archivos
 
-verbatra limita el tamaño de entrada y la profundidad de anidamiento al leer, y resiste que un archivo cambie por debajo de él. Escribe de forma atómica: escribe en un archivo temporal y luego lo renombra en su lugar, de modo que una escritura interrumpida nunca deja un archivo de configuración regional a medio terminar. Cuando verbatra no puede manejar un archivo, lanza un error estructurado y sin secretos en lugar de uno crudo, por ejemplo ante un JSON no válido, una estructura demasiado profunda o, solo para ngx-translate, un archivo que mezcla claves planas con puntos con objetos anidados.
+verbatra limita el tamaño de entrada y la profundidad de anidamiento al leer, y resiste que un archivo cambie por debajo de él. Escribe de forma atómica: escribe en un archivo temporal y luego lo renombra en su lugar, de modo que una escritura interrumpida nunca deja un archivo de locale a medio terminar. Cuando verbatra no puede manejar un archivo, lanza un error estructurado y sin secretos en lugar de uno crudo, por ejemplo ante un JSON no válido, una estructura demasiado profunda o, solo para ngx-translate, un archivo que mezcla claves planas con puntos con objetos anidados.
 
 ## Claves con puntos
 

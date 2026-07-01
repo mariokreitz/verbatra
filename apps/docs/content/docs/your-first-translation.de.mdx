@@ -1,57 +1,65 @@
 ---
 title: Deine erste Übersetzung
-description: Führe verbatra zum ersten Mal aus, lies die Zusammenfassung des Laufs und verstehe inkrementelle Neu-Läufe.
+description: Führe verbatra zum ersten Mal aus, lies die Lauf-Zusammenfassung und sieh, warum erneute Läufe nur das anfassen, was sich geändert hat.
 ---
 
 # Deine erste Übersetzung
 
-Mit installiertem CLI, einer erstellten Konfiguration und deinem Provider-Schlüssel in der Umgebung (siehe [Erste Schritte](/docs)) bist du bereit zu übersetzen.
+Die CLI ist installiert, die Konfiguration ist angelegt und dein Provider-Schlüssel liegt in der Umgebung (falls nicht, beginne mit dem [Schnellstart](/docs)). Zeit zu übersetzen.
 
-## Führe eine Übersetzung aus
+## Führe es aus
 
-Führe eine einmalige Übersetzung über jedes Ziel-Locale aus:
+Ein Befehl übersetzt jedes Ziel-Locale und beendet sich:
 
 ```bash
 verbatra translate
 ```
 
-verbatra liest das Quell-Locale, vergleicht es mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen oder geänderten Strings an den Provider. Übersetzungen, die noch aktuell sind, bleiben unberührt. Jede Ziel-Locale-Datei wird an Ort und Stelle geschrieben, sodass `locales/de.json` und der Rest neben deiner Quelldatei erscheinen oder aktualisiert werden.
+Das passiert unter der Haube: verbatra liest dein Quell-Locale, vergleicht es per Diff mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen und geänderten Strings an deinen Provider. Alles, was noch aktuell ist, bleibt unberührt. Jede Zieldatei wird an Ort und Stelle geschrieben, sodass `locales/de.json` und Konsorten direkt neben deiner Quelldatei erscheinen (oder aktualisiert werden).
 
 ## Lies die Lauf-Zusammenfassung
 
-Ein Lauf endet mit einer Zusammenfassung über jedes Ziel-Locale: welche Locales erfolgreich waren, welche fehlgeschlagen sind, und eine Aufschlüsselung pro Locale der übersetzten Schlüssel, der unveränderten Schlüssel, aller verwaisten Schlüssel (vorhanden in einem Ziel, aber nicht mehr in der Quelle) und aller Provider-Hinweise. Wenn ein einzelnes Locale fehlschlägt, stoppt das die anderen nicht; es wird in der Zeile dieses Locales mit einem Code und einer Nachricht gemeldet.
+Jeder Lauf endet mit einer Zusammenfassung. Du bekommst die Schlagzeile (welche Locales erfolgreich waren, welche fehlgeschlagen sind) und eine Aufschlüsselung pro Locale: übersetzte Schlüssel, unverändert gebliebene Schlüssel, verwaiste Schlüssel (in einem Ziel vorhanden, aber aus der Quelle verschwunden) und alle Provider-Hinweise. Ein fehlgeschlagenes Locale stoppt die anderen nicht; es erscheint in der Zeile dieses Locales mit einem Code und einer Meldung.
 
-Für maschinenlesbare Ausgabe füge `--json` hinzu und verbatra gibt die Zusammenfassung als ein JSON-Objekt aus. Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes) für die Struktur und den Exit-Code-Vertrag.
+Du willst es maschinenlesbar? Füge `--json` hinzu und verbatra gibt die gesamte Zusammenfassung als ein JSON-Objekt aus:
 
-## Vorschau mit einem Dry-Run
+```bash
+verbatra translate --json
+```
 
-Um zu sehen, was sich ändern würde, ohne einen Provider aufzurufen oder Dateien zu schreiben:
+Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes) für die JSON-Form und den Exit-Code-Vertrag.
+
+## Vorschau, bevor du ein Token ausgibst
+
+Um genau zu sehen, was ein Lauf tun würde, ohne einen Provider aufzurufen oder eine einzige Datei zu schreiben, mach einen Dry-Run:
 
 ```bash
 verbatra translate --dry-run
 ```
 
-Ein Dry-Run erstellt die gleiche Zusammenfassung, listet die Schlüssel auf, die übersetzt würden, tätigt aber keine Provider-Aufrufe und schreibt nichts. Es ist der sichere Weg, um zu überprüfen, was ein Lauf tun wird.
+Du bekommst dieselbe Zusammenfassung mit den Schlüsseln, die übersetzt würden, aber es wird nichts gesendet und nichts geschrieben. Es ist der sichere Weg, einen Lauf zu prüfen, bevor er dich etwas kostet, was besonders bei einem Free-Tier-Schlüssel praktisch ist.
 
-## Neu-Läufe sind inkrementell
+## Erneute Läufe fassen nur das an, was sich geändert hat
 
-Führe `verbatra translate` erneut aus, ohne deine Quelle zu ändern, und nichts wird an den Provider gesendet: Jeder Schlüssel ist bereits aktuell. Ändere einen Quell-String und nur dieser Schlüssel wird beim nächsten Lauf neu übersetzt. Dies ist das Kernverhalten. verbatra führt eine festgeschriebene Lock-Datei (`verbatra.lock.json`), die aufzeichnet, was es übersetzt hat, und vergleicht diese bei jedem Lauf, sodass der Provider nur für das aufgerufen wird, was sich tatsächlich geändert hat. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Pipeline.
+Das ist der Teil, der verbatra günstig macht, um es oft laufen zu lassen. Führe `verbatra translate` erneut aus, ohne deine Quelle zu bearbeiten, und nichts geht an den Provider: Jeder Schlüssel ist bereits aktuell. Ändere einen Quell-String und nur dieser eine Schlüssel wird beim nächsten Lauf neu übersetzt.
+
+Der Trick ist eine eingecheckte Lock-Datei (`verbatra.lock.json`), die aufzeichnet, was übersetzt wurde. Jeder Lauf vergleicht per Diff dagegen, sodass der Provider nur für das aufgerufen wird, was sich tatsächlich geändert hat. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Pipeline.
 
 <Callout title="Committe die Lock-Datei">
 verbatra schreibt `verbatra.lock.json` beim ersten Lauf. Committe sie zusammen mit deinen Locale-Dateien, damit jede Maschine und deine CI gegen dieselbe Basislinie vergleichen. Siehe [Die Lock-Datei](/docs/the-lock-file).
 </Callout>
 
-## Übersetze während du arbeitest
+## Übersetze, während du arbeitest
 
-Um automatisch neu zu übersetzen, während du bearbeitest, überwache die Quelle und lasse verbatra bei jeder Änderung neu laufen:
+Du willst nicht von Hand erneut ausführen? Überwache die Quelle und lass verbatra bei jeder Änderung neu übersetzen:
 
 ```bash
 verbatra watch
 ```
 
-Watch läuft weiter, bis du es mit Strg-C unterbrichst.
+Es läuft weiter, bis du es mit Strg-C stoppst.
 
 ## Weiter
 
-- [Sprache hinzufügen](/docs/add-a-language): füge ein Ziel-Locale zu einem bestehenden Setup hinzu.
+- [Eine Sprache hinzufügen](/docs/add-a-language): wirf ein neues Ziel-Locale in ein bestehendes Setup.
 - [Wie es funktioniert](/docs/how-it-works): was ein Lauf von Anfang bis Ende tut.

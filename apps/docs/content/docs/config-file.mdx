@@ -5,7 +5,7 @@ description: The verbatra config schema, discovery order, and how the working di
 
 # Config file
 
-verbatra reads a small, non-secret configuration object and validates it before doing any work. It carries no API key; the provider reads its key from the environment.
+verbatra reads one small, non-secret config object and validates it before it does any work. There is no API key in here: the provider reads its key from the environment, so this file is safe to commit.
 
 <Callout title="Keys come from the environment">
 No API key is ever read from this file. Each provider reads its key from an environment variable, so the config stays safe to commit. See [Providers](/docs/providers).
@@ -24,16 +24,16 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6", // replace with your provider's model id
-      maxTokens: 4096,
+      model: "gemini-2.5-flash", // replace with your provider's model id
+      maxOutputTokens: 4096,
     },
   },
 });
 ```
 
-`defineConfig` is an identity helper from `@verbatra/sdk`. It returns its argument unchanged and exists only to give you type inference and editor autocomplete.
+`defineConfig` is an identity helper from `@verbatra/sdk`. It returns its argument unchanged and exists only to hand you type inference and editor autocomplete.
 
 <Callout title="Model autocomplete in TypeScript">
 When you author the config in TypeScript, your editor offers the selected provider's known model IDs for `options.model`, narrowed by the provider `id` you chose. The list comes from that provider's own SDK (`@anthropic-ai/sdk`, `openai`, `@google/genai`), so it stays current with the SDK version you have installed. The field is restricted to that provider's models: a model from another provider (for example a Claude model under `id: "gemini"`) is a type error. The runtime validates `model` only as a non-empty string, so a brand-new model the SDK has not listed yet still works at runtime even though the editor flags it.

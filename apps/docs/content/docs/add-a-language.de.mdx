@@ -1,15 +1,15 @@
 ---
 title: Eine Sprache hinzufügen
-description: Füge ein neues Ziel-Locale zu einer bestehenden verbatra-Einrichtung hinzu.
+description: Füge ein neues Ziel-Locale mit einer einzeiligen Konfigurationsänderung und einem Lauf zu einer bestehenden verbatra-Einrichtung hinzu.
 ---
 
 # Eine Sprache hinzufügen
 
-Das Hinzufügen einer Sprache ist eine einzeilige Konfigurationsänderung, gefolgt von einem Übersetzungs-Lauf. verbatra behandelt das neue Locale so, als würde alles fehlen, daher füllt der erste Lauf es vollständig aus; spätere Läufe bleiben inkrementell.
+Eine Sprache hinzuzufügen ist eine einzeilige Konfigurationsänderung plus ein Übersetzungs-Lauf. verbatra sieht das neue Locale so, als würde ihm alles fehlen, daher füllt der erste Lauf es vollständig aus, und jeder Lauf danach bleibt inkrementell.
 
 ## Füge das Locale zu deiner Konfiguration hinzu
 
-Füge das neue Locale zu `targetLocales` in `verbatra.config.ts` hinzu. Es darf nicht dein `sourceLocale` sein:
+Füge es zu `targetLocales` in `verbatra.config.ts` hinzu. Es darf nur nicht dein `sourceLocale` sein:
 
 ```ts
 import { defineConfig } from "@verbatra/sdk";
@@ -22,10 +22,10 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6",
-      maxTokens: 4096,
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
     },
   },
 });
@@ -33,25 +33,38 @@ export default defineConfig({
 
 ## Übersetzen
 
-Führe eine Übersetzung aus:
+Führe es aus:
 
 ```bash
 verbatra translate
 ```
 
-Das neue Locale hat noch keine Zieldatei, daher behandelt verbatra es als leer und übersetzt jeden Quell-Schlüssel hinein, wobei die Datei aus `files.pattern` (zum Beispiel `locales/fr.json`) geschrieben wird. Deine bestehenden Locales bleiben unberührt, es sei denn, ihre Quell-Strings haben sich geändert, da die Lock-Datei sie immer noch als aktuell aufzeichnet.
+Das neue Locale hat noch keine Zieldatei, daher behandelt verbatra es als leer und übersetzt jeden Quell-Schlüssel hinein, wobei die Datei aus `files.pattern` (hier `locales/fr.json`) geschrieben wird. Deine bestehenden Locales bleiben unberührt, es sei denn, ihre Quell-Strings haben sich geändert, weil die Lock-Datei sie immer noch als aktuell aufzeichnet.
 
-Vorschau zuerst mit `verbatra translate --dry-run`, wenn du die Schlüssel des neuen Locales vor jedem Provider-Aufruf sehen möchtest.
+Erst schauen, bevor du springst? Sieh dir die Schlüssel des neuen Locales zuerst in der Vorschau an:
+
+```bash
+verbatra translate --dry-run
+```
 
 ## Sprachen mit mehr Pluralkategorien
 
-Manche Sprachen benötigen mehr CLDR-Pluralkategorien, als deine Quelle liefert. Englisch hat zwei (`one` und `other`), während Polnisch, Arabisch und Russisch mehr haben. Standardmäßig übersetzt verbatra die in der Quelle vorhandenen Pluralformen und synthetisiert die zusätzlichen Kategorien nicht: der Lauf ist weiterhin erfolgreich und gibt eine Pluralkategorie-Warnung pro Locale aus (Hinweis-Code `PLURAL_CATEGORIES_INCOMPLETE`), die das Locale und die fehlenden Kategorien benennt.
+Manche Sprachen benötigen mehr CLDR-Pluralkategorien, als deine Quelle hat. Englisch hat zwei (`one` und `other`); Polnisch, Arabisch und Russisch haben mehr. Standardmäßig übersetzt verbatra die in der Quelle gefundenen Pluralformen und erfindet die zusätzlichen nicht: Der Lauf ist weiterhin erfolgreich und gibt eine Pluralkategorie-Warnung pro Locale aus (Hinweis-Code `PLURAL_CATEGORIES_INCOMPLETE`), die das Locale und die fehlenden Kategorien benennt.
 
-Damit verbatra stattdessen die fehlenden Formen synthetisiert, setze `generatePlurals: true` in deiner Konfiguration (oder übergib einen `generatePlurals`-Override pro Lauf). Die Generierung wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden; DeepL, die anderen Formate und unbekannte Zielsprachen fallen auf die Warnung zurück und schlagen niemals fehl. Generierte Formen werden wie jede Übersetzung integritätsgeprüft und in der Lauf-Zusammenfassung getrennt von den übersetzten Schlüsseln gemeldet.
+Damit verbatra stattdessen die fehlenden Formen synthetisiert, setze `generatePlurals: true` in deiner Konfiguration (oder übergib eine `generatePlurals`-Überschreibung pro Lauf):
+
+```ts
+export default defineConfig({
+  // ...
+  generatePlurals: true,
+});
+```
+
+Die Generierung wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden. DeepL, die anderen Formate und unbekannte Zielsprachen fallen auf die Warnung zurück und schlagen niemals fehl. Generierte Formen werden wie jede Übersetzung integritätsgeprüft und in der Lauf-Zusammenfassung getrennt von den übersetzten Schlüsseln gemeldet.
 
 ## Pflege des Quell-Locales
 
-Du pflegst das Quell-Locale immer nur von Hand. Um neue Strings hinzuzufügen, füge sie der Quelldatei hinzu und führe `translate` erneut aus; verbatra füllt sie in jedes Ziel, einschließlich desjenigen, das du gerade hinzugefügt hast.
+Du pflegst immer nur das Quell-Locale von Hand. Um Strings hinzuzufügen, füge sie der Quelldatei hinzu und führe `translate` erneut aus: verbatra füllt sie in jedes Ziel, einschließlich desjenigen, das du gerade hinzugefügt hast.
 
 ## Weiter
 

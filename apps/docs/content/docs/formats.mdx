@@ -5,7 +5,7 @@ description: The i18n formats verbatra supports, how it reads them, and how each
 
 # Formats
 
-verbatra works on locale files through a format adapter. Every adapter reads a file into one format-neutral representation that the diff, hashing, and integrity checks operate on, and writes it back in the file's original shape. You select the format with the `format` field in your config. Four JSON formats shipped in v1, and three more (ARB, YAML, and XLIFF) are now available alongside them.
+verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your config. Seven are supported: four JSON flavors, plus ARB, YAML, and XLIFF.
 
 ## The four JSON formats
 

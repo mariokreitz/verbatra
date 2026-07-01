@@ -5,10 +5,10 @@ description: El esquema de configuración de verbatra, el orden de descubrimient
 
 # Archivo de configuración
 
-verbatra lee un pequeño objeto de configuración no secreto y lo valida antes de hacer cualquier trabajo. No contiene ninguna clave de API; el proveedor lee su clave del entorno.
+verbatra lee un objeto de configuración pequeño y no secreto, y lo valida antes de hacer cualquier trabajo. Aquí no hay ninguna clave de API: el proveedor lee su clave del entorno, así que este archivo es seguro de versionar.
 
-<Callout title="Las claves provienen del entorno">
-Nunca se lee ninguna clave de API de este archivo. Cada proveedor lee su clave de una variable de entorno, por lo que la configuración permanece segura para ser confirmada. Consulta [Proveedores](/docs/providers).
+<Callout title="Las claves vienen del entorno">
+De este archivo nunca se lee ninguna clave de API. Cada proveedor lee su clave de una variable de entorno, así que la configuración sigue siendo segura de versionar. Consulta [Proveedores](/docs/providers).
 </Callout>
 
 ## Una configuración mínima
@@ -24,37 +24,37 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6", // replace with your provider's model id
-      maxTokens: 4096,
+      model: "gemini-2.5-flash", // replace with your provider's model id
+      maxOutputTokens: 4096,
     },
   },
 });
 ```
 
-`defineConfig` es una función auxiliar de identidad de `@verbatra/sdk`. Devuelve su argumento sin cambios y existe solo para darte inferencia de tipos y autocompletado en el editor.
+`defineConfig` es un ayudante de identidad de `@verbatra/sdk`. Devuelve su argumento sin cambios y existe solo para darte inferencia de tipos y autocompletado en el editor.
 
 <Callout title="Autocompletado de modelos en TypeScript">
-Cuando escribes la configuración en TypeScript, tu editor ofrece para `options.model` los IDs de modelo conocidos del proveedor seleccionado, acotados por la `id` de proveedor que elegiste. La lista proviene del propio SDK de ese proveedor (`@anthropic-ai/sdk`, `openai`, `@google/genai`), por lo que se mantiene actualizada con la versión del SDK que tengas instalada. El campo está restringido a los modelos de ese proveedor: un modelo de otro proveedor (por ejemplo, un modelo de Claude con `id: "gemini"`) es un error de tipo. En tiempo de ejecución, `model` solo se valida como una cadena no vacía, por lo que un modelo recién lanzado que el SDK aún no liste funciona en tiempo de ejecución aunque el editor lo marque.
+Cuando escribes la configuración en TypeScript, tu editor ofrece los IDs de modelo conocidos del proveedor seleccionado para `options.model`, acotados por el `id` de proveedor que elegiste. La lista viene del propio SDK de ese proveedor (`@anthropic-ai/sdk`, `openai`, `@google/genai`), así que se mantiene al día con la versión del SDK que tengas instalada. El campo está restringido a los modelos de ese proveedor: un modelo de otro proveedor (por ejemplo, un modelo de Claude bajo `id: "gemini"`) es un error de tipo. El runtime valida `model` solo como una cadena no vacía, así que un modelo recién salido que el SDK aún no haya listado igualmente funciona en runtime aunque el editor lo marque.
 </Callout>
 
 ## Campos
 
-- **`sourceLocale`** (string): la configuración regional en la que están escritas tus cadenas de origen.
-- **`targetLocales`** (array de strings): las configuraciones regionales a las que traducir. No debe incluir `sourceLocale`.
-- **`format`** (string): uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml`, o `xliff`. Consulta [Formatos](/docs/formats) para ver qué detecta cada uno y cómo maneja los marcadores de posición.
-- **`files.pattern`** (string): la ruta a cada archivo de configuración regional. Debe contener el token `{locale}`, que verbatra reemplaza con cada configuración regional (por ejemplo, `locales/{locale}.json` se resuelve en `locales/de.json`).
-- **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor tiene sus propias `options`, y en TypeScript el campo `model` está restringido a los IDs de modelo conocidos del proveedor elegido (un modelo de otro proveedor es un error de tipo). Consulta [Proveedores](/docs/providers).
-- **`glossary`** (opcional, objeto): un mapa de términos de origen a términos de destino preferidos. Los proveedores de LLM (Anthropic, OpenAI, Gemini) lo reciben con la solicitud y se les indica que traten sus términos como vinculantes. DeepL no aplica este mapa de términos; registra un aviso y, en su lugar, aplica un glosario configurado por id (consulta [Proveedores](/docs/providers)).
-- **`tone`** (opcional): uno de `"formal"`, `"informal"`, o `"neutral"`. Los proveedores de LLM lo reciben y se les indica que lo respeten. DeepL lo mapea a la formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono no predeterminado no es compatible y se degrada al predeterminado con un aviso.
-- **`prune`** (opcional, booleano, por defecto `false`): cuando es true, las claves presentes en un archivo de destino pero ausentes del origen (las claves huérfanas del diff) se eliminan del archivo escrito y del bloqueo. Una opción `prune` por ejecución en `translate` (la opción `--prune` de la CLI) la anula. Solo las claves huérfanas se eliminan en algún caso.
-- **`generatePlurals`** (opcional, booleano, por defecto `false`): cuando es true, verbatra sintetiza las formas plurales CLDR que una lengua de destino requiere pero el origen no aporta (por ejemplo, few/many en polaco). Compatible solo con proyectos i18next-JSON traducidos por un proveedor de LLM; DeepL, los formatos no i18next y las lenguas de destino desconocidas recurren a la advertencia plural por configuración regional. A diferencia de `prune`, no hay una opción de CLI `--generate-plurals`, así que configúralo en la configuración; la entrada `translate()` del SDK sí acepta una opción `generatePlurals` por ejecución que tiene prioridad.
-- **`maxBatchSize`** (opcional, entero positivo, por defecto `50`): las entradas faltantes y modificadas de una configuración regional se dividen en sublotes secuenciales no mayores que este valor, para que una única solicitud de proveedor demasiado grande no pueda hacer fallar toda la configuración regional. Un sublote fallido se retiene y se reintenta en la siguiente ejecución mientras los demás siguen avanzando. Esto solo se controla mediante la configuración: no hay opción de CLI ni anulación `translate()` por ejecución, así que configúralo en la configuración.
+- **`sourceLocale`** (cadena): el locale en el que están escritas tus cadenas de origen.
+- **`targetLocales`** (array de cadenas): los locales a los que traducir. No debe incluir `sourceLocale`.
+- **`format`** (cadena): uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` o `xliff`. Consulta [Formatos](/docs/formats) para saber qué detecta cada uno y cómo maneja los marcadores de posición.
+- **`files.pattern`** (cadena): la ruta a cada archivo de locale. Debe contener el token `{locale}`, que verbatra sustituye por cada locale (por ejemplo, `locales/{locale}.json` se resuelve a `locales/de.json`).
+- **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor toma sus propias `options`, y en TypeScript el campo `model` está restringido a los IDs de modelo conocidos del proveedor elegido (un modelo de otro proveedor es un error de tipo). Consulta [Proveedores](/docs/providers).
+- **`glossary`** (opcional, objeto): un mapa de términos de origen a términos de destino preferidos. Los proveedores LLM (Anthropic, OpenAI, Gemini) lo reciben con la petición y se les instruye a tratar sus términos como vinculantes. DeepL no aplica este mapa de términos; registra un aviso y en su lugar aplica un glosario configurado por id (consulta [Proveedores](/docs/providers)).
+- **`tone`** (opcional): uno de `"formal"`, `"informal"` o `"neutral"`. Los proveedores LLM lo reciben y se les instruye a respetarlo. DeepL lo mapea a formalidad: `formal` se vuelve más formal, `informal` se vuelve menos formal, y `neutral` o un tono ausente se omite. Con una clave DeepL de nivel gratuito, un tono distinto del predeterminado no se admite y se degrada al predeterminado con un aviso.
+- **`prune`** (opcional, booleano, por defecto `false`): cuando es true, las claves presentes en un archivo de destino pero ausentes del origen (las claves huérfanas del diff) se eliminan del archivo escrito y del bloqueo. Una opción `prune` por ejecución en `translate` (el flag `--prune` de la CLI) la anula. Solo se eliminan alguna vez las claves huérfanas.
+- **`generatePlurals`** (opcional, booleano, por defecto `false`): cuando es true, verbatra sintetiza las formas de plural CLDR que un idioma de destino requiere pero el origen no proporciona (por ejemplo, few/many del polaco). Se admite solo en proyectos i18next-JSON traducidos por un proveedor LLM; DeepL, los formatos no i18next y los idiomas de destino desconocidos recurren a la advertencia de plural por locale. A diferencia de `prune`, no hay flag `--generate-plurals` en la CLI, así que defínelo en la configuración; la entrada de `translate()` del SDK sí acepta una anulación `generatePlurals` por ejecución que tiene prioridad.
+- **`maxBatchSize`** (opcional, entero positivo, por defecto `50`): las entradas faltantes-más-modificadas de un locale se dividen en sublotes secuenciales no mayores que este, para que una petición de proveedor sobredimensionada no pueda hacer fallar todo el locale. Un sublote fallido se retiene y se reintenta en la siguiente ejecución mientras los demás siguen avanzando. Esto es solo de configuración: no hay flag en la CLI ni anulación de `translate()` por ejecución, así que defínelo en la configuración.
 
-Las claves de nivel superior desconocidas son rechazadas. Esta es también la razón por la que una clave de API no puede residir en la configuración: las claves provienen del entorno, no del archivo.
+Las claves de nivel superior desconocidas se rechazan. Por eso también una clave de API no puede vivir en la configuración: las claves vienen del entorno, no del archivo.
 
-Una configuración que utiliza los campos opcionales:
+Una configuración que usa los campos opcionales:
 
 ```ts
 import { defineConfig } from "@verbatra/sdk";
@@ -83,7 +83,7 @@ export default defineConfig({
 
 ## Orden de descubrimiento
 
-verbatra busca hacia arriba desde el directorio de trabajo y utiliza la primera fuente que encuentra. Múltiples fuentes presentes no son un error; la primera coincidencia gana. El orden de búsqueda es:
+verbatra busca hacia arriba desde el directorio de trabajo y usa la primera fuente que encuentra. Que haya varias fuentes presentes no es un error; gana la primera coincidencia. El orden de búsqueda es:
 
 1. `package.json` (una propiedad `"verbatra"`)
 2. `.verbatrarc`
@@ -101,6 +101,6 @@ Para cargar un archivo explícito en lugar de buscar, pasa `--config <path>`.
 
 ## El directorio de trabajo y .env
 
-Ejecuta verbatra desde la raíz de tu proyecto, o pasa `--cwd` apuntando a ella. El directorio de trabajo es el único ancla para todo lo que verbatra resuelve: la búsqueda de configuración comienza allí y sube, `.env.local` y `.env` se cargan desde allí, y cada ruta de archivo de configuración regional se resuelve en relación con él. Mantener los tres en el mismo lugar es lo que hace que un simple `verbatra translate` funcione.
+Ejecuta verbatra desde la raíz de tu proyecto, o pasa `--cwd` apuntando a ella. El directorio de trabajo es el único ancla para todo lo que verbatra resuelve: la búsqueda de configuración empieza ahí y sube, `.env.local` y `.env` se cargan desde ahí, y cada ruta de archivo de locale se resuelve contra él. Mantener los tres en el mismo lugar es lo que hace que un simple `verbatra translate` funcione.
 
-La precedencia del entorno es, de mayor a menor: una variable ya establecida en tu entorno real, luego `.env.local`, luego `.env`. Una variable ya presente nunca se sobrescribe.
+La precedencia del entorno es, de mayor a menor: una variable ya definida en tu entorno real, luego `.env.local`, luego `.env`. Una variable ya presente nunca se sobrescribe.

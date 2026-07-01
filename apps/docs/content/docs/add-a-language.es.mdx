@@ -1,15 +1,15 @@
 ---
-title: Añadir un idioma
-description: Añade una nueva configuración regional de destino a una configuración de verbatra existente.
+title: Añade un idioma
+description: Añade un nuevo locale de destino a una configuración de verbatra existente con un cambio de una línea en la configuración y una ejecución.
 ---
 
-# Añadir un idioma
+# Añade un idioma
 
-Añadir un idioma es un cambio de configuración de una sola línea seguido de una ejecución de traducción. verbatra trata la nueva configuración regional como si le faltara todo, por lo que la primera ejecución la completa; las ejecuciones posteriores se mantienen incrementales.
+Añadir un idioma es un cambio de una línea en la configuración más una ejecución de traducción. verbatra ve el nuevo locale como si le faltara todo, así que la primera ejecución lo completa por entero, y cada ejecución posterior sigue siendo incremental.
 
-## Añade la configuración regional a tu configuración
+## Añade el locale a tu configuración
 
-Añade la nueva configuración regional a `targetLocales` en `verbatra.config.ts`. No debe ser tu `sourceLocale`:
+Añádelo a `targetLocales` en `verbatra.config.ts`. Lo único que no puede ser es tu `sourceLocale`:
 
 ```ts
 import { defineConfig } from "@verbatra/sdk";
@@ -22,38 +22,51 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6",
-      maxTokens: 4096,
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
     },
   },
 });
 ```
 
-## Traducir
+## Traduce
 
-Ejecuta una traducción:
+Ejecútalo:
 
 ```bash
 verbatra translate
 ```
 
-La nueva configuración regional aún no tiene un archivo de destino, por lo que verbatra la trata como vacía y traduce cada clave de origen a ella, escribiendo el archivo desde `files.pattern` (por ejemplo, `locales/fr.json`). Tus configuraciones regionales existentes se dejan intactas a menos que sus cadenas de origen hayan cambiado, porque el archivo de bloqueo aún las registra como actuales.
+El nuevo locale todavía no tiene archivo de destino, así que verbatra lo trata como vacío y traduce en él cada clave de origen, escribiendo el archivo a partir de `files.pattern` (aquí `locales/fr.json`). Tus locales existentes quedan intactos a menos que sus cadenas de origen hayan cambiado, porque el archivo de bloqueo sigue teniéndolos registrados como vigentes.
 
-Previsualiza primero con `verbatra translate --dry-run` si quieres ver las claves de la nueva configuración regional antes de cualquier llamada al proveedor.
+¿Quieres mirar antes de saltar? Previsualiza primero las claves del nuevo locale:
 
-## Lenguas con más categorías plurales
+```bash
+verbatra translate --dry-run
+```
 
-Algunas lenguas necesitan más categorías plurales CLDR de las que aporta tu origen. El inglés tiene dos (`one` y `other`), mientras que el polaco, el árabe y el ruso tienen más. Por defecto verbatra traduce las formas plurales presentes en el origen y no sintetiza las categorías adicionales: la ejecución aún tiene éxito y emite una advertencia de categoría plural por configuración regional (código de aviso `PLURAL_CATEGORIES_INCOMPLETE`) que nombra la configuración regional y las categorías ausentes.
+## Idiomas con más categorías de plural
 
-Para que verbatra sintetice las formas ausentes en su lugar, establece `generatePlurals: true` en tu configuración (o pasa una anulación `generatePlurals` por ejecución). La generación es compatible solo con proyectos i18next-JSON traducidos por un proveedor de LLM; DeepL, los demás formatos y las lenguas de destino desconocidas recurren a la advertencia y nunca fallan. Las formas generadas se someten a la comprobación de integridad como cualquier traducción y se informan por separado de las claves traducidas en el resumen de la ejecución.
+Algunos idiomas necesitan más categorías de plural CLDR que las que tiene tu origen. El inglés tiene dos (`one` y `other`); el polaco, el árabe y el ruso tienen más. Por defecto verbatra traduce las formas de plural que encuentra en el origen y no inventa las adicionales: la ejecución igualmente tiene éxito y emite una advertencia de categoría de plural por locale (código de aviso `PLURAL_CATEGORIES_INCOMPLETE`) que nombra el locale y las categorías que faltan.
 
-## Manteniendo la configuración regional de origen
+Para que verbatra sintetice en su lugar las formas que faltan, define `generatePlurals: true` en tu configuración (o pasa una anulación `generatePlurals` por ejecución):
 
-Solo mantienes la configuración regional de origen manualmente. Para añadir nuevas cadenas, añádelas al archivo de origen y ejecuta `translate` de nuevo; verbatra las rellena en cada destino, incluida la que acabas de añadir.
+```ts
+export default defineConfig({
+  // ...
+  generatePlurals: true,
+});
+```
+
+La generación solo se admite en proyectos i18next-JSON traducidos por un proveedor LLM. DeepL, los demás formatos y los idiomas de destino desconocidos recurren a la advertencia y nunca fallan. Las formas generadas se verifican en integridad como cualquier traducción y se informan por separado de las claves traducidas en el resumen de la ejecución.
+
+## Mantenimiento del locale de origen
+
+Solo mantienes a mano el locale de origen. Para añadir cadenas, ponlas en el archivo de origen y ejecuta `translate` de nuevo: verbatra las rellena en cada destino, incluido el que acabas de añadir.
 
 ## Siguiente
 
-- [Configuración](/docs/config-file): el esquema de configuración completo, incluyendo `glossary` y `tone`.
-- [Proveedores](/docs/providers): opciones del proveedor y dónde obtener una clave.
+- [Configuración](/docs/config-file): el esquema completo de configuración, incluidos `glossary` y `tone`.
+- [Proveedores](/docs/providers): opciones de proveedor y dónde conseguir una clave.

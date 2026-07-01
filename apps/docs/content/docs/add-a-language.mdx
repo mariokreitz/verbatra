@@ -1,15 +1,15 @@
 ---
 title: Add a language
-description: Add a new target locale to an existing verbatra setup.
+description: Add a new target locale to an existing verbatra setup with a one-line config change and a run.
 ---
 
 # Add a language
 
-Adding a language is a one-line config change followed by a translation run. verbatra treats the new locale as missing everything, so the first run fills it in completely; later runs stay incremental.
+Adding a language is a one-line config change plus a translation run. verbatra sees the new locale as missing everything, so the first run fills it completely, and every run after that stays incremental.
 
 ## Add the locale to your config
 
-Add the new locale to `targetLocales` in `verbatra.config.ts`. It must not be your `sourceLocale`:
+Add it to `targetLocales` in `verbatra.config.ts`. It just cannot be your `sourceLocale`:
 
 ```ts
 import { defineConfig } from "@verbatra/sdk";
@@ -22,10 +22,10 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6",
-      maxTokens: 4096,
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
     },
   },
 });
@@ -33,25 +33,38 @@ export default defineConfig({
 
 ## Translate
 
-Run a translation:
+Run it:
 
 ```bash
 verbatra translate
 ```
 
-The new locale has no target file yet, so verbatra treats it as empty and translates every source key into it, writing the file from `files.pattern` (for example `locales/fr.json`). Your existing locales are left untouched unless their source strings changed, because the lock file still records them as current.
+The new locale has no target file yet, so verbatra treats it as empty and translates every source key into it, writing the file from `files.pattern` (here `locales/fr.json`). Your existing locales stay untouched unless their source strings changed, because the lock file still has them on record as current.
 
-Preview first with `verbatra translate --dry-run` if you want to see the new locale's keys before any provider call.
+Want to look before you leap? Preview the new locale's keys first:
+
+```bash
+verbatra translate --dry-run
+```
 
 ## Languages with more plural categories
 
-Some languages need more CLDR plural categories than your source supplies. English has two (`one` and `other`), while Polish, Arabic, and Russian have more. By default verbatra translates the plural forms present in the source and does not synthesize the extra categories: the run still succeeds and emits a per-locale plural-category warning (notice code `PLURAL_CATEGORIES_INCOMPLETE`) naming the locale and the missing categories.
+Some languages need more CLDR plural categories than your source has. English has two (`one` and `other`); Polish, Arabic, and Russian have more. By default verbatra translates the plural forms it finds in the source and does not invent the extras: the run still succeeds and emits a per-locale plural-category warning (notice code `PLURAL_CATEGORIES_INCOMPLETE`) naming the locale and the missing categories.
 
-To have verbatra synthesize the missing forms instead, set `generatePlurals: true` in your config (or pass a per-run `generatePlurals` override). Generation is supported for i18next-JSON projects translated by an LLM provider only; DeepL, the other formats, and unknown target languages fall back to the warning and never fail. Generated forms are integrity-checked like any translation and reported separately from translated keys in the run summary.
+To have verbatra synthesize the missing forms instead, set `generatePlurals: true` in your config (or pass a per-run `generatePlurals` override):
+
+```ts
+export default defineConfig({
+  // ...
+  generatePlurals: true,
+});
+```
+
+Generation is supported for i18next-JSON projects translated by an LLM provider only. DeepL, the other formats, and unknown target languages fall back to the warning and never fail. Generated forms are integrity-checked like any translation and reported separately from translated keys in the run summary.
 
 ## Maintaining the source locale
 
-You only ever maintain the source locale by hand. To add new strings, add them to the source file and run `translate` again; verbatra fills them into every target, including the one you just added.
+You only ever hand-maintain the source locale. To add strings, put them in the source file and run `translate` again: verbatra fills them into every target, including the one you just added.
 
 ## Next
 
