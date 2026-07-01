@@ -15,17 +15,11 @@ const VIEWPORT = { once: true, amount: 0.3 } as const;
 
 type FromTarget = { opacity?: number; x?: number; y?: number };
 
+// Frameless container: the parent feature-card provides the framed, beam-lit visual area, so
+// the skeleton floats on top of it (the beam and sparkles show through the gaps).
 function Panel({ children, className }: { children: ReactNode; className?: string }): ReactNode {
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-fd-border p-3 font-mono text-[11px] leading-relaxed",
-        className,
-      )}
-      style={{ background: "var(--surface-bg)" }}
-    >
-      {children}
-    </div>
+    <div className={cn("w-full font-mono text-[11px] leading-relaxed", className)}>{children}</div>
   );
 }
 
@@ -176,17 +170,17 @@ export function ExcelHandoffSkeleton(): ReactNode {
           <Fragment key={row.key}>
             <div
               className="px-2 py-1 text-fd-muted-foreground"
-              style={{ background: "var(--surface-bg)" }}
+              style={{ background: "var(--surface-card)" }}
             >
               {row.key}
             </div>
             <div
               className="px-2 py-1 text-fd-muted-foreground"
-              style={{ background: "var(--surface-bg)" }}
+              style={{ background: "var(--surface-card)" }}
             >
               {row.source}
             </div>
-            <div className="px-2 py-1" style={{ background: "var(--surface-bg)" }}>
+            <div className="px-2 py-1" style={{ background: "var(--surface-card)" }}>
               <motion.span
                 className="block text-fd-foreground"
                 initial={reduced ? false : { opacity: 0 }}
