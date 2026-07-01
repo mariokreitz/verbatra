@@ -1,11 +1,11 @@
 ---
 title: verbatra translate
-description: Traduce cada configuración regional de destino una vez y luego termina.
+description: Traduce cada locale de destino una vez y luego sale.
 ---
 
 # verbatra translate
 
-Ejecuta el flujo de leer, comparar, traducir y escribir sobre cada configuración regional de destino una vez, y luego termina. verbatra lee la configuración regional de origen, la compara con lo que tradujo la última vez y envía solo las cadenas nuevas o modificadas al proveedor; las traducciones que aún están actualizadas se dejan intactas.
+Ejecuta el flujo de leer, comparar, traducir y escribir sobre cada locale de destino una vez, y luego sale. verbatra lee el locale de origen, lo compara con lo que tradujo la última vez y envía al proveedor solo las cadenas nuevas o modificadas. Todo lo que sigue vigente queda intacto, así que nunca pagas por volver a traducir lo que no se ha movido.
 
 ```bash
 verbatra translate
@@ -15,17 +15,17 @@ verbatra translate
 
 | Opción | Descripción |
 | --- | --- |
-| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
 | `--dry-run` | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
-| `--prune` | elimina las claves huérfanas (presentes en un archivo de destino pero ausentes del origen) del archivo escrito y del bloqueo |
+| `--prune` | elimina las claves huérfanas (en un archivo de destino pero ausentes del origen) del archivo escrito y del bloqueo |
 | `--json` | imprime el resumen de la ejecución como JSON |
 
-Por defecto, una ejecución nunca elimina nada: verbatra informa las claves huérfanas (presentes en un archivo de destino pero ya no en el origen) y las deja en su lugar. Pasa `--prune` para eliminar exactamente esas claves del archivo escrito y del bloqueo, y nada más. Esta opción por ejecución anula la opción `prune` de tu [configuración](/docs/config-file); combínala con `--dry-run` para previsualizar las claves que se eliminarían. Para ver qué claves están huérfanas antes de una ejecución, usa [`verbatra diff`](/docs/cli/diff).
+Por defecto, una ejecución no elimina nada. Las claves huérfanas (presentes en un archivo de destino pero ya no en el origen) se informan y se dejan en su lugar. Pasa `--prune` para eliminar exactamente esas claves del archivo escrito y del bloqueo, y nada más. Este flag por ejecución anula la opción `prune` de tu [configuración](/docs/config-file); combínalo con `--dry-run` para previsualizar las claves que se irían. ¿Quieres ver qué claves están huérfanas antes de una ejecución? Usa [`verbatra diff`](/docs/cli/diff).
 
 ## Salida
 
-Sin `--json`, `translate` imprime un resumen de la ejecución legible para humanos. Con `--json`, imprime el resumen de la ejecución como un único objeto JSON en stdout: consulta la [forma de `RunSummary` en la referencia del SDK](/docs/sdk). verbatra escribe cualquier error de toda la ejecución en stderr, así que stdout queda limpio y lo puedes canalizar con `--json`.
+Sin `--json`, `translate` imprime un resumen de la ejecución legible para humanos. Con `--json`, imprime el resumen de la ejecución como un único objeto JSON en stdout: consulta la [forma de `RunSummary` en la referencia del SDK](/docs/sdk). Un error de toda la ejecución va a stderr, así que stdout queda limpio y canalizable con `--json`.
 
 ## Ejemplos
 
@@ -42,6 +42,12 @@ verbatra translate --prune
 # previsualiza las claves que se eliminarían
 verbatra translate --prune --dry-run
 
+# ejecuta contra un proyecto en otro directorio
+verbatra translate --cwd packages/app
+
+# carga una configuración específica en lugar de buscar una
+verbatra translate --config config/verbatra.config.ts
+
 # resumen legible por máquina en stdout
 verbatra translate --json
 ```
@@ -50,8 +56,8 @@ verbatra translate --json
 
 | Código | Significado |
 | --- | --- |
-| `0` | cada configuración regional de destino tuvo éxito |
-| `1` | la ejecución terminó pero una o más configuraciones regionales fallaron |
-| `2` | no se pudo ejecutar: un error de ejecución completa (configuración ausente o no válida, origen ilegible, formato desconocido, un proveedor que no se pudo construir incluyendo una clave de API ausente, o un archivo de bloqueo corrupto), o un error de uso |
+| `0` | cada locale de destino tuvo éxito |
+| `1` | la ejecución terminó pero uno o más locales fallaron |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un proveedor que no se pudo construir incluyendo una clave de API ausente, o un archivo de bloqueo corrupto), o un error de uso |
 
-Que una sola configuración regional falle no es fatal y produce el código de salida `1`; el detalle por configuración regional está en el resumen. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
+Que un solo locale falle no es fatal: produce el código de salida `1`, y el detalle por locale está en el resumen. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.

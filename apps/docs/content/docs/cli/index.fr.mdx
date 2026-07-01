@@ -1,11 +1,11 @@
 ---
 title: CLI
-description: La commande verbatra - ses sept sous-commandes, ses options globales, comment elle lit ton environnement et le contrat des codes de sortie.
+description: "La commande verbatra : ses sept sous-commandes, ses options globales, comment elle lit ton environnement, et le contrat des codes de sortie."
 ---
 
 # CLI
 
-`@verbatra/cli` fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Il embarque sept commandes :
+`@verbatra/cli` te fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Sept commandes font le travail :
 
 - [`init`](/docs/cli/init) : échafaude une configuration et un `.env.example`.
 - [`translate`](/docs/cli/translate) : traduis chaque locale cible une fois, puis quitte.
@@ -13,18 +13,18 @@ description: La commande verbatra - ses sept sous-commandes, ses options globale
 - [`check`](/docs/cli/check) : signale quelles locales ont des chaînes manquantes ou obsolètes, en lecture seule, sans appeler de fournisseur.
 - [`diff`](/docs/cli/diff) : liste les clés exactes qui seraient ajoutées, retraduites ou sont orphelines par locale, en lecture seule.
 - [`export`](/docs/cli/export) : exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain.
-- [`import`](/docs/cli/import) : importe un classeur rempli dans tes fichiers de locale.
+- [`import`](/docs/cli/import) : relit un classeur rempli dans tes fichiers de locale.
 
 ## Installer et invoquer
 
-verbatra est une dépendance de développement. Installe-le, puis exécute le binaire via ton gestionnaire de paquets :
+Installe verbatra comme dépendance de développement, puis exécute le binaire via ton gestionnaire de paquets :
 
 ```bash
 pnpm add -D @verbatra/cli
 # pnpm verbatra ..., npx verbatra ..., ou yarn verbatra ...
 ```
 
-Nécessite Node.js `>=22.14.0`.
+Tu as besoin de Node.js `>=22.14.0`.
 
 ## Options globales
 
@@ -33,15 +33,15 @@ Nécessite Node.js `>=22.14.0`.
 | `--help` | affiche l'usage du programme ou d'une commande, puis quitte avec `0` |
 | `--version` | affiche la version installée de `@verbatra/cli`, puis quitte avec `0` |
 
-Exécute `verbatra <command> --help` pour la liste complète des options et des exemples d'une commande - la même référence que ces pages.
+Exécute `verbatra <command> --help` pour la liste complète des options et des exemples d'une commande : la même référence que ces pages.
 
 ## Le répertoire de travail et .env
 
-`translate` et `watch` chargent `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter ; une variable déjà définie dans ton environnement réel l'emporte toujours. Passe `--cwd` pour désigner la racine de ton projet si tu invoques verbatra depuis un autre endroit. Les clés API ne sont lues que depuis l'environnement, jamais depuis la configuration ni une option - voir [Fournisseurs](/docs/providers).
+Avant de s'exécuter, `translate` et `watch` chargent `.env.local` puis `.env` depuis le répertoire de travail. Une variable déjà définie dans ton environnement réel l'emporte toujours. Tu invoques verbatra depuis un autre endroit que la racine de ton projet ? Passe `--cwd` pour la désigner. Les clés API ne sont lues que depuis l'environnement, jamais depuis la configuration ni une option : voir [Fournisseurs](/docs/providers).
 
 ## Codes de sortie
 
-verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI ou un script s'embranche :
+Le code de sortie de verbatra est le contrat sur lequel une étape de CI ou un script s'embranche :
 
 | Code | Signification |
 | --- | --- |
@@ -50,4 +50,4 @@ verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI
 | `2` | impossible de s'exécuter : une erreur d'exécution globale, ou une erreur d'usage |
 | `130` | `watch` a été arrêté de force par une seconde interruption |
 
-L'échec d'une exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie. Chaque page de commande indique comment ces codes s'y appliquent, et [CI et automatisation](/docs/ci-and-exit-codes) couvre leur utilisation dans un pipeline.
+L'échec d'une exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie. Chaque page de commande précise comment ces codes s'y appliquent, et [CI et automatisation](/docs/ci-and-exit-codes) couvre leur utilisation dans un pipeline.

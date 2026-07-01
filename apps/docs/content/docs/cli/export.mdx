@@ -5,13 +5,13 @@ description: Export untranslated strings into a styled Excel workbook for a huma
 
 # verbatra export
 
-Write the strings that need translating into a styled Excel workbook a human can fill in, then send back for [`verbatra import`](/docs/cli/import). The workbook has one sheet per target locale plus an instructions sheet; the translator edits a single column and everything else is locked.
+Write the strings that need translating into a styled Excel workbook a human can fill in, then send back for [`verbatra import`](/docs/cli/import). The workbook has one sheet per target locale plus an instructions sheet. The translator edits a single column; everything else is locked.
 
 ```bash
 verbatra export
 ```
 
-By default this writes `verbatra-translations.xlsx` in the working directory, containing only the **missing and changed** strings - the same keys an automated `translate` run would send to a provider. See [Manual translation](/docs/manual-translation) for the full round-trip.
+By default this writes `verbatra-translations.xlsx` in the working directory with only the **missing and changed** strings: the same keys an automated `translate` run would send to a provider. See [Manual translation](/docs/manual-translation) for the full round-trip.
 
 ## Options
 
@@ -26,7 +26,7 @@ By default this writes `verbatra-translations.xlsx` in the working directory, co
 
 ## Output
 
-Without `--json`, `export` prints the output path and one line per locale with its row count. With `--json`, it prints the export result - the path written and the per-locale row counts - as one JSON object on stdout. A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+Without `--json`, `export` prints the output path and one line per locale with its row count. With `--json`, it prints the export result (the path written and the per-locale row counts) as one JSON object on stdout. A whole-run error goes to stderr, so stdout stays clean and pipeable under `--json`.
 
 ## Examples
 
@@ -42,6 +42,15 @@ verbatra export --include-unchanged
 
 # write to a specific path
 verbatra export --out handoff/round-2.xlsx
+
+# export a project in another directory
+verbatra export --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra export --config config/verbatra.config.ts
+
+# machine-readable result on stdout
+verbatra export --json
 ```
 
 ## Exit codes
@@ -51,4 +60,4 @@ verbatra export --out handoff/round-2.xlsx
 | `0` | the workbook was written |
 | `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
 
-Export never calls a provider and needs no API key. See [`verbatra import`](/docs/cli/import) for reading the filled workbook back.
+`export` never calls a provider and needs no API key. See [`verbatra import`](/docs/cli/import) for reading the filled workbook back.

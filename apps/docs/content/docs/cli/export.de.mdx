@@ -1,17 +1,17 @@
 ---
 title: verbatra export
-description: Exportiert nicht übersetzte Strings in eine gestylte Excel-Arbeitsmappe für einen menschlichen Übersetzer.
+description: Exportiert unübersetzte Strings in eine gestylte Excel-Arbeitsmappe für einen menschlichen Übersetzer.
 ---
 
 # verbatra export
 
-Schreibt die Strings, die übersetzt werden müssen, in eine gestylte Excel-Arbeitsmappe, die ein Mensch ausfüllen und dann für [`verbatra import`](/docs/cli/import) zurücksenden kann. Die Arbeitsmappe hat ein Blatt pro Ziel-Locale plus ein Anweisungsblatt; der Übersetzer bearbeitet eine einzige Spalte und alles andere ist gesperrt.
+Schreibt die Strings, die übersetzt werden müssen, in eine gestylte Excel-Arbeitsmappe, die ein Mensch ausfüllen und dann für [`verbatra import`](/docs/cli/import) zurücksenden kann. Die Arbeitsmappe hat ein Blatt pro Ziel-Locale plus ein Anweisungsblatt. Der Übersetzer bearbeitet eine einzige Spalte; alles andere ist gesperrt.
 
 ```bash
 verbatra export
 ```
 
-Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings - dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Manuelle Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings: dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Manuelle Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
 
 ## Optionen
 
@@ -26,7 +26,7 @@ Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeic
 
 ## Ausgabe
 
-Ohne `--json` gibt `export` den Ausgabepfad und eine Zeile pro Locale mit dessen Zeilenanzahl aus. Mit `--json` gibt es das Export-Ergebnis - den geschriebenen Pfad und die Zeilenanzahlen pro Locale - als ein JSON-Objekt auf stdout aus. Ein Lauf-weiter Fehler wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
+Ohne `--json` gibt `export` den Ausgabepfad und eine Zeile pro Locale mit dessen Zeilenanzahl aus. Mit `--json` gibt es das Export-Ergebnis (den geschriebenen Pfad und die Zeilenanzahlen pro Locale) als ein JSON-Objekt auf stdout aus. Ein Fehler des gesamten Laufs wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
 
 ## Beispiele
 
@@ -42,6 +42,15 @@ verbatra export --include-unchanged
 
 # write to a specific path
 verbatra export --out handoff/round-2.xlsx
+
+# export a project in another directory
+verbatra export --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra export --config config/verbatra.config.ts
+
+# machine-readable result on stdout
+verbatra export --json
 ```
 
 ## Exit-Codes
@@ -49,6 +58,6 @@ verbatra export --out handoff/round-2.xlsx
 | Code | Bedeutung |
 | --- | --- |
 | `0` | die Arbeitsmappe wurde geschrieben |
-| `2` | konnte nicht ausgeführt werden: ein Lauf-weiter Fehler (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
 
-Export ruft niemals einen Provider auf und benötigt keinen API-Schlüssel. Siehe [`verbatra import`](/docs/cli/import) für das Zurücklesen der ausgefüllten Arbeitsmappe.
+`export` ruft niemals einen Provider auf und benötigt keinen API-Schlüssel. Siehe [`verbatra import`](/docs/cli/import) für das Zurücklesen der ausgefüllten Arbeitsmappe.

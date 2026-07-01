@@ -1,17 +1,17 @@
 ---
 title: verbatra watch
-description: Retraduisez à chaque modification de la source jusqu'à interruption.
+description: Retraduis à chaque modification de la source jusqu'à interruption.
 ---
 
 # verbatra watch
 
-Surveille le fichier source et réexécute une traduction à chaque modification après temporisation, jusqu'à ce que tu l'interrompes. Utilise-le pendant que tu travailles afin que les chaînes nouvelles et modifiées soient traduites au fur et à mesure que tu enregistres.
+Surveille le fichier source et réexécute une traduction à chaque modification après temporisation, jusqu'à ce que tu l'interrompes. Laisse-le tourner pendant que tu travailles et les chaînes nouvelles ou modifiées sont traduites au fur et à mesure que tu enregistres.
 
 ```bash
 verbatra watch
 ```
 
-La surveillance continue de s'exécuter jusqu'à ce que tu l'arrêtes. Une seule interruption (Ctrl-C) l'arrête proprement et quitte avec `0` ; une seconde interruption l'arrête de force et quitte avec `130`.
+`watch` s'exécute jusqu'à ce que tu l'arrêtes. Une seule interruption (Ctrl-C) l'arrête proprement et quitte avec `0` ; une seconde interruption l'arrête de force et quitte avec `130`.
 
 ## Options
 
@@ -24,18 +24,24 @@ La surveillance continue de s'exécuter jusqu'à ce que tu l'arrêtes. Une seule
 
 ## Sortie
 
-Sans `--json`, `watch` affiche un résumé lisible par un humain par exécution. Avec `--json`, il affiche un enregistrement NDJSON par exécution (un objet JSON par ligne) : soit un succès portant le résumé de l'exécution, soit un échec portant un code et un message d'erreur. Une exécution échouée est l'un de ces enregistrements sur le flux - elle n'arrête pas le surveillant et ne définit pas un code de sortie non nul. Voir la [structure `WatchRunResult` dans la référence du SDK](/docs/sdk).
+Sans `--json`, `watch` affiche un résumé lisible par un humain par exécution. Avec `--json`, il affiche un enregistrement NDJSON par exécution (un objet JSON par ligne) : soit un succès portant le résumé de l'exécution, soit un échec portant un code et un message d'erreur. Une exécution échouée n'est que l'un de ces enregistrements sur le flux : elle n'arrête pas le surveillant et ne définit pas un code de sortie non nul. Voir la [structure `WatchRunResult` dans la référence du SDK](/docs/sdk).
 
 ## Exemples
 
 ```bash
-# surveiller et retraduire à chaque modification
+# watch and re-translate on each change
 verbatra watch
 
-# attendre 1 s après une modification avant de traduire
+# wait 1s after a change before translating
 verbatra watch --debounce 1000
 
-# diffuser un enregistrement NDJSON par exécution
+# watch a project in another directory
+verbatra watch --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra watch --config config/verbatra.config.ts
+
+# stream one NDJSON record per run
 verbatra watch --json
 ```
 
@@ -47,4 +53,4 @@ verbatra watch --json
 | `2` | impossible de s'exécuter : la configuration n'a pas pu être chargée, ou une erreur d'usage |
 | `130` | arrêté de force par une seconde interruption |
 
-Contrairement à [`translate`](/docs/cli/translate), l'échec d'une exécution ne change pas le code de sortie - il est signalé comme un enregistrement de flux. Le code de sortie reflète uniquement la façon dont le surveillant s'est arrêté.
+Contrairement à [`translate`](/docs/cli/translate), l'échec d'une exécution ne change pas le code de sortie : il est signalé comme un enregistrement de flux. Le code de sortie reflète uniquement la façon dont le surveillant s'est arrêté.

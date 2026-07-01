@@ -5,7 +5,7 @@ description: Liste les clés exactes qui seraient ajoutées, retraduites ou sont
 
 # verbatra diff
 
-Affiche, par locale cible, les changements de traduction en attente réels sous forme de listes de clés : les clés qui seraient ajoutées, les clés qui seraient retraduites, et les clés désormais orphelines dans la cible. `diff` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) avant d'appeler un fournisseur, mais s'arrête là : il n'appelle aucun fournisseur, n'écrit aucun fichier et ne touche jamais au [fichier de verrouillage](/docs/the-lock-file).
+Affiche, par locale cible, les changements de traduction en attente réels sous forme de listes de clés : les clés qui seraient ajoutées, les clés qui seraient retraduites, et les clés désormais orphelines dans la cible. `diff` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) juste avant d'appeler un fournisseur, puis s'arrête : aucun appel de fournisseur, aucun fichier écrit, et il ne touche jamais au [fichier de verrouillage](/docs/the-lock-file).
 
 ```bash
 verbatra diff
@@ -19,9 +19,9 @@ Pour chaque locale cible, `diff` signale trois groupes :
 
 - **à ajouter** (`missing`) : les clés présentes dans la locale source mais absentes de la cible. Une exécution les ajouterait.
 - **à retraduire** (`changed`) : les clés présentes dans les deux, où la chaîne source a changé depuis sa dernière traduction. Une exécution les retraduirait.
-- **orphelines** (`orphaned`) : les clés présentes dans la cible mais absentes de la source. Elles sont seulement signalées. Une exécution `translate` par défaut ne les élague pas, donc les clés orphelines seules ne comptent pas comme du travail en attente (seul [`verbatra translate --prune`](/docs/cli/translate) les supprime).
+- **orphelines** : les clés présentes dans la cible mais absentes de la source. Elles sont seulement signalées. Une exécution `translate` par défaut ne les élague pas, donc les clés orphelines seules ne comptent pas comme du travail en attente (seul [`verbatra translate --prune`](/docs/cli/translate) les supprime).
 
-Une locale a des changements en attente lorsqu'elle a au moins une clé à ajouter ou à retraduire. Les clés orphelines seules ne rendent pas une locale en attente.
+Une locale a des changements en attente lorsqu'elle a au moins une clé à ajouter ou à retraduire. Les clés orphelines seules ne rendent jamais une locale en attente.
 
 ## Options
 
@@ -36,7 +36,7 @@ Il n'y a pas de `--dry-run` : `diff` est par nature une lecture à blanc. Il n'a
 
 ## Sortie
 
-Sans `--json`, `diff` affiche un en-tête de décompte par locale, puis les clés regroupées sous à ajouter, à retraduire et orphelines. Une locale sans rien à ajouter, retraduire ou orpheline se réduit à une seule ligne. Chaque clé est listée, sans troncature ; redirige vers un pager si tu en veux un.
+Sans `--json`, `diff` affiche un en-tête de décompte par locale, puis les clés regroupées sous à ajouter, à retraduire et orphelines. Une locale sans rien à ajouter, retraduire ou orpheline se réduit à une seule ligne. Chaque clé est listée, sans troncature ; redirige vers un pager si la liste est longue.
 
 ```
 verbatra diff
@@ -82,6 +82,12 @@ verbatra diff
 
 # only diff the German and French locales
 verbatra diff --locales de,fr
+
+# diff a project in another directory
+verbatra diff --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra diff --config config/verbatra.config.ts
 
 # machine-readable key lists on stdout for tooling or a PR comment
 verbatra diff --json

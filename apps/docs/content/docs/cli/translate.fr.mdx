@@ -5,7 +5,7 @@ description: Traduis chaque locale cible une fois, puis quitte.
 
 # verbatra translate
 
-Exécute le flux lire, comparer, traduire, écrire sur chaque locale cible une fois, puis quitte. verbatra lit la locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées ; les traductions qui sont toujours à jour sont laissées intactes.
+Exécute le flux lire, comparer, traduire, écrire sur chaque locale cible une fois, puis quitte. verbatra lit la locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie au fournisseur que les chaînes nouvelles ou modifiées. Tout ce qui est encore à jour reste intact, de sorte que tu ne paies jamais pour retraduire ce qui n'a pas bougé.
 
 ```bash
 verbatra translate
@@ -21,11 +21,11 @@ verbatra translate
 | `--prune` | supprimer les clés orphelines (dans un fichier cible mais absentes de la source) du fichier écrit et du verrouillage |
 | `--json` | afficher le résumé de l'exécution au format JSON |
 
-Par défaut, une exécution ne supprime jamais rien : les clés orphelines (présentes dans un fichier cible mais qui ne sont plus dans la source) sont signalées et laissées en place. Passe `--prune` pour supprimer exactement ces clés du fichier écrit et du verrouillage, et rien d'autre. Cette option par exécution remplace l'option `prune` de ta [configuration](/docs/config-file) ; combine-la avec `--dry-run` pour prévisualiser les clés qui seraient élaguées. Pour voir quelles clés sont orphelines avant une exécution, utilise [`verbatra diff`](/docs/cli/diff).
+Par défaut, une exécution ne supprime rien. Les clés orphelines (présentes dans un fichier cible mais qui ne sont plus dans la source) sont signalées et laissées en place. Passe `--prune` pour supprimer exactement ces clés du fichier écrit et du verrouillage, et rien d'autre. Cette option par exécution remplace l'option `prune` de ta [configuration](/docs/config-file) ; combine-la avec `--dry-run` pour prévisualiser les clés qui partiraient. Tu veux voir quelles clés sont orphelines avant une exécution ? Utilise [`verbatra diff`](/docs/cli/diff).
 
 ## Sortie
 
-Sans `--json`, `translate` affiche un résumé d'exécution lisible par un humain. Avec `--json`, il affiche le résumé de l'exécution sous forme d'un seul objet JSON sur stdout - voir la [structure `RunSummary` dans la référence du SDK](/docs/sdk). Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
+Sans `--json`, `translate` affiche un résumé d'exécution lisible par un humain. Avec `--json`, il affiche le résumé de l'exécution sous forme d'un seul objet JSON sur stdout : voir la [structure `RunSummary` dans la référence du SDK](/docs/sdk). Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
 
 ## Exemples
 
@@ -42,6 +42,12 @@ verbatra translate --prune
 # preview the keys that would be pruned
 verbatra translate --prune --dry-run
 
+# run against a project in another directory
+verbatra translate --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra translate --config config/verbatra.config.ts
+
 # machine-readable summary on stdout
 verbatra translate --json
 ```
@@ -54,4 +60,4 @@ verbatra translate --json
 | `1` | l'exécution s'est terminée mais une ou plusieurs locales ont échoué |
 | `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fournisseur qui n'a pas pu être construit, y compris une clé API manquante, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
 
-L'échec d'une seule locale n'est pas fatal et produit le code de sortie `1` ; le détail par locale figure dans le résumé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.
+L'échec d'une seule locale n'est pas fatal : il produit le code de sortie `1`, et le détail par locale figure dans le résumé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

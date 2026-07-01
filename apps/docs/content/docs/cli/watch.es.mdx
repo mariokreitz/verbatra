@@ -5,26 +5,26 @@ description: Vuelve a traducir con cada cambio del origen hasta que se interrump
 
 # verbatra watch
 
-Observa el archivo de origen y vuelve a ejecutar una traducción con cada cambio con anti-rebote, hasta que lo interrumpas. Úsalo mientras trabajas para que las cadenas nuevas y modificadas se traduzcan a medida que guardas.
+Observa el archivo de origen y vuelve a ejecutar una traducción con cada cambio con anti-rebote, hasta que lo interrumpas. Déjalo corriendo mientras trabajas y las cadenas nuevas o modificadas se traducen a medida que guardas.
 
 ```bash
 verbatra watch
 ```
 
-Watch sigue ejecutándose hasta que lo detienes. Una sola interrupción (Ctrl-C) lo detiene de forma ordenada y termina con `0`; una segunda interrupción lo detiene a la fuerza y termina con `130`.
+`watch` sigue ejecutándose hasta que lo detienes. Una sola interrupción (Ctrl-C) lo detiene de forma ordenada y sale con `0`; una segunda interrupción lo detiene a la fuerza y sale con `130`.
 
 ## Opciones
 
 | Opción | Descripción |
 | --- | --- |
-| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
 | `--debounce <ms>` | espera esta cantidad de milisegundos tras un cambio antes de traducir (por defecto `300`) |
 | `--json` | imprime cada ejecución como un registro NDJSON |
 
 ## Salida
 
-Sin `--json`, `watch` imprime un resumen legible para humanos por ejecución. Con `--json`, imprime un registro NDJSON por ejecución (un objeto JSON por línea): ya sea un éxito que lleva el resumen de la ejecución, o un fallo que lleva un código de error y un mensaje. Una ejecución fallida es uno de estos registros en el flujo: no detiene al observador y no establece un código de salida distinto de cero. Consulta la [forma de `WatchRunResult` en la referencia del SDK](/docs/sdk).
+Sin `--json`, `watch` imprime un resumen legible para humanos por ejecución. Con `--json`, imprime un registro NDJSON por ejecución (un objeto JSON por línea): ya sea un éxito que lleva el resumen de la ejecución, o un fallo que lleva un código de error y un mensaje. Una ejecución fallida es solo uno de esos registros en el flujo: no detiene al observador y no establece un código de salida distinto de cero. Consulta la [forma de `WatchRunResult` en la referencia del SDK](/docs/sdk).
 
 ## Ejemplos
 
@@ -34,6 +34,12 @@ verbatra watch
 
 # espera 1s tras un cambio antes de traducir
 verbatra watch --debounce 1000
+
+# observa un proyecto en otro directorio
+verbatra watch --cwd packages/app
+
+# carga una configuración específica en lugar de buscar una
+verbatra watch --config config/verbatra.config.ts
 
 # transmite un registro NDJSON por ejecución
 verbatra watch --json

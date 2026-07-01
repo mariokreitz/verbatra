@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: Der verbatra-Befehl - seine sieben Unterbefehle, globalen Flags, wie er deine Umgebung liest und der Exit-Code-Vertrag.
+description: "Der verbatra-Befehl: seine sieben Unterbefehle, globalen Flags, wie er deine Umgebung liest und der Exit-Code-Vertrag."
 ---
 
 # CLI
 
-`@verbatra/cli` stellt das `verbatra`-Binary bereit, einen dünnen Wrapper über [`@verbatra/sdk`](/docs/sdk). Es liefert sieben Befehle:
+`@verbatra/cli` gibt dir das `verbatra`-Binary, einen dünnen Wrapper über [`@verbatra/sdk`](/docs/sdk). Sieben Befehle erledigen die Arbeit:
 
 - [`init`](/docs/cli/init): erstellt das Grundgerüst einer Konfiguration und einer `.env.example`.
 - [`translate`](/docs/cli/translate): übersetzt jedes Ziel-Locale einmal und beendet sich dann.
-- [`watch`](/docs/cli/watch): übersetzt bei jeder Quelländerung neu, bis es unterbrochen wird.
-- [`check`](/docs/cli/check): meldet, welchen Locales Strings fehlen oder veraltet sind, schreibgeschützt, ohne einen Provider aufzurufen.
+- [`watch`](/docs/cli/watch): übersetzt bei jeder Quelländerung neu, bis du es unterbrichst.
+- [`check`](/docs/cli/check): meldet, welche Locales fehlende oder veraltete Strings haben, schreibgeschützt, ohne einen Provider aufzurufen.
 - [`diff`](/docs/cli/diff): listet pro Locale die genauen Schlüssel auf, die hinzugefügt, neu übersetzt oder verwaist würden, schreibgeschützt.
-- [`export`](/docs/cli/export): exportiert unübersetzte Strings in eine Excel-Arbeitsmappe für einen menschlichen Übersetzer.
-- [`import`](/docs/cli/import): importiert eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien.
+- [`export`](/docs/cli/export): schreibt unübersetzte Strings in eine Excel-Arbeitsmappe für einen menschlichen Übersetzer.
+- [`import`](/docs/cli/import): liest eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien.
 
 ## Installieren und aufrufen
 
-verbatra ist eine Entwicklungsabhängigkeit. Installiere es und führe dann das Binary über deinen Paketmanager aus:
+Installiere verbatra als Entwicklungsabhängigkeit und führe dann das Binary über deinen Paketmanager aus:
 
 ```bash
 pnpm add -D @verbatra/cli
 # pnpm verbatra ..., npx verbatra ..., or yarn verbatra ...
 ```
 
-Erfordert Node.js `>=22.14.0`.
+Du brauchst Node.js `>=22.14.0`.
 
 ## Globale Flags
 
@@ -33,15 +33,15 @@ Erfordert Node.js `>=22.14.0`.
 | `--help` | gibt die Nutzung für das Programm oder einen Befehl aus und beendet sich dann mit `0` |
 | `--version` | gibt die installierte `@verbatra/cli`-Version aus und beendet sich dann mit `0` |
 
-Führe `verbatra <command> --help` aus, um die vollständige Optionsliste und Beispiele eines Befehls zu erhalten - dieselbe Referenz wie diese Seiten.
+Führe `verbatra <command> --help` aus, um die vollständige Optionsliste und Beispiele eines Befehls zu erhalten: dieselbe Referenz wie diese Seiten.
 
 ## Das Arbeitsverzeichnis und .env
 
-`translate` und `watch` laden `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor sie laufen; eine Variable, die bereits in deiner echten Umgebung gesetzt ist, gewinnt immer. Übergib `--cwd`, um auf dein Projekt-Stammverzeichnis zu zeigen, wenn du verbatra von anderswo aufrufst. API-Schlüssel werden nur aus der Umgebung gelesen, niemals aus der Konfiguration oder einem Flag - siehe [Provider](/docs/providers).
+Bevor sie laufen, laden `translate` und `watch` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis. Eine Variable, die bereits in deiner echten Umgebung gesetzt ist, gewinnt immer. Rufst du verbatra von anderswo als deinem Projekt-Stammverzeichnis auf? Übergib `--cwd`, um darauf zu zeigen. API-Schlüssel werden nur aus der Umgebung gelesen, niemals aus der Konfiguration oder einem Flag: siehe [Provider](/docs/providers).
 
 ## Exit-Codes
 
-verbatra verwendet seinen Exit-Code als den Vertrag, auf den ein CI-Schritt oder ein Skript verzweigt:
+Der Exit-Code von verbatra ist der Vertrag, auf den ein CI-Schritt oder ein Skript verzweigt:
 
 | Code | Bedeutung |
 | --- | --- |
@@ -50,4 +50,4 @@ verbatra verwendet seinen Exit-Code als den Vertrag, auf den ein CI-Schritt oder
 | `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs oder ein Nutzungsfehler |
 | `130` | `watch` wurde durch eine zweite Unterbrechung erzwungen gestoppt |
 
-Ein Fehlschlag eines einzelnen Laufs in `watch` wird als Stream-Datensatz gemeldet, nicht als Exit-Code. Jede Befehlsseite vermerkt, wie diese Codes auf sie zutreffen, und [CI und Automatisierung](/docs/ci-and-exit-codes) behandelt ihre Verwendung in einer Pipeline.
+Ein Fehlschlag eines einzelnen Laufs in `watch` erscheint als Stream-Datensatz, nicht als Exit-Code. Jede Befehlsseite vermerkt, wie diese Codes auf sie zutreffen, und [CI und Automatisierung](/docs/ci-and-exit-codes) behandelt ihre Verwendung in einer Pipeline.
