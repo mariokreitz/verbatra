@@ -52,46 +52,103 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
   },
 ];
 
+// A hairline underline that stays transparent until hover, then fades in the glow accent: a
+// calm, on-brand affordance rather than a hard underline.
+const LINK_CLASS =
+  "underline decoration-transparent underline-offset-4 transition-colors hover:text-fd-foreground hover:decoration-[color:color-mix(in_srgb,var(--v-glow)_45%,transparent)]";
+
 function FooterLinkItem({ link, label }: { link: FooterLink; label: string }): ReactNode {
-  const className = "transition-colors hover:text-fd-foreground";
   if (link.external) {
     return (
-      <a href={link.href} className={className} target="_blank" rel="noreferrer noopener">
+      <a href={link.href} className={LINK_CLASS} target="_blank" rel="noreferrer noopener">
         {label}
       </a>
     );
   }
   return (
-    <a href={link.href} className={className}>
+    <a href={link.href} className={LINK_CLASS}>
       {label}
     </a>
   );
 }
 
-// Fully static footer, so it stays a server component.
+// Fully static footer, so it stays a server component. The closing note of the page: a deep
+// void gradient tied to the landing with a faint top-masked grid, a glow seam divider, and a
+// large decorative wordmark signature echoing the hero headline.
 export async function FullFooter(): Promise<ReactNode> {
   const t = await getTranslations("landing.footer");
   return (
     <footer
-      className="mt-24 border-t border-fd-border"
-      style={{ background: "color-mix(in srgb, var(--v-void) 60%, var(--surface-card))" }}
+      className="relative mt-24 overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(to bottom, color-mix(in srgb, var(--v-void) 55%, var(--surface-card)), color-mix(in srgb, var(--v-void) 78%, var(--surface-card)))",
+      }}
     >
-      <div className="mx-auto max-w-5xl px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+      {/* Glow seam: a hairline that fades in from the accent, so the footer reads as a deliberate edge. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in srgb, var(--v-glow) 55%, transparent) 50%, transparent)",
+        }}
+      />
+      {/* Faint static grid echoing the hero backdrop, masked so it fades below the seam. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--border-default) 1px, transparent 1px), linear-gradient(90deg, var(--border-default) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
+          opacity: 0.28,
+          WebkitMaskImage: "linear-gradient(to bottom, #000, transparent 55%)",
+          maskImage: "linear-gradient(to bottom, #000, transparent 55%)",
+        }}
+      />
+      {/* Large decorative wordmark signature, gradient-clipped and faded up from the base. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden"
+      >
+        <span
+          className="block select-none text-center font-semibold"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "clamp(4rem, 24vw, 15rem)",
+            lineHeight: 0.82,
+            letterSpacing: "-0.04em",
+            background: "var(--gradient-headline)",
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            color: "transparent",
+            opacity: 0.08,
+            transform: "translateY(0.12em)",
+            WebkitMaskImage: "linear-gradient(to top, #000 8%, transparent 82%)",
+            maskImage: "linear-gradient(to top, #000 8%, transparent 82%)",
+          }}
+        >
+          verbatra
+        </span>
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-5xl px-6 py-16">
+        <div className="grid gap-x-8 gap-y-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
-            <span className="inline-flex items-center gap-2">
-              <VMark size={28} />
+            <span className="inline-flex items-center gap-2.5">
+              <VMark size={30} />
               <span
-                className="text-lg font-semibold tracking-tight text-fd-foreground"
+                className="text-xl font-semibold tracking-tight text-fd-foreground"
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 verbatra
               </span>
             </span>
-            <p className="mt-3 max-w-[34ch] text-sm leading-relaxed text-fd-muted-foreground">
+            <p className="mt-4 max-w-[34ch] text-sm leading-relaxed text-fd-muted-foreground">
               {t("tagline")}
             </p>
-            <div className="mt-4 flex items-center gap-5">
+            <div className="mt-5 flex items-center gap-5">
               <a
                 href={GITHUB_URL}
                 target="_blank"
@@ -118,7 +175,7 @@ export async function FullFooter(): Promise<ReactNode> {
             const title = t(col.titleKey);
             return (
               <nav key={col.col} aria-label={title}>
-                <p className="mb-3 font-mono text-xs uppercase tracking-[0.12em] text-fd-muted-foreground">
+                <p className="mb-4 font-mono text-xs uppercase tracking-[0.14em] text-[color:var(--text-faint)]">
                   {title}
                 </p>
                 <ul className="flex flex-col gap-2.5 text-sm text-fd-muted-foreground">
@@ -132,7 +189,12 @@ export async function FullFooter(): Promise<ReactNode> {
             );
           })}
         </div>
-        <div className="mt-12 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-fd-border pt-6 text-sm text-fd-muted-foreground">
+        <div
+          className="mt-14 flex flex-wrap items-center gap-x-4 gap-y-2 pt-6 text-sm text-fd-muted-foreground"
+          style={{
+            borderTop: "1px solid color-mix(in srgb, var(--border-default) 80%, transparent)",
+          }}
+        >
           <span>{t("legalLine")}</span>
         </div>
       </div>
