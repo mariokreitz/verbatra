@@ -6,13 +6,54 @@ import { GithubIcon } from "@/components/landing/github-icon";
 import { GITHUB_URL } from "@/components/landing/links";
 import { PackageInstall } from "@/components/landing/package-install";
 import { StatusBand } from "@/components/landing/status-band";
-import { Showcase } from "@/components/showcase";
+import { Terminal } from "@/components/landing/terminal";
 import Button from "@/components/ui/button";
 
-// Centered hero (Direction A): eyebrow, gradient headline, lead, install tabs, the two
-// CTAs, the live trust badges, and the live Showcase promoted into a glowing framed card.
-// The shell is a server component; only the decorative Backdrop, the install tabs, and the
-// Showcase are client leaves.
+// The hero terminal walks the real v1 commands (init, translate, diff, watch). CLI code is
+// verbatim English and never localized. Outputs are consistent with the documented behavior
+// and the RunSummary fields (translated / unchanged / orphaned / skipped invalid icu /
+// withheld).
+const CLI_COMMANDS = [
+  "verbatra init",
+  "verbatra translate",
+  "verbatra diff",
+  "verbatra watch",
+] as const;
+
+const CLI_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
+  0: [
+    "✓ created verbatra.config.ts",
+    "source en · targets de, es, fr",
+    "provider anthropic · key from ANTHROPIC_API_KEY",
+  ],
+  1: [
+    "diff en.json · 12 new · 0 changed · 108 unchanged",
+    "de  12 translated · 108 unchanged · 0 withheld",
+    "es  12 translated · 108 unchanged · 0 withheld",
+    "fr  12 translated · 108 unchanged · 0 withheld",
+    "✓ 36 keys translated in 5.4s · 0 skipped · lock updated",
+  ],
+  2: [
+    "en.json · 120 keys · source of truth",
+    "de  2 new · 1 changed · 117 up to date",
+    "es  0 new · 0 changed · 120 up to date",
+    "fr  5 new · 0 changed · 115 up to date",
+    "8 keys would be sent · run verbatra translate to apply",
+  ],
+  3: [
+    "watching en.json for changes",
+    "en.json changed · 1 new key",
+    "de  1 translated · 0 withheld",
+    "es  1 translated · 0 withheld",
+    "fr  1 translated · 0 withheld",
+    "✓ 3 keys translated · waiting for changes",
+  ],
+};
+
+// Centered hero (Direction A): eyebrow, gradient headline, lead, install card, the two CTAs,
+// the live trust badges, and the animated CLI Terminal promoted into a glowing framed card.
+// The shell is a server component; only the decorative Backdrop, the install card, and the
+// Terminal are client leaves.
 export async function LandingHero(): Promise<ReactNode> {
   const t = await getTranslations("landing.hero");
   return (
@@ -60,15 +101,21 @@ export async function LandingHero(): Promise<ReactNode> {
           </div>
         </div>
 
-        {/* The live Showcase, framed with a globe-glow wash behind it. */}
-        <div className="relative mx-auto mt-14 max-w-[56rem]">
+        {/* The animated CLI terminal, framed with a globe-glow wash behind it. It plays the
+            sequence once and then holds the settled state so it does not distract above the fold. */}
+        <div className="relative mx-auto mt-14 max-w-[46rem]">
           <div
             aria-hidden="true"
             className="pointer-events-none absolute left-1/2 top-1/2 h-[120%] w-[120%] -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{ background: "var(--wash-globe)", filter: "blur(12px)" }}
           />
           <div className="relative">
-            <Showcase />
+            <Terminal
+              commands={CLI_COMMANDS}
+              outputs={CLI_OUTPUTS}
+              title="~/acme-shop"
+              loop={false}
+            />
           </div>
         </div>
       </div>

@@ -39,11 +39,6 @@
       "heading": "Translate through the model you trust.",
       "lead": "Anthropic, OpenAI, Gemini, or DeepL. Pick one in a single line of config and switch providers without touching your locale files."
     },
-    "terminal": {
-      "eyebrow": "see the cli in action",
-      "heading": "verbatra in your terminal.",
-      "lead": "One config, then a handful of commands: initialize a project, translate only what changed, inspect per-locale drift, and keep every locale in sync as you work."
-    },
     "how": {
       "eyebrow": "how it works",
       "heading": "A run is a short, predictable pipeline.",

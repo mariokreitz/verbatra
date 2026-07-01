@@ -17,10 +17,13 @@ export type TerminalProps = {
   typingSpeed?: number;
   delayBetweenCommands?: number;
   initialDelay?: number;
+  // When false, the sequence types once and then holds the settled state (no replay).
+  loop?: boolean;
   className?: string;
 };
 
 const TRAFFIC_LIGHTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
+const HOLD_PAUSE_MS = 2600;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -37,6 +40,7 @@ type PlayerContext = {
   typingSpeed: number;
   delayBetweenCommands: number;
   initialDelay: number;
+  loop: boolean;
 };
 
 async function typeCommand(ctx: PlayerContext, cmd: string): Promise<boolean> {
@@ -83,7 +87,9 @@ async function playLoop(ctx: PlayerContext): Promise<void> {
       if (cmd === undefined) continue;
       if (!(await runCommand(ctx, cmd, ctx.outputs?.[i] ?? []))) return;
     }
-    await delay(1800);
+    // One pass done: hold the settled transcript unless a subtle loop was requested.
+    if (!ctx.loop) return;
+    await delay(HOLD_PAUSE_MS);
   }
 }
 
@@ -147,6 +153,7 @@ export function Terminal({
   typingSpeed = 45,
   delayBetweenCommands = 900,
   initialDelay = 500,
+  loop = true,
   className,
 }: TerminalProps): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -180,6 +187,7 @@ export function Terminal({
       typingSpeed,
       delayBetweenCommands,
       initialDelay,
+      loop,
     };
 
     const observer = new IntersectionObserver(
@@ -203,7 +211,7 @@ export function Terminal({
       cancelled = true;
       observer.disconnect();
     };
-  }, [commands, outputs, typingSpeed, delayBetweenCommands, initialDelay]);
+  }, [commands, outputs, typingSpeed, delayBetweenCommands, initialDelay, loop]);
 
   return (
     <div

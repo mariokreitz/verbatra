@@ -1,6 +1,5 @@
 import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
-import { CliShowcase } from "@/components/landing/cli-showcase";
 import { Faq } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
 import { FinalCta } from "@/components/landing/final-cta";
@@ -50,7 +49,6 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       <LandingHero />
       <WorksWith />
       <LogoCloud />
-      <CliShowcase />
       <HowItWorks />
       <Features />
       <Faq items={faqItems} />

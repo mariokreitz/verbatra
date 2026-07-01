@@ -84,7 +84,7 @@ export function Sparkles({
     }
 
     // Only rebuild when the box actually changed beyond a small threshold; pure re-fires
-    // at the same size (the Showcase typing reflows the section) must not touch particles.
+    // at the same size (the hero terminal typing reflows the section) must not touch particles.
     function measure() {
       if (!parent) return;
       const nextW = parent.clientWidth;
