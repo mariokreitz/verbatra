@@ -2,9 +2,6 @@
 title: verbatra diff
 description: Liste les clés exactes qui seraient ajoutées, retraduites ou sont orphelines par locale, en lecture seule, sans appeler de fournisseur ni écrire de fichiers.
 ---
-
-# verbatra diff
-
 Affiche, par locale cible, les changements de traduction en attente réels sous forme de listes de clés : les clés qui seraient ajoutées, les clés qui seraient retraduites, et les clés désormais orphelines dans la cible. `diff` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) juste avant d'appeler un fournisseur, puis s'arrête : aucun appel de fournisseur, aucun fichier écrit, et il ne touche jamais au [fichier de verrouillage](/docs/the-lock-file).
 
 ```bash

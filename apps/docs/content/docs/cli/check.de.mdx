@@ -2,9 +2,6 @@
 title: verbatra check
 description: Meldet, welche Locales fehlende oder veraltete Strings haben, schreibgeschützt, ohne einen Provider aufzurufen oder Dateien zu schreiben.
 ---
-
-# verbatra check
-
 Meldet pro Ziel-Locale, wie viele Strings fehlend, veraltet oder aktuell sind, und beendet sich dann mit einem Code, auf den ein CI-Schritt verzweigen kann. `check` führt dieselbe Lese- und Diff-Operation aus, die [`verbatra translate`](/docs/cli/translate) direkt macht, bevor es einen Provider aufrufen würde, hört aber dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, und es berührt niemals die [Lock-Datei](/docs/the-lock-file). Es ist der günstige, schreibgeschützte Weg, um zu fragen "sind meine Übersetzungen synchron?", bevor jemand für einen Provider zahlt.
 
 ```bash

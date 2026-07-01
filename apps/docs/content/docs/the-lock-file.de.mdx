@@ -2,9 +2,6 @@
 title: Die Lock-Datei
 description: Was verbatra.lock.json aufzeichnet, warum sie die Baseline für inkrementelle Läufe ist und warum du sie committest.
 ---
-
-# Die Lock-Datei
-
 verbatra hält eine committete Datei, `verbatra.lock.json`, in deinem Projekt. Sie ist die Aufzeichnung dessen, was
 verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf diffe deine Quelle
 gegen diese Baseline und ruft den Provider nur für die Keys auf, die sich tatsächlich geändert haben.

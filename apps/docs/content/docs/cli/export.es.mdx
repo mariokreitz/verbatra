@@ -2,16 +2,13 @@
 title: verbatra export
 description: Exporta las cadenas sin traducir a un libro de Excel con estilo para un traductor humano.
 ---
-
-# verbatra export
-
 Escribe las cadenas que necesitan traducción en un libro de Excel con estilo que una persona pueda rellenar, y luego devolver para [`verbatra import`](/docs/cli/import). El libro tiene una hoja por locale de destino más una hoja de instrucciones. El traductor edita una sola columna; todo lo demás está bloqueado.
 
 ```bash
 verbatra export
 ```
 
-Por defecto, esto escribe `verbatra-translations.xlsx` en el directorio de trabajo, solo con las cadenas **faltantes y modificadas**: las mismas claves que una ejecución automatizada de `translate` enviaría a un proveedor. Consulta [Traducción manual](/docs/manual-translation) para ver el ciclo completo.
+Por defecto, esto escribe `verbatra-translations.xlsx` en el directorio de trabajo, solo con las cadenas **faltantes y modificadas**: las mismas claves que una ejecución automatizada de `translate` enviaría a un proveedor. Consulta [Traducción humana](/docs/manual-translation) para ver el ciclo completo.
 
 ## Opciones
 

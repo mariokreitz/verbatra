@@ -2,9 +2,6 @@
 title: Formats
 description: The i18n formats verbatra supports, how it reads them, and how each handles placeholders, plurals, and ICU.
 ---
-
-# Formats
-
 verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your config. Seven are supported: four JSON flavors, plus ARB, YAML, and XLIFF.
 
 ## The four JSON formats

@@ -2,9 +2,6 @@
 title: verbatra check
 description: Report which locales are missing or stale strings, read-only, without calling a provider or writing files.
 ---
-
-# verbatra check
-
 Report, per target locale, how many strings are missing, stale, or up to date, then exit with a code a CI step can branch on. `check` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does right before it would call a provider, then stops: no provider call, no files written, and it never touches the [lock file](/docs/the-lock-file). It is the cheap, read-only way to ask "are my translations in sync?" before anyone pays a provider.
 
 ```bash

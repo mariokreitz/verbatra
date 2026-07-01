@@ -1,10 +1,7 @@
 ---
-title: Programmatische API
+title: SDK-Rezepte
 description: Copy-paste-Rezepte, um verbatra aus deinen eigenen Skripten, Build-Schritten und CI-Jobs auszuführen.
 ---
-
-# Programmatische API
-
 Die [SDK-Referenz](/docs/sdk) deckt jede Funktion und jeden Typ ab. Diese Seite ist der praktische Begleiter: eine Handvoll End-to-End-Muster, um verbatra in Code einzubinden. Greif zum SDK, wenn du Übersetzung in einem Skript, einem Build-Schritt oder einem CI-Job möchtest, mit voller Kontrolle über alles drumherum.
 
 ## In einem Skript übersetzen
@@ -77,7 +74,7 @@ if (summary.hasPendingChanges) {
 
 ## Strings an einen menschlichen Übersetzer übergeben
 
-Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe, dann importiere die ausgefüllte Datei zurück. `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate` und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe genau in das Reporting und Gating passt, das du für einen automatisierten Lauf nutzt. Siehe [Manual translation](/docs/manual-translation).
+Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe, dann importiere die ausgefüllte Datei zurück. `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate` und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe genau in das Reporting und Gating passt, das du für einen automatisierten Lauf nutzt. Siehe [Menschliche Übersetzung](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";

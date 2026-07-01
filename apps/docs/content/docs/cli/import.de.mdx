@@ -2,16 +2,13 @@
 title: verbatra import
 description: Importiert eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien und führt dieselben Sicherheitsprüfungen wie ein automatischer Lauf aus.
 ---
-
-# verbatra import
-
 Liest eine von einem Übersetzer ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien. `import` führt dieselben Platzhalter- und ICU-Prüfungen aus wie [`verbatra translate`](/docs/cli/translate): jeder Wert wird validiert, die bestandenen werden geschrieben und die [Lock-Datei](/docs/the-lock-file) wird aktualisiert, und jeder Wert, der eine Prüfung nicht besteht, wird zurückgehalten und gemeldet, anstatt geschrieben zu werden.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs/cli/export) erzeugt und vom Übersetzer ausgefüllt wurde. Nur die `Translation`-Spalte wird gelesen; leere Zellen werden übersprungen, niemals als leere Strings geschrieben. Siehe [Manuelle Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs/cli/export) erzeugt und vom Übersetzer ausgefüllt wurde. Nur die `Translation`-Spalte wird gelesen; leere Zellen werden übersprungen, niemals als leere Strings geschrieben. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
 
 ## Argumente
 

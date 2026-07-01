@@ -2,9 +2,6 @@
 title: verbatra diff
 description: List the exact keys that would be added, re-translated, or are orphaned per locale, read-only, without calling a provider or writing files.
 ---
-
-# verbatra diff
-
 Show, per target locale, the actual pending translation changes as key lists: the keys that would be added, the keys that would be re-translated, and the keys now orphaned in the target. `diff` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) does right before it would call a provider, then stops: no provider call, no files written, and it never touches the [lock file](/docs/the-lock-file).
 
 ```bash

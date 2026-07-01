@@ -2,16 +2,13 @@
 title: verbatra export
 description: Exportiert unübersetzte Strings in eine gestylte Excel-Arbeitsmappe für einen menschlichen Übersetzer.
 ---
-
-# verbatra export
-
 Schreibt die Strings, die übersetzt werden müssen, in eine gestylte Excel-Arbeitsmappe, die ein Mensch ausfüllen und dann für [`verbatra import`](/docs/cli/import) zurücksenden kann. Die Arbeitsmappe hat ein Blatt pro Ziel-Locale plus ein Anweisungsblatt. Der Übersetzer bearbeitet eine einzige Spalte; alles andere ist gesperrt.
 
 ```bash
 verbatra export
 ```
 
-Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings: dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Manuelle Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings: dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
 
 ## Optionen
 

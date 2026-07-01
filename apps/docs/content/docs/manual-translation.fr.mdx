@@ -1,10 +1,7 @@
 ---
-title: Traduction manuelle
+title: Traduction humaine
 description: Exporte les chaînes non traduites vers un classeur Excel, fais-les traduire par un humain, puis réimporte le résultat, avec les mêmes vérifications de sûreté qu'une exécution automatisée.
 ---
-
-# Traduction manuelle
-
 Toutes les chaînes n'appartiennent pas à un provider. Les textes marketing, les textes juridiques et les noms de produits veulent souvent un traducteur humain, et certaines équipes gardent un pro dans la boucle pour les langues qui comptent le plus. verbatra gère ça avec un aller-retour de classeur : **exporte** les chaînes qui ont besoin d'être traduites dans un fichier Excel stylisé, remets-le à un traducteur, puis **importe** le fichier rempli dans tes fichiers de locale.
 
 Le même diff pilote les deux directions. L'export sélectionne exactement les clés qu'une exécution automatisée traduirait (les nouvelles et les modifiées), de sorte qu'une locale traduite manuellement reste synchronisée avec ta source de la même manière qu'une locale traduite par IA. L'import exécute les mêmes vérifications de placeholders et d'ICU que `translate`, donc si un traducteur saisit à la main une valeur qui casse un placeholder, verbatra la retient et te le signale plutôt que de l'écrire.

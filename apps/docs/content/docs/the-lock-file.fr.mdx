@@ -2,9 +2,6 @@
 title: Le fichier de verrouillage
 description: Ce que verbatra.lock.json enregistre, pourquoi c'est la base de référence des exécutions incrémentielles, et pourquoi tu le commites.
 ---
-
-# Le fichier de verrouillage
-
 verbatra conserve un seul fichier commité, `verbatra.lock.json`, dans ton projet. C'est l'enregistrement de ce que
 verbatra a déjà traduit, et c'est ce qui rend une exécution incrémentielle : chaque exécution diffuse ta source
 par rapport à cette base de référence et n'appelle le provider que pour les clés qui ont réellement changé.

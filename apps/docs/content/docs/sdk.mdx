@@ -1,10 +1,7 @@
 ---
-title: SDK
+title: SDK reference
 description: Drive verbatra from your own scripts, CI jobs, and tooling with the @verbatra/sdk API.
 ---
-
-# SDK
-
 `@verbatra/sdk` is the engine the `verbatra` command runs on. The CLI is a thin wrapper, so whatever
 the command line does, you can do in code: load and validate a config, run a one-shot translation, or
 watch the source and re-translate on every change. Reach for the SDK when you want translation inside
@@ -47,7 +44,7 @@ Eight functions, plus the types you touch when you call them.
   still need translating into a styled Excel workbook for a human translator. `ExportWorkbookInput` is
   `{ config, cwd?, out?, locales?, includeUnchanged? }`, and you get back an `ExportWorkbookResult`:
   the absolute `path` written plus per-locale `rows` counts. No provider call, no lock file. See
-  [Manual translation](/docs/manual-translation).
+  [Human translation](/docs/manual-translation).
 - `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` reads a filled workbook back into
   the locale files, running the same placeholder and ICU checks as `translate`. `ImportWorkbookInput`
   is `{ config, workbook, cwd?, dryRun? }`, and it resolves to the same `RunSummary` as `translate`,

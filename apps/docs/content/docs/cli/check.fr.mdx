@@ -2,9 +2,6 @@
 title: verbatra check
 description: Signale quelles locales ont des chaînes manquantes ou obsolètes, en lecture seule, sans appeler de fournisseur ni écrire de fichiers.
 ---
-
-# verbatra check
-
 Signale, par locale cible, combien de chaînes sont manquantes, obsolètes ou à jour, puis quitte avec un code sur lequel une étape de CI peut s'embrancher. `check` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) juste avant d'appeler un fournisseur, puis s'arrête : aucun appel de fournisseur, aucun fichier écrit, et il ne touche jamais au [fichier de verrouillage](/docs/the-lock-file). C'est le moyen économique, en lecture seule, de demander "mes traductions sont-elles synchronisées ?" avant que quiconque ne paie un fournisseur.
 
 ```bash

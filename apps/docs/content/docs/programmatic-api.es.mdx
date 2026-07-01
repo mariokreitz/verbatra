@@ -1,10 +1,7 @@
 ---
-title: API programática
+title: Recetas del SDK
 description: Recetas para copiar y pegar para ejecutar verbatra desde tus propios scripts, pasos de compilación y trabajos de CI.
 ---
-
-# API programática
-
 La [referencia del SDK](/docs/sdk) cubre cada función y tipo. Esta página es el complemento práctico: un puñado de patrones de extremo a extremo para integrar verbatra en código. Recurre al SDK cuando quieras traducción dentro de un script, un paso de compilación o un trabajo de CI, con control total sobre todo lo que lo rodea.
 
 ## Traducir en un script
@@ -77,7 +74,7 @@ if (summary.hasPendingChanges) {
 
 ## Entregar cadenas a un traductor humano
 
-Exporta las cadenas que necesitan traducción a un libro de Excel, luego importa de vuelta el archivo rellenado. `importWorkbook` devuelve el mismo `RunSummary` que `translate` y ejecuta las mismas comprobaciones de marcadores de posición e ICU, así que una entrega manual encaja en el mismo informe y las mismas puertas que usas para una ejecución automatizada. Consulta [Traducción manual](/docs/manual-translation).
+Exporta las cadenas que necesitan traducción a un libro de Excel, luego importa de vuelta el archivo rellenado. `importWorkbook` devuelve el mismo `RunSummary` que `translate` y ejecuta las mismas comprobaciones de marcadores de posición e ICU, así que una entrega manual encaja en el mismo informe y las mismas puertas que usas para una ejecución automatizada. Consulta [Traducción humana](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";

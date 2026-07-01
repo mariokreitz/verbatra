@@ -2,16 +2,13 @@
 title: verbatra import
 description: Importe un classeur rempli dans tes fichiers de locale, en exécutant les mêmes vérifications de sécurité qu'une exécution automatisée.
 ---
-
-# verbatra import
-
 Relis dans tes fichiers de locale un classeur qu'un traducteur a rempli. `import` exécute les mêmes vérifications d'espaces réservés et d'ICU que [`verbatra translate`](/docs/cli/translate) : chaque valeur est validée, celles qui passent sont écrites et le [fichier de verrouillage](/docs/the-lock-file) est mis à jour, et toute valeur qui échoue à une vérification est retenue et signalée plutôt qu'écrite.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-L'argument est le chemin vers le classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur. Seule la colonne `Translation` est lue ; les cellules vides sont ignorées, jamais écrites comme des chaînes vides. Voir [Traduction manuelle](/docs/manual-translation) pour l'aller-retour complet.
+L'argument est le chemin vers le classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur. Seule la colonne `Translation` est lue ; les cellules vides sont ignorées, jamais écrites comme des chaînes vides. Voir [Traduction humaine](/docs/manual-translation) pour l'aller-retour complet.
 
 ## Arguments
 

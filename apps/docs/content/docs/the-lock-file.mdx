@@ -2,9 +2,6 @@
 title: The lock file
 description: What verbatra.lock.json records, why it is the baseline for incremental runs, and why you commit it.
 ---
-
-# The lock file
-
 verbatra keeps one committed file, `verbatra.lock.json`, in your project. It's the record of what
 verbatra has already translated, and it's what makes a run incremental: each run diffs your source
 against this baseline and calls the provider only for the keys that actually changed.

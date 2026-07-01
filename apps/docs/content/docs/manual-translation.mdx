@@ -1,10 +1,7 @@
 ---
-title: Manual translation
+title: Human translation
 description: Export untranslated strings to an Excel workbook, have a human translate them, and import the result back, with the same safety checks as an automated run.
 ---
-
-# Manual translation
-
 Not every string belongs to a provider. Marketing copy, legal text, and product names usually want a human translator, and some teams keep a pro in the loop for the languages that matter most. verbatra handles this with a workbook round-trip: **export** the strings that need translating into a styled Excel file, hand it to a translator, then **import** the filled file back into your locale files.
 
 The same diff drives both directions. Export picks exactly the keys an automated run would translate (the new and changed ones), so a manually translated locale stays in sync with your source the same way an AI-translated one does. Import runs the same placeholder and ICU checks as `translate`, so if a translator hand-types a value that breaks a placeholder, verbatra withholds it and tells you rather than writing it.

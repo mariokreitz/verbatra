@@ -2,16 +2,13 @@
 title: verbatra import
 description: Importa un libro rellenado de vuelta a tus archivos de locale, ejecutando las mismas comprobaciones de seguridad que una ejecución automatizada.
 ---
-
-# verbatra import
-
 Lee un libro que un traductor rellenó de vuelta a tus archivos de locale. `import` ejecuta las mismas comprobaciones de marcadores de posición e ICU que [`verbatra translate`](/docs/cli/translate): cada valor se valida, los que pasan se escriben y el [archivo de bloqueo](/docs/the-lock-file) se actualiza, y cualquier valor que falle una comprobación se retiene y se informa en lugar de escribirse.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-El argumento es la ruta al libro producido por [`verbatra export`](/docs/cli/export) y rellenado por el traductor. Solo se lee la columna `Translation`; las celdas vacías se omiten, nunca se escriben como cadenas vacías. Consulta [Traducción manual](/docs/manual-translation) para ver el ciclo completo.
+El argumento es la ruta al libro producido por [`verbatra export`](/docs/cli/export) y rellenado por el traductor. Solo se lee la columna `Translation`; las celdas vacías se omiten, nunca se escriben como cadenas vacías. Consulta [Traducción humana](/docs/manual-translation) para ver el ciclo completo.
 
 ## Argumentos
 

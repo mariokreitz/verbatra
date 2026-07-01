@@ -2,9 +2,6 @@
 title: El archivo de bloqueo
 description: Qué registra verbatra.lock.json, por qué es la línea base de las ejecuciones incrementales y por qué lo confirmas.
 ---
-
-# El archivo de bloqueo
-
 verbatra mantiene un único archivo confirmado, `verbatra.lock.json`, en tu proyecto. Es el registro de lo que verbatra ya ha traducido, y es lo que hace que una ejecución sea incremental: cada ejecución compara tu origen con esta línea base y llama al proveedor solo para las claves que realmente cambiaron.
 
 ## Qué registra

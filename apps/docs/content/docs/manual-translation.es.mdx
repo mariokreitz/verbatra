@@ -1,10 +1,7 @@
 ---
-title: Traducción manual
+title: Traducción humana
 description: "Exporta las cadenas sin traducir a un libro de Excel, haz que una persona las traduzca e importa el resultado de vuelta, con las mismas comprobaciones de seguridad que una ejecución automatizada."
 ---
-
-# Traducción manual
-
 No todas las cadenas deberían pasar por un proveedor. El texto de marketing, el texto legal y los nombres de productos normalmente quieren un traductor humano, y algunos equipos mantienen a un profesional en el bucle para los idiomas que más importan. verbatra maneja esto con un ciclo de ida y vuelta de libro: **exporta** las cadenas que necesitan traducción a un archivo de Excel con estilo, entrégalo a un traductor y luego **importa** el archivo rellenado de vuelta a tus archivos de locale.
 
 El mismo diff impulsa ambos flujos. La exportación selecciona exactamente las claves que traduciría una ejecución automatizada (las nuevas y las modificadas), así que un locale traducido a mano se mantiene sincronizado con tu origen igual que uno traducido por IA. La importación ejecuta las mismas comprobaciones de marcadores de posición e ICU que `translate`, así que si un traductor teclea a mano un valor que rompe un marcador de posición, verbatra lo retiene y te lo dice en lugar de escribirlo.

@@ -2,16 +2,13 @@
 title: verbatra export
 description: Exporte les chaînes non traduites dans un classeur Excel stylisé pour un traducteur humain.
 ---
-
-# verbatra export
-
 Écris les chaînes qui ont besoin d'être traduites dans un classeur Excel stylisé qu'un humain peut remplir, puis renvoie-le pour [`verbatra import`](/docs/cli/import). Le classeur comporte une feuille par locale cible plus une feuille d'instructions. Le traducteur édite une seule colonne ; tout le reste est verrouillé.
 
 ```bash
 verbatra export
 ```
 
-Par défaut, ceci écrit `verbatra-translations.xlsx` dans le répertoire de travail, ne contenant que les chaînes **manquantes et modifiées** : les mêmes clés qu'une exécution `translate` automatisée enverrait à un fournisseur. Voir [Traduction manuelle](/docs/manual-translation) pour l'aller-retour complet.
+Par défaut, ceci écrit `verbatra-translations.xlsx` dans le répertoire de travail, ne contenant que les chaînes **manquantes et modifiées** : les mêmes clés qu'une exécution `translate` automatisée enverrait à un fournisseur. Voir [Traduction humaine](/docs/manual-translation) pour l'aller-retour complet.
 
 ## Options
 

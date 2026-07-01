@@ -1,10 +1,7 @@
 ---
-title: Programmatic API
+title: SDK recipes
 description: Copy-paste recipes for running verbatra from your own scripts, build steps, and CI jobs.
 ---
-
-# Programmatic API
-
 The [SDK reference](/docs/sdk) covers every function and type. This page is the hands-on companion: a handful of end-to-end patterns for wiring verbatra into code. Reach for the SDK when you want translation inside a script, a build step, or a CI job, with full control over everything around it.
 
 ## Translate in a script
@@ -77,7 +74,7 @@ if (summary.hasPendingChanges) {
 
 ## Hand strings to a human translator
 
-Export the strings that need translating into an Excel workbook, then import the filled file back. `importWorkbook` returns the same `RunSummary` as `translate` and runs the same placeholder and ICU checks, so a manual handoff slots into the exact reporting and gating you use for an automated run. See [Manual translation](/docs/manual-translation).
+Export the strings that need translating into an Excel workbook, then import the filled file back. `importWorkbook` returns the same `RunSummary` as `translate` and runs the same placeholder and ICU checks, so a manual handoff slots into the exact reporting and gating you use for an automated run. See [Human translation](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";

@@ -2,16 +2,13 @@
 title: verbatra import
 description: Import a filled workbook back into your locale files, running the same safety checks as an automated run.
 ---
-
-# verbatra import
-
 Read a workbook a translator filled in back into your locale files. `import` runs the same placeholder and ICU checks as [`verbatra translate`](/docs/cli/translate): every value is validated, the ones that pass are written and the [lock file](/docs/the-lock-file) is updated, and any value that fails a check is withheld and reported instead of written.
 
 ```bash
 verbatra import verbatra-translations.xlsx
 ```
 
-The argument is the path to the workbook produced by [`verbatra export`](/docs/cli/export) and filled in by the translator. Only the `Translation` column is read; empty cells are skipped, never written as empty strings. See [Manual translation](/docs/manual-translation) for the full round-trip.
+The argument is the path to the workbook produced by [`verbatra export`](/docs/cli/export) and filled in by the translator. Only the `Translation` column is read; empty cells are skipped, never written as empty strings. See [Human translation](/docs/manual-translation) for the full round-trip.
 
 ## Arguments
 

@@ -2,9 +2,6 @@
 title: verbatra diff
 description: Listet pro Locale die genauen Schlüssel auf, die hinzugefügt, neu übersetzt oder verwaist würden, schreibgeschützt, ohne einen Provider aufzurufen oder Dateien zu schreiben.
 ---
-
-# verbatra diff
-
 Zeigt pro Ziel-Locale die tatsächlich ausstehenden Übersetzungsänderungen als Schlüssellisten: die Schlüssel, die hinzugefügt würden, die Schlüssel, die neu übersetzt würden, und die Schlüssel, die jetzt im Ziel verwaist sind. `diff` führt dieselbe Lese- und Diff-Operation aus, die [`verbatra translate`](/docs/cli/translate) direkt macht, bevor es einen Provider aufrufen würde, hört aber dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, und es berührt niemals die [Lock-Datei](/docs/the-lock-file).
 
 ```bash

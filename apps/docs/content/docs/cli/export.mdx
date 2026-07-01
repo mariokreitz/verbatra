@@ -2,16 +2,13 @@
 title: verbatra export
 description: Export untranslated strings into a styled Excel workbook for a human translator.
 ---
-
-# verbatra export
-
 Write the strings that need translating into a styled Excel workbook a human can fill in, then send back for [`verbatra import`](/docs/cli/import). The workbook has one sheet per target locale plus an instructions sheet. The translator edits a single column; everything else is locked.
 
 ```bash
 verbatra export
 ```
 
-By default this writes `verbatra-translations.xlsx` in the working directory with only the **missing and changed** strings: the same keys an automated `translate` run would send to a provider. See [Manual translation](/docs/manual-translation) for the full round-trip.
+By default this writes `verbatra-translations.xlsx` in the working directory with only the **missing and changed** strings: the same keys an automated `translate` run would send to a provider. See [Human translation](/docs/manual-translation) for the full round-trip.
 
 ## Options
 

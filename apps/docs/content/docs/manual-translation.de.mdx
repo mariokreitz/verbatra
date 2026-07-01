@@ -1,10 +1,7 @@
 ---
-title: Manuelle Übersetzung
+title: Menschliche Übersetzung
 description: Exportiere unübersetzte Strings in eine Excel-Arbeitsmappe, lass einen Menschen sie übersetzen und importiere das Ergebnis zurück, mit denselben Sicherheitsprüfungen wie ein automatisierter Lauf.
 ---
-
-# Manuelle Übersetzung
-
 Nicht jeder String gehört zu einem Provider. Marketing-Texte, juristische Texte und Produktnamen wollen meist einen menschlichen Übersetzer, und manche Teams halten für die wichtigsten Sprachen einen Profi im Loop. verbatra löst das mit einem Arbeitsmappen-Round-Trip: **exportiere** die zu übersetzenden Strings in eine gestylte Excel-Datei, gib sie einem Übersetzer und **importiere** dann die ausgefüllte Datei zurück in deine Locale-Dateien.
 
 Derselbe Diff treibt beide Richtungen. Der Export wählt genau die Keys aus, die ein automatisierter Lauf übersetzen würde (die neuen und geänderten), sodass eine manuell übersetzte Locale genauso mit deiner Quelle synchron bleibt wie eine KI-übersetzte. Der Import führt dieselben Platzhalter- und ICU-Prüfungen aus wie `translate`, sodass verbatra einen Wert zurückhält und dir Bescheid gibt, statt ihn zu schreiben, falls ein Übersetzer einen Wert von Hand eintippt, der einen Platzhalter zerstört.
