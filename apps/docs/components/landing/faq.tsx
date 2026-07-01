@@ -84,7 +84,7 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const reduced = useReducedMotion() ?? false;
 
   return (
-    <section className="mx-auto mt-24 max-w-5xl px-6">
+    <section className="mx-auto mt-24 max-w-6xl px-6">
       <div className="grid gap-10 md:grid-cols-5 md:gap-12">
         {/* Left: sticky intro and CTAs. self-start lets it stick instead of stretching. */}
         <div className="md:col-span-2 md:sticky md:top-24 md:self-start">

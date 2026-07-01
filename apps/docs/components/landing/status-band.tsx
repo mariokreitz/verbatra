@@ -68,7 +68,7 @@ export async function StatusBand({
   return (
     <section
       aria-label={t("label")}
-      className={inline ? "mx-auto w-full" : "mx-auto max-w-5xl px-6"}
+      className={inline ? "mx-auto w-full" : "mx-auto max-w-6xl px-6"}
     >
       <ul
         className={

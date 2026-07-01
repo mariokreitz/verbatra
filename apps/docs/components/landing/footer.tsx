@@ -133,7 +133,7 @@ export async function FullFooter(): Promise<ReactNode> {
         </span>
       </div>
 
-      <div className="relative z-10 mx-auto max-w-5xl px-6 py-16">
+      <div className="relative z-10 mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-x-8 gap-y-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <span className="inline-flex items-center gap-2.5">

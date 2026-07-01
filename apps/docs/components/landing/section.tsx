@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 // effect-backed CTA, the footer) keep their own markup.
 const WIDTHS = {
   md: "max-w-3xl",
-  lg: "max-w-5xl",
+  lg: "max-w-6xl",
 } as const;
 
 export function Section({

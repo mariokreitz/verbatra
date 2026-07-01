@@ -58,7 +58,7 @@ export async function LandingHero(): Promise<ReactNode> {
   return (
     <section className="relative overflow-hidden border-b border-fd-border">
       <Backdrop />
-      <div className="relative mx-auto max-w-5xl px-6 pt-20 pb-20 md:pt-24">
+      <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-20 md:pt-24">
         <div className="mx-auto max-w-[820px] text-center">
           {/* The localized headline carries the lavender-to-violet gradient treatment. The
               protective clamp floor keeps the longest localized string (German) from clipping
