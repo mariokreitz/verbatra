@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { cn } from "@/lib/utils";
 import { NPM_CLI } from "./links";
 
 const MANAGERS = [
@@ -12,8 +13,12 @@ const MANAGERS = [
 ] as const;
 
 const CLI_TOKEN = "@verbatra/cli";
+// Same macOS window chrome as the hero Terminal, tying the two cards together.
+const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
 
-// Package-manager tabs with a copy button: interactive, so it is a client leaf.
+// Terminal-style install card: a windowed frame whose title bar carries the package-manager
+// tabs, a surface-bg body with the glow $ prompt, the @verbatra/cli npm link, and a copy
+// button. Interactive, so it is a client leaf.
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("pnpm");
@@ -33,31 +38,45 @@ export function PackageInstall(): ReactNode {
   const tokenAt = current.command.indexOf(CLI_TOKEN);
 
   return (
-    <div className="not-prose w-full max-w-[27rem] overflow-hidden rounded-lg border border-fd-border bg-fd-card">
-      <div role="tablist" aria-label={t("tablistLabel")} className="flex border-b border-fd-border">
-        {MANAGERS.map((m) => {
-          const selected = m.id === active;
-          return (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              key={m.id}
-              onClick={() => setActive(m.id)}
-              className={`px-3.5 py-2 font-mono text-xs lowercase transition-colors ${
-                selected
-                  ? "text-fd-foreground"
-                  : "text-fd-muted-foreground hover:text-fd-foreground"
-              }`}
-              style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
-            >
-              {m.label}
-            </button>
-          );
-        })}
+    <div
+      className="not-prose w-full max-w-[28rem] overflow-hidden rounded-2xl border border-fd-border"
+      style={{ background: "var(--surface-card)", boxShadow: "var(--shadow-panel)" }}
+    >
+      <div className="flex items-center gap-3 border-b border-fd-border px-4 py-2.5">
+        <span className="flex gap-1.5" aria-hidden="true">
+          {WINDOW_DOTS.map((color) => (
+            <span key={color} className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+          ))}
+        </span>
+        <div role="tablist" aria-label={t("tablistLabel")} className="flex">
+          {MANAGERS.map((m) => {
+            const selected = m.id === active;
+            return (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                key={m.id}
+                onClick={() => setActive(m.id)}
+                className={cn(
+                  "rounded px-3 py-1.5 font-mono text-xs lowercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+                  selected
+                    ? "text-fd-foreground"
+                    : "text-fd-muted-foreground hover:text-fd-foreground",
+                )}
+                style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex items-center gap-3 px-4 py-2.5 font-mono text-sm">
-        <span className="text-fd-muted-foreground" aria-hidden="true">
+      <div
+        className="flex items-center gap-3 px-4 py-3 font-mono text-sm"
+        style={{ background: "var(--surface-bg)" }}
+      >
+        <span aria-hidden="true" style={{ color: "var(--v-glow)" }}>
           $
         </span>
         <code className="text-fd-foreground">
@@ -83,7 +102,7 @@ export function PackageInstall(): ReactNode {
           type="button"
           onClick={copy}
           aria-label={t("copyAria")}
-          className="ms-auto rounded-md border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground"
+          className="ms-auto rounded-md border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >
           {copied ? t("copied") : t("copy")}
         </button>
