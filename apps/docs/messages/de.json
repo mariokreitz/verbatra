@@ -12,6 +12,22 @@
       "ctaQuickstart": "Zum Schnellstart",
       "ctaGithub": "Auf GitHub mit Stern versehen"
     },
+    "pillars": {
+      "heading": "Ein Tool für den gesamten Übersetzungsablauf.",
+      "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzer und die Automatisierung, um jede Locale synchron zu halten.",
+      "ai": {
+        "title": "KI-Übersetzung",
+        "body": "Übersetze nur, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini oder DeepL. Eine committete Lock-Datei hält jeden Lauf inkrementell, und die Platzhalter- und ICU-Integrität wird geprüft, bevor irgendetwas geschrieben wird."
+      },
+      "excel": {
+        "title": "Excel-Übergabe",
+        "body": "Führe verbatra export aus, um eine gestylte .xlsx-Arbeitsmappe zu erzeugen, gib sie an ein Übersetzungsbüro oder interne Übersetzer, und verbatra import liest ihre Änderungen zurück in deine Locale-Dateien. Kombiniere maschinelle Übersetzung mit professioneller menschlicher Arbeit."
+      },
+      "automation": {
+        "title": "Automatisierung",
+        "body": "Halte jede Locale synchron, während du arbeitest: verbatra watch übersetzt bei Änderungen, CI-freundliche Exit-Codes und --json-Ausgabe fügen sich in jede Pipeline ein, und eine GitHub Action führt es in deinem Workflow aus."
+      }
+    },
     "status": {
       "label": "Build-Status, Testabdeckung, Paketversionen, Downloads und Lizenz",
       "cliVersionAlt": "Neueste veröffentlichte @verbatra/cli-Version auf npm",
@@ -166,8 +182,7 @@
     "nav": {
       "docs": "Docs",
       "providers": "Anbieter",
-      "formats": "Formate",
-      "getStarted": "Loslegen"
+      "formats": "Formate"
     }
   },
   "legal": {

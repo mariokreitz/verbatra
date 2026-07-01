@@ -6,6 +6,7 @@ import { FinalCta } from "@/components/landing/final-cta";
 import { FullFooter } from "@/components/landing/footer";
 import { FrameworksCloud } from "@/components/landing/frameworks-cloud";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { Pillars } from "@/components/landing/pillars";
 import { ProvidersCloud } from "@/components/landing/providers-cloud";
 import { LandingHero } from "@/components/landing-hero";
 import type { Locale } from "@/lib/i18n";
@@ -47,6 +48,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
       <LandingHero />
+      <Pillars />
       <FrameworksCloud />
       <ProvidersCloud />
       <HowItWorks />

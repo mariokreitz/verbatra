@@ -12,6 +12,22 @@
       "ctaQuickstart": "Read the quickstart",
       "ctaGithub": "Star on GitHub"
     },
+    "pillars": {
+      "heading": "One tool for the whole translation loop.",
+      "lead": "verbatra is more than AI translation. It covers machine translation you control, a clean Excel handoff for human translators, and the automation to keep every locale in sync.",
+      "ai": {
+        "title": "AI translation",
+        "body": "Translate only what changed through your choice of provider: Anthropic, OpenAI, Gemini, or DeepL. A committed lock file keeps every run incremental, and placeholder and ICU integrity is checked before anything is written."
+      },
+      "excel": {
+        "title": "Excel handoff",
+        "body": "Run verbatra export to produce a styled .xlsx workbook, hand it to a translation office or in-house translators, then verbatra import reads their edits back into your locale files. Mix machine translation with professional human work."
+      },
+      "automation": {
+        "title": "Automation",
+        "body": "Keep every locale in sync as you work: verbatra watch translates on change, CI-friendly exit codes and --json output slot into any pipeline, and a GitHub Action runs it in your workflow."
+      }
+    },
     "status": {
       "label": "Build status, coverage, package versions, downloads, and license",
       "cliVersionAlt": "Latest published @verbatra/cli version on npm",
@@ -166,8 +182,7 @@
     "nav": {
       "docs": "Docs",
       "providers": "Providers",
-      "formats": "Formats",
-      "getStarted": "Get started"
+      "formats": "Formats"
     }
   },
   "legal": {

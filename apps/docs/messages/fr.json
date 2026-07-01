@@ -12,6 +12,22 @@
       "ctaQuickstart": "Lis le guide de démarrage",
       "ctaGithub": "Ajoute une étoile sur GitHub"
     },
+    "pillars": {
+      "heading": "Un seul outil pour toute la boucle de traduction.",
+      "lead": "verbatra est plus que de la traduction par IA. Il couvre la traduction automatique que tu contrôles, un transfert Excel propre pour les traducteurs humains, et l'automatisation pour garder chaque locale synchronisée.",
+      "ai": {
+        "title": "Traduction par IA",
+        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini ou DeepL. Un fichier de verrouillage validé garde chaque exécution incrémentale, et l'intégrité des espaces réservés et de l'ICU est vérifiée avant que quoi que ce soit ne soit écrit."
+      },
+      "excel": {
+        "title": "Transfert Excel",
+        "body": "Lance verbatra export pour produire un classeur .xlsx stylisé, confie-le à une agence de traduction ou à des traducteurs internes, puis verbatra import relit leurs modifications dans tes fichiers de locale. Combine la traduction automatique avec le travail humain professionnel."
+      },
+      "automation": {
+        "title": "Automatisation",
+        "body": "Garde chaque locale synchronisée pendant que tu travailles : verbatra watch traduit à chaque changement, des codes de sortie compatibles CI et la sortie --json s'intègrent à n'importe quel pipeline, et une GitHub Action l'exécute dans ton workflow."
+      }
+    },
     "status": {
       "label": "Statut de build, couverture, versions des paquets, téléchargements et licence",
       "cliVersionAlt": "Dernière version publiée de @verbatra/cli sur npm",
@@ -166,8 +182,7 @@
     "nav": {
       "docs": "Docs",
       "providers": "Fournisseurs",
-      "formats": "Formats",
-      "getStarted": "Commencer"
+      "formats": "Formats"
     }
   },
   "legal": {
