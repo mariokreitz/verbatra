@@ -11,9 +11,9 @@ import { SectionHead } from "./section-head";
 const ICON_CLASS = "text-[color:var(--accent)]";
 
 // Each tile links to its section on the providers doc, so the tiles are genuinely
-// interactive (focusable, keyboard-reachable) and the reveal can mirror across hover and
-// focus without a non-interactive tabindex. Icons are decorative; the link text names the
-// provider.
+// interactive (focusable, keyboard-reachable) and the hover affordance mirrors across hover
+// and focus without a non-interactive tabindex. Icons are decorative; the link text names
+// the provider.
 type Provider = { name: string; kind: string; href: string; icon: ReactNode };
 
 const PROVIDERS: ReadonlyArray<Provider> = [
@@ -47,18 +47,16 @@ const PROVIDERS: ReadonlyArray<Provider> = [
 
 const MotionLink = motion.create(Link);
 
-// Blur-flip provider logo cloud. Tiles rest dimmed, blurred, and desaturated; on hover or
-// keyboard focus they sharpen, lift, and gain the brand glow border. Under reduced motion
-// the same detection used elsewhere (prefers-reduced-motion) renders the sharp state with no
-// transform or transition.
+// Provider logo cloud. Tiles rest fully sharp and legible (full opacity, no blur or
+// desaturation); on hover or keyboard focus they gain a small lift plus the brand glow
+// border and shadow. Under reduced motion the lift is dropped (no transform), leaving the
+// instant border/shadow affordance.
 export function LogoCloud(): ReactNode {
   const t = useTranslations("landing.providers");
   const reduced = useReducedMotion();
 
-  // The "revealed" look; under reduced motion it is also the resting (static) look.
-  const revealed = { opacity: 1, filter: "blur(0px) grayscale(0)", y: 0 };
-  const dimmed = { opacity: 0.5, filter: "blur(1.5px) grayscale(1)", y: 0 };
-  const lifted = { opacity: 1, filter: "blur(0px) grayscale(0)", y: -4 };
+  // The lift is the only animated property; the glow border/shadow are handled in CSS.
+  const lifted = { y: -4 };
 
   return (
     <section className="mx-auto mt-24 max-w-5xl px-6">
@@ -74,10 +72,8 @@ export function LogoCloud(): ReactNode {
           <li key={provider.name}>
             <MotionLink
               href={provider.href}
-              className="flex flex-col items-center justify-center gap-2.5 rounded-xl border border-fd-border p-6 text-center transition-[border-color,box-shadow] hover:border-[color:color-mix(in_srgb,var(--v-glow)_40%,var(--border-default))] focus-visible:border-[color:color-mix(in_srgb,var(--v-glow)_40%,var(--border-default))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-fd-background motion-reduce:transition-none"
+              className="flex flex-col items-center justify-center gap-2.5 rounded-xl border border-fd-border p-6 text-center transition-[border-color,box-shadow] hover:border-[color:color-mix(in_srgb,var(--v-glow)_40%,var(--border-default))] hover:shadow-[0_18px_40px_-24px_color-mix(in_srgb,var(--v-purple)_60%,transparent)] focus-visible:border-[color:color-mix(in_srgb,var(--v-glow)_40%,var(--border-default))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-fd-background motion-reduce:transition-none"
               style={{ background: "var(--surface-card)" }}
-              initial={false}
-              animate={reduced ? revealed : dimmed}
               whileHover={reduced ? undefined : lifted}
               whileFocus={reduced ? undefined : lifted}
               transition={reduced ? { duration: 0 } : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
