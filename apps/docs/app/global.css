@@ -200,6 +200,57 @@ h6 {
   background: var(--v-glow);
 }
 
+/* Home / legal navbar (navbar-classic): a frosted sticky bar with a glow bottom-seam. The
+   docs layout renders its own header, so this only targets #nd-nav (home + legal) and cannot
+   affect the docs navbar or sidebar. The bar already ships sticky + backdrop-blur-lg. */
+#nd-nav {
+  background-color: color-mix(in srgb, var(--color-fd-background) 70%, transparent);
+  border-bottom-color: transparent;
+}
+
+#nd-nav::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--v-glow) 45%, transparent) 50%,
+    transparent
+  );
+}
+
+/* Main nav links carry a data-active attribute; a glow-accent underline fades in on hover
+   and marks the active page. The brand lockup, GitHub icon, and CTA lack the attribute. */
+#nd-nav a[data-active] {
+  position: relative;
+}
+
+#nd-nav a[data-active]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0.5rem;
+  bottom: 0.25rem;
+  height: 1px;
+  background: color-mix(in srgb, var(--v-glow) 55%, transparent);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--ease-out);
+}
+
+#nd-nav a[data-active]:hover::after,
+#nd-nav a[data-active="true"]::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nd-nav a[data-active]::after {
+    transition: none;
+  }
+}
+
 figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }

@@ -164,7 +164,10 @@
       "vmarkAlt": "verbatra"
     },
     "nav": {
-      "docs": "Documentación"
+      "docs": "Documentación",
+      "providers": "Proveedores",
+      "formats": "Formatos",
+      "getStarted": "Empezar"
     }
   },
   "legal": {
