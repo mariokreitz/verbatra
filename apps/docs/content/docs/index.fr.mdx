@@ -11,6 +11,8 @@ description: Garde tes fichiers de langue i18n synchronisés. verbatra traduit u
   secondary={{ label: "Lire la référence de la CLI", href: "/docs/cli" }}
 />
 
+<DocsHomeBody>
+
 <DocsHomePaths
   cards={[
     {
@@ -41,15 +43,7 @@ Quatre étapes te mènent d'un projet vide à des fichiers de langue traduits. L
 
 ### 1. Installe
 
-verbatra est une dépendance de développement. Installe-la et lance le binaire via ton gestionnaire de paquets.
-
-```bash
-pnpm add -D @verbatra/cli
-# npm install -D @verbatra/cli
-# yarn add -D @verbatra/cli
-```
-
-Nécessite Node.js `>=22.14.0`. Invoque-la avec `pnpm verbatra ...`, `npx verbatra ...` ou `yarn verbatra ...`.
+verbatra est une dépendance de développement (récupère-la avec la carte d'installation ci-dessus, ou `pnpm add -D @verbatra/cli`). Elle nécessite Node.js `>=22.14.0`, et tu lances le binaire via ton gestionnaire de paquets : `pnpm verbatra ...`, `npx verbatra ...` ou `yarn verbatra ...`.
 
 ### 2. Génère une configuration
 
@@ -83,29 +77,6 @@ verbatra translate
 
 verbatra lit la langue source, la compare à ce qu'il a traduit la dernière fois, et envoie uniquement les chaînes nouvelles et modifiées à Gemini. Chaque fichier cible est écrit sur place, à côté de ta source. Relance-le sans rien modifier et rien n'est envoyé : chaque clé est déjà à jour.
 
-<DocsHomePaths
-  cards={[
-    {
-      tag: "Ensuite",
-      label: "Ta première traduction",
-      body: "Lis le résumé d'exécution et vois ce que veut dire incrémental en pratique.",
-      href: "/docs/your-first-translation",
-    },
-    {
-      tag: "Référence",
-      label: "La CLI verbatra",
-      body: "Chaque commande, chaque option et le contrat de codes de sortie sur lequel la CI se branche.",
-      href: "/docs/cli",
-    },
-    {
-      tag: "Dans le code",
-      label: "Le SDK",
-      body: "Lance translate, watch, check et diff depuis tes propres scripts.",
-      href: "/docs/sdk",
-    },
-  ]}
-/>
-
 ## Ce que fait verbatra
 
 <DocsHomeFeatures
@@ -129,6 +100,4 @@ verbatra lit la langue source, la compare à ce qu'il a traduit la dernière foi
   ]}
 />
 
-## Référence
-
-<ReferenceRow />
+</DocsHomeBody>

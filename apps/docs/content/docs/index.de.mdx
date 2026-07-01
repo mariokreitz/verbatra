@@ -11,6 +11,8 @@ description: Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur d
   secondary={{ label: "CLI-Referenz lesen", href: "/docs/cli" }}
 />
 
+<DocsHomeBody>
+
 <DocsHomePaths
   cards={[
     {
@@ -41,15 +43,7 @@ Vier Schritte bringen dich vom leeren Projekt zu übersetzten Locale-Dateien. Di
 
 ### 1. Installieren
 
-verbatra ist eine Dev-Abhängigkeit. Installiere es und führe das Binary über deinen Paketmanager aus.
-
-```bash
-pnpm add -D @verbatra/cli
-# npm install -D @verbatra/cli
-# yarn add -D @verbatra/cli
-```
-
-Benötigt Node.js `>=22.14.0`. Rufe es mit `pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...` auf.
+verbatra ist eine Dev-Abhängigkeit (hol es dir über die Installationskarte oben oder mit `pnpm add -D @verbatra/cli`). Es benötigt Node.js `>=22.14.0`, und du rufst das Binary über deinen Paketmanager auf: `pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...`.
 
 ### 2. Eine Konfiguration erzeugen
 
@@ -83,29 +77,6 @@ verbatra translate
 
 verbatra liest die Quell-Locale, vergleicht sie mit dem, was es beim letzten Mal übersetzt hat, und schickt nur die neuen und geänderten Strings an Gemini. Jede Zieldatei wird an Ort und Stelle geschrieben, neben deiner Quelle. Führe es erneut aus, ohne etwas zu ändern, und nichts wird gesendet: Jeder Key ist bereits aktuell.
 
-<DocsHomePaths
-  cards={[
-    {
-      tag: "Als Nächstes",
-      label: "Deine erste Übersetzung",
-      body: "Lies die Lauf-Zusammenfassung und sieh, was inkrementell in der Praxis bedeutet.",
-      href: "/docs/your-first-translation",
-    },
-    {
-      tag: "Referenz",
-      label: "Die verbatra CLI",
-      body: "Jeder Befehl, jedes Flag und der Exit-Code-Vertrag, auf den CI verzweigt.",
-      href: "/docs/cli",
-    },
-    {
-      tag: "Im Code",
-      label: "Das SDK",
-      body: "Führe translate, watch, check und diff aus deinen eigenen Skripten aus.",
-      href: "/docs/sdk",
-    },
-  ]}
-/>
-
 ## Was verbatra tut
 
 <DocsHomeFeatures
@@ -129,6 +100,4 @@ verbatra liest die Quell-Locale, vergleicht sie mit dem, was es beim letzten Mal
   ]}
 />
 
-## Referenz
-
-<ReferenceRow />
+</DocsHomeBody>
