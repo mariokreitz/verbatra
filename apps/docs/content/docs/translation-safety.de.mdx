@@ -5,26 +5,56 @@ description: Die Integritätsprüfungen und Sicherheitsgrenzen, die entscheiden,
 
 # Übersetzungssicherheit
 
-Maschinenausgabe wird standardmäßig nicht vertraut. verbatra führt jede Übersetzung durch Integritätsprüfungen, bevor es schreibt, und es hält nicht vertrauenswürdigen Text von den Instruktionen fern, die es dem Provider sendet. Diese Seite behandelt, was diese Prüfungen sind und was sie schützen.
+verbatra vertraut Maschinenausgabe standardmäßig nicht. Es führt jede Übersetzung durch Integritätsprüfungen,
+bevor es schreibt, und es hält nicht vertrauenswürdigen Text von den Instruktionen fern, die es dem Provider sendet. Diese
+Seite behandelt, was diese Prüfungen sind und was sie schützen.
 
 ## Platzhalter-Integrität
 
-Ein übersetzter Wert muss dieselben Platzhalter wie seine Quelle tragen. Nach der Übersetzung vergleicht verbatra die Platzhalter-Menge jedes Ergebnisses mit dem Quellwert. Eine Übersetzung, die einen Platzhalter weglässt, hinzufügt oder verändert, besteht die Prüfung nicht und wird zurückgehalten statt geschrieben. Der zurückgehaltene Schlüssel behält seinen vorherigen Lock-Hash, sodass der nächste Lauf ihn erneut versucht, und er wird pro Locale als Integritäts-Diskrepanz in der Lauf-Zusammenfassung gemeldet.
+Ein übersetzter Wert muss dieselben Platzhalter tragen wie seine Quelle. Nach der Übersetzung vergleicht verbatra
+die Platzhaltermenge jedes Ergebnisses gegen den Quellwert. Lass einen Platzhalter weg, füge einen hinzu oder verändere einen, und die
+Übersetzung besteht die Prüfung nicht und wird zurückgehalten statt geschrieben. Der zurückgehaltene Key behält seinen vorherigen Lock-Hash,
+sodass der nächste Lauf ihn erneut versucht, und er erscheint pro Locale als Integritäts-Mismatch in der Lauf-Zusammenfassung.
 
-Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next, ngx-translate und YAML, einfache Klammern `{name}` und `{0}` für vue-i18n, ICU-Argument- und Tag-Namen für next-intl und ARB, und Inline-Platzhalter-IDs für XLIFF. Für i18next werden auch `$t(...)`-Verschachtelungsreferenzen geschützt: Eine Übersetzung, die eine `$t(...)`-Referenz weglässt, verändert oder übersetzt, besteht die Prüfung nicht und wird zurückgehalten. Siehe [Formate](/docs/formats) für die Syntax jedes einzelnen.
+Was als Platzhalter zählt, hängt vom Format ab: `{{double-brace}}`-Tokens für i18next,
+ngx-translate und YAML, einfache Klammern `{name}` und `{0}` für vue-i18n, ICU-Argument- und Tag-Namen für
+next-intl und ARB, und Inline-Platzhalter-IDs für XLIFF. Für i18next werden auch `$t(...)`-Verschachtelungsreferenzen
+geschützt: lass eine `$t(...)`-Referenz weg, verändere oder übersetze sie, und die Übersetzung besteht die Prüfung nicht und
+wird zurückgehalten. Ist die Quelle also `Welcome, {{name}}` und das Modell gibt `Bienvenido` mit fehlendem
+`{{name}}` zurück, hält verbatra sie zurück, statt einen kaputten String auszuliefern. Siehe
+[Formats](/docs/formats) für die Syntax jedes einzelnen.
 
 ## ICU-Gültigkeit
 
-Für die ICU-Formate, next-intl und ARB, parst verbatra jeden Quellwert. Ein Quellschlüssel, dessen Wert kein gültiges ICU ist, wird beiseitegelegt und für die Übersetzung übersprungen, statt in fehlerhaftem Zustand gesendet zu werden, und er wird als ungültiges ICU in der Zusammenfassung gemeldet. Der ICU-Körper wird wörtlich durch die Pipeline geführt; nichts wird aufgelöst oder umgeschrieben.
+Für die ICU-Formate, next-intl und ARB, parst verbatra jeden Quellwert. Ein Quell-Key, dessen Wert
+kein gültiges ICU ist, wird beiseitegelegt und von der Übersetzung übersprungen, statt in einem kaputten Zustand gesendet zu werden,
+und er wird als ungültiges ICU in der Zusammenfassung gemeldet. Der ICU-Körper bleibt wörtlich durch die Pipeline:
+nichts wird aufgelöst oder umgeschrieben.
 
 ## Die Prompt-Injection-Grenze
 
-Die Strings, die du übersetzt, sind nicht vertrauenswürdig und können Text enthalten, der wie eine Instruktion aussieht. verbatra behandelt sie so. Die Systemregeln, die es einem Provider sendet, sind Konstanten zur Kompilierzeit. Alle variablen Eingaben, die zu übersetzenden Einträge zusammen mit deinem Glossar und Ton, reisen nur in der Daten-Nutzlast des Benutzer-Turns, niemals in den Instruktionskanal gespleißt. Die Provider-Ausgabe wird auf ein Schema beschränkt und validiert, und die Platzhalter-Prüfung läuft auf allem, was zurückkommt. Ein String, der versucht, das Modell umzuleiten, kann die Regeln nicht erreichen, und ein Ergebnis, das einen Platzhalter zerstört, wird zurückgehalten.
+Die Strings, die du übersetzt, sind nicht vertrauenswürdig: sie können Text enthalten, der wie eine Instruktion aussieht
+(denk an einen UI-String, der wörtlich "ignore your instructions" lautet). verbatra behandelt sie so.
+Die Systemregeln, die es einem Provider sendet, sind Konstanten zur Kompilierzeit. Alle variablen Eingaben, die zu
+übersetzenden Einträge zusammen mit deinem Glossar und Ton, reisen nur in der Daten-Nutzlast des Benutzer-Turns, niemals
+in den Instruktionskanal gespleißt. Die Provider-Ausgabe wird auf ein Schema beschränkt und validiert, und die
+Platzhalter-Prüfung läuft auf allem, was zurückkommt. Ein String, der versucht, das Modell umzuleiten, kann die
+Regeln nicht erreichen, und ein Ergebnis, das einen Platzhalter zerstört, wird zurückgehalten.
 
-## Geheimnisse leaken niemals
+## Geheimnisse leaken nie
 
-API-Schlüssel werden nur aus der Umgebung gelesen, durch die Provider, niemals aus deiner Konfiguration oder den Argumenten. Wenn ein Provider-SDK-Aufruf fehlschlägt, wird sein roher Fehler (der Request-Header oder einen Schlüssel tragen kann) verworfen, niemals gebunden, protokolliert oder erneut geworfen. An seiner Stelle löst verbatra seinen eigenen strukturierten Fehler mit einer statischen, geheimnisfreien Nachricht aus. Die Schlüssel sind durch Konstruktion geheimnisfrei: Nichts Sensibles erreicht jemals einen String, der bereinigt werden müsste. Ein Schlüssel kann nicht in Logs, in Fehlermeldungen oder in der Ausgabe erscheinen.
+Provider lesen API-Schlüssel nur aus der Umgebung, niemals aus deiner Konfiguration oder den Argumenten. Wenn ein
+Provider-SDK-Aufruf fehlschlägt, wird sein roher Fehler (der Request-Header oder einen Schlüssel tragen kann) verworfen, niemals
+gebunden, protokolliert oder erneut geworfen. An seiner Stelle löst verbatra seinen eigenen strukturierten Fehler mit einer statischen,
+geheimnisfreien Nachricht aus. Die Schlüssel sind durch Konstruktion geheimnisfrei: nichts Sensibles erreicht jemals einen String,
+der bereinigt werden müsste. Ein Schlüssel kann nicht in Logs, in Fehlermeldungen oder in der Ausgabe erscheinen.
 
 ## Was du siehst
 
-Jedes dieser Ergebnisse ist Daten in der Lauf-Zusammenfassung, pro Locale: die übersetzten Schlüssel, die wegen einer Platzhalter-Diskrepanz zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quellschlüssel und etwaige Hinweise. Hinweise umfassen Provider-Hinweise und SDK-Hinweise, wie eine Plural-Kategorie-Warnung (Code `PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr Plural-Kategorien benötigt, als die Quelle liefert; siehe [Sprache hinzufügen](/docs/add-a-language) dafür, wie du diese Formen stattdessen synthetisierst. Nichts wird verborgen, und der Fehlschlag eines einzelnen Locales stoppt die anderen nicht. Siehe [Wie es funktioniert](/docs/how-it-works) dafür, wo jede Prüfung im Lauf sitzt.
+Jedes dieser Ergebnisse ist Daten in der Lauf-Zusammenfassung, pro Locale: die übersetzten Keys, die wegen eines
+Platzhalter-Mismatch zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quell-Keys und etwaige Hinweise. Hinweise
+umfassen Provider-Hinweise und SDK-Hinweise, wie eine Plural-Kategorie-Warnung (Code
+`PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr Plural-Kategorien benötigt, als die Quelle
+liefert; siehe [Add a language](/docs/add-a-language) dafür, wie du diese Formen stattdessen synthetisierst.
+Nichts wird verborgen, und der Fehlschlag einer Locale stoppt die anderen nicht. Siehe
+[How it works](/docs/how-it-works) dafür, wo jede Prüfung im Lauf sitzt.

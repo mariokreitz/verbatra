@@ -5,33 +5,49 @@ description: What verbatra.lock.json records, why it is the baseline for increme
 
 # The lock file
 
-verbatra keeps a single committed file, `verbatra.lock.json`, in your project. It is the record of what verbatra has already translated, and it is what makes a run incremental: each run diffs your source against this baseline and calls the provider only for the keys that actually changed.
+verbatra keeps one committed file, `verbatra.lock.json`, in your project. It's the record of what
+verbatra has already translated, and it's what makes a run incremental: each run diffs your source
+against this baseline and calls the provider only for the keys that actually changed.
 
 ## What it records
 
-For every target locale, the lock file stores a content hash for each translated source key. The hash is taken from the source value, so it captures exactly the text that produced the existing translation. The lock file holds no translations and no API keys. It holds hashes.
+For every target locale, the lock file stores a content hash for each translated source key. The hash
+comes from the source value, so it captures exactly the text that produced the existing translation.
+No translations, no API keys. Just hashes.
 
 ## How a run uses it
 
-When verbatra reads a target locale, it diffs the source against that locale using the lock file as the baseline of what was translated before. Each source key sorts into one of four buckets:
+When verbatra reads a target locale, it diffs the source against that locale using the lock file as
+the baseline of what was translated before. Each source key sorts into one of four buckets:
 
 - new: the target does not have the key yet.
 - changed: the source value differs from the hash recorded in the lock.
 - unchanged: the source value still matches the recorded hash.
 - orphaned: the key is in the target but no longer in the source.
 
-Only new and changed keys are sent to the provider. Unchanged keys are left untouched, which is why a second run with no source edits calls the provider for nothing.
+Only new and changed keys go to the provider. Unchanged keys are left untouched, which is why a second
+run with no source edits calls the provider for nothing.
 
-The content hash treats canonically equivalent Unicode (NFC) and differing line endings (CRLF vs LF) as the same content, so re-saving a source file with a different normalization form or line endings does not mark a key as changed or trigger a re-translation.
+The content hash treats canonically equivalent Unicode (NFC) and differing line endings (CRLF vs LF)
+as the same content. So re-saving a source file with a different normalization form or line endings
+won't mark a key as changed or kick off a re-translation.
 
 ## How it is refreshed
 
-After a locale is written, verbatra refreshes the lock with the current source hashes, with one deliberate exception. A key that was withheld this run, because its translation failed the placeholder check or its source ICU was invalid, keeps its prior hash. The next run then still sees it as needing work and retries it, rather than recording it as done. Orphaned keys get no entry.
+After a locale is written, verbatra refreshes the lock with the current source hashes, with one
+deliberate exception. A key withheld this run (because its translation failed the placeholder check or
+its source ICU was invalid) keeps its prior hash. The next run then still sees it as needing work and
+retries it, instead of recording it as done. Orphaned keys get no entry.
 
 ## First run, missing lock, corrupt lock
 
-A missing lock file is treated as a first run: every target key is new. A lock that is present but corrupt or larger than the size cap is not silently overwritten. The run fails with `LOCK_FILE_INVALID` so you can inspect it rather than lose the baseline.
+A missing lock file counts as a first run: every target key is new. A lock that's present but corrupt
+or larger than the size cap is not silently overwritten. The run fails with `LOCK_FILE_INVALID` so you
+can inspect it instead of losing the baseline.
 
 ## Commit it
 
-Commit `verbatra.lock.json` alongside your locale files. It is the shared baseline your team and your CI diff against, so keeping it in version control is what makes incremental runs reproducible across machines. See [How it works](/docs/how-it-works) for the full run pipeline, and [Translation safety](/docs/translation-safety) for the checks that decide what gets withheld.
+Commit `verbatra.lock.json` alongside your locale files. It's the shared baseline your team and your
+CI diff against, so keeping it in version control is what makes incremental runs reproducible across
+machines. See [How it works](/docs/how-it-works) for the full run pipeline, and
+[Translation safety](/docs/translation-safety) for the checks that decide what gets withheld.

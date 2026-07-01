@@ -5,7 +5,8 @@ description: How verbatra is tested, and where to see its live build, coverage, 
 
 # Testing and quality
 
-verbatra is built to be depended on. Every change runs through a layered test suite, and the results are public so you can check them before you upgrade.
+verbatra is built to be depended on. Every change runs through a layered test suite, and the results
+are public, so you can check them before you upgrade.
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
@@ -16,7 +17,7 @@ verbatra is built to be depended on. Every change runs through a layered test su
 ## What the badges mean
 
 - **CI**: lint, type checks, unit tests, and the production build run on every pull request and on `main`, across two Node versions. CI enforces 90 percent coverage on lines, functions, statements, and branches.
-- **E2E**: the published `@verbatra/cli` and `@verbatra/sdk` tarballs are installed into a throwaway project and driven through the real binary, so packaging and bundling regressions are caught before release.
+- **E2E**: the published `@verbatra/cli` and `@verbatra/sdk` tarballs get installed into a throwaway project and driven through the real binary, so packaging and bundling regressions are caught before release.
 - **Coverage**: the latest coverage reported to Codecov from the CI run on `main`.
 
 ## How it is tested

@@ -1,11 +1,12 @@
 ---
 title: Testen und Qualität
-description: Wie verbatra getestet wird und wo du den aktuellen Build-, Coverage- und End-to-End-Status siehst.
+description: Wie verbatra getestet wird und wo du seinen aktuellen Build-, Coverage- und End-to-End-Status siehst.
 ---
 
 # Testen und Qualität
 
-verbatra ist darauf ausgelegt, dass du dich darauf verlassen kannst. Jede Änderung durchläuft eine mehrstufige Testsuite, und die Ergebnisse sind öffentlich, damit du sie vor einem Upgrade prüfen kannst.
+verbatra ist gebaut, um sich darauf zu verlassen. Jede Änderung läuft durch eine mehrstufige Testsuite, und die Ergebnisse
+sind öffentlich, sodass du sie vor einem Upgrade prüfen kannst.
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
@@ -21,7 +22,7 @@ verbatra ist darauf ausgelegt, dass du dich darauf verlassen kannst. Jede Änder
 
 ## Wie getestet wird
 
-- **Unit-Tests** (Vitest) decken die Domänenlogik, die Format-Adapter, die Provider und das CLI in jedem Paket ab.
+- **Unit-Tests** (Vitest) decken die Domänenlogik, die Format-Adapter, die Provider und die CLI in jedem Paket ab.
 - **End-to-End-Tests** installieren die echten Tarballs und üben die gesamte Befehlsfläche aus: `init`, `check`, `diff`, `export`, `import`, `translate` und `watch`. Eine Stufe ohne Schlüssel läuft bei jedem Pull Request; eine Live-Stufe übersetzt nächtlich und nach jedem Merge gegen einen echten Provider.
 
 ## Coverage im Detail

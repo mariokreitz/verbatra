@@ -1,11 +1,11 @@
 ---
 title: Pruebas y calidad
-description: Cómo se prueba verbatra y dónde ver el estado actual de build, cobertura y end-to-end.
+description: Cómo se prueba verbatra y dónde ver su estado en vivo de build, cobertura y end-to-end.
 ---
 
 # Pruebas y calidad
 
-verbatra está hecho para que dependas de él. Cada cambio pasa por una suite de pruebas en capas, y los resultados son públicos para que los revises antes de actualizar.
+verbatra está hecho para que dependas de él. Cada cambio pasa por una suite de pruebas en capas, y los resultados son públicos, así que puedes revisarlos antes de actualizar.
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
@@ -16,12 +16,12 @@ verbatra está hecho para que dependas de él. Cada cambio pasa por una suite de
 ## Qué significan los badges
 
 - **CI**: el lint, las comprobaciones de tipos, las pruebas unitarias y el build de producción se ejecutan en cada pull request y en `main`, sobre dos versiones de Node. CI exige un 90 por ciento de cobertura en líneas, funciones, sentencias y ramas.
-- **E2E**: los tarballs publicados de `@verbatra/cli` y `@verbatra/sdk` se instalan en un proyecto desechable y se ejecutan a través del binario real, de modo que las regresiones de empaquetado y bundling se detectan antes del release.
+- **E2E**: los tarballs publicados de `@verbatra/cli` y `@verbatra/sdk` se instalan en un proyecto desechable y se ejecutan a través del binario real, así que las regresiones de empaquetado y bundling se detectan antes del release.
 - **Coverage**: la cobertura más reciente reportada a Codecov desde la ejecución de CI en `main`.
 
 ## Cómo se prueba
 
-- **Pruebas unitarias** (Vitest) cubren la lógica de dominio, los adaptadores de formato, los proveedores y el CLI en cada paquete.
+- **Pruebas unitarias** (Vitest) cubren la lógica de dominio, los adaptadores de formato, los proveedores y la CLI en cada paquete.
 - **Pruebas end-to-end** instalan los tarballs reales y ejercitan toda la superficie de comandos: `init`, `check`, `diff`, `export`, `import`, `translate` y `watch`. Un nivel sin clave se ejecuta en cada pull request; un nivel en vivo traduce contra un proveedor real cada noche y tras cada merge.
 
 ## Cobertura en detalle
