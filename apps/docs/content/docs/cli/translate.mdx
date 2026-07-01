@@ -2,10 +2,7 @@
 title: verbatra translate
 description: Translate every target locale once, then exit.
 ---
-
-# verbatra translate
-
-Run the read, diff, translate, write flow over every target locale once, then exit. verbatra reads the source locale, compares it against what it translated last time, and sends only the new or changed strings to the provider; translations that are still current are left untouched.
+Run the read, diff, translate, write flow over every target locale once, then exit. verbatra reads the source locale, compares it against what it translated last time, and sends only the new or changed strings to the provider. Anything still current stays untouched, so you never pay to re-translate what has not moved.
 
 ```bash
 verbatra translate
@@ -21,11 +18,11 @@ verbatra translate
 | `--prune` | remove orphaned keys (in a target file but absent from the source) from the written file and the lock |
 | `--json` | print the run summary as JSON |
 
-By default a run never deletes anything: orphaned keys (present in a target file but no longer in the source) are reported and left in place. Pass `--prune` to remove exactly those keys from the written file and the lock, and nothing else. This per-run flag overrides the `prune` option in your [config](/docs/config-file); combine it with `--dry-run` to preview the keys that would be pruned. To see which keys are orphaned before a run, use [`verbatra diff`](/docs/cli/diff).
+By default a run deletes nothing. Orphaned keys (present in a target file but no longer in the source) are reported and left in place. Pass `--prune` to remove exactly those keys from the written file and the lock, and nothing else. This per-run flag overrides the `prune` option in your [config](/docs/config-file); pair it with `--dry-run` to preview the keys that would go. Want to see which keys are orphaned before a run? Use [`verbatra diff`](/docs/cli/diff).
 
 ## Output
 
-Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout - see the [`RunSummary` shape in the SDK reference](/docs/sdk). A whole-run error is written to stderr, so stdout stays clean and pipeable under `--json`.
+Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout: see the [`RunSummary` shape in the SDK reference](/docs/sdk). A whole-run error goes to stderr, so stdout stays clean and pipeable under `--json`.
 
 ## Examples
 
@@ -42,6 +39,12 @@ verbatra translate --prune
 # preview the keys that would be pruned
 verbatra translate --prune --dry-run
 
+# run against a project in another directory
+verbatra translate --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra translate --config config/verbatra.config.ts
+
 # machine-readable summary on stdout
 verbatra translate --json
 ```
@@ -54,4 +57,4 @@ verbatra translate --json
 | `1` | the run finished but one or more locales failed |
 | `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a provider that could not be built including a missing API key, or a corrupt lock file), or a usage error |
 
-A single locale failing is not fatal and yields exit `1`; the per-locale detail is in the summary. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.
+One locale failing is not fatal: it yields exit `1`, and the per-locale detail sits in the summary. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

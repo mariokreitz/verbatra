@@ -1,15 +1,12 @@
 ---
-title: API programática
-description: Recetas prácticas para ejecutar verbatra desde tus propios scripts, pasos de compilación y trabajos de CI.
+title: Recetas del SDK
+description: Recetas para copiar y pegar para ejecutar verbatra desde tus propios scripts, pasos de compilación y trabajos de CI.
 ---
-
-# API programática
-
-La [referencia del SDK](/docs/sdk) documenta cada función y tipo. Esta página es el complemento orientado a tareas: unos pocos patrones de extremo a extremo para usar verbatra en código. Recurre al SDK cuando quieras traducción dentro de un script, un paso de compilación o un trabajo de CI, con control total sobre lo que ocurre a su alrededor.
+La [referencia del SDK](/docs/sdk) cubre cada función y tipo. Esta página es el complemento práctico: un puñado de patrones de extremo a extremo para integrar verbatra en código. Recurre al SDK cuando quieras traducción dentro de un script, un paso de compilación o un trabajo de CI, con control total sobre todo lo que lo rodea.
 
 ## Traducir en un script
 
-Carga la configuración, ejecuta una traducción e informa el titular. Los problemas de toda la ejecución lanzan un `SdkError`; los resultados por configuración regional son datos en el resumen.
+Carga la configuración, ejecuta una traducción, imprime el titular. Los problemas de toda la ejecución lanzan un `SdkError`; los resultados por locale son datos en el resumen.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -22,7 +19,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Condicionar una compilación o un paso de CI según el resultado
 
-El resumen te dice qué cambió y qué falló sin analizar la salida. Haz fallar el paso cuando alguna configuración regional falle, e inspecciona el detalle por configuración regional para registrar el motivo.
+El resumen te dice qué cambió y qué falló, sin analizar la salida. Haz fallar el paso cuando algún locale falle, y profundiza en el detalle por locale para registrar por qué.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -42,7 +39,7 @@ if (summary.failed.length > 0) {
 
 ## Comprobar sin escribir
 
-`check` lee y hace diff sin llamar a un proveedor ni escribir archivos, e informa la desviación por configuración regional dividida en recuentos de faltantes, desactualizadas y actualizadas. Su bandera `inSync` es true exactamente cuando no hay nada faltante ni desactualizado, por lo que es la puerta de CI natural.
+`check` lee y hace diff sin llamar a un proveedor ni escribir archivos, e informa la desviación por locale dividida en recuentos de faltantes, desactualizadas y actualizadas. Su bandera `inSync` es true exactamente cuando no hay nada faltante ni desactualizado, lo que la convierte en tu puerta de CI natural.
 
 ```ts
 import { check, loadConfig } from "@verbatra/sdk";
@@ -56,9 +53,9 @@ if (!summary.inSync) {
 }
 ```
 
-`translate({ dryRun: true })` es una alternativa cuando quieres el resumen completo de la ejecución (las claves que se traducirían) en lugar de solo los recuentos de desviación.
+¿Quieres el resumen completo de la ejecución (las claves que se traducirían) en lugar de solo los recuentos de desviación? Usa `translate({ dryRun: true })`.
 
-`diff` es el hermano de solo lectura de `check`: ejecuta el mismo cálculo pero devuelve las listas de claves reales (`missing`, `changed`, `orphaned`) por configuración regional en lugar de recuentos, con la misma puerta `hasPendingChanges`. Recurre a él cuando necesites qué claves, no solo cuántas.
+`diff` es el hermano de solo lectura de `check`: el mismo cálculo, pero devuelve las listas de claves reales (`missing`, `changed`, `orphaned`) por locale en lugar de recuentos, con la misma puerta `hasPendingChanges`. Recurre a él cuando necesites saber qué claves, no solo cuántas.
 
 ```ts
 import { diff, loadConfig } from "@verbatra/sdk";
@@ -77,7 +74,7 @@ if (summary.hasPendingChanges) {
 
 ## Entregar cadenas a un traductor humano
 
-Exporta las cadenas que necesitan traducción a un libro de Excel, y luego importa de vuelta el archivo rellenado. `importWorkbook` devuelve el mismo `RunSummary` que `translate` y ejecuta las mismas comprobaciones de marcadores de posición e ICU, así que una entrega manual encaja en el mismo informe y las mismas puertas que una ejecución automatizada. Consulta [Traducción manual](/docs/manual-translation).
+Exporta las cadenas que necesitan traducción a un libro de Excel, luego importa de vuelta el archivo rellenado. `importWorkbook` devuelve el mismo `RunSummary` que `translate` y ejecuta las mismas comprobaciones de marcadores de posición e ICU, así que una entrega manual encaja en el mismo informe y las mismas puertas que usas para una ejecución automatizada. Consulta [Traducción humana](/docs/manual-translation).
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
@@ -95,7 +92,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Volver a traducir a medida que cambia el origen
 
-`watch` llama a tu `onRun` una vez por cada cambio con rebote y devuelve un controlador que detienes de forma limpia.
+`watch` dispara tu `onRun` una vez por cada cambio con rebote y devuelve un controlador que detienes de forma limpia.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";
@@ -134,4 +131,4 @@ const config = await loadConfig({
 await translate({ config });
 ```
 
-Para la lista completa de funciones, las formas de `RunSummary` y `LocaleSummary`, y cada código de `SdkError`, consulta la [referencia del SDK](/docs/sdk). Para el contrato del código de salida cuando ejecutas la CLI en CI en su lugar, consulta [CI y códigos de salida](/docs/ci-and-exit-codes).
+Para la lista completa de funciones, las formas de `RunSummary` y `LocaleSummary`, y cada código de `SdkError`, consulta la [referencia del SDK](/docs/sdk). ¿Ejecutas la CLI en CI en su lugar? Consulta el contrato de código de salida en [CI y códigos de salida](/docs/ci-and-exit-codes).

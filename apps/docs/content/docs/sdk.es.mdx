@@ -1,14 +1,11 @@
 ---
-title: SDK
-description: Usa @verbatra/sdk para ejecutar traducción desde tus propios scripts, trabajos de CI y herramientas.
+title: Referencia del SDK
+description: Usa la API de @verbatra/sdk para ejecutar verbatra desde tus propios scripts, trabajos de CI y herramientas.
 ---
-
-# SDK
-
-`@verbatra/sdk` es el núcleo programático sobre el que está construido el comando `verbatra`. La CLI es un
-envoltorio ligero sobre él, así que cualquier cosa que haga la línea de comandos, puedes hacerla en código: cargar y validar una configuración,
-ejecutar una traducción única, u observar el origen y volver a traducir con cada cambio. Recurre al SDK
-cuando quieras traducción dentro de un script, un trabajo de CI o tus propias herramientas.
+`@verbatra/sdk` es el motor sobre el que corre el comando `verbatra`. La CLI es un envoltorio ligero, así que
+cualquier cosa que haga la línea de comandos, puedes hacerla en código: cargar y validar una configuración, ejecutar
+una traducción única, u observar el origen y volver a traducir con cada cambio. Recurre al SDK cuando quieras
+traducción dentro de un script, un trabajo de CI o tus propias herramientas.
 
 ## Instalación
 
@@ -24,48 +21,46 @@ Requiere Node.js `>=22.14.0`.
 
 ## La superficie pública
 
-El paquete exporta ocho funciones y los tipos que un consumidor toca.
+Ocho funciones, además de los tipos que tocas cuando las llamas.
 
-- `defineConfig(config): VerbatraConfig` devuelve su argumento sin cambios. Existe solo para darte
-  inferencia de tipos y autocompletado cuando escribes una configuración en TypeScript; el campo `model` está
-  restringido a los modelos conocidos del proveedor seleccionado, así que el modelo de otro proveedor es un error de tipo.
-- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` descubre y valida la
-  configuración. `LoadConfigOptions` acepta `cwd`, un `configPath` explícito o un `configOverride`
-  en memoria. Lanza un `SdkError` cuando no se encuentra ninguna configuración o la validación falla.
+- `defineConfig(config): VerbatraConfig` te devuelve tu argumento tal cual, sin cambios. Su único trabajo es
+  la inferencia de tipos y el autocompletado cuando escribes una configuración en TypeScript. El campo `model` está
+  fijado a los modelos conocidos del proveedor seleccionado, así que recurrir al modelo de otro proveedor es un error de tipo.
+- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` encuentra y valida la configuración.
+  `LoadConfigOptions` acepta `cwd`, un `configPath` explícito o un `configOverride` en memoria. Lanza un
+  `SdkError` cuando no hay ninguna configuración que encontrar o la validación falla.
 - `translate(input: TranslateInput): Promise<RunSummary>` ejecuta el flujo de leer, comparar, traducir y escribir
-  sobre cada configuración regional de destino. `TranslateInput` es `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
-  `prune` (desactivado por defecto) elimina las claves huérfanas del archivo escrito y del bloqueo; `generatePlurals`
-  (desactivado por defecto) sintetiza las formas plurales CLDR que una lengua de destino necesita pero el origen no aporta
-  (solo i18next-JSON con un proveedor de LLM). Cada bandera por ejecución, cuando se establece, anula la opción de configuración
-  correspondiente para esa ejecución. Se resuelve a un `RunSummary`; los problemas de toda la ejecución lanzan un `SdkError`, mientras
-  que los resultados por configuración regional son datos en el resumen.
+  sobre cada locale de destino. `TranslateInput` es `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+  `prune` (desactivado por defecto) elimina las claves huérfanas del archivo escrito y del bloqueo. `generatePlurals`
+  (desactivado por defecto) sintetiza las formas plurales CLDR que una lengua de destino necesita pero el origen no tiene
+  (solo i18next-JSON con un proveedor de LLM). Establece cualquiera de las banderas por ejecución y anula la opción de
+  configuración correspondiente para esa ejecución. Recibes un `RunSummary`: los problemas de toda la ejecución lanzan un
+  `SdkError`, los resultados por locale van en el resumen.
 - `watch(input: WatchInput): Promise<WatchController>` observa el archivo de origen y se vuelve a ejecutar con cada
-  cambio con rebote. `WatchInput` es `{ config, cwd?, debounceMs?, onRun }`, donde `onRun` recibe un
-  `WatchRunResult` por ejecución. El `WatchController` devuelto tiene un único método, `stop()`, que cierra
-  el observador y espera la ejecución en curso.
+  cambio con rebote. `WatchInput` es `{ config, cwd?, debounceMs?, onRun }`, y `onRun` se dispara una vez por ejecución
+  con un `WatchRunResult`. El `WatchController` devuelto tiene un único método, `stop()`, que cierra el observador
+  y espera la ejecución en curso.
 - `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` escribe las cadenas que
-  necesitan traducción en un libro de Excel con estilo para un traductor humano. `ExportWorkbookInput` es
-  `{ config, cwd?, out?, locales?, includeUnchanged? }`. Se resuelve a un `ExportWorkbookResult`:
-  la `path` absoluta escrita y los recuentos de `rows` por configuración regional. No se llama a ningún proveedor ni se escribe ningún
-  archivo de bloqueo. Consulta [Traducción manual](/docs/manual-translation).
+  aún necesitan traducción en un libro de Excel con estilo para un traductor humano. `ExportWorkbookInput` es
+  `{ config, cwd?, out?, locales?, includeUnchanged? }`, y recibes un `ExportWorkbookResult`:
+  la `path` absoluta escrita más los recuentos de `rows` por locale. Sin llamada al proveedor, sin archivo de bloqueo. Consulta
+  [Traducción humana](/docs/manual-translation).
 - `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` lee un libro rellenado de vuelta a
-  los archivos de configuración regional, ejecutando las mismas comprobaciones de marcadores de posición e ICU que `translate`. `ImportWorkbookInput`
-  es `{ config, workbook, cwd?, dryRun? }`. Se resuelve al mismo `RunSummary` que `translate`, así que un
-  fallo por configuración regional es un dato en el resumen en lugar de un throw. `DEFAULT_WORKBOOK_PATH` es la
-  ruta de exportación por defecto (`verbatra-translations.xlsx`).
-- `check(input: CheckInput): Promise<CheckSummary>` ejecuta la misma lectura y el mismo diff que `translate` pero
-  se detiene antes de cualquier llamada a un proveedor: informa la desviación por configuración regional y no escribe nada. `CheckInput` es
-  `{ config, cwd?, locales? }`. Se resuelve a un `CheckSummary` cuyo `inSync` es true exactamente cuando
-  cada configuración regional comprobada no tiene claves faltantes ni desactualizadas. No se llama a ningún proveedor, no se escribe ningún archivo,
-  y no se toca el bloqueo. Consulta [`verbatra check`](/docs/cli/check). Para las claves detrás de esos
-  recuentos, usa `diff` a continuación.
-- `diff(input: DiffInput): Promise<DiffSummary>` es el hermano de solo lectura de `check`: ejecuta la
-  misma lectura y el mismo diff pero informa listas de claves en lugar de recuentos. `DiffInput` es `{ config, cwd?, locales? }`.
-  Se resuelve a un `DiffSummary` cuyas entradas por configuración regional llevan `missing` (claves que se añadirían),
-  `changed` (claves que se volverían a traducir) y `orphaned` (claves en el destino pero no en el origen,
-  solo informadas). Su `hasPendingChanges` es true exactamente cuando alguna configuración regional tiene una clave faltante o modificada;
-  las claves huérfanas por sí solas no lo establecen. No se llama a ningún proveedor, no se escribe ningún archivo, y no se toca
-  el bloqueo. Consulta [`verbatra diff`](/docs/cli/diff).
+  los archivos de locale, ejecutando las mismas comprobaciones de marcadores de posición e ICU que `translate`. `ImportWorkbookInput`
+  es `{ config, workbook, cwd?, dryRun? }`, y se resuelve al mismo `RunSummary` que `translate`,
+  así que un fallo por locale es un dato en el resumen, no un throw. `DEFAULT_WORKBOOK_PATH` es la ruta
+  de exportación por defecto (`verbatra-translations.xlsx`).
+- `check(input: CheckInput): Promise<CheckSummary>` ejecuta la misma lectura y el mismo diff que `translate`, luego
+  se detiene antes de cualquier llamada al proveedor: informa la desviación por locale y no escribe nada. `CheckInput` es
+  `{ config, cwd?, locales? }`, y su `CheckSummary` pone `inSync` en true exactamente cuando cada locale
+  comprobado no tiene claves faltantes ni desactualizadas. Sin proveedor, sin escritura de archivos, sin tocar el bloqueo. Consulta
+  [`verbatra check`](/docs/cli/check). ¿Quieres las claves detrás de los recuentos? Usa `diff`, abajo.
+- `diff(input: DiffInput): Promise<DiffSummary>` es el hermano de solo lectura de `check`: la misma lectura y el mismo
+  diff, pero te da listas de claves en lugar de recuentos. `DiffInput` es `{ config, cwd?, locales? }`. El
+  `DiffSummary` da a cada locale `missing` (claves que se añadirían), `changed` (claves que se
+  volverían a traducir) y `orphaned` (claves en el destino pero no en el origen, solo informadas). Su
+  `hasPendingChanges` es true exactamente cuando algún locale tiene una clave faltante o modificada; las claves huérfanas
+  por sí solas nunca lo activan. Sin proveedor, sin escritura de archivos, sin tocar el bloqueo. Consulta [`verbatra diff`](/docs/cli/diff).
 
 Los tipos de resultado:
 
@@ -125,13 +120,13 @@ interface LocaleDiff {
 }
 ```
 
-Los avisos son por configuración regional, en `LocaleSummary.notices`, y cubren tanto los avisos del proveedor (por ejemplo, una
-degradación elegante de DeepL) como los avisos del SDK (por ejemplo, una lengua de destino que necesita más categorías plurales
-CLDR de las que aporta el origen, código `PLURAL_CATEGORIES_INCOMPLETE`). No hay una lista de avisos de nivel
-superior en `RunSummary`.
+Los avisos viven por locale, en `LocaleSummary.notices`. Cubren avisos del proveedor (por ejemplo, una
+degradación elegante de DeepL) y avisos del SDK (por ejemplo, una lengua de destino que necesita más categorías plurales
+CLDR de las que aporta el origen, código `PLURAL_CATEGORIES_INCOMPLETE`). No hay una lista de avisos de nivel superior en
+`RunSummary`, así que léelos siempre desde el locale.
 
-`SdkError` es el único tipo de error que el SDK lanza para los fallos de toda la ejecución. Lleva un `code`
-estable y un `message` sin secretos. Los códigos son:
+`SdkError` es el único tipo de error que el SDK lanza para los fallos de toda la ejecución. Lleva un `code` estable
+y un `message` sin secretos. Los códigos:
 
 | Código | Cuándo |
 | --- | --- |
@@ -139,15 +134,17 @@ estable y un `message` sin secretos. Los códigos son:
 | `CONFIG_INVALID` | se encontró una configuración pero no se puede analizar o falla la validación |
 | `UNKNOWN_FORMAT` | no hay ningún adaptador registrado para el formato configurado |
 | `PROVIDER_CONSTRUCTION_FAILED` | el proveedor no se pudo construir (incluye una clave de API faltante) |
-| `SOURCE_UNREADABLE` | el archivo de configuración regional de origen no existe |
-| `SOURCE_INVALID` | el archivo de configuración regional de origen no se pudo leer o analizar |
+| `SOURCE_UNREADABLE` | el archivo de locale de origen no existe |
+| `SOURCE_INVALID` | el archivo de locale de origen no se pudo leer o analizar |
 | `LOCK_FILE_INVALID` | el archivo de bloqueo está presente pero corrupto o demasiado grande |
-| `LOCALE_FAILED` | no lanzado: el `code` de reserva registrado en el `error` de una configuración regional fallida |
+| `LOCALE_FAILED` | no lanzado: el `code` de reserva registrado en el `error` de un locale fallido |
 
-Que una sola configuración regional falle no lanza; se registra en el `LocaleSummary` de esa configuración regional con `status:
-"failed"` y un `error`, y la ejecución continúa.
+Que un solo locale falle nunca lanza. Cae en el `LocaleSummary` de ese locale con `status:
+"failed"` y un `error`, y la ejecución sigue adelante.
 
 ## Definir una configuración
+
+Escribe la configuración en TypeScript y deja que `defineConfig` la verifique de tipos a medida que avanzas.
 
 ```ts
 import { defineConfig } from "@verbatra/sdk";
@@ -171,8 +168,8 @@ export default defineConfig({
 
 ## Ejecutar una traducción única
 
-`translate` se resuelve al resumen de la ejecución. Lee `succeeded` y `failed` para el titular, y recorre
-`locales` para el detalle, incluidos los avisos (del proveedor o del SDK).
+`translate` se resuelve al resumen de la ejecución. Lee `succeeded` y `failed` para el titular, luego recorre
+`locales` para el detalle y cualquier aviso (del proveedor o del SDK).
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -189,16 +186,16 @@ for (const locale of summary.locales) {
 }
 ```
 
-Pasa `dryRun: true` para leer y hacer diff sin llamar a un proveedor ni escribir archivos. Pasa
-`prune: true` para eliminar las claves huérfanas, o `generatePlurals: true` para sintetizar las categorías plurales
-faltantes (solo i18next-JSON con un proveedor de LLM); cada una anula la opción de configuración correspondiente para
-esa ejecución. A diferencia de `prune` y `generatePlurals`, `maxBatchSize` solo se controla mediante la configuración (se establece en el objeto de
-configuración, por defecto 50): no hay una anulación `translate()` por ejecución para él.
+Pasa `dryRun: true` para leer y hacer diff sin llamar a un proveedor ni escribir archivos. Pasa `prune: true`
+para eliminar las claves huérfanas, o `generatePlurals: true` para sintetizar las categorías plurales faltantes
+(solo i18next-JSON con un proveedor de LLM). Cada una de estas anula la opción de configuración correspondiente para esa
+ejecución. `maxBatchSize` es la excepción: solo se controla por configuración (establécela en el objeto de configuración, por
+defecto 50), sin anulación por ejecución en `translate()`.
 
 ## Modo watch
 
-`watch` llama a tu `onRun` una vez por ejecución con un `WatchRunResult` discriminado. El `stop()` del
-controlador lo apaga de forma limpia.
+`watch` dispara tu `onRun` una vez por ejecución con un `WatchRunResult` discriminado, y el `stop()` del
+controlador lo desmonta todo de forma limpia.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";
@@ -223,7 +220,7 @@ process.on("SIGINT", () => {
 
 ## Manejar errores
 
-Los fallos de toda la ejecución lanzan un `SdkError`. Conmuta sobre su `code` para reaccionar a casos específicos.
+Los fallos de toda la ejecución lanzan un `SdkError`. Conmuta sobre su `code` para manejar cada caso en sus propios términos.
 
 ```ts
 import { loadConfig, SdkError, translate } from "@verbatra/sdk";

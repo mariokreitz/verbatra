@@ -1,0 +1,27 @@
+{
+  "title": "Dokumentation",
+  "pages": [
+    "---Erste Schritte---",
+    "index",
+    "your-first-translation",
+    "add-a-language",
+    "---Konfigurieren---",
+    "config-file",
+    "providers",
+    "formats",
+    "---Kommandozeile---",
+    "cli",
+    "---Automatisieren---",
+    "github-action",
+    "ci-and-exit-codes",
+    "manual-translation",
+    "---Unter der Haube---",
+    "how-it-works",
+    "the-lock-file",
+    "translation-safety",
+    "testing",
+    "---SDK---",
+    "sdk",
+    "programmatic-api"
+  ]
+}

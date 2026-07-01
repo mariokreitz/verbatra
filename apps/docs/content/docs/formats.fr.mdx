@@ -2,10 +2,7 @@
 title: Formats
 description: Les formats i18n pris en charge par verbatra, comment il les lit, et comment chacun gère les espaces réservés, les pluriels et l'ICU.
 ---
-
-# Formats
-
-verbatra travaille sur des fichiers de locale via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. Tu sélectionnes le format avec le champ `format` de ta configuration. Quatre formats JSON ont été livrés en v1, et trois autres (ARB, YAML et XLIFF) sont désormais disponibles à leurs côtés.
+verbatra travaille sur tes fichiers de locale via un adaptateur de format. Chaque adaptateur lit un fichier dans une représentation neutre vis-à-vis du format sur laquelle s'appuient le diff, le hachage et les vérifications d'intégrité, puis le réécrit dans la forme d'origine du fichier. Tu choisis le format avec le champ `format` de ta configuration. Sept sont pris en charge : quatre variantes JSON, plus ARB, YAML et XLIFF.
 
 ## Les quatre formats JSON
 

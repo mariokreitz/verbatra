@@ -146,10 +146,10 @@ published by accident.
 
 ## The verbatra team agents
 
-`.claude/agents/` holds nine role agents (product owner, software architect,
-developer, code reviewer, QA, security reviewer, release manager, docs writer, devops)
-that mirror the Cowork delivery team. Dispatch them for the matching stage of work.
-They follow the rules in this file.
+`.claude/agents/` holds ten role agents (product owner, software architect,
+developer, code reviewer, QA, security reviewer, release manager, docs writer, docs
+designer, devops) that mirror the Cowork delivery team. Dispatch them for the matching
+stage of work. They follow the rules in this file.
 
 The team's runtime workspace lives under `.verbatra/` (gitignored, local to the
 clone): specs in `.verbatra/specs/`, the audit log in `.verbatra/log/`, architecture

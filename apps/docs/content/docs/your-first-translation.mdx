@@ -1,57 +1,62 @@
 ---
 title: Your first translation
-description: Run verbatra for the first time, read the run summary, and understand incremental re-runs.
+description: Run verbatra for the first time, read the run summary, and see why re-runs only touch what changed.
 ---
+The CLI is installed, the config is scaffolded, and your provider key is in the environment (if not, start with the [quick start](/docs)). Time to translate.
 
-# Your first translation
+## Run it
 
-With the CLI installed, a config scaffolded, and your provider key in the environment (see [Getting Started](/docs)), you are ready to translate.
-
-## Run a translation
-
-Run a one-shot translation over every target locale:
+One command translates every target locale and exits:
 
 ```bash
 verbatra translate
 ```
 
-verbatra reads the source locale, compares it against what it translated last time, and sends only the new or changed strings to the provider. Translations that are still current are left untouched. Each target locale file is written in place, so `locales/de.json` and the rest appear or update next to your source file.
+Here is what happens under the hood: verbatra reads your source locale, diffs it against what it translated last time, and sends only the new and changed strings to your provider. Anything still current is left alone. Each target file is written in place, so `locales/de.json` and friends appear (or update) right next to your source file.
 
 ## Read the run summary
 
-A run ends with a summary across every target locale: which locales succeeded, which failed, and a per-locale breakdown of the keys translated, the keys left unchanged, any orphaned keys (present in a target but no longer in the source), and any provider notices. A single locale failing does not stop the others; it is reported on that locale's line with a code and a message.
+Every run ends with a summary. You get the headline (which locales succeeded, which failed) and a per-locale breakdown: keys translated, keys left unchanged, orphaned keys (present in a target but gone from the source), and any provider notices. One locale failing does not stop the rest; it shows up on that locale's line with a code and a message.
 
-For machine-readable output, add `--json` and verbatra prints the summary as one JSON object. See [CI and exit codes](/docs/ci-and-exit-codes) for the shape and the exit-code contract.
+Want it machine-readable? Add `--json` and verbatra prints the whole summary as one JSON object:
 
-## Preview with a dry run
+```bash
+verbatra translate --json
+```
 
-To see what would change without calling a provider or writing files:
+See [CI and exit codes](/docs/ci-and-exit-codes) for the JSON shape and the exit-code contract.
+
+## Preview before you spend a token
+
+To see exactly what a run would do without calling a provider or writing a single file, do a dry run:
 
 ```bash
 verbatra translate --dry-run
 ```
 
-A dry run produces the same summary, listing the keys that would be translated, but makes no provider calls and writes nothing. It is the safe way to check what a run will do.
+You get the same summary, listing the keys that would be translated, but nothing is sent and nothing is written. It is the safe way to check a run before it costs you anything, which is especially handy on a free-tier key.
 
-## Re-runs are incremental
+## Re-runs only touch what changed
 
-Run `verbatra translate` again without changing your source and nothing is sent to the provider: every key is already current. Change one source string and only that key is re-translated on the next run. This is the core behavior. verbatra keeps a committed lock file (`verbatra.lock.json`) recording what it translated, and diffs against it each run so the provider is called only for what actually changed. See [How it works](/docs/how-it-works) for the full pipeline.
+This is the part that makes verbatra cheap to run often. Run `verbatra translate` again without editing your source and nothing goes to the provider: every key is already current. Change one source string and only that one key gets re-translated next run.
+
+The trick is a committed lock file (`verbatra.lock.json`) that records what was translated. Each run diffs against it, so the provider is called only for what actually changed. See [How it works](/docs/how-it-works) for the full pipeline.
 
 <Callout title="Commit the lock file">
-verbatra writes `verbatra.lock.json` on the first run. Commit it with your locale files so every machine and your CI diff against the same baseline. See [The lock file](/docs/the-lock-file).
+verbatra writes `verbatra.lock.json` on the first run. Commit it alongside your locale files so every machine, and your CI, diffs against the same baseline. See [The lock file](/docs/the-lock-file).
 </Callout>
 
-## Translate as you work
+## Translate while you work
 
-To re-translate automatically while you edit, watch the source and let verbatra re-run on each change:
+Do not want to re-run by hand? Watch the source and let verbatra re-translate on every change:
 
 ```bash
 verbatra watch
 ```
 
-Watch keeps running until you interrupt it with Ctrl-C.
+It keeps running until you stop it with Ctrl-C.
 
 ## Next
 
-- [Add a language](/docs/add-a-language): add a target locale to an existing setup.
-- [How it works](/docs/how-it-works): what a run does end to end.
+- [Add a language](/docs/add-a-language): drop a new target locale into an existing setup.
+- [How it works](/docs/how-it-works): what a run does, end to end.

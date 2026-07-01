@@ -11,9 +11,10 @@ export default defineConfig({
     id: "gemini",
     options: {
       model: "gemini-2.5-flash",
-      maxOutputTokens: 8192,
+      maxOutputTokens: 32768,
     },
   },
+  maxBatchSize: 50,
   glossary: {
     verbatra: "verbatra",
     "next-intl": "next-intl",
@@ -29,5 +30,5 @@ export default defineConfig({
     ICU: "ICU",
     MIT: "MIT",
   },
-  tone: "neutral",
+  tone: "informal",
 });

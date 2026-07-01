@@ -2,46 +2,52 @@
 title: verbatra export
 description: Exporta las cadenas sin traducir a un libro de Excel con estilo para un traductor humano.
 ---
-
-# verbatra export
-
-Escribe las cadenas que necesitan traducción en un libro de Excel con estilo que una persona pueda rellenar, y luego devolver para [`verbatra import`](/docs/cli/import). El libro tiene una hoja por configuración regional de destino más una hoja de instrucciones; el traductor edita una sola columna y todo lo demás está bloqueado.
+Escribe las cadenas que necesitan traducción en un libro de Excel con estilo que una persona pueda rellenar, y luego devolver para [`verbatra import`](/docs/cli/import). El libro tiene una hoja por locale de destino más una hoja de instrucciones. El traductor edita una sola columna; todo lo demás está bloqueado.
 
 ```bash
 verbatra export
 ```
 
-Por defecto, esto escribe `verbatra-translations.xlsx` en el directorio de trabajo, conteniendo solo las cadenas **ausentes y modificadas**: las mismas claves que una ejecución automatizada de `translate` enviaría a un proveedor. Consulta [Traducción manual](/docs/manual-translation) para ver el ciclo completo.
+Por defecto, esto escribe `verbatra-translations.xlsx` en el directorio de trabajo, solo con las cadenas **faltantes y modificadas**: las mismas claves que una ejecución automatizada de `translate` enviaría a un proveedor. Consulta [Traducción humana](/docs/manual-translation) para ver el ciclo completo.
 
 ## Opciones
 
 | Opción | Descripción |
 | --- | --- |
-| `--cwd <path>` | resuelve los archivos de configuración y de configuración regional desde este directorio |
+| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
 | `--out <path>` | escribe el libro en esta ruta (por defecto `verbatra-translations.xlsx`) |
-| `--locales <list>` | subconjunto de configuraciones regionales de destino separadas por comas (por defecto todas las configuradas) |
-| `--include-unchanged` | exporta también las cadenas que ya están actualizadas (desactivado por defecto) |
+| `--locales <list>` | subconjunto de locales de destino separados por comas (por defecto todos los configurados) |
+| `--include-unchanged` | exporta también las cadenas que ya están al día (desactivado por defecto) |
 | `--json` | imprime el resultado de la exportación como JSON |
 
 ## Salida
 
-Sin `--json`, `export` imprime la ruta de salida y una línea por configuración regional con su recuento de filas. Con `--json`, imprime el resultado de la exportación - la ruta escrita y los recuentos de filas por configuración regional - como un único objeto JSON en stdout. Un error de ejecución completa se escribe en stderr, por lo que stdout permanece limpio y canalizable con `--json`.
+Sin `--json`, `export` imprime la ruta de salida y una línea por locale con su recuento de filas. Con `--json`, imprime el resultado de la exportación (la ruta escrita y los recuentos de filas por locale) como un único objeto JSON en stdout. Un error de toda la ejecución va a stderr, así que stdout queda limpio y canalizable con `--json`.
 
 ## Ejemplos
 
 ```bash
-# escribe el libro con las cadenas ausentes y modificadas
+# escribe el libro con las cadenas faltantes y modificadas
 verbatra export
 
 # solo las hojas de alemán y francés
 verbatra export --locales de,fr
 
-# incluye las cadenas que ya están actualizadas para tener contexto completo
+# incluye las cadenas que ya están al día para tener contexto completo
 verbatra export --include-unchanged
 
 # escribe en una ruta específica
 verbatra export --out handoff/round-2.xlsx
+
+# exporta un proyecto en otro directorio
+verbatra export --cwd packages/app
+
+# carga una configuración específica en lugar de buscar una
+verbatra export --config config/verbatra.config.ts
+
+# resultado legible por máquina en stdout
+verbatra export --json
 ```
 
 ## Códigos de salida
@@ -49,6 +55,6 @@ verbatra export --out handoff/round-2.xlsx
 | Código | Significado |
 | --- | --- |
 | `0` | el libro se escribió |
-| `2` | no se pudo ejecutar: un error de ejecución completa (configuración ausente o no válida, origen ilegible, formato desconocido, o un archivo de bloqueo corrupto), o un error de uso |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
 
-Export nunca llama a un proveedor y no necesita una clave de API. Consulta [`verbatra import`](/docs/cli/import) para leer de vuelta el libro rellenado.
+`export` nunca llama a un proveedor y no necesita ninguna clave de API. Consulta [`verbatra import`](/docs/cli/import) para leer de vuelta el libro rellenado.

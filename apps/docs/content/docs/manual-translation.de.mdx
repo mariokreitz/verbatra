@@ -1,15 +1,12 @@
 ---
-title: Manuelle Übersetzung
-description: Exportiere unübersetzte Strings in eine Excel-Arbeitsmappe, lass sie von einem Menschen übersetzen und importiere das Ergebnis zurück - mit denselben Sicherheitsprüfungen wie ein automatisierter Lauf.
+title: Menschliche Übersetzung
+description: Exportiere unübersetzte Strings in eine Excel-Arbeitsmappe, lass einen Menschen sie übersetzen und importiere das Ergebnis zurück, mit denselben Sicherheitsprüfungen wie ein automatisierter Lauf.
 ---
+Nicht jeder String gehört zu einem Provider. Marketing-Texte, juristische Texte und Produktnamen wollen meist einen menschlichen Übersetzer, und manche Teams halten für die wichtigsten Sprachen einen Profi im Loop. verbatra löst das mit einem Arbeitsmappen-Round-Trip: **exportiere** die zu übersetzenden Strings in eine gestylte Excel-Datei, gib sie einem Übersetzer und **importiere** dann die ausgefüllte Datei zurück in deine Locale-Dateien.
 
-# Manuelle Übersetzung
+Derselbe Diff treibt beide Richtungen. Der Export wählt genau die Keys aus, die ein automatisierter Lauf übersetzen würde (die neuen und geänderten), sodass eine manuell übersetzte Locale genauso mit deiner Quelle synchron bleibt wie eine KI-übersetzte. Der Import führt dieselben Platzhalter- und ICU-Prüfungen aus wie `translate`, sodass verbatra einen Wert zurückhält und dir Bescheid gibt, statt ihn zu schreiben, falls ein Übersetzer einen Wert von Hand eintippt, der einen Platzhalter zerstört.
 
-Nicht jeder String sollte durch einen Provider laufen. Marketing-Texte, juristische Texte und Produktnamen benötigen oft einen menschlichen Übersetzer, und manche Teams behalten für die wichtigsten Sprachen einen Profi in der Schleife. verbatra unterstützt dies mit einem Arbeitsmappen-Hin-und-Zurück: **exportiere** die Strings, die übersetzt werden müssen, in eine gestaltete Excel-Datei, übergib sie einem Übersetzer und **importiere** die ausgefüllte Datei zurück in deine Locale-Dateien.
-
-Derselbe Vergleich treibt beide Abläufe an. Der Export wählt genau die Schlüssel aus, die ein automatisierter Lauf übersetzen würde - die neuen und geänderten -, sodass ein manuelles Locale auf dieselbe Weise mit deiner Quelle synchron bleibt wie ein KI-übersetztes. Der Import führt dieselben Platzhalter- und ICU-Prüfungen aus wie `translate`, sodass ein von Hand getippter Wert, der einen Platzhalter bricht, zurückgehalten und gemeldet statt geschrieben wird.
-
-## Das Hin-und-Zurück
+## Der Round-Trip
 
 ```bash
 # 1. Export the strings that need translating
@@ -21,28 +18,28 @@ verbatra export
 verbatra import verbatra-translations.xlsx
 ```
 
-Der Export schreibt `verbatra-translations.xlsx` standardmäßig in das Arbeitsverzeichnis. Der Import liest sie zurück, validiert jeden Wert, schreibt die bestandenen in deine Locale-Dateien und aktualisiert die [Lock-Datei](/docs/the-lock-file) für die akzeptierten Schlüssel - genau wie ein `translate`-Lauf es täte.
+Standardmäßig legt der Export `verbatra-translations.xlsx` im Arbeitsverzeichnis ab. Der Import liest sie zurück, validiert jeden Wert, schreibt die bestandenen in deine Locale-Dateien und aktualisiert die [lock file](/docs/the-lock-file) für die akzeptierten Keys, genau wie es ein `translate`-Lauf täte.
 
 ## Die Arbeitsmappe
 
-Die Datei hat ein **Instructions**-Blatt, gefolgt von einem Datenblatt pro Ziel-Locale, jeweils nach seinem Locale benannt (`de`, `fr`, ...). Jedes Datenblatt hat dieselben Spalten:
+Die Datei beginnt mit einem **Instructions**-Blatt, gefolgt von einem Datenblatt pro Ziel-Locale, jeweils nach seiner Locale benannt (`de`, `fr`, ...). Jedes Datenblatt teilt sich dieselben Spalten:
 
-| Spalte | Bearbeitbar | Zweck |
+| Spalte | Editierbar | Zweck |
 | --- | --- | --- |
-| `Key` | nein | Der Punkt-getrennte Schlüsselpfad. Die alleinige Identität, die eine Zeile auf einen String zurückführt. |
-| `Source` | nein | Der Wert des Quell-Locales, zur Referenz. |
+| `Key` | nein | Der gepunktete Key-Pfad. Die einzige Identität, die eine Zeile auf einen String zurückabbildet. |
+| `Source` | nein | Der Wert der Quell-Locale, zur Referenz. |
 | `Current translation` | nein | Der vorhandene Zielwert, falls vorhanden. |
 | `Status` | nein | `new` (noch keine Übersetzung) oder `changed` (die Quelle hat sich geändert und die Übersetzung muss aktualisiert werden). |
 | `Translation` | **ja** | Die einzige Zelle, die der Übersetzer ausfüllt. |
-| `Source hash` | nein | Ausgeblendet. Der beim Export erfasste Quellinhalt, verwendet, um eine Quelle zu erkennen, die sich nach dem Export geändert hat. |
+| `Source hash` | nein | Ausgeblendet. Der beim Export erfasste Quellinhalt, genutzt um eine Quelle zu erkennen, die sich nach dem Export geändert hat. |
 
-Jede Spalte außer `Translation` ist gesperrt, und das Blatt ist geschützt, sodass ein Übersetzer nur die eine Spalte bearbeiten kann, auf die es ankommt. Die Kopfzeile ist fixiert und die Spalte `Source hash` ist ausgeblendet. Zeilen können frei sortiert oder gefiltert werden - die Zuordnung erfolgt über `Key`, niemals über die Position.
+Jede Spalte außer `Translation` ist gesperrt und das Blatt ist geschützt, sodass ein Übersetzer nur die eine Spalte bearbeiten kann, die zählt. Die Kopfzeile ist fixiert und die Spalte `Source hash` ist ausgeblendet. Sortiere oder filtere die Zeilen, wie du möchtest: die Zuordnung erfolgt über `Key`, niemals über die Position.
 
-Eine leere `Translation`-Zelle bedeutet "noch nicht übersetzt": sie wird beim Import übersprungen, niemals als leerer String geschrieben. Das ermöglicht es einem Übersetzer, eine teilweise ausgefüllte Arbeitsmappe zurückzugeben und den Rest später aufzunehmen.
+Eine leere `Translation`-Zelle bedeutet "noch nicht übersetzt". Der Import überspringt sie und schreibt niemals einen leeren String, sodass ein Übersetzer eine halb ausgefüllte Arbeitsmappe zurücksenden und den Rest später fertigstellen kann.
 
 ## Auswählen, was exportiert wird
 
-Standardmäßig schließt `export` nur die fehlenden und geänderten Strings ein - die Arbeit, die tatsächlich getan werden muss. Zwei Flags passen die Auswahl an:
+Standardmäßig schließt `export` nur die fehlenden und geänderten Strings ein, die Arbeit, die tatsächlich zu tun ist. Zwei Flags stellen die Auswahl ein:
 
 ```bash
 # Only the German and French sheets
@@ -55,28 +52,28 @@ verbatra export --include-unchanged
 verbatra export --out handoff/round-2.xlsx
 ```
 
-`--include-unchanged` ist nützlich, wenn ein Übersetzer den vollen Kontext eines Locales statt nur des Deltas möchte. Siehe die [`verbatra export`](/docs/cli/export)-Referenz für jedes Flag.
+Greif zu `--include-unchanged`, wenn ein Übersetzer den vollen Kontext einer Locale will, nicht nur das Delta. Siehe die [`verbatra export`](/docs/cli/export)-Referenz für jedes Flag.
 
 ## Sicherheit beim Import
 
-Der Import ist kein blindes Einfügen. Jeder Wert, den der Übersetzer getippt hat, durchläuft dieselben Prüfungen wie eine automatisierte Übersetzung, bevor er geschrieben wird:
+Der Import ist kein blindes Einfügen. Bevor verbatra irgendetwas schreibt, läuft jeder vom Übersetzer eingetippte Wert durch dieselben Prüfungen wie eine automatisierte Übersetzung:
 
-- **Platzhalter-Integrität** - eine Übersetzung muss genau dieselben Platzhalter tragen wie ihre Quelle. Ein Wert, der `{name}` weglässt oder `{total}` erfindet, wird zurückgehalten.
-- **ICU-Gültigkeit** - eine ICU-Nachricht muss strukturell gültig bleiben, mit denselben Argumentnamen. Nur der menschenlesbare Text darf sich ändern.
-- **Quell-Abweichung** - der ausgeblendete `Source hash` lässt den Import einen Quell-String erkennen, der sich geändert hat, nachdem die Arbeitsmappe exportiert wurde. Eine veraltete Zeile wird zurückgehalten, sodass du niemals eine aktuelle Quelle mit einer Übersetzung einer alten überschreibst.
-- **Unbekannte Schlüssel** - eine Zeile, deren `Key` nicht in der aktuellen Quelle ist (zum Beispiel eine, die ein Übersetzer von Hand hinzugefügt hat), wird abgelehnt.
+- **Platzhalter-Integrität**: eine Übersetzung muss exakt dieselben Platzhalter tragen wie ihre Quelle. Lass `{name}` weg oder erfinde `{total}`, und der Wert wird zurückgehalten.
+- **ICU-Gültigkeit**: eine ICU-Nachricht muss strukturell gültig bleiben, mit denselben Argumentnamen. Nur der menschenlesbare Text darf sich ändern.
+- **Quell-Drift**: der ausgeblendete `Source hash` lässt den Import einen Quell-String erkennen, der sich nach dem Export der Arbeitsmappe geändert hat. Eine veraltete Zeile wird zurückgehalten, sodass du nie eine aktuelle Quelle mit der Übersetzung einer alten überschreibst.
+- **Unbekannte Keys**: eine Zeile, deren `Key` nicht in der aktuellen Quelle ist (etwa einer, den ein Übersetzer von Hand hinzugefügt hat), wird abgelehnt.
 
-Ein Wert, der eine Prüfung nicht besteht, wird **zurückgehalten** - nicht geschrieben - und in der Lauf-Zusammenfassung gemeldet, sodass du ihn beheben und erneut importieren kannst. Die Schlüssel, die bestehen, werden geschrieben und festgeschrieben; die, die nicht bestehen, lassen die Locale-Datei unberührt. Führe mit `--dry-run` aus, um eine zurückgegebene Arbeitsmappe zu validieren und zu sehen, was geschrieben würde, ohne eine Datei zu berühren:
+Ein Wert, der irgendeine Prüfung nicht besteht, wird **zurückgehalten** (nicht geschrieben) und in der Lauf-Zusammenfassung gemeldet, sodass du ihn korrigieren und erneut importieren kannst. Keys, die bestehen, werden geschrieben und festgeschrieben; die, die scheitern, lassen die Locale-Datei unberührt. Füge `--dry-run` hinzu, um eine zurückgegebene Arbeitsmappe zu validieren und eine Vorschau dessen zu sehen, was geschrieben würde, ohne eine einzige Datei anzurühren:
 
 ```bash
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
-Da der Import den `translate`-Exit-Code-Vertrag teilt, gibt er `0` zurück, wenn jedes Locale erfolgreich ist, `1`, wenn ein Locale fehlschlägt, und `2`, wenn der Lauf nicht starten konnte - sodass eine manuelle Übergabe in dieselben CI-Prüfungen passt wie eine automatisierte. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes).
+Der Import teilt den Exit-Code-Vertrag von `translate`: er gibt `0` zurück, wenn jede Locale erfolgreich ist, `1`, wenn eine Locale fehlschlägt, und `2`, wenn der Lauf nicht starten konnte. Das heißt, eine manuelle Übergabe fällt in dieselben CI-Prüfungen wie eine automatisierte. Siehe [CI and automation](/docs/ci-and-exit-codes).
 
 ## Aus dem SDK
 
-Die CLI-Befehle umschließen zwei SDK-Funktionen, `exportWorkbook` und `importWorkbook`, die du direkt aufrufen kannst, wenn du manuelle Übersetzung in deine eigenen Werkzeuge einbaust:
+Die CLI-Befehle umschließen zwei SDK-Funktionen, `exportWorkbook` und `importWorkbook`. Rufe sie direkt auf, wenn du manuelle Übersetzung in dein eigenes Tooling einbaust:
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
@@ -90,10 +87,10 @@ await exportWorkbook({ config });
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
 ```
 
-Beide nehmen die validierte Konfiguration von [`loadConfig`](/docs/sdk), und `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate`. Die Arbeitsmappe selbst wird von `@verbatra/exchange` erstellt und geparst, einem internen Paket, das ein neutrales, formatunabhängiges Zeilenmodell und die gestaltete `.xlsx` besitzt, in die und aus der es serialisiert. Das SDK setzt sie zusammen; du interagierst über `exportWorkbook` / `importWorkbook` mit ihr, nicht direkt.
+Beide nehmen die validierte Konfiguration von [`loadConfig`](/docs/sdk), und `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate`. Die Arbeitsmappe selbst wird von `@verbatra/exchange` gebaut und geparst, einem internen Paket, das ein neutrales, formatunabhängiges Zeilenmodell und die gestylte `.xlsx` besitzt, in die und aus der es serialisiert. Das SDK komponiert es für dich: du erreichst es über `exportWorkbook` / `importWorkbook`, niemals direkt.
 
 ## Weiter
 
 - [`verbatra export`](/docs/cli/export): jedes Export-Flag und der Bericht, den es ausgibt.
-- [`verbatra import`](/docs/cli/import): jedes Import-Flag, die Lauf-Zusammenfassung und Exit-Codes.
-- [Übersetzungssicherheit](/docs/translation-safety): die Platzhalter- und ICU-Prüfungen, die jeden Schreibvorgang schützen, manuell oder automatisiert.
+- [`verbatra import`](/docs/cli/import): jedes Import-Flag, die Lauf-Zusammenfassung und die Exit-Codes.
+- [Translation safety](/docs/translation-safety): die Platzhalter- und ICU-Prüfungen, die jeden Schreibvorgang bewachen, manuell oder automatisiert.

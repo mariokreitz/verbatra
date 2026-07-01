@@ -2,16 +2,13 @@
 title: verbatra watch
 description: Re-translate on every source change until interrupted.
 ---
-
-# verbatra watch
-
-Watch the source file and re-run a translation on each debounced change, until you interrupt it. Use it while you work so new and changed strings are translated as you save.
+Watch the source file and re-run a translation on each debounced change, until you interrupt it. Keep it running while you work and new or changed strings get translated as you save.
 
 ```bash
 verbatra watch
 ```
 
-Watch keeps running until you stop it. A single interrupt (Ctrl-C) stops it gracefully and exits `0`; a second interrupt force-stops it and exits `130`.
+`watch` runs until you stop it. A single interrupt (Ctrl-C) stops it gracefully and exits `0`; a second interrupt force-stops it and exits `130`.
 
 ## Options
 
@@ -24,7 +21,7 @@ Watch keeps running until you stop it. A single interrupt (Ctrl-C) stops it grac
 
 ## Output
 
-Without `--json`, `watch` prints a human-readable summary per run. With `--json`, it prints one NDJSON record per run (one JSON object per line): either a success carrying the run summary, or a failure carrying an error code and message. A failed run is one of these records on the stream - it does not stop the watcher and does not set a non-zero exit code. See the [`WatchRunResult` shape in the SDK reference](/docs/sdk).
+Without `--json`, `watch` prints a human-readable summary per run. With `--json`, it prints one NDJSON record per run (one JSON object per line): either a success carrying the run summary, or a failure carrying an error code and message. A failed run is just one of those records on the stream: it does not stop the watcher and does not set a non-zero exit code. See the [`WatchRunResult` shape in the SDK reference](/docs/sdk).
 
 ## Examples
 
@@ -34,6 +31,12 @@ verbatra watch
 
 # wait 1s after a change before translating
 verbatra watch --debounce 1000
+
+# watch a project in another directory
+verbatra watch --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra watch --config config/verbatra.config.ts
 
 # stream one NDJSON record per run
 verbatra watch --json
@@ -47,4 +50,4 @@ verbatra watch --json
 | `2` | could not run: the config failed to load, or a usage error |
 | `130` | force-stopped by a second interrupt |
 
-Unlike [`translate`](/docs/cli/translate), a per-run failure does not change the exit code - it is reported as a stream record. The exit code reflects only how the watcher stopped.
+Unlike [`translate`](/docs/cli/translate), a per-run failure does not change the exit code: it goes out as a stream record. The exit code reflects only how the watcher stopped.

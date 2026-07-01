@@ -1,15 +1,12 @@
 ---
 title: GitHub Action
-description: Exécute verbatra dans GitHub Actions - traduis en CI, annote les échecs et écris un résumé de tâche.
+description: "Lance verbatra dans GitHub Actions : traduis en CI, annote les échecs et écris un résumé de job."
 ---
-
-# GitHub Action
-
-verbatra fournit une GitHub Action composite qui exécute `verbatra translate --json` en CI, annote tout échec, écrit un résumé de tâche, puis sort avec le code de sortie de la CLI. Elle est consommée directement depuis le dépôt avec `uses:` ; elle n'est pas publiée sur npm.
+Tu veux que les traductions tournent à chaque push ? verbatra fournit une GitHub Action composite qui fait exactement ça. Elle lance `verbatra translate --json` en CI, annote les éventuels échecs, écrit un résumé de job et sort avec le code de sortie de la CLI. Tu la branches avec `uses:`. Elle n'est pas publiée sur npm.
 
 ## Disponibilité
 
-Cette action n'existe que dans le dépôt. Tu la référence directement depuis le dépôt avec `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, épinglée à un SHA de commit. Elle n'est pas publiée sur npm et n'a ni fiche GitHub Marketplace ni étiquette d'action versionnée ; la seule manière prise en charge de la consommer est la référence `uses:` basée sur le chemin et épinglée à un SHA de commit.
+Cette action vit dans le dépôt, donc tu la référence directement depuis là avec `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, épinglée à un SHA de commit. Il n'y a aucun package npm, aucune fiche GitHub Marketplace et aucun tag d'action versionné. La référence `uses:` basée sur le chemin et épinglée à un SHA de commit est la seule façon supportée de la consommer.
 
 ## Utilisation
 
@@ -34,28 +31,28 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-L'action exécute la CLI, donc la clé API du fournisseur est lue depuis l'environnement. Fournis-la depuis les secrets de ton dépôt sous la forme de la variable correspondant à ton fournisseur (voir [Fournisseurs](/docs/providers)) - par exemple `ANTHROPIC_API_KEY` ci-dessus.
+L'action lance la CLI, donc elle lit la clé d'API du provider depuis l'environnement. Passe-la depuis les secrets de ton dépôt sous la variable qu'attend ton provider (voir [Providers](/docs/providers)) : `ANTHROPIC_API_KEY` dans l'exemple ci-dessus, `OPENAI_API_KEY` si tu utilises OpenAI, et ainsi de suite.
 
 ## Entrées
 
-| Entrée | Requis | Par défaut | Description |
+| Input | Requis | Défaut | Description |
 | --- | --- | --- | --- |
-| `version` | oui | - | la version de `@verbatra/cli` à exécuter, par exemple `0.3.0`. Épingle-la à une version exacte ; n'utilise pas une étiquette flottante telle que `latest` |
-| `config-path` | non | `""` | fichier de configuration explicite à charger (mappé sur `--config`) ; vide utilise la recherche de configuration normale |
-| `working-directory` | non | `""` | répertoire par rapport auquel résoudre la configuration et les fichiers de locale (mappé sur `--cwd`) |
-| `dry-run` | non | `"false"` | définis sur `"true"` pour signaler ce qui changerait sans appeler de fournisseur ni écrire (mappé sur `--dry-run`) |
-| `node-version` | non | `"24"` | version de Node.js à configurer pour exécuter la CLI |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer, par exemple `0.3.0`. Épingle-la à une version exacte ; n'utilise pas un tag flottant comme `latest` |
+| `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche de config normale |
+| `working-directory` | non | `""` | répertoire pour résoudre la config et les fichiers de locale (correspond à `--cwd`) |
+| `dry-run` | non | `"false"` | mets `"true"` pour signaler ce qui changerait sans appeler de provider ni écrire (correspond à `--dry-run`) |
+| `node-version` | non | `"24"` | version de Node.js à installer pour lancer la CLI |
 
-L'action exécute toujours `translate --json` ; elle n'exécute ni `init` ni `watch`.
+L'action lance toujours `translate --json`. Elle ne lance jamais `init` ni `watch`.
 
 ## Comportement de sortie
 
-L'action capture la sortie standard et le code de sortie de la CLI sans échouer prématurément, annote les échecs et écrit le résumé de tâche, puis propage le code de sortie de la CLI - de sorte que l'étape échoue sur `1` (certaines locales ont échoué) ou `2` (impossible de s'exécuter) seulement après que les annotations et le résumé sont produits. Les [codes de sortie de la CLI](/docs/cli#exit-codes) définissent la signification de chaque code.
+L'action récupère le stdout et le code de sortie de la CLI sans abandonner en cours de route. Elle annote les échecs, écrit le résumé de job, et seulement ensuite propage le code de sortie de la CLI. Ainsi l'étape échoue sur `1` (certaines locales ont échoué) ou `2` (impossible de lancer), mais pas avant que tu obtiennes les annotations et le résumé. Les [codes de sortie de la CLI](/docs/cli#exit-codes) détaillent ce que signifie chaque code.
 
 ## Persister les traductions
 
-Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action ne les commite pas. Pour conserver les changements, ajoute ta propre étape pour commiter et pousser, ou ouvre une pull request. Utilise `dry-run: "true"` lorsque tu veux seulement que la CI vérifie les traductions manquantes ou obsolètes.
+Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action s'arrête là : elle ne les commit pas. Pour conserver les changements, ajoute ta propre étape qui commit et push, ou qui ouvre une pull request. Quand tu veux seulement que la CI signale les traductions manquantes ou périmées sans rien écrire, mets `dry-run: "true"`.
 
 ## Sécurité
 
-Épingle à la fois l'action et la CLI à des références exactes : épingle `uses:` à un SHA de commit, et épingle l'entrée `version` à une release exacte de `@verbatra/cli` plutôt qu'à une étiquette flottante, afin qu'une exécution soit reproductible et ne puisse pas récupérer automatiquement une release compromise. Donne au workflow le moindre privilège dont il a besoin - `contents: read` pour une vérification ; ajoute `contents: write` et `pull-requests: write` seulement si une étape ultérieure commite ou ouvre une pull request. Les entrées sont passées à la CLI comme données, jamais insérées dans le shell, de sorte qu'une valeur d'entrée forgée reste un argument plutôt que du code exécutable.
+Épingle à la fois l'action et la CLI à des références exactes. Épingle `uses:` à un SHA de commit, et règle l'input `version` sur une release exacte de `@verbatra/cli` plutôt qu'un tag flottant comme `latest`. Ça garde un run reproductible et l'empêche de récupérer automatiquement une release compromise. Ne donne au workflow que le privilège dont il a besoin : `contents: read` pour une vérification, plus `contents: write` et `pull-requests: write` seulement quand une étape ultérieure commit ou ouvre une pull request. Les inputs atteignent la CLI en tant que données, jamais insérés dans le shell, donc une valeur d'input forgée reste un argument et ne devient jamais du code exécutable.

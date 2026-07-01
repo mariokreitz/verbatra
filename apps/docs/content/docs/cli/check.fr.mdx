@@ -2,10 +2,7 @@
 title: verbatra check
 description: Signale quelles locales ont des chaînes manquantes ou obsolètes, en lecture seule, sans appeler de fournisseur ni écrire de fichiers.
 ---
-
-# verbatra check
-
-Signale, par locale cible, combien de chaînes sont manquantes, obsolètes ou à jour, puis quitte avec un code sur lequel une étape de CI peut s'embrancher. `check` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) avant d'appeler un fournisseur, mais s'arrête là : il n'appelle aucun fournisseur, n'écrit aucun fichier et ne touche jamais au [fichier de verrouillage](/docs/the-lock-file). C'est le moyen économique, en lecture seule, de demander "mes traductions sont-elles synchronisées ?" avant que quiconque ne paie un fournisseur.
+Signale, par locale cible, combien de chaînes sont manquantes, obsolètes ou à jour, puis quitte avec un code sur lequel une étape de CI peut s'embrancher. `check` exécute la même lecture et le même diff que [`verbatra translate`](/docs/cli/translate) juste avant d'appeler un fournisseur, puis s'arrête : aucun appel de fournisseur, aucun fichier écrit, et il ne touche jamais au [fichier de verrouillage](/docs/the-lock-file). C'est le moyen économique, en lecture seule, de demander "mes traductions sont-elles synchronisées ?" avant que quiconque ne paie un fournisseur.
 
 ```bash
 verbatra check
@@ -13,7 +10,7 @@ verbatra check
 
 Une clé est **manquante** lorsqu'elle est dans la locale source mais absente de la cible. Une clé est **obsolète** lorsque la cible la possède mais que la chaîne source a changé depuis sa dernière traduction. Une clé est **à jour** lorsque la cible correspond à la source actuelle. Une locale est synchronisée lorsqu'elle n'a aucune clé manquante ni obsolète.
 
-`check` signale des décomptes. Pour voir les clés réelles derrière ces décomptes (quelles clés seraient ajoutées, retraduites ou sont orphelines), utilise [`verbatra diff`](/docs/cli/diff), sa commande sœur détaillée qui exécute le calcul identique en lecture seule.
+`check` te donne des décomptes. Tu veux les clés réelles derrière ces décomptes (quelles clés seraient ajoutées, retraduites ou sont orphelines) ? Utilise [`verbatra diff`](/docs/cli/diff), sa commande sœur détaillée qui exécute le calcul identique en lecture seule.
 
 ## Options
 
@@ -60,6 +57,12 @@ verbatra check
 # only check the German and French locales
 verbatra check --locales de,fr
 
+# check a project in another directory
+verbatra check --cwd packages/app
+
+# load a specific config instead of searching for one
+verbatra check --config config/verbatra.config.ts
+
 # machine-readable status on stdout for CI
 verbatra check --json
 ```
@@ -72,4 +75,4 @@ verbatra check --json
 | `1` | désynchronisé : au moins une locale a une clé manquante ou obsolète (le rapport complet est tout de même affiché) |
 | `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
 
-Pour `check`, le code de sortie `1` signifie "désynchronisé", pas un échec par locale : l'exécution elle-même a réussi, mais le résultat n'est pas entièrement au vert. Cela fait de `check` un garde-fou de CI sur une ligne qui échoue lorsque les traductions ont dérivé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.
+Pour `check`, le code de sortie `1` signifie "désynchronisé", pas un échec par locale : l'exécution elle-même a réussi, le résultat n'est simplement pas entièrement au vert. Cela fait de `check` un garde-fou de CI sur une ligne qui échoue lorsque les traductions ont dérivé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

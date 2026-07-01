@@ -1,6 +1,6 @@
 ---
 name: feature
-description: Runs the full verbatra delivery team end to end on a feature, bug, chore, or docs change. Use when the user wants to "ship a feature", "fix a bug", "run the team", "take this through the workflow", "deliver this change", or hand a brief to the product owner and have it carried through clarification, design, implementation, code review, QA, security review, release, docs, and sign-off. Orchestrates all nine role agents with review loops.
+description: Runs the full verbatra delivery team end to end on a feature, bug, chore, or docs change. Use when the user wants to "ship a feature", "fix a bug", "run the team", "take this through the workflow", "deliver this change", or hand a brief to the product owner and have it carried through clarification, design, implementation, code review, QA, security review, release, docs, and sign-off. Orchestrates all ten role agents with review loops.
 ---
 
 # verbatra delivery team orchestrator
@@ -47,7 +47,9 @@ defined in workflow.md. In summary:
 7. security-reviewer checks the security rules; findings route back to the developer
    or product-owner, then re-run affected stages.
 8. release-manager prepares the changeset and changelog.
-9. docs-writer updates apps/docs if the change is user-facing.
+9. docs-writer updates apps/docs prose if the change is user-facing, and
+   docs-designer handles the docs site's visual and UX layer if the change touches
+   it; skip whichever does not apply.
 10. devops-engineer verifies CI, lockfile, action pinning, and Trusted Publishing.
 11. product-owner signs off against every acceptance criterion.
 
@@ -57,6 +59,10 @@ defined in workflow.md. In summary:
   to the developer.
 - Spec ambiguity, scope questions, or unmet requirements route to the product owner.
 - Structural or dependency-direction concerns route to the software architect.
+- Doc prose issues route to the docs-writer; visual or UX issues on the docs site
+  (layout, styling, responsiveness, accessibility, design-system regressions) route
+  to the docs-designer. At sign-off the product-owner may route a visual regression
+  back to the docs-designer just as a content gap routes to the docs-writer.
 - After any fix, re-run the stages downstream of the fix, not the whole pipeline.
 - Cap each loop at three iterations. If it does not converge, raise a blocker.
 
