@@ -16,12 +16,19 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   const MDX = page.data.body;
 
   // The docs home renders its own full-bleed hero (with its own h1), so the default title,
-  // description, table of contents, and breadcrumb are suppressed there and the page runs
-  // full width. Every other page keeps the standard docs chrome.
+  // description, table of contents, and breadcrumb are suppressed there. The article also drops
+  // its max-width and padding for the home so the hero can span the full content area edge to
+  // edge; the home MDX re-contains the below-hero content in <DocsHomeBody>. Every other page
+  // keeps the standard docs chrome.
   const isHome = !params.slug || params.slug.length === 0;
 
   return (
-    <DocsPage toc={isHome ? [] : page.data.toc} full={isHome} breadcrumb={{ enabled: !isHome }}>
+    <DocsPage
+      toc={isHome ? [] : page.data.toc}
+      full={isHome}
+      breadcrumb={{ enabled: !isHome }}
+      className={isHome ? "max-w-none p-0 md:p-0 xl:p-0" : undefined}
+    >
       <JsonLd
         data={techArticleLd({
           title: page.data.title,
