@@ -136,6 +136,15 @@ h6 {
   --v-glow-soft: #d8c8f5;
   --v-violet: #7c4dff;
   --v-pink: #e7b6f2;
+  /* A near-black void below the page surface, used for the footer wash and beam contrast. */
+  --v-void: hsl(240 24% 4%);
+  /* Lavender-to-violet gradient for the hero headline treatment. */
+  --gradient-headline: linear-gradient(
+    92deg,
+    var(--v-glow-soft),
+    var(--v-glow) 55%,
+    var(--v-violet)
+  );
   --v-status-new: var(--v-glow);
   --v-status-changed: var(--v-pink);
   --v-status-unchanged: #6f6f86;
@@ -237,6 +246,73 @@ figure.shiki {
 @media (prefers-reduced-motion: reduce) {
   .vk-track {
     animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Aceternity-flavored landing motion. Each animated class degrades to a static
+   frame under prefers-reduced-motion (the block at the end disables them all).
+   --------------------------------------------------------------------------- */
+@keyframes vk-spot-sweep {
+  from {
+    transform: translateX(-54%) rotate(-4deg);
+    opacity: 0.65;
+  }
+  to {
+    transform: translateX(-46%) rotate(3deg);
+    opacity: 1;
+  }
+}
+
+@keyframes vk-beam {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.65;
+  }
+  80% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(420%);
+    opacity: 0;
+  }
+}
+
+@keyframes vk-float {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-12px);
+  }
+}
+
+.vk-spot {
+  animation: vk-spot-sweep 9s var(--ease-out) infinite alternate;
+}
+
+/* Duration and delay are set per beam inline; the class supplies the rest. */
+.vk-beam {
+  animation-name: vk-beam;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.vk-float {
+  animation: vk-float 4s var(--ease-out) infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* These animations are applied through the class selectors above (not inline), so
+     clearing the animation-name here by source order disables them: no !important
+     needed. The beams keep their inline duration/delay, but with no name they never run. */
+  .vk-spot,
+  .vk-beam,
+  .vk-float {
+    animation-name: none;
   }
 }
 
