@@ -10,12 +10,12 @@ import {
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Marquee, type MarqueeItem } from "./fx/marquee";
+import { LogoTile } from "./logo-tile";
 import { SectionHead } from "./section-head";
 
 type Chip = { name: string; sub: string };
 
-// Frameworks and the JSON locale formats they use. Providers have their own logo cloud
-// section now, so this marquee is frameworks-only.
+// Frameworks and the JSON locale formats they use. Providers have their own marquee now.
 const FRAMEWORK_CHIPS: ReadonlyArray<Chip> = [
   { name: "React", sub: "next-intl" },
   { name: "Next.js", sub: "next-intl" },
@@ -38,45 +38,24 @@ const CHIP_ICONS: Readonly<Record<string, IconType>> = {
   "Node.js": SiNodedotjs,
 };
 
-// GlyphTile look: a hairline rounded tile carrying the real brand icon (or a glow dot for
-// the format chips), the name in the display face, and the format in mono. The translucent
-// card surface keeps the marquee reading as light glyphs gliding over the grid.
-function MarqueeChip({ chip }: { chip: Chip }): ReactNode {
-  const Icon = CHIP_ICONS[chip.name];
+// The real brand icon (currentColor, tinted by the tile), or a glow dot for the format-only
+// chips that have no logo.
+function chipIcon(name: string): ReactNode {
+  const Icon = CHIP_ICONS[name];
+  if (Icon) return <Icon size={24} color="currentColor" aria-hidden="true" />;
   return (
     <span
-      className="mx-1.5 inline-flex h-11 min-w-[12.5rem] items-center justify-center gap-2.5 whitespace-nowrap rounded-[10px] border border-fd-border px-4"
-      style={{ background: "color-mix(in srgb, var(--surface-card) 70%, transparent)" }}
-    >
-      {Icon ? (
-        <Icon
-          size={16}
-          color="currentColor"
-          aria-hidden="true"
-          className="shrink-0 text-[color:var(--accent)]"
-        />
-      ) : (
-        <span
-          aria-hidden="true"
-          className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
-          style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
-        />
-      )}
-      <span
-        className="text-[0.98rem] font-medium text-fd-foreground"
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        {chip.name}
-      </span>
-      <span className="font-mono text-[11px] text-[color:var(--text-faint)]">{chip.sub}</span>
-    </span>
+      aria-hidden="true"
+      className="inline-block h-[7px] w-[7px] rounded-full"
+      style={{ background: "var(--v-glow)", boxShadow: "var(--glow-mark)" }}
+    />
   );
 }
 
 const FRAMEWORK_ITEMS: ReadonlyArray<MarqueeItem> = FRAMEWORK_CHIPS.map((chip) => ({
   key: chip.name,
   label: `${chip.name} (${chip.sub})`,
-  node: <MarqueeChip chip={chip} />,
+  node: <LogoTile icon={chipIcon(chip.name)} name={chip.name} sub={chip.sub} />,
 }));
 
 export async function WorksWith(): Promise<ReactNode> {
@@ -90,7 +69,7 @@ export async function WorksWith(): Promise<ReactNode> {
         <Marquee
           items={FRAMEWORK_ITEMS}
           direction="left"
-          duration={35}
+          duration={40}
           label={t("labelFrameworks")}
           maxWidth="48rem"
         />

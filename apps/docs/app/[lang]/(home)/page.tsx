@@ -5,7 +5,7 @@ import { Features } from "@/components/landing/features";
 import { FinalCta } from "@/components/landing/final-cta";
 import { FullFooter } from "@/components/landing/footer";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { LogoCloud } from "@/components/landing/logo-cloud";
+import { ProvidersMarquee } from "@/components/landing/providers-marquee";
 import { WorksWith } from "@/components/landing/works-with";
 import { LandingHero } from "@/components/landing-hero";
 import type { Locale } from "@/lib/i18n";
@@ -48,7 +48,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
 
       <LandingHero />
       <WorksWith />
-      <LogoCloud />
+      <ProvidersMarquee />
       <HowItWorks />
       <Features />
       <Faq items={faqItems} />

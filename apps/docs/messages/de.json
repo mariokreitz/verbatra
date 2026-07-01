@@ -37,7 +37,8 @@
     "providers": {
       "eyebrow": "der Anbieter deiner Wahl",
       "heading": "Übersetze über das Modell, dem du vertraust.",
-      "lead": "Anthropic, OpenAI, Gemini oder DeepL. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen."
+      "lead": "Anthropic, OpenAI, Gemini oder DeepL. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen.",
+      "marqueeLabel": "Übersetzungsanbieter"
     },
     "how": {
       "eyebrow": "so funktioniert es",

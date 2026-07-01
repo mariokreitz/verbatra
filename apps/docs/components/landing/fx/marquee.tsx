@@ -12,6 +12,7 @@ export function Marquee({
   duration,
   label,
   maxWidth,
+  repeat = 1,
 }: {
   items: ReadonlyArray<MarqueeItem>;
   direction: "left" | "right";
@@ -19,8 +20,16 @@ export function Marquee({
   label: string;
   // Caps the band width so one (doubled) track stays at least as wide as the band, keeping short tracks seamless.
   maxWidth?: string;
+  // Repeats the item list within each half of the doubled track, so a short list (few logos)
+  // still fills the band and the loop stays seamless.
+  repeat?: number;
 }): ReactNode {
   const animation = `vk-marquee-${direction} ${duration}s linear infinite`;
+  // One half of the doubled track: the items, repeated `repeat` times, each copy given a
+  // unique key prefix so React does not collide on the duplicated nodes.
+  const half = Array.from({ length: repeat }, (_, r) =>
+    items.map((item) => ({ item, dupKey: `${r}-${item.key}` })),
+  ).flat();
   return (
     <div className="vk-band py-2" style={maxWidth ? { maxWidth } : undefined}>
       {/* One readable list for assistive tech; the visual track below is duplicated and hidden. */}
@@ -31,11 +40,11 @@ export function Marquee({
         ))}
       </ul>
       <div className="vk-track" style={{ animation }} aria-hidden="true">
-        {items.map((item) => (
-          <Fragment key={`a-${item.key}`}>{item.node}</Fragment>
+        {half.map(({ item, dupKey }) => (
+          <Fragment key={`a-${dupKey}`}>{item.node}</Fragment>
         ))}
-        {items.map((item) => (
-          <Fragment key={`b-${item.key}`}>{item.node}</Fragment>
+        {half.map(({ item, dupKey }) => (
+          <Fragment key={`b-${dupKey}`}>{item.node}</Fragment>
         ))}
       </div>
     </div>

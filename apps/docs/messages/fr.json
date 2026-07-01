@@ -37,7 +37,8 @@
     "providers": {
       "eyebrow": "le fournisseur de ton choix",
       "heading": "Traduis via le modèle en qui tu as confiance.",
-      "lead": "Anthropic, OpenAI, Gemini ou DeepL. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale."
+      "lead": "Anthropic, OpenAI, Gemini ou DeepL. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
+      "marqueeLabel": "Fournisseurs de traduction"
     },
     "how": {
       "eyebrow": "comment ça marche",
