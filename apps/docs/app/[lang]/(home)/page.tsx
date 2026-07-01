@@ -4,9 +4,9 @@ import { Faq } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
 import { FinalCta } from "@/components/landing/final-cta";
 import { FullFooter } from "@/components/landing/footer";
+import { FrameworksCloud } from "@/components/landing/frameworks-cloud";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { ProvidersMarquee } from "@/components/landing/providers-marquee";
-import { WorksWith } from "@/components/landing/works-with";
+import { ProvidersCloud } from "@/components/landing/providers-cloud";
 import { LandingHero } from "@/components/landing-hero";
 import type { Locale } from "@/lib/i18n";
 import { PACKAGE_VERSION } from "@/lib/site";
@@ -47,8 +47,8 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />
 
       <LandingHero />
-      <WorksWith />
-      <ProvidersMarquee />
+      <FrameworksCloud />
+      <ProvidersCloud />
       <HowItWorks />
       <Features />
       <Faq items={faqItems} />

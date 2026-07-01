@@ -204,51 +204,6 @@ figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }
 
-@keyframes vk-marquee-left {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes vk-marquee-right {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-.vk-band {
-  position: relative;
-  width: 100%;
-  max-width: 1100px;
-  margin-inline: auto;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
-}
-
-.vk-track {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  width: max-content;
-  will-change: transform;
-}
-
-.vk-band:hover .vk-track {
-  animation-play-state: paused;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vk-track {
-    animation: none !important;
-  }
-}
-
 /* ---------------------------------------------------------------------------
    Aceternity-flavored landing motion. Each animated class degrades to a static
    frame under prefers-reduced-motion (the block at the end disables them all).
