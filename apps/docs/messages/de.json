@@ -1,228 +1,246 @@
 {
   "landing": {
-    "brand": {
-      "vmarkAlt": "verbatra"
+    "meta": {
+      "title": "verbatra: halte deine i18n-Locale-Dateien synchron und übersetze nur, was sich geändert hat",
+      "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die Schlüssel, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl. Leg jetzt los.",
+      "ogImageAlt": "verbatra hält deine i18n-Locale-Dateien synchron und übersetzt nur die Schlüssel, die sich geändert haben.",
+      "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die Schlüssel übersetzt, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl."
+    },
+    "hero": {
+      "headline": "Übersetze nur, was sich geändert hat.",
+      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede weitere Locale über den KI-Anbieter, den du wählst.",
+      "ctaQuickstart": "Zum Schnellstart",
+      "ctaGithub": "Auf GitHub mit Stern versehen"
+    },
+    "pillars": {
+      "heading": "Ein Tool für den gesamten Übersetzungsablauf.",
+      "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzer und die Automatisierung, um jede Locale synchron zu halten.",
+      "ai": {
+        "title": "KI-Übersetzung",
+        "body": "Übersetze nur, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini oder DeepL. Eine committete Lock-Datei hält jeden Lauf inkrementell, und die Platzhalter- und ICU-Integrität wird geprüft, bevor irgendetwas geschrieben wird."
+      },
+      "excel": {
+        "title": "Excel-Übergabe",
+        "body": "Führe verbatra export aus, um eine gestylte .xlsx-Arbeitsmappe zu erzeugen, gib sie an ein Übersetzungsbüro oder interne Übersetzer, und verbatra import liest ihre Änderungen zurück in deine Locale-Dateien. Kombiniere maschinelle Übersetzung mit professioneller menschlicher Arbeit."
+      },
+      "automation": {
+        "title": "Automatisierung",
+        "body": "Halte jede Locale synchron, während du arbeitest: verbatra watch übersetzt bei Änderungen, CI-freundliche Exit-Codes und --json-Ausgabe fügen sich in jede Pipeline ein, und eine GitHub Action führt es in deinem Workflow aus."
+      }
+    },
+    "status": {
+      "label": "Build-Status, Testabdeckung, Paketversionen, Downloads und Lizenz",
+      "cliVersionAlt": "Neueste veröffentlichte @verbatra/cli-Version auf npm",
+      "sdkVersionAlt": "Neueste veröffentlichte @verbatra/sdk-Version auf npm",
+      "buildAlt": "Build-Status der Continuous Integration",
+      "coverageAlt": "Auf Codecov gemeldete Testabdeckung",
+      "downloadsAlt": "Monatliche npm-Downloads",
+      "licenseAlt": "Veröffentlicht unter der MIT-Lizenz"
+    },
+    "install": {
+      "tablistLabel": "Paketmanager",
+      "copy": "kopieren",
+      "copied": "kopiert",
+      "copyAria": "Installationsbefehl kopieren"
     },
     "compat": {
-      "body": "verbatra liest die JSON-Locale-Formate, die dein Framework bereits verwendet, und füllt sie über den von dir gewählten Anbieter aus.",
-      "eyebrow": "funktioniert mit deinem Stack",
-      "heading": "Ein Tool, jedes Framework.",
-      "labelFrameworks": "Frameworks und Formate",
-      "labelProviders": "Übersetzungsanbieter"
+      "heading": "Ein Werkzeug, jedes Framework.",
+      "body": "verbatra liest die JSON-Locale-Formate, die dein Framework bereits verwendet, und füllt sie über den Anbieter, den du wählst.",
+      "labelFrameworks": "Frameworks und Formate"
+    },
+    "providers": {
+      "heading": "Übersetze über das Modell, dem du vertraust.",
+      "lead": "Anthropic, OpenAI, Gemini oder DeepL. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen.",
+      "marqueeLabel": "Übersetzungsanbieter"
+    },
+    "how": {
+      "heading": "Ein Lauf ist eine kurze, vorhersehbare Pipeline.",
+      "lead": "Keine Magie, keine Hintergrundsynchronisierung: eine deterministische Abfolge, die du von oben nach unten lesen kannst.",
+      "steps": {
+        "configure": {
+          "title": "Konfigurieren",
+          "body": "Richte verbatra auf deine Quell-Locale, liste die Zielsprachen auf und wähle einen Anbieter. Die Konfiguration liegt in einer Datei; API-Schlüssel bleiben in deiner Umgebung."
+        },
+        "diff": {
+          "title": "Vergleichen",
+          "body": "Jeder Lauf vergleicht deine Quell-Locale mit der eingecheckten Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist ein."
+        },
+        "translate": {
+          "title": "Übersetzen",
+          "body": "Nur die neuen und geänderten Schlüssel werden in Stapeln an deinen Anbieter gesendet, mit deinem Glossar und Tonfall. Alles andere bleibt unangetastet."
+        },
+        "verifyWrite": {
+          "title": "Prüfen und schreiben",
+          "body": "Die Integrität von Platzhaltern und ICU wird bei jedem Ergebnis geprüft. Alles, was kaputtgeht, wird zurückgehalten; der Rest wird in deine Locale-Dateien geschrieben und die Lock-Datei wird aktualisiert."
+        }
+      }
+    },
+    "why": {
+      "heading": "Gebaut für Teams, die in vielen Sprachen ausliefern.",
+      "lead": "Jede Entscheidung begünstigt Vorhersehbarkeit: kleine Diffs, explizite Konfiguration und nichts, was nicht zuerst geprüft wurde, wird geschrieben.",
+      "reasons": {
+        "incremental": {
+          "title": "Standardmäßig inkrementell",
+          "body": "Eine eingecheckte Lock-Datei hält fest, was übersetzt wurde. Jeder Lauf vergleicht die Quelle und ruft den Anbieter nur für die Schlüssel auf, die sich geändert haben."
+        },
+        "provider": {
+          "title": "Der Anbieter deiner Wahl",
+          "body": "Anthropic, OpenAI, Gemini oder DeepL, gewählt in einer Konfigurationszeile. Wechsle den Anbieter, ohne deine Locale-Dateien anzufassen."
+        },
+        "safety": {
+          "title": "Sicher durch Konstruktion",
+          "body": "Die Integrität von Platzhaltern und ICU wird nach jeder Übersetzung geprüft. Ein Ergebnis, das einen Platzhalter kaputtmacht, wird zurückgehalten und nie geschrieben."
+        },
+        "environment": {
+          "title": "Schlüssel bleiben in deiner Umgebung",
+          "body": "API-Schlüssel des Anbieters werden aus Umgebungsvariablen gelesen, nie aus der Konfigurationsdatei, nie aus CLI-Argumenten und nie protokolliert."
+        },
+        "oneEngine": {
+          "title": "CLI und SDK, eine Engine",
+          "body": "Der Befehl verbatra und @verbatra/sdk teilen sich einen einzigen Orchestrierungskern, sodass Skripte, CI und dein eigenes Werkzeug sich identisch verhalten."
+        },
+        "dryRun": {
+          "title": "Probeläufe und Watch-Modus",
+          "body": "Sieh dir genau an, was ein Lauf ändern würde, ohne etwas zu schreiben, oder halte einen Watch-Modus am Laufen, der übersetzt, während sich deine Quell-Locale weiterentwickelt."
+        }
+      }
     },
     "faq": {
-      "eyebrow": "faq",
       "heading": "Häufig gestellte Fragen",
+      "supporting": "Kurze, direkte Antworten auf die Fragen, die Teams vor der Einführung von verbatra stellen.",
+      "ctaDocs": "Zur Dokumentation",
+      "ctaIssue": "ein Issue eröffnen",
       "items": {
         "avoidRetranslate": {
-          "answer": "verbatra führt eine festgeschriebene Lock-Datei, die festhält, was bereits übersetzt wurde. Bei jedem Lauf gleicht es deine Quell-Locale mit dieser Lock-Datei ab und sendet nur die neuen oder geänderten Schlüssel an deinen Anbieter; unveränderte Schlüssel bleiben unberührt.",
-          "question": "Wie vermeidet verbatra, bei jedem Lauf alles neu zu übersetzen?"
-        },
-        "ci": {
-          "answer": "Ja. Der verbatra-Befehl ist ein schlanker Wrapper über dem @verbatra/sdk, der die gleichen Übersetzungs- und Überwachungsoperationen für Skripte, CI und deine eigenen Tools bereitstellt.",
-          "question": "Gibt es neben einem CLI auch ein SDK?"
-        },
-        "formats": {
-          "answer": "JSON-Formate für i18next, vue-i18n, next-intl und ngx-translate, die React-, Vue-, Next.js-, Nuxt-, Angular- und Node.js-Projekte abdecken.",
-          "question": "Welche i18n-Dateiformate kann verbatra lesen?"
-        },
-        "icu": {
-          "answer": "Es prüft die Integrität von Platzhaltern und ICU nach jeder Übersetzung. Wenn eine zurückgegebene Übersetzung einen Platzhalter bricht oder ungültige ICU erzeugt, wird dieses Ergebnis zurückgehalten, anstatt in deine Locale-Datei geschrieben zu werden.",
-          "question": "Wie geht verbatra mit ICU-Platzhaltern und Nachrichtenformaten um?"
-        },
-        "openSource": {
-          "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Locale-Dateien zu berühren, und der Überwachungsmodus übersetzt weiter, wenn sich deine Quell-Locale ändert.",
-          "question": "Kann ich einen Lauf vor dem Schreiben in eine Vorschau ansehen?"
-        },
-        "production": {
-          "answer": "verbatra ist jung und wird aktiv weiterentwickelt, daher kann sich seine API zwischen Releases noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits stabil ist, ist das Sicherheitsmodell: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, prüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles, was einen Platzhalter bricht, zurück, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; verstehe das als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher wären.",
-          "question": "Ist verbatra produktionsreif?"
+          "question": "Wie vermeidet verbatra, bei jedem Lauf alles neu zu übersetzen?",
+          "answer": "verbatra führt eine eingecheckte Lock-Datei, die festhält, was bereits übersetzt wurde. Bei jedem Lauf vergleicht es deine Quell-Locale mit dieser Lock-Datei und sendet nur die neuen oder geänderten Schlüssel an deinen Anbieter; unveränderte Schlüssel bleiben unangetastet."
         },
         "providers": {
-          "answer": "Anthropic, OpenAI, Gemini und DeepL. Du wählst einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, niemals aus der Konfigurationsdatei.",
-          "question": "Welche Übersetzungsanbieter unterstützt verbatra?"
+          "question": "Welche Übersetzungsanbieter unterstützt verbatra?",
+          "answer": "Anthropic, OpenAI, Gemini und DeepL. Du wählst einen in einer einzigen Konfigurationszeile, und der API-Schlüssel wird aus einer Umgebungsvariable gelesen, nie aus der Konfigurationsdatei."
+        },
+        "icu": {
+          "question": "Wie geht verbatra mit ICU-Platzhaltern und Nachrichtenformaten um?",
+          "answer": "Es prüft die Integrität von Platzhaltern und ICU nach jeder Übersetzung. Wenn eine zurückgegebene Übersetzung einen Platzhalter kaputtmacht oder ungültiges ICU erzeugt, wird dieses Ergebnis zurückgehalten, statt in deine Locale-Datei geschrieben zu werden."
+        },
+        "formats": {
+          "question": "Welche i18n-Dateiformate kann verbatra lesen?",
+          "answer": "JSON-Formate für i18next, vue-i18n, next-intl und ngx-translate, die React-, Vue-, Next.js-, Nuxt-, Angular- und Node.js-Projekte abdecken."
+        },
+        "openSource": {
+          "question": "Kann ich einen Lauf in der Vorschau ansehen, bevor er etwas schreibt?",
+          "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Locale-Dateien anzufassen, und der Watch-Modus übersetzt weiter, während sich deine Quell-Locale ändert."
+        },
+        "ci": {
+          "question": "Gibt es neben dem CLI auch ein SDK?",
+          "answer": "Ja. Der Befehl verbatra ist ein dünner Wrapper um @verbatra/sdk, das dieselben translate- und watch-Operationen für Skripte, CI und dein eigenes Werkzeug bereitstellt."
+        },
+        "production": {
+          "question": "Ist verbatra produktionsreif?",
+          "answer": "verbatra ist jung und wird aktiv weiterentwickelt, daher kann sich seine API zwischen Releases noch ändern; fixiere eine Version und lies das Changelog, wenn du aktualisierst. Was bereits solide ist, ist das Sicherheitsmodell: Jeder Lauf vergleicht mit einer eingecheckten Lock-Datei, prüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was einen Platzhalter kaputtmacht, statt es in deine Locale-Datei zu schreiben. Viele Teams setzen es heute in CI ein; nimm das als Signal, Versionen zu fixieren, nicht als Warnung, dass die Ergebnisse unsicher sind."
         }
       }
     },
     "finalClose": {
-      "eyebrow": "ein Befehl",
-      "heading": "Hör auf, Locale-Dateien manuell zu synchronisieren."
+      "heading": "Schluss mit dem manuellen Synchronisieren von Locale-Dateien.",
+      "lead": "Füge verbatra hinzu, checke die Lock-Datei ein und lass jeden Lauf nur das anfassen, was sich geändert hat."
     },
     "footer": {
+      "tagline": "Übersetze nur, was sich geändert hat. Ein quelloffenes CLI und SDK, das deine i18n-Locale-Dateien über den Anbieter deiner Wahl synchron hält.",
       "cols": {
-        "learn": {
-          "formats": "Formate",
-          "howItWorks": "So funktioniert's",
-          "lockFile": "Die Lock-Datei",
-          "providers": "Anbieter",
-          "title": "Lernen"
-        },
-        "legal": {
-          "imprint": "Impressum",
-          "privacy": "Datenschutzrichtlinie",
-          "title": "Rechtliches"
-        },
         "product": {
-          "cliReference": "CLI-Referenz",
+          "title": "Produkt",
           "documentation": "Dokumentation",
-          "githubAction": "GitHub Action",
+          "cliReference": "CLI-Referenz",
           "sdk": "SDK",
-          "title": "Produkt"
+          "githubAction": "GitHub Action"
+        },
+        "learn": {
+          "title": "Lernen",
+          "howItWorks": "So funktioniert es",
+          "providers": "Anbieter",
+          "formats": "Formate",
+          "lockFile": "Die Lock-Datei"
         },
         "project": {
-          "configFile": "Konfigurationsdatei",
-          "title": "Projekt"
+          "title": "Projekt",
+          "configFile": "Konfigurationsdatei"
+        },
+        "legal": {
+          "title": "Rechtliches",
+          "privacy": "Datenschutzerklärung",
+          "imprint": "Impressum"
         }
       },
+      "legalLine": "Quelloffen unter der MIT-Lizenz · © 2026 Mario Kreitz",
       "githubAria": "verbatra auf GitHub",
-      "legalLine": "Open-Source unter der MIT-Lizenz · © 2026 Mario Kreitz",
-      "npmAria": "verbatra auf npm",
-      "tagline": "Übersetze nur das, was sich geändert hat. Ein Open-Source CLI und SDK, das deine i18n-Locale-Dateien über den von dir gewählten Anbieter synchron hält."
+      "npmAria": "verbatra auf npm"
     },
-    "hero": {
-      "ctaGithub": "Auf GitHub starren",
-      "headline": "Übersetze nur das, was sich geändert hat.",
-      "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede andere Locale über den von dir gewählten KI-Anbieter aus.",
-      "ctaQuickstart": "Schnellstart lesen"
-    },
-    "how": {
-      "eyebrow": "so funktioniert's",
-      "heading": "Ein Lauf ist eine kurze, vorhersehbare Pipeline.",
-      "steps": {
-        "configure": {
-          "body": "Richte verbatra auf deine Quell-Locale aus, liste die Zielsprachen auf und wähle einen Anbieter. Die Konfiguration befindet sich in einer Datei; API-Schlüssel bleiben in deiner Umgebung.",
-          "title": "Konfigurieren"
-        },
-        "diff": {
-          "body": "Jeder Lauf vergleicht deine Quell-Locale mit der festgeschriebenen Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist.",
-          "title": "Diff"
-        },
-        "translate": {
-          "body": "Nur die neuen und geänderten Schlüssel werden in Batches an deinen Anbieter gesendet, unter Anwendung deines Glossars und deines Tones. Alles andere bleibt unberührt.",
-          "title": "Übersetzen"
-        },
-        "verifyWrite": {
-          "body": "Die Integrität von Platzhaltern und ICU wird bei jedem Ergebnis geprüft. Alles, was bricht, wird zurückgehalten; der Rest wird in deine Locale-Dateien geschrieben und die Lock-Datei aktualisiert.",
-          "title": "Überprüfen & schreiben"
-        }
-      }
-    },
-    "install": {
-      "copied": "kopiert",
-      "copy": "kopieren",
-      "copyAria": "Installationsbefehl kopieren",
-      "tablistLabel": "Paketmanager"
-    },
-    "meta": {
-      "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die geänderten Schlüssel über den von dir gewählten KI- oder maschinellen Übersetzungsanbieter übersetzt.",
-      "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die geänderten Schlüssel, über den KI- oder Übersetzungsanbieter deiner Wahl. Jetzt starten.",
-      "ogImageAlt": "verbatra hält deine i18n-Locale-Dateien synchron und übersetzt nur die Schlüssel, die sich geändert haben.",
-      "title": "verbatra: i18n-Locale-Dateien synchron halten, nur Geändertes übersetzen"
+    "brand": {
+      "vmarkAlt": "verbatra"
     },
     "nav": {
-      "docs": "Dokumentation"
-    },
-    "showcase": {
-      "body": "Ein erster Lauf füllt die neuen Schlüssel; ändere einen Quellwert, und der nächste Lauf sendet nur diesen Schlüssel. Alles andere bleibt unberührt.",
-      "eyebrow": "sieh, wie ein Lauf abläuft",
-      "heading": "Sieh zu, wie es genau einen Schlüssel berührt."
-    },
-    "why": {
-      "eyebrow": "warum verbatra",
-      "heading": "Gebaut für Teams, die in vielen Sprachen ausliefern.",
-      "reasons": {
-        "dryRun": {
-          "body": "Zeig genau an, was ein Lauf ändern würde, ohne etwas zu schreiben, oder lass einen Überwachungsmodus laufen, der übersetzt, während sich deine Quell-Locale entwickelt.",
-          "title": "Probeläufe und Überwachungsmodus"
-        },
-        "environment": {
-          "body": "API-Schlüssel von Anbietern werden aus Umgebungsvariablen gelesen, niemals aus der Konfigurationsdatei, niemals aus CLI-Argumenten und niemals protokolliert.",
-          "title": "Schlüssel bleiben in deiner Umgebung"
-        },
-        "incremental": {
-          "body": "Eine festgeschriebene Lock-Datei zeichnet auf, was übersetzt wurde. Jeder Lauf gleicht die Quelle ab und ruft den Anbieter nur für die Schlüssel auf, die sich geändert haben.",
-          "title": "Standardmäßig inkrementell"
-        },
-        "oneEngine": {
-          "body": "Der verbatra-Befehl und das @verbatra/sdk teilen sich einen einzigen Orchestrierungskern, sodass Skripte, CI und deine eigenen Tools identisch funktionieren.",
-          "title": "CLI und SDK, eine Engine"
-        },
-        "provider": {
-          "body": "Anthropic, OpenAI, Gemini oder DeepL, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Locale-Dateien zu berühren.",
-          "title": "Deine Wahl des Anbieters"
-        },
-        "safety": {
-          "body": "Die Integrität von Platzhaltern und ICU wird nach jeder Übersetzung geprüft. Ein Ergebnis, das einen Platzhalter bricht, wird zurückgehalten und niemals geschrieben.",
-          "title": "Sicher durch Konstruktion"
-        }
-      }
-    },
-    "status": {
-      "buildAlt": "Build-Status der kontinuierlichen Integration",
-      "cliVersionAlt": "Neueste veröffentlichte @verbatra/cli-Version auf npm",
-      "coverageAlt": "Auf Codecov gemeldete Testabdeckung",
-      "downloadsAlt": "Monatliche npm-Downloads",
-      "label": "Build-Status, Abdeckung, Paketversionen, Downloads und Lizenz",
-      "licenseAlt": "Veröffentlicht unter der MIT-Lizenz",
-      "sdkVersionAlt": "Neueste veröffentlichte @verbatra/sdk-Version auf npm"
+      "docs": "Docs",
+      "providers": "Anbieter",
+      "formats": "Formate"
     }
   },
   "legal": {
     "privacy": {
       "meta": {
         "title": "Datenschutzerklärung",
-        "description": "Wie die verbatra-Dokumentationswebsite mit Ihren Daten umgeht."
+        "description": "Wie die verbatra-Dokumentationsseite mit deinen Daten umgeht."
       },
       "title": "Datenschutzerklärung",
       "lastUpdatedLabel": "Zuletzt aktualisiert",
       "disclaimer": "Dies ist eine Übersetzung zur besseren Verständlichkeit. Bei etwaigen Abweichungen ist die englische Fassung maßgeblich.",
       "s1": {
         "heading": "1. Verantwortliche Stelle",
-        "body": "Verantwortlich für die Datenverarbeitung auf dieser Website ist Mario Kreitz, Deutschland. Sie erreichen uns per E-Mail unter <email>mario.kreitz@web.de</email>."
+        "body": "Die für die Datenverarbeitung auf dieser Seite verantwortliche Stelle ist Mario Kreitz, Deutschland. Du erreichst uns per E-Mail unter <email>mario.kreitz@web.de</email>."
       },
       "s2": {
         "heading": "2. Überblick",
-        "body": "Diese Website ist darauf ausgelegt, Ihre Privatsphäre zu achten. Sie setzt keine Cookies, betreibt kein seitenübergreifendes Tracking und erhebt nur die Daten, die für den Betrieb der Website und das Verständnis der aggregierten Nutzung unbedingt erforderlich sind. Die folgenden Abschnitte erläutern, was genau verarbeitet wird und warum."
+        "body": "Diese Seite ist so gebaut, dass sie deine Privatsphäre respektiert. Sie setzt keine Cookies, betreibt kein seitenübergreifendes Tracking und erhebt nur die minimalen Daten, die nötig sind, um die Seite zu betreiben und die aggregierte Nutzung zu verstehen. Die folgenden Abschnitte erklären genau, was verarbeitet wird und warum."
       },
       "s3": {
-        "heading": "3. Serverprotokolle und Hosting",
-        "body": "Die Website wird auf einem virtuellen Server selbst gehostet (verwaltet mit Dokploy). Bei Ihrem Besuch verarbeitet der Server standardmäßige Zugriffsprotokolle, die Ihre IP-Adresse, Datum und Uhrzeit der Anfrage, die angeforderte URL, die verweisende Seite sowie die User-Agent-Kennung Ihres Browsers enthalten können. Diese Daten dienen dem Betrieb und der Absicherung der Website, etwa um Seiten auszuliefern, Fehler zu diagnostizieren und Missbrauch abzuwehren. Rechtsgrundlage ist Art. 6(1)(f) DSGVO (unser berechtigtes Interesse an einem sicheren, funktionsfähigen Dienst). Diese Protokolle werden nur für einen kurzen Zeitraum aufbewahrt."
+        "heading": "3. Server-Logs und Hosting",
+        "body": "Die Seite wird auf einem virtuellen Server selbst gehostet (verwaltet mit Dokploy). Wenn du sie besuchst, verarbeitet der Server standardmäßige Zugriffs-Logs, die deine IP-Adresse, Datum und Uhrzeit der Anfrage, die angeforderte URL, die verweisende Seite und die User-Agent-Zeichenkette deines Browsers enthalten können. Diese Daten werden verwendet, um die Seite zu betreiben und abzusichern, zum Beispiel um Seiten auszuliefern, Fehler zu diagnostizieren und Missbrauch abzuwehren. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (unser berechtigtes Interesse an einem sicheren, funktionierenden Dienst). Diese Logs werden nur für einen kurzen Zeitraum aufbewahrt."
       },
       "s4": {
-        "heading": "4. Webanalyse",
-        "body": "Wir verwenden Umami, ein datenschutzfreundliches Analysetool, das wir selbst hosten. Umami ist <strong>cookielos und erhebt keine personenbezogenen Daten und verwendet kein seitenübergreifendes Fingerprinting</strong>. Es erfasst nur aggregierte Kennzahlen wie Seitenaufrufe, Verweisquellen, ungefähres Land sowie Browser, Betriebssystem und Gerätetyp. Rechtsgrundlage ist Art. 6(1)(f) DSGVO (unser berechtigtes Interesse am Verständnis der Nutzung der Website). Mehr über Umami erfahren Sie in dessen <umami>Dokumentation</umami>."
+        "heading": "4. Analyse",
+        "body": "Wir verwenden Umami, ein datenschutzfreundliches Analysewerkzeug, das wir selbst hosten. Umami ist <strong>cookielos und erhebt keine personenbezogenen Daten und verwendet kein seitenübergreifendes Fingerprinting</strong>. Es erfasst nur aggregierte Kennzahlen wie Seitenaufrufe, Verweisquellen, ungefähres Land sowie Browser, Betriebssystem und Gerätetyp. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (unser berechtigtes Interesse daran zu verstehen, wie die Seite genutzt wird). Mehr über Umami erfährst du in seiner <umami>Dokumentation</umami>."
       },
       "s5": {
         "heading": "5. Cookies",
-        "body": "Diese Website setzt keine Cookies. Da nichts Einwilligungspflichtiges auf Ihrem Gerät gespeichert wird, ist kein Cookie-Einwilligungsbanner erforderlich."
+        "body": "Diese Seite setzt keine Cookies. Da nichts Einwilligungspflichtiges auf deinem Gerät gespeichert wird, ist kein Cookie-Einwilligungsbanner erforderlich."
       },
       "s6": {
-        "heading": "6. Schriftarten und Assets",
-        "body": "Schriftarten werden selbst gehostet: Sie werden zur Build-Zeit eingebunden, sodass beim Laden einer Seite keine Anfragen an Google Fonts oder andere Dritte gestellt werden. Abgesehen von dem oben beschriebenen, selbst gehosteten Umami-Skript werden zur Laufzeit keine Skripte oder Einbettungen Dritter geladen."
+        "heading": "6. Schriften und Assets",
+        "body": "Schriften werden selbst gehostet: Sie werden zur Build-Zeit gebündelt, sodass beim Laden einer Seite keine Anfragen an Google Fonts oder einen anderen Dritten gestellt werden. Abgesehen von dem oben beschriebenen, selbst gehosteten Umami-Skript werden zur Laufzeit keine Skripte oder Einbettungen von Dritten geladen."
       },
       "s7": {
         "heading": "7. GitHub",
-        "body": "Der Quellcode des Projekts sowie Issues und Diskussionen werden auf <repo>GitHub</repo> gehostet. Wenn Sie sich dort beteiligen (etwa indem Sie ein Issue eröffnen oder an einer Diskussion teilnehmen), verarbeitet GitHub Ihre Daten als eigenständig Verantwortlicher, und es gilt dessen <ghprivacy>Datenschutzerklärung</ghprivacy>."
+        "body": "Der Quellcode, die Issues und die Diskussionen des Projekts werden auf <repo>GitHub</repo> gehostet. Wenn du dich dort beteiligst (zum Beispiel, indem du ein Issue eröffnest oder an einer Diskussion teilnimmst), verarbeitet GitHub deine Daten als eigenständiger Verantwortlicher, und seine <ghprivacy>Datenschutzerklärung</ghprivacy> gilt."
       },
       "s8": {
-        "heading": "8. Ihre Rechte",
-        "body": "Nach der DSGVO haben Sie das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Datenübertragbarkeit (Art. 15–21 DSGVO). Außerdem haben Sie das Recht, bei einer Aufsichtsbehörde Beschwerde einzulegen. Zur Ausübung dieser Rechte kontaktieren Sie uns über die unten genannten Angaben."
+        "heading": "8. Deine Rechte",
+        "body": "Nach der DSGVO hast du die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Widerspruch und Datenübertragbarkeit (Art. 15–21 DSGVO). Du hast außerdem das Recht, dich bei einer Aufsichtsbehörde zu beschweren. Um eines dieser Rechte auszuüben, kontaktiere uns über die unten stehenden Angaben."
       },
       "s9": {
         "heading": "9. Kontakt",
-        "body": "Bei Fragen oder Anliegen zum Datenschutz schreiben Sie uns an <email>mario.kreitz@web.de</email>."
+        "body": "Bei Fragen oder Anliegen zum Datenschutz schreibe eine E-Mail an <email>mario.kreitz@web.de</email>."
       },
       "s10": {
         "heading": "10. Änderungen dieser Erklärung",
-        "body": "Wir können diese Datenschutzerklärung anpassen, wenn sich die Website weiterentwickelt oder sich die rechtlichen Anforderungen ändern. Das untenstehende Datum gibt die letzte Überarbeitung wieder."
+        "body": "Wir können diese Datenschutzerklärung aktualisieren, wenn sich die Seite weiterentwickelt oder sich rechtliche Anforderungen ändern. Das untenstehende Datum spiegelt die jüngste Überarbeitung wider."
       }
     },
     "imprint": {
       "meta": {
         "title": "Impressum",
-        "description": "Rechtliche Hinweise (Impressum) für die verbatra-Dokumentationswebsite."
+        "description": "Rechtliche Angaben (Impressum) für die verbatra-Dokumentationsseite."
       },
-      "intro": "Dieses Impressum wird gemäß den Anforderungen des deutschen Rechts in deutscher Sprache bereitgestellt.",
+      "intro": "Dieses Impressum wird, wie nach deutschem Recht erforderlich, auf Deutsch bereitgestellt.",
       "lastUpdatedLabel": "Zuletzt aktualisiert"
     }
   }

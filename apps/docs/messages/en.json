@@ -12,6 +12,22 @@
       "ctaQuickstart": "Read the quickstart",
       "ctaGithub": "Star on GitHub"
     },
+    "pillars": {
+      "heading": "One tool for the whole translation loop.",
+      "lead": "verbatra is more than AI translation. It covers machine translation you control, a clean Excel handoff for human translators, and the automation to keep every locale in sync.",
+      "ai": {
+        "title": "AI translation",
+        "body": "Translate only what changed through your choice of provider: Anthropic, OpenAI, Gemini, or DeepL. A committed lock file keeps every run incremental, and placeholder and ICU integrity is checked before anything is written."
+      },
+      "excel": {
+        "title": "Excel handoff",
+        "body": "Run verbatra export to produce a styled .xlsx workbook, hand it to a translation office or in-house translators, then verbatra import reads their edits back into your locale files. Mix machine translation with professional human work."
+      },
+      "automation": {
+        "title": "Automation",
+        "body": "Keep every locale in sync as you work: verbatra watch translates on change, CI-friendly exit codes and --json output slot into any pipeline, and a GitHub Action runs it in your workflow."
+      }
+    },
     "status": {
       "label": "Build status, coverage, package versions, downloads, and license",
       "cliVersionAlt": "Latest published @verbatra/cli version on npm",
@@ -28,20 +44,18 @@
       "copyAria": "Copy install command"
     },
     "compat": {
-      "eyebrow": "works with your stack",
       "heading": "One tool, every framework.",
       "body": "verbatra reads the JSON locale formats your framework already uses, and fills them through the provider you choose.",
-      "labelFrameworks": "Frameworks and formats",
-      "labelProviders": "Translation providers"
+      "labelFrameworks": "Frameworks and formats"
     },
-    "showcase": {
-      "eyebrow": "see a run unfold",
-      "heading": "Watch it touch exactly one key.",
-      "body": "A first run fills the new keys; change one source value and the next run sends only that key. Everything else is left untouched."
+    "providers": {
+      "heading": "Translate through the model you trust.",
+      "lead": "Anthropic, OpenAI, Gemini, or DeepL. Pick one in a single line of config and switch providers without touching your locale files.",
+      "marqueeLabel": "Translation providers"
     },
     "how": {
-      "eyebrow": "how it works",
       "heading": "A run is a short, predictable pipeline.",
+      "lead": "No magic, no background sync: a deterministic sequence you can read top to bottom.",
       "steps": {
         "configure": {
           "title": "Configure",
@@ -62,8 +76,8 @@
       }
     },
     "why": {
-      "eyebrow": "why verbatra",
       "heading": "Built for teams that ship in many languages.",
+      "lead": "Every choice favors predictability: small diffs, explicit config, and nothing written that was not verified first.",
       "reasons": {
         "incremental": {
           "title": "Incremental by default",
@@ -92,8 +106,10 @@
       }
     },
     "faq": {
-      "eyebrow": "faq",
       "heading": "Frequently asked questions",
+      "supporting": "Short, direct answers to the questions teams ask before adopting verbatra.",
+      "ctaDocs": "Read the docs",
+      "ctaIssue": "open an issue",
       "items": {
         "avoidRetranslate": {
           "question": "How does verbatra avoid re-translating everything on each run?",
@@ -126,8 +142,8 @@
       }
     },
     "finalClose": {
-      "eyebrow": "one command",
-      "heading": "Stop hand-syncing locale files."
+      "heading": "Stop hand-syncing locale files.",
+      "lead": "Add verbatra, commit the lock file, and let every run touch only what changed."
     },
     "footer": {
       "tagline": "Translate only what changed. An open-source CLI and SDK that keeps your i18n locale files in sync through the provider you choose.",
@@ -164,7 +180,9 @@
       "vmarkAlt": "verbatra"
     },
     "nav": {
-      "docs": "Docs"
+      "docs": "Docs",
+      "providers": "Providers",
+      "formats": "Formats"
     }
   },
   "legal": {

@@ -1,226 +1,244 @@
 {
   "landing": {
-    "brand": {
-      "vmarkAlt": "verbatra"
+    "meta": {
+      "title": "verbatra : garde tes fichiers de locale i18n synchronisés, traduis seulement ce qui a changé",
+      "description": "Garde tes fichiers de locale i18n synchronisés. verbatra traduit seulement les clés qui ont changé, via le fournisseur d'IA ou de traduction automatique de ton choix. Commence maintenant.",
+      "ogImageAlt": "verbatra garde tes fichiers de locale i18n synchronisés et traduit seulement les clés qui ont changé.",
+      "definition": "verbatra est un CLI et un SDK qui garde tes fichiers de locale i18n synchronisés, en traduisant seulement les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix."
+    },
+    "hero": {
+      "headline": "Traduis seulement ce qui a changé.",
+      "lead": "verbatra est un CLI et un SDK qui garde tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis.",
+      "ctaQuickstart": "Lis le guide de démarrage",
+      "ctaGithub": "Ajoute une étoile sur GitHub"
+    },
+    "pillars": {
+      "heading": "Un seul outil pour toute la boucle de traduction.",
+      "lead": "verbatra est plus que de la traduction par IA. Il couvre la traduction automatique que tu contrôles, un transfert Excel propre pour les traducteurs humains, et l'automatisation pour garder chaque locale synchronisée.",
+      "ai": {
+        "title": "Traduction par IA",
+        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini ou DeepL. Un fichier de verrouillage validé garde chaque exécution incrémentale, et l'intégrité des espaces réservés et de l'ICU est vérifiée avant que quoi que ce soit ne soit écrit."
+      },
+      "excel": {
+        "title": "Transfert Excel",
+        "body": "Lance verbatra export pour produire un classeur .xlsx stylisé, confie-le à une agence de traduction ou à des traducteurs internes, puis verbatra import relit leurs modifications dans tes fichiers de locale. Combine la traduction automatique avec le travail humain professionnel."
+      },
+      "automation": {
+        "title": "Automatisation",
+        "body": "Garde chaque locale synchronisée pendant que tu travailles : verbatra watch traduit à chaque changement, des codes de sortie compatibles CI et la sortie --json s'intègrent à n'importe quel pipeline, et une GitHub Action l'exécute dans ton workflow."
+      }
+    },
+    "status": {
+      "label": "Statut de build, couverture, versions des paquets, téléchargements et licence",
+      "cliVersionAlt": "Dernière version publiée de @verbatra/cli sur npm",
+      "sdkVersionAlt": "Dernière version publiée de @verbatra/sdk sur npm",
+      "buildAlt": "Statut du build d'intégration continue",
+      "coverageAlt": "Couverture des tests rapportée sur Codecov",
+      "downloadsAlt": "Téléchargements mensuels sur npm",
+      "licenseAlt": "Publié sous la licence MIT"
+    },
+    "install": {
+      "tablistLabel": "Gestionnaire de paquets",
+      "copy": "copier",
+      "copied": "copié",
+      "copyAria": "Copier la commande d'installation"
     },
     "compat": {
-      "body": "verbatra lit les formats de locale JSON que ton framework utilise déjà et les remplit via le fournisseur que tu choisis.",
-      "eyebrow": "fonctionne avec ta stack",
-      "heading": "Un outil, tous les frameworks.",
-      "labelFrameworks": "Frameworks et formats",
-      "labelProviders": "Fournisseurs de traduction"
+      "heading": "Un seul outil, tous les frameworks.",
+      "body": "verbatra lit les formats de locale JSON que ton framework utilise déjà, et les remplit via le fournisseur que tu choisis.",
+      "labelFrameworks": "Frameworks et formats"
+    },
+    "providers": {
+      "heading": "Traduis via le modèle en qui tu as confiance.",
+      "lead": "Anthropic, OpenAI, Gemini ou DeepL. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
+      "marqueeLabel": "Fournisseurs de traduction"
+    },
+    "how": {
+      "heading": "Une exécution est un pipeline court et prévisible.",
+      "lead": "Pas de magie, pas de synchronisation en arrière-plan : une séquence déterministe que tu peux lire de haut en bas.",
+      "steps": {
+        "configure": {
+          "title": "Configure",
+          "body": "Pointe verbatra vers ta locale source, liste les langues cibles et choisis un fournisseur. La configuration tient dans un seul fichier ; les clés d'API restent dans ton environnement."
+        },
+        "diff": {
+          "title": "Compare",
+          "body": "Chaque exécution compare ta locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline."
+        },
+        "translate": {
+          "title": "Traduis",
+          "body": "Seules les clés nouvelles et modifiées sont envoyées à ton fournisseur, par lots, avec ton glossaire et ton ton appliqués. Tout le reste est laissé intact."
+        },
+        "verifyWrite": {
+          "title": "Vérifie et écris",
+          "body": "L'intégrité des espaces réservés et de l'ICU est vérifiée sur chaque résultat. Tout ce qui casse est retenu ; le reste est écrit dans tes fichiers de locale et le fichier de verrouillage est mis à jour."
+        }
+      }
+    },
+    "why": {
+      "heading": "Conçu pour les équipes qui livrent en plusieurs langues.",
+      "lead": "Chaque choix privilégie la prévisibilité : des diffs réduits, une config explicite et rien d'écrit qui n'ait d'abord été vérifié.",
+      "reasons": {
+        "incremental": {
+          "title": "Incrémental par défaut",
+          "body": "Un fichier de verrouillage validé enregistre ce qui a été traduit. Chaque exécution compare la source et appelle le fournisseur seulement pour les clés qui ont changé."
+        },
+        "provider": {
+          "title": "Le fournisseur de ton choix",
+          "body": "Anthropic, OpenAI, Gemini ou DeepL, choisi en une ligne de config. Change de fournisseur sans toucher à tes fichiers de locale."
+        },
+        "safety": {
+          "title": "Sûr par conception",
+          "body": "L'intégrité des espaces réservés et de l'ICU est vérifiée après chaque traduction. Un résultat qui casse un espace réservé est retenu, jamais écrit."
+        },
+        "environment": {
+          "title": "Les clés restent dans ton environnement",
+          "body": "Les clés d'API des fournisseurs sont lues depuis les variables d'environnement, jamais depuis le fichier de config, jamais depuis les arguments du CLI, et jamais journalisées."
+        },
+        "oneEngine": {
+          "title": "CLI et SDK, un seul moteur",
+          "body": "La commande verbatra et @verbatra/sdk partagent un même cœur d'orchestration, donc les scripts, la CI et tes propres outils se comportent à l'identique."
+        },
+        "dryRun": {
+          "title": "Exécutions à blanc et mode watch",
+          "body": "Prévisualise exactement ce qu'une exécution changerait sans rien écrire, ou garde un watch actif qui traduit au fur et à mesure que ta locale source évolue."
+        }
+      }
     },
     "faq": {
-      "eyebrow": "faq",
-      "heading": "Questions fréquemment posées",
+      "heading": "Questions fréquentes",
+      "supporting": "Des réponses courtes et directes aux questions que les équipes posent avant d'adopter verbatra.",
+      "ctaDocs": "Lis la documentation",
+      "ctaIssue": "ouvre une issue",
       "items": {
         "avoidRetranslate": {
-          "answer": "verbatra maintient un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. À chaque exécution, il compare ta locale source à ce verrou et n'envoie que les clés nouvelles ou modifiées à ton fournisseur ; les clés inchangées sont laissées intactes.",
-          "question": "Comment verbatra évite-t-il de tout re-traduire à chaque exécution ?"
-        },
-        "ci": {
-          "answer": "Oui. La commande verbatra est un simple wrapper autour de @verbatra/sdk, qui expose les mêmes opérations de traduction et de surveillance pour les scripts, l'intégration continue (CI) et tes propres outils.",
-          "question": "Existe-t-il un SDK en plus d'une CLI ?"
-        },
-        "formats": {
-          "answer": "Formats JSON pour i18next, vue-i18n, next-intl et ngx-translate, couvrant les projets React, Vue, Next.js, Nuxt, Angular et Node.js.",
-          "question": "Quels formats de fichiers i18n verbatra peut-il lire ?"
-        },
-        "icu": {
-          "answer": "Il vérifie l'intégrité des placeholders et des ICU après chaque traduction. Si une traduction renvoyée brise un placeholder ou produit un ICU invalide, ce résultat est retenu plutôt que d'être écrit dans ton fichier de locale.",
-          "question": "Comment verbatra gère-t-il les placeholders et les formats de message ICU ?"
-        },
-        "openSource": {
-          "answer": "Oui. Une exécution à blanc (dry run) indique exactement quelles clés seraient envoyées et écrites sans toucher tes fichiers de locale, et le mode de surveillance (watch mode) continue de traduire à mesure que ta locale source change.",
-          "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?"
-        },
-        "production": {
-          "answer": "verbatra est jeune et activement développé, donc son API peut encore changer d'une version à l'autre ; fixe une version et lis le changelog lorsque tu mets à jour. Ce qui est déjà solide, c'est le modèle de sécurité : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et des ICU sur chaque résultat, et retient tout ce qui brise un placeholder plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent déjà en CI aujourd'hui ; considère cela comme un signal pour fixer les versions, non comme un avertissement que les résultats seraient non sûrs.",
-          "question": "verbatra est-il prêt pour la production ?"
+          "question": "Comment verbatra évite-t-il de tout re-traduire à chaque exécution ?",
+          "answer": "verbatra garde un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. À chaque exécution, il compare ta locale source à ce fichier de verrouillage et envoie seulement les clés nouvelles ou modifiées à ton fournisseur ; les clés inchangées sont laissées intactes."
         },
         "providers": {
-          "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de configuration, et la clé API est lue à partir d'une variable d'environnement, jamais du fichier de configuration.",
-          "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?"
+          "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?",
+          "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de config, et la clé d'API est lue depuis une variable d'environnement, jamais depuis le fichier de config."
+        },
+        "icu": {
+          "question": "Comment verbatra gère-t-il les espaces réservés ICU et les formats de message ?",
+          "answer": "Il vérifie l'intégrité des espaces réservés et de l'ICU après chaque traduction. Si une traduction renvoyée casse un espace réservé ou produit un ICU invalide, ce résultat est retenu plutôt qu'écrit dans ton fichier de locale."
+        },
+        "formats": {
+          "question": "Quels formats de fichiers i18n verbatra peut-il lire ?",
+          "answer": "Les formats JSON pour i18next, vue-i18n, next-intl et ngx-translate, couvrant les projets React, Vue, Next.js, Nuxt, Angular et Node.js."
+        },
+        "openSource": {
+          "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?",
+          "answer": "Oui. Une exécution à blanc rapporte exactement quelles clés seraient envoyées et écrites sans toucher à tes fichiers de locale, et le mode watch continue à traduire au fur et à mesure que ta locale source change."
+        },
+        "ci": {
+          "question": "Y a-t-il un SDK en plus d'un CLI ?",
+          "answer": "Oui. La commande verbatra est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate et watch pour les scripts, la CI et tes propres outils."
+        },
+        "production": {
+          "question": "verbatra est-il prêt pour la production ?",
+          "answer": "verbatra est jeune et activement développé, donc son API peut encore changer entre les versions ; épingle une version et lis le changelog quand tu mets à jour. Ce qui est déjà solide, c'est le modèle de sûreté : chaque exécution compare à un fichier de verrouillage validé, vérifie l'intégrité des espaces réservés et de l'ICU sur chaque résultat, et retient tout ce qui casse un espace réservé plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent en CI aujourd'hui ; vois cela comme un signal pour épingler les versions, pas comme un avertissement que les résultats seraient risqués."
         }
       }
     },
     "finalClose": {
-      "eyebrow": "une seule commande",
-      "heading": "Arrête de synchroniser manuellement les fichiers de locale."
+      "heading": "Arrête de synchroniser tes fichiers de locale à la main.",
+      "lead": "Ajoute verbatra, valide le fichier de verrouillage, et laisse chaque exécution ne toucher qu'à ce qui a changé."
     },
     "footer": {
+      "tagline": "Traduis seulement ce qui a changé. Un CLI et un SDK open source qui gardent tes fichiers de locale i18n synchronisés via le fournisseur que tu choisis.",
       "cols": {
-        "learn": {
-          "formats": "Formats",
-          "howItWorks": "Comment ça marche",
-          "lockFile": "Le fichier de verrouillage",
-          "providers": "Fournisseurs",
-          "title": "Apprendre"
-        },
-        "legal": {
-          "imprint": "Mentions légales",
-          "privacy": "Politique de confidentialité",
-          "title": "Légal"
-        },
         "product": {
-          "cliReference": "Référence CLI",
+          "title": "Produit",
           "documentation": "Documentation",
-          "githubAction": "Action GitHub",
+          "cliReference": "Référence du CLI",
           "sdk": "SDK",
-          "title": "Produit"
+          "githubAction": "GitHub Action"
+        },
+        "learn": {
+          "title": "Apprendre",
+          "howItWorks": "Comment ça marche",
+          "providers": "Fournisseurs",
+          "formats": "Formats",
+          "lockFile": "Le fichier de verrouillage"
         },
         "project": {
-          "configFile": "Fichier de configuration",
-          "title": "Projet"
+          "title": "Projet",
+          "configFile": "Fichier de config"
+        },
+        "legal": {
+          "title": "Mentions légales",
+          "privacy": "Politique de confidentialité",
+          "imprint": "Mentions légales"
         }
       },
+      "legalLine": "Open source sous la licence MIT · © 2026 Mario Kreitz",
       "githubAria": "verbatra sur GitHub",
-      "legalLine": "Open source sous licence MIT · © 2026 Mario Kreitz",
-      "npmAria": "verbatra sur npm",
-      "tagline": "Ne traduis que ce qui a changé. Une CLI et un SDK open source qui maintiennent tes fichiers de locale i18n synchronisés via le fournisseur que tu choisis."
+      "npmAria": "verbatra sur npm"
     },
-    "hero": {
-      "ctaGithub": "Mettre en favori sur GitHub",
-      "headline": "Ne traduis que ce qui a changé.",
-      "lead": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés. Tu maintiens la locale source ; il remplit toutes les autres locales via le fournisseur d'IA que tu choisis.",
-      "ctaQuickstart": "Lire le guide de démarrage rapide"
-    },
-    "how": {
-      "eyebrow": "comment ça marche",
-      "heading": "Une exécution est un pipeline court et prévisible.",
-      "steps": {
-        "configure": {
-          "body": "Pointe verbatra vers ta locale source, liste les langues cibles et choisis un fournisseur. La configuration se trouve dans un seul fichier ; les clés API restent dans ton environnement.",
-          "title": "Configurer"
-        },
-        "diff": {
-          "body": "Chaque exécution compare ta locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline.",
-          "title": "Différencier"
-        },
-        "translate": {
-          "body": "Seules les clés nouvelles et modifiées sont envoyées à ton fournisseur, par lots, avec ton glossaire et ton ton appliqués. Tout le reste est laissé intact.",
-          "title": "Traduire"
-        },
-        "verifyWrite": {
-          "body": "L'intégrité des placeholders et des ICU est vérifiée sur chaque résultat. Tout ce qui est rompu est retenu ; le reste est écrit dans tes fichiers de locale et le verrou est mis à jour.",
-          "title": "Vérifier et écrire"
-        }
-      }
-    },
-    "install": {
-      "copied": "copié",
-      "copy": "copier",
-      "copyAria": "Copier la commande d'installation",
-      "tablistLabel": "Gestionnaire de paquets"
-    },
-    "meta": {
-      "definition": "verbatra est une CLI et un SDK qui maintient tes fichiers de locale i18n synchronisés, ne traduisant que les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix.",
-      "description": "Garde tes fichiers de locale i18n synchronisés. verbatra ne traduit que ce qui a changé, via le fournisseur d'IA ou de traduction de ton choix. Commence maintenant.",
-      "ogImageAlt": "verbatra maintient tes fichiers de locale i18n synchronisés et ne traduit que les clés qui ont changé.",
-      "title": "verbatra : garde tes fichiers de locale i18n synchronisés, traduis ce qui change"
+    "brand": {
+      "vmarkAlt": "verbatra"
     },
     "nav": {
-      "docs": "Docs"
-    },
-    "showcase": {
-      "body": "Une première exécution remplit les nouvelles clés ; change une valeur source et l'exécution suivante n'envoie que cette clé. Tout le reste est laissé intact.",
-      "eyebrow": "voir une exécution se dérouler",
-      "heading": "Regarde-le toucher exactement une clé."
-    },
-    "why": {
-      "eyebrow": "pourquoi verbatra",
-      "heading": "Conçu pour les équipes qui livrent en plusieurs langues.",
-      "reasons": {
-        "dryRun": {
-          "body": "Prévisualise exactement ce qu'une exécution modifierait sans rien écrire, ou maintiens une surveillance en cours qui traduit à mesure que ta locale source évolue.",
-          "title": "Exécutions à blanc et mode de surveillance"
-        },
-        "environment": {
-          "body": "Les clés API des fournisseurs sont lues à partir des variables d'environnement, jamais du fichier de configuration, jamais des arguments de la CLI, et jamais enregistrées.",
-          "title": "Les clés restent dans ton environnement"
-        },
-        "incremental": {
-          "body": "Un fichier de verrouillage validé enregistre ce qui a été traduit. Chaque exécution différencie la source et appelle le fournisseur uniquement pour les clés qui ont changé.",
-          "title": "Incrémentiel par défaut"
-        },
-        "oneEngine": {
-          "body": "La commande verbatra et @verbatra/sdk partagent un seul cœur d'orchestration, de sorte que les scripts, l'intégration continue (CI) et tes propres outils se comportent de manière identique.",
-          "title": "CLI et SDK, un seul moteur"
-        },
-        "provider": {
-          "body": "Anthropic, OpenAI, Gemini ou DeepL, choisi en une ligne de configuration. Change de fournisseur sans toucher à tes fichiers de locale.",
-          "title": "Ton choix de fournisseur"
-        },
-        "safety": {
-          "body": "L'intégrité des placeholders et des ICU est vérifiée après chaque traduction. Un résultat qui brise un placeholder est retenu, jamais écrit.",
-          "title": "Sécurité de construction"
-        }
-      }
-    },
-    "status": {
-      "buildAlt": "Statut de la build d'intégration continue",
-      "cliVersionAlt": "Dernière version publiée de @verbatra/cli sur npm",
-      "coverageAlt": "Couverture des tests rapportée sur Codecov",
-      "downloadsAlt": "Téléchargements npm mensuels",
-      "label": "Statut de la build, couverture, versions des paquets, téléchargements et licence",
-      "licenseAlt": "Publié sous la licence MIT",
-      "sdkVersionAlt": "Dernière version publiée de @verbatra/sdk sur npm"
+      "docs": "Docs",
+      "providers": "Fournisseurs",
+      "formats": "Formats"
     }
   },
   "legal": {
     "privacy": {
       "meta": {
         "title": "Politique de confidentialité",
-        "description": "Comment le site de documentation de verbatra traite vos données."
+        "description": "Comment le site de documentation de verbatra traite tes données."
       },
       "title": "Politique de confidentialité",
       "lastUpdatedLabel": "Dernière mise à jour",
-      "disclaimer": "Ceci est une traduction de courtoisie. En cas de divergence, la version anglaise prévaut.",
+      "disclaimer": "Ceci est une traduction fournie par commodité. En cas de divergence, la version anglaise prévaut.",
       "s1": {
         "heading": "1. Responsable du traitement",
-        "body": "Le responsable du traitement des données sur ce site est Mario Kreitz, Allemagne. Vous pouvez nous contacter par courrier électronique à l'adresse <email>mario.kreitz@web.de</email>."
+        "body": "Le responsable du traitement des données sur ce site est Mario Kreitz, Allemagne. Tu peux nous joindre par e-mail à <email>mario.kreitz@web.de</email>."
       },
       "s2": {
         "heading": "2. Aperçu",
-        "body": "Ce site est conçu pour respecter votre vie privée. Il ne dépose aucun cookie, n'effectue aucun suivi intersites et ne collecte que les données minimales nécessaires à son fonctionnement et à la compréhension de l'usage agrégé. Les sections ci-dessous expliquent précisément ce qui est traité et pourquoi."
+        "body": "Ce site est conçu pour respecter ta vie privée. Il ne dépose aucun cookie, ne pratique aucun suivi intersites, et ne collecte que les données minimales nécessaires pour faire fonctionner le site et comprendre l'usage global. Les sections ci-dessous expliquent précisément ce qui est traité et pourquoi."
       },
       "s3": {
-        "heading": "3. Journaux du serveur et hébergement",
-        "body": "Le site est auto-hébergé sur un serveur virtuel (géré avec Dokploy). Lors de votre visite, le serveur traite des journaux d'accès standard pouvant inclure votre adresse IP, la date et l'heure de la requête, l'URL demandée, la page de provenance et la chaîne d'agent utilisateur de votre navigateur. Ces données servent à exploiter et à sécuriser le site, par exemple pour livrer les pages, diagnostiquer les erreurs et se défendre contre les abus. La base juridique est l'Art. 6(1)(f) du RGPD (notre intérêt légitime à un service sûr et fonctionnel). Ces journaux ne sont conservés que pendant une courte période."
+        "heading": "3. Journaux serveur et hébergement",
+        "body": "Le site est auto-hébergé sur un serveur virtuel (géré avec Dokploy). Lors de ta visite, le serveur traite des journaux d'accès standard qui peuvent inclure ton adresse IP, la date et l'heure de la requête, l'URL demandée, la page référente et la chaîne user-agent de ton navigateur. Ces données servent à faire fonctionner et à sécuriser le site, par exemple pour livrer les pages, diagnostiquer les erreurs et se défendre contre les abus. La base légale est l'art. 6, § 1, point f) du RGPD (notre intérêt légitime à disposer d'un service sûr et fonctionnel). Ces journaux ne sont conservés que pour une courte période."
       },
       "s4": {
-        "heading": "4. Mesure d'audience",
-        "body": "Nous utilisons Umami, un outil de mesure d'audience respectueux de la vie privée que nous hébergeons nous-mêmes. Umami <strong>n'utilise pas de cookies et ne collecte aucune donnée personnelle ni n'emploie d'empreinte numérique intersites</strong>. Il n'enregistre que des indicateurs agrégés tels que les pages vues, les sources de provenance, le pays approximatif ainsi que le type de navigateur, de système d'exploitation et d'appareil. La base juridique est l'Art. 6(1)(f) du RGPD (notre intérêt légitime à comprendre l'usage du site). Vous pouvez en savoir plus sur Umami dans sa <umami>documentation</umami>."
+        "heading": "4. Statistiques",
+        "body": "Nous utilisons Umami, un outil de statistiques respectueux de la vie privée que nous auto-hébergeons. Umami est <strong>sans cookie et ne collecte pas de données personnelles ni n'utilise d'empreinte intersites</strong>. Il n'enregistre que des métriques agrégées telles que les pages vues, les référents, le pays approximatif, ainsi que le navigateur, le système d'exploitation et le type d'appareil. La base légale est l'art. 6, § 1, point f) du RGPD (notre intérêt légitime à comprendre comment le site est utilisé). Tu peux en savoir plus sur Umami dans sa <umami>documentation</umami>."
       },
       "s5": {
         "heading": "5. Cookies",
-        "body": "Ce site ne dépose aucun cookie. Comme rien qui nécessite un consentement n'est stocké sur votre appareil, aucune bannière de consentement aux cookies n'est requise."
+        "body": "Ce site ne dépose aucun cookie. Comme rien nécessitant un consentement n'est stocké sur ton appareil, aucune bannière de consentement aux cookies n'est requise."
       },
       "s6": {
         "heading": "6. Polices et ressources",
-        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment de la compilation, de sorte qu'aucune requête n'est adressée à Google Fonts ou à tout autre tiers lors du chargement d'une page. Hormis le script Umami auto-hébergé décrit ci-dessus, aucun script ni contenu intégré de tiers n'est chargé à l'exécution."
+        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment du build, donc aucune requête n'est envoyée à Google Fonts ou à tout autre tiers lorsque tu charges une page. Hormis le script Umami auto-hébergé décrit ci-dessus, aucun script ou intégration tiers ne se charge à l'exécution."
       },
       "s7": {
         "heading": "7. GitHub",
-        "body": "Le code source du projet, les tickets et les discussions sont hébergés sur <repo>GitHub</repo>. Si vous choisissez d'y participer (par exemple en ouvrant un ticket ou en rejoignant une discussion), GitHub traite vos données en tant que responsable indépendant et sa <ghprivacy>déclaration de confidentialité</ghprivacy> s'applique."
+        "body": "Le code source, les issues et les discussions du projet sont hébergés sur <repo>GitHub</repo>. Si tu choisis d'y interagir (par exemple en ouvrant une issue ou en participant à une discussion), GitHub traite tes données en tant que responsable indépendant et sa <ghprivacy>déclaration de confidentialité</ghprivacy> s'applique."
       },
       "s8": {
-        "heading": "8. Vos droits",
-        "body": "En vertu du RGPD, vous disposez des droits d'accès, de rectification, d'effacement, de limitation du traitement, d'opposition et de portabilité des données (Art. 15–21 du RGPD). Vous avez également le droit d'introduire une réclamation auprès d'une autorité de contrôle. Pour exercer l'un de ces droits, contactez-nous à l'aide des coordonnées indiquées ci-dessous."
+        "heading": "8. Tes droits",
+        "body": "En vertu du RGPD, tu disposes des droits d'accès, de rectification, d'effacement, de limitation du traitement, d'opposition et de portabilité des données (art. 15 à 21 du RGPD). Tu as également le droit d'introduire une réclamation auprès d'une autorité de contrôle. Pour exercer l'un de ces droits, contacte-nous en utilisant les coordonnées ci-dessous."
       },
       "s9": {
         "heading": "9. Contact",
-        "body": "Pour toute question ou demande relative à la confidentialité, écrivez à <email>mario.kreitz@web.de</email>."
+        "body": "Pour toute question ou demande relative à la confidentialité, écris à <email>mario.kreitz@web.de</email>."
       },
       "s10": {
         "heading": "10. Modifications de cette politique",
-        "body": "Nous pouvons mettre à jour cette politique de confidentialité à mesure que le site évolue ou que les exigences légales changent. La date ci-dessous reflète la dernière révision."
+        "body": "Nous pouvons mettre à jour cette politique de confidentialité à mesure que le site évolue ou que les exigences légales changent. La date ci-dessous reflète la révision la plus récente."
       }
     },
     "imprint": {
       "meta": {
         "title": "Mentions légales",
-        "description": "Mentions légales (Impressum) du site de documentation de verbatra."
+        "description": "Informations légales (Impressum) pour le site de documentation de verbatra."
       },
       "intro": "Ces mentions légales (Impressum) sont fournies en allemand, comme l'exige la loi allemande.",
       "lastUpdatedLabel": "Dernière mise à jour"

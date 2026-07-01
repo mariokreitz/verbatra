@@ -7,6 +7,10 @@ const config = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
+  // Tree-shake the icon barrel and motion so only the used exports ship (Vercel 2.1).
+  experimental: {
+    optimizePackageImports: ["@icons-pack/react-simple-icons", "motion"],
+  },
   async redirects() {
     return [
       {
