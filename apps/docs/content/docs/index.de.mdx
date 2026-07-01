@@ -1,53 +1,134 @@
 ---
-title: Erste Schritte
-description: Installiere verbatra, erstelle eine Konfiguration und gib deinen Provider-Schlüssel an.
+title: verbatra Doku
+description: Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die Keys, die sich geändert haben, über den KI- oder Maschinenübersetzungs-Provider, den du wählst. Starte mit der CLI in fünf Minuten.
 ---
 
-# Erste Schritte
+<DocsHomeHero
+  eyebrow="Dokumentation"
+  headline="Übersetze deine Locale-Dateien, nur was sich geändert hat."
+  lead="verbatra ist eine CLI und ein SDK, die deine i18n-Locale-Dateien synchron halten. Dir gehört die Quell-Locale; verbatra schickt nur die neuen und geänderten Strings an deinen Provider, prüft jedes Ergebnis und schreibt den Rest zurück."
+  primary={{ label: "Schnellstart", href: "/docs/your-first-translation" }}
+  secondary={{ label: "CLI-Referenz lesen", href: "/docs/cli" }}
+/>
 
-verbatra ist ein CLI und SDK, das deine i18n Locale-Dateien synchron hält. Du pflegst die Quell-Locale, und es übersetzt nur die Schlüssel, die sich geändert haben, über den von dir gewählten KI- oder maschinellen Übersetzungs-Provider.
+<DocsHomePaths
+  cards={[
+    {
+      tag: "Neu hier",
+      label: "In 5 Minuten starten",
+      body: "Installiere die CLI, erzeuge eine Konfiguration, führe deine erste Übersetzung aus.",
+      href: "/docs/your-first-translation",
+      primary: true,
+    },
+    {
+      tag: "Schon installiert",
+      label: "Eine Sprache hinzufügen",
+      body: "Wirf eine Locale in deine Konfiguration und lass einen Lauf sie füllen.",
+      href: "/docs/add-a-language",
+    },
+    {
+      tag: "Ab in die Produktion",
+      label: "CI verdrahten",
+      body: "Blockiere Merges über die Exit-Codes und die GitHub Action.",
+      href: "/docs/ci-and-exit-codes",
+    },
+  ]}
+/>
 
-Dieser Leitfaden führt dich von einem leeren Projekt zu einem verbatra-Setup, das bereit ist für einen Lauf: Installiere die CLI, erstelle eine Konfiguration und gib deinen Provider-Schlüssel an. Dein erster Übersetzungs-Lauf ist auf der nächsten Seite beschrieben.
+## Schnellstart
 
-## Anforderungen
+Vier Schritte bringen dich vom leeren Projekt zu übersetzten Locale-Dateien. Die CLI ist der schnelle Weg; alles, was sie tut, ist auch über [das SDK](/docs/sdk) verfügbar.
 
-Node.js `>=22.14.0`.
+### 1. Installieren
 
-## Installation
-
-verbatra ist eine Entwicklungsabhängigkeit:
+verbatra ist eine Dev-Abhängigkeit. Installiere es und führe das Binary über deinen Paketmanager aus.
 
 ```bash
 pnpm add -D @verbatra/cli
-# npm
-npm install -D @verbatra/cli
-# yarn
-yarn add -D @verbatra/cli
+# npm install -D @verbatra/cli
+# yarn add -D @verbatra/cli
 ```
 
-Führe das Binary über deinen Paketmanager aus: `pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...`.
+Benötigt Node.js `>=22.14.0`. Rufe es mit `pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...` auf.
 
-## Eine Konfiguration erstellen
+### 2. Eine Konfiguration erzeugen
 
-Führe `init` aus und wähle deinen Provider:
+`init` schreibt eine `verbatra.config.ts`, eine `.env.example` und ignoriert deine `.env` per gitignore, damit ein echter Schlüssel niemals in einem Commit landet.
 
 ```bash
-verbatra init --provider anthropic
+verbatra init --provider gemini
 ```
 
-Dies schreibt eine `verbatra.config.ts` und eine `.env.example` und fügt `.env` und `.env.local` zu deiner `.gitignore` hinzu, damit ein echter Schlüssel niemals committet wird. Wenn ein Terminal angeschlossen ist, fragt `init` nach den Werten, für die es keine Standardwerte gibt; übergib `--yes`, um die Standardwerte zu akzeptieren und ohne Aufforderungen auszuführen. Die Standardwerte sind `en` für die Quell-Locale, `de` für die Ziel-Locales und `locales/{locale}.json` für das Dateimuster.
+Mit einem angeschlossenen Terminal fragt es nach allem, was es nicht per Default setzen kann; füge `--yes` hinzu, um die Defaults zu übernehmen (Quelle `en`, Ziel `de`, Dateien `locales/{locale}.json`) und die Abfragen zu überspringen.
 
-## Den API-Schlüssel angeben
+### 3. Deinen API-Schlüssel setzen
 
-Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable. Für Anthropic ist das `ANTHROPIC_API_KEY`. Setze ihn in `.env` (was `init` bereits in `.gitignore` eingetragen hat) oder exportiere ihn in deiner Shell:
+Schlüssel kommen aus der Umgebung, niemals aus der Konfiguration. Jeder Provider liest genau eine Variable. Für Gemini ist das `GEMINI_API_KEY`.
 
 ```bash
-export ANTHROPIC_API_KEY=your-key-here
+export GEMINI_API_KEY=your-key-here
 ```
 
-verbatra lädt `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor es einen Lauf ausführt, und eine Variable, die bereits in deiner Umgebung vorhanden ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
+verbatra lädt vor dem Lauf zuerst `.env.local`, dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die bereits in deiner Shell steht, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
 
-## Weiter
+<Callout title="Kleines Projekt oder Nebenprojekt? Nutze Gemini kostenlos.">
+Gemini hat eine wirklich kostenlose API-Stufe, was es zum einfachsten Weg macht, ganz ohne Kosten zu starten. Hol dir einen Schlüssel bei [Google AI Studio](https://aistudio.google.com/apikey), setze `GEMINI_API_KEY` und führe `verbatra init --provider gemini` aus. Die kostenlose Stufe hat Anfrage-Limits pro Minute und pro Tag, drossle also eine große erstmalige Übersetzung (eine Locale nach der anderen reicht völlig). Siehe [Provider](/docs/providers) für die Abwägungen gegenüber Anthropic, OpenAI und DeepL.
+</Callout>
 
-- [Dein erster Übersetzungs-Lauf](/docs/your-first-translation): Führe verbatra aus, lies die Lauf-Zusammenfassung und sieh, was "übersetze nur, was sich geändert hat" in der Praxis bedeutet.
-- [Konfiguration](/docs/config-file): das vollständige Konfigurationsschema und die Erkennungsreihenfolge.
+### 4. Übersetzen
+
+```bash
+verbatra translate
+```
+
+verbatra liest die Quell-Locale, vergleicht sie mit dem, was es beim letzten Mal übersetzt hat, und schickt nur die neuen und geänderten Strings an Gemini. Jede Zieldatei wird an Ort und Stelle geschrieben, neben deiner Quelle. Führe es erneut aus, ohne etwas zu ändern, und nichts wird gesendet: Jeder Key ist bereits aktuell.
+
+<DocsHomePaths
+  cards={[
+    {
+      tag: "Als Nächstes",
+      label: "Deine erste Übersetzung",
+      body: "Lies die Lauf-Zusammenfassung und sieh, was inkrementell in der Praxis bedeutet.",
+      href: "/docs/your-first-translation",
+    },
+    {
+      tag: "Referenz",
+      label: "Die verbatra CLI",
+      body: "Jeder Befehl, jedes Flag und der Exit-Code-Vertrag, auf den CI verzweigt.",
+      href: "/docs/cli",
+    },
+    {
+      tag: "Im Code",
+      label: "Das SDK",
+      body: "Führe translate, watch, check und diff aus deinen eigenen Skripten aus.",
+      href: "/docs/sdk",
+    },
+  ]}
+/>
+
+## Was verbatra tut
+
+<DocsHomeFeatures
+  features={[
+    {
+      title: "Nur was sich geändert hat",
+      body: "Eine committete Lock-Datei hält fest, was übersetzt wurde. Jeder Lauf vergleicht dagegen, sodass ein Provider nur für die Strings aufgerufen wird, die sich tatsächlich geändert haben.",
+    },
+    {
+      title: "Bricht niemals einen String",
+      body: "Jede Übersetzung wird vor dem Schreiben auf Platzhalter- und ICU-Integrität geprüft. Eine Übersetzung, die einen Platzhalter verliert, wird zurückgehalten, nicht ausgeliefert.",
+    },
+    {
+      title: "Deine Formate und Provider",
+      body: "i18next, vue-i18n, next-intl, ngx-translate, XLIFF, YAML und Flutter ARB. Anthropic, OpenAI, Gemini und DeepL hinter einer Schnittstelle.",
+    },
+    {
+      title: "CLI zuerst, SDK darunter",
+      body: "Sieben Befehle decken init, translate, watch, check, diff, export und import ab. Brauchst du es im Code oder in CI? Das SDK ist dieselbe Engine.",
+    },
+  ]}
+/>
+
+## Referenz
+
+<ReferenceRow />
