@@ -1,13 +1,13 @@
 ---
 title: Traduction manuelle
-description: Exporte les chaînes non traduites vers un classeur Excel, fais-les traduire par un humain, et réimporte le résultat - avec les mêmes vérifications de sûreté qu'une exécution automatisée.
+description: Exporte les chaînes non traduites vers un classeur Excel, fais-les traduire par un humain, puis réimporte le résultat, avec les mêmes vérifications de sûreté qu'une exécution automatisée.
 ---
 
 # Traduction manuelle
 
-Toutes les chaînes ne devraient pas passer par un fournisseur. Les textes marketing, les textes juridiques et les noms de produits ont souvent besoin d'un traducteur humain, et certaines équipes gardent un professionnel dans la boucle pour les langues qui comptent le plus. verbatra prend cela en charge avec un aller-retour de classeur : **exporte** les chaînes qui nécessitent une traduction dans un fichier Excel stylisé, remets-le à un traducteur, et **importe** le fichier rempli dans tes fichiers de locale.
+Toutes les chaînes n'appartiennent pas à un provider. Les textes marketing, les textes juridiques et les noms de produits veulent souvent un traducteur humain, et certaines équipes gardent un pro dans la boucle pour les langues qui comptent le plus. verbatra gère ça avec un aller-retour de classeur : **exporte** les chaînes qui ont besoin d'être traduites dans un fichier Excel stylisé, remets-le à un traducteur, puis **importe** le fichier rempli dans tes fichiers de locale.
 
-Le même diff pilote les deux flux. L'export sélectionne exactement les clés qu'une exécution automatisée traduirait - les nouvelles et les modifiées - de sorte qu'une locale manuelle reste synchronisée avec ta source de la même manière qu'une locale traduite par IA. L'import exécute les mêmes vérifications d'espaces réservés et d'ICU que `translate`, de sorte qu'une valeur saisie à la main qui casse un espace réservé est retenue et signalée plutôt qu'écrite.
+Le même diff pilote les deux directions. L'export sélectionne exactement les clés qu'une exécution automatisée traduirait (les nouvelles et les modifiées), de sorte qu'une locale traduite manuellement reste synchronisée avec ta source de la même manière qu'une locale traduite par IA. L'import exécute les mêmes vérifications de placeholders et d'ICU que `translate`, donc si un traducteur saisit à la main une valeur qui casse un placeholder, verbatra la retient et te le signale plutôt que de l'écrire.
 
 ## L'aller-retour
 
@@ -21,11 +21,11 @@ verbatra export
 verbatra import verbatra-translations.xlsx
 ```
 
-L'export écrit `verbatra-translations.xlsx` dans le répertoire de travail par défaut. L'import le relit, valide chaque valeur, écrit celles qui passent dans tes fichiers de locale, et met à jour le [fichier de verrouillage](/docs/the-lock-file) pour les clés qu'il a acceptées - exactement comme le ferait une exécution `translate`.
+Par défaut, l'export dépose `verbatra-translations.xlsx` dans le répertoire de travail. L'import le relit, valide chaque valeur, écrit celles qui passent dans tes fichiers de locale, et met à jour le [fichier de verrouillage](/docs/the-lock-file) pour les clés qu'il a acceptées, exactement comme le ferait une exécution `translate`.
 
 ## Le classeur
 
-Le fichier comporte une feuille **Instructions** suivie d'une feuille de données par locale cible, chacune nommée d'après sa locale (`de`, `fr`, ...). Chaque feuille de données possède les mêmes colonnes :
+Le fichier s'ouvre sur une feuille **Instructions**, suivie d'une feuille de données par locale cible, chacune nommée d'après sa locale (`de`, `fr`, ...). Chaque feuille de données partage les mêmes colonnes :
 
 | Colonne | Modifiable | Objet |
 | --- | --- | --- |
@@ -36,13 +36,13 @@ Le fichier comporte une feuille **Instructions** suivie d'une feuille de donnée
 | `Translation` | **oui** | La seule cellule que le traducteur remplit. |
 | `Source hash` | non | Masquée. Le contenu source capturé à l'export, utilisé pour détecter une source qui a changé après l'export. |
 
-Chaque colonne sauf `Translation` est verrouillée, et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. Les lignes peuvent être triées ou filtrées librement - le rattachement se fait par `Key`, jamais par position.
+Chaque colonne sauf `Translation` est verrouillée et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. Trie ou filtre les lignes comme tu veux : le rattachement se fait par `Key`, jamais par position.
 
-Une cellule `Translation` vide signifie « pas encore traduite » : elle est ignorée à l'import, jamais écrite comme une chaîne vide. Cela permet à un traducteur de renvoyer un classeur partiellement rempli et de reprendre le reste plus tard.
+Une cellule `Translation` vide signifie « pas encore traduite ». L'import l'ignore et n'écrit jamais une chaîne vide, de sorte qu'un traducteur peut renvoyer un classeur à moitié rempli et terminer le reste plus tard.
 
 ## Sélectionner ce qui est exporté
 
-Par défaut, `export` n'inclut que les chaînes manquantes et modifiées - le travail qui doit réellement être fait. Deux drapeaux ajustent la sélection :
+Par défaut, `export` n'inclut que les chaînes manquantes et modifiées, le travail qui doit réellement être fait. Deux flags ajustent la sélection :
 
 ```bash
 # Only the German and French sheets
@@ -55,28 +55,28 @@ verbatra export --include-unchanged
 verbatra export --out handoff/round-2.xlsx
 ```
 
-`--include-unchanged` est utile lorsqu'un traducteur veut le contexte complet d'une locale plutôt que seulement le delta. Voir la référence [`verbatra export`](/docs/cli/export) pour chaque drapeau.
+Utilise `--include-unchanged` quand un traducteur veut le contexte complet d'une locale, pas seulement le delta. Voir la référence [`verbatra export`](/docs/cli/export) pour chaque flag.
 
 ## Sûreté à l'import
 
-L'import n'est pas un collage aveugle. Chaque valeur saisie par le traducteur passe par les mêmes vérifications qu'une traduction automatisée avant d'être écrite :
+L'import n'est pas un collage aveugle. Avant que verbatra n'écrive quoi que ce soit, chaque valeur saisie par le traducteur passe par les mêmes vérifications qu'une traduction automatisée :
 
-- **Intégrité des espaces réservés** - une traduction doit porter exactement les mêmes espaces réservés que sa source. Une valeur qui supprime `{name}` ou invente `{total}` est retenue.
-- **Validité ICU** - un message ICU doit rester structurellement valide, avec les mêmes noms d'argument. Seul le texte lisible par l'humain peut changer.
-- **Dérive de la source** - le `Source hash` masqué permet à l'import de détecter une chaîne source qui a changé après l'export du classeur. Une ligne obsolète est retenue afin que tu n'écrases jamais une source actuelle par une traduction d'une ancienne.
-- **Clés inconnues** - une ligne dont la `Key` n'est pas dans la source actuelle (par exemple, une qu'un traducteur a ajoutée à la main) est rejetée.
+- **Intégrité des placeholders** : une traduction doit porter exactement les mêmes placeholders que sa source. Supprime `{name}` ou invente `{total}` et la valeur est retenue.
+- **Validité ICU** : un message ICU doit rester structurellement valide, avec les mêmes noms d'argument. Seul le texte lisible par l'humain peut changer.
+- **Dérive de la source** : le `Source hash` masqué permet à l'import de repérer une chaîne source qui a changé après l'export du classeur. Une ligne périmée est retenue, de sorte que tu n'écrases jamais une source actuelle par une traduction d'une ancienne.
+- **Clés inconnues** : une ligne dont la `Key` n'est pas dans la source actuelle (par exemple, une qu'un traducteur a ajoutée à la main) est rejetée.
 
-Une valeur qui échoue à une vérification est **retenue** - non écrite - et signalée dans le résumé de l'exécution, de sorte que tu puisses la corriger et la réimporter. Les clés qui passent sont écrites et verrouillées ; celles qui échouent laissent le fichier de locale intact. Exécute avec `--dry-run` pour valider un classeur retourné et voir ce qui serait écrit sans toucher à aucun fichier :
+Une valeur qui échoue à une vérification est **retenue** (non écrite) et signalée dans le résumé de l'exécution, de sorte que tu peux la corriger et la réimporter. Les clés qui passent sont écrites et verrouillées ; celles qui échouent laissent le fichier de locale intact. Ajoute `--dry-run` pour valider un classeur retourné et prévisualiser ce qui serait écrit sans toucher à un seul fichier :
 
 ```bash
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
-Comme l'import partage le contrat des codes de sortie de `translate`, il renvoie `0` lorsque toutes les locales réussissent, `1` lorsqu'une locale échoue, et `2` lorsque l'exécution n'a pas pu démarrer - de sorte qu'un transfert manuel s'intègre aux mêmes vérifications CI qu'un transfert automatisé. Voir [CI et automatisation](/docs/ci-and-exit-codes).
+L'import partage le contrat des codes de sortie de `translate` : il renvoie `0` quand toutes les locales réussissent, `1` quand une locale échoue, et `2` quand l'exécution n'a pas pu démarrer. Cela signifie qu'un transfert manuel s'intègre aux mêmes vérifications CI qu'un transfert automatisé. Voir [CI et automatisation](/docs/ci-and-exit-codes).
 
 ## Depuis le SDK
 
-Les commandes de la CLI enveloppent deux fonctions du SDK, `exportWorkbook` et `importWorkbook`, que tu peux appeler directement lorsque tu intègres la traduction manuelle dans tes propres outils :
+Les commandes de la CLI enveloppent deux fonctions du SDK, `exportWorkbook` et `importWorkbook`. Appelle-les directement quand tu intègres la traduction manuelle dans tes propres outils :
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
@@ -90,10 +90,10 @@ await exportWorkbook({ config });
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
 ```
 
-Les deux prennent la configuration validée de [`loadConfig`](/docs/sdk) et `importWorkbook` renvoie le même `RunSummary` que `translate`. Le classeur lui-même est construit et analysé par `@verbatra/exchange`, un paquet interne qui détient un modèle de ligne neutre, agnostique vis-à-vis du format, et le `.xlsx` stylisé vers et depuis lequel il sérialise. Il est composé par le SDK ; tu interagis avec lui via `exportWorkbook` / `importWorkbook` plutôt que directement.
+Les deux prennent la config validée de [`loadConfig`](/docs/sdk), et `importWorkbook` renvoie le même `RunSummary` que `translate`. Le classeur lui-même est construit et analysé par `@verbatra/exchange`, un package interne qui détient un modèle de ligne neutre, agnostique vis-à-vis du format, et le `.xlsx` stylisé vers et depuis lequel il sérialise. Le SDK le compose pour toi : tu l'atteins via `exportWorkbook` / `importWorkbook`, jamais directement.
 
 ## Suivant
 
-- [`verbatra export`](/docs/cli/export) : chaque drapeau d'export et le rapport qu'il affiche.
-- [`verbatra import`](/docs/cli/import) : chaque drapeau d'import, le résumé de l'exécution et les codes de sortie.
-- [Sûreté de la traduction](/docs/translation-safety) : les vérifications d'espaces réservés et d'ICU qui protègent chaque écriture, manuelle ou automatisée.
+- [`verbatra export`](/docs/cli/export) : chaque flag d'export et le rapport qu'il affiche.
+- [`verbatra import`](/docs/cli/import) : chaque flag d'import, le résumé de l'exécution et les codes de sortie.
+- [Sûreté de la traduction](/docs/translation-safety) : les vérifications de placeholders et d'ICU qui protègent chaque écriture, manuelle ou automatisée.

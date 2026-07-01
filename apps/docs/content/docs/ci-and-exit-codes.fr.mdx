@@ -1,11 +1,11 @@
 ---
 title: CI et codes de sortie
-description: Exécute verbatra en CI, lis ses codes de sortie et consomme sa sortie JSON.
+description: Lance verbatra en CI, lis ses codes de sortie et consomme sa sortie JSON.
 ---
 
 # CI et codes de sortie
 
-verbatra est une dépendance de développement, donc les mêmes commandes que tu exécutes localement s'exécutent en CI. Installe-le, fournis la clé du fournisseur depuis ton magasin de secrets CI sous la forme de la variable d'environnement correspondante, et exécute `verbatra translate`.
+verbatra est une dépendance de développement, donc les commandes que tu lances localement tournent de la même façon en CI. Installe-le, passe la clé du provider depuis ton magasin de secrets CI sous la forme de la variable d'environnement correspondante, et lance `verbatra translate`.
 
 ```bash
 pnpm add -D @verbatra/cli
@@ -13,14 +13,14 @@ pnpm add -D @verbatra/cli
 verbatra translate --json
 ```
 
-Pour faire échouer un pipeline lorsque les traductions ont dérivé, sans appeler de fournisseur ni avoir besoin d'une clé, exécute [`verbatra check`](/docs/cli/check) : il quitte avec `1` lorsqu'une locale est désynchronisée.
+Tu veux faire échouer un pipeline quand les traductions ont dérivé, sans appeler de provider ni même avoir besoin d'une clé ? Lance [`verbatra check`](/docs/cli/check) : il sort avec `1` quand une locale est désynchronisée.
 
 ```bash
 # read-only gate: exit 1 if any locale is missing or stale
 verbatra check
 ```
 
-Pour voir les clés exactes derrière cette dérive (par exemple pour les publier dans un commentaire de pull request), exécute [`verbatra diff`](/docs/cli/diff) : même garde-fou en lecture seule, mais il liste les clés qui seraient ajoutées, retraduites ou sont orphelines au lieu de seulement les compter.
+Tu as besoin des clés exactes derrière cette dérive (par exemple pour les publier dans un commentaire de pull request) ? Lance [`verbatra diff`](/docs/cli/diff) : même garde-fou en lecture seule, mais au lieu de seulement compter, il liste les clés qui seraient ajoutées, retraduites ou sont orphelines.
 
 ```bash
 # read-only gate with the key lists: exit 1 if any locale has pending changes
@@ -29,20 +29,20 @@ verbatra diff
 
 ## Codes de sortie
 
-verbatra utilise son code de sortie comme le contrat sur lequel une étape de CI se branche :
+Le code de sortie est le contrat sur lequel ton étape de CI se branche :
 
 | Code | Signification |
 | --- | --- |
 | `0` | succès (pour `check`, chaque locale est synchronisée ; pour `diff`, aucun changement en attente) |
 | `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
-| `2` | impossible de s'exécuter (une erreur sur toute l'exécution, ou une erreur d'utilisation) |
+| `2` | impossible de lancer (une erreur sur toute l'exécution, ou une erreur d'utilisation) |
 | `130` | `watch` a été arrêté de force par une seconde interruption |
 
-Un échec par exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie ; une seule interruption arrête `watch` proprement et sort avec `0`.
+`watch` est l'exception : un échec par exécution apparaît comme un enregistrement de flux, pas comme un code de sortie, et une seule interruption arrête `watch` proprement et sort avec `0`.
 
 ## Sortie JSON
 
-Les commandes `translate`, `watch`, `check`, `diff`, `export` et `import` acceptent `--json` pour une sortie lisible par machine.
+Chaque commande (`translate`, `watch`, `check`, `diff`, `export` et `import`) accepte `--json` pour une sortie lisible par machine.
 
 `verbatra translate --json` affiche le résumé de l'exécution sous forme d'un seul objet JSON ayant cette forme :
 
@@ -55,7 +55,7 @@ interface RunSummary {
 }
 ```
 
-`verbatra watch --json` affiche un enregistrement par exécution au format NDJSON (un objet JSON par ligne). Chaque enregistrement est soit un succès, soit un échec :
+`verbatra watch --json` affiche un enregistrement par exécution au format NDJSON (un objet JSON par ligne). Chaque enregistrement est un succès ou un échec :
 
 ```ts
 type WatchRunResult =
@@ -63,9 +63,9 @@ type WatchRunResult =
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Une exécution échouée pendant `watch` est l'un de ces enregistrements sur le flux ; elle n'arrête pas le surveillant et ne définit pas de code de sortie non nul.
+Une exécution échouée pendant `watch` arrive comme l'un de ces enregistrements sur le flux. Elle n'arrête pas le surveillant et ne définit pas de code de sortie non nul.
 
-`verbatra check --json` affiche un document de statut en lecture seule sous forme d'un seul objet JSON. Le `inSync` de niveau supérieur est vrai exactement lorsque chaque locale est synchronisée, ce qui est exactement lorsque la commande quitte avec `0` :
+`verbatra check --json` affiche un document de statut en lecture seule sous forme d'un seul objet JSON. Le `inSync` de niveau supérieur est vrai exactement quand chaque locale est synchronisée, ce qui est exactement quand la commande sort avec `0` :
 
 ```ts
 interface CheckSummary {
@@ -82,7 +82,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` affiche le même calcul en lecture seule sous forme de listes de clés plutôt que de décomptes. Le `hasPendingChanges` de niveau supérieur est vrai exactement lorsqu'au moins une locale a une clé à ajouter ou à retraduire, ce qui est exactement lorsque la commande quitte avec `1`. Les clés orphelines sont listées mais ne définissent pas `hasPendingChanges` :
+`verbatra diff --json` exécute le même calcul en lecture seule mais te donne des listes de clés au lieu de décomptes. Le `hasPendingChanges` de niveau supérieur est vrai exactement quand au moins une locale a une clé à ajouter ou à retraduire, ce qui est exactement quand la commande sort avec `1`. Les clés orphelines apparaissent dans les listes mais ne définissent jamais `hasPendingChanges` :
 
 ```ts
 interface DiffSummary {

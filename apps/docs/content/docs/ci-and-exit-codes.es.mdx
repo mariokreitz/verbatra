@@ -5,44 +5,44 @@ description: Ejecuta verbatra en CI, lee sus códigos de salida y consume su sal
 
 # CI y códigos de salida
 
-verbatra es una dependencia de desarrollo, por lo que los mismos comandos que ejecutas localmente se ejecutan en CI. Instálalo, pasa la clave del proveedor desde tu almacén de secretos de CI como la variable de entorno correspondiente y ejecuta `verbatra translate`.
+verbatra es una dependencia de desarrollo, así que los comandos que ejecutas localmente se ejecutan igual en CI. Instálalo, pasa la clave del proveedor desde tu almacén de secretos de CI como la variable de entorno correspondiente y ejecuta `verbatra translate`.
 
 ```bash
 pnpm add -D @verbatra/cli
-# ANTHROPIC_API_KEY es proporcionada por el almacén de secretos de CI como una variable de entorno
+# ANTHROPIC_API_KEY is provided by the CI secret store as an environment variable
 verbatra translate --json
 ```
 
-Para hacer fallar una canalización cuando las traducciones se han desviado, sin llamar a un proveedor ni necesitar una clave, ejecuta [`verbatra check`](/docs/cli/check): termina con `1` cuando alguna configuración regional está fuera de sincronización.
+¿Quieres hacer fallar una canalización cuando las traducciones se han desviado, sin llamar a un proveedor ni siquiera necesitar una clave? Ejecuta [`verbatra check`](/docs/cli/check): sale con `1` cuando algún locale está fuera de sincronización.
 
 ```bash
-# puerta de solo lectura: sale con 1 si alguna configuración regional tiene cadenas faltantes o desactualizadas
+# read-only gate: exit 1 if any locale is missing or stale
 verbatra check
 ```
 
-Para ver las claves exactas detrás de esa desviación (por ejemplo, para publicarlas en un comentario de pull request), ejecuta [`verbatra diff`](/docs/cli/diff): la misma puerta de solo lectura, pero lista las claves que se añadirían, se volverían a traducir o están huérfanas en lugar de solo contarlas.
+¿Necesitas las claves exactas detrás de esa desviación (por ejemplo, para publicarlas en un comentario de pull request)? Ejecuta [`verbatra diff`](/docs/cli/diff): la misma puerta de solo lectura, pero en lugar de solo contar, lista las claves que se añadirían, se volverían a traducir o están huérfanas.
 
 ```bash
-# puerta de solo lectura con las listas de claves: sale con 1 si alguna configuración regional tiene cambios pendientes
+# read-only gate with the key lists: exit 1 if any locale has pending changes
 verbatra diff
 ```
 
 ## Códigos de salida
 
-verbatra usa su código de salida como el contrato sobre el que se ramifica un paso de CI:
+El código de salida es el contrato sobre el que se ramifica tu paso de CI:
 
 | Código | Significado |
 | --- | --- |
-| `0` | éxito (para `check`, todas las configuraciones regionales están sincronizadas; para `diff`, sin cambios pendientes) |
-| `1` | `translate` o `import` terminó pero algunas configuraciones regionales fallaron, `check` encontró una configuración regional fuera de sincronización, o `diff` encontró cambios pendientes |
+| `0` | éxito (para `check`, todos los locales están sincronizados; para `diff`, sin cambios pendientes) |
+| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale fuera de sincronización, o `diff` encontró cambios pendientes |
 | `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso) |
 | `130` | `watch` fue detenido forzosamente por una segunda interrupción |
 
-Un fallo por ejecución en `watch` se informa como un registro de flujo, no como un código de salida; una sola interrupción detiene `watch` de forma elegante y sale con `0`.
+`watch` es la excepción: un fallo por ejecución aparece como un registro de flujo, no como un código de salida, y una sola interrupción detiene `watch` de forma elegante y sale con `0`.
 
 ## Salida JSON
 
-Los comandos `translate`, `watch`, `check`, `diff`, `export` e `import` aceptan `--json` para una salida legible por máquina.
+Cada comando (`translate`, `watch`, `check`, `diff`, `export` e `import`) acepta `--json` para una salida legible por máquina.
 
 `verbatra translate --json` imprime el resumen de la ejecución como un único objeto JSON con esta forma:
 
@@ -63,9 +63,9 @@ type WatchRunResult =
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Una ejecución fallida durante `watch` es uno de estos registros en el flujo; no detiene el observador y no establece un código de salida distinto de cero.
+Una ejecución fallida durante `watch` cae como uno de estos registros en el flujo. No detiene el observador y no establece un código de salida distinto de cero.
 
-`verbatra check --json` imprime un documento de estado de solo lectura como un único objeto JSON. El `inSync` de nivel superior es true exactamente cuando todas las configuraciones regionales están sincronizadas, que es exactamente cuando el comando termina con `0`:
+`verbatra check --json` imprime un documento de estado de solo lectura como un único objeto JSON. El `inSync` de nivel superior es true exactamente cuando todos los locales están sincronizados, que es exactamente cuando el comando sale con `0`:
 
 ```ts
 interface CheckSummary {
@@ -82,7 +82,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` imprime el mismo cálculo de solo lectura como listas de claves en lugar de recuentos. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos una configuración regional tiene una clave para añadir o volver a traducir, que es exactamente cuando el comando termina con `1`. Las claves huérfanas se listan pero no establecen `hasPendingChanges`:
+`verbatra diff --json` ejecuta el mismo cálculo de solo lectura pero te da listas de claves en lugar de recuentos. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos un locale tiene una clave para añadir o volver a traducir, que es exactamente cuando el comando sale con `1`. Las claves huérfanas aparecen en las listas pero nunca establecen `hasPendingChanges`:
 
 ```ts
 interface DiffSummary {
