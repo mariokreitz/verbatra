@@ -1,7 +1,6 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
-import Button from "@/components/ui/button";
 import { i18n, type Locale } from "@/lib/i18n";
 
 // de/es/fr inherit Fumadocs's English UI strings, since it ships no bundled preset for them.
@@ -60,27 +59,12 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         </span>
       ),
     },
-    // A minimal, real link set plus an on-brand CTA. The main links render as text links on
-    // the navbar (and in the mobile menu); the CTA is a custom child so it uses the same
-    // primary Button (deep --v-purple fill) as the rest of the landing. `secondary` moves it
-    // into the navbar's right-side actions next to the GitHub icon and search.
+    // A minimal, real link set. The main links render as text links on the navbar and in the
+    // mobile menu; the GitHub icon and search trigger sit in the right-side actions.
     links: [
       { text: t("docs"), url: localized(locale, "/docs") },
       { text: t("providers"), url: localized(locale, "/docs/providers") },
       { text: t("formats"), url: localized(locale, "/docs/formats") },
-      {
-        type: "custom",
-        secondary: true,
-        children: (
-          <Button
-            href={localized(locale, "/docs/your-first-translation")}
-            variant="primary"
-            size="sm"
-          >
-            {t("getStarted")}
-          </Button>
-        ),
-      },
     ],
     githubUrl: "https://github.com/mariokreitz/verbatra",
     // The theme is forced dark via RootProvider, so the theme-switch control is removed.
