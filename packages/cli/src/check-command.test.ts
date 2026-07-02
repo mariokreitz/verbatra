@@ -86,4 +86,46 @@ describe("run check: SDK delegation, rendering, and exit codes", () => {
     expect(cap.err()).toContain("[SOURCE_INVALID]");
     expect(cap.out()).toBe("");
   });
+
+  it("rejects an empty --locales list as a usage error: exit 2, stderr, clean stdout, no SDK call", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["check", "--locales", ""], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_LOCALES]");
+    expect(cap.out()).toBe("");
+    expect(calls.check).toHaveLength(0);
+  });
+
+  it("rejects a comma-only --locales list (all entries empty) as a usage error", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["check", "--locales", ","], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_LOCALES]");
+    expect(cap.out()).toBe("");
+    expect(calls.check).toHaveLength(0);
+  });
+
+  it("passes an unknown but non-empty --locales through, and the SDK UNKNOWN_LOCALE exits 2", async () => {
+    const { deps, calls } = recordingDeps({
+      check: async () => {
+        throw Object.assign(new Error("Requested locale not in configured targets: fr."), {
+          code: "UNKNOWN_LOCALE",
+        });
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["check", "--locales", "fr"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(calls.check[0]).toMatchObject({ locales: ["fr"] });
+    expect(cap.err()).toContain("[UNKNOWN_LOCALE]");
+    expect(cap.out()).toBe("");
+  });
 });

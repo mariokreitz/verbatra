@@ -55,6 +55,6 @@ verbatra export --json
 | Código | Significado |
 | --- | --- |
 | `0` | el libro se escribió |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un archivo de bloqueo corrupto o un locale solicitado que no está entre los locales de destino configurados), o un error de uso (incluida una lista `--locales` vacía) |
 
-`export` nunca llama a un proveedor y no necesita ninguna clave de API. Consulta [`verbatra import`](/docs/cli/import) para leer de vuelta el libro rellenado.
+`export` nunca llama a un proveedor y no necesita ninguna clave de API. Un valor `--locales` desconocido o vacío hace que la ejecución falle con el código de salida `2` en lugar de no exportar nada en silencio, así que un error tipográfico en un nombre de locale se detecta en lugar de pasar. Consulta [`verbatra import`](/docs/cli/import) para leer de vuelta el libro rellenado.

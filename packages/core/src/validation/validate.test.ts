@@ -32,6 +32,14 @@ describe("validate", () => {
     expect(report.brokenPlaceholders[0]).toMatchObject({ key: "a", missing: ["{x}"], extra: [] });
   });
 
+  it("does not flag a pure placeholder reorder and keeps the report valid", () => {
+    const source = resource("en", [entry({ key: "a", placeholders: ["{x}", "{y}"] })]);
+    const target = resource("de", [entry({ key: "a", placeholders: ["{y}", "{x}"] })]);
+    const report = validate(source, target);
+    expect(report.brokenPlaceholders).toEqual([]);
+    expect(report.isValid).toBe(true);
+  });
+
   it("aggregates supplied invalid ICU findings without parsing ICU", () => {
     const source = resource("en", [entry({ key: "a" })]);
     const target = resource("de", [entry({ key: "a" })]);

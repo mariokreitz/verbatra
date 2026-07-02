@@ -7,7 +7,7 @@ import type {
   TranslateResult,
   TranslationProvider,
 } from "@verbatra/ai-providers";
-import type { PlaceholderIntegrityResult } from "@verbatra/core";
+import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
 import type { VerbatraConfig } from "./config/schema.js";
 import type { BoundedBytesRead, BoundedFileRead, SdkFs } from "./fs.js";
 
@@ -74,6 +74,37 @@ export function makeStubProvider(options: StubOptions = {}): StubProvider {
     },
   };
   return { provider, calls };
+}
+
+/**
+ * A provider that mirrors the real integrity path: it produces a value with `produce` and computes
+ * integrity with the live core `checkPlaceholders` against the request's extracted placeholders, so a
+ * test exercises the actual placeholder-integrity semantics end to end.
+ */
+export function makeIntegrityProvider(
+  produce: (value: string, key: string) => string,
+): TranslationProvider {
+  return {
+    id: "stub",
+    kind: "llm",
+    supportsGlossary: true,
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      const values = new Map<string, string>();
+      const integrity = new Map<string, PlaceholderIntegrityResult>();
+      for (const entry of request.entries) {
+        const value = produce(entry.value, entry.key);
+        values.set(entry.key, value);
+        integrity.set(
+          entry.key,
+          checkPlaceholders(
+            request.extractPlaceholders(entry.value),
+            request.extractPlaceholders(value),
+          ),
+        );
+      }
+      return { values, integrity };
+    },
+  };
 }
 
 /** A valid base config for tests; override fields as needed. */

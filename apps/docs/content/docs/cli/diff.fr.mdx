@@ -96,6 +96,6 @@ verbatra diff --json
 | --- | --- |
 | `0` | aucun changement en attente : aucune locale n'a de clé à ajouter ou à retraduire |
 | `1` | changements en attente : au moins une locale a une clé manquante ou modifiée (le rapport complet est tout de même affiché) |
-| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fichier de verrouillage corrompu, ou une locale demandée qui ne figure pas parmi les locales cibles configurées), ou une erreur d'usage (y compris une liste `--locales` vide) |
 
-Les clés orphelines seules ne produisent jamais le code de sortie `1`, car une exécution par défaut ne les élague pas. Pour `diff`, le code de sortie `1` signifie "il y a du travail en attente", pas un échec par locale : l'exécution elle-même a réussi. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.
+Les clés orphelines seules ne produisent jamais le code de sortie `1`, car une exécution par défaut ne les élague pas. Pour `diff`, le code de sortie `1` signifie "il y a du travail en attente", pas un échec par locale : l'exécution elle-même a réussi. Une valeur `--locales` inconnue ou vide fait échouer l'exécution avec le code de sortie `2` au lieu de ne rien comparer en silence, si bien qu'une faute de frappe dans un nom de locale est détectée au lieu de passer. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

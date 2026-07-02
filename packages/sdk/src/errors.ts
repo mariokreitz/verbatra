@@ -7,6 +7,8 @@
  *   (thrown by `loadConfig`).
  * - `CONFIG_INVALID`: a config was found but is unparseable or fails validation (thrown by `loadConfig`).
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format (thrown by `translate`).
+ * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales (thrown by
+ *   `check`, `diff`, and `exportWorkbook` via the shared locale selection).
  * - `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw; wraps the provider's own error, including
  *   a missing `*_API_KEY` reported as `MISSING_API_KEY` (thrown by `translate`, non-dry-run only).
  * - `SOURCE_UNREADABLE`: the source locale file is absent (thrown by `translate`, and by `watch` at startup).
@@ -21,6 +23,7 @@ export type SdkErrorCode =
   | "CONFIG_NOT_FOUND"
   | "CONFIG_INVALID"
   | "UNKNOWN_FORMAT"
+  | "UNKNOWN_LOCALE"
   | "PROVIDER_CONSTRUCTION_FAILED"
   | "SOURCE_UNREADABLE"
   | "SOURCE_INVALID"

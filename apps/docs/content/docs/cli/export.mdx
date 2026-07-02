@@ -55,6 +55,6 @@ verbatra export --json
 | Code | Meaning |
 | --- | --- |
 | `0` | the workbook was written |
-| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a corrupt lock file, or a requested locale not among the configured targets), or a usage error (including an empty `--locales` list) |
 
-`export` never calls a provider and needs no API key. See [`verbatra import`](/docs/cli/import) for reading the filled workbook back.
+`export` never calls a provider and needs no API key. An unknown or empty `--locales` value fails the run with exit `2` rather than silently exporting nothing, so a typo in a locale name is caught instead of passing. See [`verbatra import`](/docs/cli/import) for reading the filled workbook back.

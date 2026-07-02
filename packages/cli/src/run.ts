@@ -85,6 +85,59 @@ const diffOptsSchema = z.object({
   json: z.boolean().optional(),
 });
 
+/** A CLI-local usage error for a malformed `--locales` value; routed to exit 2 like an `SdkError`. */
+class UsageError extends Error {
+  /** Stable, secret-free code read by {@link toRenderableError}; branch on this, not the message. */
+  readonly code = "INVALID_LOCALES";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "UsageError";
+  }
+}
+
+/**
+ * Parse a locale command's options and reject a provided-but-empty `--locales` list. `localeListSchema`
+ * normalizes `""` and `","` to an empty array (defined, not undefined), which would otherwise select no
+ * locales and let a CI drift gate exit 0. An omitted flag stays `undefined` and is allowed.
+ *
+ * @throws {@link UsageError} `INVALID_LOCALES` when `locales` is provided but lists no locale.
+ */
+function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[] | undefined }>(
+  schema: z.ZodType<T>,
+  rawOpts: unknown,
+): T {
+  const opts = schema.parse(rawOpts);
+  if (opts.locales !== undefined && opts.locales.length === 0) {
+    throw new UsageError(
+      "The --locales option was provided but lists no locale. Pass a comma-separated list of " +
+        "configured target locales, or omit --locales to use all of them.",
+    );
+  }
+  return opts;
+}
+
+/**
+ * Parse a locale command's options inside a try that renders any parse or usage failure to stderr and
+ * returns exit 2, keeping stdout clean for `--json`. On success the parsed options are handed to `body`.
+ * This is the single copy of the parse/render/return-2 wiring shared by `check`, `diff`, and `export`.
+ */
+async function withLocaleOpts<T extends { readonly locales?: readonly string[] | undefined }>(
+  schema: z.ZodType<T>,
+  rawOpts: unknown,
+  streams: Streams,
+  body: (opts: T) => Promise<number>,
+): Promise<number> {
+  let opts: T;
+  try {
+    opts = parseLocaleCommandOpts(schema, rawOpts);
+  } catch (error) {
+    streams.err(`${renderError(toRenderableError(error))}\n`);
+    return 2;
+  }
+  return body(opts);
+}
+
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
   return {
     cwd,
@@ -171,26 +224,27 @@ async function runWatchCommand(
  * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  const opts = exportOptsSchema.parse(rawOpts);
-  const cwd = opts.cwd ?? process.cwd();
-  return withWholeRunErrors(
-    deps,
-    streams,
-    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    async (config) => {
-      const result = await deps.exportWorkbook({
-        config,
-        cwd,
-        ...(opts.out !== undefined ? { out: opts.out } : {}),
-        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-        ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
-      });
-      streams.out(
-        opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
-      );
-      return 0;
-    },
-  );
+  return withLocaleOpts(exportOptsSchema, rawOpts, streams, async (opts) => {
+    const cwd = opts.cwd ?? process.cwd();
+    return withWholeRunErrors(
+      deps,
+      streams,
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+      async (config) => {
+        const result = await deps.exportWorkbook({
+          config,
+          cwd,
+          ...(opts.out !== undefined ? { out: opts.out } : {}),
+          ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+          ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+        });
+        streams.out(
+          opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+        );
+        return 0;
+      },
+    );
+  });
 }
 
 /**
@@ -229,24 +283,25 @@ async function runImport(
  * has a missing or stale key, `2` the run could not start.
  */
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  const opts = checkOptsSchema.parse(rawOpts);
-  const cwd = opts.cwd ?? process.cwd();
-  return withWholeRunErrors(
-    deps,
-    streams,
-    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    async (config) => {
-      const summary = await deps.check({
-        config,
-        cwd,
-        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-      });
-      streams.out(
-        opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
-      );
-      return summary.inSync ? 0 : 1;
-    },
-  );
+  return withLocaleOpts(checkOptsSchema, rawOpts, streams, async (opts) => {
+    const cwd = opts.cwd ?? process.cwd();
+    return withWholeRunErrors(
+      deps,
+      streams,
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+      async (config) => {
+        const summary = await deps.check({
+          config,
+          cwd,
+          ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+        });
+        streams.out(
+          opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
+        );
+        return summary.inSync ? 0 : 1;
+      },
+    );
+  });
 }
 
 /**
@@ -254,24 +309,25 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
  * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
  */
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  const opts = diffOptsSchema.parse(rawOpts);
-  const cwd = opts.cwd ?? process.cwd();
-  return withWholeRunErrors(
-    deps,
-    streams,
-    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    async (config) => {
-      const summary = await deps.diff({
-        config,
-        cwd,
-        ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-      });
-      streams.out(
-        opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
-      );
-      return summary.hasPendingChanges ? 1 : 0;
-    },
-  );
+  return withLocaleOpts(diffOptsSchema, rawOpts, streams, async (opts) => {
+    const cwd = opts.cwd ?? process.cwd();
+    return withWholeRunErrors(
+      deps,
+      streams,
+      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+      async (config) => {
+        const summary = await deps.diff({
+          config,
+          cwd,
+          ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+        });
+        streams.out(
+          opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
+        );
+        return summary.hasPendingChanges ? 1 : 0;
+      },
+    );
+  });
 }
 
 function buildProgram(

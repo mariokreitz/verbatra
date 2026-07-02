@@ -73,6 +73,6 @@ verbatra check --json
 | --- | --- |
 | `0` | sincronizado: cada locale de destino no tiene claves faltantes ni desactualizadas |
 | `1` | fuera de sincronización: al menos un locale tiene una clave faltante o desactualizada (el informe completo se sigue imprimiendo) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un archivo de bloqueo corrupto o un locale solicitado que no está entre los locales de destino configurados), o un error de uso (incluida una lista `--locales` vacía) |
 
-Para `check`, el código de salida `1` significa "fuera de sincronización", no un fallo por locale: la ejecución en sí tuvo éxito, solo que el resultado no está todo en verde. Eso convierte a `check` en una puerta de CI de una línea que falla cuando las traducciones se han desviado. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
+Para `check`, el código de salida `1` significa "fuera de sincronización", no un fallo por locale: la ejecución en sí tuvo éxito, solo que el resultado no está todo en verde. Eso convierte a `check` en una puerta de CI de una línea que falla cuando las traducciones se han desviado. Un valor `--locales` desconocido o vacío hace que la ejecución falle con el código de salida `2` en lugar de no comprobar nada en silencio, así que un error tipográfico en un nombre de locale se detecta en lugar de pasar. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.

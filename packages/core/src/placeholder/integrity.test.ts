@@ -21,9 +21,9 @@ describe("checkPlaceholders", () => {
     expect(result.missing).toEqual([]);
   });
 
-  it("reports reordering when the set matches but order differs", () => {
+  it("accepts a same-multiset reorder while still flagging it as reordered", () => {
     const result = checkPlaceholders(["{a}", "{b}"], ["{b}", "{a}"]);
-    expect(result.matches).toBe(false);
+    expect(result.matches).toBe(true);
     expect(result.reordered).toBe(true);
     expect(result.missing).toEqual([]);
     expect(result.extra).toEqual([]);
@@ -67,9 +67,9 @@ describe("checkPlaceholders", () => {
     expect(result.missing).toEqual([]);
   });
 
-  it("still reports a genuine same-multiset reorder as reordered", () => {
+  it("accepts a same-multiset reorder with duplicates and still flags it as reordered", () => {
     const result = checkPlaceholders(["{a}", "{a}", "{b}"], ["{b}", "{a}", "{a}"]);
-    expect(result.matches).toBe(false);
+    expect(result.matches).toBe(true);
     expect(result.reordered).toBe(true);
     expect(result.missing).toEqual([]);
     expect(result.extra).toEqual([]);

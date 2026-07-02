@@ -63,7 +63,8 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
  * @param deps - Optional composition seams (registry, file system) for tests.
  * @returns The aggregate and per-locale pending change.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`.
+ *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
+ *   among the configured target locales.
  */
 export async function diff(input: DiffInput, deps: DiffDeps = {}): Promise<DiffSummary> {
   const results = await diffLocales(input, deps);

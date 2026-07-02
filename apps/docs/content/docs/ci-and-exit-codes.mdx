@@ -32,7 +32,7 @@ The exit code is the contract your CI step branches on:
 | --- | --- |
 | `0` | success (for `check`, every locale is in sync; for `diff`, no pending changes) |
 | `1` | `translate` or `import` finished but some locales failed, `check` found a locale out of sync, or `diff` found pending changes |
-| `2` | could not run (a whole-run error, or a usage error) |
+| `2` | could not run (a whole-run error or a usage error, including an unknown or empty `--locales` value) |
 | `130` | `watch` was force-stopped by a second interrupt |
 
 `watch` is the exception: a per-run failure shows up as a stream record, not an exit code, and a single interrupt stops `watch` gracefully and exits `0`.

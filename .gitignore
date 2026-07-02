@@ -38,4 +38,5 @@ pnpm-debug.log*
 
 # npm/yarn lockfiles (this repo uses pnpm)
 package-lock.json
+!e2e/package-lock.json
 yarn.lock

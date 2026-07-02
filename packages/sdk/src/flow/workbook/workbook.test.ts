@@ -122,6 +122,13 @@ describe("exportWorkbook", () => {
     expect(row?.status).toBe("changed");
     expect(row?.currentTarget).toBe("Aa");
   });
+
+  it("rejects an unknown requested locale with UNKNOWN_LOCALE instead of silently dropping it", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
+    await expect(
+      exportWorkbook({ config: cfg(), cwd: dir, locales: ["de", "es"] }),
+    ).rejects.toMatchObject({ code: "UNKNOWN_LOCALE" });
+  });
 });
 
 describe("importWorkbook", () => {

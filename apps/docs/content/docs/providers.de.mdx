@@ -10,7 +10,7 @@ Jeder Provider funktioniert mit jedem Format und Befehl; bei der Wahl geht es um
 
 - **Kleines oder Nebenprojekt, kostenlos?** Nutze **Gemini**. Es hat eine echte kostenlose API-Stufe, sodass du eine ganze App ohne Kosten übersetzen kannst. Hol dir einen Schlüssel bei [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Die kostenlose Stufe ist rate-limitiert (siehe Hinweis unten), was nur bei einem großen erstmaligen Lauf eine Rolle spielt.
 - **Beste Übersetzungsqualität für eine Produktions-App?** Nutze **Anthropic** oder **OpenAI**. Beide sind kostenpflichtige LLMs und lesen `ANTHROPIC_API_KEY` oder `OPENAI_API_KEY`.
-- **Hohes Volumen, glossargesteuert oder kein LLM im Spiel?** Nutze **DeepL**. Es ist eine dedizierte Maschinenübersetzungs-API mit einer kostenlosen und einer kostenpflichtigen Stufe und unterstützt ein natives Glossar per id.
+- **Hohes Volumen, glossargesteuert oder kein LLM im Spiel?** Nutze **DeepL**. Es ist eine dedizierte Maschinenübersetzungs-API mit einer kostenlosen und einer kostenpflichtigen Stufe und unterstützt ein natives Glossar per id. Es übersetzt keine Strings mit Platzhaltern (siehe den Hinweis unten); nutze dafür einen LLM-Provider.
 
 Unsicher? Starte auf der kostenlosen Stufe von Gemini und wechsle später den Provider, indem du eine `id` in deiner Konfiguration änderst. Sonst ändert sich nichts.
 
@@ -96,6 +96,10 @@ provider: {
   },
 }
 ```
+
+<Callout title="DeepL und Platzhalter">
+DeepL kann Platzhalter oder ICU-Tokens nicht bewahren und sendet daher keine Strings, die sie enthalten: Diese Einträge bleiben unübersetzt (zurückgehalten) und werden mit einem `PLACEHOLDER_UNSUPPORTED`-Hinweis am Ergebnis gemeldet. Platzhalterfreie Strings werden normal übersetzt. Um Strings mit Platzhaltern zu übersetzen, nutze einen LLM-Provider (Anthropic, OpenAI oder Gemini).
+</Callout>
 
 ## Ton und Glossar über Provider hinweg
 

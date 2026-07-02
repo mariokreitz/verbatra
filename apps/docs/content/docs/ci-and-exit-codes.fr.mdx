@@ -32,7 +32,7 @@ Le code de sortie est le contrat sur lequel ton étape de CI se branche :
 | --- | --- |
 | `0` | succès (pour `check`, chaque locale est synchronisée ; pour `diff`, aucun changement en attente) |
 | `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
-| `2` | impossible de lancer (une erreur sur toute l'exécution, ou une erreur d'utilisation) |
+| `2` | impossible de lancer (une erreur sur toute l'exécution, ou une erreur d'utilisation, y compris une valeur `--locales` inconnue ou vide) |
 | `130` | `watch` a été arrêté de force par une seconde interruption |
 
 `watch` est l'exception : un échec par exécution apparaît comme un enregistrement de flux, pas comme un code de sortie, et une seule interruption arrête `watch` proprement et sort avec `0`.
