@@ -10,7 +10,7 @@ N'importe quel fournisseur fonctionne avec n'importe quel format et n'importe qu
 
 - **Petit projet ou projet perso, tu le veux gratuit ?** Utilise **Gemini**. Il dispose d'un vrai palier d'API gratuit, tu peux donc traduire une application entière sans aucun coût. Récupère une clé sur [Google AI Studio](https://aistudio.google.com/apikey) et définis `GEMINI_API_KEY`. Le palier gratuit est soumis à des limites de débit (voir la note ci-dessous), ce qui ne compte que lors d'une grande première exécution.
 - **Meilleure qualité de traduction pour une application en production ?** Utilise **Anthropic** ou **OpenAI**. Ce sont tous deux des LLM payants qui lisent `ANTHROPIC_API_KEY` ou `OPENAI_API_KEY`.
-- **Gros volume, piloté par glossaire, ou pas de LLM dans la boucle ?** Utilise **DeepL**. C'est une API de traduction automatique dédiée avec un palier gratuit et un palier payant, et elle prend en charge un glossaire natif par id.
+- **Gros volume, piloté par glossaire, ou pas de LLM dans la boucle ?** Utilise **DeepL**. C'est une API de traduction automatique dédiée avec un palier gratuit et un palier payant, et elle prend en charge un glossaire natif par id. Elle ne traduit pas les chaînes contenant des espaces réservés (voir l'avis ci-dessous) ; pour celles-ci, utilise un fournisseur LLM.
 
 Pas sûr ? Commence sur le palier gratuit de Gemini, puis change de fournisseur plus tard en modifiant un seul `id` dans ta configuration. Rien d'autre ne change.
 
@@ -96,6 +96,10 @@ provider: {
   },
 }
 ```
+
+<Callout title="DeepL et les espaces réservés">
+DeepL ne peut pas conserver les espaces réservés ni les tokens ICU, donc il n'envoie pas les chaînes qui en contiennent : ces entrées restent non traduites (retenues) et sont signalées par un avis `PLACEHOLDER_UNSUPPORTED` sur le résultat. Les chaînes sans espaces réservés sont traduites normalement. Pour traduire les chaînes contenant des espaces réservés, utilise un fournisseur LLM (Anthropic, OpenAI ou Gemini).
+</Callout>
 
 ## Ton et glossaire selon les fournisseurs
 

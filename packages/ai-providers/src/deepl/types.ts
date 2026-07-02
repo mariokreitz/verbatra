@@ -36,8 +36,14 @@ export interface DeepLClientBundle {
  *
  * - `FORMALITY_DOWNGRADED`: a requested formality was not applied (the free tier does not support it).
  * - `GLOSSARY_IGNORED`: a supplied generic glossary was not applied.
+ * - `PLACEHOLDER_UNSUPPORTED`: at least one placeholder- or ICU-bearing entry was left untranslated
+ *   because DeepL cannot preserve those tokens; such entries are withheld (absent from the result maps)
+ *   rather than sent to DeepL and mangled.
  */
-export type ProviderNoticeCode = "FORMALITY_DOWNGRADED" | "GLOSSARY_IGNORED";
+export type ProviderNoticeCode =
+  | "FORMALITY_DOWNGRADED"
+  | "GLOSSARY_IGNORED"
+  | "PLACEHOLDER_UNSUPPORTED";
 
 /**
  * An observable, structured signal that something was gracefully degraded (not an

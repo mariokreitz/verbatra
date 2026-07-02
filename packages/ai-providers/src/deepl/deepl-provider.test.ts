@@ -10,6 +10,7 @@ import {
   regexExtractor,
 } from "../test-support.js";
 import { createDeepLProvider } from "./deepl-provider.js";
+import { PLACEHOLDER_UNSUPPORTED_MESSAGE } from "./placeholders.js";
 import type { DeepLTranslateClient, DeepLTranslateResult, ProviderNotice } from "./types.js";
 
 const config = {};
@@ -64,7 +65,9 @@ describe("createDeepLProvider: ordered send and positional zip", () => {
   it("rejects a length-mismatched result (more) as INVALID_RESPONSE", async () => {
     const { client } = deeplStubClient(deeplResult(["x", "y"]));
     await expect(
-      createDeepLProvider(config, { client }).translateBatch(request()),
+      createDeepLProvider(config, { client }).translateBatch(
+        request({ entries: [entry("k", "v")] }),
+      ),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
 });
@@ -139,32 +142,102 @@ describe("createDeepLProvider: glossary", () => {
 });
 
 describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () => {
-  it("passes when placeholders are preserved", async () => {
-    const { client } = deeplStubClient(deeplResult(["Hallo {{name}}"]));
-    const result = await createDeepLProvider(config, { client }).translateBatch(request());
+  // Only placeholder-free entries are sent to DeepL (see BTS-49), so integrity runs on those and
+  // still catches DeepL introducing a placeholder-like token into a source that had none.
+  it("passes when a placeholder-free entry stays placeholder-free", async () => {
+    const { client } = deeplStubClient(deeplResult(["Hallo"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("greeting", "Hello")] }),
+    );
     expect(result.integrity.get("greeting")?.matches).toBe(true);
   });
 
-  it("reports a dropped placeholder per key, not swallowed", async () => {
-    const { client } = deeplStubClient(deeplResult(["Hallo"]));
-    const result = await createDeepLProvider(config, { client }).translateBatch(request());
+  it("reports an added placeholder per key when DeepL injects a token, not swallowed", async () => {
+    const { client } = deeplStubClient(deeplResult(["Hallo {{x}}"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("greeting", "Hello")] }),
+    );
     expect(result.integrity.get("greeting")?.matches).toBe(false);
-    expect(result.integrity.get("greeting")?.missing).toEqual(["{{name}}"]);
+    expect(result.integrity.get("greeting")?.extra).toEqual(["{{x}}"]);
+  });
+});
+
+describe("createDeepLProvider: placeholder-bearing entries are withheld (BTS-49)", () => {
+  it("translates only placeholder-free entries and withholds placeholder-bearing ones", async () => {
+    const { client, calls } = deeplStubClient(deeplResult(["Frei"]));
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({
+        entries: [entry("free", "Free"), entry("bearing", "Hello {{name}}", ["{{name}}"])],
+      }),
+    )) as DeepLTranslateResult;
+
+    // Only the placeholder-free text reaches DeepL.
+    expect(firstDeeplCall(calls).texts).toEqual(["Free"]);
+    // The placeholder-free entry is present and passes integrity.
+    expect(result.values.get("free")).toBe("Frei");
+    expect(result.integrity.get("free")?.matches).toBe(true);
+    // The placeholder-bearing entry is absent from both maps (withheld).
+    expect(result.values.has("bearing")).toBe(false);
+    expect(result.integrity.has("bearing")).toBe(false);
+    // Exactly one PLACEHOLDER_UNSUPPORTED notice is emitted.
+    expect(noticeCodes(result).filter((c) => c === "PLACEHOLDER_UNSUPPORTED")).toHaveLength(1);
   });
 
-  it("reports an added and a reordered placeholder", async () => {
-    const added = deeplStubClient(deeplResult(["Hallo {{name}} {{x}}"]));
-    const addedResult = await createDeepLProvider(config, { client: added.client }).translateBatch(
-      request(),
-    );
-    expect(addedResult.integrity.get("greeting")?.extra).toEqual(["{{x}}"]);
+  it("never calls translateText when every entry is placeholder-bearing", async () => {
+    const translateText = vi.fn();
+    const client: DeepLTranslateClient = { translateText };
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({
+        entries: [
+          entry("a", "Hello {{name}}", ["{{name}}"]),
+          entry("b", "{count, plural, one {# item} other {# items}}", ["count"]),
+        ],
+      }),
+    )) as DeepLTranslateResult;
 
-    const reordered = deeplStubClient(deeplResult(["{{b}} und {{a}}"]));
-    const reorderedResult = await createDeepLProvider(config, {
-      client: reordered.client,
-    }).translateBatch(request({ entries: [entry("k", "{{a}} {{b}}", ["{{a}}", "{{b}}"])] }));
-    expect(reorderedResult.integrity.get("k")?.reordered).toBe(true);
-    expect(reorderedResult.integrity.get("k")?.matches).toBe(true);
+    expect(translateText).not.toHaveBeenCalled();
+    expect(result.values.size).toBe(0);
+    expect(result.integrity.size).toBe(0);
+    expect(noticeCodes(result)).toContain("PLACEHOLDER_UNSUPPORTED");
+  });
+
+  it("emits no PLACEHOLDER_UNSUPPORTED notice for a placeholder-free batch (no regression)", async () => {
+    const { client } = deeplStubClient(deeplResult(["x"]));
+    const result = (await createDeepLProvider({ glossaryId: "gl-1" }, { client }).translateBatch(
+      request({ tone: "formal", entries: [entry("k", "v")] }),
+    )) as DeepLTranslateResult;
+    expect(noticeCodes(result)).not.toContain("PLACEHOLDER_UNSUPPORTED");
+  });
+
+  it("keeps formality and glossary notices unchanged alongside the placeholder notice", async () => {
+    const { client } = deeplStubClient(deeplResult(["x"]));
+    const result = (await createDeepLProvider(config, { client, freeAccount: true }).translateBatch(
+      request({
+        tone: "formal",
+        glossary: { Hello: "Hallo" },
+        entries: [entry("free", "Free"), entry("bearing", "Hi {{name}}", ["{{name}}"])],
+      }),
+    )) as DeepLTranslateResult;
+    expect(noticeCodes(result)).toEqual(
+      expect.arrayContaining([
+        "FORMALITY_DOWNGRADED",
+        "GLOSSARY_IGNORED",
+        "PLACEHOLDER_UNSUPPORTED",
+      ]),
+    );
+  });
+
+  it("emits a PLACEHOLDER_UNSUPPORTED notice whose message is static and names no key", async () => {
+    const { client } = deeplStubClient(deeplResult(["Frei"]));
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({
+        entries: [entry("free", "Free"), entry("secret-key", "Hi {{name}}", ["{{name}}"])],
+      }),
+    )) as DeepLTranslateResult;
+    const notice = result.notices.find((n) => n.code === "PLACEHOLDER_UNSUPPORTED");
+    expect(notice?.message).toBe(PLACEHOLDER_UNSUPPORTED_MESSAGE);
+    expect(notice?.message).not.toContain("secret-key");
+    expect(notice?.message).not.toContain("{{name}}");
   });
 });
 
@@ -188,7 +261,9 @@ describe("createDeepLProvider: errors and secrets", () => {
     });
     const client: DeepLTranslateClient = { translateText };
     try {
-      await createDeepLProvider(config, { client }).translateBatch(request());
+      await createDeepLProvider(config, { client }).translateBatch(
+        request({ entries: [entry("k", "v")] }),
+      );
       expect.unreachable("should have thrown");
     } catch (error) {
       expect((error as ProviderError).code).toBe("PROVIDER_ERROR");

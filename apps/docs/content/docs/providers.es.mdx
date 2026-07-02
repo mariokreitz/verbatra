@@ -10,7 +10,7 @@ Cualquier proveedor funciona con cualquier formato y comando; la elección tiene
 
 - **¿Proyecto pequeño o personal y lo quieres gratis?** Usa **Gemini**. Tiene un nivel de API realmente gratuito, así que puedes traducir una app entera sin ningún coste. Consigue una clave en [Google AI Studio](https://aistudio.google.com/apikey) y establece `GEMINI_API_KEY`. El nivel gratuito tiene límites de tasa (consulta la nota más abajo), lo que solo importa en una primera ejecución grande.
 - **¿La mejor calidad de traducción para una app en producción?** Usa **Anthropic** u **OpenAI**. Ambos son LLM de pago y leen `ANTHROPIC_API_KEY` u `OPENAI_API_KEY`.
-- **¿Alto volumen, guiado por glosario o sin LLM de por medio?** Usa **DeepL**. Es una API de traducción automática dedicada con un nivel gratuito y uno de pago, y admite un glosario nativo por id.
+- **¿Alto volumen, guiado por glosario o sin LLM de por medio?** Usa **DeepL**. Es una API de traducción automática dedicada con un nivel gratuito y uno de pago, y admite un glosario nativo por id. No traduce cadenas con marcadores de posición (mira el aviso más abajo); para esas, usa un proveedor de LLM.
 
 ¿No lo tienes claro? Empieza con el nivel gratuito de Gemini y luego cambia de proveedor más adelante editando un único `id` en tu configuración. Nada más cambia.
 
@@ -96,6 +96,10 @@ provider: {
   },
 }
 ```
+
+<Callout title="DeepL y los marcadores de posición">
+DeepL no puede preservar los marcadores de posición ni los tokens de ICU, así que no envía cadenas que los contengan: esas entradas quedan sin traducir (retenidas) y se informan con un aviso `PLACEHOLDER_UNSUPPORTED` en el resultado. Las cadenas sin marcadores de posición se traducen con normalidad. Para traducir cadenas con marcadores de posición, usa un proveedor de LLM (Anthropic, OpenAI o Gemini).
+</Callout>
 
 ## Tono y glosario entre proveedores
 

@@ -1,8 +1,16 @@
+import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
 import { guardProviderCall } from "../guard.js";
 import { checkBatchIntegrity } from "../integrity.js";
-import { type TranslateRequest, type TranslationProvider, validateRequest } from "../provider.js";
+import {
+  type PlaceholderExtractor,
+  type TranslateRequest,
+  type TranslationProvider,
+  type ValidatedRequestData,
+  validateRequest,
+} from "../provider.js";
 import { createDefaultClient } from "./client.js";
 import { type DeepLConfig, deepLConfigSchema } from "./config.js";
+import { PLACEHOLDER_UNSUPPORTED_MESSAGE, partitionByPlaceholders } from "./placeholders.js";
 import { buildTranslateOptions } from "./request.js";
 import { zipResults } from "./response.js";
 import type {
@@ -33,7 +41,7 @@ export interface DeepLDeps {
  * @param config - An optional pre-existing DeepL glossary id; never a key.
  * @param deps - Optional injected client and free-tier flag; when omitted, the production client is built.
  * @returns A {@link TranslationProvider} whose result also carries {@link ProviderNotice}s
- *   (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`) as data. Its `translateBatch` raises
+ *   (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`, `PLACEHOLDER_UNSUPPORTED`) as data. Its `translateBatch` raises
  *   {@link ProviderError} `INVALID_REQUEST`, `INVALID_RESPONSE` (a result-count mismatch), or
  *   `PROVIDER_ERROR`, never `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
@@ -46,7 +54,7 @@ export interface DeepLDeps {
  * // translateBatch is typed to TranslateResult; the concrete DeepL result also carries notices.
  * const result = (await provider.translateBatch(request)) as DeepLTranslateResult;
  * for (const notice of result.notices) {
- *   // notice.code is FORMALITY_DOWNGRADED or GLOSSARY_IGNORED. These are data, not errors.
+ *   // notice.code is FORMALITY_DOWNGRADED, GLOSSARY_IGNORED, or PLACEHOLDER_UNSUPPORTED. These are data, not errors.
  * }
  * ```
  */
@@ -78,6 +86,7 @@ async function translate(
   request: TranslateRequest,
 ): Promise<DeepLTranslateResult> {
   const data = validateRequest(request);
+  const { protectable, unprotectable } = partitionByPlaceholders(data.entries);
   const genericGlossarySupplied =
     request.glossary !== undefined && Object.keys(request.glossary).length > 0;
   const { options, notices } = buildTranslateOptions({
@@ -86,18 +95,44 @@ async function translate(
     ...(data.tone !== undefined ? { tone: data.tone } : {}),
     ...(config.glossaryId !== undefined ? { glossaryId: config.glossaryId } : {}),
   });
-  const texts = data.entries.map((entry) => entry.value);
-  const results = await callClient(
+  // Placeholder- and ICU-bearing entries are withheld (absent from both maps) rather than sent to
+  // DeepL, which would mangle their tokens and loop forever on a never-converging paid retry.
+  const { values, integrity } = await translateProtectable(
     bundle.client,
-    texts,
-    data.sourceLocale,
-    data.targetLocale,
+    data,
+    protectable,
     options,
+    request.extractPlaceholders,
   );
-  const { values, integrityInputs } = zipResults(data.entries, results);
-  const integrity = checkBatchIntegrity(integrityInputs, request.extractPlaceholders);
+  if (unprotectable.length > 0) {
+    notices.push({ code: "PLACEHOLDER_UNSUPPORTED", message: PLACEHOLDER_UNSUPPORTED_MESSAGE });
+  }
   // Notices ride a successful result only; any throw above discards them so they never attach to the error.
   return { values, integrity, notices };
+}
+
+/**
+ * Translate only the placeholder-free entries. DeepL is never called with an empty array: when there
+ * is nothing protectable to send, both result maps are empty and no request is made.
+ */
+async function translateProtectable(
+  client: DeepLTranslateClient,
+  data: ValidatedRequestData,
+  protectable: readonly TranslationEntry[],
+  options: DeepLTranslateOptions,
+  extract: PlaceholderExtractor,
+): Promise<{
+  values: Map<string, string>;
+  integrity: Map<string, PlaceholderIntegrityResult>;
+}> {
+  if (protectable.length === 0) {
+    return { values: new Map(), integrity: new Map() };
+  }
+  const texts = protectable.map((entry) => entry.value);
+  const results = await callClient(client, texts, data.sourceLocale, data.targetLocale, options);
+  const { values, integrityInputs } = zipResults(protectable, results);
+  const integrity = checkBatchIntegrity(integrityInputs, extract);
+  return { values, integrity };
 }
 
 /** Call DeepL through the shared guard so a raw SDK/axios error (auth header) never leaks. */
