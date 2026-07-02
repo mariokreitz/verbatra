@@ -126,12 +126,19 @@ describe("diff", () => {
     expect(summary.hasPendingChanges).toBe(true);
   });
 
-  it("honors the locales subset and preserves config order, ignoring unconfigured entries", async () => {
+  it("honors a valid locales subset and preserves config order", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
-    const summary = await diff({ config: cfg(), cwd: dir, locales: ["fr", "es"] });
+    const summary = await diff({ config: cfg(), cwd: dir, locales: ["fr", "de"] });
 
-    expect(summary.locales.map((l) => l.locale)).toEqual(["fr"]);
+    expect(summary.locales.map((l) => l.locale)).toEqual(["de", "fr"]);
     expect(summary.hasPendingChanges).toBe(false);
+  });
+
+  it("rejects an unknown requested locale with UNKNOWN_LOCALE instead of silently dropping it", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
+    await expect(diff({ config: cfg(), cwd: dir, locales: ["fr", "es"] })).rejects.toMatchObject({
+      code: "UNKNOWN_LOCALE",
+    });
   });
 
   it("writes nothing and never touches the lock (read-only)", async () => {

@@ -7,6 +7,7 @@ import { defaultFs, type SdkFs } from "../../fs.js";
 import { baselineFor, lockFilePath, readLockFile } from "../../lock/lock-file.js";
 import { localeFilePath } from "../../paths.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
+import { selectLocales } from "../select-locales.js";
 import { readSource } from "../source.js";
 
 /** Default workbook output path, relative to the resolved working directory. */
@@ -88,15 +89,6 @@ function buildRows(
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 
-function selectedLocales(config: VerbatraConfig, requested?: readonly string[]): readonly string[] {
-  if (requested === undefined) {
-    return config.targetLocales;
-  }
-  const wanted = new Set(requested);
-  // Keep config order and silently ignore a requested locale that is not configured.
-  return config.targetLocales.filter((locale) => wanted.has(locale));
-}
-
 /**
  * Export the strings needing human translation into a styled `.xlsx` workbook. Each target locale is
  * diffed against the source and lock baseline to pick the rows (missing and changed by default; add
@@ -107,7 +99,8 @@ function selectedLocales(config: VerbatraConfig, requested?: readonly string[]):
  * @param deps - Optional composition seams (registry, file system) for tests.
  * @returns Where the workbook was written and the per-locale row counts.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`.
+ *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
+ *   among the configured target locales.
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
@@ -121,7 +114,7 @@ export async function exportWorkbook(
   const source = await readSource(config, cwd, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
-  const locales = selectedLocales(config, input.locales);
+  const locales = selectLocales(config, input.locales);
   const sheets = await Promise.all(
     locales.map(async (locale) => {
       const target = await readTarget(cwd, config, adapter, fs, locale);
