@@ -32,7 +32,7 @@ El código de salida es el contrato sobre el que se ramifica tu paso de CI:
 | --- | --- |
 | `0` | éxito (para `check`, todos los locales están sincronizados; para `diff`, sin cambios pendientes) |
 | `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale fuera de sincronización, o `diff` encontró cambios pendientes |
-| `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso) |
+| `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso, incluido un valor `--locales` desconocido o vacío) |
 | `130` | `watch` fue detenido forzosamente por una segunda interrupción |
 
 `watch` es la excepción: un fallo por ejecución aparece como un registro de flujo, no como un código de salida, y una sola interrupción detiene `watch` de forma elegante y sale con `0`.

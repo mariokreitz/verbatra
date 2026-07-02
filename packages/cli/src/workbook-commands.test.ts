@@ -67,6 +67,48 @@ describe("run export: SDK delegation and rendering", () => {
     expect(cap.err()).toContain("[CONFIG_NOT_FOUND]");
     expect(cap.out()).toBe("");
   });
+
+  it("rejects an empty --locales list as a usage error: exit 2, stderr, clean stdout, no SDK call", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["export", "--locales", ""], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_LOCALES]");
+    expect(cap.out()).toBe("");
+    expect(calls.exportWorkbook).toHaveLength(0);
+  });
+
+  it("rejects a comma-only --locales list as a usage error", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["export", "--locales", ","], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_LOCALES]");
+    expect(cap.out()).toBe("");
+    expect(calls.exportWorkbook).toHaveLength(0);
+  });
+
+  it("passes an unknown but non-empty --locales through, and the SDK UNKNOWN_LOCALE exits 2", async () => {
+    const { deps, calls } = recordingDeps({
+      exportWorkbook: async () => {
+        throw Object.assign(new Error("Requested locale not in configured targets: fr."), {
+          code: "UNKNOWN_LOCALE",
+        });
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["export", "--locales", "fr"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(calls.exportWorkbook[0]).toMatchObject({ locales: ["fr"] });
+    expect(cap.err()).toContain("[UNKNOWN_LOCALE]");
+    expect(cap.out()).toBe("");
+  });
 });
 
 describe("run import: SDK delegation and rendering", () => {

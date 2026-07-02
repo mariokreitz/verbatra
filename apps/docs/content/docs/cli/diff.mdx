@@ -96,6 +96,6 @@ verbatra diff --json
 | --- | --- |
 | `0` | no pending changes: no locale has a key to add or re-translate |
 | `1` | pending changes: at least one locale has a missing or changed key (the full report is still printed) |
-| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a corrupt lock file, or a requested locale not among the configured targets), or a usage error (including an empty `--locales` list) |
 
-Orphaned keys alone never produce exit `1`, because a default run does not prune them. For `diff`, exit `1` means "there is pending work", not a per-locale failure: the run itself succeeded. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.
+Orphaned keys alone never produce exit `1`, because a default run does not prune them. For `diff`, exit `1` means "there is pending work", not a per-locale failure: the run itself succeeded. An unknown or empty `--locales` value fails the run with exit `2` rather than silently diffing nothing, so a typo in a locale name is caught instead of passing. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

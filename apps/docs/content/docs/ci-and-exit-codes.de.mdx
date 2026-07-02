@@ -32,7 +32,7 @@ Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
 | --- | --- |
 | `0` | Erfolg (bei `check` ist jede Locale synchron; bei `diff` gibt es keine ausstehenden Änderungen) |
 | `1` | `translate` oder `import` ist fertig, aber einige Locales sind fehlgeschlagen, `check` hat eine nicht synchrone Locale gefunden, oder `diff` hat ausstehende Änderungen gefunden |
-| `2` | konnte nicht laufen (ein Gesamtlauf-Fehler oder ein Nutzungsfehler) |
+| `2` | konnte nicht laufen (ein Gesamtlauf-Fehler oder ein Nutzungsfehler, einschließlich eines unbekannten oder leeren `--locales`-Werts) |
 | `130` | `watch` wurde durch einen zweiten Interrupt zwangsgestoppt |
 
 `watch` ist die Ausnahme: ein Fehler pro Lauf erscheint als Stream-Eintrag, nicht als Exit-Code, und ein einzelner Interrupt stoppt `watch` sauber und beendet sich mit `0`.

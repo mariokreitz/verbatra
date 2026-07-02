@@ -73,6 +73,6 @@ verbatra check --json
 | --- | --- |
 | `0` | synchron: jedes Ziel-Locale hat keine fehlenden und keine veralteten Schlüssel |
 | `1` | nicht synchron: mindestens ein Locale hat einen fehlenden oder veralteten Schlüssel (der vollständige Bericht wird trotzdem ausgegeben) |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, eine beschädigte Lock-Datei oder eine angeforderte Locale, die nicht unter den konfigurierten Ziel-Locales ist) oder ein Nutzungsfehler (einschließlich einer leeren `--locales`-Liste) |
 
-Bei `check` bedeutet Exit `1` "nicht synchron", nicht einen Fehlschlag eines einzelnen Locales: Der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht durchgehend grün. Das macht `check` zu einem einzeiligen CI-Gate, das fehlschlägt, wenn Übersetzungen abgewichen sind. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.
+Bei `check` bedeutet Exit `1` "nicht synchron", nicht einen Fehlschlag eines einzelnen Locales: Der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht durchgehend grün. Das macht `check` zu einem einzeiligen CI-Gate, das fehlschlägt, wenn Übersetzungen abgewichen sind. Ein unbekannter oder leerer `--locales`-Wert lässt den Lauf mit Exit `2` fehlschlagen, statt still nichts zu prüfen, sodass ein Tippfehler in einem Locale-Namen abgefangen wird, statt durchzugehen. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.

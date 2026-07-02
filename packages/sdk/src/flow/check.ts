@@ -62,7 +62,8 @@ function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
  * @param deps - Optional composition seams (registry, file system) for tests.
  * @returns The aggregate and per-locale drift status.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`.
+ *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
+ *   among the configured target locales.
  */
 export async function check(input: CheckInput, deps: CheckDeps = {}): Promise<CheckSummary> {
   const results = await diffLocales(input, deps);

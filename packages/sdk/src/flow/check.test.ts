@@ -111,16 +111,24 @@ describe("check", () => {
     expect(summary.inSync).toBe(false);
   });
 
-  it("honors the locales subset and preserves config order, ignoring unconfigured entries", async () => {
+  it("honors a valid locales subset and preserves config order", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
     const summary = await check({
       config: cfg(),
       cwd: dir,
-      locales: ["fr", "es"],
+      // Requested reversed; the result still follows config order (de, fr).
+      locales: ["fr", "de"],
     });
 
-    expect(summary.locales.map((l) => l.locale)).toEqual(["fr"]);
+    expect(summary.locales.map((l) => l.locale)).toEqual(["de", "fr"]);
     expect(summary.inSync).toBe(true);
+  });
+
+  it("rejects an unknown requested locale with UNKNOWN_LOCALE instead of silently dropping it", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
+    await expect(check({ config: cfg(), cwd: dir, locales: ["fr", "es"] })).rejects.toMatchObject({
+      code: "UNKNOWN_LOCALE",
+    });
   });
 
   it("writes nothing and never touches the lock (read-only)", async () => {
