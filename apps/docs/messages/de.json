@@ -246,5 +246,12 @@
       "intro": "Dieses Impressum wird, wie nach deutschem Recht erforderlich, auf Deutsch bereitgestellt.",
       "lastUpdatedLabel": "Zuletzt aktualisiert"
     }
+  },
+  "docs": {
+    "machineTranslated": {
+      "text": "Diese Seite wurde automatisch übersetzt und kann daher Fehler oder seltsame Formulierungen enthalten. Die englische Version ist die massgebliche Quelle.",
+      "title": "Maschinell übersetzte Seite",
+      "viewOriginal": "Das englische Original lesen"
+    }
   }
 }

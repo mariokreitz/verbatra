@@ -246,5 +246,12 @@
       "intro": "Este aviso legal (Impressum) se proporciona en alemán tal como exige la ley alemana.",
       "lastUpdatedLabel": "Última actualización"
     }
+  },
+  "docs": {
+    "machineTranslated": {
+      "text": "Esta página fue traducida automáticamente, así que puede contener errores o sonar un poco raro. La versión en inglés es la fuente de la verdad.",
+      "title": "Página traducida automáticamente",
+      "viewOriginal": "Lee el original en inglés"
+    }
   }
 }

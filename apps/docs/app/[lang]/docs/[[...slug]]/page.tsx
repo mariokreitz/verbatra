@@ -1,9 +1,12 @@
+import { Callout } from "fumadocs-ui/components/callout";
 import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
-import type { Locale } from "@/lib/i18n";
+import { i18n, type Locale } from "@/lib/i18n";
 import { source } from "@/lib/source";
 import { techArticleLd } from "@/lib/structured-data";
 
@@ -23,6 +26,16 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   // and duplicates the home's entry cards, which are the real, uniform-size navigation. Every
   // other page keeps the standard docs chrome.
   const isHome = !params.slug || params.slug.length === 0;
+
+  // Non-English docs pages are machine-translated (UI strings by verbatra, content by hand),
+  // so a transparency notice links back to the authoritative English original. The home is
+  // excluded so the notice never sits above the full-bleed hero.
+  const isTranslated = lang !== i18n.defaultLanguage;
+  const englishHref = `/docs${params.slug && params.slug.length > 0 ? `/${params.slug.join("/")}` : ""}`;
+  const translationNote =
+    isTranslated && !isHome
+      ? await getTranslations({ locale: lang, namespace: "docs.machineTranslated" })
+      : null;
 
   return (
     <DocsPage
@@ -47,6 +60,12 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
         </>
       )}
       <DocsBody>
+        {translationNote ? (
+          <Callout type="info" title={translationNote("title")}>
+            {translationNote("text")}{" "}
+            <Link href={englishHref}>{translationNote("viewOriginal")}</Link>.
+          </Callout>
+        ) : null}
         <MDX components={getMDXComponents()} />
       </DocsBody>
     </DocsPage>

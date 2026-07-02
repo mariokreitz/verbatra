@@ -1,4 +1,11 @@
 {
+  "docs": {
+    "machineTranslated": {
+      "title": "Machine-translated page",
+      "text": "This page was translated automatically, so it may contain mistakes or read a little oddly. The English version is the source of truth.",
+      "viewOriginal": "Read the English original"
+    }
+  },
   "landing": {
     "meta": {
       "title": "verbatra: keep your i18n locale files in sync, translate only what changed",
