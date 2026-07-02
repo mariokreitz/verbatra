@@ -34,7 +34,7 @@ function sameOrder(a: readonly string[], b: readonly string[]): boolean {
  * @example
  * ```ts
  * checkPlaceholders(["{name}"], ["{name}"]); // { matches: true, ... }
- * checkPlaceholders(["{a}", "{b}"], ["{b}", "{a}"]); // { matches: false, reordered: true, ... }
+ * checkPlaceholders(["{a}", "{b}"], ["{b}", "{a}"]); // { matches: true, reordered: true, ... }
  * checkPlaceholders(["{a}", "{a}"], ["{a}"]); // { matches: false, missing: ["{a}"], ... }
  * ```
  */
@@ -47,11 +47,12 @@ export function checkPlaceholders(
 
   const missing = multisetExcess(sourceCounts, translatedCounts);
   const extra = multisetExcess(translatedCounts, sourceCounts);
-  // Order carries meaning for positional placeholders (e.g. %s, {0}), so flag a same-multiset reorder on its own.
+  // Supported formats use named or index-addressed placeholders, so a same-multiset reorder is a
+  // valid translation. Report it as informational only; it never affects `matches`.
   const reordered = missing.length === 0 && extra.length === 0 && !sameOrder(source, translated);
 
   return {
-    matches: missing.length === 0 && extra.length === 0 && !reordered,
+    matches: missing.length === 0 && extra.length === 0,
     missing,
     extra,
     reordered,

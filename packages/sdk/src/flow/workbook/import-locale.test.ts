@@ -100,6 +100,22 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual(["items"]);
   });
 
+  it("accepts a filled row that reorders the same placeholder multiset", () => {
+    // A German rendering swaps the two placeholders; the multiset is unchanged, so the row is accepted.
+    const src = entry("pair", "{{a}} {{b}}", ["{{a}}", "{{b}}"]);
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [row("pair", "{{b}} und {{a}}", contentHash(src))],
+    };
+    const result = importLocale(
+      params({ sheet, source: resource("en", [src]), target: resource("de", []) }),
+    );
+
+    expect(result.accepted.get("pair")?.value).toBe("{{b}} und {{a}}");
+    expect(result.summary.translated).toEqual(["pair"]);
+    expect(result.summary.integrityMismatches).toEqual([]);
+  });
+
   it("accepts a clean filled row and throws on an invented key", () => {
     const src = entry("greet", "Hi");
     const ok: WorkbookSheet = { locale: "de", rows: [row("greet", "Hallo", contentHash(src))] };
