@@ -55,6 +55,6 @@ verbatra export --json
 | Code | Bedeutung |
 | --- | --- |
 | `0` | die Arbeitsmappe wurde geschrieben |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, eine beschädigte Lock-Datei oder eine angeforderte Locale, die nicht unter den konfigurierten Ziel-Locales ist) oder ein Nutzungsfehler (einschließlich einer leeren `--locales`-Liste) |
 
-`export` ruft niemals einen Provider auf und benötigt keinen API-Schlüssel. Siehe [`verbatra import`](/docs/cli/import) für das Zurücklesen der ausgefüllten Arbeitsmappe.
+`export` ruft niemals einen Provider auf und benötigt keinen API-Schlüssel. Ein unbekannter oder leerer `--locales`-Wert lässt den Lauf mit Exit `2` fehlschlagen, statt still nichts zu exportieren, sodass ein Tippfehler in einem Locale-Namen abgefangen wird, statt durchzugehen. Siehe [`verbatra import`](/docs/cli/import) für das Zurücklesen der ausgefüllten Arbeitsmappe.

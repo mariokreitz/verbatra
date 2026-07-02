@@ -55,6 +55,6 @@ verbatra export --json
 | Code | Signification |
 | --- | --- |
 | `0` | le classeur a été écrit |
-| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fichier de verrouillage corrompu, ou une locale demandée qui ne figure pas parmi les locales cibles configurées), ou une erreur d'usage (y compris une liste `--locales` vide) |
 
-`export` n'appelle jamais de fournisseur et n'a besoin d'aucune clé API. Voir [`verbatra import`](/docs/cli/import) pour relire le classeur rempli.
+`export` n'appelle jamais de fournisseur et n'a besoin d'aucune clé API. Une valeur `--locales` inconnue ou vide fait échouer l'exécution avec le code de sortie `2` au lieu de ne rien exporter en silence, si bien qu'une faute de frappe dans un nom de locale est détectée au lieu de passer. Voir [`verbatra import`](/docs/cli/import) pour relire le classeur rempli.

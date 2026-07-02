@@ -73,6 +73,6 @@ verbatra check --json
 | --- | --- |
 | `0` | in sync: every target locale has no missing and no stale keys |
 | `1` | out of sync: at least one locale has a missing or stale key (the full report is still printed) |
-| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, or a corrupt lock file), or a usage error |
+| `2` | could not run: a whole-run error (missing or invalid config, unreadable source, unknown format, a corrupt lock file, or a requested locale not among the configured targets), or a usage error (including an empty `--locales` list) |
 
-For `check`, exit `1` means "out of sync", not a per-locale failure: the run itself succeeded, the result just is not all-green. That makes `check` a one-line CI gate that fails when translations have drifted. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.
+For `check`, exit `1` means "out of sync", not a per-locale failure: the run itself succeeded, the result just is not all-green. That makes `check` a one-line CI gate that fails when translations have drifted. An unknown or empty `--locales` value fails the run with exit `2` rather than silently checking nothing, so a typo in a locale name is caught instead of passing. See [CI and automation](/docs/ci-and-exit-codes) for branching on these codes.

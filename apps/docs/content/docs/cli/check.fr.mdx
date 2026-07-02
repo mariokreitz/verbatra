@@ -73,6 +73,6 @@ verbatra check --json
 | --- | --- |
 | `0` | synchronisé : chaque locale cible n'a aucune clé manquante ni obsolète |
 | `1` | désynchronisé : au moins une locale a une clé manquante ou obsolète (le rapport complet est tout de même affiché) |
-| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, source illisible, format inconnu, un fichier de verrouillage corrompu, ou une locale demandée qui ne figure pas parmi les locales cibles configurées), ou une erreur d'usage (y compris une liste `--locales` vide) |
 
-Pour `check`, le code de sortie `1` signifie "désynchronisé", pas un échec par locale : l'exécution elle-même a réussi, le résultat n'est simplement pas entièrement au vert. Cela fait de `check` un garde-fou de CI sur une ligne qui échoue lorsque les traductions ont dérivé. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.
+Pour `check`, le code de sortie `1` signifie "désynchronisé", pas un échec par locale : l'exécution elle-même a réussi, le résultat n'est simplement pas entièrement au vert. Cela fait de `check` un garde-fou de CI sur une ligne qui échoue lorsque les traductions ont dérivé. Une valeur `--locales` inconnue ou vide fait échouer l'exécution avec le code de sortie `2` au lieu de ne rien vérifier en silence, si bien qu'une faute de frappe dans un nom de locale est détectée au lieu de passer. Voir [CI et automatisation](/docs/ci-and-exit-codes) pour t'embrancher sur ces codes.

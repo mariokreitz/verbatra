@@ -96,6 +96,6 @@ verbatra diff --json
 | --- | --- |
 | `0` | sin cambios pendientes: ningún locale tiene una clave para añadir o volver a traducir |
 | `1` | cambios pendientes: al menos un locale tiene una clave faltante o modificada (el informe completo se sigue imprimiendo) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido o un archivo de bloqueo corrupto), o un error de uso |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un archivo de bloqueo corrupto o un locale solicitado que no está entre los locales de destino configurados), o un error de uso (incluida una lista `--locales` vacía) |
 
-Las claves huérfanas por sí solas nunca producen el código de salida `1`, porque una ejecución por defecto no las elimina. Para `diff`, el código de salida `1` significa "hay trabajo pendiente", no un fallo por locale: la ejecución en sí tuvo éxito. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
+Las claves huérfanas por sí solas nunca producen el código de salida `1`, porque una ejecución por defecto no las elimina. Para `diff`, el código de salida `1` significa "hay trabajo pendiente", no un fallo por locale: la ejecución en sí tuvo éxito. Un valor `--locales` desconocido o vacío hace que la ejecución falle con el código de salida `2` en lugar de no hacer diff de nada en silencio, así que un error tipográfico en un nombre de locale se detecta en lugar de pasar. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
