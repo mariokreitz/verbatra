@@ -153,14 +153,16 @@ describe("streamEntryBounded", () => {
 
   it("bounds real JSZip production on a high-ratio DEFLATE entry regardless of its size", async () => {
     // The security lock: drive the ACTUAL JSZip nodeStream that the Readable.wrap adaptation exists
-    // for (not a stub) and measure the bytes the underlying inflate worker really produces. A 50 MiB
-    // entry of one repeated byte compresses to a tiny zip; spying on nodeStream and summing its
-    // 'data' bytes shows the break-on-breach abort tears the worker down after roughly the 64 KiB
-    // budget, so production stays a few hundred KiB, never the full 50 MiB. producedBytes > 0 proves
-    // the assertion is not vacuous (the real worker ran); the upper bound proves it was bounded. A
+    // for (not a stub) and measure the bytes the underlying inflate worker really produces. An entry
+    // of one repeated byte compresses to a tiny zip; spying on nodeStream and summing its 'data'
+    // bytes shows the break-on-breach abort tears the worker down after roughly the 64 KiB budget, so
+    // production stays a few hundred KiB, far below the full entry. producedBytes > 0 proves the
+    // assertion is not vacuous (the real worker ran); the upper bound proves it was bounded. A
     // regression that stopped halting the worker (a JSZip upgrade or a pipe/pipeline refactor) would
     // inflate the whole entry and fail the upper bound, where a rejection-only test would stay green.
-    const uncompressedBytes = 50 * 1024 * 1024;
+    // The entry only needs to be far larger than the produced bound; the worker's output is a
+    // constant a few hundred KiB regardless of size. 16 MiB keeps building the fixture fast in CI.
+    const uncompressedBytes = 16 * 1024 * 1024;
     const zip = new JSZip();
     zip.file("bomb.bin", "A".repeat(uncompressedBytes));
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
@@ -187,7 +189,9 @@ describe("streamEntryBounded", () => {
     } finally {
       spy.mockRestore();
     }
-  });
+    // Building and deflating the fixture is real work; give a slow or loaded CI runner ample margin
+    // over vitest's 5s default so this can never flake on wall-clock rather than on the property.
+  }, 30_000);
 });
 
 describe("declaredSize: JSZip internals canary", () => {
