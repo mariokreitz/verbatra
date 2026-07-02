@@ -1,6 +1,7 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
+import { CONTRIBUTING_URL } from "@/components/landing/links";
 import { i18n, type Locale } from "@/lib/i18n";
 
 // de/es/fr inherit Fumadocs's English UI strings, since it ships no bundled preset for them.
@@ -59,10 +60,15 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         </span>
       ),
     },
-    // A minimal, real link set. Only "Docs" is a chrome link: Providers and Formats already sit
-    // in the docs sidebar tree, so listing them here too duplicated them in the docs rail. The
-    // GitHub icon and search trigger sit in the right-side actions.
-    links: [{ text: t("docs"), url: localized(locale, "/docs") }],
+    // A minimal, real link set. Docs points into the sidebar tree; Contributing is an external
+    // link to the repo's CONTRIBUTING.md, surfaced in the header the way Node.js does. Providers
+    // and Formats are intentionally omitted: they already sit in the docs sidebar tree, so listing
+    // them here duplicated them in the docs rail. The GitHub icon and search trigger sit in the
+    // right-side actions.
+    links: [
+      { text: t("docs"), url: localized(locale, "/docs") },
+      { text: t("contributing"), url: CONTRIBUTING_URL, external: true },
+    ],
     githubUrl: "https://github.com/mariokreitz/verbatra",
     // The theme is forced dark via RootProvider, so the theme-switch control is removed.
     themeSwitch: { enabled: false },

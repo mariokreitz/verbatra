@@ -164,7 +164,9 @@
         },
         "project": {
           "title": "Projet",
-          "configFile": "Fichier de config"
+          "configFile": "Fichier de config",
+          "codeOfConduct": "Code de conduite",
+          "security": "Politique de sécurité"
         },
         "legal": {
           "title": "Mentions légales",
@@ -182,7 +184,8 @@
     "nav": {
       "docs": "Docs",
       "providers": "Fournisseurs",
-      "formats": "Formats"
+      "formats": "Formats",
+      "contributing": "Contribuer"
     }
   },
   "legal": {
@@ -216,7 +219,7 @@
       },
       "s6": {
         "heading": "6. Polices et ressources",
-        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment du build, donc aucune requête n'est envoyée à Google Fonts ou à tout autre tiers lorsque tu charges une page. Hormis le script Umami auto-hébergé décrit ci-dessus, aucun script ou intégration tiers ne se charge à l'exécution."
+        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment de la compilation, donc aucune requête n'est faite à Google Fonts ou à toute autre tierce partie lorsque tu charges une page. La seule exception concerne les badges de statut : la page d'accueil et la page de test intègrent des images de badges en direct de GitHub, Codecov et shields.io qui affichent la compilation actuelle, la couverture, la version et la licence. Le chargement de ces images transmet ton adresse IP à ces fournisseurs, qui agissent en tant que contrôleurs indépendants selon leurs propres politiques de confidentialité. La base juridique est l'Art. 6(1)(f) du RGPD (notre intérêt légitime à afficher un statut de projet précis). En dehors de ces badges et du script Umami auto-hébergé décrit ci-dessus, aucun script ou élément intégré de tiers ne se charge à l'exécution."
       },
       "s7": {
         "heading": "7. GitHub",

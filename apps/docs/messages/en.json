@@ -164,7 +164,9 @@
         },
         "project": {
           "title": "Project",
-          "configFile": "Config file"
+          "configFile": "Config file",
+          "codeOfConduct": "Code of conduct",
+          "security": "Security policy"
         },
         "legal": {
           "title": "Legal",
@@ -182,7 +184,8 @@
     "nav": {
       "docs": "Docs",
       "providers": "Providers",
-      "formats": "Formats"
+      "formats": "Formats",
+      "contributing": "Contributing"
     }
   },
   "legal": {
@@ -216,7 +219,7 @@
       },
       "s6": {
         "heading": "6. Fonts and assets",
-        "body": "Fonts are self-hosted: they are bundled at build time, so no requests are made to Google Fonts or any other third party when you load a page. Apart from the self-hosted Umami script described above, no third-party scripts or embeds load at runtime."
+        "body": "Fonts are self-hosted: they are bundled at build time, so no requests are made to Google Fonts or any other third party when you load a page. The one exception is status badges: the home page and the testing page embed live badge images from GitHub, Codecov, and shields.io that show the current build, coverage, version, and license. Loading these images transmits your IP address to those providers, which act as independent controllers under their own privacy policies. The legal basis is Art. 6(1)(f) GDPR (our legitimate interest in showing accurate project status). Apart from these badges and the self-hosted Umami script described above, no third-party scripts or embeds load at runtime."
       },
       "s7": {
         "heading": "7. GitHub",
