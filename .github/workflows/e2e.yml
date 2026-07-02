@@ -51,7 +51,7 @@ jobs:
 
       - name: Install e2e harness dependencies
         working-directory: e2e
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run no-key E2E suite
         working-directory: e2e
