@@ -83,15 +83,33 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug, params.lang as Locale);
   if (!page) notFound();
 
+  // Per-page hreflang alternates: pair each translation of this page so search engines serve
+  // the right locale. The sitemap carries the same signal; page-level link tags reinforce it.
+  const languages: Record<string, string> = {};
+  for (const altLocale of i18n.languages) {
+    const altPage = source.getPage(params.slug, altLocale);
+    if (altPage) languages[altLocale] = altPage.url;
+  }
+  languages["x-default"] = languages[i18n.defaultLanguage] ?? page.url;
+
   return {
     title: page.data.title,
     description: page.data.description,
-    alternates: { canonical: page.url },
+    alternates: { canonical: page.url, languages },
     openGraph: {
       type: "article",
       title: page.data.title,
       description: page.data.description,
       url: page.url,
+      images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    },
+    // Set the Twitter card explicitly so shared docs pages show this page's title and
+    // description, not the site-wide defaults inherited from the layout.
+    twitter: {
+      card: "summary_large_image",
+      title: page.data.title,
+      description: page.data.description,
+      images: ["/og-image.png"],
     },
   };
 }
