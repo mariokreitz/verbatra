@@ -100,13 +100,16 @@ describe("guardWorkbookBytes: reject matrix", () => {
   it("rejects a real high-ratio DEFLATE bomb end to end", async () => {
     // End-to-end: a genuine high-ratio DEFLATE entry (tiny on disk, large uncompressed) is rejected
     // with the structured code. An honest declared size trips the fast-fail declared-size pass here;
-    // the streaming pass and its bounded real production are locked in separately below.
+    // the streaming pass and its bounded real production are locked in separately below. 2 MiB is far
+    // above the 4 KiB cap so the ratio is clearly a bomb, while keeping the fixture cheap to build.
     const zip = new JSZip();
-    zip.file("bomb.bin", "A".repeat(4 * 1024 * 1024));
+    zip.file("bomb.bin", "A".repeat(2 * 1024 * 1024));
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 4096 };
     expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
-  });
+    // Deflating the fixture is real, event-loop-yielding work; under parallel-worker CPU contention
+    // its wall-clock can drift past vitest's 5s default even though CPU time is small. Give margin.
+  }, 30_000);
 });
 
 describe("guardWorkbookBytes: accept", () => {
