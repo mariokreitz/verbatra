@@ -164,7 +164,9 @@
         },
         "project": {
           "title": "Proyecto",
-          "configFile": "Archivo de configuración"
+          "configFile": "Archivo de configuración",
+          "codeOfConduct": "Código de conducta",
+          "security": "Política de seguridad"
         },
         "legal": {
           "title": "Legal",
@@ -182,7 +184,8 @@
     "nav": {
       "docs": "Documentación",
       "providers": "Proveedores",
-      "formats": "Formatos"
+      "formats": "Formatos",
+      "contributing": "Contribuir"
     }
   },
   "legal": {
@@ -216,7 +219,7 @@
       },
       "s6": {
         "heading": "6. Fuentes y recursos",
-        "body": "Las fuentes se alojan de forma autogestionada: se empaquetan en el momento de la compilación, así que no se hacen solicitudes a Google Fonts ni a ningún otro tercero cuando cargas una página. Aparte del script de Umami autoalojado descrito arriba, no se cargan scripts ni incrustaciones de terceros en tiempo de ejecución."
+        "body": "Las fuentes están autoalojadas: se empaquetan en el momento de la compilación, por lo que no se realizan solicitudes a Google Fonts ni a ningún otro tercero cuando cargas una página. La única excepción son las insignias de estado: la página de inicio y la página de pruebas incrustan imágenes de insignias en vivo de GitHub, Codecov y shields.io que muestran la compilación actual, la cobertura, la versión y la licencia. La carga de estas imágenes transmite tu dirección IP a esos proveedores, que actúan como controladores independientes bajo sus propias políticas de privacidad. La base legal es el Art. 6(1)(f) del GDPR (nuestro interés legítimo en mostrar un estado preciso del proyecto). Aparte de estas insignias y el script autoalojado de Umami descrito anteriormente, no se cargan scripts o incrustaciones de terceros en tiempo de ejecución."
       },
       "s7": {
         "heading": "7. GitHub",
@@ -242,6 +245,13 @@
       },
       "intro": "Este aviso legal (Impressum) se proporciona en alemán tal como exige la ley alemana.",
       "lastUpdatedLabel": "Última actualización"
+    }
+  },
+  "docs": {
+    "machineTranslated": {
+      "text": "Esta página fue traducida automáticamente, así que puede contener errores o sonar un poco raro. La versión en inglés es la fuente de la verdad.",
+      "title": "Página traducida automáticamente",
+      "viewOriginal": "Lee el original en inglés"
     }
   }
 }

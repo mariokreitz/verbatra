@@ -43,6 +43,30 @@ h6 {
   font-family: var(--font-display);
 }
 
+/* Lavender-to-violet gradient headline treatment (hero). The solid glow color is the fallback:
+   it shows if background-clip:text is unsupported, and forced-colors mode drops the gradient
+   entirely so the headline never renders as invisible transparent text. */
+.vk-gradient-text {
+  color: var(--v-glow);
+  background: var(--gradient-headline);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+  .vk-gradient-text {
+    color: transparent;
+  }
+}
+
+@media (forced-colors: active) {
+  .vk-gradient-text {
+    background: none;
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+  }
+}
+
 :root {
   --fd-layout-width: 100%;
 }

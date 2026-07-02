@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { VMark } from "@/components/landing";
 import { GithubIcon } from "./github-icon";
-import { GITHUB_URL, NPM_CLI, NPM_SDK } from "./links";
+import { CODE_OF_CONDUCT_URL, GITHUB_URL, NPM_CLI, NPM_SDK, SECURITY_URL } from "./links";
 
 // A footer link's text is either a translated catalog key (`labelKey`) or a verbatim proper noun (`literal`).
 type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
@@ -36,6 +36,8 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
     titleKey: "cols.project.title",
     links: [
       { labelKey: "cols.project.configFile", href: "/docs/config-file" },
+      { labelKey: "cols.project.codeOfConduct", href: CODE_OF_CONDUCT_URL, external: true },
+      { labelKey: "cols.project.security", href: SECURITY_URL, external: true },
       { literal: "GitHub", href: GITHUB_URL, external: true },
       { literal: "@verbatra/cli", href: NPM_CLI, external: true },
       { literal: "@verbatra/sdk", href: NPM_SDK, external: true },

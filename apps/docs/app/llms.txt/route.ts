@@ -24,7 +24,8 @@ verbatra is open source and MIT licensed. You maintain one source locale; on eac
 - Repository: https://github.com/mariokreitz/verbatra
 - npm packages: @verbatra/cli (the \`verbatra\` command), @verbatra/sdk (programmatic API)
 - Translation providers: Anthropic, OpenAI, Gemini, DeepL
-- i18n formats: i18next, vue-i18n, next-intl, ngx-translate (React, Vue, Angular, Node.js)
+- i18n formats: i18next, vue-i18n, next-intl, ngx-translate, Flutter ARB, YAML, and XLIFF
+- Frameworks: React, Vue, Angular, Node.js, Flutter
 - Requires Node.js >= 22.14.0
 
 ## Documentation

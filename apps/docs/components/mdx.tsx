@@ -1,7 +1,12 @@
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import { DiffPanel } from "@/components/diff-panel";
-import { DocsHomeFeatures, DocsHomeHero, DocsHomePaths } from "@/components/docs-home";
+import {
+  DocsHomeBody,
+  DocsHomeFeatures,
+  DocsHomeHero,
+  DocsHomePaths,
+} from "@/components/docs-home";
 import { LaneCards, ReferenceRow, VMark } from "@/components/landing";
 import Badge from "@/components/ui/badge";
 import Card from "@/components/ui/card";
@@ -21,6 +26,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ReferenceRow,
     VMark,
     DocsHomeHero,
+    DocsHomeBody,
     DocsHomePaths,
     DocsHomeFeatures,
     ...components,

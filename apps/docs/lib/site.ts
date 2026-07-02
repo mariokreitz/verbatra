@@ -8,4 +8,4 @@ export const SITE_URL = "https://verbatra.kreitz-webdev.de";
 export const PACKAGE_VERSION = versionData.version;
 
 // Single source of truth for the "Last updated" date on both legal pages; do not duplicate it in the catalogs.
-export const LEGAL_LAST_UPDATED = "2026-06-21";
+export const LEGAL_LAST_UPDATED = "2026-07-02";

@@ -4,9 +4,17 @@ const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";
 
-const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js"];
+const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js", "Flutter"];
 const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL"];
-const SUPPORTED_FORMATS = ["i18next", "vue-i18n", "next-intl", "ngx-translate"];
+const SUPPORTED_FORMATS = [
+  "i18next",
+  "vue-i18n",
+  "next-intl",
+  "ngx-translate",
+  "ARB",
+  "YAML",
+  "XLIFF",
+];
 
 const AUTHOR = {
   "@type": "Person",

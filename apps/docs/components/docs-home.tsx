@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Backdrop } from "@/components/landing/fx/backdrop";
 import { PackageInstall } from "@/components/landing/package-install";
 import { Terminal } from "@/components/landing/terminal";
 
@@ -42,11 +41,42 @@ const HERO_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   ],
 };
 
-// Full-bleed docs-home hero. It breaks out of the DocsPage article padding
-// (px-4 md:px-6 xl:px-8, pt-6 md:pt-8 xl:pt-14) with matching negative margins so the
-// backdrop wash reaches the content-area edges, then re-insets its own content. It mirrors
-// the landing hero: animated backdrop, gradient headline, the tabbed install card, two CTAs,
-// and the looping CLI terminal. Localized copy arrives as props from the per-locale MDX.
+// A static, server-rendered backdrop for the docs home: a faint grid fading out at the edges
+// and a soft violet wash. No canvas, no perpetual animation, and no next/dynamic(ssr:false),
+// so it adds nothing to hydrate and never keeps a reading page busy. The landing keeps the
+// animated Backdrop; the docs home stays calm.
+function StaticBackdrop(): ReactNode {
+  const fade = "radial-gradient(ellipse 75% 65% at 50% 0%, #000 35%, transparent 80%)";
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--border-default) 1px, transparent 1px), linear-gradient(90deg, var(--border-default) 1px, transparent 1px)",
+          backgroundSize: "56px 56px",
+          opacity: 0.4,
+          WebkitMaskImage: fade,
+          maskImage: fade,
+        }}
+      />
+      <div
+        className="absolute left-1/2 top-[-30%] h-[720px] w-[min(1100px,120%)] -translate-x-1/2"
+        style={{
+          background:
+            "radial-gradient(ellipse 50% 50% at 50% 50%, color-mix(in srgb, var(--v-violet) 22%, transparent), transparent 70%)",
+          filter: "blur(30px)",
+        }}
+      />
+    </div>
+  );
+}
+
+// Full-bleed docs-home hero. The home page renders with a full-width article (page.tsx passes
+// max-w-none / px-0 for the home), so this section fills the whole content area between the
+// sidebar and the viewport edge, then centers its own content. It mirrors the landing hero:
+// static backdrop, gradient headline, the tabbed install card, two CTAs, and the one-shot CLI
+// terminal. Localized copy arrives as props from the per-locale MDX.
 export function DocsHomeHero({
   eyebrow,
   headline,
@@ -61,8 +91,8 @@ export function DocsHomeHero({
   secondary: { label: string; href: string };
 }): ReactNode {
   return (
-    <section className="not-prose relative -mx-4 -mt-6 mb-10 overflow-hidden border-b border-fd-border px-6 pt-14 pb-16 md:-mx-6 md:-mt-8 md:px-10 xl:-mx-8 xl:-mt-14 xl:pt-20">
-      <Backdrop />
+    <section className="not-prose relative w-full overflow-hidden border-b border-fd-border px-6 pt-14 pb-16 md:px-10 xl:pt-20">
+      <StaticBackdrop />
       <div className="relative mx-auto max-w-4xl text-center">
         <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-fd-muted-foreground">
           <svg
@@ -86,17 +116,13 @@ export function DocsHomeHero({
           {eyebrow}
         </div>
         <h1
-          className="mx-auto mt-5 max-w-[18ch] font-semibold"
+          className="vk-gradient-text mx-auto mt-5 max-w-[18ch] font-semibold"
           style={{
             fontFamily: "var(--font-display)",
             letterSpacing: "var(--tracking-tight)",
             fontSize: "clamp(2rem, 5vw, 3.25rem)",
             lineHeight: 1.06,
             textWrap: "balance",
-            background: "var(--gradient-headline)",
-            WebkitBackgroundClip: "text",
-            backgroundClip: "text",
-            color: "transparent",
           }}
         >
           {headline}
@@ -126,7 +152,7 @@ export function DocsHomeHero({
           </Link>
         </div>
 
-        {/* The looping terminal, framed with a globe-glow wash behind it, mirrors the landing. */}
+        {/* The one-shot terminal, framed with a soft wash behind it, mirrors the landing. */}
         <div className="relative mx-auto mt-12 max-w-[44rem]">
           <div
             aria-hidden="true"
@@ -145,6 +171,12 @@ export function DocsHomeHero({
       </div>
     </section>
   );
+}
+
+// Wraps the below-hero home content in a centered, readable column. The home article runs full
+// width (for the hero), so everything after the hero lives inside this container instead.
+export function DocsHomeBody({ children }: { children: ReactNode }): ReactNode {
+  return <div className="mx-auto w-full max-w-4xl px-6 pt-4 pb-16">{children}</div>;
 }
 
 type PathCard = {

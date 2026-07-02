@@ -11,6 +11,8 @@ description: Keep your i18n locale files in sync. verbatra translates only the k
   secondary={{ label: "Read the CLI reference", href: "/docs/cli" }}
 />
 
+<DocsHomeBody>
+
 <DocsHomePaths
   cards={[
     {
@@ -41,15 +43,7 @@ Four steps take you from an empty project to translated locale files. The CLI is
 
 ### 1. Install
 
-verbatra is a dev dependency. Install it and run the binary through your package manager.
-
-```bash
-pnpm add -D @verbatra/cli
-# npm install -D @verbatra/cli
-# yarn add -D @verbatra/cli
-```
-
-Needs Node.js `>=22.14.0`. Invoke it with `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
+verbatra is a dev dependency (grab it with the install card above, or `pnpm add -D @verbatra/cli`). It needs Node.js `>=22.14.0`, and you run the binary through your package manager: `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
 
 ### 2. Scaffold a config
 
@@ -83,29 +77,6 @@ verbatra translate
 
 verbatra reads the source locale, diffs it against what it translated last time, and sends only the new and changed strings to Gemini. Each target file is written in place, next to your source. Run it again without editing anything and nothing is sent: every key is already current.
 
-<DocsHomePaths
-  cards={[
-    {
-      tag: "Next",
-      label: "Your first translation",
-      body: "Read the run summary and see what incremental means in practice.",
-      href: "/docs/your-first-translation",
-    },
-    {
-      tag: "Reference",
-      label: "The verbatra CLI",
-      body: "Every command, flag, and the exit-code contract CI branches on.",
-      href: "/docs/cli",
-    },
-    {
-      tag: "In code",
-      label: "The SDK",
-      body: "Run translate, watch, check, and diff from your own scripts.",
-      href: "/docs/sdk",
-    },
-  ]}
-/>
-
 ## What verbatra does
 
 <DocsHomeFeatures
@@ -129,6 +100,4 @@ verbatra reads the source locale, diffs it against what it translated last time,
   ]}
 />
 
-## Reference
-
-<ReferenceRow />
+</DocsHomeBody>

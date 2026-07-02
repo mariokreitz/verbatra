@@ -164,7 +164,9 @@
         },
         "project": {
           "title": "Projekt",
-          "configFile": "Konfigurationsdatei"
+          "configFile": "Konfigurationsdatei",
+          "codeOfConduct": "Verhaltenskodex",
+          "security": "Sicherheitsrichtlinie"
         },
         "legal": {
           "title": "Rechtliches",
@@ -182,7 +184,8 @@
     "nav": {
       "docs": "Docs",
       "providers": "Anbieter",
-      "formats": "Formate"
+      "formats": "Formate",
+      "contributing": "Mitwirken"
     }
   },
   "legal": {
@@ -216,7 +219,7 @@
       },
       "s6": {
         "heading": "6. Schriften und Assets",
-        "body": "Schriften werden selbst gehostet: Sie werden zur Build-Zeit gebündelt, sodass beim Laden einer Seite keine Anfragen an Google Fonts oder einen anderen Dritten gestellt werden. Abgesehen von dem oben beschriebenen, selbst gehosteten Umami-Skript werden zur Laufzeit keine Skripte oder Einbettungen von Dritten geladen."
+        "body": "Schriftarten werden selbst gehostet: Sie werden zur Build-Zeit gebündelt, sodass beim Laden einer Seite keine Anfragen an Google Fonts oder andere Drittanbieter gestellt werden. Die einzige Ausnahme sind Status-Badges: Die Startseite und die Testseite betten Live-Badge-Bilder von GitHub, Codecov und shields.io ein, die den aktuellen Build, die Abdeckung, die Version und die Lizenz anzeigen. Das Laden dieser Bilder übermittelt deine IP-Adresse an diese Anbieter, die als unabhängige Verantwortliche gemäß ihren eigenen Datenschutzrichtlinien handeln. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (unser berechtigtes Interesse an der Anzeige eines genauen Projektstatus). Abgesehen von diesen Badges und dem oben beschriebenen selbst gehosteten Umami-Skript werden zur Laufzeit keine Drittanbieter-Skripte oder -Einbettungen geladen."
       },
       "s7": {
         "heading": "7. GitHub",
@@ -242,6 +245,13 @@
       },
       "intro": "Dieses Impressum wird, wie nach deutschem Recht erforderlich, auf Deutsch bereitgestellt.",
       "lastUpdatedLabel": "Zuletzt aktualisiert"
+    }
+  },
+  "docs": {
+    "machineTranslated": {
+      "text": "Diese Seite wurde automatisch übersetzt und kann daher Fehler oder seltsame Formulierungen enthalten. Die englische Version ist die massgebliche Quelle.",
+      "title": "Maschinell übersetzte Seite",
+      "viewOriginal": "Das englische Original lesen"
     }
   }
 }
