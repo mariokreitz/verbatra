@@ -16,10 +16,12 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   const MDX = page.data.body;
 
   // The docs home renders its own full-bleed hero (with its own h1), so the default title,
-  // description, table of contents, and breadcrumb are suppressed there. The article also drops
-  // its max-width and padding for the home so the hero can span the full content area edge to
-  // edge; the home MDX re-contains the below-hero content in <DocsHomeBody>. Every other page
-  // keeps the standard docs chrome.
+  // description, table of contents, breadcrumb, and prev/next footer are suppressed there. The
+  // article also drops its max-width and padding for the home so the hero can span the full
+  // content area edge to edge; the home MDX re-contains the below-hero content in <DocsHomeBody>.
+  // The footer is dropped because its single "next" card renders full width (there is no prev)
+  // and duplicates the home's entry cards, which are the real, uniform-size navigation. Every
+  // other page keeps the standard docs chrome.
   const isHome = !params.slug || params.slug.length === 0;
 
   return (
@@ -27,6 +29,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
       toc={isHome ? [] : page.data.toc}
       full={isHome}
       breadcrumb={{ enabled: !isHome }}
+      footer={{ enabled: !isHome }}
       className={isHome ? "max-w-none p-0 md:p-0 xl:p-0" : undefined}
     >
       <JsonLd
