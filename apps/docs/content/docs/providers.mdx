@@ -10,7 +10,7 @@ Any provider works with any format and command; the choice is about cost, qualit
 
 - **Small or side project, want it free?** Use **Gemini**. It has a real free API tier, so you can translate a whole app at zero cost. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier is rate-limited (see the note below), which only matters on a large first-time run.
 - **Best translation quality for a production app?** Use **Anthropic** or **OpenAI**. Both are paid LLMs and read `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
-- **High volume, glossary-driven, or no LLM in the loop?** Use **DeepL**. It is a dedicated machine-translation API with a free and a paid tier, and supports a native glossary by id.
+- **High volume, glossary-driven, or no LLM in the loop?** Use **DeepL**. It is a dedicated machine-translation API with a free and a paid tier, and supports a native glossary by id. It does not translate placeholder-bearing strings (see the note below); for those, use an LLM provider.
 
 Not sure? Start on Gemini's free tier, then switch providers later by editing one `id` in your config. Nothing else changes.
 
@@ -96,6 +96,10 @@ provider: {
   },
 }
 ```
+
+<Callout title="DeepL and placeholders">
+DeepL cannot preserve placeholders or ICU tokens, so it does not send strings that contain them: those entries are left untranslated (withheld) and reported with a `PLACEHOLDER_UNSUPPORTED` notice on the result. Placeholder-free strings translate normally. To translate placeholder-bearing strings, use an LLM provider (Anthropic, OpenAI, or Gemini).
+</Callout>
 
 ## Tone and glossary across providers
 
