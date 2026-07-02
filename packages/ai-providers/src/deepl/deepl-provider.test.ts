@@ -164,6 +164,7 @@ describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () =
       client: reordered.client,
     }).translateBatch(request({ entries: [entry("k", "{{a}} {{b}}", ["{{a}}", "{{b}}"])] }));
     expect(reorderedResult.integrity.get("k")?.reordered).toBe(true);
+    expect(reorderedResult.integrity.get("k")?.matches).toBe(true);
   });
 });
 

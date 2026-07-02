@@ -4,7 +4,13 @@ import type { LocaleResource } from "@verbatra/core";
 import { createDefaultRegistry, type FormatAdapter } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import { defaultFs } from "../fs.js";
-import { makeStubProvider, makeTempDir, readJsonFile, writeJsonFile } from "../test-support.js";
+import {
+  makeIntegrityProvider,
+  makeStubProvider,
+  makeTempDir,
+  readJsonFile,
+  writeJsonFile,
+} from "../test-support.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 
 function i18nextAdapter(): FormatAdapter {
@@ -138,6 +144,25 @@ describe("runLocale: withholding", () => {
 
     expect(summary.integrityMismatches).toEqual(["a"]);
     expect(lockEntries.a).toBe("stale-hash"); // prior hash carried so it retries next run
+  });
+});
+
+describe("runLocale: reordered placeholders", () => {
+  it("accepts and writes a translation that reorders the same placeholder multiset", async () => {
+    const { dir, sourceResource } = await setup({ pair: "{{a}} {{b}}" });
+    // The provider renders the source with the placeholders swapped: a valid same-multiset reorder.
+    const provider = makeIntegrityProvider((value) =>
+      value.replace("{{a}} {{b}}", "{{b}} und {{a}}"),
+    );
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider });
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toEqual(["pair"]);
+    expect(summary.integrityMismatches).toEqual([]);
+    const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect(de.pair).toBe("{{b}} und {{a}}");
+    expect(lockEntries.pair).toBeDefined();
   });
 });
 

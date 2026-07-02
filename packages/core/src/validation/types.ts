@@ -9,6 +9,11 @@ export interface ValidationFinding {
 export interface PlaceholderFinding extends ValidationFinding {
   readonly missing: readonly string[];
   readonly extra: readonly string[];
+  /**
+   * Retained for shape stability, but effectively always false here: a placeholder finding is only
+   * emitted on a multiset difference (non-empty missing or extra), and a pure reorder no longer fails
+   * integrity, so it is never reported as a finding.
+   */
   readonly reordered: boolean;
 }
 

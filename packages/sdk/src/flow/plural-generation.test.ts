@@ -1,15 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  TranslateRequest,
-  TranslateResult,
-  TranslationProvider,
-} from "@verbatra/ai-providers";
-import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import {
   baseConfig,
+  makeIntegrityProvider,
   makeStubProvider,
   makeTempDir,
   readJsonFile,
@@ -17,33 +12,6 @@ import {
   writeJsonFile,
 } from "../test-support.js";
 import { translate } from "./translate-project.js";
-
-// An LLM provider that mirrors the real integrity path so a test can assert which source form a generated form is validated against.
-function makeIntegrityProvider(
-  produce: (entryValue: string, key: string) => string,
-): TranslationProvider {
-  return {
-    id: "stub",
-    kind: "llm",
-    supportsGlossary: true,
-    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
-      const values = new Map<string, string>();
-      const integrity = new Map<string, PlaceholderIntegrityResult>();
-      for (const entry of request.entries) {
-        const value = produce(entry.value, entry.key);
-        values.set(entry.key, value);
-        integrity.set(
-          entry.key,
-          checkPlaceholders(
-            request.extractPlaceholders(entry.value),
-            request.extractPlaceholders(value),
-          ),
-        );
-      }
-      return { values, integrity };
-    },
-  };
-}
 
 async function project(
   source: Record<string, unknown>,
@@ -168,6 +136,37 @@ describe("translate: divergent source placeholders across plural categories", ()
     expect(summary.locales[0]?.integrityMismatches).toEqual(["items_few", "items_many"]);
     // Set still incomplete, so the warning remains.
     expect(hasNotice(summary.locales[0]?.notices ?? [])).toBe(true);
+  });
+});
+
+describe("translate: reordered placeholders in a generated plural form", () => {
+  // The representative items_other form carries two placeholders; a generated form that reorders them is a valid same-multiset translation.
+  const REORDER_SOURCE = { items_one: "{{count}} {{unit}}", items_other: "{{count}} {{unit}}" };
+  // Seeded target forms are unchanged with no lock baseline, so only the generated few/many forms flow through the integrity provider.
+  const REORDER_SEEDED = {
+    items_one: "{{count}} {{unit}} eins",
+    items_other: "{{count}} {{unit}} andere",
+  };
+
+  it("accepts and writes a generated form that reorders the representative placeholder multiset", async () => {
+    const dir = await project(REORDER_SOURCE, { pl: REORDER_SEEDED });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      {
+        createProvider: () =>
+          makeIntegrityProvider((value) =>
+            value.replace("{{count}} {{unit}}", "{{unit}} {{count}}"),
+          ),
+      },
+    );
+
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBe("{{unit}} {{count}}");
+    expect(pl.items_many).toBe("{{unit}} {{count}}");
+    expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
+    expect(hasNotice(summary.locales[0]?.notices ?? [])).toBe(false);
   });
 });
 
