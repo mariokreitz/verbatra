@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { ProviderError } from "@verbatra/ai-providers";
 import type { LocaleResource } from "@verbatra/core";
 import { createDefaultRegistry, type FormatAdapter } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
@@ -98,7 +99,7 @@ describe("runLocale: translate and write", () => {
 });
 
 describe("runLocale: withholding", () => {
-  it("withholds a whole sub-batch when the provider call throws and surfaces a notice", async () => {
+  it("reports a thrown provider call under providerFailures, not integrityMismatches", async () => {
     const { dir, sourceResource } = await setup({ a: "A" });
     const throwing = makeStubProvider({ throwForLocales: new Set(["de"]) });
     const params = makeParams(
@@ -109,9 +110,49 @@ describe("runLocale: withholding", () => {
     const { summary, lockEntries } = await runLocale(params);
 
     expect(summary.translated).toEqual([]);
-    expect(summary.integrityMismatches).toEqual(["a"]);
+    expect(summary.providerFailures).toEqual(["a"]);
+    expect(summary.integrityMismatches).toEqual([]); // nothing was translated, so it is not an integrity mismatch
     expect(summary.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
     expect(lockEntries).toEqual({}); // nothing locked, so it retries next run
+  });
+
+  it("carries a thrown ProviderError's secret-free code and message onto the notice", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" });
+    const error = new ProviderError(
+      "MISSING_API_KEY",
+      "The ANTHROPIC_API_KEY variable is not set.",
+    );
+    const throwing = makeStubProvider({ throwForLocales: new Set(["de"]), error });
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: throwing.provider },
+    );
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.providerFailures).toEqual(["a"]);
+    const notice = summary.notices.find((n) => n.code === "SUB_BATCH_FAILED");
+    expect(notice?.message).toContain("MISSING_API_KEY");
+    expect(notice?.message).toContain("The ANTHROPIC_API_KEY variable is not set.");
+  });
+
+  it("never leaks a raw non-ProviderError message onto the notice", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" });
+    const error = Object.assign(new Error("secret request body leaked here"), {
+      code: "PROVIDER_ERROR",
+    });
+    const throwing = makeStubProvider({ throwForLocales: new Set(["de"]), error });
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: throwing.provider },
+    );
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.providerFailures).toEqual(["a"]);
+    const noticeText = summary.notices.map((n) => n.message).join(" ");
+    expect(noticeText).not.toContain("secret request body leaked here");
+    expect(noticeText).toContain("PROVIDER_CALL_FAILED");
   });
 
   it("withholds a key whose translation fails the integrity check", async () => {

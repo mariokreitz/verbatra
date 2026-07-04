@@ -4,6 +4,7 @@ import type {
   TranslateResult,
   TranslationProvider,
 } from "@verbatra/ai-providers";
+import { ProviderError } from "@verbatra/ai-providers";
 import {
   contentHash,
   diffResources,
@@ -130,6 +131,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
         translated: toTranslate,
         generated: [],
         integrityMismatches: [],
+        providerFailures: [],
         pruned,
         notices: sdkNotices,
       }),
@@ -143,12 +145,14 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 
   const accepted = new Map<string, Accepted>();
   const integrityMismatches: string[] = [];
+  const providerFailures: string[] = [];
   const subBatchNotices = await translateAndCheck(
     provider,
     params,
     entries,
     accepted,
     integrityMismatches,
+    providerFailures,
   );
 
   const merged = new Map(target.entries);
@@ -180,7 +184,12 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
   const notices: readonly LocaleNotice[] = [...pluralNotices, ...subBatchNotices];
 
-  const withheld = new Set([...integrityMismatches, ...invalidIcuSource, ...generation.withheld]);
+  const withheld = new Set([
+    ...integrityMismatches,
+    ...providerFailures,
+    ...invalidIcuSource,
+    ...generation.withheld,
+  ]);
   return {
     summary: baseSummary({
       locale: params.targetLocale,
@@ -191,6 +200,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       generated: generation.accepted.map((form) => form.targetKey).sort(),
       // Withheld generated forms surface alongside withheld translations: both failed integrity.
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
+      providerFailures: [...providerFailures].sort(),
       pruned,
       notices,
     }),
@@ -241,6 +251,7 @@ interface SummaryParts {
   readonly translated: readonly string[];
   readonly generated: readonly string[];
   readonly integrityMismatches: readonly string[];
+  readonly providerFailures: readonly string[];
   readonly pruned: readonly string[];
   readonly notices: readonly LocaleNotice[];
 }
@@ -255,6 +266,7 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
     pruned: parts.pruned,
     invalidIcuSource: parts.invalidIcuSource,
     integrityMismatches: parts.integrityMismatches,
+    providerFailures: parts.providerFailures,
     generated: parts.generated,
     notices: parts.notices,
   };
@@ -267,18 +279,29 @@ async function translateAndCheck(
   entries: readonly TranslationEntry[],
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
+  providerFailures: string[],
 ): Promise<readonly LocaleNotice[]> {
   const notices: LocaleNotice[] = [];
   for (const batch of chunk(entries, params.maxBatchSize)) {
-    const subNotices = await runSubBatch(provider, params, batch, accepted, integrityMismatches);
+    const subNotices = await runSubBatch(
+      provider,
+      params,
+      batch,
+      accepted,
+      integrityMismatches,
+      providerFailures,
+    );
     notices.push(...subNotices);
   }
   return notices;
 }
 
 /**
- * Run one sub-batch and fold its result into `accepted` / `integrityMismatches`. A thrown provider call
- * is caught and never surfaced: the whole sub-batch is withheld and a secret-free notice is returned.
+ * Run one sub-batch and fold its result into `accepted`, `integrityMismatches`, or `providerFailures`.
+ * A thrown provider call (a revoked key, a rate limit, a network timeout, ...) is caught, never
+ * re-thrown, and never surfaced as an integrity problem: nothing was translated, so the whole
+ * sub-batch's keys are withheld under `providerFailures` and a secret-free notice carrying the
+ * failure's code and message is returned.
  */
 async function runSubBatch(
   provider: TranslationProvider,
@@ -286,15 +309,16 @@ async function runSubBatch(
   batch: readonly TranslationEntry[],
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
+  providerFailures: string[],
 ): Promise<readonly LocaleNotice[]> {
   let result: TranslateResult;
   try {
     result = await provider.translateBatch(buildRequest(params, batch));
-  } catch {
+  } catch (error) {
     for (const entry of batch) {
-      integrityMismatches.push(entry.key);
+      providerFailures.push(entry.key);
     }
-    return [subBatchFailedNotice(batch.length)];
+    return [subBatchFailedNotice(batch.length, error)];
   }
   for (const entry of batch) {
     const value = result.values.get(entry.key);
@@ -308,11 +332,36 @@ async function runSubBatch(
   return readNotices(result);
 }
 
-/** A secret-free notice for a sub-batch whose provider call failed; carries only a count, never a key. */
-function subBatchFailedNotice(count: number): SdkNotice {
+/** The static, secret-free fallback for a caught value that is not a {@link ProviderError}. */
+const GENERIC_PROVIDER_FAILURE_MESSAGE = "The provider call failed.";
+
+/**
+ * Classify a caught provider-call failure into a secret-free code and message. Only a genuine
+ * {@link ProviderError} is safe to surface verbatim: its contract guarantees its message is already
+ * redacted. Any other thrown value (for example a raw SDK exception that slipped past a provider's
+ * guard) may carry request data or a key, so it is replaced with a static, generic fallback instead of
+ * being inspected.
+ */
+function classifyProviderFailure(error: unknown): {
+  readonly code: string;
+  readonly message: string;
+} {
+  if (error instanceof ProviderError) {
+    return { code: error.code, message: error.message };
+  }
+  return { code: "PROVIDER_CALL_FAILED", message: GENERIC_PROVIDER_FAILURE_MESSAGE };
+}
+
+/**
+ * A secret-free notice for a sub-batch whose provider call failed. Carries the entry count and, for a
+ * genuine {@link ProviderError}, its code and message (this covers the single generic provider-failure
+ * category the sequencing note allows; per-error-code classification is a follow-up).
+ */
+function subBatchFailedNotice(count: number, error: unknown): SdkNotice {
+  const { code, message } = classifyProviderFailure(error);
   return {
     code: "SUB_BATCH_FAILED",
-    message: `A sub-batch of ${count} entries failed and was withheld; it will be retried next run.`,
+    message: `A sub-batch of ${count} entries failed (${code}: ${message}) and was withheld; it will be retried next run.`,
   };
 }
 
