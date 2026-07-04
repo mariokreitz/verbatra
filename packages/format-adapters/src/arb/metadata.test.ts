@@ -106,12 +106,34 @@ describe("buildArbWriteTree", () => {
     expect(tree).toEqual({ a: "A" });
   });
 
-  it("ignores a destination that is not a JSON object", async () => {
+  it("throws INVALID_STRUCTURE instead of silently discarding a destination that is not a JSON object", async () => {
     const path = await tempArb(["not", "an", "object"]);
-    const tree = (await buildArbWriteTree(new Map([["a", entry("a", "A")]]), path)) as Record<
-      string,
-      unknown
-    >;
-    expect(tree).toEqual({ a: "A" });
+    try {
+      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), path);
+      expect.unreachable("expected a throw");
+    } catch (error) {
+      expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+    }
+  });
+
+  it("throws INVALID_JSON instead of silently erasing metadata when the destination is corrupt", async () => {
+    const path = join(await mkdtemp(join(tmpdir(), "verbatra-arbmeta-")), "app.arb");
+    await writeFile(path, '{"@@locale": "en", "a": "A", not valid json');
+    try {
+      await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path);
+      expect.unreachable("expected a throw");
+    } catch (error) {
+      expect((error as AdapterError).code).toBe("INVALID_JSON");
+    }
+  });
+
+  it("throws INVALID_STRUCTURE instead of silently proceeding when the destination path is a directory", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "verbatra-arbmeta-"));
+    try {
+      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), dir);
+      expect.unreachable("expected a throw");
+    } catch (error) {
+      expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+    }
   });
 });

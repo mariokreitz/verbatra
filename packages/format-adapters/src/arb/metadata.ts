@@ -1,6 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import { readBounded } from "../json/bounded-read.js";
+import { readFileContent } from "../json/bounded-read.js";
 import { decodeKeyToSegments } from "../json/key-encoding.js";
 
 /** Both per-message (`@id`) and global (`@@locale`) ARB metadata keys start with `@`. */
@@ -61,31 +61,52 @@ function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Ma
   return out;
 }
 
+function isEnoent(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as NodeJS.ErrnoException).code === "ENOENT"
+  );
+}
+
+/**
+ * Read the destination file's top-level pairs to merge metadata into a rewrite. A missing destination
+ * (first write, `ENOENT`) is legitimate and yields `null` so the caller proceeds messages-only. A
+ * destination that exists but cannot be used (bad JSON, wrong shape, unreadable, too large) is a real
+ * problem: it is surfaced as a structured {@link AdapterError} instead of being silently discarded,
+ * since discarding it would erase every `@`-prefixed metadata block with no error.
+ *
+ * @param filePath - The destination ARB file path.
+ * @returns The destination's top-level entries, or `null` when the destination does not exist.
+ * @throws {@link AdapterError} `INVALID_JSON`, `INVALID_STRUCTURE`, or `INPUT_TOO_LARGE` when the
+ *   destination exists but is not a usable ARB object.
+ */
 async function readDestinationPairs(filePath: string): Promise<Array<[string, unknown]> | null> {
-  let parsed: unknown;
+  let content: string;
   try {
-    const outcome = await readBounded(filePath);
-    if (outcome.kind !== "ok") {
+    content = await readFileContent(filePath);
+  } catch (error) {
+    if (isEnoent(error)) {
       return null;
     }
-    parsed = JSON.parse(outcome.content);
-  } catch {
-    return null;
+    throw error;
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return null;
-  }
-  return Object.entries(parsed);
+  return Object.entries(parseArbObject(content));
 }
 
 /**
  * Build the object to write for ARB, preserving the destination's `@`-prefixed metadata and document
  * order: overwrite each message key with its translation, keep untranslated values, and append new
- * keys in entry order. A missing or unreadable destination yields the messages only, in entry order.
+ * keys in entry order. A missing destination (first write) yields the messages only, in entry order.
+ * A destination that exists but is not a usable ARB object throws instead of silently discarding its
+ * metadata; see {@link readDestinationPairs}.
  *
  * @param entries - The translated entries to persist.
  * @param filePath - The destination ARB file path.
  * @returns The merged object ready to serialize.
+ * @throws {@link AdapterError} `INVALID_JSON`, `INVALID_STRUCTURE`, or `INPUT_TOO_LARGE` when the
+ *   destination exists but is corrupt, malformed, or too large.
  */
 export async function buildArbWriteTree(
   entries: ReadonlyMap<string, TranslationEntry>,
