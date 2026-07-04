@@ -1,11 +1,19 @@
-import type { Tone, TranslateRequest, TranslationProvider } from "@verbatra/ai-providers";
+import type {
+  Tone,
+  TranslateRequest,
+  TranslateResult,
+  TranslationProvider,
+} from "@verbatra/ai-providers";
 import { contentHash, type LocaleResource, type TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
+import { chunk, subBatchFailedNotice } from "./batching.js";
+import { readNotices } from "./notices.js";
 import {
   type CldrPluralCategory,
   type PluralGenerationItem,
   planPluralGeneration,
 } from "./plural-categories.js";
+import type { LocaleNotice } from "./summary.js";
 
 /** Everything plural generation needs from the locale run, without depending on the run module. */
 export interface PluralGenerationContext {
@@ -19,6 +27,12 @@ export interface PluralGenerationContext {
   readonly tone: Tone | undefined;
   /** Prior lock baseline for the target, used to skip up-to-date generated keys. */
   readonly baseline: ReadonlyMap<string, string>;
+  /**
+   * Maximum entries per provider request. Stale generation items are split into sequential
+   * sub-batches no larger than this, mirroring the main translation batching so one oversized
+   * generation request cannot sink the whole locale.
+   */
+  readonly maxBatchSize: number;
 }
 
 /** One generated plural form accepted into the target file. */
@@ -33,8 +47,10 @@ export interface GeneratedForm {
 export interface PluralGenerationResult {
   /** Forms generated and integrity-passing, ready to write. */
   readonly accepted: readonly GeneratedForm[];
-  /** Generated keys withheld for integrity failure (retried next run). */
+  /** Generated keys withheld for integrity failure or a failed sub-batch (retried next run). */
   readonly withheld: readonly string[];
+  /** Notices from generation: a provider notice, or an SDK notice for a failed sub-batch. */
+  readonly notices: readonly LocaleNotice[];
 }
 
 /**
@@ -93,9 +109,13 @@ function buildRequest(
 }
 
 /**
- * Generate the missing plural forms for one supported locale run. Synthetic entries are translated and
- * integrity-checked like any other value; forms whose placeholders do not match are withheld, and an item
- * already locked with an unchanged governing-source hash is skipped.
+ * Generate the missing plural forms for one supported locale run. Stale items are split into
+ * sequential sub-batches no larger than `maxBatchSize` (mirroring the main translation batching), so
+ * one oversized generation request cannot sink the whole locale. Synthetic entries are translated and
+ * integrity-checked like any other value; forms whose placeholders do not match are withheld, an item
+ * already locked with an unchanged governing-source hash is skipped, and a sub-batch whose provider call
+ * throws withholds only its own forms while other sub-batches (and any already-accepted main
+ * translations) are unaffected.
  */
 export async function generatePluralForms(
   context: PluralGenerationContext,
@@ -103,14 +123,41 @@ export async function generatePluralForms(
   const plan = planPluralGeneration(context.source, context.targetLocale, context.format);
   const stale = staleItems(plan.items, context.baseline);
   if (stale.length === 0) {
-    return { accepted: [], withheld: [] };
+    return { accepted: [], withheld: [], notices: [] };
   }
-  const entries = stale.map(syntheticEntry);
-  const result = await context.provider.translateBatch(buildRequest(context, entries));
 
   const accepted: GeneratedForm[] = [];
   const withheld: string[] = [];
-  for (const item of stale) {
+  const notices: LocaleNotice[] = [];
+  for (const batch of chunk(stale, context.maxBatchSize)) {
+    const batchNotices = await runGenerationSubBatch(context, batch, accepted, withheld);
+    notices.push(...batchNotices);
+  }
+  return { accepted, withheld, notices };
+}
+
+/**
+ * Run one plural-generation sub-batch and fold its result into `accepted` / `withheld`. A thrown
+ * provider call is caught and never surfaced: the whole sub-batch's forms are withheld and a
+ * secret-free notice is returned, the same isolation `runSubBatch` applies to main translations.
+ */
+async function runGenerationSubBatch(
+  context: PluralGenerationContext,
+  batch: readonly PluralGenerationItem[],
+  accepted: GeneratedForm[],
+  withheld: string[],
+): Promise<readonly LocaleNotice[]> {
+  let result: TranslateResult;
+  try {
+    const entries = batch.map(syntheticEntry);
+    result = await context.provider.translateBatch(buildRequest(context, entries));
+  } catch (error) {
+    for (const item of batch) {
+      withheld.push(item.targetKey);
+    }
+    return [subBatchFailedNotice(batch.length, error)];
+  }
+  for (const item of batch) {
     const value = result.values.get(item.targetKey);
     const integrity = result.integrity.get(item.targetKey);
     if (value !== undefined && integrity?.matches === true) {
@@ -123,5 +170,5 @@ export async function generatePluralForms(
       withheld.push(item.targetKey);
     }
   }
-  return { accepted, withheld };
+  return readNotices(result);
 }

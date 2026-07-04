@@ -4,7 +4,6 @@ import type {
   TranslateResult,
   TranslationProvider,
 } from "@verbatra/ai-providers";
-import { ProviderError } from "@verbatra/ai-providers";
 import {
   contentHash,
   diffResources,
@@ -15,6 +14,7 @@ import {
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
+import { chunk, subBatchFailedNotice } from "./batching.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -23,8 +23,12 @@ import {
   sourcePluralBaseKeys,
   targetPluralSetIncomplete,
 } from "./plural-categories.js";
-import { type GeneratedForm, generatePluralForms } from "./plural-generation.js";
-import type { LocaleNotice, LocaleSummary, SdkNotice } from "./summary.js";
+import {
+  type GeneratedForm,
+  generatePluralForms,
+  type PluralGenerationResult,
+} from "./plural-generation.js";
+import type { LocaleNotice, LocaleSummary } from "./summary.js";
 
 export interface LocaleRunParams {
   readonly source: LocaleResource;
@@ -182,7 +186,11 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   );
 
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
-  const notices: readonly LocaleNotice[] = [...pluralNotices, ...subBatchNotices];
+  const notices: readonly LocaleNotice[] = [
+    ...pluralNotices,
+    ...subBatchNotices,
+    ...generation.notices,
+  ];
 
   const withheld = new Set([
     ...integrityMismatches,
@@ -212,9 +220,9 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
-): Promise<{ accepted: readonly GeneratedForm[]; withheld: readonly string[] }> {
+): Promise<PluralGenerationResult> {
   if (!params.generatePlurals || provider.kind !== "llm") {
-    return { accepted: [], withheld: [] };
+    return { accepted: [], withheld: [], notices: [] };
   }
   return generatePluralForms({
     source: params.source,
@@ -226,6 +234,7 @@ async function runGeneration(
     glossary: params.glossary,
     tone: params.tone,
     baseline: params.baseline,
+    maxBatchSize: params.maxBatchSize,
   });
 }
 
@@ -330,48 +339,6 @@ async function runSubBatch(
     }
   }
   return readNotices(result);
-}
-
-/** The static, secret-free fallback for a caught value that is not a {@link ProviderError}. */
-const GENERIC_PROVIDER_FAILURE_MESSAGE = "The provider call failed.";
-
-/**
- * Classify a caught provider-call failure into a secret-free code and message. Only a genuine
- * {@link ProviderError} is safe to surface verbatim: its contract guarantees its message is already
- * redacted. Any other thrown value (for example a raw SDK exception that slipped past a provider's
- * guard) may carry request data or a key, so it is replaced with a static, generic fallback instead of
- * being inspected.
- */
-function classifyProviderFailure(error: unknown): {
-  readonly code: string;
-  readonly message: string;
-} {
-  if (error instanceof ProviderError) {
-    return { code: error.code, message: error.message };
-  }
-  return { code: "PROVIDER_CALL_FAILED", message: GENERIC_PROVIDER_FAILURE_MESSAGE };
-}
-
-/**
- * A secret-free notice for a sub-batch whose provider call failed. Carries the entry count and, for a
- * genuine {@link ProviderError}, its code and message (this covers the single generic provider-failure
- * category the sequencing note allows; per-error-code classification is a follow-up).
- */
-function subBatchFailedNotice(count: number, error: unknown): SdkNotice {
-  const { code, message } = classifyProviderFailure(error);
-  return {
-    code: "SUB_BATCH_FAILED",
-    message: `A sub-batch of ${count} entries failed (${code}: ${message}) and was withheld; it will be retried next run.`,
-  };
-}
-
-/** Split a list into consecutive chunks of at most `size`, preserving order. `size` is a positive integer. */
-function chunk<T>(items: readonly T[], size: number): readonly (readonly T[])[] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
 }
 
 /**
