@@ -28,7 +28,12 @@ export interface ImportLocaleResult {
     string,
     { readonly value: string; readonly source: TranslationEntry }
   >;
-  /** Keys withheld this run (drift, placeholder, ICU); they must keep their prior baseline hash. */
+  /**
+   * Keys judged but not accepted this run (drift, placeholder, ICU), for diagnostics and testing only.
+   * Lock-baseline retention is driven by absence from `accepted` (see `computeLockEntries` in
+   * import-workbook.ts), not by membership here: a blank changed row keeps its prior baseline too, even
+   * though it is never classified into this set (see BTS-80).
+   */
   readonly withheld: ReadonlySet<string>;
 }
 

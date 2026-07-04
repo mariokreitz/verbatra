@@ -197,6 +197,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     ...providerFailures,
     ...invalidIcuSource,
     ...generation.withheld,
+    ...generation.providerFailures,
   ]);
   return {
     summary: baseSummary({
@@ -208,7 +209,8 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       generated: generation.accepted.map((form) => form.targetKey).sort(),
       // Withheld generated forms surface alongside withheld translations: both failed integrity.
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
-      providerFailures: [...providerFailures].sort(),
+      // A generation sub-batch whose provider call itself threw is a provider failure, never integrity.
+      providerFailures: [...providerFailures, ...generation.providerFailures].sort(),
       pruned,
       notices,
     }),
@@ -222,7 +224,7 @@ async function runGeneration(
   provider: TranslationProvider,
 ): Promise<PluralGenerationResult> {
   if (!params.generatePlurals || provider.kind !== "llm") {
-    return { accepted: [], withheld: [], notices: [] };
+    return { accepted: [], withheld: [], providerFailures: [], notices: [] };
   }
   return generatePluralForms({
     source: params.source,

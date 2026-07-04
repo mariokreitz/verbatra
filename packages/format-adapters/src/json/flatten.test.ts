@@ -108,4 +108,20 @@ describe("flattenTree path-notation mode (ngx-translate)", () => {
     const tree: JsonRecord = { "a.b": "x", c: { d: "y" } };
     expect(() => flattenTree(tree, "ns", derive, "path-notation")).not.toThrow();
   });
+
+  it("throws INVALID_STRUCTURE when a dotted leaf's path is a strict ancestor of a deeper nested leaf", () => {
+    // "a.b" resolves to "x.a.b", the same path that "a" -> "b" -> "c" uses as an intermediate node.
+    const tree: JsonRecord = { x: { "a.b": "FLAT-VALUE", a: { b: { c: "NESTED-VALUE" } } } };
+    expect(() => flattenTree(tree, "ns", derive, "path-notation")).toThrow(AdapterError);
+  });
+
+  it("throws INVALID_STRUCTURE on the same ancestor collision in nested-first order", () => {
+    const tree: JsonRecord = { x: { a: { b: { c: "NESTED-VALUE" } }, "a.b": "FLAT-VALUE" } };
+    expect(() => flattenTree(tree, "ns", derive, "path-notation")).toThrow(AdapterError);
+  });
+
+  it("does not flag a dotted leaf and an unrelated deeper nested path sharing only a common ancestor", () => {
+    const tree: JsonRecord = { x: { "a.b": "FLAT-VALUE", c: { d: { e: "NESTED-VALUE" } } } };
+    expect(() => flattenTree(tree, "ns", derive, "path-notation")).not.toThrow();
+  });
 });

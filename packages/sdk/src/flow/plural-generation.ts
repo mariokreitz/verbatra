@@ -47,8 +47,10 @@ export interface GeneratedForm {
 export interface PluralGenerationResult {
   /** Forms generated and integrity-passing, ready to write. */
   readonly accepted: readonly GeneratedForm[];
-  /** Generated keys withheld for integrity failure or a failed sub-batch (retried next run). */
+  /** Generated keys withheld because the translation came back but failed the placeholder-integrity check. */
   readonly withheld: readonly string[];
+  /** Generated keys withheld because their sub-batch's provider call itself threw; nothing was translated. */
+  readonly providerFailures: readonly string[];
   /** Notices from generation: a provider notice, or an SDK notice for a failed sub-batch. */
   readonly notices: readonly LocaleNotice[];
 }
@@ -123,29 +125,39 @@ export async function generatePluralForms(
   const plan = planPluralGeneration(context.source, context.targetLocale, context.format);
   const stale = staleItems(plan.items, context.baseline);
   if (stale.length === 0) {
-    return { accepted: [], withheld: [], notices: [] };
+    return { accepted: [], withheld: [], providerFailures: [], notices: [] };
   }
 
   const accepted: GeneratedForm[] = [];
   const withheld: string[] = [];
+  const providerFailures: string[] = [];
   const notices: LocaleNotice[] = [];
   for (const batch of chunk(stale, context.maxBatchSize)) {
-    const batchNotices = await runGenerationSubBatch(context, batch, accepted, withheld);
+    const batchNotices = await runGenerationSubBatch(
+      context,
+      batch,
+      accepted,
+      withheld,
+      providerFailures,
+    );
     notices.push(...batchNotices);
   }
-  return { accepted, withheld, notices };
+  return { accepted, withheld, providerFailures, notices };
 }
 
 /**
- * Run one plural-generation sub-batch and fold its result into `accepted` / `withheld`. A thrown
- * provider call is caught and never surfaced: the whole sub-batch's forms are withheld and a
- * secret-free notice is returned, the same isolation `runSubBatch` applies to main translations.
+ * Run one plural-generation sub-batch and fold its result into `accepted`, `withheld`, or
+ * `providerFailures`. A thrown provider call (nothing was translated) is caught, never re-thrown, and
+ * withheld under `providerFailures`, not `withheld` (which is reserved for a translation that came back
+ * but failed the placeholder-integrity check), the same distinction `runSubBatch` draws for main
+ * translations.
  */
 async function runGenerationSubBatch(
   context: PluralGenerationContext,
   batch: readonly PluralGenerationItem[],
   accepted: GeneratedForm[],
   withheld: string[],
+  providerFailures: string[],
 ): Promise<readonly LocaleNotice[]> {
   let result: TranslateResult;
   try {
@@ -153,7 +165,7 @@ async function runGenerationSubBatch(
     result = await context.provider.translateBatch(buildRequest(context, entries));
   } catch (error) {
     for (const item of batch) {
-      withheld.push(item.targetKey);
+      providerFailures.push(item.targetKey);
     }
     return [subBatchFailedNotice(batch.length, error)];
   }

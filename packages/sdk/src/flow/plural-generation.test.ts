@@ -653,7 +653,9 @@ describe("translate: a failed plural-generation sub-batch does not discard accep
     ]);
     // Only the thrown sub-batch's forms are withheld; the other sub-batch is accepted.
     expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
-    expect([...(summary.locales[0]?.integrityMismatches ?? [])].sort()).toEqual([
+    // A thrown provider call is a provider failure, never an integrity mismatch: nothing was translated.
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
+    expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual([
       "items_two",
       "items_zero",
     ]);
