@@ -14,6 +14,7 @@ import {
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
+import { chunk, subBatchFailedNotice } from "./batching.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -22,8 +23,12 @@ import {
   sourcePluralBaseKeys,
   targetPluralSetIncomplete,
 } from "./plural-categories.js";
-import { type GeneratedForm, generatePluralForms } from "./plural-generation.js";
-import type { LocaleNotice, LocaleSummary, SdkNotice } from "./summary.js";
+import {
+  type GeneratedForm,
+  generatePluralForms,
+  type PluralGenerationResult,
+} from "./plural-generation.js";
+import type { LocaleNotice, LocaleSummary } from "./summary.js";
 
 export interface LocaleRunParams {
   readonly source: LocaleResource;
@@ -178,7 +183,11 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   );
 
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
-  const notices: readonly LocaleNotice[] = [...pluralNotices, ...subBatchNotices];
+  const notices: readonly LocaleNotice[] = [
+    ...pluralNotices,
+    ...subBatchNotices,
+    ...generation.notices,
+  ];
 
   const withheld = new Set([...integrityMismatches, ...invalidIcuSource, ...generation.withheld]);
   return {
@@ -202,9 +211,9 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
-): Promise<{ accepted: readonly GeneratedForm[]; withheld: readonly string[] }> {
+): Promise<PluralGenerationResult> {
   if (!params.generatePlurals || provider.kind !== "llm") {
-    return { accepted: [], withheld: [] };
+    return { accepted: [], withheld: [], notices: [] };
   }
   return generatePluralForms({
     source: params.source,
@@ -216,6 +225,7 @@ async function runGeneration(
     glossary: params.glossary,
     tone: params.tone,
     baseline: params.baseline,
+    maxBatchSize: params.maxBatchSize,
   });
 }
 
@@ -306,23 +316,6 @@ async function runSubBatch(
     }
   }
   return readNotices(result);
-}
-
-/** A secret-free notice for a sub-batch whose provider call failed; carries only a count, never a key. */
-function subBatchFailedNotice(count: number): SdkNotice {
-  return {
-    code: "SUB_BATCH_FAILED",
-    message: `A sub-batch of ${count} entries failed and was withheld; it will be retried next run.`,
-  };
-}
-
-/** Split a list into consecutive chunks of at most `size`, preserving order. `size` is a positive integer. */
-function chunk<T>(items: readonly T[], size: number): readonly (readonly T[])[] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < items.length; index += size) {
-    chunks.push(items.slice(index, index + size));
-  }
-  return chunks;
 }
 
 /**

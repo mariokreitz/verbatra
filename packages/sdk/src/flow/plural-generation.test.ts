@@ -1,5 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type {
+  TranslateRequest,
+  TranslateResult,
+  TranslationProvider,
+} from "@verbatra/ai-providers";
+import type { PlaceholderIntegrityResult } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import {
@@ -541,5 +547,145 @@ describe("translate: generation off does not protect a source-absent plural-shap
     // The key is protected from pruning because its base has source plural forms; it is regenerated this run, but the point is it is never reported or pruned.
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeDefined();
+  });
+});
+
+const GENERATION_PASS: PlaceholderIntegrityResult = {
+  matches: true,
+  missing: [],
+  extra: [],
+  reordered: false,
+};
+
+/** An LLM provider that throws whenever the request carries `throwKey`, otherwise translates normally. */
+function throwingKeyProvider(throwKey: string): {
+  provider: TranslationProvider;
+  calls: TranslateRequest[];
+} {
+  const calls: TranslateRequest[] = [];
+  const provider: TranslationProvider = {
+    id: "throwing",
+    kind: "llm",
+    supportsGlossary: true,
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      calls.push(request);
+      if (request.entries.some((entry) => entry.key === throwKey)) {
+        throw Object.assign(new Error("generation sub-batch blew up"), { code: "PROVIDER_ERROR" });
+      }
+      const values = new Map<string, string>();
+      const integrity = new Map<string, PlaceholderIntegrityResult>();
+      for (const entry of request.entries) {
+        values.set(entry.key, `[${request.targetLocale}] ${entry.value}`);
+        integrity.set(entry.key, GENERATION_PASS);
+      }
+      return { values, integrity };
+    },
+  };
+  return { provider, calls };
+}
+
+describe("translate: plural generation respects maxBatchSize", () => {
+  it("splits a large stale generation set into multiple bounded provider requests", async () => {
+    // ar requires zero/one/two/few/many/other; the target already carries one/other (unchanged, no
+    // baseline), so only the four missing forms (zero, two, few, many) are stale. maxBatchSize of 2
+    // must split them into two requests of at most 2 entries each, never one oversized call.
+    const dir = await project(PLURAL_SOURCE, {
+      ar: { items_one: "seeded one", items_other: "seeded other" },
+    });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["ar"], maxBatchSize: 2 }), cwd: dir, generatePlurals: true },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(2);
+    for (const call of stub.calls) {
+      expect(call.request.entries.length).toBeLessThanOrEqual(2);
+    }
+    const sentKeys = stub.calls.flatMap((c) => c.request.entries.map((e) => e.key));
+    expect(sentKeys.sort()).toEqual(["items_few", "items_many", "items_two", "items_zero"]);
+    expect(new Set(sentKeys).size).toBe(sentKeys.length);
+    expect(summary.locales[0]?.generated).toEqual([
+      "items_few",
+      "items_many",
+      "items_two",
+      "items_zero",
+    ]);
+  });
+
+  it("issues a single generation request when the stale set is at or below maxBatchSize", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: {} });
+    const stub = makeStubProvider();
+
+    await translate(
+      { config: cfg({ maxBatchSize: 50 }), cwd: dir, generatePlurals: true },
+      { createProvider: () => stub.provider },
+    );
+
+    // pl needs only few/many beyond one/other, and those two are also translated in one call, so the
+    // stale generation set (2 items) fits in a single request under the default-sized batch.
+    const generationCalls = stub.calls.filter((c) =>
+      c.request.entries.every((e) => e.key === "items_few" || e.key === "items_many"),
+    );
+    expect(generationCalls).toHaveLength(1);
+  });
+});
+
+describe("translate: a failed plural-generation sub-batch does not discard accepted work", () => {
+  it("withholds only the thrown sub-batch's forms; main translations and the other sub-batch survive", async () => {
+    // ar: four stale forms (zero, two, few, many) chunked at size 2 -> [zero, two] then [few, many].
+    // The first sub-batch throws; main translations (items_one, items_other, newly missing) must still
+    // be accepted and written, and the second generation sub-batch must still succeed.
+    const dir = await project(PLURAL_SOURCE, { ar: {} });
+    const { provider, calls } = throwingKeyProvider("items_two");
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["ar"], maxBatchSize: 2 }), cwd: dir, generatePlurals: true },
+      { createProvider: () => provider },
+    );
+
+    expect(summary.locales[0]?.status).toBe("succeeded");
+    // Main translations, paid for before generation ever runs, are not discarded by the later failure.
+    expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual([
+      "items_one",
+      "items_other",
+    ]);
+    // Only the thrown sub-batch's forms are withheld; the other sub-batch is accepted.
+    expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
+    expect([...(summary.locales[0]?.integrityMismatches ?? [])].sort()).toEqual([
+      "items_two",
+      "items_zero",
+    ]);
+    expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
+
+    const ar = (await readJsonFile(targetPath(dir, "ar"))) as Record<string, string>;
+    expect(ar.items_one).toBeDefined();
+    expect(ar.items_other).toBeDefined();
+    expect(ar.items_few).toBeDefined();
+    expect(ar.items_many).toBeDefined();
+    expect(ar.items_zero).toBeUndefined();
+    expect(ar.items_two).toBeUndefined();
+
+    // The file was written even though a generation sub-batch threw: the run never aborted.
+    expect(calls.length).toBeGreaterThan(1);
+  });
+
+  it("does not lock the withheld sub-batch's keys, so they retry next run", async () => {
+    const dir = await project(PLURAL_SOURCE, { ar: {} });
+    const { provider } = throwingKeyProvider("items_two");
+
+    await translate(
+      { config: cfg({ targetLocales: ["ar"], maxBatchSize: 2 }), cwd: dir, generatePlurals: true },
+      { createProvider: () => provider },
+    );
+
+    const lock = (await readJsonFile(lockPath(dir))) as LockShape;
+    expect(lock.locales.ar?.items_zero).toBeUndefined();
+    expect(lock.locales.ar?.items_two).toBeUndefined();
+    expect(lock.locales.ar?.items_few).toBeDefined();
+    expect(lock.locales.ar?.items_many).toBeDefined();
+    expect(lock.locales.ar?.items_one).toBeDefined();
+    expect(lock.locales.ar?.items_other).toBeDefined();
   });
 });
