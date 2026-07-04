@@ -81,12 +81,18 @@ function mergeAccepted(
   return merged;
 }
 
-// A withheld key (drift/placeholder/ICU) keeps its prior baseline hash so it re-exports next run.
+/**
+ * Only a key actually accepted this run advances its lock baseline to the current source hash. Every
+ * other source-present key (withheld for drift, placeholder, or ICU; or a row the translator left
+ * blank) keeps its prior baseline hash so it keeps re-exporting until it is genuinely resolved
+ * (BTS-80: a blank cell must never silently hide a source change by advancing the baseline past it).
+ * A key with no prior baseline at all falls back to the current hash, matching first-run bootstrap.
+ */
 function computeLockEntries(
   source: LocaleResource,
   merged: ReadonlyMap<string, TranslationEntry>,
   baseline: ReadonlyMap<string, string>,
-  withheld: ReadonlySet<string>,
+  accepted: ImportLocaleResult["accepted"],
 ): Record<string, string> {
   const entries: Record<string, string> = {};
   for (const key of merged.keys()) {
@@ -94,14 +100,12 @@ function computeLockEntries(
     if (sourceEntry === undefined) {
       continue;
     }
-    if (withheld.has(key)) {
-      const prior = baseline.get(key);
-      if (prior !== undefined) {
-        entries[key] = prior;
-      }
+    if (accepted.has(key)) {
+      entries[key] = contentHash(sourceEntry);
       continue;
     }
-    entries[key] = contentHash(sourceEntry);
+    const prior = baseline.get(key);
+    entries[key] = prior !== undefined ? prior : contentHash(sourceEntry);
   }
   return entries;
 }
@@ -129,7 +133,7 @@ async function runSheet(
   }
   const target = await readTarget(ctx.cwd, ctx.config, ctx.adapter, ctx.fs, sheet.locale);
   const baseline = baselineFor(lock, sheet.locale);
-  const { summary, accepted, withheld } = importLocale({
+  const { summary, accepted } = importLocale({
     sheet,
     source: ctx.source,
     target,
@@ -157,7 +161,7 @@ async function runSheet(
       path,
     );
   }
-  return { summary, lockEntries: computeLockEntries(ctx.source, merged, baseline, withheld) };
+  return { summary, lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted) };
 }
 
 /**
