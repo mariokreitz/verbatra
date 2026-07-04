@@ -1,5 +1,18 @@
 # @verbatra/cli
 
+## 0.4.4
+
+### Patch Changes
+
+- Updated dependencies [8591e82]
+- Updated dependencies [43e3dbe]
+- Updated dependencies [714324f]
+- Updated dependencies [f3f47ad]
+- Updated dependencies [e8a1e1d]
+- Updated dependencies [75f54cb]
+- Updated dependencies [d119616]
+  - @verbatra/sdk@0.4.4
+
 ## 0.4.3
 
 ### Patch Changes
