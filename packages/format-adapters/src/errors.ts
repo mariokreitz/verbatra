@@ -5,7 +5,9 @@
  * - `INVALID_YAML`: the file is not parseable YAML.
  * - `INVALID_XML`: the file is not parseable XML.
  * - `INVALID_STRUCTURE`: parseable but not a valid shape: a non-object root, a non-string leaf, a
- *   path that is not a regular file, or (on write) a leaf key that collides with a nested key path.
+ *   path that is not a regular file, or a leaf key that collides with a nested key path (on write
+ *   always, and on read too in path-notation mode, where a dotted leaf key and a nested key path
+ *   can resolve to the same final path).
  * - `MAX_DEPTH_EXCEEDED`: object nesting exceeds the depth cap.
  * - `INPUT_TOO_LARGE`: the file exceeds the input size cap.
  * - `MIXED_STRUCTURE` (ngx-translate only): the file mixes flat dotted keys with nested objects.
