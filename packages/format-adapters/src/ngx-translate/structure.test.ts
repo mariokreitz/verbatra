@@ -35,6 +35,50 @@ describe("assertNotMixed", () => {
     expect(error).toBeInstanceOf(AdapterError);
     expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
   });
+
+  it("does not flag a dotted string leaf sibling to a nested key as mixed at depth (facet a stays with the collision guard)", () => {
+    const tree = { x: { "a.b": "FLAT-VALUE", a: { b: "NESTED-VALUE" } } };
+    expect(() => assertNotMixed(tree)).not.toThrow();
+  });
+
+  it("rejects a nested object key that itself contains a literal dot", () => {
+    const error = (() => {
+      try {
+        assertNotMixed({ "a.b": { c: "Hi" } });
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
+  });
+
+  it("rejects a dotted object key sibling to a distinct top-level key, at any depth", () => {
+    const error = (() => {
+      try {
+        assertNotMixed({ "a.b": { c: "X" }, a: { d: "Y" } });
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
+  });
+
+  it("rejects a dotted object key nested under an unrelated namespace", () => {
+    const error = (() => {
+      try {
+        assertNotMixed({ ns: { "a.b": { c: "Hi" } } });
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
+  });
 });
 
 describe("buildNgxWriteTree", () => {

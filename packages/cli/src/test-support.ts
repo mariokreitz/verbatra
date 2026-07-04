@@ -37,6 +37,7 @@ export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummar
     pruned: [],
     invalidIcuSource: [],
     integrityMismatches: [],
+    providerFailures: [],
     generated: [],
     notices: [],
     ...overrides,

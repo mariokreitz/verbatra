@@ -83,3 +83,45 @@ describe("buildWorkbook + readWorkbook round trip", () => {
     expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
   });
 });
+
+/**
+ * Translation values that Excel's default "General" number format would coerce or misparse if the
+ * translation column were not formatted as text: a leading-zero code, a trailing-zero decimal, a
+ * slash date, a long numeric id, a boolean-looking word, and each of the leading characters
+ * (=, +, -, @) Excel treats as the start of a formula.
+ */
+const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
+  "007",
+  "1.10",
+  "3/4",
+  "1234567890123456",
+  "true",
+  "=> siehe Hinweis",
+  "+49 30 1234567",
+  "-5 Grad",
+  "@mention this",
+];
+
+describe("buildWorkbook + readWorkbook round trip: coercion-prone translations", () => {
+  it.each(COERCION_PRONE_TRANSLATIONS)("imports %j verbatim", async (translation) => {
+    const coercionModel: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "value",
+              source: "Source",
+              currentTarget: "",
+              status: "new",
+              sourceHash: "abc123",
+              translation,
+            },
+          ],
+        },
+      ],
+    };
+    const data = await readWorkbook(await buildWorkbook(coercionModel));
+    expect(data.sheets[0]?.rows[0]?.translation).toBe(translation);
+  });
+});

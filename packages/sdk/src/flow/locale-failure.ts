@@ -20,6 +20,7 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
     pruned: [],
     invalidIcuSource: [],
     integrityMismatches: [],
+    providerFailures: [],
     generated: [],
     notices: [],
     error: describeError(error),

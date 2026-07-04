@@ -116,6 +116,57 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual([]);
   });
 
+  it("reports no notice for a blank row whose source key was deleted since export", () => {
+    const sheet: WorkbookSheet = { locale: "de", rows: [row("gone", "", "stale-hash")] };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", []),
+        target: resource("de", [entry("gone", "Gone")]),
+        baseline: new Map([["gone", "stale-hash"]]),
+      }),
+    );
+
+    expect(result.summary.notices).toEqual([]);
+  });
+
+  it("reports no notice for a blank row whose source did not drift", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = { locale: "de", rows: [row("greet", "", contentHash(src))] };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(src)]]),
+      }),
+    );
+
+    expect(result.accepted.size).toBe(0);
+    expect(result.withheld.size).toBe(0);
+    expect(result.summary.notices).toEqual([]);
+  });
+
+  it("reports a retained-baseline notice for a blank row whose source drifted", () => {
+    const oldSrc = entry("greet", "Hi");
+    const newSrc = entry("greet", "Hi there");
+    const sheet: WorkbookSheet = { locale: "de", rows: [row("greet", "", contentHash(newSrc))] };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [newSrc]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(oldSrc)]]),
+      }),
+    );
+
+    expect(result.accepted.size).toBe(0);
+    expect(result.withheld.size).toBe(0);
+    expect(result.summary.notices).toEqual([
+      { code: "BLANK_ROW_BASELINE_RETAINED", message: expect.any(String) },
+    ]);
+  });
+
   it("accepts a clean filled row and throws on an invented key", () => {
     const src = entry("greet", "Hi");
     const ok: WorkbookSheet = { locale: "de", rows: [row("greet", "Hallo", contentHash(src))] };

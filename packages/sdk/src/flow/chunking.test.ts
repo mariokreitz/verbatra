@@ -192,7 +192,8 @@ describe("translate: sub-batch chunking, failure isolation", () => {
 
     expect(summary.locales[0]?.status).toBe("succeeded");
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["k0", "k1"]);
-    expect([...(summary.locales[0]?.integrityMismatches ?? [])].sort()).toEqual(["k2", "k3"]);
+    expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual(["k2", "k3"]);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
 
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de.k0).toBe("[de] v0");

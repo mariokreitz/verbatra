@@ -142,8 +142,8 @@ describe("createDeepLProvider: glossary", () => {
 });
 
 describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () => {
-  // Only placeholder-free entries are sent to DeepL (see BTS-49), so integrity runs on those and
-  // still catches DeepL introducing a placeholder-like token into a source that had none.
+  // Only placeholder-free entries are sent to DeepL, so integrity runs on those and still catches
+  // DeepL introducing a placeholder-like token into a source that had none.
   it("passes when a placeholder-free entry stays placeholder-free", async () => {
     const { client } = deeplStubClient(deeplResult(["Hallo"]));
     const result = await createDeepLProvider(config, { client }).translateBatch(
@@ -162,7 +162,7 @@ describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () =
   });
 });
 
-describe("createDeepLProvider: placeholder-bearing entries are withheld (BTS-49)", () => {
+describe("createDeepLProvider: placeholder-bearing entries are withheld", () => {
   it("translates only placeholder-free entries and withholds placeholder-bearing ones", async () => {
     const { client, calls } = deeplStubClient(deeplResult(["Frei"]));
     const result = (await createDeepLProvider(config, { client }).translateBatch(

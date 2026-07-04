@@ -86,7 +86,7 @@ Discovers and validates the configuration. With no arguments it searches upward 
 
 ### `translate(input): Promise<RunSummary>`
 
-Runs the one-shot read, diff, translate, write flow over every target locale. `input` is `{ config, cwd?, dryRun?, prune?, generatePlurals? }`. With `dryRun: true` it reads, diffs, and reports without calling the provider or writing anything. `prune` and `generatePlurals` each override the matching config option for this run. Resolves to a `RunSummary` (`dryRun`, `locales`, `succeeded`, and `failed`); each locale summary lists `translated`, `generated`, `pruned`, `integrityMismatches`, and `notices`.
+Runs the one-shot read, diff, translate, write flow over every target locale. `input` is `{ config, cwd?, dryRun?, prune?, generatePlurals? }`. With `dryRun: true` it reads, diffs, and reports without calling the provider or writing anything. `prune` and `generatePlurals` each override the matching config option for this run. Resolves to a `RunSummary` (`dryRun`, `locales`, `succeeded`, and `failed`); each locale summary lists `translated`, `generated`, `pruned`, `integrityMismatches`, `providerFailures`, and `notices`. `integrityMismatches` is a translation that came back and failed the placeholder-integrity check; `providerFailures` is a key withheld because the provider call itself failed (nothing was translated), with the secret-free failure code and message reported in `notices`.
 
 ```ts
 const preview = await translate({ config, dryRun: true });

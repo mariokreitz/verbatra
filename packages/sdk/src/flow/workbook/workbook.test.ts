@@ -11,6 +11,7 @@ import {
   readJsonFile,
   writeJsonFile,
 } from "../../test-support.js";
+import { check } from "../check.js";
 import { exportWorkbook } from "./export-workbook.js";
 import { importWorkbook } from "./import-workbook.js";
 
@@ -159,6 +160,25 @@ describe("importWorkbook", () => {
     expect(Object.keys(lock.locales.de ?? {}).sort()).toEqual(["farewell", "greeting"]);
   });
 
+  it("bootstraps a baseline for an already-synced key with no prior lock entry", async () => {
+    // "a" is already in sync in de.json and there is no lock file yet, so it never appears as a
+    // workbook row; only "b" is missing and gets exported and filled.
+    const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { b: "Bb" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["b"]);
+
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    // First run bootstraps "a"'s baseline to the current source hash, since there is no prior one.
+    expect(lock.locales.de?.a).toBe(contentHash(entry("A")));
+    expect(lock.locales.de?.b).toBe(contentHash(entry("B")));
+  });
+
   it("skips empty cells: not written, no lock entry, never an empty string", async () => {
     const dir = await project({ a: "A", b: "B" }, { de: undefined });
     const config = cfg({ targetLocales: ["de"] });
@@ -237,6 +257,98 @@ describe("importWorkbook", () => {
     // The existing translation is untouched on disk.
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.greet).toBe("Hallo {{name}}");
+  });
+
+  it("keeps the prior lock baseline when a changed row is left blank", async () => {
+    // de already has "greeting" translated; the lock records the source hash at that time.
+    const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const priorHash = contentHash(entry("Hello"));
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: { de: { greeting: priorHash } },
+    });
+    // The source changes after the lock was recorded, so "greeting" exports as changed.
+    await writeJsonFile(join(dir, "locales", "en.json"), { greeting: "Hi there" });
+    const out = await exportWorkbook({ config, cwd: dir });
+
+    // The translator leaves the cell blank (the exported row already has an empty translation).
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual([]);
+
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    // The target file is untouched: still the translation of the OLD source.
+    expect(de.greeting).toBe("Hallo");
+
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    // The baseline must not advance to the new source hash: check/diff must keep reporting drift.
+    expect(lock.locales.de?.greeting).toBe(priorHash);
+    expect(lock.locales.de?.greeting).not.toBe(contentHash(entry("Hi there")));
+
+    expect(summary.locales[0]?.notices).toEqual([
+      expect.objectContaining({ code: "BLANK_ROW_BASELINE_RETAINED" }),
+    ]);
+
+    // The acceptance criterion is phrased in check terms: de must still report the drift, not 0 stale.
+    const checked = await check({ config, cwd: dir });
+    expect(checked.locales[0]?.stale).toBe(1);
+    expect(checked.inSync).toBe(false);
+  });
+
+  it("keeps every locale's prior baseline when the whole workbook is left blank", async () => {
+    const dir = await project(
+      { greeting: "Hello", farewell: "Bye" },
+      {
+        de: { greeting: "Hallo", farewell: "Tschuss" },
+        fr: { greeting: "Salut", farewell: "Adieu" },
+      },
+    );
+    const config = cfg({ targetLocales: ["de", "fr"] });
+    const priorGreeting = contentHash(entry("Hello"));
+    const priorFarewell = contentHash(entry("Bye"));
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: {
+        de: { greeting: priorGreeting, farewell: priorFarewell },
+        fr: { greeting: priorGreeting, farewell: priorFarewell },
+      },
+    });
+    // Both source strings change after the lock was recorded.
+    await writeJsonFile(join(dir, "locales", "en.json"), {
+      greeting: "Hi there",
+      farewell: "Goodbye",
+    });
+    const out = await exportWorkbook({ config, cwd: dir });
+
+    // The entire workbook is imported untouched: every cell stays blank for every locale.
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales.map((l) => l.translated)).toEqual([[], []]);
+
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    for (const locale of ["de", "fr"]) {
+      expect(lock.locales[locale]?.greeting).toBe(priorGreeting);
+      expect(lock.locales[locale]?.farewell).toBe(priorFarewell);
+    }
+
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    const fr = (await readJsonFile(join(dir, "locales", "fr.json"))) as Record<string, string>;
+    expect(de).toEqual({ greeting: "Hallo", farewell: "Tschuss" });
+    expect(fr).toEqual({ greeting: "Salut", farewell: "Adieu" });
+
+    for (const localeSummary of summary.locales) {
+      expect(localeSummary.notices).toEqual([
+        expect.objectContaining({ code: "BLANK_ROW_BASELINE_RETAINED" }),
+      ]);
+    }
+
+    // Every locale must still report both keys as stale, matching the acceptance criterion.
+    const checked = await check({ config, cwd: dir });
+    expect(checked.inSync).toBe(false);
+    expect(checked.locales.map((l) => l.stale)).toEqual([2, 2]);
   });
 
   it("dry-run validates and reports without writing the locale or the lock", async () => {
