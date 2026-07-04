@@ -241,7 +241,8 @@ describe("translate: per-locale isolation", () => {
     const fr = summary.locales.find((s) => s.locale === "fr");
     expect(fr?.status).toBe("succeeded");
     expect(fr?.translated).toEqual([]);
-    expect(fr?.integrityMismatches).toEqual(["a"]);
+    expect(fr?.providerFailures).toEqual(["a"]);
+    expect(fr?.integrityMismatches).toEqual([]); // a provider-call failure is not an integrity mismatch
     expect(fr?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
 
     expect(await exists(targetPath(dir, "de"))).toBe(true);
@@ -311,7 +312,8 @@ describe("translate: error shapes and orphaned keys", () => {
     // The raw provider error is caught and never surfaced: no provider code or message leaks onto the summary.
     expect(summary.succeeded).toEqual(["de"]);
     expect(summary.locales[0]?.status).toBe("succeeded");
-    expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
+    expect(summary.locales[0]?.providerFailures).toEqual(["a"]);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
     expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
     const noticeText = summary.locales[0]?.notices.map((n) => n.message).join(" ") ?? "";
     expect(noticeText).not.toContain("provider blew up");

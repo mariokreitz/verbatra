@@ -41,8 +41,20 @@ export interface LocaleSummary {
   readonly pruned: readonly string[];
   /** Source keys flagged invalid-ICU that were skipped for translation this run. */
   readonly invalidIcuSource: readonly string[];
-  /** Translated keys that failed the placeholder-integrity check and were withheld. */
+  /**
+   * Translated keys that failed the placeholder-integrity check and were withheld. Never includes a
+   * key withheld because the provider call itself failed; see {@link LocaleSummary.providerFailures}
+   * for that case.
+   */
   readonly integrityMismatches: readonly string[];
+  /**
+   * Keys withheld because the provider call itself failed (for example a revoked API key, a rate
+   * limit, or a network timeout), as distinct from a translation that came back and failed the
+   * placeholder-integrity check. Nothing was translated for these keys. The corresponding
+   * {@link LocaleSummary.notices} entry carries the secret-free failure code and message. Empty in a
+   * dry-run and empty unless a provider call threw.
+   */
+  readonly providerFailures: readonly string[];
   /**
    * Plural-category keys verbatra synthesized this run (for example a Polish `items_few` the source
    * never supplied), kept distinct from {@link translated}. Empty unless plural generation was enabled
