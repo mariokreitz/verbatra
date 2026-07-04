@@ -24,6 +24,15 @@ const COLUMN_WIDTHS: Readonly<Record<number, number>> = {
   [COLUMN.translation]: 50,
 };
 
+/**
+ * The Excel "Text" number format. Applied to the translation cell so Excel treats whatever the
+ * translator types as literal text instead of coercing it: a value like "007" or "1.10" would
+ * otherwise lose its leading zero or trailing zero, "3/4" would parse as a date, a long numeric id
+ * would lose precision or turn into scientific notation, and a value starting with "=", "+", "-", or
+ * "@" would be parsed as a formula.
+ */
+const TEXT_NUMBER_FORMAT = "@";
+
 function styleHeader(sheet: ExcelJS.Worksheet): void {
   const header = sheet.getRow(HEADER_ROW);
   HEADERS.forEach((label, index) => {
@@ -41,6 +50,9 @@ function applyColumnGeometry(sheet: ExcelJS.Worksheet): void {
   }
   // The source-hash column is provenance, not for the translator.
   sheet.getColumn(COLUMN.sourceHash).hidden = true;
+  // Defense in depth alongside the per-cell numFmt in writeRow: any cell a translator reaches in this
+  // column, including beyond the written rows, stays formatted as text.
+  sheet.getColumn(COLUMN.translation).numFmt = TEXT_NUMBER_FORMAT;
   sheet.views = [{ state: "frozen", ySplit: HEADER_ROW }];
 }
 
@@ -50,7 +62,9 @@ function writeRow(sheet: ExcelJS.Worksheet, sheetRow: WorkbookSheet["rows"][numb
   row.getCell(COLUMN.source).value = sheetRow.source;
   row.getCell(COLUMN.current).value = sheetRow.currentTarget;
   row.getCell(COLUMN.status).value = sheetRow.status;
-  row.getCell(COLUMN.translation).value = sheetRow.translation === "" ? null : sheetRow.translation;
+  const translationCell = row.getCell(COLUMN.translation);
+  translationCell.numFmt = TEXT_NUMBER_FORMAT;
+  translationCell.value = sheetRow.translation === "" ? null : sheetRow.translation;
   row.getCell(COLUMN.sourceHash).value = sheetRow.sourceHash;
 
   // COLUMN holds literal indexes, so without widening the loop variable to `number` control flow
