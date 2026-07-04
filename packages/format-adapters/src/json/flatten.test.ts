@@ -112,12 +112,30 @@ describe("flattenTree path-notation mode (ngx-translate)", () => {
   it("throws INVALID_STRUCTURE when a dotted leaf's path is a strict ancestor of a deeper nested leaf", () => {
     // "a.b" resolves to "x.a.b", the same path that "a" -> "b" -> "c" uses as an intermediate node.
     const tree: JsonRecord = { x: { "a.b": "FLAT-VALUE", a: { b: { c: "NESTED-VALUE" } } } };
-    expect(() => flattenTree(tree, "ns", derive, "path-notation")).toThrow(AdapterError);
+    const error = (() => {
+      try {
+        flattenTree(tree, "ns", derive, "path-notation");
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
   });
 
   it("throws INVALID_STRUCTURE on the same ancestor collision in nested-first order", () => {
     const tree: JsonRecord = { x: { a: { b: { c: "NESTED-VALUE" } }, "a.b": "FLAT-VALUE" } };
-    expect(() => flattenTree(tree, "ns", derive, "path-notation")).toThrow(AdapterError);
+    const error = (() => {
+      try {
+        flattenTree(tree, "ns", derive, "path-notation");
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
   });
 
   it("does not flag a dotted leaf and an unrelated deeper nested path sharing only a common ancestor", () => {
