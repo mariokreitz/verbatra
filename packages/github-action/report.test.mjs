@@ -10,6 +10,7 @@ function locale(over = {}) {
     orphaned: [],
     invalidIcuSource: [],
     integrityMismatches: [],
+    providerFailures: [],
     notices: [],
     ...over,
   };
@@ -94,6 +95,23 @@ describe("buildReport: whole-run error (exit 2, empty stdout)", () => {
     expect(report.annotations).toHaveLength(1);
     expect(report.annotations[0]).toContain("[VERBATRA_FAILED]");
     expect(report.exitStatus).toBe(2);
+  });
+});
+
+describe("buildReport: provider failures render as their own column", () => {
+  it("counts a provider failure separately from an integrity mismatch", () => {
+    const s = summary({
+      locales: [
+        locale({
+          translated: ["a"],
+          integrityMismatches: ["b"],
+          providerFailures: ["c", "d"],
+        }),
+      ],
+      succeeded: ["de"],
+    });
+    const report = buildReport(s, 0);
+    expect(report.summary).toContain("| de | ok | 1 | 0 | 0 | 0 | 1 | 2 | 0 |");
   });
 });
 
