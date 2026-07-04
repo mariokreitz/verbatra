@@ -11,6 +11,7 @@ import {
   readJsonFile,
   writeJsonFile,
 } from "../../test-support.js";
+import { check } from "../check.js";
 import { exportWorkbook } from "./export-workbook.js";
 import { importWorkbook } from "./import-workbook.js";
 
@@ -289,6 +290,11 @@ describe("importWorkbook", () => {
     expect(summary.locales[0]?.notices).toEqual([
       expect.objectContaining({ code: "BLANK_ROW_BASELINE_RETAINED" }),
     ]);
+
+    // The acceptance criterion is phrased in check terms: de must still report the drift, not 0 stale.
+    const checked = await check({ config, cwd: dir });
+    expect(checked.locales[0]?.stale).toBe(1);
+    expect(checked.inSync).toBe(false);
   });
 
   it("keeps every locale's prior baseline when the whole workbook is left blank (BTS-80)", async () => {
@@ -338,6 +344,11 @@ describe("importWorkbook", () => {
         expect.objectContaining({ code: "BLANK_ROW_BASELINE_RETAINED" }),
       ]);
     }
+
+    // Every locale must still report both keys as stale, matching the acceptance criterion.
+    const checked = await check({ config, cwd: dir });
+    expect(checked.inSync).toBe(false);
+    expect(checked.locales.map((l) => l.stale)).toEqual([2, 2]);
   });
 
   it("dry-run validates and reports without writing the locale or the lock", async () => {
