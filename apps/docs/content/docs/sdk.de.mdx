@@ -80,7 +80,8 @@ interface LocaleSummary {
   orphaned: string[];            // target keys with no matching source key (reported regardless of pruning)
   pruned: string[];              // orphaned keys removed this run; empty unless pruning is on (subset of orphaned)
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
-  integrityMismatches: string[]; // translations withheld for a placeholder mismatch
+  integrityMismatches: string[]; // translations withheld for a placeholder mismatch, never a provider failure
+  providerFailures: string[];    // keys withheld because the provider call itself failed (see the notices for why)
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
   error?: { code: string; message: string }; // present only when status is "failed"
