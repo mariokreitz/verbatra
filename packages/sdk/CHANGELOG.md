@@ -1,5 +1,36 @@
 # @verbatra/sdk
 
+## 0.4.4
+
+### Patch Changes
+
+- 8591e82: Fix the ARB adapter silently erasing all `@`-prefixed metadata (`@@locale`, and every `@key` description and placeholder block) when the destination file existed but could not be parsed. A destination write used to treat "file missing" (a legitimate first write) and "file present but corrupt, too large, or the wrong shape" identically, discarding metadata in both cases with no error. A missing destination still writes messages only, as before. A destination that exists but is not a usable ARB object now throws a structured error instead of silently proceeding, so a merge-conflicted or half-edited ARB file is surfaced as an error rather than causing silent metadata loss on the next translate run. The change lives in the private `@verbatra/format-adapters` package, so the observable behavior surfaces through `@verbatra/sdk` (and `@verbatra/cli`, version-locked).
+- 43e3dbe: Fix `importWorkbook` advancing a locale's lock baseline for a changed key whose workbook cell was left blank, which permanently hid drift from `check` and `diff`.
+
+  Previously, a changed source key with an empty translation cell fell through the row classification unresolved (neither accepted nor withheld), and the lock baseline was still advanced to the current source hash. The target file kept the translation of the old source, but `check` and `diff` reported the locale as in sync forever.
+
+  Now only keys actually accepted this run advance their lock baseline. Every other source-present key, including a row left blank on a changed key, keeps its prior baseline hash so drift keeps being reported until the row is filled or the source reverts. This applies uniformly to a single blank row and to an entirely blank workbook across every locale.
+
+  This adds `BLANK_ROW_BASELINE_RETAINED` as an additive member of the exported `SdkNoticeCode` union on `@verbatra/sdk`. A locale summary that retains a baseline this way now carries a notice with that code. The behavior fixed is a defect, so the bump stays patch, but the addition to the public type is called out here as deliberate.
+
+- 714324f: Fix ICU plural and select placeholders being counted once per branch instead of once per argument, which rejected correct translations into languages with more CLDR plural categories than the source. English plural messages have one/other (2 branches), but Polish requires one/few/many/other (4) and Arabic requires zero/one/two/few/many/other (6); a correctly translated argument repeated in every required branch used to inflate the placeholder count and trip a false placeholder-integrity mismatch. A placeholder present in every branch of a plural or select now counts as one argument regardless of branch count, while a placeholder missing from any branch (a genuine translation drop) and a placeholder invented in the translation still fail integrity as before. The change lives in the private `@verbatra/format-adapters` package (the ICU analyzer used by the next-intl and ARB adapters), so the observable behavior surfaces through `@verbatra/sdk` (and `@verbatra/cli`, version-locked).
+- f3f47ad: Fix the ngx-translate path-notation flatten silently dropping or restructuring translations on a
+  key collision. A dotted flat key (`"a.b": "value"`) and a nested path (`"a": { "b": "value" }`)
+  that resolved to the same final path used to silently overwrite each other during a read, losing
+  one of the two values with no error; the flatten step now throws a structured `INVALID_STRUCTURE`
+  error instead. Separately, a nested object key that itself contains a literal dot (for example
+  `"a.b": { "c": "value" }`) used to write back restructured or merged with an unrelated key, since
+  the dot inside the object key was indistinguishable from a path separator; such a file is now
+  rejected as `MIXED_STRUCTURE` before any flattening happens. The literal-leaf adapters (i18next,
+  vue-i18n, next-intl) already rejected the equivalent collision; ngx-translate now has the same
+  guarantee. The change lives in the private `@verbatra/format-adapters` package, so the observable
+  behavior surfaces through `@verbatra/sdk` (and `@verbatra/cli`, version-locked).
+- e8a1e1d: Fix Excel translation cells being type-coerced on import. The Translation column produced by `exportWorkbook` (and the SDK's workbook export) now carries an explicit text number format, so Excel treats whatever a translator types as literal text. Previously the column had no number format, so Excel's default "General" format silently coerced typed values: a leading-zero code like "007" lost its zero, a decimal like "1.10" lost its trailing zero, a value like "3/4" was reformatted as a date, a long numeric id lost precision or turned into scientific notation, and a value starting with "=", "+", "-", or "@" (for example a phone number or a note) was parsed as a formula and imported as its formula result or an error string instead of the intended text.
+- 75f54cb: Fix plural-form generation ignoring maxBatchSize and one failure discarding a whole locale run. Stale plural-generation items are now split into sequential sub-batches no larger than maxBatchSize, matching main translation batching. A sub-batch whose provider call throws now withholds only its own forms instead of aborting the locale run, so already-accepted main translations and other successful plural sub-batches are written as before.
+- d119616: Stop reporting a failed provider call as an integrity mismatch. When a translation sub-batch throws (for example a revoked API key, a rate limit, or a network timeout), the run now reports the affected keys under a new `providerFailures` bucket on the per-locale summary instead of folding them into `integrityMismatches`, which is documented as "translated keys that failed the placeholder-integrity check" and is misleading here since nothing was translated. The `SUB_BATCH_FAILED` notice for that sub-batch now also carries the caught failure's code and message when it is a genuine `ProviderError` (secret-free by construction); any other thrown value still falls back to a static, generic message so nothing unvetted can leak through.
+
+  This adds `providerFailures` as an additive member of the exported `LocaleSummary` type on `@verbatra/sdk`. The behavior fixed is a defect, so the bump stays patch, but the addition to the public type is called out here so it is deliberate. `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
 ## 0.4.3
 
 ### Patch Changes
