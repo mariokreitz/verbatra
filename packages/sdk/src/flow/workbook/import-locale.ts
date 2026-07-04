@@ -7,7 +7,7 @@ import {
 } from "@verbatra/core";
 import type { WorkbookRow, WorkbookSheet } from "@verbatra/exchange";
 import type { FormatAdapter } from "@verbatra/format-adapters";
-import type { LocaleSummary } from "../summary.js";
+import type { LocaleSummary, SdkNotice } from "../summary.js";
 
 /** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
 export interface ImportLocaleParams {
@@ -80,6 +80,23 @@ interface Buckets {
   readonly accepted: Map<string, { value: string; source: TranslationEntry }>;
   readonly mismatches: string[];
   readonly withheld: Set<string>;
+  /** Blank cells for a source key whose current hash no longer matches the recorded baseline. */
+  readonly blankDrifted: Set<string>;
+}
+
+/**
+ * A blank cell for a key whose source drifted since its baseline was recorded must not let the
+ * baseline advance silently (BTS-80): flag it so the lock keeps the prior hash and the run reports it.
+ */
+function trackBlankDrift(row: WorkbookRow, params: ImportLocaleParams, buckets: Buckets): void {
+  const sourceEntry = params.source.entries.get(row.key);
+  if (sourceEntry === undefined) {
+    return;
+  }
+  const priorHash = params.baseline.get(row.key);
+  if (priorHash !== undefined && priorHash !== contentHash(sourceEntry)) {
+    buckets.blankDrifted.add(row.key);
+  }
 }
 
 /**
@@ -89,6 +106,7 @@ interface Buckets {
 function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
   for (const row of params.sheet.rows) {
     if (row.translation === "") {
+      trackBlankDrift(row, params, buckets);
       continue;
     }
     if (isUnknownKey(row, params.source, params.target)) {
@@ -109,6 +127,16 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
   }
 }
 
+/** A secret-free notice for blank cells whose prior lock baseline was kept instead of advanced. */
+function blankRowBaselineNotice(count: number): SdkNotice {
+  return {
+    code: "BLANK_ROW_BASELINE_RETAINED",
+    message:
+      `${count} row(s) were left blank for a key whose source changed since the row's baseline ` +
+      "was recorded; the prior baseline was kept so the drift keeps being reported.",
+  };
+}
+
 /**
  * Judge one locale's filled rows with the core checks (drift, placeholder, ICU) and partition its keys
  * into the summary buckets. Writes nothing and updates no lock; throws {@link UnknownKeyError} on a
@@ -116,7 +144,12 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
-  const buckets: Buckets = { accepted: new Map(), mismatches: [], withheld: new Set() };
+  const buckets: Buckets = {
+    accepted: new Map(),
+    mismatches: [],
+    withheld: new Set(),
+    blankDrifted: new Set(),
+  };
   classifyRows(params, buckets);
 
   // Surface source keys that are invalid-ICU and appear as a row in this sheet (source-side, not the
@@ -138,7 +171,8 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     integrityMismatches: [...buckets.mismatches].sort(),
     // Plural generation is a translate-flow concern; the manual workbook import never generates forms.
     generated: [],
-    notices: [],
+    notices:
+      buckets.blankDrifted.size > 0 ? [blankRowBaselineNotice(buckets.blankDrifted.size)] : [],
   };
   return { summary, accepted: buckets.accepted, withheld: buckets.withheld };
 }
