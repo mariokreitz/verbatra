@@ -89,4 +89,39 @@ describe("placeholder integrity is multiset-aware end to end", () => {
     const translated = adapter.extractPlaceholders("{{count}} von {{count}}");
     expect(checkPlaceholders(source, translated).matches).toBe(true);
   });
+
+  it("arb: a correct en to pl plural translation matches despite pl having four CLDR categories against en's two (BTS-81)", () => {
+    const adapter = createArbAdapter();
+    const source = adapter.extractPlaceholders(
+      "{count, plural, one {{name} has # apple} other {{name} has # apples}}",
+    );
+    const translated = adapter.extractPlaceholders(
+      "{count, plural, one {{name} ma # jablko} few {{name} ma # jablka} many {{name} ma # jablek} other {{name} ma # jablka}}",
+    );
+    expect(checkPlaceholders(source, translated).matches).toBe(true);
+  });
+
+  it("arb: a correct en to ar plural translation matches despite ar having six CLDR categories against en's two (BTS-81)", () => {
+    const adapter = createArbAdapter();
+    const source = adapter.extractPlaceholders(
+      "{count, plural, one {{name} has # apple} other {{name} has # apples}}",
+    );
+    const translated = adapter.extractPlaceholders(
+      "{count, plural, zero {{name} 0} one {{name} 1} two {{name} 2} few {{name} 3} many {{name} 4} other {{name} 5}}",
+    );
+    expect(checkPlaceholders(source, translated).matches).toBe(true);
+  });
+
+  it("arb: a pl translation that drops the shared argument from one branch still fails integrity", () => {
+    const adapter = createArbAdapter();
+    const source = adapter.extractPlaceholders(
+      "{count, plural, one {{name} has # apple} other {{name} has # apples}}",
+    );
+    const translated = adapter.extractPlaceholders(
+      "{count, plural, one {{name} ma # jablko} few {{name} ma # jablka} many {ma # jablek} other {{name} ma # jablka}}",
+    );
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{name}"]);
+  });
 });

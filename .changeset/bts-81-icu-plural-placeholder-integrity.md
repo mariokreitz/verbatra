@@ -1,0 +1,5 @@
+---
+"@verbatra/sdk": patch
+---
+
+Fix ICU plural and select placeholders being counted once per branch instead of once per argument, which rejected correct translations into languages with more CLDR plural categories than the source. English plural messages have one/other (2 branches), but Polish requires one/few/many/other (4) and Arabic requires zero/one/two/few/many/other (6); a correctly translated argument repeated in every required branch used to inflate the placeholder count and trip a false placeholder-integrity mismatch. A placeholder present in every branch of a plural or select now counts as one argument regardless of branch count, while a placeholder missing from any branch (a genuine translation drop) and a placeholder invented in the translation still fail integrity as before. The change lives in the private `@verbatra/format-adapters` package (the ICU analyzer used by the next-intl and ARB adapters), so the observable behavior surfaces through `@verbatra/sdk` (and `@verbatra/cli`, version-locked).
