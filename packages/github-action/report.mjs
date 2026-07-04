@@ -63,7 +63,7 @@ export function extractCliError(stderrText) {
 
 function countsRow(locale) {
   const status = locale.status === "failed" ? "failed" : "ok";
-  return `| ${locale.locale} | ${status} | ${locale.translated.length} | ${locale.unchanged.length} | ${locale.orphaned.length} | ${locale.invalidIcuSource.length} | ${locale.integrityMismatches.length} | ${locale.notices.length} |`;
+  return `| ${locale.locale} | ${status} | ${locale.translated.length} | ${locale.unchanged.length} | ${locale.orphaned.length} | ${locale.invalidIcuSource.length} | ${locale.integrityMismatches.length} | ${locale.providerFailures.length} | ${locale.notices.length} |`;
 }
 
 function summaryMarkdown(summary) {
@@ -71,8 +71,8 @@ function summaryMarkdown(summary) {
     ? "## verbatra translation summary (dry run)"
     : "## verbatra translation summary";
   const head =
-    "| locale | status | translated | unchanged | orphaned | invalid ICU | integrity withheld | notices |";
-  const sep = "| --- | --- | --- | --- | --- | --- | --- | --- |";
+    "| locale | status | translated | unchanged | orphaned | invalid ICU | integrity withheld | provider failures | notices |";
+  const sep = "| --- | --- | --- | --- | --- | --- | --- | --- | --- |";
   const rows = summary.locales.map(countsRow);
   const aggregate = `${summary.locales.length} locales: ${summary.succeeded.length} succeeded, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
