@@ -259,7 +259,7 @@ describe("importWorkbook", () => {
     expect(de.greet).toBe("Hallo {{name}}");
   });
 
-  it("keeps the prior lock baseline when a changed row is left blank (BTS-80)", async () => {
+  it("keeps the prior lock baseline when a changed row is left blank", async () => {
     // de already has "greeting" translated; the lock records the source hash at that time.
     const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
     const config = cfg({ targetLocales: ["de"] });
@@ -297,7 +297,7 @@ describe("importWorkbook", () => {
     expect(checked.inSync).toBe(false);
   });
 
-  it("keeps every locale's prior baseline when the whole workbook is left blank (BTS-80)", async () => {
+  it("keeps every locale's prior baseline when the whole workbook is left blank", async () => {
     const dir = await project(
       { greeting: "Hello", farewell: "Bye" },
       {

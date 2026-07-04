@@ -84,9 +84,9 @@ function mergeAccepted(
 /**
  * Only a key actually accepted this run advances its lock baseline to the current source hash. Every
  * other source-present key (withheld for drift, placeholder, or ICU; or a row the translator left
- * blank) keeps its prior baseline hash so it keeps re-exporting until it is genuinely resolved
- * (BTS-80: a blank cell must never silently hide a source change by advancing the baseline past it).
- * A key with no prior baseline at all falls back to the current hash, matching first-run bootstrap.
+ * blank) keeps its prior baseline hash so it keeps re-exporting until it is genuinely resolved: a
+ * blank cell must never silently hide a source change by advancing the baseline past it. A key with
+ * no prior baseline at all falls back to the current hash, matching first-run bootstrap.
  */
 function computeLockEntries(
   source: LocaleResource,

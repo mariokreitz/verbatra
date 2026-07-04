@@ -52,7 +52,7 @@ describe("analyzeIcuValue: extraction", () => {
   });
 });
 
-describe("analyzeIcuValue: plural/select branch cardinality (BTS-81)", () => {
+describe("analyzeIcuValue: plural/select branch cardinality", () => {
   it("counts a placeholder used in every branch once, for a two-branch (en) plural", () => {
     const en = analyzeIcuValue(
       "{count, plural, one {{name} has # apple} other {{name} has # apples}}",

@@ -32,7 +32,7 @@ export interface ImportLocaleResult {
    * Keys judged but not accepted this run (drift, placeholder, ICU), for diagnostics and testing only.
    * Lock-baseline retention is driven by absence from `accepted` (see `computeLockEntries` in
    * import-workbook.ts), not by membership here: a blank changed row keeps its prior baseline too, even
-   * though it is never classified into this set (see BTS-80).
+   * though it is never classified into this set.
    */
   readonly withheld: ReadonlySet<string>;
 }
@@ -91,7 +91,7 @@ interface Buckets {
 
 /**
  * A blank cell for a key whose source drifted since its baseline was recorded must not let the
- * baseline advance silently (BTS-80): flag it so the lock keeps the prior hash and the run reports it.
+ * baseline advance silently: flag it so the lock keeps the prior hash and the run reports it.
  */
 function trackBlankDrift(row: WorkbookRow, params: ImportLocaleParams, buckets: Buckets): void {
   const sourceEntry = params.source.entries.get(row.key);

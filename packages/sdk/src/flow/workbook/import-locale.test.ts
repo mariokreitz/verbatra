@@ -116,7 +116,7 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual([]);
   });
 
-  it("reports no notice for a blank row whose source key was deleted since export (BTS-80)", () => {
+  it("reports no notice for a blank row whose source key was deleted since export", () => {
     const sheet: WorkbookSheet = { locale: "de", rows: [row("gone", "", "stale-hash")] };
     const result = importLocale(
       params({
@@ -130,7 +130,7 @@ describe("importLocale", () => {
     expect(result.summary.notices).toEqual([]);
   });
 
-  it("reports no notice for a blank row whose source did not drift (BTS-80)", () => {
+  it("reports no notice for a blank row whose source did not drift", () => {
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = { locale: "de", rows: [row("greet", "", contentHash(src))] };
     const result = importLocale(
@@ -147,7 +147,7 @@ describe("importLocale", () => {
     expect(result.summary.notices).toEqual([]);
   });
 
-  it("reports a retained-baseline notice for a blank row whose source drifted (BTS-80)", () => {
+  it("reports a retained-baseline notice for a blank row whose source drifted", () => {
     const oldSrc = entry("greet", "Hi");
     const newSrc = entry("greet", "Hi there");
     const sheet: WorkbookSheet = { locale: "de", rows: [row("greet", "", contentHash(newSrc))] };

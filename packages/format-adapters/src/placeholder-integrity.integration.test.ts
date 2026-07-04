@@ -90,7 +90,7 @@ describe("placeholder integrity is multiset-aware end to end", () => {
     expect(checkPlaceholders(source, translated).matches).toBe(true);
   });
 
-  it("arb: a correct en to pl plural translation matches despite pl having four CLDR categories against en's two (BTS-81)", () => {
+  it("arb: a correct en to pl plural translation matches despite pl having four CLDR categories against en's two", () => {
     const adapter = createArbAdapter();
     const source = adapter.extractPlaceholders(
       "{count, plural, one {{name} has # apple} other {{name} has # apples}}",
@@ -101,7 +101,7 @@ describe("placeholder integrity is multiset-aware end to end", () => {
     expect(checkPlaceholders(source, translated).matches).toBe(true);
   });
 
-  it("arb: a correct en to ar plural translation matches despite ar having six CLDR categories against en's two (BTS-81)", () => {
+  it("arb: a correct en to ar plural translation matches despite ar having six CLDR categories against en's two", () => {
     const adapter = createArbAdapter();
     const source = adapter.extractPlaceholders(
       "{count, plural, one {{name} has # apple} other {{name} has # apples}}",

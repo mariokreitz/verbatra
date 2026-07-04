@@ -86,9 +86,9 @@ describe("buildWorkbook + readWorkbook round trip", () => {
 
 /**
  * Translation values that Excel's default "General" number format would coerce or misparse if the
- * translation column were not formatted as text (BTS-83): a leading-zero code, a trailing-zero
- * decimal, a slash date, a long numeric id, a boolean-looking word, and each of the leading
- * characters (=, +, -, @) Excel treats as the start of a formula.
+ * translation column were not formatted as text: a leading-zero code, a trailing-zero decimal, a
+ * slash date, a long numeric id, a boolean-looking word, and each of the leading characters
+ * (=, +, -, @) Excel treats as the start of a formula.
  */
 const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "007",
@@ -102,7 +102,7 @@ const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "@mention this",
 ];
 
-describe("buildWorkbook + readWorkbook round trip: coercion-prone translations (BTS-83)", () => {
+describe("buildWorkbook + readWorkbook round trip: coercion-prone translations", () => {
   it.each(COERCION_PRONE_TRANSLATIONS)("imports %j verbatim", async (translation) => {
     const coercionModel: WorkbookModel = {
       sheets: [

@@ -87,7 +87,7 @@ describe("ngx-translate adapter: read (both structures)", () => {
     await expect(adapter.read(path, "en")).rejects.toMatchObject({ code: "INVALID_JSON" });
   });
 
-  it("rejects a nested mixed dotted/nested collision instead of silently dropping a value (BTS-82 facet a)", async () => {
+  it("rejects a nested mixed dotted/nested collision instead of silently dropping a value", async () => {
     const dir = await tempDir();
     const path = await write(
       dir,
@@ -98,14 +98,14 @@ describe("ngx-translate adapter: read (both structures)", () => {
     expect((error as { code?: string }).code).toBe("INVALID_STRUCTURE");
   });
 
-  it("rejects a nested object key that itself contains a literal dot (BTS-82 facet b)", async () => {
+  it("rejects a nested object key that itself contains a literal dot", async () => {
     const dir = await tempDir();
     const path = await write(dir, "dotted-object.json", '{"a.b":{"c":"Hi"}}');
     const error = await adapter.read(path, "en").catch((e: unknown) => e);
     expect((error as { code?: string }).code).toBe("MIXED_STRUCTURE");
   });
 
-  it("rejects a dotted object key that would otherwise merge distinct top-level keys on write (BTS-82 facet b)", async () => {
+  it("rejects a dotted object key that would otherwise merge distinct top-level keys on write", async () => {
     const dir = await tempDir();
     const path = await write(dir, "merge.json", '{"a.b":{"c":"X"},"a":{"d":"Y"}}');
     const error = await adapter.read(path, "en").catch((e: unknown) => e);

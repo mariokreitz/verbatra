@@ -104,7 +104,7 @@ describe("buildWorkbook: translator-facing properties", () => {
   });
 });
 
-describe("buildWorkbook: translation column text format (BTS-83)", () => {
+describe("buildWorkbook: translation column text format", () => {
   it("formats a filled translation cell as text so Excel cannot coerce typed input", async () => {
     const workbook = await loadBuilt();
     const sheet = workbook.getWorksheet("de");
