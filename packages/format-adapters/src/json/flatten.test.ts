@@ -71,4 +71,41 @@ describe("flattenTree path-notation mode (ngx-translate)", () => {
     const entries = flattenTree(tree, "ns", derive, "path-notation");
     expect([...entries.keys()]).toEqual(["app.hello"]);
   });
+
+  it("throws INVALID_STRUCTURE instead of silently dropping a value on a dotted-leaf vs nested-path collision", () => {
+    const tree: JsonRecord = {
+      x: { "a.b": "FLAT-VALUE", a: { b: "NESTED-VALUE" } },
+    };
+    const error = (() => {
+      try {
+        flattenTree(tree, "ns", derive, "path-notation");
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("throws INVALID_STRUCTURE on the same collision in nested-first order", () => {
+    const tree: JsonRecord = {
+      x: { a: { b: "NESTED-VALUE" }, "a.b": "FLAT-VALUE" },
+    };
+    const error = (() => {
+      try {
+        flattenTree(tree, "ns", derive, "path-notation");
+        return undefined;
+      } catch (e) {
+        return e;
+      }
+    })();
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("does not flag unrelated dotted and nested keys as a collision", () => {
+    const tree: JsonRecord = { "a.b": "x", c: { d: "y" } };
+    expect(() => flattenTree(tree, "ns", derive, "path-notation")).not.toThrow();
+  });
 });

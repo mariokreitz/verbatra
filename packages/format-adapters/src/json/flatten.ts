@@ -56,7 +56,13 @@ function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRe
   }
 }
 
-/** Path-notation flatten: join segments with a plain dot, no encoding. */
+/**
+ * Path-notation flatten: join segments with a plain dot, no encoding. Since there is no encoding
+ * to tell a dotted leaf key apart from a nested path in this mode, the map key and the effective
+ * path are always identical, so `out` itself is the collision record: any leaf that would resolve
+ * to a path already present in `out` is a real collision (a dotted leaf key and a nested key path
+ * landing on the same final path), and is rejected instead of silently overwriting the earlier entry.
+ */
 function addPathEntries(
   node: JsonRecord,
   prefix: string,
@@ -67,6 +73,12 @@ function addPathEntries(
   for (const [key, value] of Object.entries(node)) {
     const path = prefix === "" ? key : `${prefix}.${key}`;
     if (typeof value === "string") {
+      if (out.has(path)) {
+        throw new AdapterError(
+          "INVALID_STRUCTURE",
+          "A dotted key and a nested key path resolve to the same path.",
+        );
+      }
       const { placeholders, isPlural } = derive(key, value);
       out.set(path, { key: path, namespace, value, placeholders, isPlural });
     } else {
@@ -82,13 +94,17 @@ function addPathEntries(
  *
  * In `literal-leaf` mode (the default) a dotted string key is a single literal leaf and a true
  * collision with a nested path resolving to the same effective path throws `INVALID_STRUCTURE`.
- * In `path-notation` mode a dotted string key denotes a nested path and is flattened without encoding.
+ * In `path-notation` mode a dotted string key denotes a nested path and is flattened without
+ * encoding; a dotted leaf key that resolves to the same final path as a nested key path (in either
+ * order) is likewise a collision and throws `INVALID_STRUCTURE` instead of silently dropping the
+ * earlier value.
  *
  * @param tree - The parsed nested object.
  * @param namespace - The namespace recorded on each entry.
  * @param derive - Per-leaf placeholder and plurality derivation.
  * @param keyMode - How dotted string keys are interpreted (defaults to `literal-leaf`).
- * @throws {@link AdapterError} `INVALID_STRUCTURE` on a literal-leaf vs nested-path collision.
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` on a literal-leaf vs nested-path collision, in
+ *   either key mode.
  */
 export function flattenTree(
   tree: JsonRecord,
