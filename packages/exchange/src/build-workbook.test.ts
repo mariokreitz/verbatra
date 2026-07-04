@@ -104,6 +104,53 @@ describe("buildWorkbook: translator-facing properties", () => {
   });
 });
 
+describe("buildWorkbook: translation column text format (BTS-83)", () => {
+  it("formats a filled translation cell as text so Excel cannot coerce typed input", async () => {
+    const workbook = await loadBuilt();
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.translation).numFmt).toBe("@");
+  });
+
+  it("formats an empty translation cell as text too", async () => {
+    const empty: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "greeting",
+              source: "Hello",
+              currentTarget: "",
+              status: "new",
+              sourceHash: "abc123",
+              translation: "",
+            },
+          ],
+        },
+      ],
+    };
+    const workbook = await loadBuilt(empty);
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.translation).numFmt).toBe("@");
+  });
+
+  it("does not format the other read-only columns as text", async () => {
+    const workbook = await loadBuilt();
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.key).numFmt).not.toBe("@");
+    expect(dataRow?.getCell(COLUMN.source).numFmt).not.toBe("@");
+  });
+
+  it("also formats the translation column at the column level, beyond written rows", async () => {
+    const workbook = await loadBuilt();
+    const sheet = workbook.getWorksheet("de");
+    expect(sheet?.getColumn(COLUMN.translation).numFmt).toBe("@");
+  });
+});
+
 describe("buildWorkbook: worksheet-name coupling guard", () => {
   it("rejects a locale longer than 31 characters", async () => {
     const bad: WorkbookModel = { sheets: [{ locale: "a".repeat(32), rows: [] }] };
