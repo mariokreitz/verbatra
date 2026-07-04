@@ -36,7 +36,7 @@ describe("analyzeIcuValue: extraction", () => {
 
   it("extracts arguments nested inside a plural branch; '#' is not a placeholder", () => {
     const a = analyzeIcuValue("{count, plural, one {# by {author}} other {# by {author}}}");
-    expect(a.placeholders).toEqual(["{count}", "{author}", "{author}"]);
+    expect(a.placeholders).toEqual(["{count}", "{author}"]);
     expect(a.isPlural).toBe(true);
   });
 
@@ -49,6 +49,57 @@ describe("analyzeIcuValue: extraction", () => {
     const a = analyzeIcuValue("click <link>here {x}</link>");
     expect(a.placeholders).toEqual(["<link>", "{x}"]);
     expect(a.isPlural).toBe(false);
+  });
+});
+
+describe("analyzeIcuValue: plural/select branch cardinality (BTS-81)", () => {
+  it("counts a placeholder used in every branch once, for a two-branch (en) plural", () => {
+    const en = analyzeIcuValue(
+      "{count, plural, one {{name} has # apple} other {{name} has # apples}}",
+    );
+    expect(en.placeholders).toEqual(["{count}", "{name}"]);
+  });
+
+  it("counts the same placeholder once for a four-branch (pl) plural, matching the en count", () => {
+    const pl = analyzeIcuValue(
+      "{count, plural, one {{name} ma # jablko} few {{name} ma # jablka} many {{name} ma # jablek} other {{name} ma # jablka}}",
+    );
+    expect(pl.placeholders).toEqual(["{count}", "{name}"]);
+  });
+
+  it("counts the same placeholder once for a six-branch (ar) plural, matching the en count", () => {
+    const ar = analyzeIcuValue(
+      "{count, plural, zero {{name} 0} one {{name} 1} two {{name} 2} few {{name} 3} many {{name} 4} other {{name} 5}}",
+    );
+    expect(ar.placeholders).toEqual(["{count}", "{name}"]);
+  });
+
+  it("counts a placeholder used in every option of a select once, regardless of option count", () => {
+    const a = analyzeIcuValue(
+      "{g, select, male {{name} his} female {{name} her} other {{name} their}}",
+    );
+    expect(a.placeholders).toEqual(["{g}", "{name}"]);
+  });
+
+  it("still catches a placeholder dropped from one branch as a real drop, not absorbed by cardinality", () => {
+    const complete = analyzeIcuValue("{count, plural, one {# by {author}} other {# by {author}}}");
+    const dropped = analyzeIcuValue("{count, plural, one {# by {author}} other {#}}");
+    expect(complete.placeholders).toEqual(["{count}", "{author}"]);
+    expect(dropped.placeholders).toEqual(["{count}"]);
+  });
+
+  it("still catches an invented placeholder added to every branch as a real extra", () => {
+    const source = analyzeIcuValue("{count, plural, one {# item} other {# items}}");
+    const invented = analyzeIcuValue(
+      "{count, plural, one {# item by {author}} other {# items by {author}}}",
+    );
+    expect(source.placeholders).toEqual(["{count}"]);
+    expect(invented.placeholders).toEqual(["{count}", "{author}"]);
+  });
+
+  it("preserves a uniform duplicate occurrence within every branch instead of collapsing to one", () => {
+    const a = analyzeIcuValue("{count, plural, one {{name} and {name}} other {{name} and {name}}}");
+    expect(a.placeholders).toEqual(["{count}", "{name}", "{name}"]);
   });
 });
 
