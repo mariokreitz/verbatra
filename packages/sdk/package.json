@@ -68,7 +68,7 @@
     "@formatjs/icu-messageformat-parser": "catalog:bundled",
     "@google/genai": "catalog:bundled",
     "@xmldom/xmldom": "catalog:bundled",
-    "chokidar": "5.0.0",
+    "chokidar": "catalog:",
     "cosmiconfig": "9.0.2",
     "cosmiconfig-typescript-loader": "6.3.0",
     "deepl-node": "catalog:bundled",
