@@ -5,6 +5,7 @@ import { buildSetCookieHeader, readCookieValue } from "./cookie.js";
 import { isAllowedHost, isAllowedOrigin } from "./host-origin.js";
 import { isJsonRequestContentType } from "./request-content-type.js";
 import { formatRequestLog } from "./request-log.js";
+import type { RpcHandlerDeps } from "./rpc.js";
 import { handleRpcBody } from "./rpc-gate.js";
 import { applyNoStore, applySecurityHeaders } from "./security-headers.js";
 import { readAsset } from "./static-assets.js";
@@ -26,6 +27,8 @@ export interface DispatchContext {
   readonly cookieName: string;
   readonly assetsRootPath: string;
   readonly log: (line: string) => void;
+  /** Resolved once at startup (G11); every POST /rpc call reuses this same value, never re-loading it. */
+  readonly rpcDeps: RpcHandlerDeps;
 }
 
 function pathWithoutQuery(url: string): string {
@@ -181,10 +184,10 @@ async function handlePost(
   }
   // Method dispatch, parameter validation, and the RPC response envelope are a separate concern
   // that plugs in through handleRpcBody; this only gates transport-level access to it.
-  const result = await handleRpcBody(body);
+  const result = await handleRpcBody(body, context.rpcDeps);
   applyNoStore(response);
   response.statusCode = result.statusCode;
-  response.setHeader("Content-Type", "text/plain; charset=utf-8");
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
   response.end(result.body);
   context.log(formatRequestLog({ method, path, status: result.statusCode }));
 }

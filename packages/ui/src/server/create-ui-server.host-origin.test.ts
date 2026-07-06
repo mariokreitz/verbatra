@@ -1,6 +1,7 @@
 import { connect } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 interface RawResponse {
@@ -58,7 +59,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("accepts Host 127.0.0.1:<actual port>, reaching the authentication check beyond it", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", [
       `Host: 127.0.0.1:${server.port}`,
@@ -68,7 +69,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects Host localhost:<port> with the constant 403 body", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", [
       `Host: localhost:${server.port}`,
@@ -78,7 +79,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects Host [::1]:<port> with the constant 403 body", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", [
       `Host: [::1]:${server.port}`,
@@ -88,7 +89,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects an empty Host header value", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", ["Host:"]);
 
@@ -101,7 +102,7 @@ describe("Host and Origin gate", () => {
     // own 400 before any application code, including this gate, runs. That still satisfies the
     // requirement that such a request is never routed; it is simply rejected one layer earlier
     // than every other disallowed Host, which this server does control and answers with 403.
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", []);
 
@@ -109,7 +110,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects a Host header with the wrong port", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", [
       `Host: 127.0.0.1:${server.port + 1}`,
@@ -119,7 +120,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects Host 127.0.0.1:0 when the server is bound on a non-zero ephemeral port", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
     expect(server.port).not.toBe(0);
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", ["Host: 127.0.0.1:0"]);
@@ -128,7 +129,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("allows an absent Origin on POST, reaching the path check beyond it", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(
       server.port,
@@ -141,7 +142,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("allows a matching Origin on POST, reaching the path check beyond it", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(
       server.port,
@@ -158,7 +159,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects the literal null Origin on POST", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(
       server.port,
@@ -171,7 +172,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects a foreign Origin on POST", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(
       server.port,
@@ -184,7 +185,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("always rejects OPTIONS with the constant 403 body, even with a valid Host", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "OPTIONS / HTTP/1.1", [
       `Host: 127.0.0.1:${server.port}`,
@@ -194,7 +195,7 @@ describe("Host and Origin gate", () => {
   });
 
   it("never sends an Access-Control-* header on any response", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const responses = await Promise.all([
       rawRequest(server.port, "GET / HTTP/1.1", [`Host: 127.0.0.1:${server.port}`]),

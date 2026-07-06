@@ -6,6 +6,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { assertLoopbackAddress, startUiServer } from "./create-ui-server.js";
 import { UiServerStartError } from "./errors.js";
+import { stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 describe("assertLoopbackAddress", () => {
@@ -38,9 +39,9 @@ describe("startUiServer failure modes", () => {
   });
 
   it("surfaces EADDRINUSE as a structured, catchable error and never falls back to another port", async () => {
-    first = await startUiServer({ port: 0 });
+    first = await startUiServer({ port: 0, loader: stubLoader() });
 
-    await expect(startUiServer({ port: first.port })).rejects.toMatchObject({
+    await expect(startUiServer({ port: first.port, loader: stubLoader() })).rejects.toMatchObject({
       name: "UiServerStartError",
       code: "PORT_IN_USE",
       port: first.port,
@@ -64,7 +65,7 @@ describe("malformed request handling", () => {
   });
 
   it("answers the constant 403 body for a request the HTTP parser itself rejects", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const raw = await new Promise<string>((resolve, reject) => {
       const socket = connect(server?.port ?? 0, "127.0.0.1", () => {
@@ -90,6 +91,7 @@ describe("malformed request handling", () => {
       port: 0,
       token,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     const port = server.port;
 

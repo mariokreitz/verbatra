@@ -12,4 +12,12 @@ export { startUiServer } from "./server/create-ui-server.js";
 export { DEFAULT_STUDIO_PORT } from "./server/default-port.js";
 export type { UiServerErrorCode } from "./server/errors.js";
 export { UiServerStartError } from "./server/errors.js";
-export type { UiServer, UiServerOptions } from "./server/types.js";
+export type {
+  CreateUiWatcher,
+  ExecFileImpl,
+  ExecFileResult,
+  UiServer,
+  UiServerDeps,
+  UiServerOptions,
+  UiWatcher,
+} from "./server/types.js";

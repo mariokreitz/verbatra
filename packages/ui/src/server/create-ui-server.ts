@@ -1,12 +1,14 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { fileURLToPath } from "node:url";
+import type { LoadedConfig } from "@verbatra/sdk";
 import { buildBanner } from "./banner.js";
 import { cookieName } from "./cookie.js";
 import { resolvePort } from "./default-port.js";
 import { type DispatchContext, handleRequest } from "./dispatch.js";
 import { UiServerStartError } from "./errors.js";
 import { resolveBoundAddress } from "./resolve-bound-port.js";
+import type { RpcHandlerDeps } from "./rpc.js";
 import { generateToken } from "./token.js";
 import { FORBIDDEN_BODY } from "./transport-responses.js";
 import type { UiServer, UiServerOptions } from "./types.js";
@@ -45,6 +47,29 @@ function defaultAssetsRoot(): URL {
 
 function defaultOutput(line: string): void {
   console.log(line);
+}
+
+/**
+ * Builds the deps every RPC handler receives, resolved once here (see the `loader` call in
+ * {@link startUiServer}, before listen) and reused for the life of the process (G11/G12): no
+ * handler re-loads the config, and the server otherwise caches no project data between requests.
+ */
+function buildRpcHandlerDeps(
+  config: LoadedConfig,
+  projectRoot: string,
+  options: UiServerOptions,
+): RpcHandlerDeps {
+  return {
+    config,
+    projectRoot,
+    ...(options.fs !== undefined ? { fs: options.fs } : {}),
+    ...(options.adapterRegistry !== undefined ? { adapterRegistry: options.adapterRegistry } : {}),
+    ...(options.execFileImpl !== undefined ? { execFileImpl: options.execFileImpl } : {}),
+    ...(options.createWatcher !== undefined ? { createWatcher: options.createWatcher } : {}),
+    ...(options.heartbeatIntervalMs !== undefined
+      ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
+      : {}),
+  };
 }
 
 /**
@@ -98,11 +123,16 @@ function closeServer(server: Server): Promise<void> {
  * SPA and gates every request behind a Host and Origin check, a bootstrap token, and a session
  * cookie. There is no host option and no relaxed mode; the printed loopback URL, shown once at
  * startup, is the only supported entry point.
+ *
+ * `options.loader` is resolved exactly once here, before the server starts listening (G11): every
+ * RPC handler for the life of this process receives that same resolved config, and it is never
+ * re-invoked on a later request, whatever the request does.
  */
-export async function startUiServer(options: UiServerOptions = {}): Promise<UiServer> {
+export async function startUiServer(options: UiServerOptions): Promise<UiServer> {
   const assetsRootPath = fileURLToPath(options.assetsRoot ?? defaultAssetsRoot());
   const output = options.output ?? defaultOutput;
   const token = options.token ?? generateToken();
+  const config = await options.loader();
 
   const server = createServer();
   server.on("clientError", handleClientError);
@@ -116,6 +146,7 @@ export async function startUiServer(options: UiServerOptions = {}): Promise<UiSe
     cookieName: cookieName(port),
     assetsRootPath,
     log: output,
+    rpcDeps: buildRpcHandlerDeps(config, process.cwd(), options),
   };
   server.on("request", (request, response) => {
     handleRequest(context, request, response).catch(() => {

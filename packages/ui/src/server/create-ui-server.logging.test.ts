@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 describe("token-once banner and request logging", () => {
@@ -15,7 +16,11 @@ describe("token-once banner and request logging", () => {
   it("prints the token exactly once, in the startup banner, and never in a request log line", async () => {
     const lines: string[] = [];
 
-    server = await startUiServer({ port: 0, output: (line) => lines.push(line) });
+    server = await startUiServer({
+      port: 0,
+      output: (line) => lines.push(line),
+      loader: stubLoader(),
+    });
     const bannerLine = lines[0] ?? "";
     const tokenMatch = /\?token=([0-9a-f]+)$/.exec(bannerLine);
     expect(tokenMatch).not.toBeNull();
@@ -43,7 +48,11 @@ describe("token-once banner and request logging", () => {
 
   it("logs the method, the path without a query string, and the status", async () => {
     const lines: string[] = [];
-    server = await startUiServer({ port: 0, output: (line) => lines.push(line) });
+    server = await startUiServer({
+      port: 0,
+      output: (line) => lines.push(line),
+      loader: stubLoader(),
+    });
 
     await fetch(new URL("/some/path?with=query", server.url));
 
