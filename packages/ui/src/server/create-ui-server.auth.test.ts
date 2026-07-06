@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 const TOKEN = "auth-flow-test-token-abcdef0123456789";
@@ -24,7 +25,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("redirects to / with a Set-Cookie on a valid token", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
 
     const response = await bootstrap(server.url, TOKEN);
 
@@ -34,7 +35,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("answers 401 on an invalid token, not an exception", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
 
     const response = await bootstrap(server.url, "wrong-token");
 
@@ -43,7 +44,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("is idempotent: bootstrapping twice both succeed with 303 and a fresh Set-Cookie", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
 
     const first = await bootstrap(server.url, TOKEN);
     const second = await bootstrap(server.url, TOKEN);
@@ -55,7 +56,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("re-authenticates on a valid token even when a stale cookie is already present", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
     const staleCookie = `verbatra_studio_${server.port}=stale-garbage-value`;
 
     const response = await fetch(`${server.url}?token=${TOKEN}`, {
@@ -68,8 +69,12 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("authenticates a request carrying its own valid cookie alongside a foreign-port cookie", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
-    other = await startUiServer({ port: 0, token: "other-server-token-9876543210abcdef" });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
+    other = await startUiServer({
+      port: 0,
+      token: "other-server-token-9876543210abcdef",
+      loader: stubLoader(),
+    });
 
     const ownCookie = (await bootstrap(server.url, TOKEN)).headers.get("set-cookie")?.split(";")[0];
     const foreignCookie = (
@@ -88,8 +93,12 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("rejects a request carrying only a foreign-port cookie", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
-    other = await startUiServer({ port: 0, token: "other-server-token-9876543210abcdef" });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
+    other = await startUiServer({
+      port: 0,
+      token: "other-server-token-9876543210abcdef",
+      loader: stubLoader(),
+    });
 
     const foreignCookie = (
       await bootstrap(other.url, "other-server-token-9876543210abcdef")
@@ -104,7 +113,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("rejects a request with no cookie and no bootstrap token", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
 
     const response = await fetch(server.url);
 
@@ -112,7 +121,7 @@ describe("bootstrap and session cookie", () => {
   });
 
   it("rejects a cookie with this server's own name but a wrong value, with no bootstrap token present", async () => {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
     const wrongValueCookie = `verbatra_studio_${server.port}=not-the-real-token`;
 
     const response = await fetch(server.url, { headers: { Cookie: wrongValueCookie } });

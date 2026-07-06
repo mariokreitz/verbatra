@@ -1,17 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { authenticatedCookie, stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 const TOKEN = "rpc-gate-test-token-0123456789abcdef";
-
-async function authenticatedCookie(url: string, token: string): Promise<string> {
-  const response = await fetch(`${url}?token=${token}`, { redirect: "manual" });
-  const setCookie = response.headers.get("set-cookie");
-  if (setCookie === null) {
-    throw new Error("expected a Set-Cookie header from bootstrap");
-  }
-  return setCookie.split(";")[0] ?? "";
-}
 
 describe("POST /rpc method and transport policy", () => {
   let server: UiServer | undefined;
@@ -25,11 +17,11 @@ describe("POST /rpc method and transport policy", () => {
   });
 
   async function start(): Promise<void> {
-    server = await startUiServer({ port: 0, token: TOKEN });
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
     cookie = await authenticatedCookie(server.url, TOKEN);
   }
 
-  it("reaches the not-yet-implemented rpc handler on a well-formed authenticated request", async () => {
+  it("reaches the real rpc dispatcher on a well-formed authenticated request", async () => {
     await start();
     if (server === undefined) {
       throw new Error("server not started");
@@ -42,10 +34,12 @@ describe("POST /rpc method and transport policy", () => {
         "Content-Type": "application/json",
         Origin: server.url.replace(/\/$/, ""),
       },
-      body: "{}",
+      body: JSON.stringify({ method: "project.snapshot", params: {} }),
     });
 
-    expect(response.status).toBe(501);
+    expect(response.status).toBe(200);
+    const payload = (await response.json()) as { ok: boolean };
+    expect(payload.ok).toBe(true);
   });
 
   it("rejects an unauthenticated POST /rpc with 401 before checking content type", async () => {

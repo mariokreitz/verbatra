@@ -1,10 +1,11 @@
 import { connect } from "node:net";
 import { describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { stubLoader } from "./test-support.js";
 
 describe("shutdown", () => {
   it("closes within 2 seconds even with an open keep-alive connection", async () => {
-    const server = await startUiServer({ port: 0 });
+    const server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const socket = connect(server.port, "127.0.0.1");
     await new Promise<void>((resolve, reject) => {

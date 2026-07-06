@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { startUiServer } from "./create-ui-server.js";
+import { stubLoader } from "./test-support.js";
 import type { UiServer } from "./types.js";
 
 const TEST_TOKEN = "test-bootstrap-token-0123456789";
@@ -40,6 +41,7 @@ describe("startUiServer", () => {
       port: 0,
       token: TEST_TOKEN,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     const cookie = await bootstrapCookie(server.url, TEST_TOKEN);
 
@@ -59,6 +61,7 @@ describe("startUiServer", () => {
       port: 0,
       token: TEST_TOKEN,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     const cookie = await bootstrapCookie(server.url, TEST_TOKEN);
 
@@ -77,6 +80,7 @@ describe("startUiServer", () => {
       port: 0,
       token: TEST_TOKEN,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     const cookie = await bootstrapCookie(server.url, TEST_TOKEN);
 
@@ -95,6 +99,7 @@ describe("startUiServer", () => {
       port: 0,
       token: TEST_TOKEN,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     const cookie = await bootstrapCookie(server.url, TEST_TOKEN);
 
@@ -107,7 +112,11 @@ describe("startUiServer", () => {
     assetsRootPath = await mkdtemp(join(tmpdir(), "verbatra-ui-server-"));
     await writeFile(join(assetsRootPath, "index.html"), "<html></html>");
 
-    server = await startUiServer({ port: 0, assetsRoot: pathToFileURL(`${assetsRootPath}/`) });
+    server = await startUiServer({
+      port: 0,
+      assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
+    });
 
     expect(server.url).toBe(`http://127.0.0.1:${server.port}/`);
     expect(server.port).toBeGreaterThan(0);
@@ -120,6 +129,7 @@ describe("startUiServer", () => {
     const started = await startUiServer({
       port: 0,
       assetsRoot: pathToFileURL(`${assetsRootPath}/`),
+      loader: stubLoader(),
     });
     await started.close();
 
@@ -127,7 +137,7 @@ describe("startUiServer", () => {
   });
 
   it("falls back to the built assets next to this module when no override is given", async () => {
-    server = await startUiServer({ port: 0 });
+    server = await startUiServer({ port: 0, loader: stubLoader() });
 
     const response = await fetch(server.url);
 
@@ -145,6 +155,7 @@ describe("startUiServer", () => {
       output: (line) => {
         banner = line;
       },
+      loader: stubLoader(),
     });
     const tokenMatch = /\?token=([0-9a-f]+)$/.exec(banner);
     expect(tokenMatch).not.toBeNull();

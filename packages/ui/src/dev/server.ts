@@ -3,6 +3,7 @@
  * Started with `tsx watch` from the package root, so the assets root is resolved relative to this
  * file's own on-disk location rather than the built dist/index.js default.
  */
+import { loadConfigWithMeta } from "@verbatra/sdk";
 import { startUiServer } from "../index.js";
 
 const DEV_TOKEN_ENV_VAR = "VERBATRA_UI_DEV_TOKEN";
@@ -13,8 +14,9 @@ async function main(): Promise<void> {
   const token = process.env[DEV_TOKEN_ENV_VAR] ?? FALLBACK_DEV_TOKEN;
 
   // The default output sink prints the startup banner (the loopback URL with the token attached),
-  // so there is nothing else to log here.
-  await startUiServer({ assetsRoot, token });
+  // so there is nothing else to log here. The loader searches from the current working directory,
+  // exactly like every other verbatra command; run this from inside a project that has a config.
+  await startUiServer({ assetsRoot, token, loader: () => loadConfigWithMeta() });
 }
 
 void main();

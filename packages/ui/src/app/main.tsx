@@ -1,8 +1,5 @@
 import { createRoot } from "react-dom/client";
-
-function App() {
-  return <div>Verbatra Studio</div>;
-}
+import { App } from "./App.js";
 
 const container = document.getElementById("root");
 if (container !== null) {
