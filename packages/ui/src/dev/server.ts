@@ -12,9 +12,9 @@ async function main(): Promise<void> {
   const assetsRoot = new URL("../../dist/app/", import.meta.url);
   const token = process.env[DEV_TOKEN_ENV_VAR] ?? FALLBACK_DEV_TOKEN;
 
-  const server = await startUiServer({ assetsRoot, token });
-
-  console.log(`verbatra ui dev server listening at ${server.url}`);
+  // The default output sink prints the startup banner (the loopback URL with the token attached),
+  // so there is nothing else to log here.
+  await startUiServer({ assetsRoot, token });
 }
 
 void main();
