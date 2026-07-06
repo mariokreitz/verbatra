@@ -11,7 +11,13 @@ function projectConfigSource(source: LoadedConfig["source"], projectRoot: string
   return redact(relative(projectRoot, source.filepath));
 }
 
-function projectGlossaryIndicator(
+/**
+ * Derives the glossary indicator from the loader's own {@link LoadedConfig.glossary} provenance
+ * (never inferred from the config's shape), relativizing a file path against the project root the
+ * same way {@link projectConfigSource} does. Shared by {@link buildProjectSnapshot} and the
+ * `glossary.get` handler so the relativization logic exists in exactly one place.
+ */
+export function projectGlossaryIndicator(
   glossary: LoadedConfig["glossary"],
   projectRoot: string,
 ): GlossaryIndicator {
