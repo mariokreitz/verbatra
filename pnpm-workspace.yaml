@@ -6,8 +6,8 @@ packages:
 # the "bundled" catalog holds the runtime deps that @verbatra/sdk re-declares from the
 # internal packages it bundles, so the owning package and sdk always pin the same version.
 catalog:
-  "@types/node": 26.0.0
-  "@vitest/coverage-v8": 4.1.9
+  "@types/node": 26.1.0
+  "@vitest/coverage-v8": 4.1.10
   tsup: 8.5.1
   typescript: 6.0.3
   vitest: 4.1.9
@@ -15,9 +15,9 @@ catalog:
 
 catalogs:
   bundled:
-    "@anthropic-ai/sdk": 0.105.0
-    "@formatjs/icu-messageformat-parser": 3.5.11
-    "@google/genai": 2.9.0
+    "@anthropic-ai/sdk": 0.110.0
+    "@formatjs/icu-messageformat-parser": 3.5.12
+    "@google/genai": 2.10.0
     "@xmldom/xmldom": 0.9.10
     deepl-node: 1.27.0
     exceljs: 4.4.0
