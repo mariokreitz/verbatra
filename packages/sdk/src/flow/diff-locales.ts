@@ -28,7 +28,7 @@ export interface DiffLocalesDeps {
 }
 
 /** Read a locale's existing target resource, or an empty resource when the file does not exist. */
-async function readTarget(
+export async function readTarget(
   cwd: string,
   config: VerbatraConfig,
   adapter: FormatAdapter,
