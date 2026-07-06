@@ -29,8 +29,8 @@ describe("the handlers registry", () => {
     }
   });
 
-  it("has real handlers for project.snapshot and status.check only, so far", () => {
-    expect(Object.keys(rpcHandlers)).toEqual(["project.snapshot", "status.check"]);
+  it("has real handlers for project.snapshot, status.check, and status.diff only, so far", () => {
+    expect(Object.keys(rpcHandlers)).toEqual(["project.snapshot", "status.check", "status.diff"]);
   });
 });
 
@@ -43,7 +43,6 @@ function deps(): RpcHandlerDeps {
 
 describe("dispatch for a contract method with no registered handler", () => {
   it.each([
-    "status.diff",
     "glossary.get",
     "lock.state",
     "history.list",

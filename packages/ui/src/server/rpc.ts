@@ -1,8 +1,10 @@
 import type { LoadedConfig } from "@verbatra/sdk";
 import { STATUS_CHECK_METHOD } from "../shared/rpc/check.js";
 import type { RpcMethodName, RpcParamsFor, RpcResultFor } from "../shared/rpc/contract.js";
+import { STATUS_DIFF_METHOD } from "../shared/rpc/diff.js";
 import { PROJECT_SNAPSHOT_METHOD } from "../shared/rpc/snapshot.js";
 import { statusCheckHandler } from "./methods/check.js";
+import { statusDiffHandler } from "./methods/diff.js";
 import { snapshotHandler } from "./methods/snapshot.js";
 import type { UiServerDeps } from "./types.js";
 
@@ -25,17 +27,18 @@ export type RpcHandler<M extends RpcMethodName> = (
 /**
  * The single handlers record. Its keys are always a subset of the contract's method list
  * ({@link RPC_METHOD_NAMES} in `../shared/rpc/contract.js`); a contract method with no entry here
- * dispatches to `METHOD_UNKNOWN` rather than throwing. `project.snapshot` and `status.check` have
- * real handlers so far; the remaining four are later tickets' handlers.
+ * dispatches to `METHOD_UNKNOWN` rather than throwing. `project.snapshot`, `status.check`, and
+ * `status.diff` have real handlers so far; the remaining three are later tickets' handlers.
  *
  * The server caches no project data between requests: `project.snapshot` only reads the config
  * resolved once at startup (see {@link RpcHandlerDeps.config}), which is the one value this whole
  * dashboard intentionally holds in memory. A handler that reads anything else from disk (the
  * status, diff, lock, or history views) must read it fresh on every call, never caching it;
- * `status.check` does this, and its test file asserts a second call reflects an on-disk edit made
- * between two identical calls.
+ * `status.check` and `status.diff` both do this, and their test files each assert a second call
+ * reflects an on-disk edit made between two identical calls.
  */
 export const rpcHandlers: { readonly [M in RpcMethodName]?: RpcHandler<M> } = {
   [PROJECT_SNAPSHOT_METHOD]: snapshotHandler,
   [STATUS_CHECK_METHOD]: statusCheckHandler,
+  [STATUS_DIFF_METHOD]: statusDiffHandler,
 };
