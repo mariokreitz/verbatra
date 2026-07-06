@@ -49,6 +49,22 @@ describe("resolveAssetPath", () => {
   it("rejects a deeply nested traversal attempt", () => {
     expect(resolveAssetPath(assetsRootPath, "/a/../../../etc/passwd")).toBeUndefined();
   });
+
+  it("rejects a dotfile at the root", () => {
+    expect(resolveAssetPath(assetsRootPath, "/.env")).toBeUndefined();
+  });
+
+  it("rejects a dotfile nested under a normal directory", () => {
+    expect(resolveAssetPath(assetsRootPath, "/config/.secret")).toBeUndefined();
+  });
+
+  it("rejects a dot-directory segment even when the final segment is a normal file", () => {
+    expect(resolveAssetPath(assetsRootPath, "/.git/config")).toBeUndefined();
+  });
+
+  it("rejects a percent-encoded dotfile request", () => {
+    expect(resolveAssetPath(assetsRootPath, "/%2eenv")).toBeUndefined();
+  });
 });
 
 describe("readAsset", () => {
@@ -93,5 +109,11 @@ describe("readAsset", () => {
     } finally {
       await rm(secretPath, { force: true });
     }
+  });
+
+  it("returns undefined for a dotfile that exists on disk", async () => {
+    await writeFile(join(assetsRootPath, ".env"), "SECRET=1");
+
+    await expect(readAsset(assetsRootPath, "/.env")).resolves.toBeUndefined();
   });
 });

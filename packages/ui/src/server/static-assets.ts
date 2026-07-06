@@ -24,20 +24,31 @@ function withoutTrailingSep(path: string): string {
   return path.length > sep.length && path.endsWith(sep) ? path.slice(0, -sep.length) : path;
 }
 
+/** True when any path segment starts with a dot, for example ".env" or ".git". The root request ("") never matches. */
+function hasDotSegment(pathWithoutLeadingSlash: string): boolean {
+  return pathWithoutLeadingSlash.split("/").some((segment) => segment.startsWith("."));
+}
+
 /**
  * Resolves a request path to an absolute path inside the assets root, or `undefined` when the
- * request would escape the root. This is a scaffold-level containment check; the full static
- * serving gate (dotfiles, directory listing, single-decode discipline) lands with the server
- * hardening this scaffold exists to carry.
+ * request would escape the root or names a dotfile. The path is percent-decoded exactly once,
+ * then normalized and checked for containment; there is never a directory listing since only
+ * `readFile` is used, never a directory read.
  */
+function stripQuery(requestPath: string): string {
+  const queryIndex = requestPath.indexOf("?");
+  return queryIndex === -1 ? requestPath : requestPath.slice(0, queryIndex);
+}
+
 export function resolveAssetPath(assetsRootPath: string, requestPath: string): string | undefined {
   const root = withoutTrailingSep(normalize(assetsRootPath));
-  const withoutQuery = requestPath.split("?")[0] ?? "/";
-  const decoded = decodeRequestPath(withoutQuery);
+  const decoded = decodeRequestPath(stripQuery(requestPath));
   const withoutLeadingSlash = decoded.replace(/^\/+/, "");
+  if (hasDotSegment(withoutLeadingSlash)) {
+    return undefined;
+  }
   const candidate = normalize(join(root, withoutLeadingSlash || "index.html"));
-  const isWithinRoot = candidate === root || candidate.startsWith(root + sep);
-  return isWithinRoot ? candidate : undefined;
+  return candidate.startsWith(root + sep) ? candidate : undefined;
 }
 
 /** Reads the asset a request path resolves to, or `undefined` if it does not exist or escapes the root. */

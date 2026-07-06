@@ -1,15 +1,16 @@
 /**
- * Options accepted by {@link startUiServer}. The option set grows as the server gains its
- * request-validation gate (host, origin, cookie, token checks, and response headers); this
- * scaffold wires the assets-root override end to end so the SPA can be served from anywhere.
+ * Options accepted by {@link startUiServer}. Dev ergonomics come only from the injected token and
+ * the assets-root override; nothing here varies request validation by environment.
  */
 export interface UiServerOptions {
-  /** TCP port to bind. Omit, or pass 0, to let the OS assign an ephemeral port. */
+  /** TCP port to bind. Omit for the default Studio port, or pass 0 to let the OS assign an ephemeral port (tests only). */
   readonly port?: number;
-  /** Bootstrap token the server will accept once request validation lands. */
+  /** Bootstrap token the server accepts. Omit to have the server generate one from secure randomness. */
   readonly token?: string;
   /** Overrides where static assets are served from; defaults to the built SPA next to this module. */
   readonly assetsRoot?: URL;
+  /** Sink for the startup banner and the per-request log line. Defaults to writing to the console. */
+  readonly output?: (line: string) => void;
 }
 
 /** A running Verbatra Studio server instance. */
