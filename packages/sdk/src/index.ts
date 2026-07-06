@@ -2,9 +2,11 @@
  * The verbatra SDK: the central orchestration API for running translation. {@link loadConfig} loads and
  * validates the project config; {@link translate} runs the one-shot read, diff, translate, write flow
  * over all target locales; {@link watch} runs the same flow on each debounced source change;
- * {@link check} and {@link diff} report pending work without writing. For human-in-the-loop translation,
- * {@link exportWorkbook} writes untranslated strings to an `.xlsx` workbook and {@link importWorkbook}
- * reads a filled workbook back through the same diff, lock, and integrity checks. Whole-run failures
+ * {@link check} and {@link diff} report pending work without writing; {@link lockState} reports the
+ * lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the lock-file
+ * itself. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
+ * `.xlsx` workbook and {@link importWorkbook} reads a filled workbook back through the same diff, lock,
+ * and integrity checks. Whole-run failures
  * throw a structured, secret-free {@link SdkError}; per-locale failures, provider notices, and integrity
  * findings are surfaced as data on the {@link RunSummary} rather than thrown. API keys are read only from
  * the environment by the providers; the SDK never reads or holds a key, and the config carries none.
@@ -43,6 +45,13 @@ export {
   diff,
   type LocaleDiff,
 } from "./flow/diff.js";
+export {
+  type LockLocaleState,
+  type LockStateDeps,
+  type LockStateInput,
+  type LockStateResult,
+  lockState,
+} from "./flow/lock-state.js";
 export type {
   LocaleNotice,
   LocaleSummary,
@@ -68,6 +77,13 @@ export {
   importWorkbook,
 } from "./flow/workbook/import-workbook.js";
 export type { SdkFs } from "./fs.js";
+export {
+  type LoadLockFileDeps,
+  type LoadLockFileInput,
+  loadLockFile,
+} from "./lock/load-lock-file.js";
+export { LOCK_FILE_NAME } from "./lock/lock-file.js";
+export type { LockFile } from "./lock/types.js";
 export { scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";
 export {
