@@ -156,4 +156,11 @@ describe("loadConfig", () => {
       });
     }
   });
+
+  it("rejects a glossary that is neither an inline record nor a string path", async () => {
+    const bad = { ...baseConfig(), glossary: 5 };
+    await expect(loadConfig({ configOverride: bad })).rejects.toMatchObject({
+      code: "CONFIG_INVALID",
+    });
+  });
 });
