@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { join, normalize, sep } from "node:path";
+import { withoutTrailingSep } from "./path-normalize.js";
 
 /** A static asset read from the assets root, keyed by its resolved absolute path. */
 export interface ResolvedAsset {
@@ -13,15 +14,6 @@ function decodeRequestPath(requestPath: string): string {
   } catch {
     return requestPath;
   }
-}
-
-/**
- * Strips a trailing path separator so the root is comparable both as a directory prefix and as an
- * exact match. Callers may pass a root derived from a URL (for example via `fileURLToPath` on a
- * `file://.../` directory URL), which keeps its trailing slash.
- */
-function withoutTrailingSep(path: string): string {
-  return path.length > sep.length && path.endsWith(sep) ? path.slice(0, -sep.length) : path;
 }
 
 /** True when any path segment starts with a dot, for example ".env" or ".git". The root request ("") never matches. */
