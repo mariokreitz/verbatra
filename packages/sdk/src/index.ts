@@ -14,9 +14,20 @@
 
 export type { SupportedFormat } from "@verbatra/core";
 export { defineConfig } from "./config/define-config.js";
-export { type LoadConfigOptions, loadConfig } from "./config/load-config.js";
+export {
+  type ConfigSource,
+  type LoadConfigOptions,
+  type LoadedConfig,
+  loadConfig,
+  loadConfigWithMeta,
+} from "./config/load-config.js";
 export type { ProviderConfig, ProviderId } from "./config/provider-config.js";
-export { type VerbatraConfig, verbatraConfigSchema } from "./config/schema.js";
+export type { GlossaryProvenance } from "./config/resolve-glossary.js";
+export {
+  type VerbatraConfig,
+  type VerbatraConfigInput,
+  verbatraConfigSchema,
+} from "./config/schema.js";
 export { SdkError, type SdkErrorCode } from "./errors.js";
 export {
   type CheckDeps,

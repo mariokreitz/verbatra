@@ -1,6 +1,6 @@
 import type { AnthropicModel, GeminiModel, OpenAiModel } from "@verbatra/ai-providers";
 import type { ProviderConfig, ProviderId } from "./provider-config.js";
-import type { VerbatraConfig } from "./schema.js";
+import type { VerbatraConfigInput } from "./schema.js";
 
 // A provider's known model literals, with the SDK's open `string` arm stripped, so the authoring field
 // accepts only that provider's models. Static authoring aid only; the runtime schema stays a non-empty
@@ -26,13 +26,15 @@ type AuthoringProviderVariant = {
 };
 
 /**
- * The authoring view of the whole config for a provider id: a {@link VerbatraConfig} whose `provider`
- * is that id's single authoring variant, so `options.model` offers only that provider's models. When
- * `TId` defaults to `ProviderId`, `provider` is the full authoring union. Every value here is assignable
- * to {@link VerbatraConfig}, since a model literal is a subtype of `string`.
+ * The authoring view of the whole config for a provider id: a {@link VerbatraConfigInput} whose
+ * `provider` is that id's single authoring variant, so `options.model` offers only that provider's
+ * models. `glossary` stays the as-authored union (inline record or file path); resolution happens only
+ * in `loadConfig`. When `TId` defaults to `ProviderId`, `provider` is the full authoring union. Every
+ * value here is assignable to {@link VerbatraConfigInput}, since a model literal is a subtype of
+ * `string`.
  */
 export type AuthoringConfigFor<TId extends ProviderId = ProviderId> = Omit<
-  VerbatraConfig,
+  VerbatraConfigInput,
   "provider"
 > & {
   provider: AuthoringProviderVariant[TId];
@@ -40,7 +42,7 @@ export type AuthoringConfigFor<TId extends ProviderId = ProviderId> = Omit<
 
 /**
  * The authoring view of the whole config across every provider (the `TId = ProviderId`
- * case of {@link AuthoringConfigFor}): identical to {@link VerbatraConfig} except that
+ * case of {@link AuthoringConfigFor}): identical to {@link VerbatraConfigInput} except that
  * `provider` offers per-provider model completions.
  */
 export type AuthoringConfig = AuthoringConfigFor;
