@@ -63,10 +63,17 @@ export interface UiServerDeps {
   readonly assetsRoot?: URL;
 }
 
-/** Options accepted by {@link startUiServer}: every {@link UiServerDeps} field, plus the bind port. */
+/** Options accepted by {@link startUiServer}: every {@link UiServerDeps} field, plus the bind port and cwd. */
 export interface UiServerOptions extends UiServerDeps {
   /** TCP port to bind. Omit for the default Studio port, or pass 0 to let the OS assign an ephemeral port (tests only). */
   readonly port?: number;
+  /**
+   * The project root every RPC handler resolves relative paths against: the source locale file,
+   * each target locale file, the lock file, and the git repository root for the history view.
+   * Omit to use `process.cwd()`, which is also the behavior of any existing caller that does not
+   * pass this.
+   */
+  readonly cwd?: string;
 }
 
 /** A running Verbatra Studio server instance. */
