@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { renderCommitSummary } from "../../client/render-text.js";
 import type { HistoryCommit } from "../../shared/rpc/history.js";
 import { rpcClient } from "../api.js";
+import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 
@@ -67,14 +68,19 @@ export function HistoryPanel(): ReactNode {
   }
   if (state.kind === "unavailable") {
     return (
-      <p>History is unavailable: this project is not a git repository, or git is not installed.</p>
+      <p className="empty-state">
+        <Badge tone="neutral">Unavailable</Badge> This project is not a git repository, or git is
+        not installed.
+      </p>
     );
   }
   if (state.commits.length === 0) {
-    return <p>No commit history yet for the source or target locale files.</p>;
+    return (
+      <p className="empty-state">No commit history yet for the source or target locale files.</p>
+    );
   }
   return (
-    <ul>
+    <ul className="commit-list">
       {state.commits.map((commit) => (
         <CommitRow commit={commit} key={commit.hash} />
       ))}

@@ -12,17 +12,17 @@ type OverviewState =
 
 function OverviewDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
-    <dl>
+    <dl className="detail-list">
       <dt>Source locale</dt>
-      <dd>{snapshot.sourceLocale}</dd>
+      <dd className="detail-value-mono">{snapshot.sourceLocale}</dd>
       <dt>Target locales</dt>
-      <dd>{snapshot.targetLocales.join(", ")}</dd>
+      <dd className="detail-value-mono">{snapshot.targetLocales.join(", ")}</dd>
       <dt>Format</dt>
-      <dd>{snapshot.format}</dd>
+      <dd className="detail-value-mono">{snapshot.format}</dd>
       <dt>Provider</dt>
-      <dd>{snapshot.provider.id}</dd>
+      <dd className="detail-value-mono">{snapshot.provider.id}</dd>
       <dt>Config source</dt>
-      <dd>{snapshot.configSource}</dd>
+      <dd className="detail-value-mono">{snapshot.configSource}</dd>
       <dt>Glossary</dt>
       <dd>{snapshot.glossary.source}</dd>
     </dl>

@@ -5,6 +5,7 @@ import { toStatusOutcome } from "../../client/coverage.js";
 import type { RefreshableView } from "../../client/state.js";
 import { applyRefreshOutcome } from "../../client/state.js";
 import { rpcClient } from "../api.js";
+import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
@@ -12,12 +13,16 @@ import type { PanelProps } from "../panel-props.js";
 function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   return (
     <tr>
-      <td>{row.locale}</td>
+      <td className="mono">{row.locale}</td>
       <td>{row.percent}%</td>
       <td>{row.missing}</td>
       <td>{row.stale}</td>
       <td>{row.upToDate}</td>
-      <td>{row.inSync ? "yes" : "no"}</td>
+      <td>
+        <Badge tone={row.inSync ? "success" : "warning"}>
+          {row.inSync ? "In sync" : "Out of sync"}
+        </Badge>
+      </td>
     </tr>
   );
 }
@@ -31,8 +36,11 @@ function StatusTable({
 }): ReactNode {
   return (
     <div>
-      <p>Overall status: {inSync ? "in sync" : "out of sync"}</p>
-      <table>
+      <p className="panel-intro">
+        Overall status:{" "}
+        <Badge tone={inSync ? "success" : "warning"}>{inSync ? "In sync" : "Out of sync"}</Badge>
+      </p>
+      <table className="data-table">
         <thead>
           <tr>
             <th>Locale</th>

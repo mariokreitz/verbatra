@@ -17,19 +17,19 @@ type ConfigPanelState =
 
 function ConfigDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
-    <dl>
+    <dl className="detail-list">
       <dt>Source locale</dt>
-      <dd>{snapshot.sourceLocale}</dd>
+      <dd className="detail-value-mono">{snapshot.sourceLocale}</dd>
       <dt>Target locales</dt>
-      <dd>{snapshot.targetLocales.join(", ")}</dd>
+      <dd className="detail-value-mono">{snapshot.targetLocales.join(", ")}</dd>
       <dt>Format</dt>
-      <dd>{snapshot.format}</dd>
+      <dd className="detail-value-mono">{snapshot.format}</dd>
       <dt>File pattern</dt>
-      <dd>{snapshot.files.pattern}</dd>
+      <dd className="detail-value-mono">{snapshot.files.pattern}</dd>
       <dt>Provider</dt>
-      <dd>{snapshot.provider.id}</dd>
+      <dd className="detail-value-mono">{snapshot.provider.id}</dd>
       <dt>Config source</dt>
-      <dd>{snapshot.configSource}</dd>
+      <dd className="detail-value-mono">{snapshot.configSource}</dd>
       {snapshot.prune !== undefined ? (
         <>
           <dt>Prune</dt>
@@ -72,10 +72,10 @@ function GlossaryEntries({
 }): ReactNode {
   const terms = Object.entries(entries);
   if (terms.length === 0) {
-    return <p>No glossary configured.</p>;
+    return <p className="empty-state">No glossary configured.</p>;
   }
   return (
-    <table>
+    <table className="data-table">
       <thead>
         <tr>
           <th>Source term</th>
@@ -85,7 +85,7 @@ function GlossaryEntries({
       <tbody>
         {terms.map(([term, translation]) => (
           <tr key={term}>
-            <td>{term}</td>
+            <td className="mono">{term}</td>
             <td>{translation}</td>
           </tr>
         ))}
@@ -96,9 +96,9 @@ function GlossaryEntries({
 
 function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult }): ReactNode {
   return (
-    <section>
+    <section className="panel-section">
       <h3>Glossary</h3>
-      <p>Source: {glossaryIndicatorLabel(glossary)}</p>
+      <p className="panel-intro">Source: {glossaryIndicatorLabel(glossary)}</p>
       <GlossaryEntries entries={glossary.entries} />
     </section>
   );
@@ -149,7 +149,7 @@ export function ConfigPanel(): ReactNode {
   }
   return (
     <div>
-      <section>
+      <section className="panel-section">
         <h3>Config</h3>
         <ConfigDetails snapshot={state.snapshot} />
       </section>

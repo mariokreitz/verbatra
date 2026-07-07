@@ -41,11 +41,17 @@ const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
  */
 function SessionExpiredNotice(): ReactNode {
   return (
-    <div role="alert">
-      <h1>Session expired</h1>
-      <p>Restart Verbatra Studio and open the URL printed in the terminal again.</p>
+    <div className="session-expired" role="alert">
+      <div className="session-expired-box">
+        <h1>Session expired</h1>
+        <p>Restart Verbatra Studio and open the URL printed in the terminal again.</p>
+      </div>
     </div>
   );
+}
+
+function navItemClassName(isActive: boolean): string {
+  return isActive ? "app-nav-item app-nav-item-active" : "app-nav-item";
 }
 
 function isSessionExpired(): boolean {
@@ -73,21 +79,28 @@ export function App(): ReactNode {
   const ActivePanel = TAB_PANELS[tab];
 
   return (
-    <div>
-      <nav>
-        {TABS.map((candidate) => (
-          <button
-            key={candidate}
-            type="button"
-            aria-current={candidate === tab}
-            onClick={() => setTab(candidate)}
-          >
-            {TAB_LABELS[candidate]}
-          </button>
-        ))}
-      </nav>
-      <main>
-        <ActivePanel refreshToken={refreshToken} />
+    <div className="app-shell">
+      <aside className="app-sidebar">
+        <div className="app-brand">Verbatra Studio</div>
+        <nav className="app-nav">
+          {TABS.map((candidate) => (
+            <button
+              key={candidate}
+              type="button"
+              aria-current={candidate === tab}
+              className={navItemClassName(candidate === tab)}
+              onClick={() => setTab(candidate)}
+            >
+              {TAB_LABELS[candidate]}
+            </button>
+          ))}
+        </nav>
+      </aside>
+      <main className="app-main">
+        <h1 className="app-main-title">{TAB_LABELS[tab]}</h1>
+        <div className="app-main-content">
+          <ActivePanel refreshToken={refreshToken} />
+        </div>
       </main>
     </div>
   );

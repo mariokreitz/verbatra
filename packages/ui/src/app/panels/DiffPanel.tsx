@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import type { RpcCallResult } from "../../client/rpc-client.js";
 import { rpcClient } from "../api.js";
+import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 
@@ -29,7 +30,7 @@ function KeyList({
 }): ReactNode {
   const capped = filterAndCapKeys(keys, query);
   return (
-    <div>
+    <div className="key-list">
       <h4>
         {title} ({capped.totalMatches})
       </h4>
@@ -39,7 +40,7 @@ function KeyList({
         ))}
       </ul>
       {capped.truncated ? (
-        <p>
+        <p className="key-list-note">
           Showing {MAX_RENDERED_KEYS} of {capped.totalMatches}, refine the filter to see more.
         </p>
       ) : null}
@@ -55,9 +56,14 @@ function LocaleSection({
   readonly query: string;
 }): ReactNode {
   return (
-    <section>
-      <h3>
-        {locale.locale} {locale.hasPendingChanges ? "(pending changes)" : "(up to date)"}
+    <section className="locale-section">
+      <h3 className="locale-section-heading">
+        {locale.locale}
+        {locale.hasPendingChanges ? (
+          <Badge tone="warning">Pending changes</Badge>
+        ) : (
+          <span className="empty-state-inline">Up to date</span>
+        )}
       </h3>
       <KeyList title="Missing" keys={locale.missing} query={query} />
       <KeyList title="Changed" keys={locale.changed} query={query} />
@@ -110,10 +116,15 @@ export function DiffPanel(): ReactNode {
 
   return (
     <div>
-      <p>Overall: {state.hasPendingChanges ? "pending changes" : "up to date"}</p>
-      <label>
+      <p className="panel-intro">
+        Overall:{" "}
+        <Badge tone={state.hasPendingChanges ? "warning" : "success"}>
+          {state.hasPendingChanges ? "Pending changes" : "Up to date"}
+        </Badge>
+      </p>
+      <label className="filter-label">
         Filter keys
-        <input value={query} onChange={onQueryChange} />
+        <input className="filter-input" value={query} onChange={onQueryChange} />
       </label>
       {state.locales.map((locale) => (
         <LocaleSection key={locale.locale} locale={locale} query={query} />
