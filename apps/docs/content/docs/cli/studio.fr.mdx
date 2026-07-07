@@ -9,7 +9,7 @@ verbatra studio
 ```
 
 <Callout title="Disponible uniquement en préversion">
-Verbatra Studio n'est actuellement disponible qu'en préversion, il n'y a pas encore de version stable. Pour l'utiliser, installe les deux paquets explicitement sous le tag `next` : `pnpm add -D @verbatra/cli@next @verbatra/studio@next`. Un simple `pnpm add -D @verbatra/cli` (sans tag) résout vers la version stable actuelle et n'inclut pas cette commande.
+Verbatra Studio n'est actuellement disponible qu'en préversion, il n'y a pas encore de version stable. Pour l'utiliser, installe `@verbatra/cli` explicitement sous le tag `next` : `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` lui-même n'a pas encore eu de version stable, donc son propre tag `latest` porte déjà le build de préversion actuel, aucun tag requis. Un simple `pnpm add -D @verbatra/cli` (sans tag) résout vers la version stable actuelle et n'inclut pas cette commande.
 </Callout>
 
 ## Uniquement local et en lecture seule
@@ -50,7 +50,7 @@ La configuration est résolue une seule fois, au démarrage, et chaque vue, pend
 
 ## Installation
 
-`@verbatra/studio` est le paquet propre de Studio, actuellement publié sous le dist-tag `next` aux côtés de `@verbatra/cli@next`. S'il n'est pas installé, `verbatra studio` quitte avec `2` et :
+`@verbatra/studio` est le paquet propre de Studio. Il n'a pas encore eu de version stable, donc une installation simple apporte déjà le build de préversion actuel, aucun dist-tag requis. S'il n'est pas installé, `verbatra studio` quitte avec `2` et :
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
