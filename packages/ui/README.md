@@ -11,7 +11,12 @@ This package is private and is not published to npm.
   from the built assets next to the compiled module (or from an injected override).
 - `src/server/` is the server implementation, covered by tests.
 - `src/app/` is the React single-page app, built by Vite into `dist/app`. It is not covered by
-  tests; measured client logic that is not React rendering lives in `src/client/`.
+  tests; measured client logic that is not React rendering lives in `src/client/`. Changes to
+  `src/app/api.ts` in particular wire real browser globals (`fetch`, `EventSource`) into the
+  covered client modules; smoke-test them in a real browser after touching that file, since a
+  detached reference to a browser global can typecheck and pass every unit test while still
+  throwing at runtime (a bare `const f = fetch` loses `fetch`'s required `Window` receiver and
+  throws "Illegal invocation" the moment it is called).
 - `src/dev/` is a local-only development entry point. It is never imported by `src/index.ts`, is
   never bundled by the build, and is never published.
 

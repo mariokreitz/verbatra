@@ -11,7 +11,7 @@ import { createRpcClient } from "../client/rpc-client.js";
 import { createSessionStore, type SessionStore } from "../client/state.js";
 import type { RefreshEvent } from "../shared/sse-events.js";
 
-const browserFetch: FetchLike = fetch;
+const browserFetch: FetchLike = (url, init) => fetch(url, init);
 
 export const sessionStore: SessionStore = createSessionStore();
 
