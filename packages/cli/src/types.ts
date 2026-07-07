@@ -7,12 +7,17 @@ import type {
   ExportWorkbookResult,
   ImportWorkbookInput,
   LoadConfigOptions,
+  LoadedConfig,
   RunSummary,
   TranslateInput,
   VerbatraConfig,
   WatchController,
   WatchInput,
 } from "@verbatra/sdk";
+// Type-only: erased at compile time (verbatimModuleSyntax), so this never becomes a runtime import.
+// @verbatra/ui is a devDependency of this package (types and tests only); the command itself reaches
+// the package only through a dynamic `import("@verbatra/ui")`, never a static one.
+import type { UiServer, UiServerOptions } from "@verbatra/ui";
 
 /** Output sink: the core writes through this, never to process.stdout/stderr directly. */
 export interface Streams {
@@ -41,6 +46,22 @@ export interface CliDeps {
   check(input: CheckInput): Promise<CheckSummary>;
   /** List the keys that would be added, re-translated, or orphaned per locale (the SDK's `diff`). */
   diff(input: DiffInput): Promise<DiffSummary>;
+  /** Load the project config with provenance (the SDK's `loadConfigWithMeta`); used by `ui`. */
+  loadConfigWithMeta(options: LoadConfigOptions): Promise<LoadedConfig>;
+  /** Dynamically import `@verbatra/ui`; used by `ui`. Stubbed in tests, never statically imported. */
+  importUi(): Promise<UiModule>;
+}
+
+/**
+ * The subset of `@verbatra/ui`'s public exports the `ui` command needs, structurally matching the
+ * real module returned by `import("@verbatra/ui")`. Kept narrow so a test stub only has to implement
+ * what the command actually calls. The default port is never read here: an omitted `--port` simply
+ * omits `port` from the options passed to `startUiServer`, which resolves its own default internally
+ * from `DEFAULT_STUDIO_PORT`, so the value is never duplicated as a literal in the CLI.
+ */
+export interface UiModule {
+  /** Starts the local Studio server. */
+  startUiServer(options: UiServerOptions): Promise<UiServer>;
 }
 
 /** A long-running watch run. The bin shim wires SIGINT to requestStop; tests call it directly. */
@@ -51,10 +72,20 @@ export interface WatchSession {
   requestStop(): void;
 }
 
+/** A running `ui` invocation. The bin shim wires SIGINT to requestStop; tests call it directly. */
+export interface UiSession {
+  /** Resolves with the process exit code once the server has stopped (or startup failed). */
+  readonly done: Promise<number>;
+  /** First call closes the server (then exits 0, or 1 if closing itself fails); a second forces 130. */
+  requestStop(): void;
+}
+
 /** Hooks the bin shim uses to attach real-world wiring; unused by tests that drive the session. */
 export interface RunHooks {
   /** Called with the live watch session so the shim can wire SIGINT/SIGTERM to `requestStop`. */
   onWatchSession?(session: WatchSession): void;
+  /** Called with the live ui session so the shim can wire SIGINT/SIGTERM to `requestStop`. */
+  onUiSession?(session: UiSession): void;
 }
 
 /** Options for the `init` command (commander flags). */

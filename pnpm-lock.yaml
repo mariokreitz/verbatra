@@ -240,6 +240,9 @@ importers:
       '@verbatra/config':
         specifier: workspace:*
         version: link:../config
+      '@verbatra/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.9(vitest@4.1.9)

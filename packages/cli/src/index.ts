@@ -2,13 +2,15 @@
  * The verbatra command-line interface: a thin wrapper over @verbatra/sdk. Each subcommand validates
  * its argv, calls one SDK entry point, and renders the result.
  *
- * Subcommands: `translate`, `watch`, `export`, `import`, `check`, `diff`, and `init`.
+ * Subcommands: `translate`, `watch`, `export`, `import`, `check`, `diff`, `ui`, and `init`.
  *
  * Exit codes (the CI/script contract): `0` success; `1` `translate`/`import` finished but some locales
- * failed; `2` could not run (a whole-run error or a usage error); `130` `watch` force-stopped by a
- * second interrupt.
+ * failed; `2` could not run (a whole-run error or a usage error); `130` `watch` or `ui` force-stopped
+ * by a second interrupt.
  *
  * API keys are read only from the environment by the SDK's providers; the CLI never takes a key.
+ * `ui` reaches @verbatra/ui only through a dynamic import, so it never fails to load merely because
+ * that package is not installed.
  *
  * @packageDocumentation
  */
@@ -20,6 +22,7 @@ import {
   exportWorkbook,
   importWorkbook,
   loadConfig,
+  loadConfigWithMeta,
   translate,
   watch,
 } from "@verbatra/sdk";
@@ -28,7 +31,17 @@ import { run } from "./run.js";
 // The bin shim is the only part touching process global state; it is kept tiny and coverage-excluded.
 const code = await run(
   process.argv.slice(2),
-  { loadConfig, translate, watch, exportWorkbook, importWorkbook, check, diff },
+  {
+    loadConfig,
+    translate,
+    watch,
+    exportWorkbook,
+    importWorkbook,
+    check,
+    diff,
+    loadConfigWithMeta,
+    importUi: () => import("@verbatra/ui"),
+  },
   {
     out: (text) => {
       process.stdout.write(text);
@@ -39,6 +52,10 @@ const code = await run(
   },
   {
     onWatchSession: (session) => {
+      process.on("SIGINT", () => session.requestStop());
+      process.on("SIGTERM", () => session.requestStop());
+    },
+    onUiSession: (session) => {
       process.on("SIGINT", () => session.requestStop());
       process.on("SIGTERM", () => session.requestStop());
     },
