@@ -3,7 +3,7 @@
 Local Verbatra Studio dashboard: a read-only web view over a verbatra project, served from a
 prebuilt single-page app by a small loopback HTTP server.
 
-This package is private and is not published to npm.
+This package is published to npm under the `next` dist-tag while it is still a prerelease. It has not yet had a stable release.
 
 ## Layout
 

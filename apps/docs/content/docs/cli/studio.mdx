@@ -8,8 +8,8 @@ Verbatra Studio is a local web dashboard over your verbatra project: a live view
 verbatra studio
 ```
 
-<Callout title="Not yet generally available">
-`verbatra studio` is new and currently ships only as a prerelease, on the `next` dist-tag (`pnpm add -D @verbatra/cli@next`). Even with that version installed, `@verbatra/studio` itself, the package that runs the dashboard, is not published yet, so the command will not run end to end until it is. Check back once `@verbatra/studio` becomes available.
+<Callout title="Prerelease only">
+Verbatra Studio is currently available only as a prerelease, not yet a stable release. To use it, install both packages explicitly under the `next` tag: `pnpm add -D @verbatra/cli@next @verbatra/studio@next`. A plain `pnpm add -D @verbatra/cli` (no tag) resolves to the current stable release and does not include this command.
 </Callout>
 
 ## Local-only and read-only
@@ -50,7 +50,7 @@ The config is resolved once, at startup, and every view for the life of that pro
 
 ## Installation
 
-`@verbatra/studio` is Studio's own package. If it is not installed, `verbatra studio` exits `2` with:
+`@verbatra/studio` is Studio's own package, currently published under the `next` dist-tag alongside `@verbatra/cli@next`. If it is not installed, `verbatra studio` exits `2` with:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
