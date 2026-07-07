@@ -1,4 +1,6 @@
+import type { RpcResultFor } from "../shared/rpc/contract.js";
 import type { RpcCallResult } from "./rpc-client.js";
+import type { FetchOutcome } from "./state.js";
 
 /** The three counts a locale's coverage percentage is computed from. */
 export interface LocaleCoverageCounts {
@@ -14,11 +16,11 @@ export interface StatusRow extends LocaleCoverageCounts {
   readonly inSync: boolean;
 }
 
-/** The Status panel's own render state, derived from one `status.check` call. */
-export type StatusView =
-  | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
-  | { readonly kind: "loaded"; readonly inSync: boolean; readonly rows: readonly StatusRow[] };
+/** The Status panel's own data shape: overall sync state plus one row per locale. */
+export interface StatusData {
+  readonly inSync: boolean;
+  readonly rows: readonly StatusRow[];
+}
 
 /**
  * Coverage percentage for one locale: `upToDate / (missing + stale + upToDate)`, rounded to the
@@ -33,19 +35,21 @@ export function coveragePercent(counts: LocaleCoverageCounts): number {
   return Math.round((counts.upToDate / total) * 100);
 }
 
+/** Maps a successful `status.check` result to {@link StatusData}: each locale gets its computed percentage. */
+export function toStatusData(result: RpcResultFor<"status.check">): StatusData {
+  const rows = result.locales.map((locale) => ({ ...locale, percent: coveragePercent(locale) }));
+  return { inSync: result.inSync, rows };
+}
+
 /**
- * Maps one `status.check` rpc outcome to the Status panel's render state, without touching the
- * DOM: a domain error carries its message through unchanged (the panel renders it in place, the
- * rest of the shell stays intact); a success maps each locale to a {@link StatusRow} with its
- * coverage percentage attached.
+ * Maps one `status.check` rpc outcome to the generic {@link FetchOutcome} shape
+ * `applyRefreshOutcome` (see `client/state.ts`) expects, so the Status panel's stale-data
+ * behavior goes through that one covered reducer instead of a second, panel-local
+ * reimplementation of the same keep-last-good-data decision.
  */
-export function deriveStatusView(response: RpcCallResult<"status.check">): StatusView {
+export function toStatusOutcome(response: RpcCallResult<"status.check">): FetchOutcome<StatusData> {
   if (!response.ok) {
-    return { kind: "error", message: response.error.message };
+    return { ok: false, error: response.error };
   }
-  const rows = response.result.locales.map((locale) => ({
-    ...locale,
-    percent: coveragePercent(locale),
-  }));
-  return { kind: "loaded", inSync: response.result.inSync, rows };
+  return { ok: true, result: toStatusData(response.result) };
 }

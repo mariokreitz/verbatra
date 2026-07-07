@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { sessionStore } from "./api.js";
+import { refreshBus, sessionStore } from "./api.js";
+import type { PanelProps } from "./panel-props.js";
 import { ConfigPanel } from "./panels/ConfigPanel.js";
 import { DiffPanel } from "./panels/DiffPanel.js";
 import { HistoryPanel } from "./panels/HistoryPanel.js";
@@ -21,7 +22,10 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   history: "History",
 };
 
-const TAB_PANELS: Readonly<Record<Tab, () => ReactNode>> = {
+// Every panel receives refreshToken, but StatusPanel is currently the only one that reacts to it
+// (through the covered client/state.ts reducer); the rest ignore the prop for now, a deliberate,
+// incremental scope choice rather than an oversight.
+const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,
   diff: DiffPanel,
@@ -51,11 +55,16 @@ function isSessionExpired(): boolean {
 export function App(): ReactNode {
   const [tab, setTab] = useState<Tab>("overview");
   const [sessionExpired, setSessionExpired] = useState(isSessionExpired());
+  // Bumped once per live-refresh event (source, targets, or lock changed); passed to the active
+  // panel so it can re-fetch. The event's own reason and timestamp are not needed here: every
+  // panel re-fetches its own view wholesale rather than branching on which category changed.
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(
     () => sessionStore.subscribe((state) => setSessionExpired(state.kind === "session-expired")),
     [],
   );
+  useEffect(() => refreshBus.subscribe(() => setRefreshToken((token) => token + 1)), []);
 
   if (sessionExpired) {
     return <SessionExpiredNotice />;
@@ -78,7 +87,7 @@ export function App(): ReactNode {
         ))}
       </nav>
       <main>
-        <ActivePanel />
+        <ActivePanel refreshToken={refreshToken} />
       </main>
     </div>
   );

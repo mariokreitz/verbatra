@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import type { StatusRow, StatusView } from "../../client/coverage.js";
-import { deriveStatusView } from "../../client/coverage.js";
+import type { StatusData, StatusRow } from "../../client/coverage.js";
+import { toStatusOutcome } from "../../client/coverage.js";
+import type { RefreshableView } from "../../client/state.js";
+import { applyRefreshOutcome } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
+import type { PanelProps } from "../panel-props.js";
 
 function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   return (
@@ -50,27 +53,41 @@ function StatusTable({
   );
 }
 
-/** Per-locale translation drift, from the sdk's read-only `check` through `status.check`. */
-export function StatusPanel(): ReactNode {
-  const [view, setView] = useState<StatusView>({ kind: "loading" });
+/**
+ * Per-locale translation drift, from the sdk's read-only `check` through `status.check`.
+ * Re-fetches on every live-refresh event (`refreshToken` changes). The keep-last-good-data
+ * behavior on a failing re-fetch is not reimplemented here: every outcome is folded through
+ * `client/state.ts`'s covered `applyRefreshOutcome`, the one tested place that decision lives.
+ */
+export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
+  const [view, setView] = useState<RefreshableView<StatusData>>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     void rpcClient.call("status.check", {}).then((response) => {
-      if (!cancelled) {
-        setView(deriveStatusView(response));
+      if (cancelled) {
+        return;
       }
+      const outcome = toStatusOutcome(response);
+      setView((previous) => applyRefreshOutcome(previous, outcome));
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   if (view.kind === "loading") {
     return <Loading />;
   }
   if (view.kind === "error") {
-    return <ErrorMessage message={view.message} />;
+    return <ErrorMessage message={view.error.message} />;
   }
-  return <StatusTable inSync={view.inSync} rows={view.rows} />;
+  return (
+    <div>
+      {view.stale && (
+        <ErrorMessage message={`Showing the last known status. ${view.error.message}`} />
+      )}
+      <StatusTable inSync={view.data.inSync} rows={view.data.rows} />
+    </div>
+  );
 }
