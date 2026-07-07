@@ -1,0 +1,61 @@
+---
+title: Verbatra Studio (verbatra ui)
+description: Inicia Verbatra Studio, un panel de traducción local y de solo lectura sobre tu proyecto.
+---
+Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, la configuración, la desviación del archivo de bloqueo y el historial, sin llamar nunca a un proveedor ni escribir un archivo. Inícialo con:
+
+```bash
+verbatra ui
+```
+
+## Solo local y de solo lectura
+
+Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. No hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff).
+
+## Referencia de comandos
+
+| Opción | Descripción |
+| --- | --- |
+| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
+| `--port <n>` | sobrescribe el puerto por defecto de Studio (debe ser un entero de 1 a 65535) |
+
+`verbatra ui` carga `.env.local` y `.env` igual que cualquier otro comando, luego resuelve tu configuración una vez, antes de tocar siquiera la red. Una configuración ausente o no válida sale con `2` y el mismo error renderizado que cualquier otro comando; Studio en sí nunca llega a iniciarse.
+
+## La URL impresa
+
+Una vez que Studio está escuchando, imprime una línea en stdout:
+
+```
+Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
+```
+
+Abre exactamente esa URL. El token en la cadena de consulta arranca una cookie de sesión para la pestaña del navegador; sin él (o con uno incorrecto) toda solicitud es rechazada. Nunca se imprime nada antes de que el servidor haya vinculado su puerto con éxito, así que un inicio fallido nunca filtra una URL ni un token.
+
+## Reinicio ante un cambio de configuración
+
+La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la vida de ese proceso, se construye a partir de esa misma configuración resuelta. Si cambias `verbatra.config.ts` (un nuevo locale de destino, un proveedor distinto, un patrón de archivo distinto), detén Studio e inícialo de nuevo para aplicar el cambio. Los propios archivos del proyecto (tus archivos de locale de origen y de destino, y el archivo de bloqueo) se leen de forma fresca en cada solicitud, así que editarlos y recargar la página siempre muestra los datos actuales; Studio todavía no envía una actualización automática cuando un archivo cambia en disco.
+
+## Las vistas
+
+- **Estado**: los recuentos de claves faltantes, desactualizadas y al día por locale, el mismo cálculo que `verbatra check`.
+- **Diff**: las claves exactas que se añadirían, se volverían a traducir o quedarían huérfanas por locale, el mismo cálculo que `verbatra diff`. Las listas de claves largas están limitadas en la vista (con una nota "mostrando N de total") para que un catálogo muy grande siga siendo responsivo; el filtrado sigue buscando en la lista completa.
+- **Configuración y glosario**: una proyección redactada de tu configuración resuelta (locales de origen y destino, formato, patrón de archivo, id del proveedor y las opciones escalares seguras) más tus términos de glosario, si los hay. Los valores de texto libre que podrían contener un secreto pegado nunca se incluyen.
+- **Desviación del bloqueo**: si existe un archivo de bloqueo, su versión y su desviación por locale frente a los archivos de origen y destino actuales, sin escribir en él.
+- **Historial**: el historial de commits de tus archivos de locale vigilados, leído mediante `git log` con un número de commits acotado y sin `--follow`. Un proyecto sin repositorio git, o con git no disponible, muestra el historial como no disponible en lugar de un error. El historial truncado de un clon superficial tampoco es un error: simplemente muestra lo que tiene el clon.
+
+## Instalación
+
+`@verbatra/ui` es el paquete propio de Studio. Si no está instalado, `verbatra ui` sale con `2` y:
+
+```
+Verbatra Studio requires @verbatra/ui. Install it with: pnpm add -D @verbatra/ui
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | Studio se detuvo limpiamente con un solo interrupt (Ctrl-C) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, `@verbatra/ui` no instalado, o el puerto ya está en uso), o un error de uso (un `--port` fuera de rango o que no es un entero) |
+| `130` | detenido a la fuerza por un segundo interrupt |

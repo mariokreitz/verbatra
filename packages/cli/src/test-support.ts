@@ -1,12 +1,14 @@
 import type {
   CheckInput,
   CheckSummary,
+  ConfigSource,
   DiffInput,
   DiffSummary,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
   LoadConfigOptions,
+  LoadedConfig,
   LocaleSummary,
   RunSummary,
   TranslateInput,
@@ -14,7 +16,10 @@ import type {
   WatchController,
   WatchInput,
 } from "@verbatra/sdk";
-import type { CliDeps, Streams } from "./types.js";
+// A real value import, not a runtime concern here: this file is test-only, never bundled by tsup,
+// so it is not part of the CLI's dynamic-import contract for @verbatra/ui.
+import { DEFAULT_STUDIO_PORT } from "@verbatra/ui";
+import type { CliDeps, Streams, UiModule } from "./types.js";
 
 export function makeConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   return {
@@ -62,6 +67,27 @@ export function makeDiffSummary(overrides: Partial<DiffSummary> = {}): DiffSumma
   return { hasPendingChanges: false, locales: [], ...overrides };
 }
 
+export function makeLoadedConfig(overrides: Partial<LoadedConfig> = {}): LoadedConfig {
+  return {
+    config: makeConfig(),
+    source: { kind: "search", filepath: "/proj/verbatra.config.ts" } satisfies ConfigSource,
+    glossary: { source: "none" },
+    ...overrides,
+  };
+}
+
+/** Fake `@verbatra/ui` module: a `startUiServer` returning a fake server whose `close` never throws. */
+export function makeUiModule(overrides: Partial<UiModule> = {}): UiModule {
+  return {
+    startUiServer: async (options) => ({
+      url: `http://127.0.0.1:${options.port ?? DEFAULT_STUDIO_PORT}/`,
+      port: options.port ?? DEFAULT_STUDIO_PORT,
+      close: async () => {},
+    }),
+    ...overrides,
+  };
+}
+
 /** Accumulating stream sink: captures everything written to out and err. */
 export function captureStreams(): { streams: Streams; out: () => string; err: () => string } {
   let outBuf = "";
@@ -88,6 +114,8 @@ export interface DepCalls {
   importWorkbook: ImportWorkbookInput[];
   check: CheckInput[];
   diff: DiffInput[];
+  loadConfigWithMeta: LoadConfigOptions[];
+  importUi: undefined[];
 }
 
 /** Recording stub of the SDK deps. Override any of them to control behavior or throw. */
@@ -100,6 +128,8 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     importWorkbook: [],
     check: [],
     diff: [],
+    loadConfigWithMeta: [],
+    importUi: [],
   };
   const deps: CliDeps = {
     loadConfig: async (options) => {
@@ -129,6 +159,14 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     diff: async (input) => {
       calls.diff.push(input);
       return impl.diff ? impl.diff(input) : makeDiffSummary();
+    },
+    loadConfigWithMeta: async (options) => {
+      calls.loadConfigWithMeta.push(options);
+      return impl.loadConfigWithMeta ? impl.loadConfigWithMeta(options) : makeLoadedConfig();
+    },
+    importUi: async () => {
+      calls.importUi.push(undefined);
+      return impl.importUi ? impl.importUi() : makeUiModule();
     },
   };
   return { deps, calls };
