@@ -1,5 +1,17 @@
 # @verbatra/cli
 
+## 0.5.0-next.0
+
+### Minor Changes
+
+- a923c09: Add a `verbatra studio` command that starts Verbatra Studio, a local, read-only translation dashboard served from `@verbatra/studio`. The command loads the project config before anything else, prints a one-time tokenized loopback URL once the server is listening, and exits cleanly on Ctrl-C (a second interrupt force-stops it). It reaches `@verbatra/studio` only through a dynamic import, so it fails with a clear install hint instead of a crash when that package is not present. `@verbatra/sdk` is version-locked with `@verbatra/cli` and picks up the same bump; its own behavior is unchanged.
+
+### Patch Changes
+
+- Updated dependencies [5597f98]
+- Updated dependencies [4a789ff]
+  - @verbatra/sdk@0.5.0-next.0
+
 ## 0.4.4
 
 ### Patch Changes
