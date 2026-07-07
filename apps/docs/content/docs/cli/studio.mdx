@@ -8,6 +8,10 @@ Verbatra Studio is a local web dashboard over your verbatra project: a live view
 verbatra studio
 ```
 
+<Callout title="Not yet generally available">
+`verbatra studio` is new and currently ships only as a prerelease, on the `next` dist-tag (`pnpm add -D @verbatra/cli@next`). Even with that version installed, `@verbatra/studio` itself, the package that runs the dashboard, is not published yet, so the command will not run end to end until it is. Check back once `@verbatra/studio` becomes available.
+</Callout>
+
 ## Local-only and read-only
 
 Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. There is no state-changing endpoint anywhere in Studio: it never calls `translate`, never runs `watch`, and never imports or exports a workbook. Everything you see comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff).
@@ -34,7 +38,7 @@ Open that exact URL. The token in the query string bootstraps a session cookie f
 
 ## Restart on config change
 
-The config is resolved once, at startup, and every view for the life of that process is built from that same resolved config. If you change `verbatra.config.ts` (a new target locale, a different provider, a different file pattern), stop Studio and start it again to pick up the change. Project files themselves (your source and target locale files, and the lock file) are read fresh on every request, so editing them and reloading the page always shows current data; Studio does not yet push an automatic refresh when a file changes on disk.
+The config is resolved once, at startup, and every view for the life of that process is built from that same resolved config. If you change `verbatra.config.ts` (a new target locale, a different provider, a different file pattern), stop Studio and start it again to pick up the change. Project files are different: Studio watches your source locale file, every target locale file, and the lock file, and pushes a live refresh signal to your open browser tab the moment one of them changes on disk (rapid successive writes are debounced into a single signal). The tab re-fetches the view you're currently looking at automatically, no reload needed. If a re-fetch fails, the view keeps showing its last good data with a subtle stale indicator instead of going blank, and tries again on the next signal. A dropped connection reconnects on its own with backoff; if Studio itself shuts down, the tab shows a full-screen notice to restart it from the terminal.
 
 ## The views
 
