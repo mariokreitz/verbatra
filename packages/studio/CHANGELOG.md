@@ -1,5 +1,11 @@
 # @verbatra/studio
 
+## 0.1.0-next.2
+
+### Patch Changes
+
+- 4accc85: Republish through the automated release pipeline so the package carries an npm provenance attestation, matching `@verbatra/sdk` and `@verbatra/cli`. The initial release was published manually to bootstrap npm's Trusted Publishing for a brand-new package, which cannot generate provenance outside a CI environment; no functional change.
+
 ## 0.1.0-next.1
 
 ### Minor Changes
