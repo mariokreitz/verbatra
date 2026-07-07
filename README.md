@@ -135,13 +135,13 @@ Run `verbatra <command> --help` for the full option list. The complete command r
 
 ## Verbatra Studio
 
-`verbatra ui` starts Verbatra Studio, a local, read-only web dashboard over your project: translation status, the diff explorer, your resolved config and glossary, lock-file drift, and locale-file history, all read from the same computations as `check` and `diff`. It binds to `127.0.0.1` only, gates every request behind a per-session token, and never calls a provider or writes a file.
+`verbatra studio` starts Verbatra Studio, a local, read-only web dashboard over your project: translation status, the diff explorer, your resolved config and glossary, lock-file drift, and locale-file history, all read from the same computations as `check` and `diff`. It binds to `127.0.0.1` only, gates every request behind a per-session token, and never calls a provider or writes a file.
 
 ```bash
-verbatra ui
+verbatra studio
 ```
 
-See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/ui) for the full command reference and security model.
+See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio) for the full command reference and security model.
 
 ## Programmatic use
 

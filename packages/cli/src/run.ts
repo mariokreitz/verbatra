@@ -15,8 +15,8 @@ import {
   renderJson,
   toRenderableError,
 } from "./render.js";
+import { runStudio } from "./studio-command.js";
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
-import { runUi } from "./ui-command.js";
 import { runWatch } from "./watch-session.js";
 
 // The "../package.json" offset must resolve from both src/run.ts and the bundled dist/index.js;
@@ -221,18 +221,18 @@ async function runWatchCommand(
 }
 
 /**
- * Run the `ui` command: start Verbatra Studio. `runUi` resolves once startup either succeeds (the
- * server is bound and the banner printed) or fails (a rendered error and exit `2`); either way the
- * hook is wired to the returned session so a later SIGINT/SIGTERM can request a clean shutdown.
+ * Run the `studio` command: start Verbatra Studio. `runStudio` resolves once startup either succeeds
+ * (the server is bound and the banner printed) or fails (a rendered error and exit `2`); either way
+ * the hook is wired to the returned session so a later SIGINT/SIGTERM can request a clean shutdown.
  */
-async function runUiCommand(
+async function runStudioCommand(
   rawOpts: unknown,
   deps: CliDeps,
   streams: Streams,
   hooks: RunHooks,
 ): Promise<number> {
-  const session = await runUi(rawOpts, deps, streams);
-  hooks.onUiSession?.(session);
+  const session = await runStudio(rawOpts, deps, streams);
+  hooks.onStudioSession?.(session);
   return session.done;
 }
 
@@ -495,21 +495,21 @@ function buildProgram(
     );
 
   program
-    .command("ui")
+    .command("studio")
     .description("Start Verbatra Studio, the local translation dashboard")
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--port <n>", "override the default Studio port (must be 1-65535)")
     .action(async (opts: unknown) => {
-      setCode(await runUiCommand(opts, deps, streams, hooks));
+      setCode(await runStudioCommand(opts, deps, streams, hooks));
     })
     .addHelpText(
       "after",
       [
         "",
         "Examples:",
-        "  $ verbatra ui                start Verbatra Studio on the default port",
-        "  $ verbatra ui --port 6000    start Verbatra Studio on a specific port",
+        "  $ verbatra studio                start Verbatra Studio on the default port",
+        "  $ verbatra studio --port 6000    start Verbatra Studio on a specific port",
       ].join("\n"),
     );
 

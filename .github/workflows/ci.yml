@@ -62,8 +62,8 @@ jobs:
       - name: Guard published declarations (self-contained .d.ts)
         run: pnpm check:dts
 
-      - name: Guard the ui command's bundling (dynamic import, no inlined @verbatra/ui)
-        run: pnpm check:ui-bundle
+      - name: Guard the studio command's bundling (dynamic import, no inlined @verbatra/studio)
+        run: pnpm check:studio-bundle
 
       - name: Typecheck
         run: pnpm -r typecheck

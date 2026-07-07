@@ -1,5 +1,5 @@
 {
   "title": "CLI",
   "defaultOpen": true,
-  "pages": ["index", "init", "translate", "watch", "check", "diff", "export", "import", "ui"]
+  "pages": ["index", "init", "translate", "watch", "check", "diff", "export", "import", "studio"]
 }

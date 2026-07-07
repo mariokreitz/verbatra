@@ -4,7 +4,7 @@
 //
 //   1. Import grep: the published declaration files must not import or re-export from an unpublished
 //      @verbatra/* workspace package (@verbatra/core, @verbatra/ai-providers, @verbatra/format-adapters,
-//      @verbatra/exchange, @verbatra/ui). Those packages are never published, so such a specifier is
+//      @verbatra/exchange, @verbatra/studio). Those packages are never published, so such a specifier is
 //      unresolvable in a consumer install and degrades the model types to `any`. A reference to
 //      @verbatra/sdk is allowed (it is a real published dependency of @verbatra/cli).
 //   2. Consumer typecheck: a fixture that maps @verbatra/sdk to the built dist must typecheck clean,
@@ -24,7 +24,7 @@ const FORBIDDEN_PACKAGES = [
   "@verbatra/ai-providers",
   "@verbatra/format-adapters",
   "@verbatra/exchange",
-  "@verbatra/ui",
+  "@verbatra/studio",
 ];
 
 // Published declaration files to scan, relative to the repository root.

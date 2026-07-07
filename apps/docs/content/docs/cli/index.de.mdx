@@ -11,7 +11,7 @@ description: "Der verbatra-Befehl: seine acht Unterbefehle, globalen Flags, wie 
 - [`diff`](/docs/cli/diff): listet pro Locale die genauen Schlüssel auf, die hinzugefügt, neu übersetzt oder verwaist würden, schreibgeschützt.
 - [`export`](/docs/cli/export): schreibt unübersetzte Strings in eine Excel-Arbeitsmappe für einen menschlichen Übersetzer.
 - [`import`](/docs/cli/import): liest eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien.
-- [`ui`](/docs/cli/ui): startet Verbatra Studio, ein lokales, schreibgeschütztes Übersetzungs-Dashboard.
+- [`studio`](/docs/cli/studio): startet Verbatra Studio, ein lokales, schreibgeschütztes Übersetzungs-Dashboard.
 
 ## Installieren und aufrufen
 
@@ -46,6 +46,6 @@ Der Exit-Code von verbatra ist der Vertrag, auf den ein CI-Schritt oder ein Skri
 | `0` | Erfolg (auch `--help` und `--version`) |
 | `1` | `translate` oder `import` wurde beendet, aber einige Locales sind fehlgeschlagen, `check` fand ein Locale nicht synchron, oder `diff` fand ausstehende Änderungen |
 | `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs oder ein Nutzungsfehler |
-| `130` | `watch` oder `ui` wurde durch eine zweite Unterbrechung erzwungen gestoppt |
+| `130` | `watch` oder `studio` wurde durch eine zweite Unterbrechung erzwungen gestoppt |
 
 Ein Fehlschlag eines einzelnen Laufs in `watch` erscheint als Stream-Datensatz, nicht als Exit-Code. Jede Befehlsseite vermerkt, wie diese Codes auf sie zutreffen, und [CI und Automatisierung](/docs/ci-and-exit-codes) behandelt ihre Verwendung in einer Pipeline.

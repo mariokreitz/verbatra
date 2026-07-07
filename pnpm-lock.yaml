@@ -240,9 +240,9 @@ importers:
       '@verbatra/config':
         specifier: workspace:*
         version: link:../config
-      '@verbatra/ui':
+      '@verbatra/studio':
         specifier: workspace:*
-        version: link:../ui
+        version: link:../studio
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.9(vitest@4.1.9)
@@ -449,7 +449,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.9(@types/node@26.0.0)(@vitest/coverage-v8@4.1.9)(vite@8.0.16(@types/node@26.0.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0))
 
-  packages/ui:
+  packages/studio:
     dependencies:
       '@verbatra/sdk':
         specifier: workspace:*
@@ -3081,6 +3081,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   github-slugger@2.0.0:

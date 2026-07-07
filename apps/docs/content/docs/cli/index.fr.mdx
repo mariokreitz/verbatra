@@ -11,7 +11,7 @@ description: "La commande verbatra : ses huit sous-commandes, ses options global
 - [`diff`](/docs/cli/diff) : liste les clés exactes qui seraient ajoutées, retraduites ou sont orphelines par locale, en lecture seule.
 - [`export`](/docs/cli/export) : exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain.
 - [`import`](/docs/cli/import) : relit un classeur rempli dans tes fichiers de locale.
-- [`ui`](/docs/cli/ui) : démarre Verbatra Studio, un tableau de bord de traduction local et en lecture seule.
+- [`studio`](/docs/cli/studio) : démarre Verbatra Studio, un tableau de bord de traduction local et en lecture seule.
 
 ## Installer et invoquer
 
@@ -46,6 +46,6 @@ Le code de sortie de verbatra est le contrat sur lequel une étape de CI ou un s
 | `0` | succès (également `--help` et `--version`) |
 | `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
 | `2` | impossible de s'exécuter : une erreur d'exécution globale, ou une erreur d'usage |
-| `130` | `watch` ou `ui` a été arrêté de force par une seconde interruption |
+| `130` | `watch` ou `studio` a été arrêté de force par une seconde interruption |
 
 L'échec d'une exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie. Chaque page de commande précise comment ces codes s'y appliquent, et [CI et automatisation](/docs/ci-and-exit-codes) couvre leur utilisation dans un pipeline.

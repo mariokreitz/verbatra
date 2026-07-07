@@ -17,9 +17,9 @@ import type {
   WatchInput,
 } from "@verbatra/sdk";
 // A real value import, not a runtime concern here: this file is test-only, never bundled by tsup,
-// so it is not part of the CLI's dynamic-import contract for @verbatra/ui.
-import { DEFAULT_STUDIO_PORT } from "@verbatra/ui";
-import type { CliDeps, Streams, UiModule } from "./types.js";
+// so it is not part of the CLI's dynamic-import contract for @verbatra/studio.
+import { DEFAULT_STUDIO_PORT } from "@verbatra/studio";
+import type { CliDeps, Streams, StudioModule } from "./types.js";
 
 export function makeConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   return {
@@ -76,10 +76,10 @@ export function makeLoadedConfig(overrides: Partial<LoadedConfig> = {}): LoadedC
   };
 }
 
-/** Fake `@verbatra/ui` module: a `startUiServer` returning a fake server whose `close` never throws. */
-export function makeUiModule(overrides: Partial<UiModule> = {}): UiModule {
+/** Fake `@verbatra/studio` module: a `startStudioServer` returning a fake server whose `close` never throws. */
+export function makeStudioModule(overrides: Partial<StudioModule> = {}): StudioModule {
   return {
-    startUiServer: async (options) => ({
+    startStudioServer: async (options) => ({
       url: `http://127.0.0.1:${options.port ?? DEFAULT_STUDIO_PORT}/`,
       port: options.port ?? DEFAULT_STUDIO_PORT,
       close: async () => {},
@@ -115,7 +115,7 @@ export interface DepCalls {
   check: CheckInput[];
   diff: DiffInput[];
   loadConfigWithMeta: LoadConfigOptions[];
-  importUi: undefined[];
+  importStudio: undefined[];
 }
 
 /** Recording stub of the SDK deps. Override any of them to control behavior or throw. */
@@ -129,7 +129,7 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     check: [],
     diff: [],
     loadConfigWithMeta: [],
-    importUi: [],
+    importStudio: [],
   };
   const deps: CliDeps = {
     loadConfig: async (options) => {
@@ -164,9 +164,9 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
       calls.loadConfigWithMeta.push(options);
       return impl.loadConfigWithMeta ? impl.loadConfigWithMeta(options) : makeLoadedConfig();
     },
-    importUi: async () => {
-      calls.importUi.push(undefined);
-      return impl.importUi ? impl.importUi() : makeUiModule();
+    importStudio: async () => {
+      calls.importStudio.push(undefined);
+      return impl.importStudio ? impl.importStudio() : makeStudioModule();
     },
   };
   return { deps, calls };

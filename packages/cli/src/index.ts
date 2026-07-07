@@ -2,15 +2,15 @@
  * The verbatra command-line interface: a thin wrapper over @verbatra/sdk. Each subcommand validates
  * its argv, calls one SDK entry point, and renders the result.
  *
- * Subcommands: `translate`, `watch`, `export`, `import`, `check`, `diff`, `ui`, and `init`.
+ * Subcommands: `translate`, `watch`, `export`, `import`, `check`, `diff`, `studio`, and `init`.
  *
  * Exit codes (the CI/script contract): `0` success; `1` `translate`/`import` finished but some locales
- * failed; `2` could not run (a whole-run error or a usage error); `130` `watch` or `ui` force-stopped
- * by a second interrupt.
+ * failed; `2` could not run (a whole-run error or a usage error); `130` `watch` or `studio`
+ * force-stopped by a second interrupt.
  *
  * API keys are read only from the environment by the SDK's providers; the CLI never takes a key.
- * `ui` reaches @verbatra/ui only through a dynamic import, so it never fails to load merely because
- * that package is not installed.
+ * `studio` reaches @verbatra/studio only through a dynamic import, so it never fails to load merely
+ * because that package is not installed.
  *
  * @packageDocumentation
  */
@@ -40,7 +40,7 @@ const code = await run(
     check,
     diff,
     loadConfigWithMeta,
-    importUi: () => import("@verbatra/ui"),
+    importStudio: () => import("@verbatra/studio"),
   },
   {
     out: (text) => {
@@ -55,7 +55,7 @@ const code = await run(
       process.on("SIGINT", () => session.requestStop());
       process.on("SIGTERM", () => session.requestStop());
     },
-    onUiSession: (session) => {
+    onStudioSession: (session) => {
       process.on("SIGINT", () => session.requestStop());
       process.on("SIGTERM", () => session.requestStop());
     },

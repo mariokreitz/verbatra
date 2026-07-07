@@ -3,8 +3,8 @@ packages:
   - "apps/*"
 
 # Single-source duplicated versions. Default catalog holds the shared toolchain, zod, chokidar
-# (shared between @verbatra/sdk and @verbatra/ui), and the React runtime (react, react-dom,
-# @types/react, @types/react-dom, shared between @verbatra/ui and apps/docs); the "bundled"
+# (shared between @verbatra/sdk and @verbatra/studio), and the React runtime (react, react-dom,
+# @types/react, @types/react-dom, shared between @verbatra/studio and apps/docs); the "bundled"
 # catalog holds the runtime deps that @verbatra/sdk re-declares from the internal packages it
 # bundles, so the owning package and sdk always pin the same version.
 catalog:
