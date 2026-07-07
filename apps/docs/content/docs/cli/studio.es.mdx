@@ -8,6 +8,10 @@ Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en v
 verbatra studio
 ```
 
+<Callout title="Todavía no disponible de forma general">
+`verbatra studio` es nuevo y por ahora solo se distribuye como prerelease, en la etiqueta de distribución `next` (`pnpm add -D @verbatra/cli@next`). Incluso con esa versión instalada, `@verbatra/studio`, el paquete que ejecuta el panel, todavía no está publicado, así que el comando no funcionará de extremo a extremo hasta que lo esté. Vuelve a comprobarlo cuando `@verbatra/studio` esté disponible.
+</Callout>
+
 ## Solo local y de solo lectura
 
 Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. No hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff).
@@ -34,7 +38,7 @@ Abre exactamente esa URL. El token en la cadena de consulta arranca una cookie d
 
 ## Reinicio ante un cambio de configuración
 
-La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la vida de ese proceso, se construye a partir de esa misma configuración resuelta. Si cambias `verbatra.config.ts` (un nuevo locale de destino, un proveedor distinto, un patrón de archivo distinto), detén Studio e inícialo de nuevo para aplicar el cambio. Los propios archivos del proyecto (tus archivos de locale de origen y de destino, y el archivo de bloqueo) se leen de forma fresca en cada solicitud, así que editarlos y recargar la página siempre muestra los datos actuales; Studio todavía no envía una actualización automática cuando un archivo cambia en disco.
+La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la vida de ese proceso, se construye a partir de esa misma configuración resuelta. Si cambias `verbatra.config.ts` (un nuevo locale de destino, un proveedor distinto, un patrón de archivo distinto), detén Studio e inícialo de nuevo para aplicar el cambio. Los archivos del proyecto son distintos: Studio vigila tu archivo de locale de origen, cada archivo de locale de destino y el archivo de bloqueo, y envía una señal de actualización en vivo a tu pestaña del navegador abierta en cuanto uno de ellos cambia en disco (las escrituras sucesivas rápidas se agrupan en una sola señal). La pestaña vuelve a cargar automáticamente la vista que estás mirando en ese momento, sin necesidad de recargar la página. Si una recarga falla, la vista sigue mostrando sus últimos datos válidos con un indicador discreto de datos desactualizados en lugar de quedar en blanco, y lo intenta de nuevo en la siguiente señal. Una conexión caída se reconecta sola con espera creciente; si Studio mismo se apaga, la pestaña muestra un aviso a pantalla completa para reiniciarlo desde la terminal.
 
 ## Las vistas
 

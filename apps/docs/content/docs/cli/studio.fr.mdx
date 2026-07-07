@@ -8,6 +8,10 @@ Verbatra Studio est un tableau de bord web local sur ton projet verbatra : une v
 verbatra studio
 ```
 
+<Callout title="Pas encore disponible de façon générale">
+`verbatra studio` est nouveau et n'est pour l'instant distribué qu'en préversion, sur le dist-tag `next` (`pnpm add -D @verbatra/cli@next`). Même avec cette version installée, `@verbatra/studio` lui-même, le paquet qui exécute le tableau de bord, n'est pas encore publié, donc la commande ne fonctionnera pas de bout en bout tant qu'il ne l'est pas. Reviens vérifier une fois que `@verbatra/studio` sera disponible.
+</Callout>
+
 ## Uniquement local et en lecture seule
 
 Studio se lie uniquement à `127.0.0.1` : il n'est jamais accessible depuis une autre machine, et il n'y a aucune option pour changer cela. Chaque requête est vérifiée contre une liste stricte de Host et Origin autorisés, et chaque page et chaque appel API nécessitent le jeton de session affiché dans l'URL de démarrage, comparé en temps constant pour qu'une tentative incorrecte ne puisse pas être devinée par chronométrage. Studio n'envoie aucun en-tête CORS, si bien qu'un onglet de navigateur sur une autre origine ne pourrait pas le lire même en essayant. Il n'y a aucun endpoint qui modifie l'état dans Studio : il n'appelle jamais `translate`, n'exécute jamais `watch`, et n'importe ni n'exporte jamais un classeur. Tout ce que tu vois provient des mêmes calculs en lecture seule que [`verbatra check`](/docs/cli/check) et [`verbatra diff`](/docs/cli/diff).
@@ -34,7 +38,7 @@ Ouvre exactement cette URL. Le jeton dans la chaîne de requête amorce un cooki
 
 ## Redémarrage lors d'un changement de configuration
 
-La configuration est résolue une seule fois, au démarrage, et chaque vue, pendant toute la durée de vie de ce processus, s'appuie sur cette même configuration résolue. Si tu modifies `verbatra.config.ts` (une nouvelle locale cible, un fournisseur différent, un motif de fichier différent), arrête Studio et redémarre-le pour appliquer le changement. Les fichiers du projet eux-mêmes (tes fichiers de locale source et cible, ainsi que le fichier de verrouillage) sont relus à chaque requête, si bien que les modifier puis recharger la page affiche toujours les données actuelles ; Studio ne pousse pas encore de rafraîchissement automatique lorsqu'un fichier change sur le disque.
+La configuration est résolue une seule fois, au démarrage, et chaque vue, pendant toute la durée de vie de ce processus, s'appuie sur cette même configuration résolue. Si tu modifies `verbatra.config.ts` (une nouvelle locale cible, un fournisseur différent, un motif de fichier différent), arrête Studio et redémarre-le pour appliquer le changement. Les fichiers du projet, eux, sont différents : Studio surveille ton fichier de locale source, chaque fichier de locale cible et le fichier de verrouillage, et pousse un signal de rafraîchissement en direct vers ton onglet de navigateur ouvert dès que l'un d'eux change sur le disque (les écritures rapprochées successives sont regroupées en un seul signal). L'onglet recharge automatiquement la vue que tu regardes en ce moment, sans qu'il soit besoin de recharger la page. Si un rechargement échoue, la vue continue d'afficher ses dernières bonnes données avec un discret indicateur de données obsolètes plutôt que de s'effacer, et réessaie au signal suivant. Une connexion coupée se reconnecte d'elle-même avec un délai croissant ; si Studio lui-même s'arrête, l'onglet affiche un avis plein écran invitant à le redémarrer depuis le terminal.
 
 ## Les vues
 
