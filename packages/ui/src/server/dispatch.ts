@@ -8,6 +8,7 @@ import { formatRequestLog } from "./request-log.js";
 import type { RpcHandlerDeps } from "./rpc.js";
 import { handleRpcBody } from "./rpc-gate.js";
 import { applyNoStore, applySecurityHeaders } from "./security-headers.js";
+import type { SseHub } from "./sse.js";
 import { readAsset } from "./static-assets.js";
 import { tokensMatch } from "./token.js";
 import {
@@ -29,7 +30,11 @@ export interface DispatchContext {
   readonly log: (line: string) => void;
   /** Resolved once at startup (G11); every POST /rpc call reuses this same value, never re-loading it. */
   readonly rpcDeps: RpcHandlerDeps;
+  /** The live-refresh SSE hub every `GET /events` connection registers with. */
+  readonly sseHub: SseHub;
 }
+
+const EVENTS_PATH = "/events";
 
 function pathWithoutQuery(url: string): string {
   const index = url.indexOf("?");
@@ -116,6 +121,25 @@ async function serveStatic(
   context.log(formatRequestLog({ method, path, status: 200 }));
 }
 
+/**
+ * Opens the live-refresh SSE stream: registers the response with the hub, which writes every
+ * later refresh, heartbeat, and the final shutdown frame. This never goes through the RPC
+ * dispatcher (it is not an RPC method); it shares only the same session-cookie authentication as
+ * every other GET route.
+ */
+function handleEvents(
+  context: DispatchContext,
+  response: ServerResponse,
+  method: string,
+  path: string,
+): void {
+  applyNoStore(response);
+  response.writeHead(200, { "Content-Type": "text/event-stream; charset=utf-8" });
+  response.write(": connected\n\n");
+  context.sseHub.register(response);
+  context.log(formatRequestLog({ method, path, status: 200 }));
+}
+
 async function handleGet(
   context: DispatchContext,
   request: IncomingMessage,
@@ -132,6 +156,10 @@ async function handleGet(
   // the printed, token-bearing URL is the only entry point into an authenticated session.
   if (!isAuthenticated(context, request)) {
     finishConstant(context, response, method, path, 401, UNAUTHORIZED_BODY);
+    return;
+  }
+  if (path === EVENTS_PATH) {
+    handleEvents(context, response, method, path);
     return;
   }
   await serveStatic(context, response, method, path);

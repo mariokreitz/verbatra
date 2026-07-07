@@ -1,0 +1,248 @@
+import { afterEach, describe, expect, it } from "vitest";
+import { startUiServer } from "./create-ui-server.js";
+import { authenticatedCookie, stubLoader, withServer } from "./test-support.js";
+import type { CreateUiWatcher, UiServer, UiWatcher } from "./types.js";
+
+const TOKEN = "sse-test-token-0123456789abcdef01234567";
+
+/** Mirrors the sdk's own watch.test.ts watcherHarness, generalized to the three per-category calls. */
+function multiWatcherHarness() {
+  const calls: { paths: readonly string[]; listener?: () => void }[] = [];
+  const createWatcher: CreateUiWatcher = (paths): UiWatcher => {
+    const call: { paths: readonly string[]; listener?: () => void } = { paths };
+    calls.push(call);
+    return {
+      onChange: (listener) => {
+        call.listener = listener;
+      },
+      close: async () => {},
+    };
+  };
+  return {
+    createWatcher,
+    emit(index: number): void {
+      calls[index]?.listener?.();
+    },
+  };
+}
+
+type SseReader = ReadableStreamDefaultReader<Uint8Array>;
+
+/** Reads raw SSE frames (split on the blank-line boundary) until at least `count` have arrived. */
+async function readFrames(reader: SseReader, count: number): Promise<string[]> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const frames: string[] = [];
+  while (frames.length < count) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      frames.push(buffer.slice(0, boundary));
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  return frames;
+}
+
+/** Drains a reader to completion, collecting every frame seen before the stream ends. */
+async function readUntilDone(reader: SseReader): Promise<string[]> {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const frames: string[] = [];
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    let boundary = buffer.indexOf("\n\n");
+    while (boundary !== -1) {
+      frames.push(buffer.slice(0, boundary));
+      buffer = buffer.slice(boundary + 2);
+      boundary = buffer.indexOf("\n\n");
+    }
+  }
+  return frames;
+}
+
+async function connectEvents(url: string, cookie: string, signal: AbortSignal): Promise<Response> {
+  return fetch(`${url}events`, { headers: { Cookie: cookie }, signal });
+}
+
+describe("GET /events: authentication", () => {
+  it(
+    "requires the session cookie, exactly like every other GET route",
+    () =>
+      withServer(async (server) => {
+        const response = await fetch(`${server.url}events`);
+        expect(response.status).toBe(401);
+      }),
+    5000,
+  );
+
+  it(
+    "opens a text/event-stream response for an authenticated client",
+    () =>
+      withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const controller = new AbortController();
+          try {
+            const response = await connectEvents(server.url, cookie, controller.signal);
+            expect(response.status).toBe(200);
+            expect(response.headers.get("content-type")).toContain("text/event-stream");
+            expect(response.headers.get("cache-control")).toBe("no-store");
+          } finally {
+            controller.abort();
+          }
+        },
+        { token: TOKEN },
+      ),
+    5000,
+  );
+});
+
+describe("GET /events: refresh delivery", () => {
+  const harness = multiWatcherHarness();
+
+  it(
+    "a debounced watcher change reaches a connected client as a correctly tagged refresh frame",
+    () =>
+      withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const controller = new AbortController();
+          const response = await connectEvents(server.url, cookie, controller.signal);
+          const reader = response.body?.getReader();
+          expect(reader).toBeDefined();
+          if (reader === undefined) {
+            controller.abort();
+            return;
+          }
+          try {
+            await readFrames(reader, 1); // the initial ": connected" comment
+
+            harness.emit(0); // the source category's raw change
+
+            const frames = await readFrames(reader, 1);
+            const refreshFrame = frames.find((frame) => frame.includes("event: refresh"));
+            expect(refreshFrame).toBeDefined();
+            expect(refreshFrame).toContain('"reason":"source"');
+          } finally {
+            await reader.cancel();
+            controller.abort();
+          }
+        },
+        { token: TOKEN, createWatcher: harness.createWatcher },
+      ),
+    5000,
+  );
+});
+
+describe("GET /events: secret sweep", () => {
+  const SENTINELS = {
+    ANTHROPIC_API_KEY: "sentinel-anthropic-sse-1a2b3c",
+    OPENAI_API_KEY: "sentinel-openai-sse-4d5e6f",
+    GEMINI_API_KEY: "sentinel-gemini-sse-7a8b9c",
+    DEEPL_API_KEY: "sentinel-deepl-sse-0d1e2f",
+  } as const;
+  const ENV_VAR_NAMES = Object.keys(SENTINELS) as (keyof typeof SENTINELS)[];
+  const originalValues: Record<string, string | undefined> = {};
+
+  function plantSentinels(): void {
+    for (const name of ENV_VAR_NAMES) {
+      originalValues[name] = process.env[name];
+      process.env[name] = SENTINELS[name];
+    }
+  }
+
+  function restoreSentinels(): void {
+    for (const name of ENV_VAR_NAMES) {
+      const value = originalValues[name];
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
+
+  it("no sentinel substring appears in any frame of a real refresh delivered over SSE", async () => {
+    plantSentinels();
+    const harness = multiWatcherHarness();
+    try {
+      await withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const controller = new AbortController();
+          const response = await connectEvents(server.url, cookie, controller.signal);
+          const reader = response.body?.getReader();
+          expect(reader).toBeDefined();
+          if (reader === undefined) {
+            controller.abort();
+            return;
+          }
+          try {
+            await readFrames(reader, 1);
+            harness.emit(0);
+            const frames = await readFrames(reader, 1);
+            const combined = frames.join("\n");
+            for (const sentinel of Object.values(SENTINELS)) {
+              expect(combined).not.toContain(sentinel);
+            }
+          } finally {
+            await reader.cancel();
+            controller.abort();
+          }
+        },
+        { token: TOKEN, createWatcher: harness.createWatcher },
+      );
+    } finally {
+      restoreSentinels();
+    }
+  }, 5000);
+});
+
+describe("shutdown: the SSE stream", () => {
+  let server: UiServer | undefined;
+
+  afterEach(async () => {
+    if (server) {
+      await server.close();
+      server = undefined;
+    }
+  });
+
+  it("writes the shutdown frame as the final payload, ends the stream, and still closes within 2 seconds", async () => {
+    server = await startUiServer({ port: 0, token: TOKEN, loader: stubLoader() });
+    const cookie = await authenticatedCookie(server.url, TOKEN);
+    // The controller is not aborted until the end: the stream must end on its own, server-side,
+    // via the shutdown frame plus response.end(), not because the client gave up.
+    const controller = new AbortController();
+    const response = await connectEvents(server.url, cookie, controller.signal);
+    const reader = response.body?.getReader();
+    expect(reader).toBeDefined();
+    if (reader === undefined) {
+      controller.abort();
+      return;
+    }
+    await readFrames(reader, 1); // the initial ": connected" comment
+
+    const start = Date.now();
+    await server.close();
+    const elapsed = Date.now() - start;
+    server = undefined;
+
+    expect(elapsed).toBeLessThan(2000);
+
+    const remaining = await readUntilDone(reader);
+    expect(remaining.length).toBeGreaterThan(0);
+    expect(remaining.at(-1)).toContain("event: shutdown");
+    controller.abort();
+  }, 5000);
+});

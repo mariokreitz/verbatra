@@ -9,9 +9,11 @@ import { type DispatchContext, handleRequest } from "./dispatch.js";
 import { UiServerStartError } from "./errors.js";
 import { resolveBoundAddress } from "./resolve-bound-port.js";
 import type { RpcHandlerDeps } from "./rpc.js";
+import { createSseHub, type SseHub } from "./sse.js";
 import { generateToken } from "./token.js";
 import { FORBIDDEN_BODY } from "./transport-responses.js";
 import type { UiServer, UiServerOptions } from "./types.js";
+import { createProjectWatcher, defaultCreateUiWatcher, type ProjectWatcher } from "./watcher.js";
 
 const RAW_FORBIDDEN_RESPONSE = [
   "HTTP/1.1 403 Forbidden",
@@ -108,14 +110,20 @@ function listen(server: Server, port: number): Promise<AddressInfo> {
   });
 }
 
-function closeServer(server: Server): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Ordering slot for a future live-refresh event stream: its own close (a close frame sent to
-    // every open connection) must run before this, so in-flight streams end cleanly instead of
-    // being cut off mid-frame by closeAllConnections below.
+/**
+ * Shuts the server down in the pinned order (G23): the SSE hub's close, which writes a final
+ * shutdown frame to every open connection and ends each response, runs first, so in-flight
+ * streams end cleanly instead of being cut off mid-frame by `closeAllConnections` below. The
+ * project watcher is stopped concurrently with the HTTP server's own close; neither depends on
+ * the other, but both must settle before this resolves, so no chokidar handle outlives the server.
+ */
+function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): Promise<void> {
+  sseHub.closeAll();
+  const serverClosed = new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
     server.closeAllConnections();
   });
+  return Promise.all([serverClosed, watcher.close()]).then(() => undefined);
 }
 
 /**
@@ -133,6 +141,18 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   const output = options.output ?? defaultOutput;
   const token = options.token ?? generateToken();
   const config = await options.loader();
+  const projectRoot = process.cwd();
+
+  const watcher = createProjectWatcher(
+    { config: config.config, projectRoot },
+    { createWatcher: options.createWatcher ?? defaultCreateUiWatcher },
+  );
+  const sseHub = createSseHub(
+    options.heartbeatIntervalMs !== undefined
+      ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
+      : {},
+  );
+  watcher.onRefresh((event) => sseHub.broadcastRefresh(event));
 
   const server = createServer();
   server.on("clientError", handleClientError);
@@ -146,7 +166,8 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
     cookieName: cookieName(port),
     assetsRootPath,
     log: output,
-    rpcDeps: buildRpcHandlerDeps(config, process.cwd(), options),
+    rpcDeps: buildRpcHandlerDeps(config, projectRoot, options),
+    sseHub,
   };
   server.on("request", (request, response) => {
     handleRequest(context, request, response).catch(() => {
@@ -164,6 +185,6 @@ export async function startUiServer(options: UiServerOptions): Promise<UiServer>
   return {
     url,
     port,
-    close: () => closeServer(server),
+    close: () => closeServer(server, sseHub, watcher),
   };
 }
