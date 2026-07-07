@@ -135,13 +135,16 @@ function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): P
  * `options.loader` is resolved exactly once here, before the server starts listening (G11): every
  * RPC handler for the life of this process receives that same resolved config, and it is never
  * re-invoked on a later request, whatever the request does.
+ *
+ * Every RPC handler resolves relative paths against `options.cwd` when given, or `process.cwd()`
+ * otherwise; see {@link UiServerOptions.cwd}.
  */
 export async function startUiServer(options: UiServerOptions): Promise<UiServer> {
   const assetsRootPath = fileURLToPath(options.assetsRoot ?? defaultAssetsRoot());
   const output = options.output ?? defaultOutput;
   const token = options.token ?? generateToken();
   const config = await options.loader();
-  const projectRoot = process.cwd();
+  const projectRoot = options.cwd ?? process.cwd();
 
   const watcher = createProjectWatcher(
     { config: config.config, projectRoot },

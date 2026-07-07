@@ -67,6 +67,28 @@ describe("run ui: ordering", () => {
     expect(calls.loadConfigWithMeta).toEqual([{ cwd: "/proj", configPath: "verbatra.config.ts" }]);
   });
 
+  it("passes the resolved --cwd through to startUiServer, not the process's own cwd", async () => {
+    const startCalls: Array<{ cwd: string | undefined }> = [];
+    const { deps } = recordingDeps({
+      importUi: async () =>
+        makeUiModule({
+          startUiServer: async (options) => {
+            startCalls.push({ cwd: options.cwd });
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureUiSession();
+
+    const donePromise = run(["ui", "--cwd", "/proj"], deps, cap.streams, captured.hooks);
+    await flush();
+    captured.session()?.requestStop();
+    await donePromise;
+
+    expect(startCalls).toEqual([{ cwd: "/proj" }]);
+  });
+
   it("a CONFIG_INVALID failure also exits 2 without ever importing @verbatra/ui", async () => {
     const { deps, calls } = recordingDeps({
       loadConfigWithMeta: async () => {

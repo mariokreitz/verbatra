@@ -161,6 +161,7 @@ export async function runUi(rawOpts: unknown, deps: CliDeps, streams: Streams): 
       ui.startUiServer({
         loader: () => Promise.resolve(config),
         token,
+        cwd,
         // The command owns the one printed banner (the ruled string below); ui's own default output
         // sink would otherwise also print its own differently-worded banner, and per-request log
         // lines are not needed by this thin wrapper.
