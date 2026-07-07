@@ -1,5 +1,17 @@
 # @verbatra/sdk
 
+## 0.5.0-next.0
+
+### Minor Changes
+
+- 5597f98: Add support for `glossary` as a path to a JSON file, in addition to the existing inline object. A relative path resolves against the directory of the loaded config file (or against the working directory when the config is passed as an in-memory override). The file is read once at load time, bounded to 1 MiB, and validated to the same flat string-to-string shape as the inline form; a missing file, oversized file, non-UTF-8 content, invalid JSON, or the wrong shape is a config error naming the resolved path. This is config-loading only: every downstream consumer (the translation flow, `watch`, the CLI) keeps receiving the same resolved plain object it always did.
+
+  This also adds an additive `loadConfigWithMeta` export that returns the resolved config alongside where it was loaded from and where its glossary came from, and exports the as-authored `VerbatraConfigInput` type (used by `defineConfig`) alongside the existing resolved `VerbatraConfig` type. `loadConfig` itself is unchanged in signature and behavior. `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- 4a789ff: Add `lockState`, a read-only sibling of `check` and `diff` that reports the translation lock-file's existence, version, and per-locale drift (recorded key count plus missing, stale, and up-to-date counts against the current source and target files) without calling a provider, writing any file, or touching the lock. Its `exists` field is always the result of an explicit check for the lock-file on disk, so a project that has never been translated is reported distinctly from one whose lock-file is present but empty.
+
+  Also export `loadLockFile`, a thin wrapper for reading the project's lock-file directly, along with the `LockFile` type and the `LOCK_FILE_NAME` constant. `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
 ## 0.4.4
 
 ### Patch Changes
