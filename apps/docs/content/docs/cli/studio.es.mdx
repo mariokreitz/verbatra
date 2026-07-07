@@ -8,8 +8,8 @@ Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en v
 verbatra studio
 ```
 
-<Callout title="Todavía no disponible de forma general">
-`verbatra studio` es nuevo y por ahora solo se distribuye como prerelease, en la etiqueta de distribución `next` (`pnpm add -D @verbatra/cli@next`). Incluso con esa versión instalada, `@verbatra/studio`, el paquete que ejecuta el panel, todavía no está publicado, así que el comando no funcionará de extremo a extremo hasta que lo esté. Vuelve a comprobarlo cuando `@verbatra/studio` esté disponible.
+<Callout title="Solo disponible como prerelease">
+Verbatra Studio por ahora solo está disponible como prerelease, todavía no hay una versión estable. Para usarlo, instala ambos paquetes explícitamente bajo la etiqueta `next`: `pnpm add -D @verbatra/cli@next @verbatra/studio@next`. Un simple `pnpm add -D @verbatra/cli` (sin etiqueta) resuelve a la versión estable actual y no incluye este comando.
 </Callout>
 
 ## Solo local y de solo lectura
@@ -50,7 +50,7 @@ La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la
 
 ## Instalación
 
-`@verbatra/studio` es el paquete propio de Studio. Si no está instalado, `verbatra studio` sale con `2` y:
+`@verbatra/studio` es el paquete propio de Studio, publicado actualmente bajo la etiqueta de distribución `next` junto con `@verbatra/cli@next`. Si no está instalado, `verbatra studio` sale con `2` y:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
