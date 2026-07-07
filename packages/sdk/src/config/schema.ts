@@ -21,7 +21,13 @@ export const verbatraConfigSchema = z
       pattern: z.string().min(1),
     }),
     provider: providerConfigSchema,
-    glossary: z.record(z.string(), z.string()).optional(),
+    /**
+     * A glossary of source terms to preferred target terms, either inline or as a path to a JSON file
+     * carrying the same shape. The two forms are mutually exclusive by type; there is no merge or
+     * precedence between them. A path is resolved and validated by the loader, not by this schema; see
+     * `resolve-glossary.ts`.
+     */
+    glossary: z.union([z.record(z.string(), z.string()), z.string().min(1)]).optional(),
     tone: z.enum(["formal", "informal", "neutral"]).optional(),
     /**
      * Opt-in orphan pruning, off by default. When true, keys present in a target file but absent from
@@ -55,4 +61,20 @@ export const verbatraConfigSchema = z
     path: ["files", "pattern"],
   });
 
-export type VerbatraConfig = z.infer<typeof verbatraConfigSchema>;
+/**
+ * The as-authored (or as-parsed) shape of the verbatra configuration, straight from the schema: `glossary`
+ * is still the union of an inline record or a file path. {@link defineConfig} and the authoring types are
+ * built on this; `loadConfig` accepts it as input and produces the resolved {@link VerbatraConfig}.
+ */
+export type VerbatraConfigInput = z.infer<typeof verbatraConfigSchema>;
+
+/**
+ * The verbatra configuration after `loadConfig` has resolved it: identical to {@link VerbatraConfigInput}
+ * except `glossary`, which is always a plain record here. A glossary given as a file path is read,
+ * parsed, and validated by the loader before a `VerbatraConfig` is produced, so every downstream
+ * consumer (the translation flow, `watch`, the CLI) keeps receiving the same resolved shape it always
+ * did.
+ */
+export type VerbatraConfig = Omit<VerbatraConfigInput, "glossary"> & {
+  glossary?: Readonly<Record<string, string>>;
+};

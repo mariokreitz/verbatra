@@ -1,10 +1,12 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
 import { SdkError } from "../errors.js";
-import { type VerbatraConfig, verbatraConfigSchema } from "./schema.js";
+import { defaultFs, type SdkFs } from "../fs.js";
+import { type GlossaryProvenance, resolveGlossary } from "./resolve-glossary.js";
+import { type VerbatraConfig, type VerbatraConfigInput, verbatraConfigSchema } from "./schema.js";
 
 const MODULE_NAME = "verbatra";
 
@@ -38,6 +40,23 @@ export interface LoadConfigOptions {
    * search, but `configOverride` takes precedence over it.
    */
   readonly configPath?: string;
+  /** The file-system seam a glossary file path is read through. Defaults to {@link defaultFs}. */
+  readonly fs?: SdkFs;
+}
+
+/** Where the loaded config came from: an in-memory override, one explicit file, or a search result. */
+export type ConfigSource =
+  | { readonly kind: "search" | "explicit"; readonly filepath: string }
+  | { readonly kind: "override" };
+
+/**
+ * The result of {@link loadConfigWithMeta}: the resolved config, where it was loaded from, and where its
+ * glossary came from. `filepath` (when present) and a `glossary` file path are always absolute.
+ */
+export interface LoadedConfig {
+  readonly config: VerbatraConfig;
+  readonly source: ConfigSource;
+  readonly glossary: GlossaryProvenance;
 }
 
 function formatIssues(error: z.ZodError): string {
@@ -53,7 +72,7 @@ function formatIssues(error: z.ZodError): string {
     .join("; ");
 }
 
-function validate(input: unknown): VerbatraConfig {
+function parseConfig(input: unknown): VerbatraConfigInput {
   const parsed = verbatraConfigSchema.safeParse(input);
   if (!parsed.success) {
     throw new SdkError(
@@ -64,14 +83,33 @@ function validate(input: unknown): VerbatraConfig {
   return parsed.data;
 }
 
+/**
+ * Resolve a parsed config's `glossary` field (an inline record passes through; a file path is read and
+ * validated) against `baseDir`, producing the final resolved {@link VerbatraConfig} and its provenance.
+ */
+async function finalizeConfig(
+  parsed: VerbatraConfigInput,
+  baseDir: string,
+  fs: SdkFs,
+): Promise<{ config: VerbatraConfig; glossary: GlossaryProvenance }> {
+  const { glossary: glossaryInput, ...rest } = parsed;
+  const resolved = await resolveGlossary(glossaryInput, baseDir, fs);
+  const config: VerbatraConfig = {
+    ...rest,
+    ...(resolved.glossary !== undefined ? { glossary: resolved.glossary } : {}),
+  };
+  return { config, glossary: resolved.provenance };
+}
+
 // The existsSync pre-check only buys the nicer not-found message; a file that passes it but then fails
 // to load (parse error, or vanishing between check and load) is still caught and surfaced as
 // CONFIG_INVALID, so no raw fs error escapes.
-async function loadExplicit(
+async function loadExplicitWithMeta(
   explorer: ReturnType<typeof cosmiconfig>,
   configPath: string,
   cwd: string | undefined,
-): Promise<VerbatraConfig> {
+  fs: SdkFs,
+): Promise<LoadedConfig> {
   const resolved = resolve(cwd ?? process.cwd(), configPath);
   if (!existsSync(resolved)) {
     throw new SdkError("CONFIG_NOT_FOUND", `No verbatra configuration file at ${resolved}.`);
@@ -85,39 +123,34 @@ async function loadExplicit(
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
   }
 
-  return validate(result?.config);
+  const parsed = parseConfig(result?.config);
+  const { config, glossary } = await finalizeConfig(parsed, dirname(resolved), fs);
+  return { config, source: { kind: "explicit", filepath: resolved }, glossary };
 }
 
 /**
- * Load and validate the verbatra configuration. Supports a code-defined
- * verbatra.config.ts and file-based configs (.verbatrarc.json/.yaml, package.json
- * property) through cosmiconfig + cosmiconfig-typescript-loader. Multiple sources ->
- * first-found-wins by cosmiconfig precedence. Any failure is a structured SdkError;
- * a raw zod error is never thrown upward and an unvalidated config never proceeds.
+ * Load and validate the verbatra configuration, returning provenance alongside it: which source it was
+ * loaded from ({@link ConfigSource}), and whether its glossary is absent, inline, or resolved from a
+ * file ({@link GlossaryProvenance}). {@link loadConfig} is a thin wrapper that returns only the
+ * `config` field; use this directly when the provenance is needed (for example, to display it or to
+ * re-resolve a glossary file relative to the same base directory).
  *
- * Precedence: `configOverride` (validate in-memory) > `configPath` (load one explicit file) > search.
- *
- * @param options - Where/what to load: `cwd`, an in-memory `configOverride`, or an explicit `configPath`.
- * @returns The validated {@link VerbatraConfig}.
+ * @param options - Where/what to load: `cwd`, an in-memory `configOverride`, an explicit `configPath`,
+ *   or a `fs` seam override.
+ * @returns The resolved {@link VerbatraConfig}, its {@link ConfigSource}, and its {@link GlossaryProvenance}.
  * @throws {@link SdkError} `CONFIG_NOT_FOUND`: no config was found by search, or the explicit `configPath`
  *   does not exist.
- * @throws {@link SdkError} `CONFIG_INVALID`: a config was found but is unparseable or fails validation
- *   (a raw zod error never escapes).
- * @example
- * ```ts
- * import { loadConfig, translate } from "@verbatra/sdk";
- *
- * // Search upward from the cwd (verbatra.config.ts, .verbatrarc.json, or a package.json "verbatra" key):
- * const config = await loadConfig();
- * // Or load one explicit file (relative resolves against cwd; absolute as given):
- * // const config = await loadConfig({ configPath: "verbatra.config.ts" });
- *
- * const summary = await translate({ config });
- * ```
+ * @throws {@link SdkError} `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or
+ *   its glossary file path could not be read as a valid, UTF-8, flat string record (a raw error never
+ *   escapes).
  */
-export async function loadConfig(options: LoadConfigOptions = {}): Promise<VerbatraConfig> {
+export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promise<LoadedConfig> {
+  const fs = options.fs ?? defaultFs;
+
   if (options.configOverride !== undefined) {
-    return validate(options.configOverride);
+    const parsed = parseConfig(options.configOverride);
+    const { config, glossary } = await finalizeConfig(parsed, options.cwd ?? process.cwd(), fs);
+    return { config, source: { kind: "override" }, glossary };
   }
 
   const explorer = cosmiconfig(MODULE_NAME, {
@@ -126,7 +159,7 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Verba
   });
 
   if (options.configPath !== undefined) {
-    return loadExplicit(explorer, options.configPath, options.cwd);
+    return loadExplicitWithMeta(explorer, options.configPath, options.cwd, fs);
   }
 
   let result: Awaited<ReturnType<typeof explorer.search>>;
@@ -144,5 +177,44 @@ export async function loadConfig(options: LoadConfigOptions = {}): Promise<Verba
     );
   }
 
-  return validate(result.config);
+  const parsed = parseConfig(result.config);
+  const { config, glossary } = await finalizeConfig(parsed, dirname(result.filepath), fs);
+  return { config, source: { kind: "search", filepath: result.filepath }, glossary };
+}
+
+/**
+ * Load and validate the verbatra configuration. Supports a code-defined
+ * verbatra.config.ts and file-based configs (.verbatrarc.json/.yaml, package.json
+ * property) through cosmiconfig + cosmiconfig-typescript-loader. Multiple sources ->
+ * first-found-wins by cosmiconfig precedence. Any failure is a structured SdkError;
+ * a raw zod error is never thrown upward and an unvalidated config never proceeds.
+ *
+ * Precedence: `configOverride` (validate in-memory) > `configPath` (load one explicit file) > search.
+ *
+ * A `glossary` given as a file path is read, parsed, and validated at load time (see
+ * {@link loadConfigWithMeta} for its provenance); a relative path resolves against the loaded config
+ * file's directory, or against `cwd` for a `configOverride`. Watch mode does not re-resolve a glossary
+ * file on later edits; restart to pick up a change.
+ *
+ * @param options - Where/what to load: `cwd`, an in-memory `configOverride`, or an explicit `configPath`.
+ * @returns The validated {@link VerbatraConfig}.
+ * @throws {@link SdkError} `CONFIG_NOT_FOUND`: no config was found by search, or the explicit `configPath`
+ *   does not exist.
+ * @throws {@link SdkError} `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or
+ *   its glossary file path could not be resolved (a raw error never escapes).
+ * @example
+ * ```ts
+ * import { loadConfig, translate } from "@verbatra/sdk";
+ *
+ * // Search upward from the cwd (verbatra.config.ts, .verbatrarc.json, or a package.json "verbatra" key):
+ * const config = await loadConfig();
+ * // Or load one explicit file (relative resolves against cwd; absolute as given):
+ * // const config = await loadConfig({ configPath: "verbatra.config.ts" });
+ *
+ * const summary = await translate({ config });
+ * ```
+ */
+export async function loadConfig(options: LoadConfigOptions = {}): Promise<VerbatraConfig> {
+  const { config } = await loadConfigWithMeta(options);
+  return config;
 }

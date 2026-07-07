@@ -1,8 +1,8 @@
 ---
 title: Vista general
-description: "El comando verbatra: sus siete subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida."
+description: "El comando verbatra: sus ocho subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida."
 ---
-`@verbatra/cli` te da el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Siete comandos hacen el trabajo:
+`@verbatra/cli` te da el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Ocho comandos hacen el trabajo:
 
 - [`init`](/docs/cli/init): genera una configuración y un `.env.example`.
 - [`translate`](/docs/cli/translate): traduce cada locale de destino una vez y luego sale.
@@ -11,6 +11,7 @@ description: "El comando verbatra: sus siete subcomandos, las opciones globales,
 - [`diff`](/docs/cli/diff): lista las claves exactas que se añadirían, se volverían a traducir o están huérfanas por locale, de solo lectura.
 - [`export`](/docs/cli/export): vuelca las cadenas sin traducir a un libro de Excel para un traductor humano.
 - [`import`](/docs/cli/import): lee un libro rellenado de vuelta a tus archivos de locale.
+- [`studio`](/docs/cli/studio): inicia Verbatra Studio, un panel de traducción local y de solo lectura.
 
 ## Instalar e invocar
 
@@ -45,6 +46,6 @@ El código de salida de verbatra es el contrato sobre el que bifurca un paso de 
 | `0` | éxito (también `--help` y `--version`) |
 | `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale fuera de sincronización, o `diff` encontró cambios pendientes |
 | `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso |
-| `130` | `watch` fue detenido a la fuerza por una segunda interrupción |
+| `130` | `watch` o `studio` fue detenido a la fuerza por una segunda interrupción |
 
 Un fallo por ejecución en `watch` aparece como un registro de flujo, no como un código de salida. La página de cada comando detalla cómo se aplican estos códigos en él, y [CI y automatización](/docs/ci-and-exit-codes) cubre cómo conectarlos a una canalización.

@@ -2,12 +2,19 @@ packages:
   - "packages/*"
   - "apps/*"
 
-# Single-source duplicated versions. Default catalog holds the shared toolchain and zod;
-# the "bundled" catalog holds the runtime deps that @verbatra/sdk re-declares from the
-# internal packages it bundles, so the owning package and sdk always pin the same version.
+# Single-source duplicated versions. Default catalog holds the shared toolchain, zod, chokidar
+# (shared between @verbatra/sdk and @verbatra/studio), and the React runtime (react, react-dom,
+# @types/react, @types/react-dom, shared between @verbatra/studio and apps/docs); the "bundled"
+# catalog holds the runtime deps that @verbatra/sdk re-declares from the internal packages it
+# bundles, so the owning package and sdk always pin the same version.
 catalog:
   "@types/node": 26.0.0
+  "@types/react": 19.2.17
+  "@types/react-dom": 19.2.3
   "@vitest/coverage-v8": 4.1.9
+  chokidar: 5.0.0
+  react: 19.2.7
+  react-dom: 19.2.7
   tsup: 8.5.1
   typescript: 6.0.3
   vitest: 4.1.9

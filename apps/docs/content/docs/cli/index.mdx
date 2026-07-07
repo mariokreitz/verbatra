@@ -1,8 +1,8 @@
 ---
 title: Overview
-description: "The verbatra command: its seven subcommands, global flags, how it reads your environment, and the exit-code contract."
+description: "The verbatra command: its eight subcommands, global flags, how it reads your environment, and the exit-code contract."
 ---
-`@verbatra/cli` gives you the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/sdk). Seven commands do the work:
+`@verbatra/cli` gives you the `verbatra` binary, a thin wrapper over [`@verbatra/sdk`](/docs/sdk). Eight commands do the work:
 
 - [`init`](/docs/cli/init): scaffold a config and a `.env.example`.
 - [`translate`](/docs/cli/translate): translate every target locale once, then exit.
@@ -11,6 +11,7 @@ description: "The verbatra command: its seven subcommands, global flags, how it 
 - [`diff`](/docs/cli/diff): list the exact keys that would be added, re-translated, or are orphaned per locale, read-only.
 - [`export`](/docs/cli/export): dump untranslated strings into an Excel workbook for a human translator.
 - [`import`](/docs/cli/import): read a filled workbook back into your locale files.
+- [`studio`](/docs/cli/studio): start Verbatra Studio, a local, read-only translation dashboard.
 
 ## Install and invoke
 
@@ -45,6 +46,6 @@ verbatra's exit code is the contract a CI step or script branches on:
 | `0` | success (also `--help` and `--version`) |
 | `1` | `translate` or `import` finished but some locales failed, `check` found a locale out of sync, or `diff` found pending changes |
 | `2` | could not run: a whole-run error, or a usage error |
-| `130` | `watch` was force-stopped by a second interrupt |
+| `130` | `watch` or `studio` was force-stopped by a second interrupt |
 
 A per-run failure in `watch` shows up as a stream record, not an exit code. Each command page spells out how these codes apply to it, and [CI and automation](/docs/ci-and-exit-codes) covers wiring them into a pipeline.

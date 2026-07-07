@@ -1,0 +1,61 @@
+---
+title: Verbatra Studio (verbatra studio)
+description: Starte Verbatra Studio, ein lokales, schreibgeschütztes Übersetzungs-Dashboard über dein Projekt.
+---
+Verbatra Studio ist ein lokales Web-Dashboard über dein verbatra-Projekt: eine Live-Ansicht des Übersetzungsstatus, ausstehender Änderungen, der Konfiguration, der Lock-Datei-Abweichung und der Historie, ohne jemals einen Provider aufzurufen oder eine Datei zu schreiben. Starte es mit:
+
+```bash
+verbatra studio
+```
+
+## Nur lokal und schreibgeschützt
+
+Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen Rechner erreichbar, und es gibt keine Option, das zu ändern. Jede Anfrage wird gegen eine strikte Host- und Origin-Allowlist geprüft, und jede Seite und jeder API-Aufruf benötigt das im Start-URL ausgegebene Session-Token, das zeitkonstant verglichen wird, sodass ein falscher Versuch nicht per Timing erraten werden kann. Studio sendet keine CORS-Header, sodass ein Browser-Tab auf einem anderen Origin es nicht lesen könnte, selbst wenn er es versuchen würde. Es gibt keinen zustandsändernden Endpunkt in Studio: Es ruft niemals `translate` auf, führt niemals `watch` aus und importiert oder exportiert niemals ein Workbook. Alles, was du siehst, stammt aus denselben schreibgeschützten Berechnungen wie [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff).
+
+## Befehlsreferenz
+
+| Option | Beschreibung |
+| --- | --- |
+| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
+| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
+| `--port <n>` | überschreibt den Standard-Port von Studio (muss eine Ganzzahl von 1 bis 65535 sein) |
+
+`verbatra studio` lädt `.env.local` und `.env` genau wie jeder andere Befehl, löst dann deine Konfiguration einmal auf, bevor es überhaupt das Netzwerk berührt. Eine fehlende oder ungültige Konfiguration beendet sich mit `2` und demselben gerenderten Fehler wie jeder andere Befehl; Studio selbst wird nie gestartet.
+
+## Der ausgegebene URL
+
+Sobald Studio lauscht, gibt es eine Zeile auf stdout aus:
+
+```
+Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
+```
+
+Öffne genau diesen URL. Das Token im Query-String bootstrapt ein Session-Cookie für den Browser-Tab; ohne es (oder mit dem falschen) wird jede Anfrage abgelehnt. Es wird niemals etwas ausgegeben, bevor der Server seinen Port erfolgreich gebunden hat, sodass ein fehlgeschlagener Start nie einen URL oder ein Token preisgibt.
+
+## Neustart bei Konfigurationsänderung
+
+Die Konfiguration wird einmal beim Start aufgelöst, und jede Ansicht für die Lebensdauer dieses Prozesses baut auf derselben aufgelösten Konfiguration auf. Wenn du `verbatra.config.ts` änderst (ein neues Ziel-Locale, ein anderer Provider, ein anderes Datei-Muster), stoppe Studio und starte es erneut, um die Änderung zu übernehmen. Die Projektdateien selbst (deine Quell- und Ziel-Locale-Dateien sowie die Lock-Datei) werden bei jeder Anfrage frisch gelesen, sodass das Bearbeiten und Neuladen der Seite immer aktuelle Daten zeigt; Studio pusht noch keine automatische Aktualisierung, wenn sich eine Datei auf der Festplatte ändert.
+
+## Die Ansichten
+
+- **Status**: pro Locale die Anzahl fehlender, veralteter und aktueller Schlüssel, dieselbe Berechnung wie `verbatra check`.
+- **Diff**: die genauen Schlüssel, die pro Locale hinzugefügt, neu übersetzt oder verwaist wären, dieselbe Berechnung wie `verbatra diff`. Lange Schlüssellisten sind in der Ansicht begrenzt (mit einem Hinweis "zeige N von insgesamt"), damit ein sehr großer Katalog reaktionsfähig bleibt; das Filtern durchsucht weiterhin die vollständige Liste.
+- **Konfiguration und Glossar**: eine geschwärzte Projektion deiner aufgelösten Konfiguration (Quell- und Ziel-Locales, Format, Datei-Muster, Provider-ID und die sicheren skalaren Optionen) sowie deine Glossar-Begriffe, falls vorhanden. Freitext-Werte, die ein eingefügtes Geheimnis enthalten könnten, sind niemals enthalten.
+- **Lock-Abweichung**: ob eine Lock-Datei existiert, ihre Version und ihre Abweichung pro Locale gegenüber den aktuellen Quell- und Zieldateien, ohne sie zu schreiben.
+- **Historie**: die Commit-Historie für deine beobachteten Locale-Dateien, gelesen über `git log` mit einer begrenzten Commit-Anzahl und ohne `--follow`. Ein Projekt ohne Git-Repository oder mit nicht verfügbarem Git zeigt die Historie als nicht verfügbar an, statt eines Fehlers. Die abgeschnittene Historie eines Shallow-Clones ist ebenfalls kein Fehler: Sie zeigt einfach, was der Clone hat.
+
+## Installation
+
+`@verbatra/studio` ist das eigene Paket von Studio. Wenn es nicht installiert ist, beendet sich `verbatra studio` mit `2` und:
+
+```
+Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | Studio wurde sauber durch einen einzelnen Interrupt (Ctrl-C) gestoppt |
+| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, `@verbatra/studio` nicht installiert, oder der Port ist bereits belegt) oder ein Nutzungsfehler (ein `--port` außerhalb des Bereichs oder keine Ganzzahl) |
+| `130` | durch einen zweiten Interrupt zwangsweise gestoppt |

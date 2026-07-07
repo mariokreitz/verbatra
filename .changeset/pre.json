@@ -1,0 +1,17 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "@verbatra/docs": "0.1.1",
+    "@verbatra/ai-providers": "0.1.3",
+    "@verbatra/cli": "0.4.4",
+    "@verbatra/config": "0.0.0",
+    "@verbatra/core": "0.1.1",
+    "@verbatra/exchange": "0.2.1",
+    "@verbatra/format-adapters": "0.3.0",
+    "@verbatra/github-action": "0.0.0",
+    "@verbatra/sdk": "0.4.4",
+    "@verbatra/studio": "0.0.0"
+  },
+  "changesets": []
+}
