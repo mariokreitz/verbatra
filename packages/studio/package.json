@@ -1,7 +1,6 @@
 {
   "name": "@verbatra/studio",
   "version": "0.0.1-next.0",
-  "private": true,
   "type": "module",
   "description": "Local Verbatra Studio dashboard: a read-only web view over a verbatra project, served from a prebuilt single-page app.",
   "keywords": [
@@ -37,6 +36,10 @@
   ],
   "engines": {
     "node": ">=22.14.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "scripts": {
     "build": "tsup && vite build",
