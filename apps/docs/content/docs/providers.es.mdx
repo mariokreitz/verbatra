@@ -77,7 +77,7 @@ provider: {
 Lee `GEMINI_API_KEY`. `model` y `maxOutputTokens` son ambos obligatorios.
 
 <Callout title="El nivel gratuito y sus límites">
-Gemini es el punto de partida recomendado para proyectos pequeños porque su API tiene un nivel gratuito. Crea una clave en [Google AI Studio](https://aistudio.google.com/apikey), sin necesidad de facturación. El nivel gratuito limita las solicitudes por minuto y por día (los números exactos dependen del modelo y cambian con el tiempo, así que consulta los límites actuales de Google), y verbatra divide el trabajo en sublotes secuenciales, por lo que una primera ejecución sobre muchos locales puede alcanzar esos límites. Si ocurre, traduce un locale a la vez o reduce `maxBatchSize`, y luego vuelve a ejecutar: verbatra solo retoma lo que sigue faltando, así que las ejecuciones se pueden repetir sin riesgo.
+Gemini es el punto de partida recomendado para proyectos pequeños porque su API tiene un nivel gratuito. Crea una clave en [Google AI Studio](https://aistudio.google.com/apikey), sin necesidad de facturación. El nivel gratuito limita las solicitudes por minuto y por día (los números exactos dependen del modelo y cambian con el tiempo, así que consulta los límites actuales de Google), y verbatra divide el trabajo en sublotes secuenciales, por lo que una primera ejecución sobre muchos locales puede alcanzar esos límites. Un error breve de límite de tasa o del servidor se reintenta automáticamente con una espera corta, pero eso solo suaviza contratiempos momentáneos, no un límite sostenido. Si alcanzas el límite, traduce un locale a la vez o reduce `maxBatchSize`, y luego vuelve a ejecutar: verbatra solo retoma lo que sigue faltando, así que las ejecuciones se pueden repetir sin riesgo.
 </Callout>
 
 ## DeepL

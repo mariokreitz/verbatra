@@ -77,7 +77,7 @@ provider: {
 Lit `GEMINI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
 
 <Callout title="Le palier gratuit et ses limites">
-Gemini est le point de départ recommandé pour les petits projets parce que son API a un palier gratuit. Crée une clé sur [Google AI Studio](https://aistudio.google.com/apikey), sans facturation requise. Le palier gratuit plafonne les requêtes par minute et par jour (les chiffres exacts dépendent du modèle et changent au fil du temps, alors vérifie les limites actuelles de Google), et verbatra découpe le travail en sous-lots séquentiels, de sorte qu'une première exécution sur de nombreuses langues peut atteindre ces plafonds. Si c'est le cas, traduis une langue à la fois ou baisse `maxBatchSize`, puis relance : verbatra ne reprend que ce qui manque encore, les exécutions sont donc sûres à répéter.
+Gemini est le point de départ recommandé pour les petits projets parce que son API a un palier gratuit. Crée une clé sur [Google AI Studio](https://aistudio.google.com/apikey), sans facturation requise. Le palier gratuit plafonne les requêtes par minute et par jour (les chiffres exacts dépendent du modèle et changent au fil du temps, alors vérifie les limites actuelles de Google), et verbatra découpe le travail en sous-lots séquentiels, de sorte qu'une première exécution sur de nombreuses langues peut atteindre ces plafonds. Une brève erreur de limite de débit ou de serveur est retentée automatiquement avec une courte attente, mais cela ne lisse que les accrocs momentanés, pas un plafond soutenu. Si tu atteins le plafond, traduis une langue à la fois ou baisse `maxBatchSize`, puis relance : verbatra ne reprend que ce qui manque encore, les exécutions sont donc sûres à répéter.
 </Callout>
 
 ## DeepL

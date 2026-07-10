@@ -77,7 +77,7 @@ provider: {
 Reads `GEMINI_API_KEY`. `model` and `maxOutputTokens` are both required.
 
 <Callout title="The free tier and its limits">
-Gemini is the recommended starting point for small projects because its API has a free tier. Create a key at [Google AI Studio](https://aistudio.google.com/apikey), no billing required. The free tier caps requests per minute and per day (the exact numbers depend on the model and change over time, so check Google's current limits), and verbatra splits work into sequential sub-batches, so a first-time run over many locales can hit those caps. If it does, translate one locale at a time or lower `maxBatchSize`, then re-run: verbatra only picks up what is still missing, so runs are safe to repeat.
+Gemini is the recommended starting point for small projects because its API has a free tier. Create a key at [Google AI Studio](https://aistudio.google.com/apikey), no billing required. The free tier caps requests per minute and per day (the exact numbers depend on the model and change over time, so check Google's current limits), and verbatra splits work into sequential sub-batches, so a first-time run over many locales can hit those caps. A brief rate-limit or server error is retried automatically with a short backoff, but that only smooths over momentary hiccups, not a sustained cap. If you do hit the cap, translate one locale at a time or lower `maxBatchSize`, then re-run: verbatra only picks up what is still missing, so runs are safe to repeat.
 </Callout>
 
 ## DeepL
