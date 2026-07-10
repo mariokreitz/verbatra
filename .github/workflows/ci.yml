@@ -66,7 +66,7 @@ jobs:
         run: pnpm check:studio-bundle
 
       - name: Typecheck
-        run: pnpm -r typecheck
+        run: pnpm turbo run typecheck
 
       - name: Typecheck build config files
         run: pnpm typecheck:configs
@@ -124,6 +124,10 @@ jobs:
       - name: Install e2e harness dependencies
         working-directory: e2e
         run: npm ci --no-audit --no-fund
+
+      - name: Typecheck e2e harness
+        working-directory: e2e
+        run: npm run typecheck
 
       - name: Run no-key E2E suite
         working-directory: e2e
