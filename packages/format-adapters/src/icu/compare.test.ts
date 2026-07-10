@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { compareIcuPlaceholders } from "./compare.js";
 
-describe("compareIcuPlaceholders: the BTS-104 bug fix", () => {
+describe("compareIcuPlaceholders: branch-aware fabrication detection", () => {
   it("flags a placeholder invented in a single target branch when the category exists on both sides", () => {
     const source = "{count, plural, one {# item} other {# items}}";
     const target = "{count, plural, one {# item} other {# items by {author}}}";
@@ -13,7 +13,7 @@ describe("compareIcuPlaceholders: the BTS-104 bug fix", () => {
     expect(result.missing).toEqual([]);
   });
 
-  it("flags a placeholder invented in a single branch of a richer-cardinality target (QA 4-branch pl repro)", () => {
+  it("flags a placeholder invented in a single branch of a richer-cardinality target", () => {
     // English source has only one/other; Polish needs one/few/many/other. The fabrication lives only in
     // "few", a category the source does not have, so it must be caught via the source-union fallback.
     const source = "{count, plural, one {{name} has # apple} other {{name} has # apples}}";
@@ -27,7 +27,7 @@ describe("compareIcuPlaceholders: the BTS-104 bug fix", () => {
     expect(result.missing).toEqual([]);
   });
 
-  it("still reports a match for a QA 4-branch pl translation with no fabrication", () => {
+  it("still reports a match for a correct 4-branch Polish translation", () => {
     const source = "{count, plural, one {{name} has # apple} other {{name} has # apples}}";
     const target =
       "{count, plural, one {{name} ma # jablko} few {{name} ma # jablka} many {{name} ma # jablek} other {{name} ma # jablka}}";
@@ -40,7 +40,7 @@ describe("compareIcuPlaceholders: the BTS-104 bug fix", () => {
   });
 });
 
-describe("compareIcuPlaceholders: the BTS-81 guarantee preserved", () => {
+describe("compareIcuPlaceholders: missing-placeholder detection preserved", () => {
   it("still flags a placeholder dropped from one target branch as missing", () => {
     const source = "{count, plural, one {# by {author}} other {# by {author}}}";
     const target = "{count, plural, one {# by {author}} other {#}}";
@@ -207,17 +207,17 @@ describe("compareIcuPlaceholders: an unmatched tag is not recursed into", () => 
     const result = compareIcuPlaceholders(source, target);
 
     // The tag rename is caught at the flat layer (<link> missing, <other> extra); the {a}/{b} pair
-    // inside the unmatched tags is never inspected, an accepted, pre-existing limitation (Decision 2).
+    // inside the unmatched tags is never inspected, an accepted, pre-existing limitation.
     expect(result.missing).toEqual(["<link>"]);
     expect(result.extra).toEqual(["<other>"]);
   });
 });
 
-describe("compareIcuPlaceholders: type-mismatched branching nodes still compare (code review follow-up)", () => {
+describe("compareIcuPlaceholders: type-mismatched branching nodes still compare", () => {
   it("flags a placeholder invented under a select translated from a plural with the same argument name", () => {
-    // Reviewer's exact repro: the old `candidate.type === source.type` check made a plural-to-select
-    // rename under the same argument name ("count") fail to match at all, so neither the branch-aware
-    // layer nor the flat fallback (tokenOf ignores node type) ever saw {author}.
+    // Matching by type (plural vs. select) instead of by argument name alone would make this rename
+    // fail to match at all, so neither the branch-aware layer nor the flat fallback (tokenOf ignores
+    // node type) would ever see {author}.
     const source = "{count, plural, one {# item} other {# items}}";
     const target = "{count, select, one {# item} other {# items by {author}}}";
 
@@ -229,7 +229,7 @@ describe("compareIcuPlaceholders: type-mismatched branching nodes still compare 
   });
 });
 
-describe("compareIcuPlaceholders: duplicate argument names at one nesting level (code review follow-up)", () => {
+describe("compareIcuPlaceholders: duplicate argument names at one nesting level", () => {
   it("pairs same-named plural nodes positionally instead of both matching the first target node", () => {
     // Two "count" plural nodes at the same level, valid ICU. The first pair is a correct translation
     // that reuses {a}; the second pair fabricates {ghost}. An unconstrained find() would match both

@@ -104,10 +104,10 @@ function findUnconsumed<T extends MessageFormatElement>(
 }
 
 /**
- * A target plural/select node matching `source` by argument NAME alone (`element.value`), per the ADR:
- * a plural translated as a select (or vice versa) under the same argument name still matches, so the
- * branch-level comparison in `compareBranching` runs and can surface a placeholder fabricated under the
- * mismatched type, instead of the type check silently hiding the whole node from comparison.
+ * A target plural/select node matching `source` by argument NAME alone (`element.value`), not by node
+ * type: a plural translated as a select (or vice versa) under the same argument name still matches, so
+ * the branch-level comparison in `compareBranching` runs and can surface a placeholder fabricated under
+ * the mismatched type, instead of the type check silently hiding the whole node from comparison.
  */
 function findMatchingBranching(
   source: BranchingElement,
@@ -135,11 +135,13 @@ function findMatchingTag(
 }
 
 /**
- * Merge several per-layer/per-branch results into one; `reordered` collapses to false, see Decision 2.3.
- * `nestedResults` is only called with at least one recursed pair, and `compareBranching`'s `results`
- * always has at least one entry (a matched target node has at least its mandatory "other" branch), so an
- * empty array never reaches this function; the merge below already produces the correct
- * `{ matches: true, missing: [], extra: [] }` for one anyway, with no separate empty-array case needed.
+ * Merge several per-layer/per-branch results into one; the merged `reordered` is always false, since
+ * ordering is not tracked once results are combined across layers and branches, only whether a token
+ * is missing or extra. `nestedResults` is only called with at least one recursed pair, and
+ * `compareBranching`'s `results` always has at least one entry (a matched target node has at least its
+ * mandatory "other" branch), so an empty array never reaches this function; the merge below already
+ * produces the correct `{ matches: true, missing: [], extra: [] }` for one anyway, with no separate
+ * empty-array case needed.
  */
 function combineResults(
   results: readonly PlaceholderIntegrityResult[],
@@ -187,7 +189,7 @@ function compareBranching(
     } else if (targetBranch !== undefined) {
       results.push(compareAgainstSourceUnion(sourceBranches, targetBranch));
     }
-    // Source-only category: no target branch to compare against, skip (see Decision 2).
+    // Source-only category: no target branch to compare against, skip.
   }
   return combineResults(results);
 }
@@ -241,16 +243,15 @@ function compareElements(
 /**
  * Branch-aware placeholder-integrity comparison for ICU MessageFormat values: parses both values and
  * walks their plural/select branches against each other, category by category, instead of independently
- * flattening each side into one multiset first (see the ADR at
- * `.verbatra/adr/bts-104-icu-branch-aware-placeholder-integrity.md`). Reuses `checkPlaceholders` from
- * `@verbatra/core` as the leaf comparison primitive; core's contract is untouched.
+ * flattening each side into one multiset first. Reuses `checkPlaceholders` from `@verbatra/core` as the
+ * leaf comparison primitive; core's contract is untouched.
  *
- * A placeholder invented in a single branch of the target is now flagged as extra, even when the source
+ * A placeholder invented in a single branch of the target is flagged as extra, even when the source
  * never established that placeholder as universal. A placeholder legitimately present in only some of the
  * SOURCE's branches never causes a correctly-translated target to be rejected. If either value fails to
- * parse as ICU MessageFormat, this falls back to the existing flat comparison
- * (`icuPlaceholders` + `checkPlaceholders`), the same behavior as before this function existed; a parse
- * failure is a separate signal (`icuIsValid`/`icuInvalidKeys`), not this function's job.
+ * parse as ICU MessageFormat, this falls back to the flat comparison (`icuPlaceholders` +
+ * `checkPlaceholders`); a parse failure is a separate signal (`icuIsValid`/`icuInvalidKeys`), not this
+ * function's job.
  *
  * @param sourceValue - The source ICU MessageFormat value.
  * @param targetValue - The translated ICU MessageFormat value to check against it.
