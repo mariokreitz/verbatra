@@ -24,7 +24,8 @@ export interface LoadLockFileDeps {
  * @param input - The directory the lock-file resolves against.
  * @param deps - Optional composition seam (file system) for tests.
  * @returns The parsed lock-file, or an empty lock when none exists yet.
- * @throws {@link SdkError} `LOCK_FILE_INVALID` when the lock-file is present but corrupt or oversized.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID` when the lock-file is present but corrupt, oversized,
+ * or at an unsupported version.
  */
 export async function loadLockFile(
   input: LoadLockFileInput = {},

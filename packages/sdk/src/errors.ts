@@ -14,7 +14,8 @@
  * - `SOURCE_UNREADABLE`: the source locale file is absent (thrown by `translate`, and by `watch` at startup).
  * - `SOURCE_INVALID`: the source locale file could not be read or parsed; wraps the adapter read error
  *   (thrown by `translate`).
- * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized (thrown by `translate`).
+ * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt, oversized, or at an unsupported
+ *   version (thrown by `translate`).
  * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
  *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction on
  *   `translate`.
