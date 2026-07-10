@@ -29,9 +29,11 @@ const MESSAGE_BY_CODE: Readonly<Record<ClassifiedProviderErrorCode, string>> = {
  *
  * `signal`, when passed, does two things: if it is already aborted before `call` even runs, the
  * abort is thrown immediately without invoking `call`; and if `call` rejects because the signal
- * fired mid-flight, the underlying abort-shaped error is re-thrown unchanged instead of being
- * wrapped as a {@link ProviderError}, so a caller can tell "you cancelled this" apart from "the
- * provider failed" (see {@link isAbortError}).
+ * fired mid-flight *and* the rejection is itself abort-shaped, the underlying error is re-thrown
+ * unchanged instead of being wrapped as a {@link ProviderError}, so a caller can tell "you cancelled
+ * this" apart from "the provider failed" (see {@link isAbortError}). An aborted signal alone is not
+ * enough: a rejection that merely coincides with the signal firing (an unrelated provider failure
+ * racing a caller-initiated cancellation) is still classified and redacted, never passed through raw.
  *
  * @param call - A thunk performing exactly the raw SDK call.
  * @param signal - The caller's cancellation signal, if any, threaded from the request.

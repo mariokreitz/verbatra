@@ -20,6 +20,29 @@ class StatusError extends Error {
 /** A named class with no status, shaped like an SDK's dedicated timeout error class. */
 class APIConnectionTimeoutError extends Error {}
 
+/**
+ * Shaped like openai's and @anthropic-ai/sdk's actual abort error: a subclass whose constructor
+ * never sets `this.name`, so `.name` on an instance stays the inherited `"Error"`. Detection must key
+ * on `error.constructor.name`, not `.name`, or a genuine openai/anthropic abort is misclassified.
+ */
+class APIUserAbortError extends Error {
+  constructor() {
+    super("Request was aborted.");
+  }
+}
+
+/**
+ * Shaped like deepl-node's actual `ConnectionError` class (same name, since {@link classifyProviderError}
+ * matches by `constructor.name`): wraps a raw axios error that can carry an auth header.
+ */
+class ConnectionError extends Error {
+  readonly error: Error;
+  constructor(cause: Error) {
+    super("Connection error.");
+    this.error = cause;
+  }
+}
+
 describe("guardProviderCall: success", () => {
   it("returns the call's resolved value unchanged", async () => {
     await expect(guardProviderCall(() => Promise.resolve("ok"))).resolves.toBe("ok");
@@ -142,5 +165,106 @@ describe("guardProviderCall: abort passthrough", () => {
     await expect(guardProviderCall(call, controller.signal)).rejects.toMatchObject({
       code: "RATE_LIMITED",
     });
+  });
+});
+
+describe("guardProviderCall: unrelated error racing a concurrent abort (leak regression)", () => {
+  /**
+   * Reproduces the scenario a shared `AbortController` creates: a batch orchestrator aborts the
+   * controller after a sibling call fails, while this call is independently rejecting for its own,
+   * unrelated reason (here: DeepL's ConnectionError wrapping a raw axios error that carries the
+   * literal Authorization header). The signal being aborted at that moment must never be enough to
+   * classify this rejection as an abort and rethrow it raw; only a redacted ProviderError may escape.
+   */
+  it("never rethrows the raw error unredacted when the signal is aborted but the error is unrelated", async () => {
+    const controller = new AbortController();
+    const secretBearingCause = new Error("secret detail") as Error & {
+      config: { headers: { Authorization: string } };
+    };
+    secretBearingCause.config = { headers: { Authorization: "DeepL-Auth-Key sk-SECRET" } };
+    const raw = new ConnectionError(secretBearingCause);
+    const call = () => {
+      controller.abort();
+      return Promise.reject(raw);
+    };
+    const rejection = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBe(raw);
+    expect(rejection).toBeInstanceOf(ProviderError);
+    expect((rejection as ProviderError).code).toBe("TIMEOUT");
+    expect((rejection as ProviderError).message).toBe(TIMEOUT_MESSAGE);
+    expect(JSON.stringify(rejection)).not.toContain("sk-SECRET");
+  });
+
+  it("never rethrows a plain unrelated Error unredacted when the signal is aborted concurrently", async () => {
+    const controller = new AbortController();
+    const raw = new Error("Authorization: Bearer sk-SECRET");
+    const call = () => {
+      controller.abort();
+      return Promise.reject(raw);
+    };
+    const rejection = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBe(raw);
+    expect(rejection).toBeInstanceOf(ProviderError);
+    expect((rejection as ProviderError).code).toBe("PROVIDER_ERROR");
+    expect((rejection as ProviderError).message).toBe(PROVIDER_CALL_FAILED_MESSAGE);
+  });
+});
+
+describe("guardProviderCall: true abort per provider SDK shape", () => {
+  it("openai/anthropic: rethrows APIUserAbortError unchanged (matched by class, not by .name)", async () => {
+    const controller = new AbortController();
+    const sentinel = new APIUserAbortError();
+    expect(sentinel.name).toBe("Error");
+    const call = () => {
+      controller.abort();
+      return Promise.reject(sentinel);
+    };
+    const caught = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(caught).toBe(sentinel);
+  });
+
+  it("gemini: rethrows the native fetch/undici AbortError DOMException unchanged", async () => {
+    const controller = new AbortController();
+    const sentinel = new DOMException("This operation was aborted.", "AbortError");
+    const call = () => {
+      controller.abort();
+      return Promise.reject(sentinel);
+    };
+    const caught = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(caught).toBe(sentinel);
+  });
+
+  it("deepl: an already-aborted signal short-circuits before the call runs, since deepl-node has no in-flight cancellation and no abort-shaped error of its own", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const call = vi.fn(() => Promise.reject(new ConnectionError(new Error("unreachable"))));
+    const caught = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(call).not.toHaveBeenCalled();
+    expect(caught).not.toBeInstanceOf(ProviderError);
+  });
+
+  it("deepl: a genuine in-flight failure racing an unrelated abort of the shared signal is still classified, never rethrown as an abort", async () => {
+    const controller = new AbortController();
+    const raw = new ConnectionError(new Error("axios failure"));
+    const call = () => {
+      controller.abort();
+      return Promise.reject(raw);
+    };
+    const rejection = await guardProviderCall(call, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBe(raw);
+    expect(rejection).toBeInstanceOf(ProviderError);
+    expect((rejection as ProviderError).code).toBe("TIMEOUT");
   });
 });

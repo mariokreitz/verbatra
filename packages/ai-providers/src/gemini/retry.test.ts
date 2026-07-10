@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { ProviderError } from "../errors.js";
+import { guardProviderCall } from "../guard.js";
 import { withGeminiRetry } from "./retry.js";
 
 /** A minimal status-bearing error, shaped like @google/genai's ApiError. */
@@ -78,26 +80,61 @@ describe("withGeminiRetry: non-retryable errors stop immediately", () => {
 });
 
 describe("withGeminiRetry: cancellation", () => {
-  it("stops retrying once the signal is already aborted, even for a retryable status", async () => {
+  it("stops retrying once the signal is already aborted, and throws an abort-shaped error instead of the retryable one", async () => {
     const controller = new AbortController();
     const sentinel = new ApiError(429);
     const call = vi.fn(() => {
       controller.abort();
       return Promise.reject(sentinel);
     });
-    await expect(withGeminiRetry(call, controller.signal, FAST)).rejects.toBe(sentinel);
+    const rejection = await withGeminiRetry(call, controller.signal, FAST).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBe(sentinel);
+    expect(rejection).toBeInstanceOf(DOMException);
+    expect((rejection as DOMException).name).toBe("AbortError");
     expect(call).toHaveBeenCalledTimes(1);
   });
 
-  it("does not retry once the signal aborts mid-delay, even though the wait resolves early", async () => {
+  it("does not retry once the signal aborts mid-delay, and surfaces an abort instead of the retryable error the wait interrupted", async () => {
     const controller = new AbortController();
     const sentinel = new ApiError(429);
     const call = vi.fn<() => Promise<string>>().mockRejectedValueOnce(sentinel);
     const promise = withGeminiRetry(call, controller.signal, { attempts: 3, baseDelayMs: 60_000 });
     // Abort during the backoff wait; the delay must resolve immediately instead of after 60s.
     queueMicrotask(() => controller.abort());
-    await expect(promise).rejects.toBe(sentinel);
+    const rejection = await promise.catch((error: unknown) => error);
+    expect(rejection).not.toBe(sentinel);
+    expect(rejection).toBeInstanceOf(DOMException);
+    expect((rejection as DOMException).name).toBe("AbortError");
     expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws the signal's own abort reason when one was supplied, not a generic AbortError", async () => {
+    const controller = new AbortController();
+    const reason = new Error("cancelled by orchestrator");
+    const call = vi.fn(() => {
+      controller.abort(reason);
+      return Promise.reject(new ApiError(429));
+    });
+    await expect(withGeminiRetry(call, controller.signal, FAST)).rejects.toBe(reason);
+  });
+});
+
+describe("withGeminiRetry: composed with guardProviderCall (regression, mirrors production wiring)", () => {
+  it("classifies a genuine abort during Gemini's backoff as an abort, not RATE_LIMITED, once composed with the shared guard", async () => {
+    const controller = new AbortController();
+    const call = vi.fn(() => {
+      controller.abort();
+      return Promise.reject(new ApiError(429));
+    });
+    const guarded = () => withGeminiRetry(call, controller.signal, FAST);
+    const rejection = await guardProviderCall(guarded, controller.signal).catch(
+      (error: unknown) => error,
+    );
+    expect(rejection).not.toBeInstanceOf(ProviderError);
+    expect(rejection).toBeInstanceOf(DOMException);
+    expect((rejection as DOMException).name).toBe("AbortError");
   });
 });
 

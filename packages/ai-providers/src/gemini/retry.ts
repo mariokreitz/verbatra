@@ -32,6 +32,19 @@ function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true;
 }
 
+/**
+ * Throw an abort-shaped error for `signal`, never the substantive error that triggered the abort
+ * check. `signal.throwIfAborted()` throws `signal.reason` (a `DOMException` named `"AbortError"` for
+ * a plain `controller.abort()`, or the caller's own reason), which is exactly the native abort shape
+ * {@link isAbortError} in `error-classification.ts` recognizes by name. The trailing throw only runs
+ * if `signal` were somehow undefined here, which cannot happen given this is only called after
+ * {@link isAborted} returned true; it exists so this function is typed `never` without an unsound cast.
+ */
+function throwAbort(signal: AbortSignal | undefined): never {
+  signal?.throwIfAborted();
+  throw new DOMException("This operation was aborted.", "AbortError");
+}
+
 /** Wait `ms` milliseconds, or return early once `signal` aborts. Never rejects. */
 function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve) => {
@@ -66,10 +79,13 @@ function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
  *   while backing off also stops retrying instead of starting another attempt.
  * @param config - Retry tuning; defaults to {@link DEFAULT_GEMINI_RETRY}.
  * @returns The first successful attempt's resolved value.
- * @throws The last attempt's raw, unclassified error: when every attempt failed, the first
- *   non-retryable error was thrown, or the signal aborted (including mid-backoff). Downstream
- *   classification treats any of these as an abort once `signal.aborted` is true, regardless of
- *   which error is attached.
+ * @throws An abort-shaped error (see {@link throwAbort}) when `signal` is or becomes aborted,
+ *   whether that happens before an attempt, mid-backoff, or is discovered right after a failed
+ *   attempt; never the substantive error that attempt failed with, since a caller further up the
+ *   stack (`guardProviderCall`'s `isAbortError`) classifies by the thrown error's own shape, not by
+ *   ambient signal state, and needs the abort to actually look like one. Otherwise throws the last
+ *   attempt's raw, unclassified error: when every attempt failed or the first non-retryable error
+ *   was thrown.
  */
 export async function withGeminiRetry<T>(
   call: () => Promise<T>,
@@ -81,15 +97,18 @@ export async function withGeminiRetry<T>(
     try {
       return await call();
     } catch (error) {
+      if (isAborted(signal)) {
+        throwAbort(signal);
+      }
       const exhausted = attempt >= config.attempts;
-      if (exhausted || isAborted(signal) || !isRetryableStatus(error)) {
+      if (exhausted || !isRetryableStatus(error)) {
         throw error;
       }
       await delay(config.baseDelayMs * 2 ** (attempt - 1), signal);
       // The delay can resolve early because the signal aborted mid-wait; re-check here instead
       // of relying on `call()` to honor the signal itself, since that behavior is caller-specific.
       if (isAborted(signal)) {
-        throw error;
+        throwAbort(signal);
       }
       attempt += 1;
     }

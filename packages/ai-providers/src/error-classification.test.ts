@@ -81,14 +81,44 @@ describe("getErrorStatus", () => {
 });
 
 describe("isAbortError", () => {
-  it("is true when the signal is aborted, regardless of the error shape", () => {
+  /** Shaped like openai's and @anthropic-ai/sdk's abort error: name stays the inherited "Error". */
+  class APIUserAbortError extends Error {}
+  /** Shaped like deepl-node's ConnectionError: no signal support, no abort-shaped class or name. */
+  class ConnectionError extends Error {}
+
+  it("is false when the signal is aborted but the error is not abort-shaped (the leak this guards)", () => {
     const controller = new AbortController();
     controller.abort();
-    expect(isAbortError(new Error("anything"), controller.signal)).toBe(true);
+    expect(isAbortError(new Error("anything"), controller.signal)).toBe(false);
+    expect(isAbortError(new ConnectionError("upstream detail"), controller.signal)).toBe(false);
+  });
+
+  it("is true for a native AbortError when the signal is aborted", () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(isAbortError(new DOMException("aborted", "AbortError"), controller.signal)).toBe(true);
+  });
+
+  it("is true for openai/anthropic's APIUserAbortError (matched by class, not by .name) when aborted", () => {
+    const controller = new AbortController();
+    controller.abort();
+    expect(isAbortError(new APIUserAbortError("Request was aborted."), controller.signal)).toBe(
+      true,
+    );
+  });
+
+  it("is false for an abort-shaped error when the signal was never aborted", () => {
+    const controller = new AbortController();
+    expect(isAbortError(new DOMException("aborted", "AbortError"), controller.signal)).toBe(false);
+    expect(isAbortError(new APIUserAbortError(), controller.signal)).toBe(false);
   });
 
   it("is true for a native AbortError even without a signal", () => {
     expect(isAbortError(new DOMException("aborted", "AbortError"), undefined)).toBe(true);
+  });
+
+  it("is false for deepl-node's ConnectionError even without a signal (no abort-shaped class exists for it)", () => {
+    expect(isAbortError(new ConnectionError("upstream detail"), undefined)).toBe(false);
   });
 
   it("is false for a non-abort error with no signal or an unaborted signal", () => {
