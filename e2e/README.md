@@ -51,7 +51,9 @@ VERBATRA_CLI_TARBALL=/tmp/packs/verbatra-cli-*.tgz \
 E2E_PROVIDER=gemini GEMINI_API_KEY=... npm test
 ```
 
-Without `VERBATRA_*_TARBALL`, global setup packs the tarballs itself via pnpm.
+Without `VERBATRA_*_TARBALL`, global setup builds `@verbatra/sdk`, `@verbatra/cli`, and their
+workspace dependencies, then packs the tarballs itself via pnpm, so a stale local `dist/` is never
+packed by accident.
 
 ## Choosing the live provider
 

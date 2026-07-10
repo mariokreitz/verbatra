@@ -65,7 +65,36 @@ export interface Usage {
   readonly outputTokens: number;
 }
 
-/** Result of a batch translation: per-key values and per-key integrity outcomes. */
+/**
+ * Stable codes for a provider's graceful-degradation notices. These are returned DATA on a
+ * successful result, NOT thrown:
+ *
+ * - `FORMALITY_DOWNGRADED`: a requested formality was not applied (DeepL's free tier does not
+ *   support it).
+ * - `GLOSSARY_IGNORED`: a supplied generic glossary term map was not applied (DeepL only applies a
+ *   native glossary id, never a term map).
+ * - `PLACEHOLDER_UNSUPPORTED`: at least one placeholder- or ICU-bearing entry was left untranslated
+ *   because the provider cannot preserve those tokens; such entries are withheld (absent from the
+ *   result maps) rather than sent to the provider and mangled.
+ */
+export type ProviderNoticeCode =
+  | "FORMALITY_DOWNGRADED"
+  | "GLOSSARY_IGNORED"
+  | "PLACEHOLDER_UNSUPPORTED";
+
+/**
+ * An observable, structured signal that something was gracefully degraded (not an
+ * error). Carries only a stable code and a static message, never a key or content.
+ * Surfaced as result data, never thrown; callers inspect it but need not treat it as a failure.
+ */
+export interface ProviderNotice {
+  /** The stable {@link ProviderNoticeCode} for what was degraded. */
+  readonly code: ProviderNoticeCode;
+  /** A static, safe description; never a key or translatable content. */
+  readonly message: string;
+}
+
+/** Result of a batch translation: per-key values, per-key integrity outcomes, and any notices. */
 export interface TranslateResult {
   /** The translated value for each requested key. */
   readonly values: ReadonlyMap<string, string>;
@@ -73,6 +102,12 @@ export interface TranslateResult {
   readonly integrity: ReadonlyMap<string, PlaceholderIntegrityResult>;
   /** Token usage when the provider reports it; absent for token-less providers. */
   readonly usage?: Usage;
+  /**
+   * Graceful-degradation notices for this batch. Every provider populates this as a present array:
+   * DeepL reports real notices (for example `GLOSSARY_IGNORED`); an LLM provider with nothing to
+   * report returns an empty array rather than omitting the field.
+   */
+  readonly notices?: readonly ProviderNotice[];
 }
 
 /**

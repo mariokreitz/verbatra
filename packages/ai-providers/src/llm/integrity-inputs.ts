@@ -1,24 +1,22 @@
 import type { TranslationEntry } from "@verbatra/core";
-import { ProviderError } from "../errors.js";
 import type { IntegrityInput } from "../integrity.js";
 
 /**
- * Pair each source entry with its translated value for the integrity check. The
- * value map is complete by the time this runs (the shared reconcile enforces exact
- * key-set equality); a missing value is therefore a structured INVALID_RESPONSE.
+ * Pair each source entry with its translated value for the integrity check. `values` may legitimately
+ * omit a requested key (still missing after the bounded reconcile repair round, see `runLlmTranslation`);
+ * such an entry is skipped here rather than treated as an error, since the caller surfaces "still
+ * missing" as its own outcome, distinct from a placeholder-integrity mismatch.
  */
 export function toIntegrityInputs(
   entries: readonly TranslationEntry[],
   values: ReadonlyMap<string, string>,
 ): IntegrityInput[] {
-  return entries.map((entry) => {
+  const inputs: IntegrityInput[] = [];
+  for (const entry of entries) {
     const translatedValue = values.get(entry.key);
-    if (translatedValue === undefined) {
-      throw new ProviderError(
-        "INVALID_RESPONSE",
-        "The provider response is missing one or more keys.",
-      );
+    if (translatedValue !== undefined) {
+      inputs.push({ key: entry.key, sourceValue: entry.value, translatedValue });
     }
-    return { key: entry.key, sourceValue: entry.value, translatedValue };
-  });
+  }
+  return inputs;
 }

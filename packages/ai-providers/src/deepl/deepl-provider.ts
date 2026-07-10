@@ -68,7 +68,10 @@ export function createDeepLProvider(
   return {
     id: PROVIDER_ID,
     kind: "machine-translation",
-    supportsGlossary: true,
+    // Honest capability signal: DeepL only ever applies a pre-created native glossary id, never a
+    // generic term map (see buildTranslateOptions). Without one configured, a supplied term map is
+    // silently ignored and surfaces only as a GLOSSARY_IGNORED notice.
+    supportsGlossary: validConfig.glossaryId !== undefined,
     translateBatch: (request: TranslateRequest): Promise<DeepLTranslateResult> =>
       translate(bundle, validConfig, request),
   };

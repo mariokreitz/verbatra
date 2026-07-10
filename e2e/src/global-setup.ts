@@ -17,12 +17,35 @@ async function findTarball(dir: string, prefix: string): Promise<string> {
   return join(dir, match);
 }
 
+/**
+ * Build `@verbatra/sdk`, `@verbatra/cli`, and their workspace dependencies before packing, scoped to
+ * just that subgraph (not the whole monorepo). CI never takes this path: it sets
+ * `VERBATRA_SDK_TARBALL`/`VERBATRA_CLI_TARBALL` after running its own `pnpm build`, so this only
+ * guards a local `npm test` run in `e2e/`, which would otherwise pack whatever `dist/` happens to be
+ * on disk (stale or absent) instead of the current source.
+ */
+async function buildPackables(): Promise<void> {
+  await execa(
+    "pnpm",
+    ["turbo", "run", "build", "--filter=@verbatra/sdk...", "--filter=@verbatra/cli..."],
+    { cwd: repoRoot },
+  );
+}
+
 async function packTarballs(): Promise<{ sdk: string; cli: string }> {
   const envSdk = process.env.VERBATRA_SDK_TARBALL;
   const envCli = process.env.VERBATRA_CLI_TARBALL;
   if (envSdk && envCli) {
     return { sdk: resolve(envSdk), cli: resolve(envCli) };
   }
+  if (envSdk || envCli) {
+    throw new Error(
+      "VERBATRA_SDK_TARBALL and VERBATRA_CLI_TARBALL must both be set or both be unset. " +
+        "Only one was provided, which is more likely a misconfiguration than an intentional partial override.",
+    );
+  }
+
+  await buildPackables();
 
   const dest = await mkdtemp(join(tmpdir(), "verbatra-e2e-packs-"));
   const pack = (filter: string) =>

@@ -27,6 +27,21 @@ describe("readBounded", () => {
     expect(outcome).toEqual({ kind: "ok", content: "" });
   });
 
+  it("strips a single leading UTF-8 BOM from the content", async () => {
+    const outcome = await readBounded(await tempFile('﻿{"a":"b"}'));
+    expect(outcome).toEqual({ kind: "ok", content: '{"a":"b"}' });
+  });
+
+  it("leaves interior BOM characters untouched", async () => {
+    const outcome = await readBounded(await tempFile('{"a":"b﻿c"}'));
+    expect(outcome).toEqual({ kind: "ok", content: '{"a":"b﻿c"}' });
+  });
+
+  it("returns ok with empty content for a BOM-only file", async () => {
+    const outcome = await readBounded(await tempFile("﻿"));
+    expect(outcome).toEqual({ kind: "ok", content: "" });
+  });
+
   it("reports too-large for a file over the byte cap without returning its content", async () => {
     const outcome = await readBounded(await tempFile(new Uint8Array(MAX_INPUT_BYTES + 1)));
     expect(outcome).toEqual({ kind: "too-large" });

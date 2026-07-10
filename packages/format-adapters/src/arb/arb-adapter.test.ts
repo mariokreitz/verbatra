@@ -7,6 +7,8 @@ import { createArbAdapter } from "./arb-adapter.js";
 
 const adapter = createArbAdapter();
 
+const BOM = "﻿";
+
 const SAMPLE = {
   "@@locale": "en",
   greeting: "Hello {name}",
@@ -18,6 +20,12 @@ const SAMPLE = {
 async function tempArb(name: string, value: unknown): Promise<string> {
   const path = join(await mkdtemp(join(tmpdir(), "verbatra-arb-")), name);
   await writeFile(path, JSON.stringify(value, null, 2));
+  return path;
+}
+
+async function rawArbFile(name: string, content: string): Promise<string> {
+  const path = join(await mkdtemp(join(tmpdir(), "verbatra-arb-")), name);
+  await writeFile(path, content);
   return path;
 }
 
@@ -155,5 +163,42 @@ describe("createArbAdapter write (round-trip fidelity)", () => {
     await adapter.write(resource, path);
     const written = JSON.parse(await readFile(path, "utf8"));
     expect(written).toEqual({ "page.title": "Welcome" });
+  });
+});
+
+describe("createArbAdapter BOM handling", () => {
+  it("reads a UTF-8 ARB file with a leading BOM into entries instead of failing", async () => {
+    const content = `${BOM}${JSON.stringify(SAMPLE, null, 2)}`;
+    const { resource } = await adapter.read(await rawArbFile("app_en.arb", content), "en");
+    expect(resource.entries.get("greeting")?.value).toBe("Hello {name}");
+  });
+
+  it("rejects a BOM-only file as INVALID_JSON, not a crash", async () => {
+    const error = await readError(adapter.read(await rawArbFile("empty.arb", BOM), "en"));
+    expect((error as AdapterError).code).toBe("INVALID_JSON");
+  });
+
+  it("rejects an empty file as INVALID_JSON, not a crash", async () => {
+    const error = await readError(adapter.read(await rawArbFile("empty.arb", ""), "en"));
+    expect((error as AdapterError).code).toBe("INVALID_JSON");
+  });
+
+  it("never re-emits a BOM on write, for a source file that had one", async () => {
+    const content = `${BOM}${JSON.stringify(SAMPLE, null, 2)}`;
+    const path = await rawArbFile("app_en.arb", content);
+    const { resource } = await adapter.read(path, "en");
+    await adapter.write(resource, path);
+    const written = await readFile(path, "utf8");
+    expect(written.charCodeAt(0)).not.toBe(0xfeff);
+    expect(JSON.parse(written).greeting).toBe("Hello {name}");
+  });
+
+  it("keeps a BOM-less file byte-stable in content on round-trip", async () => {
+    const path = await tempArb("app_en.arb", SAMPLE);
+    const { resource } = await adapter.read(path, "en");
+    await adapter.write(resource, path);
+    const written = await readFile(path, "utf8");
+    expect(written.charCodeAt(0)).not.toBe(0xfeff);
+    expect(JSON.parse(written).greeting).toBe("Hello {name}");
   });
 });

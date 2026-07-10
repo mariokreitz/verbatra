@@ -15,8 +15,8 @@ function reconcileError(raw: unknown, requestedKeys: readonly string[]): Provide
   throw new Error("expected reconcileResult to throw");
 }
 
-describe("reconcileResult: success", () => {
-  it("returns a complete key-in equals key-out map for valid, exact output", () => {
+describe("reconcileResult: clean pass-through", () => {
+  it("accepts every key with no missing keys for valid, exact output", () => {
     const result = reconcileResult(
       {
         translations: [
@@ -26,9 +26,10 @@ describe("reconcileResult: success", () => {
       },
       ["a", "b"],
     );
-    expect(result.size).toBe(2);
-    expect(result.get("a")).toBe("A");
-    expect(result.get("b")).toBe("B");
+    expect(result.accepted.size).toBe(2);
+    expect(result.accepted.get("a")).toBe("A");
+    expect(result.accepted.get("b")).toBe("B");
+    expect(result.missingKeys).toEqual([]);
   });
 });
 
@@ -45,8 +46,48 @@ describe("reconcileResult: schema validation boundary", () => {
   });
 });
 
-describe("reconcileResult: reconciliation failures", () => {
-  it("rejects an extra key as INVALID_RESPONSE", () => {
+describe("reconcileResult: bounded partial accept", () => {
+  it("accepts the well-formed remainder and reports a missing key instead of throwing", () => {
+    const result = reconcileResult({ translations: [{ key: "a", value: "A" }] }, ["a", "b"]);
+    expect(result.accepted.get("a")).toBe("A");
+    expect(result.missingKeys).toEqual(["b"]);
+  });
+
+  it("accepts the well-formed remainder and reports a duplicated key instead of throwing", () => {
+    const result = reconcileResult(
+      {
+        translations: [
+          { key: "a", value: "A" },
+          { key: "b", value: "B1" },
+          { key: "b", value: "B2" },
+        ],
+      },
+      ["a", "b"],
+    );
+    expect(result.accepted.get("a")).toBe("A");
+    // Ambiguous which duplicate is correct, so neither copy is accepted.
+    expect(result.accepted.has("b")).toBe(false);
+    expect(result.missingKeys).toEqual(["b"]);
+  });
+
+  it("reports every offending key when both missing and duplicated keys are present", () => {
+    const result = reconcileResult(
+      {
+        translations: [
+          { key: "a", value: "A" },
+          { key: "b", value: "B1" },
+          { key: "b", value: "B2" },
+        ],
+      },
+      ["a", "b", "c"],
+    );
+    expect(result.accepted.get("a")).toBe("A");
+    expect([...result.missingKeys].sort()).toEqual(["b", "c"]);
+  });
+});
+
+describe("reconcileResult: hallucinated-key hard rejection", () => {
+  it("rejects an unrequested key immediately instead of partial-accepting around it", () => {
     const error = reconcileError(
       {
         translations: [
@@ -59,21 +100,17 @@ describe("reconcileResult: reconciliation failures", () => {
     expect(error.code).toBe("INVALID_RESPONSE");
   });
 
-  it("rejects a duplicate key as INVALID_RESPONSE", () => {
+  it("rejects an unrequested key even when every requested key is also present and well-formed", () => {
     const error = reconcileError(
       {
         translations: [
           { key: "a", value: "A" },
-          { key: "a", value: "A2" },
+          { key: "b", value: "B" },
+          { key: "hallucinated", value: "not requested" },
         ],
       },
-      ["a"],
+      ["a", "b"],
     );
-    expect(error.code).toBe("INVALID_RESPONSE");
-  });
-
-  it("rejects a missing key as INVALID_RESPONSE", () => {
-    const error = reconcileError({ translations: [{ key: "a", value: "A" }] }, ["a", "b"]);
     expect(error.code).toBe("INVALID_RESPONSE");
   });
 });

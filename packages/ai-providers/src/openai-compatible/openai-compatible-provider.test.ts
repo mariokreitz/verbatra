@@ -48,13 +48,23 @@ describe("createOpenAiCompatibleProvider: identity", () => {
 });
 
 describe("createOpenAiCompatibleProvider: request building", () => {
-  it("sets the configured model and max_completion_tokens from config, no hardcoded model", async () => {
+  it("sets the configured model and max_tokens from config, no hardcoded model", async () => {
     const { client, calls } = openAiStubClient(
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
     expect(calls[0]?.model).toBe("google/gemma-4-26b-a4b-qat");
-    expect(calls[0]?.max_completion_tokens).toBe(1024);
+    expect(calls[0]).toMatchObject({ max_tokens: 1024 });
+  });
+
+  it("sends max_tokens, not max_completion_tokens, so a genuinely OpenAI-compatible but non-identical server such as Mistral's chat completions API accepts the request", async () => {
+    const { client, calls } = openAiStubClient(
+      openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
+    const body = firstOpenAiCall(calls);
+    expect(body).not.toHaveProperty("max_completion_tokens");
+    expect("max_tokens" in body && body.max_tokens).toBe(1024);
   });
 
   it("uses strict-schema response_format, the same shape as the hosted openai provider", async () => {
@@ -114,7 +124,7 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
     expect(result.integrity.get("greeting")?.missing).toEqual(["{{name}}"]);
   });
 
-  it("rejects extra and missing keys as INVALID_RESPONSE, exactly like the hosted openai provider", async () => {
+  it("rejects an extra (hallucinated) key as INVALID_RESPONSE, exactly like the hosted openai provider", async () => {
     const extra = openAiStubClient(
       fencedCompletion([
         { key: "greeting", value: "Hallo {{name}}" },
@@ -124,11 +134,17 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
     await expect(
       createOpenAiCompatibleProvider(config, { client: extra.client }).translateBatch(request()),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
 
+  it("retries a missing key once, then withholds it rather than throwing when it stays missing", async () => {
+    // The stub always answers with the same fixed response, so the bounded repair round finds the
+    // key missing again: it is withheld from the result instead of failing the whole call.
     const missing = openAiStubClient(fencedCompletion([]));
-    await expect(
-      createOpenAiCompatibleProvider(config, { client: missing.client }).translateBatch(request()),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    const result = await createOpenAiCompatibleProvider(config, {
+      client: missing.client,
+    }).translateBatch(request());
+    expect(result.values.has("greeting")).toBe(false);
+    expect(result.integrity.has("greeting")).toBe(false);
   });
 
   it("keeps a hostile value out of the instruction channel, same prompt-injection boundary", async () => {

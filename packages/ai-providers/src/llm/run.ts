@@ -1,13 +1,23 @@
+import type { TranslationEntry } from "@verbatra/core";
 import { checkBatchIntegrity } from "../integrity.js";
 import {
   type TranslateRequest,
   type TranslateResult,
   type Usage,
+  type ValidatedRequestData,
   validateRequest,
 } from "../provider.js";
 import { toIntegrityInputs } from "./integrity-inputs.js";
 import { buildDataPayload } from "./payload.js";
-import { reconcileResult } from "./response.js";
+import { type ReconcileOutcome, reconcileResult } from "./response.js";
+
+/**
+ * Hard cap on reconcile repair rounds. When the first response leaves keys missing or duplicated (but
+ * no hallucinated key, which fails immediately), exactly one bounded re-request is issued for the
+ * still-missing subset. Keys still unresolved after this cap are left out of the result entirely,
+ * distinct from a placeholder-integrity mismatch: nothing was translated for them.
+ */
+const MAX_REPAIR_ROUNDS = 1;
 
 /** Schema-bound output plus optional usage returned by a provider mechanism. */
 export interface LlmCompletion {
@@ -81,10 +91,14 @@ export interface LlmMechanism {
  *
  * @param request - The provider-neutral batch request.
  * @param mechanism - The per-provider SDK body (see {@link LlmMechanism}).
- * @returns The per-key translated values and per-key placeholder-integrity outcomes.
+ * @returns The translated values and placeholder-integrity outcomes for every key accepted this run.
+ *   A key missing or duplicated in the first response is retried once, bounded by
+ *   {@link MAX_REPAIR_ROUNDS}; a key still unresolved after that cap is left out of both maps entirely
+ *   (the caller distinguishes this from an integrity mismatch, since nothing was translated for it).
  * @throws {@link ProviderError}: `INVALID_REQUEST` if the request fails validation (missing extractor or
- *   malformed data); `INVALID_RESPONSE` if the mechanism's output is malformed, incomplete, or has an
- *   extra, duplicate, or missing key; plus any `ProviderError` the mechanism itself raises.
+ *   malformed data); `INVALID_RESPONSE` if a mechanism response is malformed or contains a hallucinated
+ *   (unrequested) key, in the first response or the repair round; plus any `ProviderError` the mechanism
+ *   itself raises.
  * @example
  * ```ts
  * function createMyLlmProvider(client: MySdk): TranslationProvider {
@@ -103,20 +117,69 @@ export async function runLlmTranslation(
   mechanism: LlmMechanism,
 ): Promise<TranslateResult> {
   const data = validateRequest(request);
-  const payloadJson = JSON.stringify(buildDataPayload(data));
-  const requestedKeys = data.entries.map((entry) => entry.key);
-  const completion = await mechanism.translate({
-    payloadJson,
-    requestedKeys,
-    ...(request.signal !== undefined ? { signal: request.signal } : {}),
-  });
-  const values = reconcileResult(completion.raw, requestedKeys);
+  const signal = request.signal;
+
+  const first = await requestTranslations(mechanism, data, signal);
+  const values = first.outcome.accepted;
+  let usage = first.completion.usage;
+
+  let toRepair = entriesFor(data.entries, first.outcome.missingKeys);
+  for (let round = 0; round < MAX_REPAIR_ROUNDS && toRepair.length > 0; round += 1) {
+    const repair = await requestTranslations(mechanism, { ...data, entries: toRepair }, signal);
+    for (const [key, value] of repair.outcome.accepted) {
+      values.set(key, value);
+    }
+    usage = mergeUsage(usage, repair.completion.usage);
+    toRepair = entriesFor(data.entries, repair.outcome.missingKeys);
+  }
+
   const integrity = checkBatchIntegrity(
     toIntegrityInputs(data.entries, values),
     request.extractPlaceholders,
     request.comparePlaceholders,
   );
-  return completion.usage === undefined
-    ? { values, integrity }
-    : { values, integrity, usage: completion.usage };
+  // Every LLM provider delegates translateBatch to this function, so populating notices here (an
+  // always-present empty array; LLM providers never have a degradation to report) covers all four.
+  return usage === undefined
+    ? { values, integrity, notices: [] }
+    : { values, integrity, usage, notices: [] };
+}
+
+/** Call the mechanism for the given entries and reconcile its output against them. */
+async function requestTranslations(
+  mechanism: LlmMechanism,
+  data: ValidatedRequestData,
+  signal: AbortSignal | undefined,
+): Promise<{ readonly completion: LlmCompletion; readonly outcome: ReconcileOutcome }> {
+  const payloadJson = JSON.stringify(buildDataPayload(data));
+  const requestedKeys = data.entries.map((entry) => entry.key);
+  const completion = await mechanism.translate({
+    payloadJson,
+    requestedKeys,
+    ...(signal !== undefined ? { signal } : {}),
+  });
+  return { completion, outcome: reconcileResult(completion.raw, requestedKeys) };
+}
+
+/** The subset of `entries` whose key is in `keys`, preserving `entries` order. */
+function entriesFor(
+  entries: readonly TranslationEntry[],
+  keys: readonly string[],
+): TranslationEntry[] {
+  const wanted = new Set(keys);
+  return entries.filter((entry) => wanted.has(entry.key));
+}
+
+/** Sum token usage across rounds; falls back to whichever side reported usage when only one did. */
+function mergeUsage(first: Usage | undefined, second: Usage | undefined): Usage | undefined {
+  if (first === undefined) {
+    return second;
+  }
+  if (second === undefined) {
+    return first;
+  }
+  return {
+    inputTokens: first.inputTokens + second.inputTokens,
+    outputTokens: first.outputTokens + second.outputTokens,
+  };
 }

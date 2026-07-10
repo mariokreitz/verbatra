@@ -315,7 +315,10 @@ async function translateAndCheck(
  * A thrown provider call (a revoked key, a rate limit, a network timeout, ...) is caught, never
  * re-thrown, and never surfaced as an integrity problem: nothing was translated, so the whole
  * sub-batch's keys are withheld under `providerFailures` and a secret-free notice carrying the
- * failure's code and message is returned.
+ * failure's code and message is returned. The same `providerFailures` bucket also collects a key the
+ * provider call returned no value for at all: the shared LLM layer's bounded reconcile repair round
+ * (see `runLlmTranslation`) already retried it once, so a key still absent from `result.values` here
+ * means nothing was ever translated for it, exactly like a thrown call, and not a placeholder mismatch.
  */
 async function runSubBatch(
   provider: TranslationProvider,
@@ -335,15 +338,29 @@ async function runSubBatch(
     return [subBatchFailedNotice(batch.length, error)];
   }
   for (const entry of batch) {
-    const value = result.values.get(entry.key);
-    const integrity = result.integrity.get(entry.key);
-    if (value !== undefined && integrity?.matches === true) {
-      accepted.set(entry.key, { value, source: entry });
-    } else {
-      integrityMismatches.push(entry.key);
-    }
+    foldEntryResult(entry, result, accepted, integrityMismatches, providerFailures);
   }
   return readNotices(result);
+}
+
+/** Fold one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. */
+function foldEntryResult(
+  entry: TranslationEntry,
+  result: TranslateResult,
+  accepted: Map<string, Accepted>,
+  integrityMismatches: string[],
+  providerFailures: string[],
+): void {
+  const value = result.values.get(entry.key);
+  if (value === undefined) {
+    providerFailures.push(entry.key);
+    return;
+  }
+  if (result.integrity.get(entry.key)?.matches === true) {
+    accepted.set(entry.key, { value, source: entry });
+  } else {
+    integrityMismatches.push(entry.key);
+  }
 }
 
 /**

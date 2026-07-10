@@ -42,16 +42,29 @@ export type OpenAiResponseFormat =
     }
   | { readonly type: "json_object" };
 
-/** The Chat Completions request body, narrowed to the fields used here. */
-export interface OpenAiRequest {
+/**
+ * Which request-body field carries the output-token limit. Genuine hosted OpenAI wants the newer
+ * `max_completion_tokens` name; `max_tokens` is the broadly portable field understood by LM Studio,
+ * Ollama, vLLM, and third-party OpenAI-compatible APIs such as Mistral's, which reject
+ * `max_completion_tokens` outright (HTTP 422, "Extra inputs are not permitted"). So `max_tokens` is not
+ * a Mistral-specific carve-out; it is the more broadly correct default for every server the
+ * openai-compatible mechanism targets.
+ */
+export type OpenAiTokenLimitField = "max_completion_tokens" | "max_tokens";
+
+/** The Chat Completions request body's fields shared by both {@link OpenAiTokenLimitField} shapes. */
+interface OpenAiRequestBase {
   readonly model: string;
-  readonly max_completion_tokens: number;
   readonly messages: readonly [
     { readonly role: "system"; readonly content: string },
     { readonly role: "user"; readonly content: string },
   ];
   readonly response_format: OpenAiResponseFormat;
 }
+
+/** The Chat Completions request body, narrowed to the fields used here. */
+export type OpenAiRequest = OpenAiRequestBase &
+  ({ readonly max_completion_tokens: number } | { readonly max_tokens: number });
 
 function buildResponseFormat(mode: OpenAiRequestMode): OpenAiResponseFormat {
   if (mode === "json-object") {
@@ -76,19 +89,26 @@ function buildResponseFormat(mode: OpenAiRequestMode): OpenAiResponseFormat {
  * @param payloadJson - The serialized, untrusted data channel.
  * @param mode - The response-format mode; defaults to `"strict-schema"`, the hosted OpenAI behavior, so
  *   the hosted provider's request body is unaffected by this parameter's existence.
+ * @param tokenLimitField - Which field name carries `config.maxOutputTokens`; defaults to
+ *   `"max_completion_tokens"`, the hosted OpenAI behavior, so the hosted provider's request body is
+ *   unaffected by this parameter's existence. The openai-compatible mechanism passes `"max_tokens"`.
  */
 export function buildOpenAiRequest(
   config: OpenAiConfig,
   payloadJson: string,
   mode: OpenAiRequestMode = "strict-schema",
+  tokenLimitField: OpenAiTokenLimitField = "max_completion_tokens",
 ): OpenAiRequest {
-  return {
-    model: config.model,
-    max_completion_tokens: config.maxOutputTokens,
+  const base: OpenAiRequestBase = {
     messages: [
       { role: "system", content: OPENAI_SYSTEM_RULES },
       { role: "user", content: payloadJson },
     ],
+    model: config.model,
     response_format: buildResponseFormat(mode),
   };
+  if (tokenLimitField === "max_tokens") {
+    return { ...base, max_tokens: config.maxOutputTokens };
+  }
+  return { ...base, max_completion_tokens: config.maxOutputTokens };
 }

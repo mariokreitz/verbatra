@@ -106,7 +106,7 @@ DeepL cannot preserve placeholders or ICU tokens, so it does not send strings th
 
 ## openai-compatible
 
-Points verbatra at a local or self-hosted server that speaks the OpenAI Chat Completions API: LM Studio, Ollama, vLLM, and similar all work. The id names the wire protocol, not where the server runs, so a future hosted server that speaks the same protocol fits here too.
+Points verbatra at a local or self-hosted server that speaks the OpenAI Chat Completions API: LM Studio, Ollama, vLLM, and similar all work. The id names the wire protocol, not where the server runs, so a hosted server that speaks the same protocol fits here too, not only a local one.
 
 ```ts
 provider: {
@@ -122,6 +122,22 @@ provider: {
 `baseUrl`, `model`, and `maxOutputTokens` are required. Unlike every other provider, `baseUrl` lives in config rather than the environment: it is a network address you already know (a LAN IP or `localhost`), not a secret. It must be a valid absolute URL using the `http` or `https` scheme; anything else, including a typo like a missing scheme, fails config validation immediately with a clear error, the same way a malformed `model` would for any other provider.
 
 `baseUrl` must include your server's API path segment, typically `/v1`: LM Studio, Ollama, and vLLM all serve their OpenAI-compatible routes under `/v1`, the same convention the underlying client already uses for the hosted `openai` provider. A `baseUrl` without it reaches the wrong path on the server and fails at request time, not at config validation, since the URL itself is still syntactically valid.
+
+This is not limited to local servers: a hosted API that speaks the same OpenAI-compatible protocol works the same way. Mistral's chat completions API is one example:
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "https://api.mistral.ai/v1",
+    model: "mistral-large-latest",
+    maxOutputTokens: 4096,
+    apiKeyEnvVar: "MISTRAL_API_KEY",
+  },
+}
+```
+
+Set `apiKeyEnvVar` to the environment variable holding your own Mistral API key, and confirm `mistral-large-latest` is still Mistral's current model id in [Mistral's own model documentation](https://docs.mistral.ai/models) before relying on it, since provider model ids change over time. This is the same `openai-compatible` provider as above pointed at a different endpoint, not a dedicated Mistral provider.
 
 ### Keys are optional
 

@@ -46,6 +46,12 @@ describe("createAnthropicProvider: identity", () => {
     expect(provider.kind).toBe("llm");
     expect(provider.supportsGlossary).toBe(true);
   });
+
+  it("returns notices as a present, empty array (LLM providers never degrade)", async () => {
+    const { client } = stubClient(toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const result = await createAnthropicProvider(config, { client }).translateBatch(request());
+    expect(result.notices).toEqual([]);
+  });
 });
 
 describe("createAnthropicProvider: request building", () => {
@@ -355,7 +361,7 @@ describe("internal guards", () => {
     expect(toUsage(undefined)).toBeUndefined();
   });
 
-  it("toIntegrityInputs rejects a value map missing a requested key", () => {
-    expect(() => toIntegrityInputs([entry("a", "A")], new Map())).toThrow(ProviderError);
+  it("toIntegrityInputs skips a requested key missing from the value map instead of throwing", () => {
+    expect(toIntegrityInputs([entry("a", "A")], new Map())).toEqual([]);
   });
 });

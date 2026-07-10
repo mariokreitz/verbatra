@@ -93,6 +93,8 @@ Keys are read only from the environment, never from the config. Each provider re
 | `gemini` | `GEMINI_API_KEY` |
 | `deepl` | `DEEPL_API_KEY` |
 
+`openai-compatible` is not in this table: most local servers need no key at all, and when one is required you name your own environment variable for it. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
+
 `verbatra init` writes a `.env.example` and adds `.env` and `.env.local` to your `.gitignore`. `translate` and `watch` load `.env` from the working directory before running.
 
 ## Configuration
