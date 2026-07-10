@@ -1,16 +1,17 @@
 ---
 title: Proveedores
-description: Los cuatro proveedores de traducción, sus opciones y la clave API que lee cada uno.
+description: Los cinco proveedores de traducción, sus opciones y la clave API que lee cada uno.
 ---
-verbatra incluye cuatro proveedores bajo una única interfaz: Anthropic, OpenAI y Gemini son modelos de lenguaje grandes, y DeepL es un servicio de traducción automática. Seleccionas uno en el bloque `provider` de tu configuración, por `id`.
+verbatra incluye cinco proveedores bajo una única interfaz: Anthropic, OpenAI, Gemini y openai-compatible (un servidor local o autoalojado compatible con OpenAI) son modelos de lenguaje grandes, y DeepL es un servicio de traducción automática. Seleccionas uno en el bloque `provider` de tu configuración, por `id`.
 
 ## ¿Cuál debería elegir?
 
-Cualquier proveedor funciona con cualquier formato y comando; la elección tiene que ver con el coste, la calidad y cómo consigues una clave.
+Cualquier proveedor funciona con cualquier formato y comando; la elección tiene que ver con el coste, la calidad, la privacidad y cómo consigues una clave.
 
 - **¿Proyecto pequeño o personal y lo quieres gratis?** Usa **Gemini**. Tiene un nivel de API realmente gratuito, así que puedes traducir una app entera sin ningún coste. Consigue una clave en [Google AI Studio](https://aistudio.google.com/apikey) y establece `GEMINI_API_KEY`. El nivel gratuito tiene límites de tasa (consulta la nota más abajo), lo que solo importa en una primera ejecución grande.
 - **¿La mejor calidad de traducción para una app en producción?** Usa **Anthropic** u **OpenAI**. Ambos son LLM de pago y leen `ANTHROPIC_API_KEY` u `OPENAI_API_KEY`.
 - **¿Alto volumen, guiado por glosario o sin LLM de por medio?** Usa **DeepL**. Es una API de traducción automática dedicada con un nivel gratuito y uno de pago, y admite un glosario nativo por id. No traduce cadenas con marcadores de posición (mira el aviso más abajo); para esas, usa un proveedor de LLM.
+- **¿Sin conexión, sin coste, o tus cadenas no pueden salir nunca de tu red?** Usa **openai-compatible**. Apunta verbatra a un servidor de inferencia local o autoalojado (LM Studio, Ollama, vLLM) en lugar de una API alojada. Sin cuenta, sin clave API y sin tráfico de red más allá de tu propia máquina o LAN.
 
 ¿No lo tienes claro? Empieza con el nivel gratuito de Gemini y luego cambia de proveedor más adelante editando un único `id` en tu configuración. Nada más cambia.
 
@@ -20,7 +21,7 @@ Cuando escribes la configuración en TypeScript con `defineConfig`, el campo `mo
 
 ## Las claves provienen del entorno
 
-verbatra nunca lee una clave API de la configuración. Cada proveedor lee exactamente una variable de entorno:
+verbatra nunca lee una clave API de la configuración. Cada proveedor alojado lee exactamente una variable de entorno:
 
 | ID del proveedor | Variable de entorno |
 | --- | --- |
@@ -30,6 +31,8 @@ verbatra nunca lee una clave API de la configuración. Cada proveedor lee exacta
 | `deepl` | `DEEPL_API_KEY` |
 
 Establece la variable en `.env` (que `verbatra init` ignora en git) o expórtala en tu shell o almacén de secretos de CI. Obtén una clave del propio panel del proveedor, luego coloca su valor detrás de la variable anterior. Nunca confirmes una clave real.
+
+`openai-compatible` es distinto: la mayoría de los servidores locales no necesitan ninguna clave, así que no aparece en esta tabla. Consulta su propia sección más abajo para ver cómo funciona su resolución de clave.
 
 ## Anthropic
 
@@ -98,7 +101,50 @@ provider: {
 ```
 
 <Callout title="DeepL y los marcadores de posición">
-DeepL no puede preservar los marcadores de posición ni los tokens de ICU, así que no envía cadenas que los contengan: esas entradas quedan sin traducir (retenidas) y se informan con un aviso `PLACEHOLDER_UNSUPPORTED` en el resultado. Las cadenas sin marcadores de posición se traducen con normalidad. Para traducir cadenas con marcadores de posición, usa un proveedor de LLM (Anthropic, OpenAI o Gemini).
+DeepL no puede preservar los marcadores de posición ni los tokens de ICU, así que no envía cadenas que los contengan: esas entradas quedan sin traducir (retenidas) y se informan con un aviso `PLACEHOLDER_UNSUPPORTED` en el resultado. Las cadenas sin marcadores de posición se traducen con normalidad. Para traducir cadenas con marcadores de posición, usa un proveedor de LLM (Anthropic, OpenAI, Gemini u openai-compatible).
+</Callout>
+
+## openai-compatible
+
+Apunta verbatra a un servidor local o autoalojado que habla la API de Chat Completions de OpenAI: LM Studio, Ollama, vLLM y similares funcionan todos. El id nombra el protocolo de transporte, no dónde se ejecuta el servidor, así que un futuro servidor alojado que hable el mismo protocolo también encaja aquí.
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "http://192.168.178.74:1234/v1",
+    model: "google/gemma-4-26b-a4b-qat",
+    maxOutputTokens: 1024,
+  },
+}
+```
+
+`baseUrl`, `model` y `maxOutputTokens` son obligatorios. A diferencia de cualquier otro proveedor, `baseUrl` vive en la configuración en lugar de en el entorno: es una dirección de red que ya conoces (una IP de LAN o `localhost`), no un secreto. Debe ser una URL absoluta válida con el esquema `http` o `https`; cualquier otra cosa, incluido un error tipográfico como un esquema ausente, hace fallar la validación de la configuración de inmediato con un error claro, igual que un `model` mal formado lo haría en cualquier otro proveedor.
+
+`baseUrl` debe incluir el segmento de ruta de la API de tu servidor, normalmente `/v1`: LM Studio, Ollama y vLLM sirven todas sus rutas compatibles con OpenAI bajo `/v1`, la misma convención que ya usa el cliente subyacente para el proveedor alojado `openai`. Un `baseUrl` sin ese segmento llega a la ruta equivocada del servidor y falla en el momento de la solicitud, no en la validación de la configuración, ya que la URL en sí sigue siendo sintácticamente válida.
+
+### Las claves son opcionales
+
+La mayoría de los servidores de inferencia locales no necesitan ninguna clave API, así que `openai-compatible` resuelve su clave en tres niveles, en orden:
+
+1. **`apiKeyEnvVar`**, un campo de configuración opcional que nombra una variable de entorno de la que leer una clave real. Úsalo cuando la clave de tu servidor ya vive bajo un nombre de variable existente (un secreto corporativo compartido, un `LM_STUDIO_KEY` que ya exportas, y así sucesivamente). Si estableces este campo y su variable nombrada no está definida o está vacía, verbatra falla con claridad en lugar de recurrir a algo en silencio, ya que dijiste explícitamente que se requiere una clave.
+2. **`OPENAI_COMPATIBLE_API_KEY`**, una variable de entorno por convención, leída cuando `apiKeyEnvVar` no está definida. Si está definida y no vacía, verbatra la usa. Si no está definida o está vacía, verbatra pasa al siguiente nivel sin ningún error.
+3. **El marcador `"local"`**, enviado cuando ninguno de los dos anteriores resuelve nada. Es una cadena fija, no secreta, no una clave real, y es exactamente lo que hace que un servidor local sin clave (el caso habitual) funcione con configuración cero.
+
+`apiKeyEnvVar` nunca puede nombrar `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` ni `DEEPL_API_KEY`: la validación de la configuración lo rechaza directamente, así que quien escribe la configuración no puede apuntar este proveedor a la clave de uno de los proveedores alojados por su nombre. El cliente tampoco lee nunca `OPENAI_API_KEY` por sí mismo y siempre pasa un valor de clave explícito al SDK subyacente, así que una clave alojada nunca puede llegar a una `baseUrl` personalizada, ni por accidente ni a propósito.
+
+<Callout type="warn" title="Una clave real por http en texto claro viaja en texto claro">
+verbatra permite `http://` en texto claro hacia cualquier host, incluida una dirección de LAN como `http://192.168.178.74:1234`, sin más restricción que el esquema http o https. Esto es intencionado y seguro en el caso habitual sin clave: no hay nada secreto en la línea.
+
+Solo es un riesgo real cuando además configuras una clave (mediante `apiKeyEnvVar` u `OPENAI_COMPATIBLE_API_KEY`) **y** `baseUrl` es `http://` en texto claro hacia un host que no es loopback (cualquier cosa distinta de `localhost` o `127.0.0.1`): esa clave viaja entonces sin cifrar por tu red. Si tu servidor requiere una clave real y es accesible por tu LAN o más allá, usa `https://` para ese servidor, o restríngelo a `localhost`. verbatra no detecta ni avisa hoy de esta combinación; trátalo como tu propia responsabilidad hasta que lo haga.
+</Callout>
+
+### Análisis tolerante para modelos locales y más pequeños
+
+`openai-compatible` solicita el mismo formato de respuesta estricto y ligado a esquema que el proveedor alojado `openai`, así que a un servidor conforme se le pide exactamente la forma que verbatra espera. La única diferencia está en el camino de vuelta: los modelos locales y más pequeños son menos fiables que los proveedores de LLM alojados a la hora de respetar esa restricción, y es más probable que envuelvan una respuesta por lo demás correcta en texto circundante o un bloque de código Markdown, aunque se les haya pedido que no lo hagan. `openai-compatible` analiza de forma tolerante: extrae el primer objeto JSON balanceado en cualquier parte de la respuesta antes de analizarlo, así que el texto circundante o un bloque de código se ignoran, algo que el proveedor alojado `openai` no hace. Su salida sigue pasando exactamente por las mismas comprobaciones de validación de esquema e integridad de marcadores de posición e ICU que cualquier otro proveedor: la salida de un modelo local no es de fiar, como la de cualquier proveedor, y una respuesta mal formada o con marcadores de posición inconsistentes se rechaza de la misma manera.
+
+<Callout title="Todavía no en verbatra init">
+`verbatra init` no ofrece actualmente `openai-compatible` como opción de scaffolding, ya que no tiene una única variable de entorno obligatoria que preguntar. Añade el bloque de proveedor de arriba a tu configuración a mano; todo lo demás en esta guía (glosario, tono, límites de tokens de salida) se le aplica igual que a cualquier proveedor de LLM.
 </Callout>
 
 ## Tono y glosario entre proveedores
@@ -110,13 +156,13 @@ Los campos de configuración opcionales `tone` y `glossary` (consulta [Configura
 
 ## Límites de tokens de salida
 
-Los tres proveedores de LLM (Anthropic, OpenAI y Gemini) limitan cuántos tokens puede producir una sola respuesta. Cuando un proveedor se detiene porque alcanzó ese límite (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), verbatra genera un error estructurado propio con el código `OUTPUT_TRUNCATED` en lugar de un fallo genérico por respuesta mal formada. El mensaje es fijo:
+Los cuatro proveedores de LLM (Anthropic, OpenAI, Gemini y openai-compatible) limitan cuántos tokens puede producir una sola respuesta. Cuando un proveedor se detiene porque alcanzó ese límite (Anthropic `stop_reason` `max_tokens`, Gemini `MAX_TOKENS`, o `finish_reason` `length` para OpenAI y openai-compatible, que comparten el mismo procesamiento de respuesta), verbatra genera un error estructurado propio con el código `OUTPUT_TRUNCATED` en lugar de un fallo genérico por respuesta mal formada. El mensaje es fijo:
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
 Tienes dos palancas, y cualquiera de ellas lo resuelve:
 
 - Reduce `maxBatchSize` en tu configuración (consulta [Configuración](/docs/config-file)) para que cada solicitud traduzca menos entradas y produzca una respuesta más pequeña. Esto solo se hace mediante la configuración y se aplica a todos los proveedores.
-- Aumenta el presupuesto de tokens por respuesta en el proveedor: `maxTokens` para Anthropic, o `maxOutputTokens` para OpenAI y Gemini (las opciones que se muestran en los bloques anteriores).
+- Aumenta el presupuesto de tokens por respuesta en el proveedor: `maxTokens` para Anthropic, o `maxOutputTokens` para OpenAI, Gemini y openai-compatible (las opciones que se muestran en los bloques anteriores).
 
 DeepL no se ve afectado. Es un servicio de traducción automática y no pasa por la capa de LLM, por lo que no tiene ningún caso de truncamiento por tokens de salida.

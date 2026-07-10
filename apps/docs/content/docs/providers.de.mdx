@@ -1,16 +1,17 @@
 ---
 title: Provider
-description: Die vier Übersetzungs-Provider, ihre Optionen und der API-Schlüssel, den jeder liest.
+description: Die fünf Übersetzungs-Provider, ihre Optionen und der API-Schlüssel, den jeder liest.
 ---
-verbatra liefert vier Provider hinter einer Schnittstelle: Anthropic, OpenAI und Gemini sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration über seine `id`.
+verbatra liefert fünf Provider hinter einer Schnittstelle: Anthropic, OpenAI, Gemini und openai-compatible (ein lokaler oder selbst gehosteter OpenAI-kompatibler Server) sind große Sprachmodelle, und DeepL ist ein maschineller Übersetzungsdienst. Du wählst einen im `provider`-Block deiner Konfiguration über seine `id`.
 
 ## Welchen soll ich wählen?
 
-Jeder Provider funktioniert mit jedem Format und Befehl; bei der Wahl geht es um Kosten, Qualität und wie du an einen Schlüssel kommst.
+Jeder Provider funktioniert mit jedem Format und Befehl; bei der Wahl geht es um Kosten, Qualität, Datenschutz und wie du an einen Schlüssel kommst.
 
 - **Kleines oder Nebenprojekt, kostenlos?** Nutze **Gemini**. Es hat eine echte kostenlose API-Stufe, sodass du eine ganze App ohne Kosten übersetzen kannst. Hol dir einen Schlüssel bei [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Die kostenlose Stufe ist rate-limitiert (siehe Hinweis unten), was nur bei einem großen erstmaligen Lauf eine Rolle spielt.
 - **Beste Übersetzungsqualität für eine Produktions-App?** Nutze **Anthropic** oder **OpenAI**. Beide sind kostenpflichtige LLMs und lesen `ANTHROPIC_API_KEY` oder `OPENAI_API_KEY`.
 - **Hohes Volumen, glossargesteuert oder kein LLM im Spiel?** Nutze **DeepL**. Es ist eine dedizierte Maschinenübersetzungs-API mit einer kostenlosen und einer kostenpflichtigen Stufe und unterstützt ein natives Glossar per id. Es übersetzt keine Strings mit Platzhaltern (siehe den Hinweis unten); nutze dafür einen LLM-Provider.
+- **Offline, kostenfrei oder deine Strings dürfen dein Netzwerk niemals verlassen?** Nutze **openai-compatible**. Es zeigt verbatra auf einen lokalen oder selbst gehosteten Inferenzserver (LM Studio, Ollama, vLLM) statt auf eine gehostete API. Kein Konto, kein API-Schlüssel und kein Netzwerkverkehr über deinen eigenen Rechner oder dein LAN hinaus.
 
 Unsicher? Starte auf der kostenlosen Stufe von Gemini und wechsle später den Provider, indem du eine `id` in deiner Konfiguration änderst. Sonst ändert sich nichts.
 
@@ -20,7 +21,7 @@ Wenn du die Konfiguration in TypeScript mit `defineConfig` schreibst, ist das Fe
 
 ## Schlüssel kommen aus der Umgebung
 
-verbatra liest niemals einen API-Schlüssel aus der Konfiguration. Jeder Provider liest genau eine Umgebungsvariable:
+verbatra liest niemals einen API-Schlüssel aus der Konfiguration. Jeder gehostete Provider liest genau eine Umgebungsvariable:
 
 | Provider id | Umgebungsvariable |
 | --- | --- |
@@ -30,6 +31,8 @@ verbatra liest niemals einen API-Schlüssel aus der Konfiguration. Jeder Provide
 | `deepl` | `DEEPL_API_KEY` |
 
 Setze die Variable in `.env` (welches `verbatra init` per gitignore ignoriert) oder exportiere sie in deiner Shell oder deinem CI-Geheimnisspeicher. Besorge dir einen Schlüssel vom Dashboard des Providers und setze dann seinen Wert hinter die obige Variable. Committe niemals einen echten Schlüssel.
+
+`openai-compatible` ist anders: Die meisten lokalen Server brauchen überhaupt keinen Schlüssel, daher steht es nicht in dieser Tabelle. Siehe den eigenen Abschnitt unten dazu, wie seine Schlüsselauflösung funktioniert.
 
 ## Anthropic
 
@@ -98,7 +101,50 @@ provider: {
 ```
 
 <Callout title="DeepL und Platzhalter">
-DeepL kann Platzhalter oder ICU-Tokens nicht bewahren und sendet daher keine Strings, die sie enthalten: Diese Einträge bleiben unübersetzt (zurückgehalten) und werden mit einem `PLACEHOLDER_UNSUPPORTED`-Hinweis am Ergebnis gemeldet. Platzhalterfreie Strings werden normal übersetzt. Um Strings mit Platzhaltern zu übersetzen, nutze einen LLM-Provider (Anthropic, OpenAI oder Gemini).
+DeepL kann Platzhalter oder ICU-Tokens nicht bewahren und sendet daher keine Strings, die sie enthalten: Diese Einträge bleiben unübersetzt (zurückgehalten) und werden mit einem `PLACEHOLDER_UNSUPPORTED`-Hinweis am Ergebnis gemeldet. Platzhalterfreie Strings werden normal übersetzt. Um Strings mit Platzhaltern zu übersetzen, nutze einen LLM-Provider (Anthropic, OpenAI, Gemini oder openai-compatible).
+</Callout>
+
+## openai-compatible
+
+Zeigt verbatra auf einen lokalen oder selbst gehosteten Server, der die OpenAI-Chat-Completions-API spricht: LM Studio, Ollama, vLLM und Ähnliches funktionieren alle. Die id benennt das Übertragungsprotokoll, nicht wo der Server läuft, sodass auch ein künftiger gehosteter Server, der dasselbe Protokoll spricht, hierher passt.
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "http://192.168.178.74:1234/v1",
+    model: "google/gemma-4-26b-a4b-qat",
+    maxOutputTokens: 1024,
+  },
+}
+```
+
+`baseUrl`, `model` und `maxOutputTokens` sind erforderlich. Anders als bei jedem anderen Provider steht `baseUrl` in der Konfiguration statt in der Umgebung: Es ist eine Netzwerkadresse, die du bereits kennst (eine LAN-IP oder `localhost`), kein Geheimnis. Sie muss eine gültige absolute URL mit dem Schema `http` oder `https` sein; alles andere, einschließlich eines Tippfehlers wie eines fehlenden Schemas, schlägt sofort bei der Konfigurationsvalidierung fehl, mit einer klaren Fehlermeldung, genau wie ein fehlerhaftes `model` bei jedem anderen Provider.
+
+`baseUrl` muss den API-Pfadabschnitt deines Servers enthalten, typischerweise `/v1`: LM Studio, Ollama und vLLM bedienen ihre OpenAI-kompatiblen Routen alle unter `/v1`, derselben Konvention, die der zugrunde liegende Client bereits für den gehosteten `openai`-Provider nutzt. Ein `baseUrl` ohne diesen Pfad erreicht den falschen Pfad auf dem Server und schlägt erst zur Anfragezeit fehl, nicht bei der Konfigurationsvalidierung, da die URL selbst weiterhin syntaktisch gültig ist.
+
+### Schlüssel sind optional
+
+Die meisten lokalen Inferenzserver brauchen überhaupt keinen API-Schlüssel, daher löst `openai-compatible` seinen Schlüssel in drei Stufen auf, in dieser Reihenfolge:
+
+1. **`apiKeyEnvVar`**, ein optionales Konfigurationsfeld, das eine Umgebungsvariable benennt, aus der ein echter Schlüssel gelesen wird. Nutze dieses Feld, wenn der Schlüssel deines Servers bereits unter einem bestehenden Variablennamen liegt (ein geteiltes Firmengeheimnis, ein `LM_STUDIO_KEY`, den du bereits exportierst, und so weiter). Wenn du dieses Feld setzt und die benannte Variable nicht gesetzt oder leer ist, schlägt verbatra klar fehl, statt still zurückzufallen, da du explizit gesagt hast, dass ein Schlüssel erforderlich ist.
+2. **`OPENAI_COMPATIBLE_API_KEY`**, eine konventionelle Umgebungsvariable, die gelesen wird, wenn `apiKeyEnvVar` nicht gesetzt ist. Ist sie gesetzt und nicht leer, nutzt verbatra sie. Ist sie nicht gesetzt oder leer, geht verbatra ohne Fehler zur nächsten Stufe über.
+3. **Der Platzhalter `"local"`**, der gesendet wird, wenn keine der beiden obigen Stufen etwas auflöst. Das ist ein fester, nicht geheimer String, kein echter Schlüssel, und genau das lässt einen schlüssellosen lokalen Server (der übliche Fall) ohne jede Konfiguration funktionieren.
+
+`apiKeyEnvVar` darf niemals `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder `DEEPL_API_KEY` benennen: Die Konfigurationsvalidierung lehnt das rundweg ab, sodass eine Konfiguration diesen Provider nicht per Name auf den Schlüssel eines der gehosteten Provider verweisen lassen kann. Der Client liest auch niemals selbst `OPENAI_API_KEY` und übergibt dem zugrunde liegenden SDK immer einen expliziten Schlüsselwert, sodass ein gehosteter Schlüssel niemals eine benutzerdefinierte `baseUrl` erreichen kann, weder versehentlich noch absichtlich.
+
+<Callout type="warn" title="Ein echter Schlüssel über Klartext-http reist im Klartext">
+verbatra erlaubt Klartext-`http://` zu jedem Host, einschließlich einer LAN-Adresse wie `http://192.168.178.74:1234`, ohne Einschränkung über das http- oder https-Schema hinaus. Das ist beabsichtigt und im üblichen schlüssellosen Fall sicher: Nichts Geheimes liegt auf der Leitung.
+
+Es ist nur dann ein echtes Risiko, wenn du zusätzlich einen Schlüssel konfigurierst (über `apiKeyEnvVar` oder `OPENAI_COMPATIBLE_API_KEY`) **und** `baseUrl` Klartext-`http://` zu einem Nicht-Loopback-Host ist (irgendetwas anderes als `localhost` oder `127.0.0.1`): Dieser Schlüssel reist dann unverschlüsselt über dein Netzwerk. Wenn dein Server einen echten Schlüssel benötigt und über dein LAN oder weiter erreichbar ist, nutze `https://` für diesen Server oder beschränke ihn auf `localhost`. verbatra erkennt oder warnt heute nicht vor dieser Kombination; behandle es bis dahin als deine eigene Verantwortung.
+</Callout>
+
+### Tolerantes Parsen für lokale und kleinere Modelle
+
+`openai-compatible` fordert dasselbe strikte, schemagebundene Antwortformat wie der gehostete `openai`-Provider an, sodass ein konformer Server nach genau der Form gefragt wird, die verbatra erwartet. Der einzige Unterschied liegt auf dem Rückweg: Lokale und kleinere Modelle halten sich weniger zuverlässig an diese Vorgabe als die gehosteten LLM-Provider und wickeln eine ansonsten korrekte Antwort eher in umgebenden Text oder einen Markdown-Codeblock, obwohl sie darum gebeten wurden, das nicht zu tun. `openai-compatible` parst tolerant: Es extrahiert das erste balancierte JSON-Objekt irgendwo in der Antwort, bevor es geparst wird, sodass umgebender Text oder ein Codeblock ignoriert wird, was der gehostete `openai`-Provider nicht tut. Seine Ausgabe durchläuft weiterhin genau dieselbe Schemavalidierung und dieselben Platzhalter- und ICU-Integritätsprüfungen wie jeder andere Provider: Die Ausgabe eines lokalen Modells ist nicht vertrauenswürdige Eingabe wie die jedes anderen Providers, und eine fehlerhafte oder platzhalter-inkonsistente Antwort wird auf dieselbe Weise abgelehnt.
+
+<Callout title="Noch nicht in verbatra init">
+`verbatra init` bietet `openai-compatible` derzeit nicht als Scaffold-Option an, da es keine einzelne erforderliche Umgebungsvariable gibt, nach der gefragt werden könnte. Füge den obigen Provider-Block von Hand zu deiner Konfiguration hinzu; alles andere in diesem Leitfaden (Glossar, Ton, Output-Token-Limits) gilt für ihn genauso wie für jeden LLM-Provider.
 </Callout>
 
 ## Ton und Glossar über Provider hinweg
@@ -110,13 +156,13 @@ Die optionalen Konfigurationsfelder `tone` und `glossary` (siehe [Konfiguration]
 
 ## Output-Token-Limits
 
-Die drei LLM-Provider (Anthropic, OpenAI und Gemini) begrenzen, wie viele Tokens eine einzelne Antwort produzieren darf. Wenn ein Provider stoppt, weil er dieses Limit erreicht hat (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), löst verbatra einen eigenen strukturierten Fehler mit dem Code `OUTPUT_TRUNCATED` aus, statt eines generischen Fehlers wegen fehlerhafter Antwort. Die Meldung ist fest:
+Die vier LLM-Provider (Anthropic, OpenAI, Gemini und openai-compatible) begrenzen, wie viele Tokens eine einzelne Antwort produzieren darf. Wenn ein Provider stoppt, weil er dieses Limit erreicht hat (Anthropic `stop_reason` `max_tokens`, Gemini `MAX_TOKENS`, oder `finish_reason` `length` für OpenAI und openai-compatible, die dieselbe Antwortverarbeitung teilen), löst verbatra einen eigenen strukturierten Fehler mit dem Code `OUTPUT_TRUNCATED` aus, statt eines generischen Fehlers wegen fehlerhafter Antwort. Die Meldung ist fest:
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
 Du hast zwei Hebel, und jeder von beiden löst es:
 
 - Senke `maxBatchSize` in deiner Konfiguration (siehe [Konfiguration](/docs/config-file)), sodass jede Anfrage weniger Einträge übersetzt und eine kleinere Antwort produziert. Das ist reine Konfiguration und gilt für jeden Provider.
-- Erhöhe das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI und Gemini (die in den Blöcken oben gezeigten Optionen).
+- Erhöhe das Token-Budget pro Antwort beim Provider: `maxTokens` für Anthropic oder `maxOutputTokens` für OpenAI, Gemini und openai-compatible (die in den Blöcken oben gezeigten Optionen).
 
 DeepL ist nicht betroffen. Es ist ein maschineller Übersetzungsdienst und läuft nicht durch die LLM-Schicht, hat also keinen Fall von Output-Token-Abschneidung.
