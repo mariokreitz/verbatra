@@ -28,6 +28,7 @@
     "check:no-em-dash": "node scripts/check-no-em-dash.mjs",
     "check:dts": "node scripts/check-published-dts.mjs",
     "check:studio-bundle": "node scripts/check-cli-studio-bundle.mjs",
+    "verify:npm-publish": "node scripts/verify-npm-publish.mjs",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
     "release": "changeset publish"
