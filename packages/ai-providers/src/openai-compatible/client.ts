@@ -8,12 +8,11 @@ import type { OpenAiCompatibleConfig } from "./config.js";
  * Build the production client for a local or self-hosted OpenAI-compatible server, pointed at the
  * configured `baseUrl`.
  *
- * Structurally isolated from the hosted `openai` provider's client (see the ADR's "hosted key can never
- * reach a custom baseUrl" guarantee): this always resolves its own key via
- * {@link resolveOpenAiCompatibleKey}, never `requireOpenAiKey`, and never reads `OPENAI_API_KEY`. It
- * always passes an explicit `apiKey` (a real key, a named-variable key, or the `"local"` placeholder),
- * so the openai SDK's own fallback to `process.env.OPENAI_API_KEY` is suppressed by construction, not by
- * convention.
+ * Structurally isolated from the hosted `openai` provider's client, so a hosted key can never reach a
+ * custom `baseUrl`: this always resolves its own key via {@link resolveOpenAiCompatibleKey}, never
+ * `requireOpenAiKey`, and never reads `OPENAI_API_KEY`. It always passes an explicit `apiKey` (a real
+ * key, a named-variable key, or the `"local"` placeholder), so the openai SDK's own fallback to
+ * `process.env.OPENAI_API_KEY` is suppressed by construction, not by convention.
  *
  * logLevel "off" is set explicitly, same as the hosted client, closing the request-logging key-leak path.
  */
