@@ -1,5 +1,15 @@
 # @verbatra/studio
 
+## 0.1.0-next.4
+
+### Patch Changes
+
+- Updated dependencies [565eb89]
+- Updated dependencies [4c6fd52]
+- Updated dependencies [2127234]
+- Updated dependencies [f3fd15f]
+  - @verbatra/sdk@0.5.0-next.2
+
 ## 0.1.0-next.3
 
 ### Patch Changes

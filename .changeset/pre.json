@@ -14,11 +14,15 @@
     "@verbatra/studio": "0.0.0"
   },
   "changesets": [
+    "formalize-provider-notices",
     "icu-branch-aware-placeholder-integrity",
+    "llm-reconcile-partial-accept",
     "lock-file-version-validation",
     "openai-compatible-provider",
     "openai-compatible-redaction",
+    "openai-compatible-token-limit-field",
     "provider-error-classification",
+    "strip-utf8-bom-before-json-parse",
     "xliff-hardening",
     "zip-guard-byte-counting"
   ]

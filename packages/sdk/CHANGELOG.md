@@ -1,5 +1,69 @@
 # @verbatra/sdk
 
+## 0.5.0-next.2
+
+### Minor Changes
+
+- 565eb89: Move `ProviderNotice` and `ProviderNoticeCode` onto the shared `TranslateResult` type instead of
+  DeepL's own extended result shape, and add an optional `notices` field to `TranslateResult` itself.
+  Every provider now populates it as a present array: DeepL reports its real graceful-degradation
+  notices (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`, `PLACEHOLDER_UNSUPPORTED`), and every LLM
+  provider (Anthropic, OpenAI, Gemini, openai-compatible) returns an empty array rather than omitting
+  the field. The SDK's internal notice reader is now a plain, typed accessor over this field instead of
+  a duck-typed structural cast, so a provider-side rename or shape change is now caught by the
+  compiler instead of silently returning no notices.
+
+  Also fixes DeepL's `supportsGlossary` flag, which is a behavior change worth calling out explicitly:
+  it previously reported `true` unconditionally, even though DeepL only ever applies a pre-created
+  native glossary id, never the SDK's generic source-term to target-term map. Supplying a term map
+  without a configured native glossary id already produced a `GLOSSARY_IGNORED` notice; the flag was
+  simply lying about it. `supportsGlossary` now reports `true` only when a native `glossaryId` is
+  configured, and `false` for the generic term-map-only case. This is not a regression: DeepL's actual
+  glossary behavior is unchanged, and nothing in the SDK gates glossary data on this flag, so a
+  supplied term map still flows through to DeepL (and is still ignored with the same notice) exactly
+  as before.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- 4c6fd52: The shared LLM layer (`runLlmTranslation`) no longer discards an entire sub-batch when the model's
+  response is only partially well-formed. Previously, a response missing, duplicating, or adding a single
+  key relative to what was requested failed the whole batch with `INVALID_RESPONSE`, so a 50-key sub-batch
+  that came back with 49 good keys and one bad one withheld and re-paid for all 50 on the next run.
+
+  Reconciliation now partitions a response into the well-formed keys (accepted immediately) and the keys
+  missing or duplicated (neither is safe to guess at). The well-formed remainder is kept, and exactly one
+  bounded repair round re-requests only the still-missing keys through the same schema-bound boundary.
+  Placeholder and ICU integrity still runs on every accepted value, including one recovered in the repair
+  round. A key still missing after the repair round is withheld and reported under the existing
+  `providerFailures` category (nothing was translated for it), never counted as a placeholder-integrity
+  mismatch, and the lock baseline advances only for keys actually accepted this run so a withheld key
+  retries next time.
+
+  An unrequested (hallucinated) key is unaffected by this change: it still fails the whole batch
+  immediately, in the first response or the repair round, exactly as before. This is a reliability
+  improvement, not a breaking change: `@verbatra/sdk`'s and `@verbatra/cli`'s (version-locked) public
+  behavior is unchanged except that fewer whole-batch failures are observable when a provider response is
+  mostly, but not perfectly, well-formed.
+
+### Patch Changes
+
+- 2127234: Fix the `openai-compatible` provider against Mistral and other OpenAI-compatible servers that expect `max_tokens` rather than OpenAI's newer `max_completion_tokens` field. The shared Chat Completions request builder previously hardcoded `max_completion_tokens` for every caller, including `openai-compatible`, so every request against a server that rejects that field (Mistral's chat completions API answers with HTTP 422, "Extra inputs are not permitted") failed outright. The `openai-compatible` provider now sends `max_tokens` instead, the field understood broadly across LM Studio, Ollama, vLLM, and hosted OpenAI-compatible APIs such as Mistral's; the hosted `openai` provider is unaffected and still sends `max_completion_tokens`.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- f3fd15f: Fix reading a UTF-8 JSON or ARB translation file that starts with a leading byte-order-mark
+  (U+FEFF). The shared bounded file reader decoded the raw bytes to a UTF-8 string but never
+  stripped a leading BOM, so any JSON-based format (including ARB) reading a BOM-prefixed file
+  failed with an `INVALID_JSON` error even though the file was otherwise valid. Exactly one leading
+  BOM is now stripped once, in the shared read layer, before content ever reaches a parser; interior
+  BOM characters and everything else in the file are left untouched, and the fix is bounded and
+  fixed-length rather than a regex. No adapter's write path emits a BOM, so a file without one stays
+  unchanged on round-trip.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
 ## 0.5.0-next.1
 
 ### Minor Changes
