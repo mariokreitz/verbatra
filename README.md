@@ -26,7 +26,7 @@ It ships in two packages. `@verbatra/cli` gives you a `verbatra` command for the
 ## Features
 
 - **Many locale formats.** JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, and ARB.
-- **Four providers** behind one interface: Anthropic, OpenAI, and Gemini (LLMs), plus DeepL (machine translation).
+- **Five providers** behind one interface: Anthropic, OpenAI, Gemini, and openai-compatible (a local or self-hosted server such as LM Studio, Ollama, or vLLM) as LLMs, plus DeepL (machine translation).
 - **Incremental by default.** A lock file records what has been translated, so each run sends only new or changed strings to the provider.
 - **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project.
 - **Dry runs.** `--dry-run` previews what would change without calling a provider or writing files.
@@ -117,6 +117,8 @@ Each provider reads its API key from one environment variable:
 | `openai` | `OPENAI_API_KEY` |
 | `gemini` | `GEMINI_API_KEY` |
 | `deepl` | `DEEPL_API_KEY` |
+
+`openai-compatible` is not in this table: most local servers need no key at all, and when one is required you name your own environment variable for it. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
 
 ## Commands
 
