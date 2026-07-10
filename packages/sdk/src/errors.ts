@@ -15,7 +15,7 @@
  * - `SOURCE_INVALID`: the source locale file could not be read or parsed; wraps the adapter read error
  *   (thrown by `translate`).
  * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt, oversized, or at an unsupported
- *   version (thrown by `translate`).
+ *   version (thrown by `translate`, `check`, `diff`, `exportWorkbook`, and `importWorkbook`).
  * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
  *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction on
  *   `translate`.
