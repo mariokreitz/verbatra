@@ -77,4 +77,31 @@ describe("extractOpenAiResult: tolerant=true", () => {
       expect((error as ProviderError).code).toBe("INVALID_RESPONSE");
     }
   });
+
+  it("strips a fence preceded by conversational preamble", () => {
+    const completion = openAiCompletion({
+      content:
+        'Sure, here is the translation:\n```json\n{"translations":[{"key":"a","value":"A"}]}\n```',
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "a", value: "A" }] });
+  });
+
+  it("strips a fence followed by trailing prose", () => {
+    const completion = openAiCompletion({
+      content:
+        '```json\n{"translations":[{"key":"a","value":"A"}]}\n```\nLet me know if you need anything else.',
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "a", value: "A" }] });
+  });
+
+  it("strips a fence with both preamble and trailing prose", () => {
+    const completion = openAiCompletion({
+      content:
+        'Here you go:\n```json\n{"translations":[{"key":"a","value":"A"}]}\n```\nHope that helps!',
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "a", value: "A" }] });
+  });
 });

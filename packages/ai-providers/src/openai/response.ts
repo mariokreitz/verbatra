@@ -4,12 +4,14 @@ import { assertNotTruncated } from "../llm/truncation.js";
 import type { Usage } from "../provider.js";
 import type { OpenAiCompletion } from "./types.js";
 
-// Matches a whole response wrapped in a Markdown code fence, optionally tagged "json": anchored at both
-// ends so it only strips a single outer fence, and each quantifier spans one non-greedy group, so it
-// stays linear (ReDoS-safe).
-const JSON_FENCE_PATTERN = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
+// Matches the first Markdown code fence anywhere in the response, optionally tagged "json", so
+// conversational preamble before the fence ("Sure, here is the translation:\n```json\n...\n```") or
+// trailing prose after it does not defeat extraction, only a fully unfenced response does. The inner
+// group is a lazy match bounded by a required closing "```", so it still resolves in one linear pass
+// over the input regardless of anchoring (ReDoS-safe).
+const JSON_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)\s*```/i;
 
-/** Strip a single leading/trailing Markdown code fence, if present; otherwise return the input trimmed. */
+/** Extract the first Markdown code fence's content anywhere in the input; otherwise return it trimmed. */
 function stripJsonFence(content: string): string {
   const trimmed = content.trim();
   const match = JSON_FENCE_PATTERN.exec(trimmed);
