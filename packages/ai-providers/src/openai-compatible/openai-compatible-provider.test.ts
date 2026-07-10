@@ -114,7 +114,7 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
     expect(result.integrity.get("greeting")?.missing).toEqual(["{{name}}"]);
   });
 
-  it("rejects extra and missing keys as INVALID_RESPONSE, exactly like the hosted openai provider", async () => {
+  it("rejects an extra (hallucinated) key as INVALID_RESPONSE, exactly like the hosted openai provider", async () => {
     const extra = openAiStubClient(
       fencedCompletion([
         { key: "greeting", value: "Hallo {{name}}" },
@@ -124,11 +124,17 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
     await expect(
       createOpenAiCompatibleProvider(config, { client: extra.client }).translateBatch(request()),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
 
+  it("retries a missing key once, then withholds it rather than throwing when it stays missing", async () => {
+    // The stub always answers with the same fixed response, so the bounded repair round finds the
+    // key missing again: it is withheld from the result instead of failing the whole call.
     const missing = openAiStubClient(fencedCompletion([]));
-    await expect(
-      createOpenAiCompatibleProvider(config, { client: missing.client }).translateBatch(request()),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    const result = await createOpenAiCompatibleProvider(config, {
+      client: missing.client,
+    }).translateBatch(request());
+    expect(result.values.has("greeting")).toBe(false);
+    expect(result.integrity.has("greeting")).toBe(false);
   });
 
   it("keeps a hostile value out of the instruction channel, same prompt-injection boundary", async () => {

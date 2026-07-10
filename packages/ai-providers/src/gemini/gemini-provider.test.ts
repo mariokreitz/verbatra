@@ -152,7 +152,7 @@ describe("createGeminiProvider: mapping and integrity", () => {
     expect(result.integrity.get("greeting")?.matches).toBe(true);
   });
 
-  it("rejects extra, duplicate, and missing keys as INVALID_RESPONSE", async () => {
+  it("rejects an extra (hallucinated) key as INVALID_RESPONSE, even though it is the only requested key", async () => {
     const extra = geminiStubClient(
       geminiResult([
         { key: "greeting", value: "Hallo {{name}}" },
@@ -162,21 +162,30 @@ describe("createGeminiProvider: mapping and integrity", () => {
     await expect(
       createGeminiProvider(config, { client: extra.client }).translateBatch(request()),
     ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+  });
 
+  it("retries a missing key once, then withholds it rather than throwing when it stays missing", async () => {
+    // The stub always answers with the same fixed response, so the bounded repair round finds the
+    // key missing again: it is withheld from the result instead of failing the whole call.
     const missing = geminiStubClient(geminiResult([]));
-    await expect(
-      createGeminiProvider(config, { client: missing.client }).translateBatch(request()),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    const result = await createGeminiProvider(config, { client: missing.client }).translateBatch(
+      request(),
+    );
+    expect(result.values.has("greeting")).toBe(false);
+    expect(result.integrity.has("greeting")).toBe(false);
+  });
 
+  it("retries a duplicated key once, then withholds it rather than throwing when it stays duplicated", async () => {
     const dup = geminiStubClient(
       geminiResult([
         { key: "greeting", value: "Hallo {{name}}" },
         { key: "greeting", value: "again" },
       ]),
     );
-    await expect(
-      createGeminiProvider(config, { client: dup.client }).translateBatch(request()),
-    ).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    const result = await createGeminiProvider(config, { client: dup.client }).translateBatch(
+      request(),
+    );
+    expect(result.values.has("greeting")).toBe(false);
   });
 });
 

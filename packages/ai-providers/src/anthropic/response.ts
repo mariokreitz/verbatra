@@ -1,5 +1,4 @@
 import { ProviderError } from "../errors.js";
-import { reconcileResult } from "../llm/response.js";
 import { SUBMIT_TOOL_NAME } from "./request.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -30,15 +29,4 @@ export function requireToolInput(content: readonly unknown[]): unknown {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no translation output.");
   }
   return raw;
-}
-
-/**
- * Parse the model output: extract the tool-use input, then validate and reconcile it
- * against the requested keys. Output is treated strictly as data, never interpreted.
- */
-export function parseTranslations(
-  content: readonly unknown[],
-  requestedKeys: readonly string[],
-): Map<string, string> {
-  return reconcileResult(requireToolInput(content), requestedKeys);
 }

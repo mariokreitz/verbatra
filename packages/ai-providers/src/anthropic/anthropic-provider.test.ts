@@ -355,7 +355,7 @@ describe("internal guards", () => {
     expect(toUsage(undefined)).toBeUndefined();
   });
 
-  it("toIntegrityInputs rejects a value map missing a requested key", () => {
-    expect(() => toIntegrityInputs([entry("a", "A")], new Map())).toThrow(ProviderError);
+  it("toIntegrityInputs skips a requested key missing from the value map instead of throwing", () => {
+    expect(toIntegrityInputs([entry("a", "A")], new Map())).toEqual([]);
   });
 });
