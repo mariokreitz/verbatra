@@ -2,6 +2,7 @@ import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/cor
 import { guardProviderCall } from "../guard.js";
 import { checkBatchIntegrity } from "../integrity.js";
 import {
+  type PlaceholderComparator,
   type PlaceholderExtractor,
   type TranslateRequest,
   type TranslationProvider,
@@ -103,6 +104,7 @@ async function translate(
     protectable,
     options,
     request.extractPlaceholders,
+    request.comparePlaceholders,
     request.signal,
   );
   if (unprotectable.length > 0) {
@@ -122,6 +124,7 @@ async function translateProtectable(
   protectable: readonly TranslationEntry[],
   options: DeepLTranslateOptions,
   extract: PlaceholderExtractor,
+  compare: PlaceholderComparator | undefined,
   signal: AbortSignal | undefined,
 ): Promise<{
   values: Map<string, string>;
@@ -140,7 +143,7 @@ async function translateProtectable(
     signal,
   );
   const { values, integrityInputs } = zipResults(protectable, results);
-  const integrity = checkBatchIntegrity(integrityInputs, extract);
+  const integrity = checkBatchIntegrity(integrityInputs, extract, compare);
   return { values, integrity };
 }
 

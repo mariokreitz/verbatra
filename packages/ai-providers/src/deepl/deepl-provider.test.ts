@@ -350,6 +350,28 @@ describe("createDeepLProvider: key from env only", () => {
   });
 });
 
+describe("createDeepLProvider: comparePlaceholders wiring", () => {
+  it("passes request.comparePlaceholders through to the protectable-entry integrity check", async () => {
+    const { client } = deeplStubClient(deeplResult(["Frei"]));
+    const calls: Array<{ source: string; translated: string }> = [];
+    const comparePlaceholders = (
+      source: string,
+      translated: string,
+    ): ReturnType<NonNullable<TranslateRequest["comparePlaceholders"]>> => {
+      calls.push({ source, translated });
+      return { matches: true, missing: [], extra: [], reordered: false };
+    };
+
+    await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("k", "Free")], comparePlaceholders }),
+    );
+
+    // "Free" carries no placeholders, so it is protectable and reaches DeepL; the comparator, not
+    // extractPlaceholders plus checkPlaceholders, is the one invoked for its integrity check.
+    expect(calls).toEqual([{ source: "Free", translated: "Frei" }]);
+  });
+});
+
 describe("createDeepLProvider: registry", () => {
   it("resolves under id deepl without disturbing an existing provider", () => {
     const { client } = deeplStubClient(deeplResult([]));

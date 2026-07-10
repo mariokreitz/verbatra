@@ -101,6 +101,35 @@ describe("runLlmTranslation: untrusted-input boundary", () => {
   });
 });
 
+describe("runLlmTranslation: comparePlaceholders wiring", () => {
+  it("passes request.comparePlaceholders through to the integrity check when present", async () => {
+    const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const calls: Array<{ source: string; translated: string }> = [];
+    const comparePlaceholders: TranslateRequest["comparePlaceholders"] = (source, translated) => {
+      calls.push({ source, translated });
+      return { matches: false, missing: [], extra: ["{{fabricated}}"], reordered: false };
+    };
+
+    const result = await runLlmTranslation(request({ comparePlaceholders }), mechanism);
+
+    // The comparator's own result is used verbatim, proving it ran instead of extractPlaceholders
+    // plus checkPlaceholders (which would have reported a match for this pair).
+    expect(result.integrity.get("greeting")).toEqual({
+      matches: false,
+      missing: [],
+      extra: ["{{fabricated}}"],
+      reordered: false,
+    });
+    expect(calls).toEqual([{ source: "Hello {{name}}", translated: "Hallo {{name}}" }]);
+  });
+
+  it("falls back to extractPlaceholders plus checkPlaceholders when the request carries no comparator", async () => {
+    const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const result = await runLlmTranslation(request(), mechanism);
+    expect(result.integrity.get("greeting")?.matches).toBe(true);
+  });
+});
+
 describe("runLlmTranslation: cancellation signal", () => {
   it("passes the request's signal through to the mechanism", async () => {
     const controller = new AbortController();
