@@ -45,8 +45,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Scoped to every currently publishable package plus their internal deps (turbo pulls in
+      # ^build automatically) so this pre-flight never builds apps/docs. Each publishable package
+      # is named explicitly rather than relying on a transitive devDependency edge to pull it in.
       - name: Build
-        run: pnpm build
+        run: pnpm turbo run build --filter=@verbatra/sdk --filter=@verbatra/cli --filter=@verbatra/studio
 
   publish:
     name: Version or publish
@@ -84,8 +87,12 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # Rebuild here rather than transfer an artifact, so published bytes come from the checkout that publishes them.
+      # Scoped to every currently publishable package plus their internal deps: this job holds
+      # id-token: write for npm OIDC, so it must never build apps/docs (Next.js, fetches Google
+      # Fonts over the network). Each publishable package is named explicitly rather than relying
+      # on a transitive devDependency edge to pull it in.
       - name: Build
-        run: pnpm build
+        run: pnpm turbo run build --filter=@verbatra/sdk --filter=@verbatra/cli --filter=@verbatra/studio
 
       - name: Create Version Packages PR or publish
         id: changesets
