@@ -166,7 +166,9 @@
           "title": "Projet",
           "configFile": "Fichier de config",
           "codeOfConduct": "Code de conduite",
-          "security": "Politique de sécurité"
+          "security": "Politique de sécurité",
+          "llmsFull": "llms-full.txt (texte intégral)",
+          "llmsIndex": "llms.txt (index)"
         },
         "legal": {
           "title": "Mentions légales",
@@ -252,6 +254,11 @@
       "text": "Cette page a été traduite automatiquement, elle peut donc contenir des erreurs ou sonner un peu bizarrement. La version anglaise est la référence.",
       "title": "Page traduite automatiquement",
       "viewOriginal": "Lire l'original en anglais"
+    },
+    "llms": {
+      "full": "llms-full.txt (texte intégral)",
+      "heading": "Pour les agents d'IA",
+      "index": "llms.txt (index)"
     }
   }
 }

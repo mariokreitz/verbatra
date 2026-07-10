@@ -41,6 +41,13 @@ describe("next-intl adapter: format and registry", () => {
     expect(adapter.validateMessage("{count, plural, one {# item} other {# items}}")).toBe(true);
     expect(adapter.validateMessage("{count, plural, one {x")).toBe(false);
   });
+
+  it("exposes branch-aware comparePlaceholders, catching a single-branch invention flat extraction misses", () => {
+    const source = "{count, plural, one {# item} other {# items}}";
+    const invented = "{count, plural, one {# item} other {# items by {author}}}";
+    expect(adapter.comparePlaceholders?.(source, invented).matches).toBe(false);
+    expect(adapter.comparePlaceholders?.(source, invented).extra).toEqual(["{author}"]);
+  });
 });
 
 describe("next-intl adapter: read", () => {

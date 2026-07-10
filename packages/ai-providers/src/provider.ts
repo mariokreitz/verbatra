@@ -17,6 +17,17 @@ export type Tone = "formal" | "informal" | "neutral";
 export type PlaceholderExtractor = (value: string) => readonly string[];
 
 /**
+ * Compares a source and translated value's placeholders directly, branch-aware, instead of
+ * independently extracting each side's flat placeholder list first. Supplied by the caller (the SDK, for
+ * a format whose adapter defines one, for example ICU plural/select) so it matches the entries' format;
+ * ai-providers never derives it itself and never parses a specific format's message syntax.
+ */
+export type PlaceholderComparator = (
+  source: string,
+  translated: string,
+) => PlaceholderIntegrityResult;
+
+/**
  * A batch translation request. Format- and provider-neutral: it carries no prompt,
  * model, key, or other provider-specific field. The placeholder extractor is
  * mandatory (see validateRequest).
@@ -34,6 +45,18 @@ export interface TranslateRequest {
   readonly tone?: Tone;
   /** Mandatory placeholder extractor; the output integrity check runs against it. */
   readonly extractPlaceholders: PlaceholderExtractor;
+  /**
+   * Optional branch-aware placeholder comparator. When present, the output integrity check uses it
+   * instead of independently extracting each side's placeholders with {@link extractPlaceholders} and
+   * diffing the flat lists. Absent for a format with no plural/select sub-message structure.
+   */
+  readonly comparePlaceholders?: PlaceholderComparator;
+  /**
+   * Optional cancellation signal for this batch. When aborted, an in-flight provider call rejects
+   * with the abort, unwrapped, instead of a {@link ProviderError} (see `guardProviderCall`). Not a
+   * plain-data field: it is never validated by `requestDataSchema` and never sent to a provider.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /** Token usage, when the provider reports it. Absent for providers without tokens (DeepL). */

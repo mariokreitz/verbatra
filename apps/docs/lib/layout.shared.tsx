@@ -65,6 +65,11 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
     // and Formats are intentionally omitted: they already sit in the docs sidebar tree, so listing
     // them here duplicated them in the docs rail. The GitHub icon and search trigger sit in the
     // right-side actions.
+    //
+    // The llms.txt pair is NOT here: Fumadocs' `links`/`menuItems` mechanism always renders above
+    // the page tree with no way to reorder it, which put "For AI agents" ahead of the real docs
+    // navigation. It is appended to the end of the page tree itself instead; see
+    // lib/docs-page-tree.ts and its use in app/[lang]/docs/layout.tsx.
     links: [
       { text: t("docs"), url: localized(locale, "/docs") },
       { text: t("contributing"), url: CONTRIBUTING_URL, external: true },

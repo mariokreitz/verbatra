@@ -21,6 +21,12 @@ afterAll(() => {
   dirs.length = 0;
 });
 
+describe("i18next JSON adapter: no ICU branch structure", () => {
+  it("does not expose comparePlaceholders (no plural/select sub-message syntax to compare)", () => {
+    expect(adapter.comparePlaceholders).toBeUndefined();
+  });
+});
+
 describe("i18next JSON adapter: canHandle", () => {
   it("accepts .json paths", () => {
     expect(adapter.canHandle("locales/en/common.json")).toBe(true);

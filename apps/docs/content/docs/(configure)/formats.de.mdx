@@ -1,0 +1,48 @@
+---
+title: Formate
+description: Die von verbatra unterstützten i18n-Formate, wie es sie liest und wie jedes mit Platzhaltern, Pluralen und ICU umgeht.
+---
+verbatra arbeitet über einen Format-Adapter an deinen Locale-Dateien. Jeder Adapter liest eine Datei in eine format-neutrale Form ein, auf der die Diff-, Hashing- und Integritätsprüfungen laufen, und schreibt sie dann in der ursprünglichen Form der Datei zurück. Du wählst das Format mit dem `format`-Feld in deiner Konfiguration. Sieben werden unterstützt: vier JSON-Varianten, plus ARB, YAML und XLIFF.
+
+## Die vier JSON-Formate
+
+| `format` | Für | Platzhalter | Plurale | ICU |
+| --- | --- | --- | --- | --- |
+| `i18next-json` | i18next | `{{name}}` und `$t(...)`-Verschachtelungsreferenzen | CLDR-Plural-Suffix am Schlüssel | nein |
+| `vue-i18n-json` | vue-i18n | `{name}`, `{0}` | Pipe im Wert | nein |
+| `next-intl-json` | next-intl | ICU-Argument- und Tag-Namen | ICU plural oder selectordinal | ja |
+| `ngx-translate-json` | ngx-translate | `{{name}}` | keine | nein |
+
+i18next und ngx-translate teilen sich dieselbe `{{double-brace}}`-Interpolation. i18next extrahiert und schützt zusätzlich seine `$t()`-Verschachtelungsreferenzen (die den Inhalt eines anderen Schlüssels in den Wert einfügen), zum Beispiel `$t(common.foo)` und `$t(common.foo, { options })`, als Platzhalter, sodass eine Übersetzung, die eine davon weglässt oder verändert, die Integritätsprüfung nicht besteht. Zwei Einschränkungen gelten: verschachtelte Klammern innerhalb der `$t()`-Optionen werden nicht unterstützt, und nur das standardmäßige `$t(`-Präfix wird erkannt. ngx-translate verwendet dieselbe Double-Brace-Interpolation, hat aber keine `$t()`-Verschachtelung. vue-i18n verwendet einfache Klammern und entscheidet den Plural anhand eines Pipes im Wert. next-intl-Werte sind ICU MessageFormat: Die Platzhalter sind die ICU-Argument- und Rich-Text-Tag-Namen, der Plural folgt einem ICU-plural- oder selectordinal-Argument, und der ICU-Körper wird wörtlich durch die Pipeline geführt. ngx-translate hat keine eingebauten Plurale oder ICU, und seine Dateien können flach mit punktierten Schlüsseln oder verschachtelt sein; verbatra bewahrt beim Schreiben den Stil, den die Datei verwendet.
+
+## ARB, YAML und XLIFF
+
+Drei weitere Formate sind nun jenseits der JSON-Familie verfügbar. Diese drei nutzen dieselbe Adapter-Pipeline, dieselbe format-neutrale Repräsentation und dieselben Platzhalter- und ICU-Integritätsprüfungen. Wähle jedes mit seinem `format`-Tag.
+
+| `format` | Für | Erweiterungen | Platzhalter | Bemerkenswertes Verhalten |
+| --- | --- | --- | --- | --- |
+| `arb` | Flutter | `.arb` | ICU | `@`-präfixierte Metadaten werden bewahrt und niemals übersetzt |
+| `yaml` | YAML i18n | `.yml`, `.yaml` | `{{name}}` | verschachtelter Baum, i18next-artige Interpolation |
+| `xliff` | XLIFF (XML) | `.xlf`, `.xliff` | Inline-Platzhalter-IDs | aktualisiert vorhandene `<target>`-Elemente an Ort und Stelle; die Zieldatei muss bereits existieren |
+
+ARB (Flutter Application Resource Bundle) ist JSON-basiert, mit `@`-präfixierten Metadaten-Schlüsseln (`@key` für Metadaten pro Nachricht und `@@`-präfixierte Globals wie `@@locale`), die neben den Nachrichtenschlüsseln stehen. verbatra bewahrt diese Metadaten und schreibt sie unverändert zurück: Zur Übersetzung gesendet werden sie nie. ARB-Nachrichtenwerte sind ICU MessageFormat, sodass die Platzhalter, die Plural-Behandlung und die ICU-Validierung genau so funktionieren wie bei next-intl.
+
+YAML ist ein verschachtelter Baum in YAML-Syntax, dieselbe Form wie eine verschachtelte JSON-Datei. Das `yaml`-Format nimmt i18next-kompatible `{{double-brace}}`-Interpolation an. Ein Round-Trip bewahrt den Baum und seine Werte; YAML-Kommentare werden über ein Schreiben hinweg nicht übertragen, genauso wie JSON kein Kommentar-Konzept hat.
+
+XLIFF ist XML, eine flache Liste von trans-units statt eines verschachtelten Baums. verbatra liest sowohl XLIFF 1.2 (`file/body/trans-unit`) als auch XLIFF 2.0 (`file/unit/segment`), schlüsselt jeden Eintrag nach seiner trans-unit-`id` und nimmt den Wert aus `<target>`, wenn vorhanden, andernfalls aus `<source>`. Zwei trans-units, die auf denselben Schlüssel auflösen, typischerweise eine doppelte `id`, lassen das Lesen mit `INVALID_STRUCTURE` fehlschlagen, statt eine still zu behalten und die andere zu verwerfen. Beim Schreiben aktualisiert es jedes `<target>` an Ort und Stelle und lässt `<source>`, Attribute und `<note>`-Elemente unberührt, sodass das Dokument einen Round-Trip übersteht. Weil eine einzelne flache Schlüssel/Wert-Zuordnung ein XLIFF-Dokument nicht rekonstruieren kann, muss die Zieldatei bereits existieren: verbatra aktualisiert Targets in einer vorbefüllten Zieldatei (der Standard-XLIFF-Workflow) und erstellt keine fehlende Zieldatei. Inline-Platzhalter-Elemente (`x`, `g`, `bx`, `ex`, `ph`, `it`, `mrk`) werden nach ID extrahiert und über die Übersetzung hinweg geschützt; beim Schreiben überstehen nur diese zugelassenen Elemente (mit ihren eigenen minimalen, nicht ausführbaren Attributen) als lebendiges Markup in `<target>`, und alles andere in einem übersetzten Wert, einschließlich eines unerwarteten Elements oder eines Namespace-Konflikts, wird stattdessen als reiner Text geschrieben.
+
+## Warum das Format wichtig ist
+
+Das Format teilt verbatra zwei Dinge mit, die es für einen sicheren Lauf benötigt. Erstens die Platzhalter-Syntax, damit die [Platzhalter-Integritätsprüfung](/docs/translation-safety) weiß, was vor und nach der Übersetzung zu vergleichen ist. Zweitens für ICU, welche Werte zu validieren sind, sodass ein ungültiger ICU-Quellschlüssel übersprungen statt in fehlerhaftem Zustand gesendet wird. Das falsche Format vergleicht die falschen Tokens, also passe es an deine i18n-Bibliothek an.
+
+## Wie Dateien gelesen und geschrieben werden
+
+verbatra begrenzt beim Lesen die Eingabegröße und die Verschachtelungstiefe und widersteht einer Datei, die sich unter ihm ändert. Es schreibt atomar: Es schreibt in eine temporäre Datei und benennt sie dann an Ort und Stelle um, sodass ein unterbrochenes Schreiben niemals eine halbfertige Locale-Datei hinterlässt. Wenn verbatra eine Datei nicht verarbeiten kann, löst es einen strukturierten, geheimnisfreien Fehler statt eines rohen aus, zum Beispiel bei ungültigem JSON, einer zu tiefen Struktur oder, nur bei ngx-translate, einer Datei, die flache punktierte Schlüssel mit verschachtelten Objekten mischt.
+
+## Punktierte Schlüssel
+
+Für i18next, vue-i18n und next-intl übersteht ein wörtliches punktiertes Blatt (ein Schlüssel wie `"foo.bar"`, der als einzelnes Blatt verwendet wird) einen verlustfreien Round-Trip: verbatra liest es und schreibt es mit seiner Form auf der Festplatte zurück, ohne es in `foo` dann `bar` neu zu verschachteln. Echte verschachtelte Pfade bleiben verschachtelt. Der eine Fall, der weiterhin durch Design fehlschlägt, ist eine echte Kollision, bei der eine Datei denselben effektiven Pfad sowohl als wörtliches punktiertes Blatt als auch als echten verschachtelten Pfad ausdrückt (zum Beispiel `"foo.bar"` neben `"foo": { "bar": ... }`); dieser Lauf scheitert mit `INVALID_STRUCTURE`, statt zu raten oder Daten zu beschädigen. ngx-translate behandelt einen punktierten Schlüssel als verschachtelten Pfad statt als wörtliches Blatt, daher gibt es dort keine Mehrdeutigkeit zwischen punktiert und wörtlich zu bewahren. Es bekommt aber dieselbe Kollisionssicherheit: Ein punktierter Schlüssel, dessen Pfad mit einem echten verschachtelten Pfad kollidiert, auch wenn einer der Vorfahre des anderen ist, wirft `INVALID_STRUCTURE`, statt einen Wert stillschweigend zu überschreiben. Eine Datei, die flache punktierte Schlüssel mit verschachtelten Objekten mischt, scheitert weiterhin, jetzt auf jeder Verschachtelungstiefe erkannt, nicht nur auf der obersten Ebene.
+
+## Ein Format wählen
+
+Passe das Format an dein Framework an: `i18next-json` für i18next, `vue-i18n-json` für vue-i18n, `next-intl-json` für next-intl und `ngx-translate-json` für ngx-translate. Für Nicht-JSON-Quellen verwende `arb` für Flutter, `yaml` für YAML-basiertes i18n und `xliff` für XLIFF-Dateien. Siehe [Konfigurationsdatei](/docs/config-file) dafür, wo `format` in der Konfiguration sitzt.

@@ -1,0 +1,5 @@
+{
+  "title": "Configurer",
+  "defaultOpen": true,
+  "pages": ["config-file", "providers", "formats", "cli"]
+}

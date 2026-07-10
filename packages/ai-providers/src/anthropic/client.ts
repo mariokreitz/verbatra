@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAnthropicKey } from "../env.js";
 import type { BuiltRequest } from "./request.js";
-import type { AnthropicMessage, MessagesClient } from "./types.js";
+import type { AnthropicCallOptions, AnthropicMessage, MessagesClient } from "./types.js";
 
 /**
  * Build the production client wrapping the real @anthropic-ai/sdk. The only place
@@ -13,9 +13,13 @@ export function createDefaultClient(): MessagesClient {
   const sdk = new Anthropic({ apiKey: requireAnthropicKey(), logLevel: "off" });
   return {
     messages: {
-      create: async (body: BuiltRequest): Promise<AnthropicMessage> =>
+      create: async (
+        body: BuiltRequest,
+        options?: AnthropicCallOptions,
+      ): Promise<AnthropicMessage> =>
         (await sdk.messages.create(
           body as unknown as Anthropic.MessageCreateParamsNonStreaming,
+          options,
         )) as unknown as AnthropicMessage,
     },
   };

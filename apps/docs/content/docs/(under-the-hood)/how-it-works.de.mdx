@@ -1,0 +1,110 @@
+---
+title: Wie es funktioniert
+description: Was ein verbatra-Lauf von Anfang bis Ende tut, von der Konfigurationssuche bis zur Lauf-Zusammenfassung.
+---
+Ein Lauf ist eine kurze Pipeline. Lade die Konfiguration, lies die Quell-Locale, dann für jede Ziel-Locale:
+diffe gegen das, was du zuletzt übersetzt hast, sende nur das Geänderte an den Provider, prüfe das
+Ergebnis und schreibe. Das ist das Ganze. Diese Seite geht jeden Schritt durch, damit du genau weißt, was
+passiert, wenn du `verbatra translate` startest.
+
+<DiffPanel />
+
+## Konfigurationssuche und Laden
+
+Zuerst lädt verbatra deine Konfiguration. Es sucht vom Arbeitsverzeichnis aufwärts und nimmt die erste
+Quelle, die es findet: einen `"verbatra"`-Key in `package.json`, dann eine der `.verbatrarc.*`-Dateien, dann eine
+`verbatra.config.*`-Datei. Es validiert die Konfiguration, bevor es irgendeine Arbeit tut. Findet es nichts, scheitert der Lauf
+mit `CONFIG_NOT_FOUND`; findet es etwas Ungültiges, scheitert er mit `CONFIG_INVALID`. Die Konfiguration
+trägt niemals einen API-Schlüssel: der Provider liest seinen Schlüssel aus der Umgebung.
+
+## Die Quell-Locale lesen
+
+verbatra löst die Quelldatei aus `files.pattern` auf, indem es das `{locale}`-Token gegen
+`sourceLocale` relativ zum Arbeitsverzeichnis austauscht. So liest `locales/{locale}.json` mit `sourceLocale: "en"`
+die Datei `locales/en.json`. Fehlt die Datei, scheitert der Lauf mit `SOURCE_UNREADABLE`; ist die Datei nicht parsbar,
+scheitert er mit `SOURCE_INVALID`. Beim Lesen kennzeichnet der Format-Adapter außerdem alle Quell-Keys, deren
+Werte für die Nachrichtensyntax des Formats ungültig sind (ungültiges ICU). Diese Keys reisen mit, werden aber
+statt in einem kaputten Zustand gesendet zu werden von der Übersetzung ausgenommen.
+
+## Der Lauf pro Locale
+
+Jede Ziel-Locale läuft für sich. Wenn eine Locale explodiert, machen die anderen weiter.
+
+### Diff gegen die Lock-Baseline
+
+verbatra liest die vorhandene Zieldatei (eine fehlende Datei zählt als leer) und diffe die Quelle dagegen,
+unter Nutzung der Lock-Datei als Baseline dessen, was zuvor übersetzt wurde. Der Diff sortiert jeden Quell-Key
+in einen von vier Eimern:
+
+- neue Keys, die das Ziel noch nicht hat,
+- geänderte Keys, deren Quelltext von der aufgezeichneten Baseline abweicht,
+- unveränderte Keys, die bereits aktuell sind,
+- verwaiste Keys, die im Ziel vorhanden, aber nicht mehr in der Quelle sind.
+
+Nur die neuen und geänderten Keys sind Kandidaten für die Übersetzung. Unveränderte Keys werden in Ruhe gelassen, und
+verwaiste Keys werden gemeldet und standardmäßig belassen. Willst du sie los? Übergib `--prune` (oder setze
+`prune: true` in der Konfiguration): verbatra entfernt dann genau die verwaisten Keys aus der Zieldatei und
+dem Lock, und nichts sonst. Jeder als ungültiges ICU gekennzeichnete Kandidat wird ebenfalls beiseitegelegt. Das ist, was einen
+Lauf inkrementell hält: der Provider wird nur für die Strings aufgerufen, die sich tatsächlich geändert haben.
+
+### Den Provider aufrufen
+
+Die Kandidaten-Einträge gehen an deinen konfigurierten Provider, zusammen mit dem optionalen `glossary` und `tone`
+aus deiner Konfiguration. verbatra teilt sie in sequenzielle Unter-Batches von höchstens `maxBatchSize` (Standard
+`50`, siehe [Config file](/docs/config-file)), sodass eine übergroße Anfrage nicht die ganze Locale lahmlegen kann.
+Wenn ein Unter-Batch-Aufruf fehlschlägt, wird er zurückgehalten und im nächsten Lauf erneut versucht, während die anderen weiter
+Fortschritt machen. Wie die Inputs angewandt werden, hängt vom Provider ab.
+
+- Die LLM-Provider (Anthropic, OpenAI, Gemini und openai-compatible) bekommen die Einträge, das Glossar und den Ton in einer
+  strukturierten Datennutzlast, mit der Anweisung, die Glossarbegriffe als bindend zu behandeln und den
+  Ton zu wahren. Das Modell ist gezwungen, einen Wert pro angefragtem Key zurückzugeben.
+- DeepL ist ein Maschinenübersetzungsdienst, also bildet es dieselben Inputs auf seine eigenen Optionen ab. Ton wird zu
+  Formalität: `formal` verlangt ein förmlicheres Ergebnis, `informal` ein weniger förmliches, und `neutral`
+  oder ein fehlender Ton wird weggelassen. Eine konfigurierte `glossaryId` wird nativ durchgereicht.
+
+DeepL meldet außerdem Hinweise, wenn es sich elegant herunterstuft. Mit einem Free-Tier-Schlüssel unterstützt es keinen
+nicht standardmäßigen Ton, also fällt es auf den Standard zurück und gibt einen `FORMALITY_DOWNGRADED`-Hinweis aus. Es wendet auch keine
+generische `glossary`-Begriffszuordnung an (es nutzt stattdessen ein Glossar per id), also gibt es einen
+`GLOSSARY_IGNORED`-Hinweis aus. Das sind Daten am Ergebnis, keine Fehler. Die LLM-Provider geben keine
+Hinweise aus.
+
+### Platzhalter prüfen und schreiben
+
+Nach der Übersetzung vergleicht verbatra die Platzhaltermenge jedes übersetzten Werts gegen seine Quelle.
+Eine Übersetzung, die einen Platzhalter weglässt oder verändert, besteht diese Integritätsprüfung nicht und wird zurückgehalten statt
+geschrieben. Die akzeptierten Übersetzungen werden in die Ziel-Locale zusammengeführt und atomar geschrieben, sodass ein
+unterbrochener Schreibvorgang dich nie mit einer halbfertigen Datei zurücklässt.
+
+## Die Lock-Datei und inkrementelle Arbeit
+
+verbatra hält eine committete Lock-Datei (`verbatra.lock.json`), die pro Locale einen Inhalts-Hash
+für jeden übersetzten Quell-Key aufzeichnet. Diese Aufzeichnung ist die Baseline, gegen die der nächste Lauf diffe. Nachdem eine
+Locale geschrieben wurde, aktualisiert sich der Lock mit den aktuellen Quell-Hashes, mit einer bewussten Ausnahme:
+Keys, die in diesem Lauf zurückgehalten wurden (ein Platzhalter-Mismatch oder ungültiges ICU), behalten ihren vorherigen Hash, sodass der nächste Lauf
+sie weiterhin als arbeitsbedürftig sieht und erneut versucht. Verwaiste Keys bekommen keinen Eintrag. Eine fehlende Lock-Datei
+zählt als erster Lauf; eine korrupte scheitert mit `LOCK_FILE_INVALID`, statt stillschweigend
+überschrieben zu werden.
+
+## Die Lauf-Zusammenfassung
+
+Ein Lauf gibt eine Zusammenfassung über alle Ziel-Locales zurück: welche erfolgreich waren, welche fehlgeschlagen sind, und eine
+Aufschlüsselung pro Locale. Jeder Locale-Eintrag meldet die übersetzten Keys, die unverändert gelassenen Keys, die
+verwaisten Keys, die in diesem Lauf tatsächlich gepruneten verwaisten Keys (leer, außer Pruning ist an), alle wegen ungültigem ICU
+übersprungenen Quell-Keys, alle wegen eines Platzhalter-Mismatch zurückgehaltenen Übersetzungen, alle in diesem Lauf
+erzeugten Pluralformen (leer, außer Pluralerzeugung ist an) und alle Hinweise. Hinweise decken sowohl Provider-Hinweise
+(wie die DeepL-Fälle oben) als auch SDK-Hinweise ab, einschließlich einer Plural-Kategorie-Warnung (Code
+`PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr CLDR-Plural-Kategorien braucht, als die Quelle
+liefert. Ein Dry Run gibt dir dieselbe Zusammenfassungsform, listet die Keys, die übersetzt würden,
+ohne einen Provider aufzurufen oder etwas zu schreiben.
+
+## Fehler
+
+verbatra zieht eine klare Linie zwischen zwei Arten von Fehlern. Ein Gesamtlauf-Problem (eine fehlende oder ungültige
+Konfiguration, eine unlesbare Quelle, ein unbekanntes Format, ein Provider, der nicht konstruiert werden kann, einschließlich eines
+fehlenden API-Schlüssels, oder eine korrupte Lock-Datei) stoppt den Lauf mit einem strukturierten Fehler. Eine einzelne Locale,
+die fehlschlägt, ist nicht fatal: sie landet am Eintrag dieser Locale mit einem Code und einer Nachricht, und der Rest der
+Locales läuft trotzdem.
+
+Wenn ein LLM-Provider (Anthropic, OpenAI, Gemini oder openai-compatible) stoppt, weil er das Output-Token-Limit erreicht hat, scheitert dieser
+Unter-Batch mit einem eigenen `OUTPUT_TRUNCATED`-Fehler, der dir sagt, eine kleinere Batch-Größe oder ein
+höheres Max-Output-Token-Limit zu nutzen. Das gilt nicht für DeepL. Siehe [Providers](/docs/providers).

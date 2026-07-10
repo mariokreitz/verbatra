@@ -4,6 +4,11 @@
       "title": "Machine-translated page",
       "text": "This page was translated automatically, so it may contain mistakes or read a little oddly. The English version is the source of truth.",
       "viewOriginal": "Read the English original"
+    },
+    "llms": {
+      "heading": "For AI agents",
+      "index": "llms.txt (index)",
+      "full": "llms-full.txt (full text)"
     }
   },
   "landing": {
@@ -173,7 +178,9 @@
           "title": "Project",
           "configFile": "Config file",
           "codeOfConduct": "Code of conduct",
-          "security": "Security policy"
+          "security": "Security policy",
+          "llmsIndex": "llms.txt (index)",
+          "llmsFull": "llms-full.txt (full text)"
         },
         "legal": {
           "title": "Legal",

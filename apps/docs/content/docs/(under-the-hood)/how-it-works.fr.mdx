@@ -1,0 +1,110 @@
+---
+title: Comment ça marche
+description: Ce qu'une exécution de verbatra fait de bout en bout, de la découverte de la config au résumé de l'exécution.
+---
+Une exécution est un court pipeline. Charger la config, lire la locale source, puis pour chaque locale cible :
+diffuser par rapport à ce que tu as traduit la dernière fois, n'envoyer au provider que ce qui a changé, vérifier le
+résultat, et écrire. C'est tout. Cette page parcourt chaque étape pour que tu saches exactement ce qui
+se passe quand tu lances `verbatra translate`.
+
+<DiffPanel />
+
+## Découverte et chargement de la config
+
+D'abord verbatra charge ta config. Il cherche vers le haut à partir du répertoire de travail et prend la première
+source qu'il trouve : une clé `"verbatra"` dans `package.json`, puis l'un des fichiers `.verbatrarc.*`, puis un
+fichier `verbatra.config.*`. Il valide la config avant de faire le moindre travail. Ne trouve rien et l'exécution
+échoue avec `CONFIG_NOT_FOUND` ; trouve quelque chose d'invalide et elle échoue avec `CONFIG_INVALID`. La config
+ne porte jamais de clé API : le provider lit sa clé depuis l'environnement.
+
+## Lecture de la locale source
+
+verbatra résout le fichier source à partir de `files.pattern`, en substituant le jeton `{locale}` par
+`sourceLocale` relativement au répertoire de travail. Ainsi `locales/{locale}.json` avec `sourceLocale: "en"`
+lit `locales/en.json`. Fichier manquant, et l'exécution échoue avec `SOURCE_UNREADABLE` ; fichier non analysable,
+et elle échoue avec `SOURCE_INVALID`. Pendant la lecture, l'adaptateur de format signale aussi toute clé source dont les
+valeurs sont invalides pour la syntaxe de message du format (ICU invalide). Ces clés sont transportées mais
+ignorées pour la traduction plutôt qu'envoyées dans un état défectueux.
+
+## L'exécution par locale
+
+Chaque locale cible est traitée séparément. Si une locale explose, les autres continuent.
+
+### Diff par rapport à la base de référence du verrouillage
+
+verbatra lit le fichier cible existant (un fichier absent compte comme vide) et diffuse la source par rapport à
+lui, en utilisant le fichier de verrouillage comme base de référence de ce qui a été traduit auparavant. Le diff trie chaque
+clé source dans l'un de quatre paniers :
+
+- les nouvelles clés que la cible n'a pas encore,
+- les clés modifiées dont le texte source diffère de la base de référence enregistrée,
+- les clés inchangées qui sont déjà à jour,
+- les clés orphelines présentes dans la cible mais qui ne sont plus dans la source.
+
+Seules les clés nouvelles et modifiées sont candidates à la traduction. Les clés inchangées sont laissées tranquilles, et
+les clés orphelines sont signalées et, par défaut, laissées en place. Tu les veux disparues ? Passe `--prune` (ou définis
+`prune: true` dans la config) : verbatra supprime alors exactement les clés orphelines du fichier cible et
+du verrouillage, et rien d'autre. Toute candidate marquée ICU invalide est également mise de côté. C'est ce qui maintient une
+exécution incrémentielle : le provider n'est appelé que pour les chaînes qui ont réellement changé.
+
+### Appel du provider
+
+Les entrées candidates vont à ton provider configuré, avec le `glossary` et le `tone` facultatifs
+de ta config. verbatra les répartit en sous-lots séquentiels d'au plus `maxBatchSize` (par défaut
+`50`, voir [Config file](/docs/config-file)) pour qu'une requête surdimensionnée ne puisse pas faire échouer toute la locale.
+Si l'appel d'un sous-lot échoue, il est retenu et réessayé à la prochaine exécution pendant que les autres continuent de
+progresser. La façon dont les entrées sont appliquées dépend du provider.
+
+- Les providers LLM (Anthropic, OpenAI, Gemini et openai-compatible) reçoivent les entrées, le glossaire et la tonalité dans une
+  charge utile de données structurée, avec instruction de traiter les termes du glossaire comme contraignants et de respecter la
+  tonalité. Le modèle est contraint de renvoyer une valeur par clé demandée.
+- DeepL est un service de traduction automatique, donc il mappe les mêmes entrées sur ses propres options. La tonalité devient
+  formalité : `formal` demande un résultat plus formel, `informal` un résultat moins formel, et `neutral`
+  ou une tonalité absente est omise. Un `glossaryId` configuré est passé nativement.
+
+DeepL signale aussi des notifications quand il se dégrade gracieusement. Avec une clé de niveau gratuit, il ne prend pas en charge une
+tonalité non par défaut, donc il revient à la valeur par défaut et émet une notification `FORMALITY_DOWNGRADED`. Il n'applique pas
+non plus une carte de termes `glossary` générique (il utilise plutôt un glossaire par id), donc il émet une notification
+`GLOSSARY_IGNORED`. Ce sont des données sur le résultat, pas des erreurs. Les providers LLM n'émettent aucune
+notification.
+
+### Vérification des placeholders et écriture
+
+Après la traduction, verbatra compare l'ensemble des placeholders de chaque valeur traduite à sa source.
+Une traduction qui supprime ou altère un placeholder échoue à cette vérification d'intégrité et est retenue plutôt
+qu'écrite. Les traductions acceptées sont fusionnées dans la locale cible et écrites de façon atomique, de sorte qu'une
+écriture interrompue ne te laisse jamais avec un fichier à moitié terminé.
+
+## Le fichier de verrouillage et le travail incrémentiel
+
+verbatra conserve un fichier de verrouillage commité (`verbatra.lock.json`) qui enregistre, par locale, un hachage de contenu
+pour chaque clé source traduite. Cet enregistrement est la base de référence par rapport à laquelle l'exécution suivante diffuse. Après qu'une
+locale est écrite, le verrouillage se rafraîchit avec les hachages source actuels, avec une exception délibérée :
+les clés retenues lors de cette exécution (une non-concordance de placeholder ou un ICU invalide) conservent leur hachage
+précédent, de sorte que l'exécution suivante les voit toujours comme nécessitant du travail et les réessaie. Les clés orphelines n'obtiennent aucune
+entrée. Un fichier de verrouillage manquant compte comme une première exécution ; un fichier corrompu échoue avec `LOCK_FILE_INVALID` plutôt
+que d'être silencieusement écrasé.
+
+## Le résumé de l'exécution
+
+Une exécution renvoie un résumé pour toutes les locales cibles : lesquelles ont réussi, lesquelles ont échoué,
+et une ventilation par locale. Chaque entrée de locale signale les clés traduites, les clés laissées inchangées,
+les clés orphelines, les clés orphelines réellement élaguées lors de cette exécution (vide sauf si l'élagage est activé), toute clé source
+ignorée pour ICU invalide, toute traduction retenue pour une non-concordance de placeholder, toute forme plurielle
+générée lors de cette exécution (vide sauf si la génération de pluriels est activée), et toute notification. Les notifications couvrent à la fois les notifications
+du provider (comme les cas DeepL ci-dessus) et les notifications du SDK, y compris un avertissement de catégorie de pluriel (code
+`PLURAL_CATEGORIES_INCOMPLETE`) quand une langue cible a besoin de plus de catégories de pluriel CLDR que la source
+n'en fournit. Une exécution à blanc te donne le même type de résumé, listant les clés qui seraient traduites,
+sans appeler de provider ni écrire quoi que ce soit.
+
+## Erreurs
+
+verbatra trace une ligne claire entre deux types d'échec. Un problème sur toute l'exécution (une config manquante ou
+invalide, une source illisible, un format inconnu, un provider qui ne peut pas être construit y compris une
+clé API manquante, ou un fichier de verrouillage corrompu) arrête l'exécution avec une erreur structurée. L'échec
+d'une seule locale n'est pas fatal : il atterrit sur l'entrée de cette locale avec un code et un message, et le reste des
+locales s'exécute quand même.
+
+Quand un provider LLM (Anthropic, OpenAI, Gemini ou openai-compatible) s'arrête parce qu'il a atteint la limite de jetons de sortie, ce
+sous-lot échoue avec une erreur distincte `OUTPUT_TRUNCATED` qui te dit d'utiliser une taille de lot plus petite ou un
+nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas à DeepL. Voir [Providers](/docs/providers).

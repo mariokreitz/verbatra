@@ -9,7 +9,14 @@ import { redact } from "./redaction.js";
  * - `OUTPUT_TRUNCATED`: the model hit its output-token limit; remedy is a smaller batch or higher limit.
  * - `PROVIDER_REFUSED`: the model declined to answer.
  * - `PROVIDER_BLOCKED`: the request or response was safety-blocked, filtered, or had no candidate.
- * - `PROVIDER_ERROR`: an underlying SDK call threw; mapped to a static, secret-free error by the guard.
+ * - `RATE_LIMITED`: the underlying SDK call failed with an HTTP 429 or an equivalent rate-limit error
+ *   class; the caller should back off and retry later.
+ * - `TIMEOUT`: the underlying SDK call failed with a network or request timeout (no HTTP response was
+ *   received in time); the caller may retry.
+ * - `AUTH_FAILED`: the underlying SDK call failed with an HTTP 401 or 403; the configured key is invalid,
+ *   revoked, or lacks permission. Retrying will not help.
+ * - `PROVIDER_ERROR`: an underlying SDK call threw an error the guard could not classify by status code
+ *   or SDK error class; mapped to a static, secret-free error.
  */
 export type ProviderErrorCode =
   | "MISSING_API_KEY"
@@ -18,6 +25,9 @@ export type ProviderErrorCode =
   | "OUTPUT_TRUNCATED"
   | "PROVIDER_REFUSED"
   | "PROVIDER_BLOCKED"
+  | "RATE_LIMITED"
+  | "TIMEOUT"
+  | "AUTH_FAILED"
   | "PROVIDER_ERROR";
 
 /**

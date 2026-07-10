@@ -43,3 +43,57 @@ export function requireGeminiKey(): string {
 export function requireDeepLKey(): string {
   return readRequiredEnv(PROVIDER_ENV.deepl);
 }
+
+/**
+ * The convention environment variable for the openai-compatible provider, read when config does not
+ * name an `apiKeyEnvVar`. Deliberately not part of {@link PROVIDER_ENV}: every hosted provider has one
+ * required variable, but openai-compatible has a three-tier fallback ending in a non-secret placeholder
+ * (see {@link resolveOpenAiCompatibleKey}), so it does not fit that table and `init` scaffolding does
+ * not offer it.
+ */
+export const OPENAI_COMPATIBLE_ENV_VAR = "OPENAI_COMPATIBLE_API_KEY";
+
+/**
+ * The literal, non-secret placeholder sent as the API key when no real key resolves. Local inference
+ * servers usually require none; this is a fixed, publicly-known string, never derived from anything
+ * sensitive, so it needs no redaction.
+ */
+export const OPENAI_COMPATIBLE_KEY_PLACEHOLDER = "local";
+
+/**
+ * Resolve the API key for the openai-compatible provider. Structurally isolated from every hosted
+ * provider's key path: it never calls {@link readRequiredEnv} against a hosted variable, never reads
+ * `OPENAI_API_KEY`, and shares no resolution function with {@link requireOpenAiKey}.
+ *
+ * Three-tier resolution:
+ * 1. `customEnvVar` (the config's `apiKeyEnvVar`) is set: read that named variable. Throws
+ *    `MISSING_API_KEY` if it is unset or empty, since the config author explicitly asserted a real key
+ *    is required there; silently falling back would be a quieter failure than intended.
+ * 2. `customEnvVar` is absent: read the convention variable `OPENAI_COMPATIBLE_API_KEY`. If set and
+ *    non-empty, use it.
+ * 3. Both absent: fall back to {@link OPENAI_COMPATIBLE_KEY_PLACEHOLDER}, `"local"`.
+ *
+ * Residual risk (documented here and in the provider docs, not enforced at runtime): when tier 1 or 2
+ * resolves a real key and the provider's `baseUrl` is plaintext `http:` to a non-loopback host, that key
+ * travels over the network in cleartext. v1 allows this combination; see the openai-compatible provider
+ * docs for the full rationale.
+ *
+ * @param customEnvVar - The config's optional `apiKeyEnvVar`, naming which variable to read a real key
+ *   from. When omitted, the convention variable is read instead.
+ * @returns The resolved key value, or the `"local"` placeholder.
+ * @throws {@link ProviderError} `MISSING_API_KEY`: `customEnvVar` was given but is unset or empty.
+ */
+export function resolveOpenAiCompatibleKey(customEnvVar?: string): string {
+  const varName = customEnvVar ?? OPENAI_COMPATIBLE_ENV_VAR;
+  const value = process.env[varName];
+  if (value !== undefined && value.length > 0) {
+    return value;
+  }
+  if (customEnvVar !== undefined) {
+    throw new ProviderError(
+      "MISSING_API_KEY",
+      `The ${customEnvVar} environment variable is not set.`,
+    );
+  }
+  return OPENAI_COMPATIBLE_KEY_PLACEHOLDER;
+}

@@ -2,6 +2,7 @@ import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/cor
 import { guardProviderCall } from "../guard.js";
 import { checkBatchIntegrity } from "../integrity.js";
 import {
+  type PlaceholderComparator,
   type PlaceholderExtractor,
   type TranslateRequest,
   type TranslationProvider,
@@ -103,6 +104,8 @@ async function translate(
     protectable,
     options,
     request.extractPlaceholders,
+    request.comparePlaceholders,
+    request.signal,
   );
   if (unprotectable.length > 0) {
     notices.push({ code: "PLACEHOLDER_UNSUPPORTED", message: PLACEHOLDER_UNSUPPORTED_MESSAGE });
@@ -121,6 +124,8 @@ async function translateProtectable(
   protectable: readonly TranslationEntry[],
   options: DeepLTranslateOptions,
   extract: PlaceholderExtractor,
+  compare: PlaceholderComparator | undefined,
+  signal: AbortSignal | undefined,
 ): Promise<{
   values: Map<string, string>;
   integrity: Map<string, PlaceholderIntegrityResult>;
@@ -129,19 +134,37 @@ async function translateProtectable(
     return { values: new Map(), integrity: new Map() };
   }
   const texts = protectable.map((entry) => entry.value);
-  const results = await callClient(client, texts, data.sourceLocale, data.targetLocale, options);
+  const results = await callClient(
+    client,
+    texts,
+    data.sourceLocale,
+    data.targetLocale,
+    options,
+    signal,
+  );
   const { values, integrityInputs } = zipResults(protectable, results);
-  const integrity = checkBatchIntegrity(integrityInputs, extract);
+  const integrity = checkBatchIntegrity(integrityInputs, extract, compare);
   return { values, integrity };
 }
 
-/** Call DeepL through the shared guard so a raw SDK/axios error (auth header) never leaks. */
+/**
+ * Call DeepL through the shared guard so a raw SDK/axios error (auth header) never leaks.
+ *
+ * deepl-node's `translateText` accepts no cancellation signal, so `signal` cannot be threaded into
+ * the network call itself; passing it to the guard still gives a caller-initiated abort a preflight
+ * check (an already-aborted signal rejects before any request is sent) and correct abort-vs-failure
+ * classification, but an abort cannot interrupt a DeepL call already in flight.
+ */
 function callClient(
   client: DeepLTranslateClient,
   texts: readonly string[],
   sourceLang: string,
   targetLang: string,
   options: DeepLTranslateOptions,
+  signal: AbortSignal | undefined,
 ): Promise<DeepLTextResult[]> {
-  return guardProviderCall(() => client.translateText(texts, sourceLang, targetLang, options));
+  return guardProviderCall(
+    () => client.translateText(texts, sourceLang, targetLang, options),
+    signal,
+  );
 }

@@ -260,6 +260,62 @@ describe("createAnthropicProvider: provider error handling", () => {
   });
 });
 
+describe("createAnthropicProvider: cancellation", () => {
+  it("forwards the request's signal to the SDK call options", async () => {
+    const controller = new AbortController();
+    const seen: Array<AbortSignal | undefined> = [];
+    const client: MessagesClient = {
+      messages: {
+        create: async (_body, options) => {
+          seen.push(options?.signal);
+          return toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]);
+        },
+      },
+    };
+    await createAnthropicProvider(config, { client }).translateBatch(
+      request({ signal: controller.signal }),
+    );
+    expect(seen[0]).toBe(controller.signal);
+  });
+
+  it("calls the SDK with no options object when the request carries no signal", async () => {
+    const seen: unknown[] = [];
+    const client: MessagesClient = {
+      messages: {
+        create: async (_body, options) => {
+          seen.push(options);
+          return toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]);
+        },
+      },
+    };
+    await createAnthropicProvider(config, { client }).translateBatch(request());
+    expect(seen[0]).toBeUndefined();
+  });
+
+  it("re-throws an abort unwrapped instead of a ProviderError", async () => {
+    const controller = new AbortController();
+    const sentinel = new DOMException("This operation was aborted.", "AbortError");
+    const client: MessagesClient = {
+      messages: {
+        create: () => {
+          controller.abort();
+          return Promise.reject(sentinel);
+        },
+      },
+    };
+    let caught: unknown;
+    try {
+      await createAnthropicProvider(config, { client }).translateBatch(
+        request({ signal: controller.signal }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(sentinel);
+  });
+});
+
 describe("createAnthropicProvider: default client / env key", () => {
   let saved: string | undefined;
 

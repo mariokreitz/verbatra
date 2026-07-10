@@ -1,0 +1,29 @@
+---
+title: Tests et qualité
+description: Comment verbatra est testé, et où voir l'état actuel de son build, de sa couverture et de ses tests end-to-end.
+---
+verbatra est construit pour qu'on puisse compter dessus. Chaque changement passe par une suite de tests en couches, et les résultats
+sont publics, de sorte que tu peux les vérifier avant de mettre à jour.
+
+<p align="center">
+  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
+</p>
+
+## Ce que signifient les badges
+
+- **CI** : le lint, les vérifications de types, les tests unitaires et le build de production s'exécutent sur chaque pull request et sur `main`, sur deux versions de Node. Le job `e2e` de ce même workflow installe les tarballs publiés de `@verbatra/cli` et `@verbatra/sdk` dans un projet jetable et les pilote via le vrai binaire, de sorte que les régressions d'empaquetage et de bundling sont détectées avant la publication. CI impose 90 pour cent de couverture sur les lignes, les fonctions, les instructions et les branches.
+- **Coverage** : la couverture la plus récente rapportée à Codecov depuis l'exécution de CI sur `main`.
+
+## Comment c'est testé
+
+- **Tests unitaires** (Vitest) couvrent la logique métier, les adaptateurs de format, les providers et la CLI dans chaque package.
+- **Tests end-to-end** installent les vrais tarballs et exercent toute la surface de commandes : `init`, `check`, `diff`, `export`, `import`, `translate` et `watch`. Un niveau sans clé s'exécute sur chaque pull request ; un niveau en direct traduit contre un vrai provider chaque nuit et après chaque merge.
+
+## Couverture en détail
+
+<p align="center">
+  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graphs/sunburst.svg?token=" alt="Coverage sunburst" /></a>
+</p>
+
+Chaque bloc est un fichier : sa taille est le nombre d'instructions et sa couleur la couverture. Ouvre-le sur Codecov pour le rapport complet et navigable.

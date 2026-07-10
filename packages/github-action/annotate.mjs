@@ -2,7 +2,7 @@
 // delegates to the pure core in report.mjs, emits annotations, appends the job summary, and exits.
 
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
-import { buildReport, parseSummaryJson } from "./report.mjs";
+import { buildReport, parseSummaryJson, resolveExitCode } from "./report.mjs";
 
 const [summaryFile, errorFile, exitCodeArg] = process.argv.slice(2);
 
@@ -10,9 +10,8 @@ const readOrEmpty = (path) => (path && existsSync(path) ? readFileSync(path, "ut
 
 const summary = parseSummaryJson(readOrEmpty(summaryFile));
 const stderrText = readOrEmpty(errorFile);
-const exitCode = Number.parseInt(exitCodeArg ?? "", 10);
 
-const report = buildReport(summary, Number.isNaN(exitCode) ? 0 : exitCode, stderrText);
+const report = buildReport(summary, resolveExitCode(exitCodeArg), stderrText);
 
 for (const annotation of report.annotations) {
   process.stdout.write(`${annotation}\n`);

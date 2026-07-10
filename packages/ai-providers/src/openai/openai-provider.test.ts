@@ -80,6 +80,9 @@ describe("createOpenAiProvider: request building", () => {
     expect(body.messages[0].content).not.toContain("formal");
     expect(body.messages[0].content).not.toContain("Servus");
     expect(body.response_format.type).toBe("json_schema");
+    if (body.response_format.type !== "json_schema") {
+      throw new Error("expected the default strict-schema response_format");
+    }
     expect(body.response_format.json_schema.schema).toEqual(
       deriveJsonSchema(translationsResultSchema),
     );
@@ -364,6 +367,68 @@ describe("createOpenAiProvider: secrets and errors", () => {
       expect(text).not.toContain("Bearer");
       expect(text).not.toContain("Authorization");
     }
+  });
+});
+
+describe("createOpenAiProvider: cancellation", () => {
+  it("forwards the request's signal to the SDK call options", async () => {
+    const controller = new AbortController();
+    const seen: Array<AbortSignal | undefined> = [];
+    const client: OpenAiClient = {
+      chat: {
+        completions: {
+          create: async (_body, options) => {
+            seen.push(options?.signal);
+            return openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]);
+          },
+        },
+      },
+    };
+    await createOpenAiProvider(config, { client }).translateBatch(
+      request({ signal: controller.signal }),
+    );
+    expect(seen[0]).toBe(controller.signal);
+  });
+
+  it("calls the SDK with no options object when the request carries no signal", async () => {
+    const seen: unknown[] = [];
+    const client: OpenAiClient = {
+      chat: {
+        completions: {
+          create: async (_body, options) => {
+            seen.push(options);
+            return openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]);
+          },
+        },
+      },
+    };
+    await createOpenAiProvider(config, { client }).translateBatch(request());
+    expect(seen[0]).toBeUndefined();
+  });
+
+  it("re-throws an abort unwrapped instead of a ProviderError", async () => {
+    const controller = new AbortController();
+    const sentinel = new DOMException("This operation was aborted.", "AbortError");
+    const client: OpenAiClient = {
+      chat: {
+        completions: {
+          create: () => {
+            controller.abort();
+            return Promise.reject(sentinel);
+          },
+        },
+      },
+    };
+    let caught: unknown;
+    try {
+      await createOpenAiProvider(config, { client }).translateBatch(
+        request({ signal: controller.signal }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(sentinel);
   });
 });
 

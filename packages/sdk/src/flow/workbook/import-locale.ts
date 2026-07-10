@@ -68,10 +68,10 @@ function judge(
   if (contentHash(sourceEntry) !== row.sourceHash) {
     return "drift";
   }
-  const integrity = checkPlaceholders(
-    sourceEntry.placeholders,
-    adapter.extractPlaceholders(row.translation),
-  );
+  const integrity =
+    adapter.comparePlaceholders !== undefined
+      ? adapter.comparePlaceholders(sourceEntry.value, row.translation)
+      : checkPlaceholders(sourceEntry.placeholders, adapter.extractPlaceholders(row.translation));
   if (!integrity.matches) {
     return "placeholder";
   }

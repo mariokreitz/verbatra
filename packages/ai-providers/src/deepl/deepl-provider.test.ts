@@ -291,6 +291,35 @@ describe("createDeepLProvider: errors and secrets", () => {
   });
 });
 
+describe("createDeepLProvider: cancellation (best-effort, preflight only)", () => {
+  it("rejects immediately without calling translateText when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const translateText = vi.fn();
+    const client: DeepLTranslateClient = { translateText };
+    let caught: unknown;
+    try {
+      await createDeepLProvider(config, { client }).translateBatch(
+        request({ entries: [entry("k", "v")], signal: controller.signal }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).not.toBeInstanceOf(ProviderError);
+    expect(translateText).not.toHaveBeenCalled();
+  });
+
+  it("translates normally when the signal is present but never aborted", async () => {
+    const controller = new AbortController();
+    const { client } = deeplStubClient(deeplResult(["Frei"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("k", "Free")], signal: controller.signal }),
+    );
+    expect(result.values.get("k")).toBe("Frei");
+  });
+});
+
 describe("createDeepLProvider: key from env only", () => {
   let saved: string | undefined;
   beforeEach(() => {
@@ -318,6 +347,28 @@ describe("createDeepLProvider: key from env only", () => {
   it("builds the default client when the env key is present", () => {
     process.env.DEEPL_API_KEY = "deepl-test-key:fx";
     expect(createDeepLProvider(config).id).toBe("deepl");
+  });
+});
+
+describe("createDeepLProvider: comparePlaceholders wiring", () => {
+  it("passes request.comparePlaceholders through to the protectable-entry integrity check", async () => {
+    const { client } = deeplStubClient(deeplResult(["Frei"]));
+    const calls: Array<{ source: string; translated: string }> = [];
+    const comparePlaceholders = (
+      source: string,
+      translated: string,
+    ): ReturnType<NonNullable<TranslateRequest["comparePlaceholders"]>> => {
+      calls.push({ source, translated });
+      return { matches: true, missing: [], extra: [], reordered: false };
+    };
+
+    await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("k", "Free")], comparePlaceholders }),
+    );
+
+    // "Free" carries no placeholders, so it is protectable and reaches DeepL; the comparator, not
+    // extractPlaceholders plus checkPlaceholders, is the one invoked for its integrity check.
+    expect(calls).toEqual([{ source: "Free", translated: "Frei" }]);
   });
 });
 

@@ -39,4 +39,17 @@ describe("validateRequest", () => {
   it("rejects an empty source locale", () => {
     expect(() => validateRequest(baseRequest({ sourceLocale: "" }))).toThrow(ProviderError);
   });
+
+  it("accepts a request carrying a signal, but the signal is not part of the validated plain data", () => {
+    const controller = new AbortController();
+    const data = validateRequest(baseRequest({ signal: controller.signal }));
+    expect(data).not.toHaveProperty("signal");
+  });
+
+  it("validates the same whether or not a signal is present", () => {
+    expect(() => validateRequest(baseRequest())).not.toThrow();
+    expect(() =>
+      validateRequest(baseRequest({ signal: new AbortController().signal })),
+    ).not.toThrow();
+  });
 });

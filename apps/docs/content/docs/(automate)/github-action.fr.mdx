@@ -1,0 +1,58 @@
+---
+title: GitHub Action
+description: "Lance verbatra dans GitHub Actions : traduis en CI, annote les échecs et écris un résumé de job."
+---
+Tu veux que les traductions tournent à chaque push ? verbatra fournit une GitHub Action composite qui fait exactement ça. Elle lance `verbatra translate --json` en CI, annote les éventuels échecs, écrit un résumé de job et sort avec le code de sortie de la CLI. Tu la branches avec `uses:`. Elle n'est pas publiée sur npm.
+
+## Disponibilité
+
+Cette action vit dans le dépôt, donc tu la référence directement depuis là avec `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, épinglée à un SHA de commit. Il n'y a aucun package npm, aucune fiche GitHub Marketplace et aucun tag d'action versionné. La référence `uses:` basée sur le chemin et épinglée à un SHA de commit est la seule façon supportée de la consommer.
+
+## Utilisation
+
+```yaml
+name: translate
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verbatra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+        with:
+          version: 0.3.0 # pin @verbatra/cli to an exact version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+L'action lance la CLI, donc elle lit la clé d'API du provider depuis l'environnement. Passe-la depuis les secrets de ton dépôt sous la variable qu'attend ton provider (voir [Providers](/docs/providers)) : `ANTHROPIC_API_KEY` dans l'exemple ci-dessus, `OPENAI_API_KEY` si tu utilises OpenAI, et ainsi de suite.
+
+## Entrées
+
+| Input | Requis | Défaut | Description |
+| --- | --- | --- | --- |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer, par exemple `0.3.0`. Doit être une version semver exacte ; l'étape échoue immédiatement avec une erreur claire sur un dist-tag comme `latest`, une plage, ou un préfixe `^`/`~` |
+| `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche de config normale |
+| `working-directory` | non | `""` | répertoire pour résoudre la config et les fichiers de locale (correspond à `--cwd`) |
+| `dry-run` | non | `"false"` | mets `"true"` pour signaler ce qui changerait sans appeler de provider ni écrire (correspond à `--dry-run`) |
+| `node-version` | non | `"24"` | version de Node.js à installer pour lancer la CLI |
+
+L'action lance toujours `translate --json`. Elle ne lance jamais `init` ni `watch`.
+
+## Comportement de sortie
+
+L'action récupère le stdout et le code de sortie de la CLI sans abandonner en cours de route. Elle annote les échecs, écrit le résumé de job, et seulement ensuite propage le code de sortie de la CLI. Ainsi l'étape échoue sur `1` (certaines locales ont échoué) ou `2` (impossible de lancer), mais pas avant que tu obtiennes les annotations et le résumé. Les [codes de sortie de la CLI](/docs/cli#exit-codes) détaillent ce que signifie chaque code.
+
+## Persister les traductions
+
+Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, mais l'action s'arrête là : elle ne les commit pas. Pour conserver les changements, ajoute ta propre étape qui commit et push, ou qui ouvre une pull request. Quand tu veux seulement que la CI signale les traductions manquantes ou périmées sans rien écrire, mets `dry-run: "true"`.
+
+## Sécurité
+
+Épingle à la fois l'action et la CLI à des références exactes. Épingle `uses:` à un SHA de commit, et règle l'input `version` sur une release exacte de `@verbatra/cli` plutôt qu'un tag flottant comme `latest`. Ça garde un run reproductible et l'empêche de récupérer automatiquement une release compromise. Ne donne au workflow que le privilège dont il a besoin : `contents: read` pour une vérification, plus `contents: write` et `pull-requests: write` seulement quand une étape ultérieure commit ou ouvre une pull request. Les inputs atteignent la CLI en tant que données, jamais insérés dans le shell, donc une valeur d'input forgée reste un argument et ne devient jamais du code exécutable.

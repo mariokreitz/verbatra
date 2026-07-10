@@ -1,5 +1,11 @@
 import { Callout } from "fumadocs-ui/components/callout";
-import { DocsBody, DocsDescription, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import {
+  DocsBody,
+  DocsDescription,
+  DocsPage,
+  DocsTitle,
+  EditOnGitHub,
+} from "fumadocs-ui/layouts/docs/page";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -37,11 +43,24 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
       ? await getTranslations({ locale: lang, namespace: "docs.machineTranslated" })
       : null;
 
+  // The right-hand table of contents (rendered by DocsPage's default `toc` slot) already
+  // gives page-level wayfinding, so the breadcrumb trail is redundant chrome and stays off
+  // for every page, not just the home.
+  //
+  // "Edit this page" points at this exact page's own source file (`page.path`, relative to
+  // `content/docs`), including its locale suffix where one applies, so a reader editing the
+  // German page lands on `page.de.mdx`, the file that actually produced what they are
+  // reading, not the English source they cannot use to fix it. The home is excluded, same as
+  // the breadcrumb and footer, since it has no matching content file to edit.
+  const editHref = isHome
+    ? null
+    : `https://github.com/mariokreitz/verbatra/blob/main/apps/docs/content/docs/${page.path}`;
+
   return (
     <DocsPage
       toc={isHome ? [] : page.data.toc}
       full={isHome}
-      breadcrumb={{ enabled: !isHome }}
+      breadcrumb={{ enabled: false }}
       footer={{ enabled: !isHome }}
       className={isHome ? "max-w-none p-0 md:p-0 xl:p-0" : undefined}
     >
@@ -67,6 +86,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
           </Callout>
         ) : null}
         <MDX components={getMDXComponents()} />
+        {editHref ? <EditOnGitHub href={editHref} /> : null}
       </DocsBody>
     </DocsPage>
   );

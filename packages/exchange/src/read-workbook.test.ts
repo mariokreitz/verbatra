@@ -6,6 +6,7 @@ import { ExchangeError } from "./errors.js";
 import { DEFAULT_WORKBOOK_LIMITS } from "./limits.js";
 import { readWorkbook } from "./read-workbook.js";
 import type { WorkbookModel } from "./types.js";
+import { declaredSize } from "./zip-guard.js";
 
 const baseModel: WorkbookModel = {
   sheets: [
@@ -202,18 +203,28 @@ describe("readWorkbook: parse-bound caps", () => {
     expect(await code(readWorkbook(bytes, { limits }))).toBe("WORKBOOK_INVALID");
   });
 
-  it("trips the decompressed-bytes cap on the actual byte count when the declared total is under it", async () => {
-    // A stored entry of raw 0xFF bytes: the declared uncompressed size is N, but decoding to a
-    // string yields N U+FFFD replacement chars that re-encode to 3N UTF-8 bytes. With the cap set
-    // between N and 3N, the declared-size loop passes and only the actual-byte loop trips - the
-    // guard against a header that under-declares its decompressed size.
-    const raw = new Uint8Array(1000).fill(0xff);
-    const zip = new JSZip();
-    zip.file("lying.bin", raw);
-    // STORE keeps the declared uncompressed size honest (1000) so the declared loop stays under cap.
-    const bytes = await zip.generateAsync({ type: "uint8array", compression: "STORE" });
-    const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 2000 };
-    expect(await code(readWorkbook(bytes, { limits }))).toBe("WORKBOOK_INVALID");
+  it("accepts a binary part whose raw bytes are under the actual-bytes cap even though UTF-8 decoding would inflate its byte count past it", async () => {
+    // A well-formed workbook plus an added binary part (docProps/thumbnail.jpeg, the kind of part a
+    // real .xlsx carries) of 1000 raw, non-UTF-8 bytes. Decoding that part lossily replaces every
+    // invalid byte with U+FFFD (3 bytes in UTF-8), so re-encoding the decoded string would overcount
+    // it by roughly 3x (2000 extra bytes here). The actual-bytes pass must sum true raw decompressed
+    // bytes, not the re-encoded UTF-8 length, so this must be accepted.
+    const thumbnailRaw = new Uint8Array(1000).fill(0xff);
+    const zip = await JSZip.loadAsync(await buildWorkbook(baseModel));
+    zip.file("docProps/thumbnail.jpeg", thumbnailRaw, { compression: "STORE" });
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    // The cap is derived from the true raw decompressed total (every entry's declared size, honest
+    // for both the workbook's own parts and the stored thumbnail) rather than a hardcoded number, so
+    // the test does not depend on buildWorkbook's exact byte output. Setting the cap 1000 bytes above
+    // that true total sits strictly between the correct total and the re-encoded, 3x-inflated one
+    // (true total + 2000), so only a comparison against the true raw total accepts this workbook.
+    const loaded = await JSZip.loadAsync(bytes);
+    const trueRawTotal = Object.values(loaded.files)
+      .filter((file) => !file.dir)
+      .reduce((sum, file) => sum + (declaredSize(file) ?? 0), 0);
+    const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: trueRawTotal + 1000 };
+    expect(await code(readWorkbook(bytes, { limits }))).toBeUndefined();
   });
 
   it("trips the DTD/entity guard on a crafted xlsx-like zip", async () => {

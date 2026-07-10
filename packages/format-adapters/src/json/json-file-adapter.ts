@@ -1,4 +1,4 @@
-import type { SupportedFormat, TranslationEntry } from "@verbatra/core";
+import type { PlaceholderIntegrityResult, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "../adapter.js";
 import type { DeriveEntry, KeyMode } from "./flatten.js";
 import { type JsonRecord, parseJsonObject, serializeJsonTree } from "./json-tree.js";
@@ -12,6 +12,9 @@ type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) =>
 
 /** Validates a single value against the format's message syntax (one value, before write). */
 type ValidateMessage = (value: string) => boolean;
+
+/** Optional branch-aware placeholder comparison; see `FormatAdapter.comparePlaceholders`. */
+type ComparePlaceholders = (sourceValue: string, targetValue: string) => PlaceholderIntegrityResult;
 
 /** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
 type ValidateTree = (tree: JsonRecord) => void;
@@ -36,6 +39,8 @@ export interface JsonFileAdapterOptions {
   readonly buildWriteTree?: BuildWriteTree;
   /** Optional; how a dotted string key is interpreted (defaults to `literal-leaf`). */
   readonly keyMode?: KeyMode;
+  /** Optional branch-aware placeholder comparison; formats without plural/select branching omit it. */
+  readonly comparePlaceholders?: ComparePlaceholders;
 }
 
 /**

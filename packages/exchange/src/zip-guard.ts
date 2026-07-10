@@ -36,13 +36,27 @@ interface EntryStreamSource {
   nodeStream(type?: "nodebuffer"): NodeJS.ReadableStream;
 }
 
+/** The result of {@link streamEntryBounded}: the true raw decompressed byte count alongside the text. */
+export interface StreamedEntry {
+  /** The exact number of raw decompressed bytes read for this entry, before any text decoding. */
+  readonly raw: number;
+  /** The entry decoded as a UTF-8 string, for text scans such as {@link assertNoDoctype}. */
+  readonly content: string;
+}
+
 /**
- * Decompress one zip entry through a streaming, memory-bounded sink and return its UTF-8 text. Each
- * chunk's raw byte length is summed as it arrives; the moment the running raw total exceeds
- * `remaining` (the cumulative decompressed budget left across all entries) the loop breaks, which
- * triggers the async iterator's implicit `return()`, destroys the underlying Readable, and stops
- * JSZip's inflate worker. Peak memory is therefore bounded to roughly `remaining` rather than the
- * full inflated payload, closing the zip-bomb OOM.
+ * Decompress one zip entry through a streaming, memory-bounded sink and return its raw byte count
+ * alongside its UTF-8 text. Each chunk's raw byte length is summed as it arrives; the moment the
+ * running raw total exceeds `remaining` (the cumulative decompressed budget left across all
+ * entries) the loop breaks, which triggers the async iterator's implicit `return()`, destroys the
+ * underlying Readable, and stops JSZip's inflate worker. Peak memory is therefore bounded to
+ * roughly `remaining` rather than the full inflated payload, closing the zip-bomb OOM.
+ *
+ * The returned `raw` count is the true decompressed byte length. It must be used for any
+ * decompressed-byte cap: decoding to UTF-8 and re-encoding with `Buffer.byteLength` is lossy for a
+ * binary part (any byte sequence that is not valid UTF-8 decodes to the replacement character,
+ * U+FFFD, which is 3 bytes wide), so a re-encoded count can overstate the true size by up to
+ * roughly 3x and wrongly trip a cap that was never actually breached.
  *
  * JSZip's `nodeStream` returns a legacy readable-stream that does not implement
  * `Symbol.asyncIterator`, so it is adapted with an object-mode `Readable.wrap` before the
@@ -51,14 +65,14 @@ interface EntryStreamSource {
  *
  * @param file - the entry, exposing a nodebuffer readable stream of its decompressed bytes
  * @param remaining - the remaining cumulative decompressed-byte budget for this entry
- * @returns the entry decoded as a UTF-8 string
+ * @returns the raw decompressed byte count and the entry decoded as a UTF-8 string
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the entry alone breaches the budget or the
  *   stream errors (a corrupt or undecompressable entry)
  */
 export async function streamEntryBounded(
   file: EntryStreamSource,
   remaining: number,
-): Promise<string> {
+): Promise<StreamedEntry> {
   const chunks: Buffer[] = [];
   let raw = 0;
   let oversize = false;
@@ -84,7 +98,7 @@ export async function streamEntryBounded(
       "The workbook decompresses to more than the permitted maximum bytes.",
     );
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return { raw, content: Buffer.concat(chunks).toString("utf8") };
 }
 
 /**
@@ -131,14 +145,8 @@ export async function guardWorkbookBytes(bytes: Uint8Array, limits: WorkbookLimi
   let actualTotal = 0;
   for (const file of files) {
     const remaining = limits.maxDecompressedBytes - actualTotal;
-    const content = await streamEntryBounded(file, remaining);
-    actualTotal += Buffer.byteLength(content, "utf8");
-    if (actualTotal > limits.maxDecompressedBytes) {
-      throw new ExchangeError(
-        "WORKBOOK_INVALID",
-        `The workbook decompresses to more than the maximum of ${limits.maxDecompressedBytes} bytes.`,
-      );
-    }
+    const { raw, content } = await streamEntryBounded(file, remaining);
+    actualTotal += raw;
     assertNoDoctype(file.name, content);
   }
 }

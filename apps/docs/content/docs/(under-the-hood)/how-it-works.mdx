@@ -1,0 +1,110 @@
+---
+title: How it works
+description: What a verbatra run does end to end, from config discovery to the run summary.
+---
+A run is a short pipeline. Load the config, read the source locale, then for each target locale:
+diff against what you translated last time, send only what changed to the provider, check the
+result, and write. That is the whole thing. This page walks each step so you know exactly what
+happens when you hit `verbatra translate`.
+
+<DiffPanel />
+
+## Config discovery and load
+
+First verbatra loads your config. It searches upward from the working directory and takes the first
+source it finds: a `"verbatra"` key in `package.json`, then one of the `.verbatrarc.*` files, then a
+`verbatra.config.*` file. It validates the config before doing any work. Find nothing and the run
+fails with `CONFIG_NOT_FOUND`; find something invalid and it fails with `CONFIG_INVALID`. The config
+never carries an API key: the provider reads its key from the environment.
+
+## Reading the source locale
+
+verbatra resolves the source file from `files.pattern`, swapping the `{locale}` token for
+`sourceLocale` relative to the working directory. So `locales/{locale}.json` with `sourceLocale: "en"`
+reads `locales/en.json`. Missing file, and the run fails with `SOURCE_UNREADABLE`; unparseable file,
+and it fails with `SOURCE_INVALID`. While reading, the format adapter also flags any source keys whose
+values are invalid for the format's message syntax (invalid ICU). Those keys ride along but get
+skipped for translation instead of being sent in a broken state.
+
+## The per-locale run
+
+Each target locale runs on its own. If one locale blows up, the others keep going.
+
+### Diff against the lock baseline
+
+verbatra reads the existing target file (an absent file counts as empty) and diffs the source against
+it, using the lock file as the baseline of what was translated before. The diff sorts every source
+key into one of four buckets:
+
+- new keys that the target does not have yet,
+- changed keys whose source text differs from the recorded baseline,
+- unchanged keys that are already up to date,
+- orphaned keys present in the target but no longer in the source.
+
+Only the new and changed keys are candidates for translation. Unchanged keys are left alone, and
+orphaned keys are reported and, by default, left in place. Want them gone? Pass `--prune` (or set
+`prune: true` in the config): verbatra then removes exactly the orphaned keys from the target file and
+the lock, and nothing else. Any candidate flagged invalid ICU is set aside too. This is what keeps a
+run incremental: the provider is called only for the strings that actually changed.
+
+### Calling the provider
+
+The candidate entries go to your configured provider, along with the optional `glossary` and `tone`
+from your config. verbatra splits them into sequential sub-batches of at most `maxBatchSize` (default
+`50`, see [Config file](/docs/config-file)) so one oversized request can't take down the whole locale.
+If a sub-batch call fails, it's withheld and retried on the next run while the others keep making
+progress. How the inputs get applied depends on the provider.
+
+- The LLM providers (Anthropic, OpenAI, Gemini, and openai-compatible) get the entries, the glossary, and the tone in a
+  structured data payload, with instructions to treat the glossary terms as binding and to honor the
+  tone. The model is constrained to return one value per requested key.
+- DeepL is a machine-translation service, so it maps the same inputs to its own options. Tone becomes
+  formality: `formal` asks for a more formal result, `informal` for a less formal one, and `neutral`
+  or an absent tone is omitted. A configured `glossaryId` passes through natively.
+
+DeepL also reports notices when it gracefully degrades. On a free-tier key it doesn't support a
+non-default tone, so it falls back to the default and emits a `FORMALITY_DOWNGRADED` notice. It won't
+apply a generic `glossary` term map either (it uses a glossary by id instead), so it emits a
+`GLOSSARY_IGNORED` notice. These are data on the result, not errors. The LLM providers emit no
+notices.
+
+### Checking placeholders and writing
+
+After translation, verbatra compares the placeholder set of each translated value against its source.
+A translation that drops or alters a placeholder fails this integrity check and is withheld instead of
+written. The accepted translations get merged into the target locale and written atomically, so an
+interrupted write never leaves you with a half-finished file.
+
+## The lock file and incremental work
+
+verbatra keeps a committed lock file (`verbatra.lock.json`) that records, per locale, a content hash
+for each translated source key. That record is the baseline the next run diffs against. After a
+locale is written, the lock refreshes with the current source hashes, with one deliberate exception:
+keys withheld this run (a placeholder mismatch or invalid ICU) keep their prior hash, so the next run
+still sees them as needing work and retries them. Orphaned keys get no entry. A missing lock file
+counts as a first run; a corrupt one fails with `LOCK_FILE_INVALID` instead of getting silently
+overwritten.
+
+## The run summary
+
+A run hands back a summary across all target locales: which ones succeeded, which failed, and a
+per-locale breakdown. Each locale entry reports the keys translated, the keys left unchanged, the
+orphaned keys, the orphaned keys actually pruned this run (empty unless pruning is on), any source keys
+skipped for invalid ICU, any translations withheld for a placeholder mismatch, any plural forms
+generated this run (empty unless plural generation is on), and any notices. Notices cover both provider
+notices (such as the DeepL cases above) and SDK notices, including a plural-category warning (code
+`PLURAL_CATEGORIES_INCOMPLETE`) when a target language needs more CLDR plural categories than the source
+supplies. A dry run gives you the same summary shape, listing the keys that would be translated,
+without calling a provider or writing anything.
+
+## Errors
+
+verbatra draws a clear line between two kinds of failure. A whole-run problem (a missing or invalid
+config, an unreadable source, an unknown format, a provider that can't be constructed including a
+missing API key, or a corrupt lock file) stops the run with a structured error. A single locale
+failing is not fatal: it lands on that locale's entry with a code and a message, and the rest of the
+locales still run.
+
+When an LLM provider (Anthropic, OpenAI, Gemini, or openai-compatible) stops because it hit the output-token limit, that
+sub-batch fails with a distinct `OUTPUT_TRUNCATED` error telling you to use a smaller batch size or a
+higher max output tokens. This doesn't apply to DeepL. See [Providers](/docs/providers).

@@ -19,6 +19,6 @@ export function toIntegrityInputs(
         "The provider response is missing one or more keys.",
       );
     }
-    return { key: entry.key, sourcePlaceholders: entry.placeholders, translatedValue };
+    return { key: entry.key, sourceValue: entry.value, translatedValue };
   });
 }

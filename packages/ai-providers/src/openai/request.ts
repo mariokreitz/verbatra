@@ -19,6 +19,29 @@ export const OPENAI_SYSTEM_RULES = [
   "Respond only with the structured object: exactly one entry per requested key, no commentary, no extra keys, and no key that was not requested.",
 ].join("\n");
 
+/**
+ * The response-format mode a request is built with. `"strict-schema"` is the hosted OpenAI default:
+ * `json_schema` with `strict: true`, constraining output to the canonical schema exactly. It is also
+ * what the openai-compatible provider sends, since a live LM Studio server rejected `"json-object"`
+ * outright (HTTP 400) while accepting `"strict-schema"` cleanly; local servers' actual OpenAI-compatible
+ * support does not reliably follow the assumption that `json_object` is the safer, more portable choice.
+ * `"json-object"`, the broadly-documented OpenAI-compatible `json_object` mode, remains available as a
+ * seam for a future provider or server known to need it, but no provider defaults to it today.
+ */
+export type OpenAiRequestMode = "strict-schema" | "json-object";
+
+/** The `response_format` field, one of the two supported request modes. */
+export type OpenAiResponseFormat =
+  | {
+      readonly type: "json_schema";
+      readonly json_schema: {
+        readonly name: string;
+        readonly strict: true;
+        readonly schema: Record<string, unknown>;
+      };
+    }
+  | { readonly type: "json_object" };
+
 /** The Chat Completions request body, narrowed to the fields used here. */
 export interface OpenAiRequest {
   readonly model: string;
@@ -27,22 +50,38 @@ export interface OpenAiRequest {
     { readonly role: "system"; readonly content: string },
     { readonly role: "user"; readonly content: string },
   ];
-  readonly response_format: {
-    readonly type: "json_schema";
-    readonly json_schema: {
-      readonly name: string;
-      readonly strict: true;
-      readonly schema: Record<string, unknown>;
-    };
+  readonly response_format: OpenAiResponseFormat;
+}
+
+function buildResponseFormat(mode: OpenAiRequestMode): OpenAiResponseFormat {
+  if (mode === "json-object") {
+    return { type: "json_object" };
+  }
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: RESULT_SCHEMA_NAME,
+      strict: true,
+      schema: deriveJsonSchema(translationsResultSchema),
+    },
   };
 }
 
 /**
- * Build the Chat Completions body from the serialized data payload. The static system
- * rules carry all instructions; the user turn carries the payload. Output is constrained
- * by a json_schema derived from the canonical schema, so the model's output is schema-bound.
+ * Build the Chat Completions body from the serialized data payload. The static system rules carry all
+ * instructions; the user turn carries the payload.
+ *
+ * @param config - The model and output-token limit; structurally satisfies either `OpenAiConfig` or the
+ *   openai-compatible provider's config, since only these two fields are read.
+ * @param payloadJson - The serialized, untrusted data channel.
+ * @param mode - The response-format mode; defaults to `"strict-schema"`, the hosted OpenAI behavior, so
+ *   the hosted provider's request body is unaffected by this parameter's existence.
  */
-export function buildOpenAiRequest(config: OpenAiConfig, payloadJson: string): OpenAiRequest {
+export function buildOpenAiRequest(
+  config: OpenAiConfig,
+  payloadJson: string,
+  mode: OpenAiRequestMode = "strict-schema",
+): OpenAiRequest {
   return {
     model: config.model,
     max_completion_tokens: config.maxOutputTokens,
@@ -50,13 +89,6 @@ export function buildOpenAiRequest(config: OpenAiConfig, payloadJson: string): O
       { role: "system", content: OPENAI_SYSTEM_RULES },
       { role: "user", content: payloadJson },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: RESULT_SCHEMA_NAME,
-        strict: true,
-        schema: deriveJsonSchema(translationsResultSchema),
-      },
-    },
+    response_format: buildResponseFormat(mode),
   };
 }

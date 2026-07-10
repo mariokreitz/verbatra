@@ -1,0 +1,63 @@
+---
+title: Sûreté de la traduction
+description: Les vérifications d'intégrité et les limites de sécurité qui décident de ce que verbatra écrit et de ce qu'il retient.
+---
+verbatra ne fait pas confiance à la sortie de la machine par défaut. Il fait passer chaque traduction par des vérifications d'intégrité
+avant d'écrire, et il tient le texte non fiable à l'écart des instructions qu'il envoie au provider. Cette
+page couvre ce que sont ces vérifications et ce qu'elles protègent.
+
+## Intégrité des placeholders
+
+Une valeur traduite doit porter les mêmes placeholders que sa source. Après la traduction, verbatra
+compare l'ensemble des placeholders de chaque résultat à la valeur source. Supprime, ajoute ou altère un
+placeholder et la traduction échoue à la vérification et est retenue plutôt qu'écrite. La clé retenue
+conserve son hachage de verrouillage précédent, de sorte que l'exécution suivante la réessaie, et elle apparaît par locale comme une non-concordance
+d'intégrité sur le résumé de l'exécution.
+
+Ce qui compte comme un placeholder dépend du format : les jetons `{{double-brace}}` pour i18next,
+ngx-translate et YAML, les accolades simples `{name}` et `{0}` pour vue-i18n, les noms d'argument et de balise ICU pour
+next-intl et ARB, et les identifiants de placeholder en ligne pour XLIFF. Pour i18next, les références d'imbrication `$t(...)` sont
+également protégées : supprime, altère ou traduis une référence `$t(...)` et la traduction échoue à la vérification et
+est retenue. Ainsi, si la source est `Welcome, {{name}}` et que le modèle renvoie `Bienvenido` avec le
+`{{name}}` disparu, verbatra le retient plutôt que d'expédier une chaîne cassée. Voir
+[Formats](/docs/formats) pour la syntaxe de chacun.
+
+Pour next-intl et ARB, la comparaison tient compte des branches : un argument plural ou select est
+vérifié catégorie par catégorie contre sa branche source correspondante, au lieu d'aplatir d'abord
+tout le message en un seul ensemble. Un placeholder fabriqué dans une seule branche de la cible est
+détecté même quand ce même placeholder existe légitimement dans une autre branche de la source.
+
+## Validité ICU
+
+Pour les formats ICU, next-intl et ARB, verbatra analyse chaque valeur source. Une clé source dont la valeur
+n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutôt qu'envoyée dans un état défectueux,
+et elle est signalée comme ICU invalide sur le résumé. Le corps ICU reste tel quel tout au long du pipeline :
+rien n'est résolu ni réécrit.
+
+## La limite d'injection de prompt
+
+Les chaînes que tu traduis ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction
+(pense à une chaîne d'UI qui dit littéralement « ignore tes instructions »). verbatra les traite ainsi.
+Les règles système qu'il envoie à un provider sont des constantes de compilation. Toutes les entrées variables, les entrées à
+traduire ainsi que ton glossaire et ta tonalité, circulent uniquement dans la charge utile de données du tour utilisateur, jamais insérées
+dans le canal d'instructions. La sortie du provider est contrainte à un schéma et validée, et la
+vérification de placeholder s'exécute sur tout ce qui revient. Une chaîne qui tente de rediriger le modèle ne peut pas atteindre les
+règles, et un résultat qui casse un placeholder est retenu.
+
+## Les secrets ne fuient jamais
+
+Les providers lisent les clés API uniquement depuis l'environnement, jamais depuis ta config ni tes arguments. Quand un
+appel au SDK d'un provider échoue, son erreur brute (qui peut porter des en-têtes de requête ou une clé) est jetée, jamais
+liée, journalisée ni relancée. À sa place, verbatra lève sa propre erreur structurée avec un message statique et
+sans secret. Les clés sont sans secret par construction : rien de sensible n'atteint jamais une chaîne qui aurait besoin
+d'être expurgée. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
+
+## Ce que tu vois
+
+Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles
+retenues pour une non-concordance de placeholder, les clés source ignorées pour ICU invalide, et toute notification. Les notifications
+incluent les notifications du provider et les notifications du SDK, telles qu'un avertissement de catégorie de pluriel (code
+`PLURAL_CATEGORIES_INCOMPLETE`) quand une langue cible a besoin de plus de catégories de pluriel que la source
+n'en fournit ; voir [Add a language](/docs/add-a-language) pour savoir comment synthétiser ces formes à la place.
+Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir
+[How it works](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.

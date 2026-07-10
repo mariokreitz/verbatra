@@ -166,7 +166,9 @@
           "title": "Projekt",
           "configFile": "Konfigurationsdatei",
           "codeOfConduct": "Verhaltenskodex",
-          "security": "Sicherheitsrichtlinie"
+          "security": "Sicherheitsrichtlinie",
+          "llmsFull": "llms-full.txt (vollständiger Text)",
+          "llmsIndex": "llms.txt (Index)"
         },
         "legal": {
           "title": "Rechtliches",
@@ -252,6 +254,11 @@
       "text": "Diese Seite wurde automatisch übersetzt und kann daher Fehler oder seltsame Formulierungen enthalten. Die englische Version ist die massgebliche Quelle.",
       "title": "Maschinell übersetzte Seite",
       "viewOriginal": "Das englische Original lesen"
+    },
+    "llms": {
+      "full": "llms-full.txt (vollständiger Text)",
+      "heading": "Für KI-Agenten",
+      "index": "llms.txt (Index)"
     }
   }
 }

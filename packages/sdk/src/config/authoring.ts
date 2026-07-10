@@ -16,13 +16,16 @@ type AuthoringVariant<Id extends ProviderId, M extends string> =
       : never
     : never;
 
-// The authoring view of one provider variant, keyed by id. LLM providers restrict `options.model` to
-// that provider's known model literals; DeepL has no model field and is carried through unchanged.
+// The authoring view of one provider variant, keyed by id. LLM providers with a known SDK model union
+// restrict `options.model` to that provider's literals. DeepL has no model field and openai-compatible's
+// model is whatever the local server exposes (no known-model list to restrict against), so both are
+// carried through unchanged.
 type AuthoringProviderVariant = {
   anthropic: AuthoringVariant<"anthropic", AnthropicModel>;
   openai: AuthoringVariant<"openai", OpenAiModel>;
   gemini: AuthoringVariant<"gemini", GeminiModel>;
   deepl: Extract<ProviderConfig, { id: "deepl" }>;
+  "openai-compatible": Extract<ProviderConfig, { id: "openai-compatible" }>;
 };
 
 /**

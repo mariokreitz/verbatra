@@ -23,8 +23,9 @@ export function lockFilePath(cwd: string): string {
 }
 
 /**
- * Read the lock-file. A missing file degrades to an empty lock (first-run); a corrupt file is a
- * structured error so it is never silently overwritten.
+ * Read the lock-file. A missing file degrades to an empty lock (first-run); a corrupt file or a
+ * `version` other than {@link CURRENT_VERSION} is a structured error so it is never silently
+ * overwritten or misinterpreted under the wrong version's semantics.
  */
 export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
   const read = await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES);
@@ -46,6 +47,18 @@ export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
   const result = lockFileSchema.safeParse(parsed);
   if (!result.success) {
     throw new SdkError("LOCK_FILE_INVALID", `The lock-file at ${path} has an unexpected shape.`);
+  }
+  // Only CURRENT_VERSION is understood, so this checks inequality rather than just "greater
+  // than". Today the schema's positive-integer constraint makes version < CURRENT_VERSION
+  // unreachable (1 is the floor), so in practice this only ever catches version >
+  // CURRENT_VERSION. But there is no migration path for an older format either, so the
+  // inequality is deliberate: once CURRENT_VERSION is bumped past 1, an old file stamped with
+  // the previous version must keep failing loudly here rather than silently passing.
+  if (result.data.version !== CURRENT_VERSION) {
+    throw new SdkError(
+      "LOCK_FILE_INVALID",
+      `The lock-file at ${path} has version ${result.data.version}, but this version of verbatra supports version ${CURRENT_VERSION}.`,
+    );
   }
   return result.data;
 }
