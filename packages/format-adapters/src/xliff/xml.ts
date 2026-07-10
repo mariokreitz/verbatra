@@ -326,10 +326,10 @@ function fragmentNodes(parser: DOMParser, value: string): Node[] | null {
  * Write a translated value into a `<target>` element. The value is re-parsed as an XML fragment (see
  * {@link fragmentNodes}) so inline placeholder markup survives; anything that fails that narrow
  * allow-list, or is not well-formed XML at all, is written as a single plain text node instead. So a
- * translated value can only ever contribute plain text or an allow-listed, unnamespaced inline
- * element carrying its own minimal, non-executable attribute set; it can never inject an unexpected
- * element, a namespaced element, CDATA, a comment, a processing instruction, or an attribute like
- * `onclick` or `xlink:href` into the document.
+ * translated value can only ever contribute plain text or an allow-listed inline element (with no
+ * namespace, or the genuine XLIFF 1.2/2.0 document namespace) carrying its own minimal, non-executable
+ * attribute set; it can never inject an unexpected element, an element under a spoofed namespace, CDATA,
+ * a comment, a processing instruction, or an attribute like `onclick` or `xlink:href` into the document.
  */
 function setTargetValue(doc: Document, parser: DOMParser, element: Element, value: string): void {
   while (element.firstChild !== null) {
