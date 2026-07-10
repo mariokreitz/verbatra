@@ -21,6 +21,12 @@ wird zurückgehalten. Ist die Quelle also `Welcome, {{name}}` und das Modell gib
 `{{name}}` zurück, hält verbatra sie zurück, statt einen kaputten String auszuliefern. Siehe
 [Formats](/docs/formats) für die Syntax jedes einzelnen.
 
+Für next-intl und ARB ist der Vergleich branch-bewusst: Ein Plural- oder Select-Argument wird
+Kategorie für Kategorie gegen seinen passenden Quell-Branch geprüft, statt die gesamte Nachricht
+zuerst zu einer einzigen Menge zu verflachen. Ein Platzhalter, der in einem einzelnen Branch des
+Ziels erfunden wurde, wird erkannt, selbst wenn derselbe Platzhalter legitim in einem anderen
+Branch der Quelle existiert.
+
 ## ICU-Gültigkeit
 
 Für die ICU-Formate, next-intl und ARB, parst verbatra jeden Quellwert. Ein Quell-Key, dessen Wert

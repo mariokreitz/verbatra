@@ -37,7 +37,7 @@ Die Action führt die CLI aus, also liest sie den API-Schlüssel des Providers a
 
 | Input | Erforderlich | Standard | Beschreibung |
 | --- | --- | --- | --- |
-| `version` | ja | - | die auszuführende `@verbatra/cli`-Version, z. B. `0.3.0`. Pinne dies auf eine exakte Version an; verwende kein bewegliches Tag wie `latest` |
+| `version` | ja | - | die auszuführende `@verbatra/cli`-Version, z. B. `0.3.0`. Muss eine exakte Semver-Version sein; der Schritt schlägt sofort mit einer klaren Fehlermeldung fehl bei einem Dist-Tag wie `latest`, einem Bereich oder einem `^`/`~`-Präfix |
 | `config-path` | nein | `""` | explizite Konfigurationsdatei zum Laden (bildet auf `--config` ab); leer nutzt die normale Konfigurationssuche |
 | `working-directory` | nein | `""` | Verzeichnis, gegen das Konfiguration und Locale-Dateien aufgelöst werden (bildet auf `--cwd` ab) |
 | `dry-run` | nein | `"false"` | auf `"true"` setzen, um zu melden, was sich ändern würde, ohne einen Provider aufzurufen oder zu schreiben (bildet auf `--dry-run` ab) |

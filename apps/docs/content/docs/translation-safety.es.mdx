@@ -10,6 +10,12 @@ Un valor traducido tiene que llevar los mismos marcadores de posición que su or
 
 Lo que cuenta como marcador de posición depende del formato: tokens `{{double-brace}}` para i18next, ngx-translate y YAML, `{name}` y `{0}` de llave simple para vue-i18n, nombres de argumento y de etiqueta ICU para next-intl y ARB, e ids de marcador de posición en línea para XLIFF. Para i18next, las referencias de anidamiento `$t(...)` también se protegen: elimina, altera o traduce una referencia `$t(...)` y la traducción falla la comprobación y se retiene. Así que si el origen es `Welcome, {{name}}` y el modelo devuelve `Bienvenido` con el `{{name}}` desaparecido, verbatra lo retiene en lugar de enviar una cadena rota. Consulta [Formatos](/docs/formats) para la sintaxis de cada uno.
 
+Para next-intl y ARB, la comparación es consciente de las ramas: un argumento de plural o de
+selección se comprueba categoría por categoría contra su rama de origen correspondiente, en lugar
+de aplanar primero todo el mensaje en un único conjunto. Un marcador de posición fabricado dentro
+de una sola rama del destino se detecta aunque ese mismo marcador exista legítimamente en otra
+rama del origen.
+
 ## Validez de ICU
 
 Para los formatos ICU, next-intl y ARB, verbatra analiza cada valor de origen. Una clave de origen cuyo valor no es ICU válido se aparta y se omite para la traducción en lugar de enviarse en un estado roto, y se informa como ICU no válido en el resumen. El cuerpo ICU se mantiene literal a lo largo de la canalización: nada se resuelve ni se reescribe.

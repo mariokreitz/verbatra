@@ -55,7 +55,7 @@ aus deiner Konfiguration. verbatra teilt sie in sequenzielle Unter-Batches von h
 Wenn ein Unter-Batch-Aufruf fehlschlägt, wird er zurückgehalten und im nächsten Lauf erneut versucht, während die anderen weiter
 Fortschritt machen. Wie die Inputs angewandt werden, hängt vom Provider ab.
 
-- Die LLM-Provider (Anthropic, OpenAI, Gemini) bekommen die Einträge, das Glossar und den Ton in einer
+- Die LLM-Provider (Anthropic, OpenAI, Gemini und openai-compatible) bekommen die Einträge, das Glossar und den Ton in einer
   strukturierten Datennutzlast, mit der Anweisung, die Glossarbegriffe als bindend zu behandeln und den
   Ton zu wahren. Das Modell ist gezwungen, einen Wert pro angefragtem Key zurückzugeben.
 - DeepL ist ein Maschinenübersetzungsdienst, also bildet es dieselben Inputs auf seine eigenen Optionen ab. Ton wird zu
@@ -105,6 +105,6 @@ fehlenden API-Schlüssels, oder eine korrupte Lock-Datei) stoppt den Lauf mit ei
 die fehlschlägt, ist nicht fatal: sie landet am Eintrag dieser Locale mit einem Code und einer Nachricht, und der Rest der
 Locales läuft trotzdem.
 
-Wenn ein LLM-Provider (Anthropic, OpenAI, Gemini) stoppt, weil er das Output-Token-Limit erreicht hat, scheitert dieser
+Wenn ein LLM-Provider (Anthropic, OpenAI, Gemini oder openai-compatible) stoppt, weil er das Output-Token-Limit erreicht hat, scheitert dieser
 Unter-Batch mit einem eigenen `OUTPUT_TRUNCATED`-Fehler, der dir sagt, eine kleinere Batch-Größe oder ein
 höheres Max-Output-Token-Limit zu nutzen. Das gilt nicht für DeepL. Siehe [Providers](/docs/providers).

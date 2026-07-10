@@ -22,6 +22,11 @@ est retenue. Ainsi, si la source est `Welcome, {{name}}` et que le modèle renvo
 `{{name}}` disparu, verbatra le retient plutôt que d'expédier une chaîne cassée. Voir
 [Formats](/docs/formats) pour la syntaxe de chacun.
 
+Pour next-intl et ARB, la comparaison tient compte des branches : un argument plural ou select est
+vérifié catégorie par catégorie contre sa branche source correspondante, au lieu d'aplatir d'abord
+tout le message en un seul ensemble. Un placeholder fabriqué dans une seule branche de la cible est
+détecté même quand ce même placeholder existe légitimement dans une autre branche de la source.
+
 ## Validité ICU
 
 Pour les formats ICU, next-intl et ARB, verbatra analyse chaque valeur source. Une clé source dont la valeur

@@ -37,7 +37,7 @@ La action ejecuta la CLI, así que lee la clave de API del proveedor desde el en
 
 | Entrada | Obligatoria | Por defecto | Descripción |
 | --- | --- | --- | --- |
-| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar, p. ej. `0.3.0`. Fíjala a una versión exacta; no uses una etiqueta flotante como `latest` |
+| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar, p. ej. `0.3.0`. Debe ser una versión semver exacta; el paso falla de inmediato con un error claro ante una etiqueta como `latest`, un rango, o un prefijo `^`/`~` |
 | `config-path` | no | `""` | archivo de configuración explícito a cargar (mapea a `--config`); vacío usa la búsqueda de configuración normal |
 | `working-directory` | no | `""` | directorio contra el que resolver la configuración y los archivos de locale (mapea a `--cwd`) |
 | `dry-run` | no | `"false"` | ponlo a `"true"` para informar de qué cambiaría sin llamar a un proveedor ni escribir (mapea a `--dry-run`) |

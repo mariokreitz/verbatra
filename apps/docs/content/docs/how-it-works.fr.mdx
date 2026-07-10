@@ -55,7 +55,7 @@ de ta config. verbatra les répartit en sous-lots séquentiels d'au plus `maxBat
 Si l'appel d'un sous-lot échoue, il est retenu et réessayé à la prochaine exécution pendant que les autres continuent de
 progresser. La façon dont les entrées sont appliquées dépend du provider.
 
-- Les providers LLM (Anthropic, OpenAI, Gemini) reçoivent les entrées, le glossaire et la tonalité dans une
+- Les providers LLM (Anthropic, OpenAI, Gemini et openai-compatible) reçoivent les entrées, le glossaire et la tonalité dans une
   charge utile de données structurée, avec instruction de traiter les termes du glossaire comme contraignants et de respecter la
   tonalité. Le modèle est contraint de renvoyer une valeur par clé demandée.
 - DeepL est un service de traduction automatique, donc il mappe les mêmes entrées sur ses propres options. La tonalité devient
@@ -105,6 +105,6 @@ clé API manquante, ou un fichier de verrouillage corrompu) arrête l'exécution
 d'une seule locale n'est pas fatal : il atterrit sur l'entrée de cette locale avec un code et un message, et le reste des
 locales s'exécute quand même.
 
-Quand un provider LLM (Anthropic, OpenAI, Gemini) s'arrête parce qu'il a atteint la limite de jetons de sortie, ce
+Quand un provider LLM (Anthropic, OpenAI, Gemini ou openai-compatible) s'arrête parce qu'il a atteint la limite de jetons de sortie, ce
 sous-lot échoue avec une erreur distincte `OUTPUT_TRUNCATED` qui te dit d'utiliser une taille de lot plus petite ou un
 nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas à DeepL. Voir [Providers](/docs/providers).
