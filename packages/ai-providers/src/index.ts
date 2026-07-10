@@ -1,11 +1,13 @@
 /**
  * Translation providers behind a single {@link TranslationProvider} contract and a
- * {@link ProviderRegistry}. v1 ships four: three LLM providers (Anthropic, OpenAI, Gemini) built on the
- * shared {@link runLlmTranslation} layer, and DeepL, a machine-translation provider that implements the
- * contract directly. Failures surface as secret-free {@link ProviderError}s by construction (an SDK throw
- * is mapped to a static error, raw SDK text is never bound); {@link redact} is a defense-in-depth backstop
- * in the constructor. API keys are read only from the environment; translatable strings are untrusted and
- * travel only in the data channel.
+ * {@link ProviderRegistry}. Four LLM providers (Anthropic, OpenAI, Gemini, and openai-compatible, for a
+ * local or self-hosted OpenAI-compatible server) are built on the shared {@link runLlmTranslation} layer,
+ * and DeepL, a machine-translation provider, implements the contract directly. Failures surface as
+ * secret-free {@link ProviderError}s by construction (an SDK throw is mapped to a static error, raw SDK
+ * text is never bound); {@link redact} is a defense-in-depth backstop in the constructor. API keys are
+ * read only from the environment (openai-compatible's key resolution additionally falls back to a
+ * non-secret placeholder when none is configured); translatable strings are untrusted and travel only in
+ * the data channel.
  *
  * @packageDocumentation
  */
@@ -52,6 +54,14 @@ export {
   createOpenAiProvider,
   type OpenAiDeps,
 } from "./openai/openai-provider.js";
+export {
+  type OpenAiCompatibleConfig,
+  openAiCompatibleConfigSchema,
+} from "./openai-compatible/config.js";
+export {
+  createOpenAiCompatibleProvider,
+  type OpenAiCompatibleDeps,
+} from "./openai-compatible/openai-compatible-provider.js";
 export type {
   PlaceholderExtractor,
   ProviderKind,

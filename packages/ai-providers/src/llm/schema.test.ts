@@ -14,7 +14,11 @@ describe("canonical schema single source of truth", () => {
     const gemini = buildGeminiRequest({ model: "m", maxOutputTokens: 16 }, "{}");
 
     // These are byte-equal to the single canonical derivation, so they cannot drift from each
-    // other or from the schema the shared layer validates against.
+    // other or from the schema the shared layer validates against. buildOpenAiRequest defaults to
+    // strict-schema mode, so response_format is always the json_schema variant here.
+    if (openai.response_format.type !== "json_schema") {
+      throw new Error("expected the default strict-schema response_format");
+    }
     expect(anthropic.tools[0].input_schema).toEqual(canonical);
     expect(openai.response_format.json_schema.schema).toEqual(canonical);
     expect(anthropic.tools[0].input_schema).toEqual(openai.response_format.json_schema.schema);

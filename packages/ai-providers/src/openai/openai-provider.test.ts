@@ -80,6 +80,9 @@ describe("createOpenAiProvider: request building", () => {
     expect(body.messages[0].content).not.toContain("formal");
     expect(body.messages[0].content).not.toContain("Servus");
     expect(body.response_format.type).toBe("json_schema");
+    if (body.response_format.type !== "json_schema") {
+      throw new Error("expected the default strict-schema response_format");
+    }
     expect(body.response_format.json_schema.schema).toEqual(
       deriveJsonSchema(translationsResultSchema),
     );

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderId } from "./config/provider-config.js";
 import { providerConfigSchema } from "./config/provider-config.js";
+import type { ScaffoldableProviderId } from "./scaffolding.js";
 import { scaffoldingMetadata } from "./scaffolding.js";
 
 describe("scaffoldingMetadata", () => {
@@ -21,15 +22,22 @@ describe("scaffoldingMetadata", () => {
     });
   });
 
-  it("covers every ProviderId in providerEnv", () => {
-    const providerIds = providerConfigSchema.options.map(
-      (variant) => variant.shape.id.value,
-    ) as ProviderId[];
+  it("covers every ProviderId in providerEnv except openai-compatible", () => {
+    const providerIds = providerConfigSchema.options
+      .map((variant) => variant.shape.id.value as ProviderId)
+      .filter((id) => id !== "openai-compatible");
     for (const id of providerIds) {
-      expect(scaffoldingMetadata.providerEnv[id]).toBeTypeOf("string");
-      expect(scaffoldingMetadata.providerEnv[id].length).toBeGreaterThan(0);
+      const envVar = scaffoldingMetadata.providerEnv[id as ScaffoldableProviderId];
+      expect(envVar).toBeTypeOf("string");
+      expect(envVar.length).toBeGreaterThan(0);
     }
     expect(Object.keys(scaffoldingMetadata.providerEnv).sort()).toEqual([...providerIds].sort());
+  });
+
+  it("omits openai-compatible: it has no single required env var", () => {
+    const providerIds = providerConfigSchema.options.map((variant) => variant.shape.id.value);
+    expect(providerIds).toContain("openai-compatible");
+    expect(scaffoldingMetadata.providerEnv).not.toHaveProperty("openai-compatible");
   });
 
   it("exposes the three LLM scaffold models (DeepL omitted)", () => {

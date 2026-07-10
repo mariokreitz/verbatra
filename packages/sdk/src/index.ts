@@ -84,7 +84,7 @@ export {
 } from "./lock/load-lock-file.js";
 export { LOCK_FILE_NAME } from "./lock/lock-file.js";
 export type { LockFile } from "./lock/types.js";
-export { scaffoldingMetadata } from "./scaffolding.js";
+export { type ScaffoldableProviderId, scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";
 export {
   type CreateWatcher,
