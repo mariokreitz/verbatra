@@ -86,6 +86,20 @@ describe("openAiCompatibleConfigSchema: apiKeyEnvVar", () => {
     expect(result.success).toBe(false);
   });
 
+  it.each([
+    "openai_api_key",
+    "Openai_Api_Key",
+    "anthropic_api_key",
+    "gemini_api_key",
+    "deepl_api_key",
+  ])("rejects %s: process.env lookups are case-insensitive on Windows, so a lowercase or mixed-case alias must be rejected too", (mixedCaseHostedVar) => {
+    const result = openAiCompatibleConfigSchema.safeParse({
+      ...validConfig,
+      apiKeyEnvVar: mixedCaseHostedVar,
+    });
+    expect(result.success).toBe(false);
+  });
+
   it("allows OPENAI_COMPATIBLE_API_KEY named explicitly (not in the rejected hosted list)", () => {
     const config = { ...validConfig, apiKeyEnvVar: "OPENAI_COMPATIBLE_API_KEY" };
     expect(openAiCompatibleConfigSchema.parse(config).apiKeyEnvVar).toBe(

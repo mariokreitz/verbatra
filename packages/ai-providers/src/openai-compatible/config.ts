@@ -1,11 +1,18 @@
 import { z } from "zod";
 import { PROVIDER_ENV } from "../env.js";
 
-const HOSTED_PROVIDER_ENV_VARS: ReadonlySet<string> = new Set(Object.values(PROVIDER_ENV));
+const HOSTED_PROVIDER_ENV_VARS: ReadonlySet<string> = new Set(
+  Object.values(PROVIDER_ENV).map((name) => name.toUpperCase()),
+);
 
-/** True unless `value` names one of the four hosted providers' environment variables. */
+/**
+ * True unless `value` names one of the four hosted providers' environment variables. Compares
+ * uppercased: `process.env` lookups are case-insensitive on Windows, so a lowercase or mixed-case alias
+ * like "openai_api_key" must be rejected exactly like "OPENAI_API_KEY", or it would resolve to the same
+ * hosted key on that platform and reach a custom baseUrl.
+ */
 function isNotHostedProviderEnvVar(value: string): boolean {
-  return !HOSTED_PROVIDER_ENV_VARS.has(value);
+  return !HOSTED_PROVIDER_ENV_VARS.has(value.toUpperCase());
 }
 
 function isHttpOrHttpsUrl(value: string): boolean {
