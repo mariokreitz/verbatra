@@ -8,6 +8,11 @@ export type BoundedReadOutcome =
   | { readonly kind: "not-a-file" }
   | { readonly kind: "too-large" };
 
+/** Strip exactly one leading UTF-8 byte-order-mark, if present. A bounded, fixed-length check, never a regex. */
+function stripLeadingBom(content: string): string {
+  return content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
+}
+
 // The read never advances past `size`, so a file growing after it was sized stays bounded.
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
   const buffer = Buffer.allocUnsafe(size);
@@ -19,7 +24,7 @@ async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string
     }
     offset += bytesRead;
   }
-  return buffer.toString("utf8", 0, offset);
+  return stripLeadingBom(buffer.toString("utf8", 0, offset));
 }
 
 /**
