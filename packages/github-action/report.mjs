@@ -61,6 +61,24 @@ export function extractCliError(stderrText) {
   return { code: match[1], message: match[2].trim() };
 }
 
+// Exit code used when the exit_code output wiring itself is broken (missing or non-numeric), so a
+// broken wire-up fails the job loudly instead of defaulting to a false success.
+export const WIRING_FAILURE_EXIT_CODE = 2;
+
+/**
+ * Resolve the raw `exit_code` action-output argument into a numeric exit code. A missing or
+ * non-numeric value means the wiring that carries the CLI's exit code (a step id, an output name)
+ * is broken, not that the CLI exited 0; defaulting that case to 0 would let a broken wire-up report
+ * success with an empty summary. It defaults to {@link WIRING_FAILURE_EXIT_CODE} instead.
+ *
+ * @param exitCodeArg - The raw `exit_code` argument (a string, or undefined when not passed).
+ * @returns The parsed exit code, or `WIRING_FAILURE_EXIT_CODE` when it is missing or not a number.
+ */
+export function resolveExitCode(exitCodeArg) {
+  const parsed = Number.parseInt(exitCodeArg ?? "", 10);
+  return Number.isNaN(parsed) ? WIRING_FAILURE_EXIT_CODE : parsed;
+}
+
 function countsRow(locale) {
   const status = locale.status === "failed" ? "failed" : "ok";
   return `| ${locale.locale} | ${status} | ${locale.translated.length} | ${locale.unchanged.length} | ${locale.orphaned.length} | ${locale.invalidIcuSource.length} | ${locale.integrityMismatches.length} | ${locale.providerFailures.length} | ${locale.notices.length} |`;
