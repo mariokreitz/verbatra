@@ -95,6 +95,19 @@ export function spawnVerbatra(
 
 export type Subprocess = ReturnType<typeof spawnVerbatra>;
 
+/** One line of `watch --json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
+export interface WatchRunResultJson {
+  status: "succeeded" | "failed";
+}
+
+export function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as WatchRunResultJson);
+}
+
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

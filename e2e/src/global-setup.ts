@@ -38,6 +38,12 @@ async function packTarballs(): Promise<{ sdk: string; cli: string }> {
   if (envSdk && envCli) {
     return { sdk: resolve(envSdk), cli: resolve(envCli) };
   }
+  if (envSdk || envCli) {
+    throw new Error(
+      "VERBATRA_SDK_TARBALL and VERBATRA_CLI_TARBALL must both be set or both be unset. " +
+        "Only one was provided, which is more likely a misconfiguration than an intentional partial override.",
+    );
+  }
 
   await buildPackables();
 

@@ -6,6 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
   makeConsumer,
+  parseNdjsonLines,
   pollUntil,
   readJsonIn,
   runVerbatra,
@@ -255,19 +256,6 @@ describe("config errors (no provider)", () => {
     expect(result.stderr).toContain("No verbatra configuration found");
   });
 });
-
-/** One line of the watch `--json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
-interface WatchRunResultJson {
-  status: "succeeded" | "failed";
-}
-
-function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
-  return stdout
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as WatchRunResultJson);
-}
 
 describe("watch SIGINT contract (no provider key needed)", () => {
   it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {

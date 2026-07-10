@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
   makeConsumer,
+  parseNdjsonLines,
   pollUntil,
   providerConfigBlock,
   providerFromEnv,
@@ -83,17 +84,13 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     // least one NDJSON record to stdout, with no secret in either stream. Asserted only once the
     // watch/translate flow above has already succeeded, so a translate failure is never masked by
     // a shutdown assertion.
-    expect(stopResult?.signal).toBeUndefined();
-    expect(stopResult?.exitCode).toBe(0);
+    expect(stopResult.signal).toBeUndefined();
+    expect(stopResult.exitCode).toBe(0);
 
-    const records = (stopResult?.stdout ?? "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line) as { status: string });
+    const records = parseNdjsonLines(stopResult.stdout);
     expect(records.length).toBeGreaterThan(0);
 
-    expect(stopResult?.stdout).not.toContain(provider.key);
-    expect(stopResult?.stderr).not.toContain(provider.key);
+    expect(stopResult.stdout).not.toContain(provider.key);
+    expect(stopResult.stderr).not.toContain(provider.key);
   }, 240_000);
 });
