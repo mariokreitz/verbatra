@@ -21,17 +21,17 @@ function hasDotSegment(pathWithoutLeadingSlash: string): boolean {
   return pathWithoutLeadingSlash.split("/").some((segment) => segment.startsWith("."));
 }
 
+function stripQuery(requestPath: string): string {
+  const queryIndex = requestPath.indexOf("?");
+  return queryIndex === -1 ? requestPath : requestPath.slice(0, queryIndex);
+}
+
 /**
  * Resolves a request path to an absolute path inside the assets root, or `undefined` when the
  * request would escape the root or names a dotfile. The path is percent-decoded exactly once,
  * then normalized and checked for containment; there is never a directory listing since only
  * `readFile` is used, never a directory read.
  */
-function stripQuery(requestPath: string): string {
-  const queryIndex = requestPath.indexOf("?");
-  return queryIndex === -1 ? requestPath : requestPath.slice(0, queryIndex);
-}
-
 export function resolveAssetPath(assetsRootPath: string, requestPath: string): string | undefined {
   const root = withoutTrailingSep(normalize(assetsRootPath));
   const decoded = decodeRequestPath(stripQuery(requestPath));

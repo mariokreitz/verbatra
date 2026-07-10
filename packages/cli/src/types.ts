@@ -61,7 +61,6 @@ export interface CliDeps {
  * CLI.
  */
 export interface StudioModule {
-  /** Starts the local Studio server. */
   startStudioServer(options: StudioServerOptions): Promise<StudioServer>;
 }
 

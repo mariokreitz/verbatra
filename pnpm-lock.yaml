@@ -172,6 +172,9 @@ importers:
       '@verbatra/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@verbatra/studio':
+        specifier: workspace:*
+        version: link:../../packages/studio
       tailwindcss:
         specifier: 4.3.2
         version: 4.3.2
