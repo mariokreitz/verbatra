@@ -10,8 +10,13 @@ import {
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
+// The subset of ProviderId that init can scaffold: every provider with a single env var in
+// scaffoldingMetadata.providerEnv. openai-compatible is excluded (see scaffolding.ts): it has no single
+// required env var, only a three-tier key fallback, so init does not offer it as a scaffold option.
+type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
+
 // Read provider, env-var, and model truth from the SDK scaffolding metadata rather than restating it.
-const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ProviderId[];
+const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];
 
 // Maps a dependency id to the locale format it implies; typed against SupportedFormat so a renamed or
 // removed core format id breaks this compile.
@@ -38,10 +43,10 @@ interface Inputs {
   readonly sourceLocale: string;
   readonly targetLocales: string[];
   readonly filesPattern: string;
-  readonly provider: ProviderId;
+  readonly provider: ScaffoldableProviderId;
 }
 
-function isProviderId(value: string): value is ProviderId {
+function isProviderId(value: string): value is ScaffoldableProviderId {
   return (PROVIDER_IDS as string[]).includes(value);
 }
 
@@ -88,7 +93,7 @@ function readPackageName(): string {
 // sync, since validation checks the object, not the text; the all-provider loadConfig round-trip guards
 // against drift.
 /** The provider block as a plain object, for validating the assembled config before writing. */
-function buildProviderConfig(id: ProviderId): Record<string, unknown> {
+function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown> {
   switch (id) {
     case "anthropic":
       return { id, options: { model: DEFAULT_MODEL.anthropic, maxTokens: TOKEN_LIMIT } };
@@ -102,7 +107,7 @@ function buildProviderConfig(id: ProviderId): Record<string, unknown> {
 }
 
 /** The provider block rendered as commented TypeScript for the scaffolded config. */
-function renderProviderBlock(id: ProviderId): string {
+function renderProviderBlock(id: ScaffoldableProviderId): string {
   if (id === "deepl") {
     return [
       "  provider: {",
@@ -156,7 +161,7 @@ function renderConfig(
 }
 
 /** Render .env.example: the provider's key name only, never a literal value. */
-function renderEnvExample(id: ProviderId): string {
+function renderEnvExample(id: ScaffoldableProviderId): string {
   return [
     `# Copy this file to .env and set your ${id} API key. Do not commit your real key.`,
     `${scaffoldingMetadata.providerEnv[id]}=`,
@@ -213,7 +218,7 @@ async function resolveProvider(
   interactive: boolean,
   ask: (question: string) => Promise<string>,
   streams: Streams,
-): Promise<ProviderId | undefined> {
+): Promise<ScaffoldableProviderId | undefined> {
   let value = opts.provider?.trim() ?? "";
   if (value === "" && interactive) {
     value = await ask(`Provider (${PROVIDER_IDS.join(", ")}): `);

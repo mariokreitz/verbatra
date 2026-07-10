@@ -3,7 +3,14 @@ import { SUPPORTED_FORMATS } from "@verbatra/core";
 import type { ProviderId } from "./config/provider-config.js";
 
 // Compile-time guard: a provider id added to the config union without an env var entry fails here.
-const _envCoversAllProviders: Record<ProviderId, string> = PROVIDER_ENV;
+// "openai-compatible" is deliberately excluded: unlike every other provider it has no single required
+// environment variable, only a three-tier apiKeyEnvVar/OPENAI_COMPATIBLE_API_KEY/placeholder fallback
+// (see resolveOpenAiCompatibleKey in @verbatra/ai-providers), so it does not fit this table and `init`
+// scaffolding does not offer it.
+const _envCoversAllProviders: Record<
+  Exclude<ProviderId, "openai-compatible">,
+  string
+> = PROVIDER_ENV;
 void _envCoversAllProviders;
 
 /**

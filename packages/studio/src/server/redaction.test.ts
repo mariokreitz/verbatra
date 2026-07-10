@@ -27,7 +27,13 @@ describe("redact", () => {
 
   describe("exact provider env value scrub", () => {
     const originalValues: Record<string, string | undefined> = {};
-    const envVarNames = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DEEPL_API_KEY"];
+    const envVarNames = [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "GEMINI_API_KEY",
+      "DEEPL_API_KEY",
+      "OPENAI_COMPATIBLE_API_KEY",
+    ];
 
     beforeEach(() => {
       for (const name of envVarNames) {
