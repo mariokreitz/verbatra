@@ -46,15 +46,32 @@ export interface RunResult {
   stderr: string;
 }
 
+export interface RunOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  /**
+   * Milliseconds to let the process run before force-killing it with SIGKILL. SIGKILL, unlike
+   * SIGINT or SIGTERM, cannot be caught by the CLI's own shutdown handling, so this is the
+   * deterministic way to force a real signal-death (the same shape a crash or an OOM kill
+   * produces) through a helper that otherwise only awaits a process to its natural completion.
+   */
+  timeoutMs?: number;
+}
+
 export async function runVerbatra(
   consumer: Consumer,
   args: string[],
-  options: { cwd?: string; env?: Record<string, string> } = {},
+  options: RunOptions = {},
 ): Promise<RunResult> {
+  const timeoutOptions =
+    options.timeoutMs === undefined
+      ? {}
+      : { timeout: options.timeoutMs, killSignal: "SIGKILL" as const };
   const result = await execa(consumer.bin, args, {
     cwd: options.cwd ?? consumer.dir,
     env: { ...process.env, ...options.env },
     reject: false,
+    ...timeoutOptions,
   });
   return {
     exitCode: result.exitCode ?? null,
