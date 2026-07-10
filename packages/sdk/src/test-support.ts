@@ -20,6 +20,12 @@ export interface StubOptions {
   readonly kind?: "llm" | "machine-translation";
   readonly translate?: (value: string, key: string, targetLocale: string) => string;
   readonly failIntegrity?: ReadonlySet<string>;
+  /**
+   * Keys to omit from the result's `values` and `integrity` maps entirely, simulating a key still
+   * missing after the shared LLM layer's bounded reconcile repair round (see `runLlmTranslation`):
+   * the provider call succeeds, but nothing was translated for these keys.
+   */
+  readonly missingValues?: ReadonlySet<string>;
   readonly notices?: readonly ProviderNotice[];
   readonly throwForLocales?: ReadonlySet<string>;
   readonly error?: Error;
@@ -63,6 +69,9 @@ export function makeStubProvider(options: StubOptions = {}): StubProvider {
       const values = new Map<string, string>();
       const integrity = new Map<string, PlaceholderIntegrityResult>();
       for (const entry of request.entries) {
+        if (options.missingValues?.has(entry.key) === true) {
+          continue;
+        }
         values.set(entry.key, translate(entry.value, entry.key, request.targetLocale));
         integrity.set(entry.key, options.failIntegrity?.has(entry.key) === true ? FAIL : PASS);
       }

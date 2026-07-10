@@ -98,6 +98,26 @@ describe("translate: plural-category generation (supported case)", () => {
     expect(locale?.integrityMismatches).toEqual(["items_few"]);
     expect(hasNotice(locale?.notices ?? [])).toBe(true);
   });
+
+  it("withholds a generated key still missing from the response under providerFailures, not integrityMismatches", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: {} });
+
+    // The provider call succeeds but returns no value for items_few at all (nothing translated for
+    // it), distinct from a value that came back and failed the placeholder-integrity check.
+    const summary = await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      {
+        createProvider: () => makeStubProvider({ missingValues: new Set(["items_few"]) }).provider,
+      },
+    );
+
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBeUndefined();
+
+    const locale = summary.locales[0];
+    expect(locale?.providerFailures).toContain("items_few");
+    expect(locale?.integrityMismatches).not.toContain("items_few");
+  });
 });
 
 describe("translate: divergent source placeholders across plural categories", () => {
