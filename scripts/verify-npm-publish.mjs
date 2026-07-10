@@ -16,8 +16,12 @@
 
 import { execFileSync } from "node:child_process";
 
-const RETRY_ATTEMPTS = 5;
-const RETRY_DELAY_MS = 3_000;
+// Registry/CDN propagation right after `npm publish` can lag well past a few seconds. This step
+// runs once per release and a false failure here blocks a genuinely successful publish and forces
+// a manual scramble, so the retry budget is deliberately generous: 12 attempts at 15s apart is 11
+// delays, ~165s (2.75 minutes) of total wait before giving up.
+const RETRY_ATTEMPTS = 12;
+const RETRY_DELAY_MS = 15_000;
 
 /**
  * @typedef {{ name: string; version: string }} PublishedPackage
