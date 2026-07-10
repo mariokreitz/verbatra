@@ -17,7 +17,8 @@ export interface IntegrityInput {
  * and never silently dropped, so a corrupted translation cannot pass as clean.
  *
  * @param inputs - One {@link IntegrityInput} per key.
- * @param extract - The placeholder extractor for the translated value (the request's extractor).
+ * @param extract - The placeholder extractor (the request's extractor), called on both the source and
+ *   the translated value when `compare` is absent.
  * @param compare - Optional branch-aware comparator (the request's `comparePlaceholders`). When present,
  *   it runs directly on the source and translated values instead of `extract` plus `checkPlaceholders`.
  * @returns A per-key map of placeholder-integrity outcomes; mismatches are recorded, not thrown.
