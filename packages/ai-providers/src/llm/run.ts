@@ -116,7 +116,9 @@ export async function runLlmTranslation(
     request.extractPlaceholders,
     request.comparePlaceholders,
   );
+  // Every LLM provider delegates translateBatch to this function, so populating notices here (an
+  // always-present empty array; LLM providers never have a degradation to report) covers all four.
   return completion.usage === undefined
-    ? { values, integrity }
-    : { values, integrity, usage: completion.usage };
+    ? { values, integrity, notices: [] }
+    : { values, integrity, usage: completion.usage, notices: [] };
 }

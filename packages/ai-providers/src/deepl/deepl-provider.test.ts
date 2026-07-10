@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
-import type { TranslateRequest } from "../provider.js";
+import type { ProviderNotice, TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
   deeplResult,
@@ -11,7 +11,7 @@ import {
 } from "../test-support.js";
 import { createDeepLProvider } from "./deepl-provider.js";
 import { PLACEHOLDER_UNSUPPORTED_MESSAGE } from "./placeholders.js";
-import type { DeepLTranslateClient, DeepLTranslateResult, ProviderNotice } from "./types.js";
+import type { DeepLTranslateClient, DeepLTranslateResult } from "./types.js";
 
 const config = {};
 
@@ -30,11 +30,24 @@ function noticeCodes(result: { notices: readonly ProviderNotice[] }): string[] {
 }
 
 describe("createDeepLProvider: identity", () => {
-  it("declares id deepl, machine-translation kind, and glossary support", () => {
+  it("declares id deepl and machine-translation kind", () => {
     const { client } = deeplStubClient(deeplResult([]));
     const provider = createDeepLProvider(config, { client });
     expect(provider.id).toBe("deepl");
     expect(provider.kind).toBe("machine-translation");
+  });
+});
+
+describe("createDeepLProvider: honest supportsGlossary", () => {
+  it("reports false for the generic term-map-only case (no native glossaryId configured)", () => {
+    const { client } = deeplStubClient(deeplResult([]));
+    const provider = createDeepLProvider(config, { client });
+    expect(provider.supportsGlossary).toBe(false);
+  });
+
+  it("reports true when a native glossaryId is configured", () => {
+    const { client } = deeplStubClient(deeplResult([]));
+    const provider = createDeepLProvider({ glossaryId: "gl-123" }, { client });
     expect(provider.supportsGlossary).toBe(true);
   });
 });
@@ -238,6 +251,63 @@ describe("createDeepLProvider: placeholder-bearing entries are withheld", () => 
     expect(notice?.message).toBe(PLACEHOLDER_UNSUPPORTED_MESSAGE);
     expect(notice?.message).not.toContain("secret-key");
     expect(notice?.message).not.toContain("{{name}}");
+  });
+});
+
+describe("createDeepLProvider: notice messages are static, never interpolated", () => {
+  function noticeMessage(result: DeepLTranslateResult, code: ProviderNotice["code"]): string {
+    const notice = result.notices.find((n) => n.code === code);
+    if (notice === undefined) {
+      throw new Error(`expected a ${code} notice`);
+    }
+    return notice.message;
+  }
+
+  it("GLOSSARY_IGNORED message is byte-identical across unrelated glossary content and keys", async () => {
+    const first = deeplStubClient(deeplResult(["x"]));
+    const firstResult = (await createDeepLProvider(config, { client: first.client }).translateBatch(
+      request({ glossary: { Hello: "Hallo" }, entries: [entry("k1", "Hello")] }),
+    )) as DeepLTranslateResult;
+
+    const second = deeplStubClient(deeplResult(["y"]));
+    const secondResult = (await createDeepLProvider(config, {
+      client: second.client,
+    }).translateBatch(
+      request({
+        glossary: { SecretTerm: "GeheimBegriff", AnotherTerm: "NochEinBegriff" },
+        entries: [entry("very-different-key", "Something else entirely")],
+      }),
+    )) as DeepLTranslateResult;
+
+    const firstMessage = noticeMessage(firstResult, "GLOSSARY_IGNORED");
+    const secondMessage = noticeMessage(secondResult, "GLOSSARY_IGNORED");
+    expect(firstMessage).toBe(secondMessage);
+    expect(firstMessage).not.toContain("SecretTerm");
+    expect(firstMessage).not.toContain("very-different-key");
+  });
+
+  it("FORMALITY_DOWNGRADED message is byte-identical across unrelated keys and both non-default tones", async () => {
+    const formal = deeplStubClient(deeplResult(["x"]));
+    const formalResult = (await createDeepLProvider(config, {
+      client: formal.client,
+      freeAccount: true,
+    }).translateBatch(
+      request({ tone: "formal", entries: [entry("secret-formal-key", "Some value")] }),
+    )) as DeepLTranslateResult;
+
+    const informal = deeplStubClient(deeplResult(["y"]));
+    const informalResult = (await createDeepLProvider(config, {
+      client: informal.client,
+      freeAccount: true,
+    }).translateBatch(
+      request({ tone: "informal", entries: [entry("another-key", "A different value")] }),
+    )) as DeepLTranslateResult;
+
+    const formalMessage = noticeMessage(formalResult, "FORMALITY_DOWNGRADED");
+    const informalMessage = noticeMessage(informalResult, "FORMALITY_DOWNGRADED");
+    expect(formalMessage).toBe(informalMessage);
+    expect(formalMessage).not.toContain("secret-formal-key");
+    expect(formalMessage).not.toContain("another-key");
   });
 });
 

@@ -29,11 +29,7 @@ export {
   createDeepLProvider,
   type DeepLDeps,
 } from "./deepl/deepl-provider.js";
-export type {
-  DeepLTranslateResult,
-  ProviderNotice,
-  ProviderNoticeCode,
-} from "./deepl/types.js";
+export type { DeepLTranslateResult } from "./deepl/types.js";
 export { PROVIDER_ENV } from "./env.js";
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
 export {
@@ -66,6 +62,8 @@ export type {
   PlaceholderComparator,
   PlaceholderExtractor,
   ProviderKind,
+  ProviderNotice,
+  ProviderNoticeCode,
   Tone,
   TranslateRequest,
   TranslateResult,
