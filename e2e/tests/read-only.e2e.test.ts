@@ -1,15 +1,25 @@
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
   makeConsumer,
+  pollUntil,
   readJsonIn,
   runVerbatra,
+  type Subprocess,
+  spawnVerbatra,
   writeFileIn,
   writeJsonIn,
 } from "../src/harness.js";
+
+/** The `check --json` shape this suite asserts against; mirrors the SDK's `CheckSummary`. */
+interface CheckSummaryJson {
+  inSync: boolean;
+  locales: { locale: string; missing: number }[];
+}
 
 // Column indices mirror @verbatra/exchange's fixed workbook layout.
 const HEADER_ROW = 1;
@@ -176,6 +186,10 @@ describe("other formats (read-only, no provider)", () => {
     await writeFileIn(dir, "locales/de.yml", "greeting: Hallo {{name}}\n");
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
+    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    expect(summary.inSync).toBe(false);
+    const de = summary.locales.find((entry) => entry.locale === "de");
+    expect(de?.missing).toBe(1);
   });
 
   it("checks a Flutter ARB project", async () => {
@@ -192,6 +206,11 @@ describe("other formats (read-only, no provider)", () => {
     await writeJsonIn(dir, "lib/l10n/app_de.arb", { "@@locale": "de", greeting: "Hallo {name}" });
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
+    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    expect(summary.inSync).toBe(false);
+    const de = summary.locales.find((entry) => entry.locale === "de");
+    // The "@@locale" key is ARB metadata, stripped before diffing, so only "farewell" is missing.
+    expect(de?.missing).toBe(1);
   });
 });
 
@@ -222,4 +241,73 @@ describe("init (no provider)", () => {
     expect(envExample).toContain("ANTHROPIC_API_KEY");
     expect(envExample).not.toMatch(/ANTHROPIC_API_KEY=.+\S/);
   });
+});
+
+describe("config errors (no provider)", () => {
+  it("exits 2 with a config-not-found error when no config file is present", async () => {
+    // A fresh temp directory outside the consumer tree, so cosmiconfig's upward search cannot pick
+    // up any ambient config.
+    const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-noconfig-"));
+    const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toMatch(/\[CONFIG_NOT_FOUND\]/);
+    expect(result.stderr).toContain("No verbatra configuration found");
+  });
+});
+
+/** One line of the watch `--json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
+interface WatchRunResultJson {
+  status: "succeeded" | "failed";
+}
+
+function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as WatchRunResultJson);
+}
+
+describe("watch SIGINT contract (no provider key needed)", () => {
+  it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {
+    const dir = join(consumer.dir, "watch-sigint");
+    await mkdir(dir, { recursive: true });
+    await writeJsonIn(dir, "locales/en.json", { greeting: "Hello {{name}}" });
+    await writeJsonIn(dir, "locales/de.json", { greeting: "Hallo {{name}}" });
+    await writeFileIn(
+      dir,
+      "verbatra.config.ts",
+      `import { defineConfig } from "@verbatra/cli";\n\nexport default defineConfig({\n  sourceLocale: "en",\n  targetLocales: ["de"],\n  format: "i18next-json",\n  files: { pattern: "locales/{locale}.json" },\n  provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } },\n});\n`,
+    );
+
+    // No API key: the initial run fails at provider construction (a structured, secret-free
+    // ProviderError), but the watcher stays up. That is enough to exercise the SIGINT contract
+    // without a live key: a single interrupt should still stop it cleanly with exit 0, having
+    // already emitted one NDJSON record to stdout.
+    const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
+      env: { ANTHROPIC_API_KEY: "" },
+    });
+
+    let stdoutBuf = "";
+    watcher.stdout?.on("data", (chunk: Buffer) => {
+      stdoutBuf += chunk.toString();
+    });
+
+    try {
+      await pollUntil(() => stdoutBuf.trim().length > 0, { timeoutMs: 30_000, intervalMs: 250 });
+
+      const records = parseNdjsonLines(stdoutBuf);
+      expect(records.length).toBeGreaterThan(0);
+      expect(records[0]?.status).toBe("failed");
+
+      watcher.kill("SIGINT");
+      const result = await watcher;
+      expect(result.signal).toBeUndefined();
+      expect(result.exitCode).toBe(0);
+    } finally {
+      // A no-op if the process already exited cleanly above; a safety net otherwise.
+      watcher.kill("SIGKILL");
+    }
+  }, 45_000);
 });

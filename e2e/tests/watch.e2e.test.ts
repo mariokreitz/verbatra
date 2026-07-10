@@ -43,6 +43,7 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
       env: { [provider.envVar]: provider.key },
     });
+    let stopResult: Awaited<Subprocess> | undefined;
 
     try {
       // The startup run fills the missing key; reaching it also proves the watcher is live.
@@ -72,8 +73,27 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
       expect(de.welcome ?? "").toContain("{{name}}");
       expect(de.greeting ?? "").toContain("{{name}}");
     } finally {
+      // Cleanup runs whether the assertions above passed or failed, so a stuck watcher never
+      // outlives the test.
       watcher.kill("SIGINT");
-      await watcher;
+      stopResult = await watcher;
     }
+
+    // A single SIGINT is the documented graceful-stop contract: exit 0, having already emitted at
+    // least one NDJSON record to stdout, with no secret in either stream. Asserted only once the
+    // watch/translate flow above has already succeeded, so a translate failure is never masked by
+    // a shutdown assertion.
+    expect(stopResult?.signal).toBeUndefined();
+    expect(stopResult?.exitCode).toBe(0);
+
+    const records = (stopResult?.stdout ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line) as { status: string });
+    expect(records.length).toBeGreaterThan(0);
+
+    expect(stopResult?.stdout).not.toContain(provider.key);
+    expect(stopResult?.stderr).not.toContain(provider.key);
   }, 240_000);
 });
