@@ -1,16 +1,17 @@
 ---
 title: Providers
-description: The four translation providers, their options, and the API key each one reads.
+description: The five translation providers, their options, and the API key each one reads.
 ---
-verbatra ships four providers behind one interface: Anthropic, OpenAI, and Gemini are large language models, and DeepL is a machine-translation service. You select one in the `provider` block of your config, by `id`.
+verbatra ships five providers behind one interface: Anthropic, OpenAI, Gemini, and openai-compatible (a local or self-hosted OpenAI-compatible server) are large language models, and DeepL is a machine-translation service. You select one in the `provider` block of your config, by `id`.
 
 ## Which one should I pick?
 
-Any provider works with any format and command; the choice is about cost, quality, and how you get a key.
+Any provider works with any format and command; the choice is about cost, quality, privacy, and how you get a key.
 
 - **Small or side project, want it free?** Use **Gemini**. It has a real free API tier, so you can translate a whole app at zero cost. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier is rate-limited (see the note below), which only matters on a large first-time run.
 - **Best translation quality for a production app?** Use **Anthropic** or **OpenAI**. Both are paid LLMs and read `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`.
 - **High volume, glossary-driven, or no LLM in the loop?** Use **DeepL**. It is a dedicated machine-translation API with a free and a paid tier, and supports a native glossary by id. It does not translate placeholder-bearing strings (see the note below); for those, use an LLM provider.
+- **Offline, cost-free, or your strings must never leave your network?** Use **openai-compatible**. It points verbatra at a local or self-hosted inference server (LM Studio, Ollama, vLLM) instead of a hosted API. No account, no API key, and no network egress beyond your own machine or LAN.
 
 Not sure? Start on Gemini's free tier, then switch providers later by editing one `id` in your config. Nothing else changes.
 
@@ -20,7 +21,7 @@ When you author the config in TypeScript with `defineConfig`, the `model` field 
 
 ## Keys come from the environment
 
-verbatra never reads an API key from the config. Each provider reads exactly one environment variable:
+verbatra never reads an API key from the config. Each hosted provider reads exactly one environment variable:
 
 | Provider id | Environment variable |
 | --- | --- |
@@ -30,6 +31,8 @@ verbatra never reads an API key from the config. Each provider reads exactly one
 | `deepl` | `DEEPL_API_KEY` |
 
 Set the variable in `.env` (which `verbatra init` gitignores) or export it in your shell or CI secret store. Obtain a key from the provider's own dashboard, then put its value behind the variable above. Never commit a real key.
+
+`openai-compatible` is different: most local servers need no key at all, so it is not in this table. See its own section below for how its key resolution works.
 
 ## Anthropic
 
@@ -98,7 +101,50 @@ provider: {
 ```
 
 <Callout title="DeepL and placeholders">
-DeepL cannot preserve placeholders or ICU tokens, so it does not send strings that contain them: those entries are left untranslated (withheld) and reported with a `PLACEHOLDER_UNSUPPORTED` notice on the result. Placeholder-free strings translate normally. To translate placeholder-bearing strings, use an LLM provider (Anthropic, OpenAI, or Gemini).
+DeepL cannot preserve placeholders or ICU tokens, so it does not send strings that contain them: those entries are left untranslated (withheld) and reported with a `PLACEHOLDER_UNSUPPORTED` notice on the result. Placeholder-free strings translate normally. To translate placeholder-bearing strings, use an LLM provider (Anthropic, OpenAI, Gemini, or openai-compatible).
+</Callout>
+
+## openai-compatible
+
+Points verbatra at a local or self-hosted server that speaks the OpenAI Chat Completions API: LM Studio, Ollama, vLLM, and similar all work. The id names the wire protocol, not where the server runs, so a future hosted server that speaks the same protocol fits here too.
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "http://192.168.178.74:1234/v1",
+    model: "google/gemma-4-26b-a4b-qat",
+    maxOutputTokens: 1024,
+  },
+}
+```
+
+`baseUrl`, `model`, and `maxOutputTokens` are required. Unlike every other provider, `baseUrl` lives in config rather than the environment: it is a network address you already know (a LAN IP or `localhost`), not a secret. It must be a valid absolute URL using the `http` or `https` scheme; anything else, including a typo like a missing scheme, fails config validation immediately with a clear error, the same way a malformed `model` would for any other provider.
+
+`baseUrl` must include your server's API path segment, typically `/v1`: LM Studio, Ollama, and vLLM all serve their OpenAI-compatible routes under `/v1`, the same convention the underlying client already uses for the hosted `openai` provider. A `baseUrl` without it reaches the wrong path on the server and fails at request time, not at config validation, since the URL itself is still syntactically valid.
+
+### Keys are optional
+
+Most local inference servers need no API key at all, so `openai-compatible` resolves its key in three tiers, in order:
+
+1. **`apiKeyEnvVar`**, an optional config field naming an environment variable to read a real key from. Use this when your server's key already lives under an existing variable name (a shared corporate secret, an `LM_STUDIO_KEY` you already export, and so on). If you set this field and its named variable is unset or empty, verbatra fails clearly instead of silently falling back, since you explicitly said a key is required.
+2. **`OPENAI_COMPATIBLE_API_KEY`**, a convention environment variable, read when `apiKeyEnvVar` is not set. If it is set and non-empty, verbatra uses it. If it is unset or empty, verbatra moves on to the next tier without an error.
+3. **The placeholder `"local"`**, sent when neither of the above resolves anything. This is a fixed, non-secret string, not a real key, and is exactly what makes a keyless local server (the common case) work with zero configuration.
+
+`apiKeyEnvVar` can never name `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPL_API_KEY`: config validation rejects that outright, so a config author cannot point this provider at one of the hosted providers' keys by name. The client also never reads `OPENAI_API_KEY` itself and always passes an explicit key value to the underlying SDK, so a hosted key can never reach a custom `baseUrl`, whether by accident or on purpose.
+
+<Callout type="warn" title="A real key over plaintext http travels in cleartext">
+verbatra allows plaintext `http://` to any host, including a LAN address like `http://192.168.178.74:1234`, with no restriction beyond the http or https scheme. This is intentional and safe in the common keyless case: nothing secret is on the wire.
+
+It is a real risk only when you also configure a key (via `apiKeyEnvVar` or `OPENAI_COMPATIBLE_API_KEY`) **and** `baseUrl` is plaintext `http://` to a non-loopback host (anything other than `localhost` or `127.0.0.1`): that key then travels over your network unencrypted. If your server requires a real key and is reachable over your LAN or further, use `https://` for that server, or restrict it to `localhost`. verbatra does not detect or warn about this combination today; treat it as your own responsibility until it does.
+</Callout>
+
+### Tolerant parsing for local and smaller models
+
+`openai-compatible` requests the same strict, schema-constrained response format as the hosted `openai` provider, so a compliant server is asked for exactly the shape verbatra expects. The one difference is on the way back: local and smaller models are less reliable than the hosted LLM providers at actually honoring that constraint, and more likely to wrap an otherwise-correct answer in a Markdown code fence (a ` ```json ` block) despite being asked not to. `openai-compatible` tolerantly strips a single leading and trailing code fence before parsing, where the hosted `openai` provider does not. Its output still runs through the exact same schema validation and placeholder and ICU integrity checks as every other provider: a local model's output is untrusted input like any provider's, and a malformed or placeholder-mismatched response is rejected the same way.
+
+<Callout title="Not yet in verbatra init">
+`verbatra init` does not currently offer `openai-compatible` as a scaffold option, since it has no single required environment variable to prompt for. Add the provider block above to your config by hand; everything else in this guide (glossary, tone, output-token limits) applies to it the same as any LLM provider.
 </Callout>
 
 ## Tone and glossary across providers
