@@ -1,11 +1,13 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
+  PlaceholderComparator,
   TranslateRequest,
   TranslateResult,
   TranslationProvider,
 } from "@verbatra/ai-providers";
-import type { PlaceholderIntegrityResult } from "@verbatra/core";
+import type { LocaleResource, PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
+import type { FormatAdapter } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import {
@@ -17,6 +19,7 @@ import {
   readTextFile,
   writeJsonFile,
 } from "../test-support.js";
+import { generatePluralForms, type PluralGenerationContext } from "./plural-generation.js";
 import { translate } from "./translate-project.js";
 
 async function project(
@@ -689,5 +692,96 @@ describe("translate: a failed plural-generation sub-batch does not discard accep
     expect(lock.locales.ar?.items_many).toBeDefined();
     expect(lock.locales.ar?.items_one).toBeDefined();
     expect(lock.locales.ar?.items_other).toBeDefined();
+  });
+});
+
+describe("generatePluralForms: comparePlaceholders wiring (the second buildRequest-shaped site)", () => {
+  function pluralEntry(key: string, value: string): TranslationEntry {
+    return { key, namespace: "n", value, placeholders: [], isPlural: true };
+  }
+
+  function sourceResource(): LocaleResource {
+    return {
+      locale: "en",
+      namespace: "n",
+      format: "i18next-json",
+      entries: new Map([
+        ["items_one", pluralEntry("items_one", "{{count}} item")],
+        ["items_other", pluralEntry("items_other", "{{count}} items")],
+      ]),
+    };
+  }
+
+  /** A minimal adapter stub; only comparePlaceholders varies across these tests. */
+  function fakeAdapter(comparePlaceholders: PlaceholderComparator | undefined): FormatAdapter {
+    return {
+      format: "i18next-json",
+      canHandle: () => true,
+      read: () => Promise.reject(new Error("not exercised by this test")),
+      write: () => Promise.resolve(),
+      extractPlaceholders: () => [],
+      validateMessage: () => true,
+      ...(comparePlaceholders !== undefined ? { comparePlaceholders } : {}),
+    };
+  }
+
+  /** A stub provider that records every request it receives and reports a clean match for each key. */
+  function capturingProvider(): { provider: TranslationProvider; requests: TranslateRequest[] } {
+    const requests: TranslateRequest[] = [];
+    const provider: TranslationProvider = {
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: (request: TranslateRequest): Promise<TranslateResult> => {
+        requests.push(request);
+        const values = new Map<string, string>();
+        const integrity = new Map<string, PlaceholderIntegrityResult>();
+        for (const entry of request.entries) {
+          values.set(entry.key, `[pl] ${entry.value}`);
+          integrity.set(entry.key, { matches: true, missing: [], extra: [], reordered: false });
+        }
+        return Promise.resolve({ values, integrity });
+      },
+    };
+    return { provider, requests };
+  }
+
+  function context(adapter: FormatAdapter, provider: TranslationProvider): PluralGenerationContext {
+    return {
+      source: sourceResource(),
+      sourceLocale: "en",
+      targetLocale: "pl",
+      format: "i18next-json",
+      adapter,
+      provider,
+      glossary: undefined,
+      tone: undefined,
+      baseline: new Map(),
+      maxBatchSize: 50,
+    };
+  }
+
+  it("passes the adapter's comparePlaceholders through to the generation request when present", async () => {
+    const spyComparator: PlaceholderComparator = () => ({
+      matches: true,
+      missing: [],
+      extra: [],
+      reordered: false,
+    });
+    const { provider, requests } = capturingProvider();
+
+    await generatePluralForms(context(fakeAdapter(spyComparator), provider));
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.comparePlaceholders).toBe(spyComparator);
+  });
+
+  it("omits comparePlaceholders from the generation request when the adapter has none", async () => {
+    const { provider, requests } = capturingProvider();
+
+    await generatePluralForms(context(fakeAdapter(undefined), provider));
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).not.toHaveProperty("comparePlaceholders");
   });
 });

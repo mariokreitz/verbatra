@@ -1,8 +1,16 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { ProviderError } from "@verbatra/ai-providers";
+import {
+  createAnthropicProvider,
+  ProviderError,
+  type TranslationProvider,
+} from "@verbatra/ai-providers";
 import type { LocaleResource } from "@verbatra/core";
-import { createDefaultRegistry, type FormatAdapter } from "@verbatra/format-adapters";
+import {
+  createDefaultRegistry,
+  createNextIntlJsonAdapter,
+  type FormatAdapter,
+} from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import { defaultFs } from "../fs.js";
 import {
@@ -13,6 +21,36 @@ import {
   writeJsonFile,
 } from "../test-support.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
+
+/**
+ * A real Anthropic provider (through the shared LLM layer) wired to a stub client that returns the
+ * given per-key translations as a forced tool-use response, exactly the shape the real SDK returns. Used
+ * to exercise the real ai-providers integrity path end to end, not a hand-rolled double of it.
+ */
+function anthropicStubProvider(
+  translations: ReadonlyArray<{ key: string; value: string }>,
+): TranslationProvider {
+  return createAnthropicProvider(
+    { model: "claude-sonnet-4-5", maxTokens: 1024 },
+    {
+      client: {
+        messages: {
+          create: () =>
+            Promise.resolve({
+              content: [
+                {
+                  type: "tool_use",
+                  id: "t1",
+                  name: "submit_translations",
+                  input: { translations },
+                },
+              ],
+            }),
+        },
+      },
+    },
+  );
+}
 
 function i18nextAdapter(): FormatAdapter {
   const resolution = createDefaultRegistry().resolve("", { format: "i18next-json" });
@@ -36,6 +74,18 @@ async function setup(
     await writeJsonFile(join(dir, "locales", "de.json"), target);
   }
   const sourceResource = (await adapter.read(join(dir, "locales", "en.json"), "en")).resource;
+  return { dir, sourceResource };
+}
+
+/** Like {@link setup}, but reads the source through a caller-supplied adapter (for ICU formats). */
+async function setupWithAdapter(
+  targetAdapter: FormatAdapter,
+  source: Record<string, unknown>,
+): Promise<{ dir: string; sourceResource: LocaleResource }> {
+  const dir = await makeTempDir();
+  await mkdir(join(dir, "locales"));
+  await writeJsonFile(join(dir, "locales", "en.json"), source);
+  const sourceResource = (await targetAdapter.read(join(dir, "locales", "en.json"), "en")).resource;
   return { dir, sourceResource };
 }
 
@@ -368,5 +418,71 @@ describe("runLocale: plural generation", () => {
     const { summary } = await runLocale(params);
 
     expect(summary.notices.map((n) => n.code)).not.toContain("PLURAL_CATEGORIES_INCOMPLETE");
+  });
+});
+
+describe("runLocale: ICU branch-aware comparePlaceholders wiring (real ai-providers call site)", () => {
+  const nextIntl = createNextIntlJsonAdapter();
+
+  it("flags a placeholder invented in a single target branch as an integrity mismatch, not accepted", async () => {
+    const { dir, sourceResource } = await setupWithAdapter(nextIntl, {
+      items: "{count, plural, one {# item} other {# items}}",
+    });
+    const provider = anthropicStubProvider([
+      { key: "items", value: "{count, plural, one {# item} other {# items by {author}}}" },
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider, adapter: nextIntl, format: "next-intl-json" },
+    );
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    // Without the fix this would have flattened to a match (the BTS-104 bug); the real ai-providers
+    // integrity path must reject it via the adapter's comparePlaceholders.
+    expect(summary.translated).toEqual([]);
+    expect(summary.integrityMismatches).toEqual(["items"]);
+    expect(lockEntries.items).toBeUndefined();
+  });
+
+  it("still flags a placeholder dropped from a single target branch as an integrity mismatch", async () => {
+    const { dir, sourceResource } = await setupWithAdapter(nextIntl, {
+      items: "{count, plural, one {# by {author}} other {# by {author}}}",
+    });
+    const provider = anthropicStubProvider([
+      { key: "items", value: "{count, plural, one {# by {author}} other {#}}" },
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider, adapter: nextIntl, format: "next-intl-json" },
+    );
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.integrityMismatches).toEqual(["items"]);
+  });
+
+  it("accepts a correct translation that keeps a source-only-partial placeholder in its matching branch", async () => {
+    const { dir, sourceResource } = await setupWithAdapter(nextIntl, {
+      msg: "{count, plural, one {One msg from {sender}} other {# messages}}",
+    });
+    const provider = anthropicStubProvider([
+      {
+        key: "msg",
+        value: "{count, plural, one {Eine Nachricht von {sender}} other {# Nachrichten}}",
+      },
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider, adapter: nextIntl, format: "next-intl-json" },
+    );
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toEqual(["msg"]);
+    expect(summary.integrityMismatches).toEqual([]);
+    expect(lockEntries.msg).toBeDefined();
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.msg).toBe("{count, plural, one {Eine Nachricht von {sender}} other {# Nachrichten}}");
   });
 });

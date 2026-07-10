@@ -32,7 +32,7 @@ export function zipResults(
     values.set(entry.key, translatedValue);
     integrityInputs.push({
       key: entry.key,
-      sourcePlaceholders: entry.placeholders,
+      sourceValue: entry.value,
       translatedValue,
     });
   }

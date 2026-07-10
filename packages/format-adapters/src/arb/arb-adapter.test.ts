@@ -36,6 +36,13 @@ describe("createArbAdapter detection", () => {
   it("reports format arb", () => {
     expect(adapter.format).toBe("arb");
   });
+
+  it("exposes branch-aware comparePlaceholders, catching a single-branch invention flat extraction misses", () => {
+    const source = "{count, plural, one {# item} other {# items}}";
+    const invented = "{count, plural, one {# item} other {# items by {author}}}";
+    expect(adapter.comparePlaceholders?.(source, invented).matches).toBe(false);
+    expect(adapter.comparePlaceholders?.(source, invented).extra).toEqual(["{author}"]);
+  });
 });
 
 describe("createArbAdapter read", () => {

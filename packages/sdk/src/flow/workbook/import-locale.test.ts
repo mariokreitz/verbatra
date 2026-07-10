@@ -167,6 +167,79 @@ describe("importLocale", () => {
     ]);
   });
 
+  it("flags a placeholder invented in a single target branch via the adapter's comparePlaceholders", () => {
+    // Without branch-aware comparison this would flatten to a match (the BTS-104 bug): {author} is
+    // confined to the "other" branch of the row's translation and absent everywhere in the source.
+    const src = entry("items", "{count, plural, one {# item} other {# items}}");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        row("items", "{count, plural, one {# item} other {# items by {author}}}", contentHash(src)),
+      ],
+    };
+    const adapter: FormatAdapter = createNextIntlJsonAdapter();
+    const result = importLocale(
+      params({
+        sheet,
+        adapter,
+        source: resource("en", [src], "next-intl-json"),
+        target: resource("de", [], "next-intl-json"),
+      }),
+    );
+
+    expect(result.accepted.size).toBe(0);
+    expect(result.withheld).toEqual(new Set(["items"]));
+    expect(result.summary.integrityMismatches).toEqual(["items"]);
+  });
+
+  it("still flags a placeholder dropped from a single target branch via comparePlaceholders", () => {
+    const src = entry("items", "{count, plural, one {# by {author}} other {# by {author}}}");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [row("items", "{count, plural, one {# by {author}} other {#}}", contentHash(src))],
+    };
+    const adapter: FormatAdapter = createNextIntlJsonAdapter();
+    const result = importLocale(
+      params({
+        sheet,
+        adapter,
+        source: resource("en", [src], "next-intl-json"),
+        target: resource("de", [], "next-intl-json"),
+      }),
+    );
+
+    expect(result.withheld).toEqual(new Set(["items"]));
+    expect(result.summary.integrityMismatches).toEqual(["items"]);
+  });
+
+  it("accepts a row that keeps a source-only-partial placeholder in its matching branch via comparePlaceholders", () => {
+    const src = entry("msg", "{count, plural, one {One msg from {sender}} other {# messages}}");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        row(
+          "msg",
+          "{count, plural, one {Eine Nachricht von {sender}} other {# Nachrichten}}",
+          contentHash(src),
+        ),
+      ],
+    };
+    const adapter: FormatAdapter = createNextIntlJsonAdapter();
+    const result = importLocale(
+      params({
+        sheet,
+        adapter,
+        source: resource("en", [src], "next-intl-json"),
+        target: resource("de", [], "next-intl-json"),
+      }),
+    );
+
+    expect(result.accepted.get("msg")?.value).toBe(
+      "{count, plural, one {Eine Nachricht von {sender}} other {# Nachrichten}}",
+    );
+    expect(result.summary.integrityMismatches).toEqual([]);
+  });
+
   it("accepts a clean filled row and throws on an invented key", () => {
     const src = entry("greet", "Hi");
     const ok: WorkbookSheet = { locale: "de", rows: [row("greet", "Hallo", contentHash(src))] };

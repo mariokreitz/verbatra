@@ -114,6 +114,7 @@ export async function runLlmTranslation(
   const integrity = checkBatchIntegrity(
     toIntegrityInputs(data.entries, values),
     request.extractPlaceholders,
+    request.comparePlaceholders,
   );
   return completion.usage === undefined
     ? { values, integrity }

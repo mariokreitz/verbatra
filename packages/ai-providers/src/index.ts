@@ -63,6 +63,7 @@ export {
   type OpenAiCompatibleDeps,
 } from "./openai-compatible/openai-compatible-provider.js";
 export type {
+  PlaceholderComparator,
   PlaceholderExtractor,
   ProviderKind,
   Tone,

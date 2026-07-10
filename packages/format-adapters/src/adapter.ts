@@ -1,4 +1,4 @@
-import type { LocaleResource, SupportedFormat } from "@verbatra/core";
+import type { LocaleResource, PlaceholderIntegrityResult, SupportedFormat } from "@verbatra/core";
 
 /**
  * The result of reading a file into core's intermediate representation.
@@ -82,4 +82,17 @@ export interface FormatAdapter {
    *   unparseable value returns false.
    */
   validateMessage(value: string): boolean;
+
+  /**
+   * Optional branch-aware placeholder comparison for formats with plural/select sub-message structure.
+   * When present, callers use it instead of independently extracting each side's placeholders with
+   * {@link extractPlaceholders} and diffing the flat lists, since flattening a plural/select value loses
+   * which branch a placeholder came from. Absent for every non-ICU adapter, which is compared via
+   * `extractPlaceholders` plus `checkPlaceholders` as before.
+   *
+   * @param sourceValue - The source value.
+   * @param targetValue - The translated value to check against it.
+   * @returns The merged placeholder-integrity result across every branch. Does not throw.
+   */
+  comparePlaceholders?(sourceValue: string, targetValue: string): PlaceholderIntegrityResult;
 }
