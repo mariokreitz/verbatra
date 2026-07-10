@@ -291,6 +291,35 @@ describe("createDeepLProvider: errors and secrets", () => {
   });
 });
 
+describe("createDeepLProvider: cancellation (best-effort, preflight only)", () => {
+  it("rejects immediately without calling translateText when the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const translateText = vi.fn();
+    const client: DeepLTranslateClient = { translateText };
+    let caught: unknown;
+    try {
+      await createDeepLProvider(config, { client }).translateBatch(
+        request({ entries: [entry("k", "v")], signal: controller.signal }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).not.toBeInstanceOf(ProviderError);
+    expect(translateText).not.toHaveBeenCalled();
+  });
+
+  it("translates normally when the signal is present but never aborted", async () => {
+    const controller = new AbortController();
+    const { client } = deeplStubClient(deeplResult(["Frei"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("k", "Free")], signal: controller.signal }),
+    );
+    expect(result.values.get("k")).toBe("Frei");
+  });
+});
+
 describe("createDeepLProvider: key from env only", () => {
   let saved: string | undefined;
   beforeEach(() => {

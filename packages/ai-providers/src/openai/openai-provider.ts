@@ -52,15 +52,23 @@ export function createOpenAiProvider(
 
 function createMechanism(client: OpenAiClient, config: OpenAiConfig): LlmMechanism {
   return {
-    translate: async ({ payloadJson }): Promise<ReturnType<typeof extractOpenAiResult>> => {
+    translate: async ({ payloadJson, signal }): Promise<ReturnType<typeof extractOpenAiResult>> => {
       const body = buildOpenAiRequest(config, payloadJson);
-      const completion = await callClient(client, body);
+      const completion = await callClient(client, body, signal);
       return extractOpenAiResult(completion);
     },
   };
 }
 
-/** Call the provider through the shared guard so a raw SDK error never leaks. */
-function callClient(client: OpenAiClient, body: OpenAiRequest): Promise<OpenAiCompletion> {
-  return guardProviderCall(() => client.chat.completions.create(body));
+/** Call the provider through the shared guard so a raw SDK error never leaks; threads the signal
+ * into both the guard's abort handling and the SDK call itself. */
+function callClient(
+  client: OpenAiClient,
+  body: OpenAiRequest,
+  signal: AbortSignal | undefined,
+): Promise<OpenAiCompletion> {
+  return guardProviderCall(
+    () => client.chat.completions.create(body, signal !== undefined ? { signal } : undefined),
+    signal,
+  );
 }

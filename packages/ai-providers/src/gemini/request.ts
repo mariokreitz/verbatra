@@ -29,6 +29,8 @@ export interface GeminiRequest {
     readonly responseMimeType: "application/json";
     readonly responseSchema: Record<string, unknown>;
     readonly maxOutputTokens: number;
+    /** Cancellation signal; @google/genai reads this from the request's config, not a call option. */
+    readonly abortSignal?: AbortSignal;
   };
 }
 
@@ -36,8 +38,15 @@ export interface GeminiRequest {
  * Build the generateContent body from the serialized data payload. The static system
  * rules go in the instruction channel and the user turn carries the JSON payload (the
  * data channel); the responseSchema is transformed from the one canonical derivation.
+ *
+ * @param signal - Optional cancellation signal, carried in `config.abortSignal` (the shape
+ *   @google/genai itself expects it in), never as a separate call argument.
  */
-export function buildGeminiRequest(config: GeminiConfig, payloadJson: string): GeminiRequest {
+export function buildGeminiRequest(
+  config: GeminiConfig,
+  payloadJson: string,
+  signal?: AbortSignal,
+): GeminiRequest {
   return {
     model: config.model,
     contents: [{ role: "user", parts: [{ text: payloadJson }] }],
@@ -46,6 +55,7 @@ export function buildGeminiRequest(config: GeminiConfig, payloadJson: string): G
       responseMimeType: "application/json",
       responseSchema: toGeminiSchema(deriveJsonSchema(translationsResultSchema)),
       maxOutputTokens: config.maxOutputTokens,
+      ...(signal !== undefined ? { abortSignal: signal } : {}),
     },
   };
 }

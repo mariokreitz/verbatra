@@ -23,6 +23,8 @@ export interface LlmCompletionInput {
   readonly payloadJson: string;
   /** The keys the model must return, in request order; the mechanism constrains output to exactly these. */
   readonly requestedKeys: readonly string[];
+  /** The request's cancellation signal, if any; the mechanism threads it into its SDK call. */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -103,7 +105,11 @@ export async function runLlmTranslation(
   const data = validateRequest(request);
   const payloadJson = JSON.stringify(buildDataPayload(data));
   const requestedKeys = data.entries.map((entry) => entry.key);
-  const completion = await mechanism.translate({ payloadJson, requestedKeys });
+  const completion = await mechanism.translate({
+    payloadJson,
+    requestedKeys,
+    ...(request.signal !== undefined ? { signal: request.signal } : {}),
+  });
   const values = reconcileResult(completion.raw, requestedKeys);
   const integrity = checkBatchIntegrity(
     toIntegrityInputs(data.entries, values),
