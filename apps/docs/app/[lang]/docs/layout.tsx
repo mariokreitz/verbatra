@@ -1,6 +1,5 @@
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type { ReactNode } from "react";
-import { DocsSidebarLlmsLinks } from "@/components/docs-sidebar-llms-links";
 import type { Locale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 import { source } from "@/lib/source";
@@ -15,11 +14,7 @@ export default async function Layout({
   const { lang } = await params;
   const locale = lang as Locale;
   return (
-    <DocsLayout
-      {...(await baseOptions(locale))}
-      tree={source.getPageTree(locale)}
-      sidebar={{ footer: <DocsSidebarLlmsLinks /> }}
-    >
+    <DocsLayout {...(await baseOptions(locale))} tree={source.getPageTree(locale)}>
       {children}
     </DocsLayout>
   );
