@@ -74,6 +74,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Test root scripts
+        run: pnpm test:scripts
+
       - name: Upload coverage to Codecov
         # Upload from one matrix leg only so coverage is reported once.
         if: ${{ matrix.node == '22.14.0' }}

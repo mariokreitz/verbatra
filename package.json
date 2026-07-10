@@ -29,6 +29,7 @@
     "check:dts": "node scripts/check-published-dts.mjs",
     "check:studio-bundle": "node scripts/check-cli-studio-bundle.mjs",
     "verify:npm-publish": "node scripts/verify-npm-publish.mjs",
+    "test:scripts": "vitest run scripts",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
     "release": "changeset publish"

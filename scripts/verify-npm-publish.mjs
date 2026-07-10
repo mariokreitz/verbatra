@@ -17,6 +17,7 @@
 // Usage: PUBLISHED_PACKAGES_JSON='[{"name":"@verbatra/cli","version":"0.5.0"}]' node scripts/verify-npm-publish.mjs
 
 import { execFileSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 // Registry/CDN propagation right after `npm publish` can lag well past a few seconds. This step
 // runs once per release and a false failure here blocks a genuinely successful publish and forces
@@ -30,10 +31,12 @@ const RETRY_DELAY_MS = 15_000;
  */
 
 /**
+ * Parse and validate the publishedPackages payload. Pure (no env or I/O access), so it is
+ * unit-tested directly rather than through the environment variable.
+ * @param {string | undefined} raw
  * @returns {PublishedPackage[]}
  */
-function readPublishedPackages() {
-  const raw = process.env.PUBLISHED_PACKAGES_JSON;
+function parsePublishedPackages(raw) {
   if (!raw || raw.trim() === "") {
     throw new Error("PUBLISHED_PACKAGES_JSON is empty; nothing to verify.");
   }
@@ -68,6 +71,13 @@ function readPublishedPackages() {
     const record = /** @type {{ name: string; version: string }} */ (entry);
     return { name: record.name, version: record.version };
   });
+}
+
+/**
+ * @returns {PublishedPackage[]}
+ */
+function readPublishedPackages() {
+  return parsePublishedPackages(process.env.PUBLISHED_PACKAGES_JSON);
 }
 
 /**
@@ -145,8 +155,13 @@ async function main() {
   console.log("verify-npm-publish: all reported packages confirmed on the npm registry.");
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`verify-npm-publish: ${message}`);
-  process.exitCode = 1;
-});
+// Only run when invoked as a script, not when imported by the test file for the pure parser.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`verify-npm-publish: ${message}`);
+    process.exitCode = 1;
+  });
+}
+
+export { parsePublishedPackages };
