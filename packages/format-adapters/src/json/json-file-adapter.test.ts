@@ -1,10 +1,12 @@
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "../errors.js";
 import { createJsonFileAdapter, type JsonFileAdapterOptions } from "./json-file-adapter.js";
+
+const BOM = "﻿";
 
 type IcuKeys = JsonFileAdapterOptions["computeInvalidIcuKeys"];
 
@@ -82,5 +84,42 @@ describe("createJsonFileAdapter read boundary", () => {
     const { invalidIcuKeys } = await adapter.read(await tempFile('{"k":"v"}'), "en");
     expect(invalidIcuKeys).toEqual(["k"]);
     expect(entries).toEqual(["k"]);
+  });
+});
+
+describe("createJsonFileAdapter BOM handling", () => {
+  it("reads a UTF-8 JSON file with a leading BOM into entries instead of failing", async () => {
+    const { resource } = await makeAdapter().read(await tempFile(`${BOM}{"k":"v"}`), "en");
+    expect(resource.entries.get("k")?.value).toBe("v");
+  });
+
+  it("rejects a BOM-only file as INVALID_JSON, not a crash", async () => {
+    const error = await readError(makeAdapter().read(await tempFile(BOM), "en"));
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_JSON");
+  });
+
+  it("rejects an empty file as INVALID_JSON, not a crash", async () => {
+    const error = await readError(makeAdapter().read(await tempFile(""), "en"));
+    expect(error).toBeInstanceOf(AdapterError);
+    expect((error as AdapterError).code).toBe("INVALID_JSON");
+  });
+
+  it("never re-emits a BOM on write, for a source file that had one", async () => {
+    const path = await tempFile(`${BOM}{"k":"v"}`);
+    const { resource } = await makeAdapter().read(path, "en");
+    await makeAdapter().write(resource, path);
+    const written = await readFile(path, "utf8");
+    expect(written.charCodeAt(0)).not.toBe(0xfeff);
+    expect(JSON.parse(written)).toEqual({ k: "v" });
+  });
+
+  it("keeps a BOM-less file byte-stable in content on round-trip", async () => {
+    const path = await tempFile('{"k":"v"}');
+    const { resource } = await makeAdapter().read(path, "en");
+    await makeAdapter().write(resource, path);
+    const written = await readFile(path, "utf8");
+    expect(written.charCodeAt(0)).not.toBe(0xfeff);
+    expect(JSON.parse(written)).toEqual({ k: "v" });
   });
 });
