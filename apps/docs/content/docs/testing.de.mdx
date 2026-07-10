@@ -7,14 +7,12 @@ sind öffentlich, sodass du sie vor einem Upgrade prüfen kannst.
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E" /></a>
   <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
 </p>
 
 ## Was die Badges bedeuten
 
-- **CI**: Lint, Typprüfungen, Unit-Tests und der Produktions-Build laufen bei jedem Pull Request und auf `main`, über zwei Node-Versionen. CI erzwingt 90 Prozent Coverage für Zeilen, Funktionen, Anweisungen und Branches.
-- **E2E**: Die veröffentlichten Tarballs von `@verbatra/cli` und `@verbatra/sdk` werden in ein Wegwerf-Projekt installiert und über die echte Binary ausgeführt, sodass Packaging- und Bundling-Regressionen vor dem Release gefunden werden.
+- **CI**: Lint, Typprüfungen, Unit-Tests und der Produktions-Build laufen bei jedem Pull Request und auf `main`, über zwei Node-Versionen. Der `e2e`-Job in diesem Workflow installiert die veröffentlichten Tarballs von `@verbatra/cli` und `@verbatra/sdk` in ein Wegwerf-Projekt und führt sie über die echte Binary aus, sodass Packaging- und Bundling-Regressionen vor dem Release gefunden werden. CI erzwingt 90 Prozent Coverage für Zeilen, Funktionen, Anweisungen und Branches.
 - **Coverage**: Die aktuelle Coverage, die aus dem CI-Lauf auf `main` an Codecov gemeldet wird.
 
 ## Wie getestet wird

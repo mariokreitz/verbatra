@@ -7,14 +7,12 @@ sont publics, de sorte que tu peux les vérifier avant de mettre à jour.
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E" /></a>
   <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
 </p>
 
 ## Ce que signifient les badges
 
-- **CI** : le lint, les vérifications de types, les tests unitaires et le build de production s'exécutent sur chaque pull request et sur `main`, sur deux versions de Node. CI impose 90 pour cent de couverture sur les lignes, les fonctions, les instructions et les branches.
-- **E2E** : les tarballs publiés de `@verbatra/cli` et `@verbatra/sdk` sont installés dans un projet jetable et pilotés via le vrai binaire, de sorte que les régressions d'empaquetage et de bundling sont détectées avant la publication.
+- **CI** : le lint, les vérifications de types, les tests unitaires et le build de production s'exécutent sur chaque pull request et sur `main`, sur deux versions de Node. Le job `e2e` de ce même workflow installe les tarballs publiés de `@verbatra/cli` et `@verbatra/sdk` dans un projet jetable et les pilote via le vrai binaire, de sorte que les régressions d'empaquetage et de bundling sont détectées avant la publication. CI impose 90 pour cent de couverture sur les lignes, les fonctions, les instructions et les branches.
 - **Coverage** : la couverture la plus récente rapportée à Codecov depuis l'exécution de CI sur `main`.
 
 ## Comment c'est testé

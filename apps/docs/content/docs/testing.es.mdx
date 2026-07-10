@@ -6,14 +6,12 @@ verbatra está hecho para que dependas de él. Cada cambio pasa por una suite de
 
 <p align="center">
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/e2e.yml/badge.svg?branch=main" alt="E2E" /></a>
   <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
 </p>
 
 ## Qué significan los badges
 
-- **CI**: el lint, las comprobaciones de tipos, las pruebas unitarias y el build de producción se ejecutan en cada pull request y en `main`, sobre dos versiones de Node. CI exige un 90 por ciento de cobertura en líneas, funciones, sentencias y ramas.
-- **E2E**: los tarballs publicados de `@verbatra/cli` y `@verbatra/sdk` se instalan en un proyecto desechable y se ejecutan a través del binario real, así que las regresiones de empaquetado y bundling se detectan antes del release.
+- **CI**: el lint, las comprobaciones de tipos, las pruebas unitarias y el build de producción se ejecutan en cada pull request y en `main`, sobre dos versiones de Node. El job `e2e` de ese mismo workflow instala los tarballs publicados de `@verbatra/cli` y `@verbatra/sdk` en un proyecto desechable y los ejecuta a través del binario real, así que las regresiones de empaquetado y bundling se detectan antes del release. CI exige un 90 por ciento de cobertura en líneas, funciones, sentencias y ramas.
 - **Coverage**: la cobertura más reciente reportada a Codecov desde la ejecución de CI en `main`.
 
 ## Cómo se prueba
