@@ -37,7 +37,7 @@ The action runs the CLI, so it reads the provider's API key from the environment
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | - | the `@verbatra/cli` version to run, e.g. `0.3.0`. Pin this to an exact version; do not use a floating tag such as `latest` |
+| `version` | yes | - | the `@verbatra/cli` version to run, e.g. `0.3.0`. Must be an exact semver version; the step fails immediately with a clear error on a dist-tag such as `latest`, a range, or a `^`/`~` prefix |
 | `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
 | `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
 | `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |

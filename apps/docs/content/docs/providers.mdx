@@ -141,7 +141,7 @@ It is a real risk only when you also configure a key (via `apiKeyEnvVar` or `OPE
 
 ### Tolerant parsing for local and smaller models
 
-`openai-compatible` requests the same strict, schema-constrained response format as the hosted `openai` provider, so a compliant server is asked for exactly the shape verbatra expects. The one difference is on the way back: local and smaller models are less reliable than the hosted LLM providers at actually honoring that constraint, and more likely to wrap an otherwise-correct answer in a Markdown code fence (a ` ```json ` block) despite being asked not to. `openai-compatible` tolerantly strips a single leading and trailing code fence before parsing, where the hosted `openai` provider does not. Its output still runs through the exact same schema validation and placeholder and ICU integrity checks as every other provider: a local model's output is untrusted input like any provider's, and a malformed or placeholder-mismatched response is rejected the same way.
+`openai-compatible` requests the same strict, schema-constrained response format as the hosted `openai` provider, so a compliant server is asked for exactly the shape verbatra expects. The one difference is on the way back: local and smaller models are less reliable than the hosted LLM providers at actually honoring that constraint, and more likely to wrap an otherwise-correct answer in surrounding prose or a Markdown code fence despite being asked not to. `openai-compatible` parses tolerantly: it extracts the first balanced JSON object anywhere in the response before parsing, so surrounding prose or a code fence is ignored, where the hosted `openai` provider does not do this extraction. Its output still runs through the exact same schema validation and placeholder and ICU integrity checks as every other provider: a local model's output is untrusted input like any provider's, and a malformed or placeholder-mismatched response is rejected the same way.
 
 <Callout title="Not yet in verbatra init">
 `verbatra init` does not currently offer `openai-compatible` as a scaffold option, since it has no single required environment variable to prompt for. Add the provider block above to your config by hand; everything else in this guide (glossary, tone, output-token limits) applies to it the same as any LLM provider.
@@ -156,13 +156,13 @@ The optional `tone` and `glossary` config fields (see [Configuration](/docs/conf
 
 ## Output-token limits
 
-The three LLM providers (Anthropic, OpenAI, and Gemini) cap how many tokens a single response may produce. When a provider stops because it hit that cap (Anthropic `stop_reason` `max_tokens`, OpenAI `finish_reason` `length`, Gemini `MAX_TOKENS`), verbatra raises a distinct structured error with code `OUTPUT_TRUNCATED` instead of a generic malformed-response failure. The message is fixed:
+The four LLM providers (Anthropic, OpenAI, Gemini, and openai-compatible) cap how many tokens a single response may produce. When a provider stops because it hit that cap (Anthropic `stop_reason` `max_tokens`, Gemini `MAX_TOKENS`, or `finish_reason` `length` for OpenAI and openai-compatible, which share the same response handling), verbatra raises a distinct structured error with code `OUTPUT_TRUNCATED` instead of a generic malformed-response failure. The message is fixed:
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
 You have two levers, and either one resolves it:
 
 - Lower `maxBatchSize` in your config (see [Configuration](/docs/config-file)) so each request translates fewer entries and produces a smaller response. This is config-only and applies to every provider.
-- Raise the per-response token budget on the provider: `maxTokens` for Anthropic, or `maxOutputTokens` for OpenAI and Gemini (the options shown in the blocks above).
+- Raise the per-response token budget on the provider: `maxTokens` for Anthropic, or `maxOutputTokens` for OpenAI, Gemini, and openai-compatible (the options shown in the blocks above).
 
 DeepL is not affected. It is a machine-translation service and does not run through the LLM layer, so it has no output-token truncation case.

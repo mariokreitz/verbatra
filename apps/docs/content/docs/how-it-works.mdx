@@ -55,7 +55,7 @@ from your config. verbatra splits them into sequential sub-batches of at most `m
 If a sub-batch call fails, it's withheld and retried on the next run while the others keep making
 progress. How the inputs get applied depends on the provider.
 
-- The LLM providers (Anthropic, OpenAI, Gemini) get the entries, the glossary, and the tone in a
+- The LLM providers (Anthropic, OpenAI, Gemini, and openai-compatible) get the entries, the glossary, and the tone in a
   structured data payload, with instructions to treat the glossary terms as binding and to honor the
   tone. The model is constrained to return one value per requested key.
 - DeepL is a machine-translation service, so it maps the same inputs to its own options. Tone becomes
@@ -105,6 +105,6 @@ missing API key, or a corrupt lock file) stops the run with a structured error. 
 failing is not fatal: it lands on that locale's entry with a code and a message, and the rest of the
 locales still run.
 
-When an LLM provider (Anthropic, OpenAI, Gemini) stops because it hit the output-token limit, that
+When an LLM provider (Anthropic, OpenAI, Gemini, or openai-compatible) stops because it hit the output-token limit, that
 sub-batch fails with a distinct `OUTPUT_TRUNCATED` error telling you to use a smaller batch size or a
 higher max output tokens. This doesn't apply to DeepL. See [Providers](/docs/providers).

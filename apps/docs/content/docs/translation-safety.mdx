@@ -22,6 +22,11 @@ gets withheld. So if the source is `Welcome, {{name}}` and the model returns `Bi
 `{{name}}` gone, verbatra holds it back rather than shipping a broken string. See
 [Formats](/docs/formats) for the syntax of each.
 
+For next-intl and ARB, the comparison is branch-aware: a plural or select argument is checked category
+by category against its matching source branch, instead of flattening the whole message into one set
+first. A placeholder fabricated inside a single branch is caught even if that same placeholder
+legitimately exists in another branch of the source.
+
 ## ICU validity
 
 For the ICU formats, next-intl and ARB, verbatra parses each source value. A source key whose value
