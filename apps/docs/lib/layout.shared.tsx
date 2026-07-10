@@ -28,7 +28,6 @@ function localized(locale: Locale, path: string): string {
 // Shared nav chrome for the home, legal, and docs layouts, with strings from the next-intl catalog.
 export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
   const t = await getTranslations({ locale, namespace: "landing.nav" });
-  const tLlms = await getTranslations({ locale, namespace: "docs.llms" });
   return {
     nav: {
       url: localized(locale, "/"),
@@ -67,21 +66,13 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
     // them here duplicated them in the docs rail. The GitHub icon and search trigger sit in the
     // right-side actions.
     //
-    // The llms.txt pair is `on: "menu"` only, so it renders inside the docs sidebar's scrollable
-    // link list (above the page tree, via Fumadocs' own menuItems mechanism) and never the top
-    // nav bar. An earlier attempt pinned these into DocsLayout's `sidebar.footer` slot instead,
-    // which sits in a fixed-height chrome region below the page tree's scroll area and squeezed
-    // it; menuItems live inside the same scrollable viewport as the page tree, so they cannot.
+    // The llms.txt pair is NOT here: Fumadocs' `links`/`menuItems` mechanism always renders above
+    // the page tree with no way to reorder it, which put "For AI agents" ahead of the real docs
+    // navigation. It is appended to the end of the page tree itself instead; see
+    // lib/docs-page-tree.ts and its use in app/[lang]/docs/layout.tsx.
     links: [
       { text: t("docs"), url: localized(locale, "/docs") },
       { text: t("contributing"), url: CONTRIBUTING_URL, external: true },
-      {
-        type: "custom",
-        on: "menu",
-        children: <p className="px-2 pt-4 first:pt-0">{tLlms("heading")}</p>,
-      },
-      { text: tLlms("index"), url: "/llms.txt", on: "menu" },
-      { text: tLlms("full"), url: "/llms-full.txt", on: "menu" },
     ],
     githubUrl: "https://github.com/mariokreitz/verbatra",
     // The theme is forced dark via RootProvider, so the theme-switch control is removed.
