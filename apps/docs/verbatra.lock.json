@@ -2,6 +2,9 @@
   "version": 1,
   "locales": {
     "de": {
+      "docs.llms.full": "5657398d7176a925",
+      "docs.llms.heading": "a1841afa36ba7889",
+      "docs.llms.index": "e7a9c36a7c84394b",
       "docs.machineTranslated.text": "5575fa80ddfda90d",
       "docs.machineTranslated.title": "91c38047eabf4707",
       "docs.machineTranslated.viewOriginal": "3901155146b8b2d6",
@@ -44,6 +47,8 @@
       "landing.footer.cols.product.title": "0a942447c6b719a9",
       "landing.footer.cols.project.codeOfConduct": "2d6d73faa82fb03a",
       "landing.footer.cols.project.configFile": "e2f4144b09ee80f8",
+      "landing.footer.cols.project.llmsFull": "5657398d7176a925",
+      "landing.footer.cols.project.llmsIndex": "e7a9c36a7c84394b",
       "landing.footer.cols.project.security": "28d2cdd97c376410",
       "landing.footer.cols.project.title": "c9a7eb21037d918b",
       "landing.footer.githubAria": "af60e8637dc76d8b",
@@ -139,6 +144,9 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "es": {
+      "docs.llms.full": "5657398d7176a925",
+      "docs.llms.heading": "a1841afa36ba7889",
+      "docs.llms.index": "e7a9c36a7c84394b",
       "docs.machineTranslated.text": "5575fa80ddfda90d",
       "docs.machineTranslated.title": "91c38047eabf4707",
       "docs.machineTranslated.viewOriginal": "3901155146b8b2d6",
@@ -181,6 +189,8 @@
       "landing.footer.cols.product.title": "0a942447c6b719a9",
       "landing.footer.cols.project.codeOfConduct": "2d6d73faa82fb03a",
       "landing.footer.cols.project.configFile": "e2f4144b09ee80f8",
+      "landing.footer.cols.project.llmsFull": "5657398d7176a925",
+      "landing.footer.cols.project.llmsIndex": "e7a9c36a7c84394b",
       "landing.footer.cols.project.security": "28d2cdd97c376410",
       "landing.footer.cols.project.title": "c9a7eb21037d918b",
       "landing.footer.githubAria": "af60e8637dc76d8b",
@@ -276,6 +286,9 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "fr": {
+      "docs.llms.full": "5657398d7176a925",
+      "docs.llms.heading": "a1841afa36ba7889",
+      "docs.llms.index": "e7a9c36a7c84394b",
       "docs.machineTranslated.text": "5575fa80ddfda90d",
       "docs.machineTranslated.title": "91c38047eabf4707",
       "docs.machineTranslated.viewOriginal": "3901155146b8b2d6",
@@ -318,6 +331,8 @@
       "landing.footer.cols.product.title": "0a942447c6b719a9",
       "landing.footer.cols.project.codeOfConduct": "2d6d73faa82fb03a",
       "landing.footer.cols.project.configFile": "e2f4144b09ee80f8",
+      "landing.footer.cols.project.llmsFull": "5657398d7176a925",
+      "landing.footer.cols.project.llmsIndex": "e7a9c36a7c84394b",
       "landing.footer.cols.project.security": "28d2cdd97c376410",
       "landing.footer.cols.project.title": "c9a7eb21037d918b",
       "landing.footer.githubAria": "af60e8637dc76d8b",
