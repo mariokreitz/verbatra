@@ -54,6 +54,19 @@ describe("runLlmTranslation: success path", () => {
     expect(result.usage).toBeUndefined();
   });
 
+  it("returns notices as a present, empty array, with or without usage", async () => {
+    const withUsage = stubMechanism(rawResult([{ key: "greeting", value: "Hallo {{name}}" }]), {
+      inputTokens: 1,
+      outputTokens: 1,
+    });
+    const withUsageResult = await runLlmTranslation(request(), withUsage.mechanism);
+    expect(withUsageResult.notices).toEqual([]);
+
+    const withoutUsage = stubMechanism(rawResult([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const withoutUsageResult = await runLlmTranslation(request(), withoutUsage.mechanism);
+    expect(withoutUsageResult.notices).toEqual([]);
+  });
+
   it("records a placeholder integrity mismatch instead of throwing", async () => {
     const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo" }]));
     const result = await runLlmTranslation(request(), mechanism);

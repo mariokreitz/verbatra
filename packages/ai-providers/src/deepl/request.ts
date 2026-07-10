@@ -1,5 +1,5 @@
-import type { Tone } from "../provider.js";
-import type { DeepLTranslateOptions, ProviderNotice } from "./types.js";
+import type { ProviderNotice, Tone } from "../provider.js";
+import type { DeepLTranslateOptions } from "./types.js";
 
 /** Inputs to the option builder, all derived from config, key, and request, with no key value. */
 export interface TranslateOptionsInput {

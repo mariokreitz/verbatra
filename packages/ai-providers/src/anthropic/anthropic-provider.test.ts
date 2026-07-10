@@ -46,6 +46,12 @@ describe("createAnthropicProvider: identity", () => {
     expect(provider.kind).toBe("llm");
     expect(provider.supportsGlossary).toBe(true);
   });
+
+  it("returns notices as a present, empty array (LLM providers never degrade)", async () => {
+    const { client } = stubClient(toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const result = await createAnthropicProvider(config, { client }).translateBatch(request());
+    expect(result.notices).toEqual([]);
+  });
 });
 
 describe("createAnthropicProvider: request building", () => {
