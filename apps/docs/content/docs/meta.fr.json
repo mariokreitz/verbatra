@@ -1,26 +1,4 @@
 {
   "title": "Documentation",
-  "pages": [
-    "---Démarrer---",
-    "index",
-    "your-first-translation",
-    "add-a-language",
-    "---Configurer---",
-    "config-file",
-    "providers",
-    "formats",
-    "cli",
-    "---Automatiser---",
-    "github-action",
-    "ci-and-exit-codes",
-    "manual-translation",
-    "---Sous le capot---",
-    "how-it-works",
-    "the-lock-file",
-    "translation-safety",
-    "testing",
-    "---SDK---",
-    "sdk",
-    "programmatic-api"
-  ]
+  "pages": ["index", "(get-started)", "(configure)", "(automate)", "(under-the-hood)", "(sdk)"]
 }
