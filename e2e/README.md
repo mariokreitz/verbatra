@@ -23,7 +23,8 @@ request can modify.
   smoke, the `watch` subcommand help, `init` scaffolding, `check` / `diff` / `export` across
   i18next, YAML, and ARB, `translate --dry-run`, and a full `export` then `import` round-trip
   (a workbook filled in code the way a translator would). It makes no provider call, so it is
-  deterministic and free, and gates every pull request and push via `.github/workflows/e2e.yml`.
+  deterministic and free, and gates every pull request and push as the `e2e` job in
+  `.github/workflows/ci.yml`.
 - **Live tier** (`tests/translate.e2e.test.ts`, `tests/watch.e2e.test.ts`, run with `npm test`):
   real `translate` and `watch` against a live provider. It needs `E2E_PROVIDER` (default
   `gemini`) and the matching API key, and skips otherwise. `.github/workflows/e2e-live.yml`
