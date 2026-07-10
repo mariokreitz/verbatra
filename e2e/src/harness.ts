@@ -35,7 +35,13 @@ export async function makeConsumer(): Promise<Consumer> {
 }
 
 export interface RunResult {
-  exitCode: number;
+  /**
+   * The process exit code, or `null` when the process never reported one (killed by a signal, or
+   * failed to spawn). Never coerced to 0: a signal-killed run must not read as a successful one.
+   */
+  exitCode: number | null;
+  /** The signal that terminated the process, or `null` when it exited normally. */
+  signal: string | null;
   stdout: string;
   stderr: string;
 }
@@ -50,7 +56,12 @@ export async function runVerbatra(
     env: { ...process.env, ...options.env },
     reject: false,
   });
-  return { exitCode: result.exitCode ?? 0, stdout: result.stdout, stderr: result.stderr };
+  return {
+    exitCode: result.exitCode ?? null,
+    signal: result.signal ?? null,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 export function spawnVerbatra(
