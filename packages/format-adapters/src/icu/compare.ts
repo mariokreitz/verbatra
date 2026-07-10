@@ -80,21 +80,56 @@ function branchesByCategory(
   );
 }
 
+/**
+ * The first not-yet-consumed element of `target` at or after index 0 that satisfies `isMatch`, paired with
+ * its index. Callers mark the index consumed so a repeated argument or tag name at the same nesting level
+ * pairs positionally (first source occurrence to first target occurrence, second to second, ...) instead of
+ * an unconstrained search repeatedly returning the same target node for every same-named source node.
+ */
+function findUnconsumed<T extends MessageFormatElement>(
+  target: readonly MessageFormatElement[],
+  consumed: ReadonlySet<number>,
+  isMatch: (candidate: MessageFormatElement) => candidate is T,
+): { readonly element: T; readonly index: number } | undefined {
+  for (let index = 0; index < target.length; index += 1) {
+    if (consumed.has(index)) {
+      continue;
+    }
+    const candidate = target[index];
+    if (candidate !== undefined && isMatch(candidate)) {
+      return { element: candidate, index };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * A target plural/select node matching `source` by argument NAME alone (`element.value`), per the ADR:
+ * a plural translated as a select (or vice versa) under the same argument name still matches, so the
+ * branch-level comparison in `compareBranching` runs and can surface a placeholder fabricated under the
+ * mismatched type, instead of the type check silently hiding the whole node from comparison.
+ */
 function findMatchingBranching(
   source: BranchingElement,
   target: readonly MessageFormatElement[],
-): BranchingElement | undefined {
-  return target.find(
+  consumed: ReadonlySet<number>,
+): { readonly element: BranchingElement; readonly index: number } | undefined {
+  return findUnconsumed(
+    target,
+    consumed,
     (candidate): candidate is BranchingElement =>
-      isBranching(candidate) && candidate.type === source.type && candidate.value === source.value,
+      isBranching(candidate) && candidate.value === source.value,
   );
 }
 
 function findMatchingTag(
   source: TagElement,
   target: readonly MessageFormatElement[],
-): TagElement | undefined {
-  return target.find(
+  consumed: ReadonlySet<number>,
+): { readonly element: TagElement; readonly index: number } | undefined {
+  return findUnconsumed(
+    target,
+    consumed,
     (candidate): candidate is TagElement => isTag(candidate) && candidate.value === source.value,
   );
 }
@@ -157,22 +192,32 @@ function compareBranching(
   return combineResults(results);
 }
 
-/** Recurse into every matched plural/select or tag pair at this nesting level, merging their results. */
+/**
+ * Recurse into every matched plural/select or tag pair at this nesting level, merging their results.
+ * One `consumed` set is shared across both kinds of matching (a target index is a plural/select node or a
+ * tag, never both), so a target node matched to one source node can never be matched again to a later
+ * source node with the same argument or tag name: duplicate names at the same nesting level, valid ICU
+ * syntax, pair positionally in document order instead of every source occurrence latching onto the first
+ * same-named target node.
+ */
 function nestedResults(
   source: readonly MessageFormatElement[],
   target: readonly MessageFormatElement[],
 ): PlaceholderIntegrityResult[] {
   const results: PlaceholderIntegrityResult[] = [];
+  const consumed = new Set<number>();
   for (const element of source) {
     if (isBranching(element)) {
-      const match = findMatchingBranching(element, target);
-      if (match !== undefined) {
-        results.push(compareBranching(element, match));
+      const found = findMatchingBranching(element, target, consumed);
+      if (found !== undefined) {
+        consumed.add(found.index);
+        results.push(compareBranching(element, found.element));
       }
     } else if (isTag(element)) {
-      const match = findMatchingTag(element, target);
-      if (match !== undefined) {
-        results.push(compareElements(element.children, match.children));
+      const found = findMatchingTag(element, target, consumed);
+      if (found !== undefined) {
+        consumed.add(found.index);
+        results.push(compareElements(element.children, found.element.children));
       }
     }
   }

@@ -213,6 +213,42 @@ describe("compareIcuPlaceholders: an unmatched tag is not recursed into", () => 
   });
 });
 
+describe("compareIcuPlaceholders: type-mismatched branching nodes still compare (code review follow-up)", () => {
+  it("flags a placeholder invented under a select translated from a plural with the same argument name", () => {
+    // Reviewer's exact repro: the old `candidate.type === source.type` check made a plural-to-select
+    // rename under the same argument name ("count") fail to match at all, so neither the branch-aware
+    // layer nor the flat fallback (tokenOf ignores node type) ever saw {author}.
+    const source = "{count, plural, one {# item} other {# items}}";
+    const target = "{count, select, one {# item} other {# items by {author}}}";
+
+    const result = compareIcuPlaceholders(source, target);
+
+    expect(result.matches).toBe(false);
+    expect(result.extra).toEqual(["{author}"]);
+    expect(result.missing).toEqual([]);
+  });
+});
+
+describe("compareIcuPlaceholders: duplicate argument names at one nesting level (code review follow-up)", () => {
+  it("pairs same-named plural nodes positionally instead of both matching the first target node", () => {
+    // Two "count" plural nodes at the same level, valid ICU. The first pair is a correct translation
+    // that reuses {a}; the second pair fabricates {ghost}. An unconstrained find() would match both
+    // source nodes to the first target node: the correctly-translated second source node ({b}) would be
+    // falsely reported as missing/extra against the first target node, while the real fabrication in the
+    // second target node would go completely unchecked.
+    const source =
+      "{count, plural, one {{a} x} other {{a} y}} and {count, plural, one {{b} x} other {{b} y}}";
+    const target =
+      "{count, plural, one {{a} x} other {{a} y}} and {count, plural, one {{b} x {ghost}} other {{b} y}}";
+
+    const result = compareIcuPlaceholders(source, target);
+
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual([]);
+    expect(result.extra).toEqual(["{ghost}"]);
+  });
+});
+
 describe("compareIcuPlaceholders: nested select inside plural", () => {
   it("catches an invented placeholder inside a select nested within a plural branch", () => {
     const source =
