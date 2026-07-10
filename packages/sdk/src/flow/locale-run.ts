@@ -92,6 +92,9 @@ function buildRequest(
     extractPlaceholders: params.adapter.extractPlaceholders,
     ...(params.glossary !== undefined ? { glossary: params.glossary } : {}),
     ...(params.tone !== undefined ? { tone: params.tone } : {}),
+    ...(params.adapter.comparePlaceholders !== undefined
+      ? { comparePlaceholders: params.adapter.comparePlaceholders }
+      : {}),
   };
 }
 

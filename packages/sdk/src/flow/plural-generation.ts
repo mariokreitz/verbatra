@@ -107,6 +107,9 @@ function buildRequest(
     extractPlaceholders: context.adapter.extractPlaceholders,
     ...(context.glossary !== undefined ? { glossary: context.glossary } : {}),
     ...(context.tone !== undefined ? { tone: context.tone } : {}),
+    ...(context.adapter.comparePlaceholders !== undefined
+      ? { comparePlaceholders: context.adapter.comparePlaceholders }
+      : {}),
   };
 }
 
