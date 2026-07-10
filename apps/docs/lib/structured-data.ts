@@ -5,7 +5,7 @@ const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";
 
 const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js", "Flutter"];
-const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL"];
+const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL", "openai-compatible"];
 const SUPPORTED_FORMATS = [
   "i18next",
   "vue-i18n",
