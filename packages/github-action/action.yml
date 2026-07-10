@@ -7,7 +7,9 @@ inputs:
     description: >-
       The @verbatra/cli version to run, e.g. 1.2.3. PIN this to an exact version for reproducible,
       supply-chain-safe CI; do NOT use a floating tag such as "latest" (it pulls whatever is newest at
-      run time, which is non-reproducible and would auto-pull a compromised release). Required.
+      run time, which is non-reproducible and would auto-pull a compromised release). The action
+      rejects anything that is not an exact semver (dist-tags, ranges, and ^/~ prefixes all fail the
+      step). Required.
     required: true
   config-path:
     description: Explicit config file to load (maps to --config). Empty uses the normal config search.
@@ -34,9 +36,11 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
 
-    # Capture stdout and exit code without failing the step (a composite step aborts on non-zero, which
-    # would skip annotation). Inputs travel via env: as data and bash expands them into a quoted array,
-    # so a crafted value stays an argument and is never evaluated as shell.
+    # First rejects a version input that is not an exact semver (no dist-tags, ranges, or ^/~
+    # prefixes), which would otherwise let npx silently resolve an unpinned release. Past that guard,
+    # captures stdout and exit code without failing the step (a composite step aborts on non-zero,
+    # which would skip annotation). Inputs travel via env: as data and bash expands them into a quoted
+    # array, so a crafted value stays an argument and is never evaluated as shell.
     - name: Run verbatra translate
       id: run
       shell: bash
@@ -48,6 +52,10 @@ runs:
         SUMMARY_FILE: ${{ runner.temp }}/verbatra-summary.json
         ERROR_FILE: ${{ runner.temp }}/verbatra-error.txt
       run: |
+        if ! [[ "$VERBATRA_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+          echo "::error::version input '$VERBATRA_VERSION' is not an exact semver version (for example 1.2.3 or 1.2.3-next.0). Dist-tags such as 'latest', ranges, and prefixes such as '^' or '~' are not allowed."
+          exit 1
+        fi
         set +e
         args=(translate --json)
         if [ -n "$CONFIG_PATH" ]; then args+=(--config "$CONFIG_PATH"); fi
