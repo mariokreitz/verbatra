@@ -89,16 +89,15 @@ describe("withGeminiRetry: cancellation", () => {
     expect(call).toHaveBeenCalledTimes(1);
   });
 
-  it("returns early from the backoff wait once the signal aborts mid-delay", async () => {
+  it("does not retry once the signal aborts mid-delay, even though the wait resolves early", async () => {
     const controller = new AbortController();
-    const call = vi
-      .fn<() => Promise<string>>()
-      .mockRejectedValueOnce(new ApiError(429))
-      .mockResolvedValueOnce("ok");
+    const sentinel = new ApiError(429);
+    const call = vi.fn<() => Promise<string>>().mockRejectedValueOnce(sentinel);
     const promise = withGeminiRetry(call, controller.signal, { attempts: 3, baseDelayMs: 60_000 });
     // Abort during the backoff wait; the delay must resolve immediately instead of after 60s.
     queueMicrotask(() => controller.abort());
-    await expect(promise).resolves.toBe("ok");
+    await expect(promise).rejects.toBe(sentinel);
+    expect(call).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -22,18 +22,28 @@ function isRetryableStatus(error: unknown): boolean {
   return status === 429 || (status !== undefined && status >= 500 && status < 600);
 }
 
+/**
+ * Whether `signal` is currently aborted. Wrapped in its own function, rather than inlining
+ * `signal?.aborted === true` at each call site, so TypeScript's control-flow narrowing (which
+ * treats the readonly `aborted` property as unable to change) does not over-narrow a second check
+ * made after an `await` to a compile-time-impossible comparison.
+ */
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
 /** Wait `ms` milliseconds, or return early once `signal` aborts. Never rejects. */
 function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      "abort",
-      () => {
-        clearTimeout(timer);
-        resolve();
-      },
-      { once: true },
-    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -52,11 +62,14 @@ function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
  *
  * @param call - A thunk performing exactly the raw SDK call, retried as-is on each attempt.
  * @param signal - The caller's cancellation signal, if any; once aborted, a subsequent failed
- *   attempt stops retrying immediately instead of backing off again.
+ *   attempt stops retrying immediately instead of backing off again, and an abort that arrives
+ *   while backing off also stops retrying instead of starting another attempt.
  * @param config - Retry tuning; defaults to {@link DEFAULT_GEMINI_RETRY}.
  * @returns The first successful attempt's resolved value.
- * @throws The last attempt's raw, unclassified error: when every attempt failed, or the first
- *   non-retryable error was thrown.
+ * @throws The last attempt's raw, unclassified error: when every attempt failed, the first
+ *   non-retryable error was thrown, or the signal aborted (including mid-backoff). Downstream
+ *   classification treats any of these as an abort once `signal.aborted` is true, regardless of
+ *   which error is attached.
  */
 export async function withGeminiRetry<T>(
   call: () => Promise<T>,
@@ -69,10 +82,15 @@ export async function withGeminiRetry<T>(
       return await call();
     } catch (error) {
       const exhausted = attempt >= config.attempts;
-      if (exhausted || signal?.aborted === true || !isRetryableStatus(error)) {
+      if (exhausted || isAborted(signal) || !isRetryableStatus(error)) {
         throw error;
       }
       await delay(config.baseDelayMs * 2 ** (attempt - 1), signal);
+      // The delay can resolve early because the signal aborted mid-wait; re-check here instead
+      // of relying on `call()` to honor the signal itself, since that behavior is caller-specific.
+      if (isAborted(signal)) {
+        throw error;
+      }
       attempt += 1;
     }
   }
