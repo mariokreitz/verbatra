@@ -49,6 +49,38 @@ describe("lock-file", () => {
     });
   });
 
+  it("accepts a lock-file at the current version (regression guard)", async () => {
+    const dir = await makeTempDir();
+    const path = join(dir, "verbatra.lock.json");
+    await writeFile(path, JSON.stringify({ version: 1, locales: { de: { k: "v" } } }), "utf8");
+    const lock = await readLockFile(path, defaultFs);
+    expect(lock).toEqual({ version: 1, locales: { de: { k: "v" } } });
+  });
+
+  it("a lock-file from a newer, forward-incompatible version is LOCK_FILE_INVALID", async () => {
+    const dir = await makeTempDir();
+    const path = join(dir, "verbatra.lock.json");
+    await writeFile(path, JSON.stringify({ version: 2, locales: {} }), "utf8");
+    const error = await readLockFile(path, defaultFs).catch((e) => e);
+    expect(error).toBeInstanceOf(SdkError);
+    expect((error as SdkError).code).toBe("LOCK_FILE_INVALID");
+    expect((error as SdkError).message).toContain("version 2");
+  });
+
+  it("a lock-file with version 0 is LOCK_FILE_INVALID (schema floor, not reachable version-check)", async () => {
+    // CURRENT_VERSION = 1 and the schema requires a positive integer, so 1 is the lowest value
+    // that can ever pass shape validation: a "version below CURRENT_VERSION" case is unreachable
+    // today. This confirms version 0 is still rejected, via the pre-existing shape check; the
+    // version-equality check below it is deliberately `!==`, not `>`, so it would also reject an
+    // older version once CURRENT_VERSION is ever raised above 1.
+    const dir = await makeTempDir();
+    const path = join(dir, "verbatra.lock.json");
+    await writeFile(path, JSON.stringify({ version: 0, locales: {} }), "utf8");
+    await expect(readLockFile(path, defaultFs)).rejects.toMatchObject({
+      code: "LOCK_FILE_INVALID",
+    });
+  });
+
   it("baselineFor returns the locale map, empty for an unknown locale", () => {
     const lock = { version: 1, locales: { de: { greeting: "abc" } } };
     expect(baselineFor(lock, "de").get("greeting")).toBe("abc");
