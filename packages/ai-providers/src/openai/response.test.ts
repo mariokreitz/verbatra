@@ -145,4 +145,24 @@ describe("extractOpenAiResult: tolerant=true", () => {
       expect((error as ProviderError).code).toBe("INVALID_RESPONSE");
     }
   });
+
+  it("parses a JSON string value with an escaped quote immediately before the closing brace", () => {
+    const completion = openAiCompletion({
+      content: 'Here you go: {"translations":[{"key":"a","value":"hi\\""}]}',
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "a", value: 'hi"' }] });
+  });
+
+  it("known limitation: an unbalanced '{' in preamble before the real fenced JSON aborts extraction", () => {
+    const completion = openAiCompletion({
+      content: 'Set locale to {de then:\n```json\n{"translations":[{"key":"a","value":"A"}]}\n```',
+    });
+    try {
+      extractOpenAiResult(completion, true);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect((error as ProviderError).code).toBe("INVALID_RESPONSE");
+    }
+  });
 });

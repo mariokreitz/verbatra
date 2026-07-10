@@ -74,6 +74,15 @@ function scanBalancedObjectEnd(content: string, start: number): number | null {
  * targets the tolerant local-model path, where the observed failure mode is malformed or
  * fence-wrapped output, not well-formed decoys.
  *
+ * Known limitation: a single unbalanced `{` in prose that precedes the real JSON answer (for
+ * example a model saying `Set locale to {de then:` before the fenced object) makes
+ * {@link scanBalancedObjectEnd} treat the real object's own braces as nested inside that opened
+ * scope. The scan never returns to depth 0, so extraction reports the object as never closed and
+ * the whole call fails with `INVALID_RESPONSE`, even though a well-formed object follows later in
+ * the content. This is accepted rather than fixed: recovering by rewinding into an unclosed
+ * candidate and retrying from every later `{` would reintroduce a quadratic-time scan on
+ * adversarial input, which the fail-fast-on-unclosed design here deliberately avoids.
+ *
  * @param content - The raw message content, possibly wrapped in prose or Markdown fences.
  */
 function extractBalancedJson(content: string): string | null {
