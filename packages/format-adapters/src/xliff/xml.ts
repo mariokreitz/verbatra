@@ -5,6 +5,7 @@ import { type BoundedReadOutcome, readBounded } from "../json/bounded-read.js";
 import { extractXliffPlaceholders } from "./placeholders.js";
 
 const ELEMENT_NODE = 1;
+const TEXT_NODE = 3;
 
 /** A resolved trans-unit slot: where to read the value from and where to write the target. */
 interface Unit {
@@ -188,12 +189,111 @@ async function readDestination(filePath: string): Promise<string> {
  * The genuine XLIFF inline elements allowed to survive as live elements inside a written
  * `<target>`. Anything else in a translated value (an unexpected tag, a script-bearing element, or
  * any other markup a provider or translator might introduce) degrades the whole value to a text
- * node instead, the same fallback already used for unbalanced markup.
+ * node instead, the same fallback already used for unbalanced markup. An element only qualifies when
+ * it also carries an allowed namespace (see {@link isAllowedInlineElement}); an element with the same
+ * local name under any other namespace is rejected.
  */
 const XLIFF_INLINE_ELEMENTS = new Set(["x", "g", "bx", "ex", "ph", "it", "mrk"]);
 
-function hasDisallowedElement(root: Element): boolean {
-  return collectByTag(root, "*").some((el) => !XLIFF_INLINE_ELEMENTS.has(el.localName ?? ""));
+/**
+ * The XLIFF 1.2 and 2.0 document namespaces. A source document that declares a default `xmlns` on
+ * its root propagates that namespace onto every inline element `innerXml` serializes out of it, so a
+ * translated value re-derived from that source (for example a seeded, not-yet-translated target)
+ * legitimately carries this namespace on its inline elements. An element with no namespace at all
+ * (the common case, since translators and providers typically write bare `<g id="1">` with no
+ * `xmlns`) is also accepted; any other namespace is attacker-controlled and rejected.
+ */
+const XLIFF_NAMESPACES = new Set([
+  "urn:oasis:names:tc:xliff:document:1.2",
+  "urn:oasis:names:tc:xliff:document:2.0",
+]);
+
+/**
+ * The attributes each allow-listed inline element keeps once it survives the filter. This is a
+ * minimal, per-element allow-list rather than "strip everything": `id` identifies or pairs an inline
+ * code, `rid` pairs a `bx` (begin) with its matching `ex` (end), and `ctype`/`pos`/`mtype` are free-text
+ * metadata describing the original inline markup (for example "bold" or "italic"). None of these
+ * carry a URL, an event handler, or style data, so none provide an execution or navigation sink. Every
+ * other attribute (`xlink:href`, `on*` handlers, `style`, unrecognized `xmlns*` declarations, and
+ * anything else) is stripped, regardless of which element it appears on.
+ */
+const INLINE_ELEMENT_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
+  x: ["id", "ctype"],
+  ph: ["id", "ctype"],
+  g: ["id", "ctype"],
+  bx: ["id", "rid", "ctype"],
+  ex: ["id", "rid"],
+  it: ["id", "pos", "ctype"],
+  mrk: ["id", "mtype"],
+};
+
+/**
+ * An allow-listed inline element, matched by local name, whose namespace is either absent or one of
+ * {@link XLIFF_NAMESPACES}. Any other namespace (an attacker-chosen one, or a genuine but unrelated
+ * one) is rejected even when the local name matches.
+ */
+function isAllowedInlineElement(element: Element): boolean {
+  const namespace = element.namespaceURI;
+  const hasAllowedNamespace = namespace === null || XLIFF_NAMESPACES.has(namespace);
+  return hasAllowedNamespace && XLIFF_INLINE_ELEMENTS.has(element.localName ?? "");
+}
+
+/** True for a plain text node, or an element that passes {@link isAllowedInlineElement}. */
+function isAllowedFragmentNode(node: Node): boolean {
+  if (node.nodeType === TEXT_NODE) {
+    return true;
+  }
+  return isElement(node) && isAllowedInlineElement(node);
+}
+
+/**
+ * Every node reachable under `root`, at any depth, in document order. Walking every node (not just
+ * elements) is what lets {@link hasDisallowedNode} catch CDATA sections, comments, and processing
+ * instructions in addition to unexpected elements.
+ */
+function allDescendantNodes(node: Node): Node[] {
+  const children = Array.from(node.childNodes);
+  return children.flatMap((child) => [child, ...allDescendantNodes(child)]);
+}
+
+/**
+ * True when the fragment contains anything other than plain text and allow-listed, unnamespaced
+ * inline elements: an unexpected or namespaced element, a CDATA section, a comment, or a processing
+ * instruction. Any of these degrades the whole value to a single escaped text node in
+ * {@link fragmentNodes}, so none of them reach the written `<target>` as live markup.
+ */
+function hasDisallowedNode(root: Element): boolean {
+  return allDescendantNodes(root).some((node) => !isAllowedFragmentNode(node));
+}
+
+/** The qualified names of every attribute on `element`, snapshotted before any removal. */
+function attributeNames(element: Element): string[] {
+  const names: string[] = [];
+  for (let i = 0; i < element.attributes.length; i += 1) {
+    const attr = element.attributes.item(i);
+    if (attr !== null) {
+      names.push(attr.name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Strip every attribute not on that element's entry in {@link INLINE_ELEMENT_ATTRIBUTES}. Called only
+ * after {@link hasDisallowedNode} has confirmed every element in the fragment is on the inline
+ * allow-list, so `getElementsByTagName("*")` here only ever visits elements with a known attribute
+ * allow-list. Attribute names are snapshotted first (see {@link attributeNames}) because removing
+ * from the live `attributes` collection while iterating it would skip entries.
+ */
+function sanitizeInlineAttributes(root: Element): void {
+  for (const el of collectByTag(root, "*")) {
+    const allowed = INLINE_ELEMENT_ATTRIBUTES[el.localName ?? ""] ?? [];
+    for (const name of attributeNames(el)) {
+      if (!allowed.includes(name)) {
+        el.removeAttribute(name);
+      }
+    }
+  }
 }
 
 /**
@@ -202,17 +302,20 @@ function hasDisallowedElement(root: Element): boolean {
  * translated value is untrusted input (it may come from a provider or a human translator), so this
  * is a deliberate, narrow markup-interpreting surface: `assertNoDoctype` runs first and rejects a
  * DTD or entity declaration outright (this must stay outside the catch below, or the throw would be
- * swallowed into a silent text-node fallback), and any element outside the allow-list also fails the
- * fragment, degrading the entire value to a text node. Genuinely malformed or unbalanced markup takes
- * the same text-node fallback.
+ * swallowed into a silent text-node fallback); any node outside the allow-list checked by
+ * {@link hasDisallowedNode}, including a namespaced element, a CDATA section, a comment, or a
+ * processing instruction, also fails the fragment, degrading the entire value to a text node.
+ * Surviving elements then have their attributes narrowed by {@link sanitizeInlineAttributes}.
+ * Genuinely malformed or unbalanced markup takes the same text-node fallback.
  */
 function fragmentNodes(parser: DOMParser, value: string): Node[] | null {
   assertNoDoctype(value);
   try {
     const root = parser.parseFromString(`<wrapper>${value}</wrapper>`, "text/xml").documentElement;
-    if (root === null || hasDisallowedElement(root)) {
+    if (root === null || hasDisallowedNode(root)) {
       return null;
     }
+    sanitizeInlineAttributes(root);
     return Array.from(root.childNodes);
   } catch {
     return null;
@@ -222,8 +325,11 @@ function fragmentNodes(parser: DOMParser, value: string): Node[] | null {
 /**
  * Write a translated value into a `<target>` element. The value is re-parsed as an XML fragment (see
  * {@link fragmentNodes}) so inline placeholder markup survives; anything that fails that narrow
- * allow-list, or is not well-formed XML at all, is written as a single plain text node instead, so a
- * translated value can never inject an arbitrary element into the document.
+ * allow-list, or is not well-formed XML at all, is written as a single plain text node instead. So a
+ * translated value can only ever contribute plain text or an allow-listed, unnamespaced inline
+ * element carrying its own minimal, non-executable attribute set; it can never inject an unexpected
+ * element, a namespaced element, CDATA, a comment, a processing instruction, or an attribute like
+ * `onclick` or `xlink:href` into the document.
  */
 function setTargetValue(doc: Document, parser: DOMParser, element: Element, value: string): void {
   while (element.firstChild !== null) {

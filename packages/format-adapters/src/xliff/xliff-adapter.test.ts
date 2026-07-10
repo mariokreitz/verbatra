@@ -17,6 +17,11 @@ const XLIFF_12 = `<?xml version="1.0" encoding="UTF-8"?>
 const XLIFF_20 = `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en" trgLang="fr"><file id="f1"><unit id="u1"><segment><source>Hello {name}</source><target>Bonjour {name}</target></segment></unit></file></xliff>`;
 
+const XLIFF_12_NAMESPACED = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"><file source-language="en" target-language="de"><body>
+<trans-unit id="g1"><source>Hi <g id="1">there</g></source></trans-unit>
+</body></file></xliff>`;
+
 async function tempFile(name: string, content: string): Promise<string> {
   const path = join(await mkdtemp(join(tmpdir(), "verbatra-xliff-")), name);
   await writeFile(path, content);
@@ -292,6 +297,95 @@ describe("createXliffAdapter write (round-trip fidelity)", () => {
     const written = await readFile(path, "utf8");
     expect(written).not.toContain("<b>");
     expect(written).toContain(`&lt;x id="1"/&gt;&lt;b&gt;bold&lt;/b&gt;`);
+  });
+
+  it("degrades an allow-listed local name carrying an attacker-chosen namespace to text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", {
+        ...u1,
+        value: '<foo:x xmlns:foo="http://evil.example">payload</foo:x>',
+      });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).not.toContain("<foo:x");
+    expect(written).toContain('&lt;foo:x xmlns:foo="http://evil.example"&gt;payload&lt;/foo:x&gt;');
+  });
+
+  it("strips non-allow-listed attributes from an otherwise allow-listed element", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", {
+        ...u1,
+        value:
+          '<x id="1" onclick="alert(1)" xlink:href="javascript:alert(1)" xmlns:xlink="http://www.w3.org/1999/xlink"/>',
+      });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).toContain('<target><x id="1"/></target>');
+    expect(written).not.toContain("onclick");
+    expect(written).not.toContain("xlink:href");
+  });
+
+  it("degrades a CDATA section in a translated value entirely to escaped text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: "<![CDATA[<script>alert(1)</script>]]>" });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).not.toContain("<![CDATA[");
+    expect(written).not.toContain("<script>");
+  });
+
+  it("degrades a processing instruction in a translated value entirely to escaped text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: '<?xml-stylesheet href="evil.xsl"?>' });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).not.toContain("<?xml-stylesheet");
+    expect(written).toContain("&lt;?xml-stylesheet");
+  });
+
+  it("keeps an inline allow-listed element live when the source document declares the XLIFF namespace", async () => {
+    const path = await tempFile("ns.xlf", XLIFF_12_NAMESPACED);
+    const { resource } = await adapter.read(path, "de");
+    expect(resource.entries.get("g1")?.value).toBe(
+      'Hi <g id="1" xmlns="urn:oasis:names:tc:xliff:document:1.2">there</g>',
+    );
+    await adapter.write(resource, path);
+    const reread = await adapter.read(path, "de");
+    expect(reread.resource.entries.get("g1")?.value).toContain("<g");
+    expect(reread.resource.entries.get("g1")?.value).not.toContain("&lt;g");
+  });
+
+  it("falls back to a text node when a translated value has unbalanced inline markup", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: '<g id="1">oops' });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).toContain('&lt;g id="1"&gt;oops');
   });
 
   it("raises INVALID_STRUCTURE when the destination path is not a regular file", async () => {
