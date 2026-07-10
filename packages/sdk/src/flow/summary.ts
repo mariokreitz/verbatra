@@ -51,11 +51,13 @@ export interface LocaleSummary {
    */
   readonly integrityMismatches: readonly string[];
   /**
-   * Keys withheld because the provider call itself failed (for example a revoked API key, a rate
-   * limit, or a network timeout), as distinct from a translation that came back and failed the
-   * placeholder-integrity check. Nothing was translated for these keys. The corresponding
-   * {@link LocaleSummary.notices} entry carries the secret-free failure code and message. Empty in a
-   * dry-run and empty unless a provider call threw.
+   * Keys withheld because nothing was translated for them this run, as distinct from a translation
+   * that came back and failed the placeholder-integrity check. This covers two causes: the provider
+   * call itself failed (for example a revoked API key, a rate limit, or a network timeout), in which
+   * case the corresponding {@link LocaleSummary.notices} entry carries the secret-free failure code
+   * and message; or the call succeeded but the key was still missing or duplicated in the response
+   * after the shared LLM layer's bounded reconcile repair round, in which case no notice is added.
+   * Empty in a dry-run.
    */
   readonly providerFailures: readonly string[];
   /**

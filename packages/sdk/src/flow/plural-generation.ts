@@ -49,7 +49,11 @@ export interface PluralGenerationResult {
   readonly accepted: readonly GeneratedForm[];
   /** Generated keys withheld because the translation came back but failed the placeholder-integrity check. */
   readonly withheld: readonly string[];
-  /** Generated keys withheld because their sub-batch's provider call itself threw; nothing was translated. */
+  /**
+   * Generated keys withheld because nothing was translated for them: either their sub-batch's provider
+   * call itself threw, or the call succeeded but the key was still missing or duplicated in the
+   * response after the shared LLM layer's bounded reconcile repair round.
+   */
   readonly providerFailures: readonly string[];
   /** Notices from generation: a provider notice, or an SDK notice for a failed sub-batch. */
   readonly notices: readonly LocaleNotice[];
@@ -153,7 +157,8 @@ export async function generatePluralForms(
  * `providerFailures`. A thrown provider call (nothing was translated) is caught, never re-thrown, and
  * withheld under `providerFailures`, not `withheld` (which is reserved for a translation that came back
  * but failed the placeholder-integrity check), the same distinction `runSubBatch` draws for main
- * translations.
+ * translations. A key still missing from `result.values` after the shared LLM layer's bounded reconcile
+ * repair round falls into the same `providerFailures` bucket: nothing was translated for it either.
  */
 async function runGenerationSubBatch(
   context: PluralGenerationContext,
@@ -173,17 +178,31 @@ async function runGenerationSubBatch(
     return [subBatchFailedNotice(batch.length, error)];
   }
   for (const item of batch) {
-    const value = result.values.get(item.targetKey);
-    const integrity = result.integrity.get(item.targetKey);
-    if (value !== undefined && integrity?.matches === true) {
-      accepted.push({
-        targetKey: item.targetKey,
-        entry: { ...syntheticEntry(item), value },
-        lockHash: generatedLockHash(item.governingEntries, item.category),
-      });
-    } else {
-      withheld.push(item.targetKey);
-    }
+    foldGenerationItem(item, result, accepted, withheld, providerFailures);
   }
   return readNotices(result);
+}
+
+/** Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. */
+function foldGenerationItem(
+  item: PluralGenerationItem,
+  result: TranslateResult,
+  accepted: GeneratedForm[],
+  withheld: string[],
+  providerFailures: string[],
+): void {
+  const value = result.values.get(item.targetKey);
+  if (value === undefined) {
+    providerFailures.push(item.targetKey);
+    return;
+  }
+  if (result.integrity.get(item.targetKey)?.matches === true) {
+    accepted.push({
+      targetKey: item.targetKey,
+      entry: { ...syntheticEntry(item), value },
+      lockHash: generatedLockHash(item.governingEntries, item.category),
+    });
+  } else {
+    withheld.push(item.targetKey);
+  }
 }

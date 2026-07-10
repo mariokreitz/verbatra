@@ -25,6 +25,39 @@ function stubMechanism(
   return { mechanism, inputs };
 }
 
+/**
+ * An offline mechanism stub that returns one queued raw response per call, in order, so a test can
+ * script a first response followed by a repair-round response. Records every input it receives.
+ */
+function sequencedMechanism(responses: ReadonlyArray<{ raw: unknown; usage?: Usage }>): {
+  mechanism: LlmMechanism;
+  inputs: LlmCompletionInput[];
+} {
+  const inputs: LlmCompletionInput[] = [];
+  let callCount = 0;
+  const mechanism: LlmMechanism = {
+    translate: async (input) => {
+      inputs.push(input);
+      const response = responses[callCount];
+      callCount += 1;
+      if (response === undefined) {
+        throw new Error("sequencedMechanism called more times than responses were queued");
+      }
+      return response.usage === undefined
+        ? { raw: response.raw }
+        : { raw: response.raw, usage: response.usage };
+    },
+  };
+  return { mechanism, inputs };
+}
+
+function twoEntryRequest(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
+  return request({
+    entries: [entry("a", "Hello {{name}}", ["{{name}}"]), entry("b", "Bye {{name}}", ["{{name}}"])],
+    ...overrides,
+  });
+}
+
 function request(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
   return {
     sourceLocale: "en",
@@ -155,6 +188,120 @@ describe("runLlmTranslation: cancellation signal", () => {
     const { mechanism, inputs } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo" }]));
     await runLlmTranslation(request(), mechanism);
     expect(inputs[0]).not.toHaveProperty("signal");
+  });
+});
+
+describe("runLlmTranslation: bounded reconcile repair", () => {
+  it("makes exactly one mechanism call for a fully well-formed response (no repair triggered)", async () => {
+    const { mechanism, inputs } = stubMechanism(
+      rawResult([
+        { key: "a", value: "Hallo {{name}}" },
+        { key: "b", value: "Tschuess {{name}}" },
+      ]),
+    );
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+    expect(inputs).toHaveLength(1);
+    expect(result.values.get("a")).toBe("Hallo {{name}}");
+    expect(result.values.get("b")).toBe("Tschuess {{name}}");
+  });
+
+  it("accepts the well-formed remainder and recovers a missing key via one repair round", async () => {
+    const { mechanism, inputs } = sequencedMechanism([
+      { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
+      { raw: rawResult([{ key: "b", value: "Tschuess {{name}}" }]) },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+
+    expect(inputs).toHaveLength(2);
+    expect(inputs[1]?.requestedKeys).toEqual(["b"]);
+    expect(result.values.get("a")).toBe("Hallo {{name}}");
+    expect(result.values.get("b")).toBe("Tschuess {{name}}");
+    expect(result.integrity.get("a")?.matches).toBe(true);
+    expect(result.integrity.get("b")?.matches).toBe(true);
+  });
+
+  it("accepts the well-formed remainder and recovers a duplicated key via one repair round", async () => {
+    const { mechanism, inputs } = sequencedMechanism([
+      {
+        raw: rawResult([
+          { key: "a", value: "Hallo {{name}}" },
+          { key: "b", value: "Tschuess1 {{name}}" },
+          { key: "b", value: "Tschuess2 {{name}}" },
+        ]),
+      },
+      { raw: rawResult([{ key: "b", value: "Tschuess {{name}}" }]) },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+
+    expect(inputs).toHaveLength(2);
+    expect(inputs[1]?.requestedKeys).toEqual(["b"]);
+    expect(result.values.get("a")).toBe("Hallo {{name}}");
+    expect(result.values.get("b")).toBe("Tschuess {{name}}");
+  });
+
+  it("runs placeholder-integrity on a value recovered in the repair round, catching an adversarial mismatch", async () => {
+    const { mechanism } = sequencedMechanism([
+      { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
+      // The repair-round value drops the placeholder: integrity must still catch it, not skip it.
+      { raw: rawResult([{ key: "b", value: "Tschuess, no placeholder here" }]) },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+
+    expect(result.values.get("b")).toBe("Tschuess, no placeholder here");
+    expect(result.integrity.get("b")?.matches).toBe(false);
+    expect(result.integrity.get("b")?.missing).toEqual(["{{name}}"]);
+  });
+
+  it("withholds a key still missing after the repair cap without an infinite loop", async () => {
+    const { mechanism, inputs } = sequencedMechanism([
+      { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
+      // The repair round still omits "b": the cap is exhausted, so no third call is made.
+      { raw: rawResult([]) },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+
+    expect(inputs).toHaveLength(2);
+    expect(result.values.get("a")).toBe("Hallo {{name}}");
+    expect(result.values.has("b")).toBe(false);
+    expect(result.integrity.has("b")).toBe(false);
+  });
+
+  it("sums token usage across the first response and the repair round", async () => {
+    const { mechanism } = sequencedMechanism([
+      {
+        raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]),
+        usage: { inputTokens: 10, outputTokens: 4 },
+      },
+      {
+        raw: rawResult([{ key: "b", value: "Tschuess {{name}}" }]),
+        usage: { inputTokens: 3, outputTokens: 2 },
+      },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+    expect(result.usage).toEqual({ inputTokens: 13, outputTokens: 6 });
+  });
+
+  it("keeps the first response's usage when the repair round reports none", async () => {
+    const { mechanism } = sequencedMechanism([
+      {
+        raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]),
+        usage: { inputTokens: 10, outputTokens: 4 },
+      },
+      { raw: rawResult([{ key: "b", value: "Tschuess {{name}}" }]) },
+    ]);
+    const result = await runLlmTranslation(twoEntryRequest(), mechanism);
+    expect(result.usage).toEqual({ inputTokens: 10, outputTokens: 4 });
+  });
+
+  it("rejects a hallucinated key returned in the repair round, immediately, as INVALID_RESPONSE", async () => {
+    const { mechanism, inputs } = sequencedMechanism([
+      { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
+      { raw: rawResult([{ key: "hallucinated", value: "not requested" }]) },
+    ]);
+    await expect(runLlmTranslation(twoEntryRequest(), mechanism)).rejects.toMatchObject({
+      code: "INVALID_RESPONSE",
+    });
+    expect(inputs).toHaveLength(2);
   });
 });
 

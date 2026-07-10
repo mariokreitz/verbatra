@@ -205,6 +205,43 @@ describe("runLocale: withholding", () => {
     expect(noticeText).toContain("PROVIDER_CALL_FAILED");
   });
 
+  it("withholds a key still missing from the response under providerFailures, not integrityMismatches", async () => {
+    const { dir, sourceResource } = await setup({ a: "A", b: "B" });
+    // The provider call succeeds but returns no value at all for "a" (the shared LLM layer's bounded
+    // reconcile repair round already retried it once and it stayed missing), distinct from a value
+    // that came back and failed the placeholder-integrity check.
+    const stub = makeStubProvider({ missingValues: new Set(["a"]) });
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toEqual(["b"]);
+    expect(summary.providerFailures).toEqual(["a"]);
+    expect(summary.integrityMismatches).toEqual([]);
+    expect(lockEntries.a).toBeUndefined(); // withheld, no prior baseline to carry
+    expect(lockEntries.b).toBeDefined();
+  });
+
+  it("carries the prior baseline hash for a key still missing from the response (withheld-carry)", async () => {
+    const { dir, sourceResource } = await setup({ a: "A", b: "B" }, { a: "[de] old", b: "[de] B" });
+    const stub = makeStubProvider({ missingValues: new Set(["a"]) });
+    // Baseline marks `a` as changed (stale hash) and `b` as up to date so only `a` is a candidate.
+    const baseline = new Map([
+      ["a", "stale-hash"],
+      ["b", "matches-but-unused"],
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, baseline },
+    );
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.providerFailures).toEqual(["a"]);
+    // The lock baseline never advances for a key that was not actually translated this run.
+    expect(lockEntries.a).toBe("stale-hash"); // prior hash carried so it retries next run
+  });
+
   it("withholds a key whose translation fails the integrity check", async () => {
     const { dir, sourceResource } = await setup({ a: "A", b: "B" });
     const stub = makeStubProvider({ failIntegrity: new Set(["a"]) });
