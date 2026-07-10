@@ -14,10 +14,12 @@
     "@verbatra/studio": "0.0.0"
   },
   "changesets": [
-    "glossary-file-path",
-    "lock-state-view",
-    "studio-cli-command",
-    "studio-provenance-republish",
-    "studio-publishable"
+    "icu-branch-aware-placeholder-integrity",
+    "lock-file-version-validation",
+    "openai-compatible-provider",
+    "openai-compatible-redaction",
+    "provider-error-classification",
+    "xliff-hardening",
+    "zip-guard-byte-counting"
   ]
 }
