@@ -22,8 +22,8 @@ jobs:
   translate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: mariokreitz/verbatra/packages/github-action@v1.1.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha> # v1.1.0
         with:
           version: 1.2.3
         env:
@@ -33,6 +33,12 @@ jobs:
 A composite action cannot declare its own `permissions:`; only the consuming workflow can. Set
 `permissions:` to least privilege at the workflow or job level. The documented happy path needs
 only `contents: read`. Do not grant anything broader unless your own surrounding steps require it.
+
+Pin every `uses:` reference, including this action itself, to a full commit SHA rather than a
+mutable tag such as `@v1.1.0` or `@v4`, matching this repository's own SHA-pinning convention
+(see `actions/checkout` above). `<commit-sha>` above is a placeholder: replace it with the full
+40-character SHA of the release commit of this action you intend to depend on, and keep the
+version tag as a trailing comment so the pin stays readable.
 
 ## Secret wiring
 
