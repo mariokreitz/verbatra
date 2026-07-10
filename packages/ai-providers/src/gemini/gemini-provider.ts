@@ -51,15 +51,21 @@ export function createGeminiProvider(
 
 function createMechanism(client: GeminiClient, config: GeminiConfig): LlmMechanism {
   return {
-    translate: async ({ payloadJson }): Promise<LlmCompletion> => {
-      const request = buildGeminiRequest(config, payloadJson);
-      const response = await callClient(client, request);
+    translate: async ({ payloadJson, signal }): Promise<LlmCompletion> => {
+      const request = buildGeminiRequest(config, payloadJson, signal);
+      const response = await callClient(client, request, signal);
       return extractGeminiResult(response);
     },
   };
 }
 
-/** Call the provider through the shared guard so a raw SDK error never leaks. */
-function callClient(client: GeminiClient, request: GeminiRequest): Promise<GeminiResponse> {
-  return guardProviderCall(() => client.models.generateContent(request));
+/** Call the provider through the shared guard so a raw SDK error never leaks. The signal already
+ * rides inside `request.config.abortSignal` (see {@link buildGeminiRequest}); it is also passed to
+ * the guard so an abort mid-flight is re-thrown unchanged instead of becoming a ProviderError. */
+function callClient(
+  client: GeminiClient,
+  request: GeminiRequest,
+  signal: AbortSignal | undefined,
+): Promise<GeminiResponse> {
+  return guardProviderCall(() => client.models.generateContent(request), signal);
 }

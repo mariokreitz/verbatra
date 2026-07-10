@@ -101,6 +101,21 @@ describe("runLlmTranslation: untrusted-input boundary", () => {
   });
 });
 
+describe("runLlmTranslation: cancellation signal", () => {
+  it("passes the request's signal through to the mechanism", async () => {
+    const controller = new AbortController();
+    const { mechanism, inputs } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo" }]));
+    await runLlmTranslation(request({ signal: controller.signal }), mechanism);
+    expect(inputs[0]?.signal).toBe(controller.signal);
+  });
+
+  it("omits signal from the mechanism input when the request carries none", async () => {
+    const { mechanism, inputs } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo" }]));
+    await runLlmTranslation(request(), mechanism);
+    expect(inputs[0]).not.toHaveProperty("signal");
+  });
+});
+
 describe("runLlmTranslation: failure paths", () => {
   it("rejects an invalid request as INVALID_REQUEST before any mechanism call", async () => {
     const { mechanism, inputs } = stubMechanism(rawResult([]));

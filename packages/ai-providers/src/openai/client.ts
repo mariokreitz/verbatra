@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { requireOpenAiKey } from "../env.js";
 import type { OpenAiRequest } from "./request.js";
-import type { OpenAiClient, OpenAiCompletion } from "./types.js";
+import type { OpenAiCallOptions, OpenAiClient, OpenAiCompletion } from "./types.js";
 
 /**
  * Build the production client by wrapping the real openai SDK.
@@ -14,9 +14,13 @@ export function createDefaultClient(): OpenAiClient {
   return {
     chat: {
       completions: {
-        create: async (body: OpenAiRequest): Promise<OpenAiCompletion> =>
+        create: async (
+          body: OpenAiRequest,
+          options?: OpenAiCallOptions,
+        ): Promise<OpenAiCompletion> =>
           (await sdk.chat.completions.create(
             body as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+            options,
           )) as unknown as OpenAiCompletion,
       },
     },

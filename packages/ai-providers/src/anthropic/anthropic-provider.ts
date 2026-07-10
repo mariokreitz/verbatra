@@ -57,9 +57,9 @@ export function createAnthropicProvider(
 
 function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMechanism {
   return {
-    translate: async ({ payloadJson }): Promise<LlmCompletion> => {
+    translate: async ({ payloadJson, signal }): Promise<LlmCompletion> => {
       const body = buildRequest(config, payloadJson);
-      const message = await callClient(client, body);
+      const message = await callClient(client, body, signal);
       // Detect truncation before parsing so a truncated-but-valid body reports truncation, not a key mismatch.
       assertNotTruncated(message.stop_reason === "max_tokens");
       const raw = requireToolInput(message.content);
@@ -69,9 +69,17 @@ function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMe
   };
 }
 
-/** Call the provider through the shared guard so a raw SDK error never leaks. */
-function callClient(client: MessagesClient, body: BuiltRequest): Promise<AnthropicMessage> {
-  return guardProviderCall(() => client.messages.create(body));
+/** Call the provider through the shared guard so a raw SDK error never leaks; threads the signal
+ * into both the guard's abort handling and the SDK call itself. */
+function callClient(
+  client: MessagesClient,
+  body: BuiltRequest,
+  signal: AbortSignal | undefined,
+): Promise<AnthropicMessage> {
+  return guardProviderCall(
+    () => client.messages.create(body, signal !== undefined ? { signal } : undefined),
+    signal,
+  );
 }
 
 /** Map Anthropic usage to our Usage shape, or undefined when not fully reported. */

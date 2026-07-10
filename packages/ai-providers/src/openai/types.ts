@@ -18,10 +18,19 @@ export interface OpenAiCompletion {
   readonly usage?: { readonly prompt_tokens?: number; readonly completion_tokens?: number };
 }
 
+/** Per-call options this provider forwards to the SDK; currently only cancellation. */
+export interface OpenAiCallOptions {
+  readonly signal?: AbortSignal;
+}
+
 /**
  * The minimal client surface this provider depends on. Tests inject a stub so the
  * network is never touched; production wraps the real openai SDK client.
  */
 export interface OpenAiClient {
-  chat: { completions: { create(body: OpenAiRequest): Promise<OpenAiCompletion> } };
+  chat: {
+    completions: {
+      create(body: OpenAiRequest, options?: OpenAiCallOptions): Promise<OpenAiCompletion>;
+    };
+  };
 }

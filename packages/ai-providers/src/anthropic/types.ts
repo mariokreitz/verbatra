@@ -7,10 +7,17 @@ export interface AnthropicMessage {
   readonly usage?: { readonly input_tokens?: number; readonly output_tokens?: number };
 }
 
+/** Per-call options this provider forwards to the SDK; currently only cancellation. */
+export interface AnthropicCallOptions {
+  readonly signal?: AbortSignal;
+}
+
 /**
  * The minimal client surface this provider depends on. Tests inject a stub so the
  * network is never touched; production wraps the real @anthropic-ai/sdk client.
  */
 export interface MessagesClient {
-  messages: { create(body: BuiltRequest): Promise<AnthropicMessage> };
+  messages: {
+    create(body: BuiltRequest, options?: AnthropicCallOptions): Promise<AnthropicMessage>;
+  };
 }

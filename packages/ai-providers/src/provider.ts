@@ -34,6 +34,12 @@ export interface TranslateRequest {
   readonly tone?: Tone;
   /** Mandatory placeholder extractor; the output integrity check runs against it. */
   readonly extractPlaceholders: PlaceholderExtractor;
+  /**
+   * Optional cancellation signal for this batch. When aborted, an in-flight provider call rejects
+   * with the abort, unwrapped, instead of a {@link ProviderError} (see `guardProviderCall`). Not a
+   * plain-data field: it is never validated by `requestDataSchema` and never sent to a provider.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /** Token usage, when the provider reports it. Absent for providers without tokens (DeepL). */

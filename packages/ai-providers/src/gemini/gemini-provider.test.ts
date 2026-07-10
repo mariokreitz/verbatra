@@ -344,6 +344,50 @@ describe("createGeminiProvider: secrets and errors", () => {
   });
 });
 
+describe("createGeminiProvider: cancellation", () => {
+  it("carries the request's signal in config.abortSignal, the shape @google/genai expects it in", async () => {
+    const controller = new AbortController();
+    const { client, calls } = geminiStubClient(
+      geminiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    await createGeminiProvider(config, { client }).translateBatch(
+      request({ signal: controller.signal }),
+    );
+    expect(firstGeminiCall(calls).config.abortSignal).toBe(controller.signal);
+  });
+
+  it("omits config.abortSignal when the request carries no signal", async () => {
+    const { client, calls } = geminiStubClient(
+      geminiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    await createGeminiProvider(config, { client }).translateBatch(request());
+    expect(firstGeminiCall(calls).config).not.toHaveProperty("abortSignal");
+  });
+
+  it("re-throws an abort unwrapped instead of a ProviderError", async () => {
+    const controller = new AbortController();
+    const sentinel = new DOMException("This operation was aborted.", "AbortError");
+    const client: GeminiClient = {
+      models: {
+        generateContent: () => {
+          controller.abort();
+          return Promise.reject(sentinel);
+        },
+      },
+    };
+    let caught: unknown;
+    try {
+      await createGeminiProvider(config, { client }).translateBatch(
+        request({ signal: controller.signal }),
+      );
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBe(sentinel);
+  });
+});
+
 describe("createGeminiProvider: registry", () => {
   it("resolves under id gemini without disturbing an existing provider", () => {
     const { client } = geminiStubClient(geminiResult([]));
