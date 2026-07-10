@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildReport, extractCliError, parseSummaryJson } from "./report.mjs";
+import {
+  buildReport,
+  extractCliError,
+  parseSummaryJson,
+  resolveExitCode,
+  WIRING_FAILURE_EXIT_CODE,
+} from "./report.mjs";
 
 function locale(over = {}) {
   return {
@@ -197,5 +203,32 @@ describe("extractCliError and workflow-command escaping", () => {
     expect(report.annotations[0]).toContain("verbatra%3A x%3Ay");
     expect(report.annotations[0]).toContain("50%25 off%0Aline2");
     expect(report.annotations[0]).not.toContain("\n");
+  });
+});
+
+describe("resolveExitCode: the legitimate-success case survives", () => {
+  it("passes through a genuine zero exit code (the CLI succeeded)", () => {
+    expect(resolveExitCode("0")).toBe(0);
+  });
+
+  it("passes through any other genuine numeric exit code", () => {
+    expect(resolveExitCode("1")).toBe(1);
+    expect(resolveExitCode("2")).toBe(2);
+    expect(resolveExitCode("137")).toBe(137);
+  });
+});
+
+describe("resolveExitCode: a broken wiring fails loudly instead of defaulting to success", () => {
+  it("defaults a missing argument to WIRING_FAILURE_EXIT_CODE, not 0", () => {
+    expect(resolveExitCode(undefined)).toBe(WIRING_FAILURE_EXIT_CODE);
+    expect(WIRING_FAILURE_EXIT_CODE).not.toBe(0);
+  });
+
+  it("defaults an empty string to WIRING_FAILURE_EXIT_CODE", () => {
+    expect(resolveExitCode("")).toBe(WIRING_FAILURE_EXIT_CODE);
+  });
+
+  it("defaults a non-numeric value to WIRING_FAILURE_EXIT_CODE", () => {
+    expect(resolveExitCode("not-a-number")).toBe(WIRING_FAILURE_EXIT_CODE);
   });
 });
