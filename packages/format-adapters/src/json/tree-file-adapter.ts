@@ -1,4 +1,9 @@
-import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
+import type {
+  LocaleResource,
+  PlaceholderIntegrityResult,
+  SupportedFormat,
+  TranslationEntry,
+} from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
 import {
   buildCanHandle,
@@ -21,6 +26,9 @@ type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) =>
 
 /** Validates a single value against the format's message syntax (one value, before write). */
 type ValidateMessage = (value: string) => boolean;
+
+/** Optional branch-aware placeholder comparison; see `FormatAdapter.comparePlaceholders`. */
+type ComparePlaceholders = (sourceValue: string, targetValue: string) => PlaceholderIntegrityResult;
 
 /** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
 type ValidateTree = (tree: JsonRecord) => void;
@@ -53,6 +61,8 @@ export interface TreeFileAdapterOptions {
   readonly buildWriteTree?: BuildWriteTree;
   /** Optional; how a dotted string key is interpreted (defaults to `literal-leaf`). */
   readonly keyMode?: KeyMode;
+  /** Optional branch-aware placeholder comparison; formats without plural/select branching omit it. */
+  readonly comparePlaceholders?: ComparePlaceholders;
 }
 
 function toEntries(
@@ -97,6 +107,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     validateMessage,
     validateTree,
     buildWriteTree,
+    comparePlaceholders,
     keyMode = "literal-leaf",
   } = options;
   return {
@@ -104,6 +115,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     canHandle: buildCanHandle(extensions, sniff),
     extractPlaceholders,
     validateMessage: validateMessage ?? ((): boolean => true),
+    ...(comparePlaceholders !== undefined ? { comparePlaceholders } : {}),
     async read(filePath, locale): Promise<ReadResult> {
       const content = await readFileContent(filePath);
       const namespace = namespaceOf(filePath);
