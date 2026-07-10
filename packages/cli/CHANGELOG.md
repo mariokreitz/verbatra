@@ -1,5 +1,17 @@
 # @verbatra/cli
 
+## 0.5.0-next.1
+
+### Patch Changes
+
+- Updated dependencies [14e9719]
+- Updated dependencies [440212e]
+- Updated dependencies [54a641a]
+- Updated dependencies [400e044]
+- Updated dependencies [2fe16b2]
+- Updated dependencies [b945e53]
+  - @verbatra/sdk@0.5.0-next.1
+
 ## 0.5.0-next.0
 
 ### Minor Changes

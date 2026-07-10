@@ -1,5 +1,83 @@
 # @verbatra/sdk
 
+## 0.5.0-next.1
+
+### Minor Changes
+
+- 54a641a: Add a new provider id `openai-compatible` for pointing verbatra at a local or self-hosted OpenAI-compatible inference server (LM Studio, Ollama, vLLM). Configure it with `{ baseUrl, model, maxOutputTokens, apiKeyEnvVar? }`; `baseUrl` is validated as an absolute http or https URL at config-parse time, and lives in config rather than the environment since it is a network address, not a secret. It must include your server's API path segment (typically `/v1`, the same convention the underlying client already uses for the hosted `openai` provider).
+
+  The API key still never lives in config. It resolves in three tiers: an explicitly named `apiKeyEnvVar` (throws a clear error if that variable is unset), then the new convention variable `OPENAI_COMPATIBLE_API_KEY`, then the non-secret placeholder `"local"` for servers that need no key at all. `apiKeyEnvVar` cannot name any of the four hosted providers' environment variables, and the new provider's client never reads `OPENAI_API_KEY` or shares any code path with the hosted `openai` provider, so a hosted key can never reach a custom `baseUrl`.
+
+  The request body uses the same strict, schema-constrained response format as the hosted `openai` provider (verified against a live LM Studio server); the one difference is that this provider tolerantly extracts the first brace-balanced JSON object anywhere in the response before parsing, since a local or smaller model can still wrap an otherwise-correct answer in prose or a ```json block despite the constraint. The extraction is string-aware, so prose or Markdown fence characters before, after, or even embedded inside a translated string value never defeat it. Its output still runs through the exact same canonical schema validation and placeholder and ICU integrity checks as every other provider.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged, and `verbatra init` does not yet offer `openai-compatible` as a scaffold option (it has no single required environment variable, unlike every other provider).
+
+- 400e044: Providers now classify a failed translation call by HTTP status code or SDK error class instead of collapsing every failure into one opaque error: a 429 or an equivalent rate-limit error class surfaces as `RATE_LIMITED`, a network or request timeout as `TIMEOUT`, and a 401 or 403 as `AUTH_FAILED`, with the prior generic code kept as the fallback for anything unclassified. Classification never inspects error message text, so nothing provider-specific or key-shaped can leak through it. A caller-initiated cancellation (via `AbortSignal`) is now re-thrown as an abort instead of being wrapped as a provider error, so it can be told apart from a real failure; abort detection correlates the caught error's own identity with the signal instead of trusting the signal's `aborted` flag alone, so an unrelated failure that merely coincides with the signal being aborted is still classified and redacted, never passed through raw.
+
+  The Gemini provider now retries a transient rate limit or server error with backoff before giving up, closing a gap where a single transient failure could kill an entire translation sub-batch (the other three v1 providers already retry through their own SDKs).
+
+  A translation request can now carry an optional cancellation signal, threaded down into each provider's underlying call where the provider's SDK supports it. This is additive: `@verbatra/sdk`'s own APIs are unchanged in behavior, and `@verbatra/cli` (version-locked with `@verbatra/sdk`) picks up the same bump with no behavior change of its own.
+
+### Patch Changes
+
+- 14e9719: Fix ICU plural/select placeholder-integrity checking (next-intl and ARB) to compare source and target
+  branch by matched branch instead of flattening each side into one multiset first. The prior flattening
+  strategy dropped any placeholder confined to only some branches of a value before the comparison ever ran,
+  which meant a fabricated placeholder invented in a single branch of a translated ARB or next-intl value
+  (for example, only in a richer target locale's `few` or `many` CLDR category) could pass the integrity
+  check undetected. The new comparison walks matched plural/select nodes branch by branch: a category present
+  on both sides is checked directly, so an invention or a drop confined to one branch is caught precisely; a
+  category only the target's richer cardinality supplies is checked for fabricated content against the union
+  of every source branch, so a translator legitimately reusing a placeholder that appears in only one source
+  branch is never wrongly rejected. This closes the gap for the LLM and DeepL provider translation paths and
+  for workbook import, the two live call sites that resolve an ICU-capable format adapter.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is
+  unchanged.
+
+- 440212e: Reject a lock-file whose `version` does not match the version this build of verbatra
+  understands. `readLockFile` previously validated the lock-file's shape but never compared its
+  `version` field to the current supported version, so a lock-file written by an incompatible
+  future (or otherwise mismatched) verbatra build was read and reinterpreted as if it were the
+  current format, then rewritten still stamped with the wrong version, silently corrupting or
+  misinterpreting the recorded baselines. A version mismatch now throws the same structured
+  `LOCK_FILE_INVALID` error already used for a corrupt or oversized lock-file, naming the found and
+  expected version numbers.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
+- 2fe16b2: Harden the XLIFF adapter's XML handling. Two trans-units resolving to the same key (typically a
+  duplicate `id`, or a positional fallback colliding with a real id) now raise `INVALID_STRUCTURE`
+  instead of silently dropping one entry on read and misdirecting a translation to both units on
+  write. The DTD and entity rejection already applied to XLIFF files on read now also applies to
+  translated values before they are re-parsed as XML fragments on write, closing a gap where a
+  malicious value could smuggle a DOCTYPE or entity declaration past the existing guard. Translated
+  values are also filtered against an allow-list of genuine XLIFF inline elements (`x`, `g`, `bx`,
+  `ex`, `ph`, `it`, `mrk`), each carrying no namespace or the genuine XLIFF 1.2/2.0 document
+  namespace, and each restricted to its own minimal, non-executable set of attributes (`id`, and
+  where applicable `rid`, `ctype`, `pos`, or `mtype`). A value containing any other element, an
+  allow-listed element under any other namespace, a CDATA section, a comment, a processing
+  instruction, or an attribute outside that element's allow-list (such as `onclick` or
+  `xlink:href`) now degrades entirely to a plain text node, the same fallback already used for
+  unbalanced markup, instead of reaching the written file as live markup or an unfiltered attribute.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
+- b945e53: Fix the workbook decompressed-byte guard over-counting binary parts on import. The guard measured
+  each entry's decompressed size by re-encoding the entry's UTF-8-decoded text with
+  `Buffer.byteLength`, but decoding is lossy for a binary part (a thumbnail, embedded image, or any
+  non-UTF-8 workbook part): every invalid byte becomes the replacement character U+FFFD, which is 3
+  bytes wide, so the re-encoded count could overstate the true decompressed size by up to roughly 3x.
+  A legitimate translated workbook carrying such a part could be wrongly rejected with a
+  `WORKBOOK_INVALID` error even though it never actually exceeded the configured limit. The guard now
+  sums the true raw decompressed byte count as it streams each entry, so the cap is checked against
+  what the entry actually decompresses to.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
 ## 0.5.0-next.0
 
 ### Minor Changes
