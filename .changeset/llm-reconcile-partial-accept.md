@@ -1,5 +1,4 @@
 ---
-"@verbatra/ai-providers": minor
 "@verbatra/sdk": minor
 ---
 
