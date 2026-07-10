@@ -9,8 +9,10 @@
 // @verbatra/sdk, fall behind on npm while the workflow keeps reporting success.
 //
 // This script re-checks changesets/action's own claim against the live registry: for every
-// package it says it published, confirm `npm view <name>@<version>` actually resolves. Run it
-// as the last step of the publish job, gated on `steps.changesets.outputs.published == 'true'`.
+// package it says it published, confirm `npm view <name>@<version>` actually resolves. It runs
+// in its own read-only `verify-publish` job that needs: the publish job, gated on
+// `needs.publish.outputs.published == 'true'`, so it never inherits the publish job's write or
+// OIDC scopes even though it depends on that job's outcome.
 //
 // Usage: PUBLISHED_PACKAGES_JSON='[{"name":"@verbatra/cli","version":"0.5.0"}]' node scripts/verify-npm-publish.mjs
 
