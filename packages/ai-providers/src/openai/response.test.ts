@@ -104,4 +104,45 @@ describe("extractOpenAiResult: tolerant=true", () => {
     const result = extractOpenAiResult(completion, true);
     expect(result.raw).toEqual({ translations: [{ key: "a", value: "A" }] });
   });
+
+  it("parses a fenced JSON value whose string contains an embedded code fence", () => {
+    const value = "Run this:\n```bash\necho hi\n```\nThen continue.";
+    const completion = openAiCompletion({
+      content: `\`\`\`json\n${JSON.stringify({ translations: [{ key: "docs.example", value }] })}\n\`\`\``,
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "docs.example", value }] });
+  });
+
+  it("skips a non-JSON example block and extracts the real JSON answer that follows", () => {
+    const completion = openAiCompletion({
+      content:
+        'Example format:\n```json\n{ "translations": [ { "key": "example", "value": ... } ] }\n```\n\n' +
+        'Actual translation:\n```json\n{"translations":[{"key":"a","value":"A"}]}\n```',
+    });
+    const result = extractOpenAiResult(completion, true);
+    expect(result.raw).toEqual({ translations: [{ key: "a", value: "A" }] });
+  });
+
+  it("fails as INVALID_RESPONSE for a genuinely malformed, truncated response", () => {
+    const completion = openAiCompletion({
+      content: '```json\n{"translations": [{"key": "a", "value": "A"',
+    });
+    try {
+      extractOpenAiResult(completion, true);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect((error as ProviderError).code).toBe("INVALID_RESPONSE");
+    }
+  });
+
+  it("fails as INVALID_RESPONSE when the only balanced block is not valid JSON", () => {
+    const completion = openAiCompletion({ content: "{ not valid json }" });
+    try {
+      extractOpenAiResult(completion, true);
+      expect.unreachable("should have thrown");
+    } catch (error) {
+      expect((error as ProviderError).code).toBe("INVALID_RESPONSE");
+    }
+  });
 });

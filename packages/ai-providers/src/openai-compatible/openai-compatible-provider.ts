@@ -24,9 +24,10 @@ export interface OpenAiCompatibleDeps {
  * The request body is built in `strict-schema` mode, the same `json_schema` shape as the hosted `openai`
  * provider (verified against a live LM Studio server, which rejects the `json_object` mode some other
  * local servers accept). The one deliberate difference from the hosted provider is that this provider
- * parses its response tolerantly (stripping a leading/trailing Markdown code fence before `JSON.parse`),
- * since a local or weaker model can still wrap a schema-conforming answer in a ```json block despite the
- * constraint. Output still runs through the exact same `runLlmTranslation` flow as every other provider:
+ * parses its response tolerantly (extracting the first brace-balanced JSON object anywhere in the content
+ * before `JSON.parse`, regardless of surrounding prose or Markdown fences), since a local or weaker model
+ * can still wrap a schema-conforming answer in a ```json block despite the constraint. Output still runs
+ * through the exact same `runLlmTranslation` flow as every other provider:
  * canonical schema validation and placeholder/ICU integrity are unconditional, so local output is
  * untrusted input like any other provider's, with no shortcut.
  *

@@ -4,29 +4,110 @@ import { assertNotTruncated } from "../llm/truncation.js";
 import type { Usage } from "../provider.js";
 import type { OpenAiCompletion } from "./types.js";
 
-// Matches the first Markdown code fence anywhere in the response, optionally tagged "json", so
-// conversational preamble before the fence ("Sure, here is the translation:\n```json\n...\n```") or
-// trailing prose after it does not defeat extraction, only a fully unfenced response does. The inner
-// group is a lazy match bounded by a required closing "```", so it still resolves in one linear pass
-// over the input regardless of anchoring (ReDoS-safe).
-const JSON_FENCE_PATTERN = /```(?:json)?\s*([\s\S]*?)\s*```/i;
+interface StringScanState {
+  readonly inString: boolean;
+  readonly escaped: boolean;
+}
 
-/** Extract the first Markdown code fence's content anywhere in the input; otherwise return it trimmed. */
-function stripJsonFence(content: string): string {
-  const trimmed = content.trim();
-  const match = JSON_FENCE_PATTERN.exec(trimmed);
-  return match?.[1] ?? trimmed;
+/**
+ * Advance the string-literal scan state by one character. Handles an escape sequence (`\\`, `\"`,
+ * `\n`, `\uXXXX`, and so on) by treating the character right after a backslash as consumed without
+ * inspecting it, and closes the string only on an unescaped `"`, so a quote, brace, or backslash
+ * inside a JSON string value never terminates the string early or leaks into the caller's depth
+ * count.
+ */
+function advanceStringScan(char: string | undefined, escaped: boolean): StringScanState {
+  if (escaped) {
+    return { inString: true, escaped: false };
+  }
+  if (char === "\\") {
+    return { inString: true, escaped: true };
+  }
+  return { inString: char !== '"', escaped: false };
+}
+
+/**
+ * Scan forward from `start` (which must point at a "{") for the index of its matching closing
+ * brace, tracking depth while string-aware so quotes and braces inside JSON string values
+ * (including escaped quotes and, notably, embedded Markdown fence characters such as a "```bash"
+ * block quoted inside a translated string) never corrupt the depth count. Returns null when the
+ * object is never closed, for example a truncated response.
+ */
+function scanBalancedObjectEnd(content: string, start: number): number | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < content.length; i += 1) {
+    const char = content[i];
+    if (inString) {
+      ({ inString, escaped } = advanceStringScan(char, escaped));
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract the first brace-balanced JSON object substring from arbitrary surrounding text that
+ * itself parses as valid JSON. This makes surrounding prose or Markdown fences irrelevant, and the
+ * fence characters need never be detected or stripped: the object is located structurally. When a
+ * candidate object is well-balanced but not valid JSON (for example an illustrative, non-JSON
+ * example block that precedes the real answer), scanning resumes after it so a later, genuinely
+ * valid object is still found. Returns null when no balanced, parseable object exists anywhere in
+ * the content, for example a truncated response.
+ *
+ * This function has no awareness of the translations schema: it returns the first candidate that
+ * parses, nothing more. A model that emits a valid, schema-shaped example ahead of the real answer
+ * (for instance a genuine few-shot illustration, as opposed to the non-JSON example above) would
+ * have that example returned instead of the real answer. That is out of scope here: schema and
+ * placeholder/ICU validation happen downstream in `runLlmTranslation`, and this parameter only
+ * targets the tolerant local-model path, where the observed failure mode is malformed or
+ * fence-wrapped output, not well-formed decoys.
+ *
+ * @param content - The raw message content, possibly wrapped in prose or Markdown fences.
+ */
+function extractBalancedJson(content: string): string | null {
+  let searchFrom = 0;
+  while (searchFrom < content.length) {
+    const start = content.indexOf("{", searchFrom);
+    if (start === -1) {
+      return null;
+    }
+    const end = scanBalancedObjectEnd(content, start);
+    if (end === null) {
+      return null;
+    }
+    const candidate = content.slice(start, end + 1);
+    try {
+      JSON.parse(candidate);
+      return candidate;
+    } catch {
+      searchFrom = end + 1;
+    }
+  }
+  return null;
 }
 
 /**
  * Parse the message content as JSON.
  *
  * @param content - The raw message content.
- * @param tolerant - When true, a single leading/trailing Markdown code fence is stripped before
- *   parsing, for local models that wrap output in ```json blocks despite being asked not to.
+ * @param tolerant - When true, the first brace-balanced JSON object anywhere in the content is
+ *   extracted before parsing, for local models that wrap output in prose or Markdown fences despite
+ *   being asked not to.
  */
 function parseContent(content: string, tolerant: boolean): unknown {
-  const candidate = tolerant ? stripJsonFence(content) : content;
+  const candidate = tolerant ? (extractBalancedJson(content) ?? content) : content;
   try {
     return JSON.parse(candidate);
   } catch {
@@ -51,16 +132,16 @@ function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
  * carry no key, header, or content.
  *
  * @param completion - The raw Chat Completions response.
- * @param tolerant - When true, strip a single leading/trailing Markdown code fence before parsing.
- *   Defaults to false, the hosted OpenAI behavior, so this parameter's existence does not affect the
- *   hosted `openai` provider.
+ * @param tolerant - When true, extract the first brace-balanced JSON object anywhere in the content
+ *   before parsing, tolerating surrounding prose and Markdown fences. Defaults to false, the hosted
+ *   OpenAI behavior, so this parameter's existence does not affect the hosted `openai` provider.
  * @returns The schema-bound raw output plus optional usage.
  * @throws {@link ProviderError} `OUTPUT_TRUNCATED`: the choice stopped on the output-token limit
  *   (`finish_reason === "length"`); checked before parsing, so a truncated-but-valid body still reports
  *   truncation.
  * @throws {@link ProviderError} `PROVIDER_REFUSED`: the model populated the refusal field.
  * @throws {@link ProviderError} `INVALID_RESPONSE`: there was no message, no content, or unparseable
- *   content (after fence-stripping, when `tolerant` is true).
+ *   content (after brace-balanced extraction, when `tolerant` is true).
  */
 export function extractOpenAiResult(completion: OpenAiCompletion, tolerant = false): LlmCompletion {
   const choice = completion.choices[0];
