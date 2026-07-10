@@ -48,13 +48,23 @@ describe("createOpenAiCompatibleProvider: identity", () => {
 });
 
 describe("createOpenAiCompatibleProvider: request building", () => {
-  it("sets the configured model and max_completion_tokens from config, no hardcoded model", async () => {
+  it("sets the configured model and max_tokens from config, no hardcoded model", async () => {
     const { client, calls } = openAiStubClient(
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
     expect(calls[0]?.model).toBe("google/gemma-4-26b-a4b-qat");
-    expect(calls[0]?.max_completion_tokens).toBe(1024);
+    expect(calls[0]).toMatchObject({ max_tokens: 1024 });
+  });
+
+  it("sends max_tokens, not max_completion_tokens, so a genuinely OpenAI-compatible but non-identical server such as Mistral's chat completions API accepts the request", async () => {
+    const { client, calls } = openAiStubClient(
+      openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
+    );
+    await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
+    const body = firstOpenAiCall(calls);
+    expect(body).not.toHaveProperty("max_completion_tokens");
+    expect("max_tokens" in body && body.max_tokens).toBe(1024);
   });
 
   it("uses strict-schema response_format, the same shape as the hosted openai provider", async () => {

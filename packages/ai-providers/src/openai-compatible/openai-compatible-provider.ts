@@ -23,11 +23,14 @@ export interface OpenAiCompatibleDeps {
  *
  * The request body is built in `strict-schema` mode, the same `json_schema` shape as the hosted `openai`
  * provider (verified against a live LM Studio server, which rejects the `json_object` mode some other
- * local servers accept). The one deliberate difference from the hosted provider is that this provider
- * parses its response tolerantly (extracting the first brace-balanced JSON object anywhere in the content
- * before `JSON.parse`, regardless of surrounding prose or Markdown fences), since a local or weaker model
- * can still wrap a schema-conforming answer in a ```json block despite the constraint. Output still runs
- * through the exact same `runLlmTranslation` flow as every other provider:
+ * local servers accept), but the token limit is sent as `max_tokens`, not the hosted provider's
+ * `max_completion_tokens`: `max_tokens` is the field understood broadly across OpenAI-compatible servers
+ * (LM Studio, Ollama, vLLM, and hosted OpenAI-compatible APIs such as Mistral's, which reject
+ * `max_completion_tokens` outright). The one deliberate difference from the hosted provider is that this
+ * provider parses its response tolerantly (extracting the first brace-balanced JSON object anywhere in
+ * the content before `JSON.parse`, regardless of surrounding prose or Markdown fences), since a local or
+ * weaker model can still wrap a schema-conforming answer in a ```json block despite the constraint.
+ * Output still runs through the exact same `runLlmTranslation` flow as every other provider:
  * canonical schema validation and placeholder/ICU integrity are unconditional, so local output is
  * untrusted input like any other provider's, with no shortcut.
  *
@@ -72,7 +75,7 @@ export function createOpenAiCompatibleProvider(
 function createMechanism(client: OpenAiClient, config: OpenAiCompatibleConfig): LlmMechanism {
   return {
     translate: async ({ payloadJson, signal }): Promise<ReturnType<typeof extractOpenAiResult>> => {
-      const body = buildOpenAiRequest(config, payloadJson, "strict-schema");
+      const body = buildOpenAiRequest(config, payloadJson, "strict-schema", "max_tokens");
       const completion = await callClient(client, body, signal);
       return extractOpenAiResult(completion, true);
     },

@@ -62,9 +62,9 @@ describe("createOpenAiProvider: request building", () => {
       { client: b.client },
     ).translateBatch(request());
     expect(a.calls[0]?.model).toBe("model-a");
-    expect(a.calls[0]?.max_completion_tokens).toBe(10);
+    expect(a.calls[0]).toMatchObject({ max_completion_tokens: 10 });
     expect(b.calls[0]?.model).toBe("model-b");
-    expect(b.calls[0]?.max_completion_tokens).toBe(77);
+    expect(b.calls[0]).toMatchObject({ max_completion_tokens: 77 });
   });
 
   it("uses the static system constant and a derived json_schema response_format", async () => {

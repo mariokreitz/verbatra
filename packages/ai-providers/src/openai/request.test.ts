@@ -34,7 +34,41 @@ describe("buildOpenAiRequest: json-object mode", () => {
     const strict = buildOpenAiRequest(config, "{}", "strict-schema");
     const jsonObject = buildOpenAiRequest(config, "{}", "json-object");
     expect(jsonObject.model).toBe(strict.model);
-    expect(jsonObject.max_completion_tokens).toBe(strict.max_completion_tokens);
+    expect(jsonObject).toMatchObject({ max_completion_tokens: 512 });
+    expect(strict).toMatchObject({ max_completion_tokens: 512 });
     expect(jsonObject.messages).toEqual(strict.messages);
+  });
+});
+
+describe("buildOpenAiRequest: token limit field", () => {
+  it("defaults to max_completion_tokens, unchanged from the hosted OpenAI behavior", () => {
+    const body = buildOpenAiRequest(config, "{}");
+    expect(body).toMatchObject({ max_completion_tokens: 512 });
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
+  it("produces the identical body whether tokenLimitField is omitted or passed explicitly as max_completion_tokens", () => {
+    const omitted = buildOpenAiRequest(config, "{}");
+    const explicit = buildOpenAiRequest(config, "{}", "strict-schema", "max_completion_tokens");
+    expect(omitted).toEqual(explicit);
+  });
+
+  it("sends max_tokens instead when tokenLimitField is max_tokens, with no max_completion_tokens field", () => {
+    const body = buildOpenAiRequest(config, "{}", "strict-schema", "max_tokens");
+    expect(body).toMatchObject({ max_tokens: 512 });
+    expect(body).not.toHaveProperty("max_completion_tokens");
+  });
+
+  it("keeps model, mode, and messages unaffected by the token limit field", () => {
+    const completionTokens = buildOpenAiRequest(
+      config,
+      "{}",
+      "strict-schema",
+      "max_completion_tokens",
+    );
+    const maxTokens = buildOpenAiRequest(config, "{}", "strict-schema", "max_tokens");
+    expect(maxTokens.model).toBe(completionTokens.model);
+    expect(maxTokens.response_format).toEqual(completionTokens.response_format);
+    expect(maxTokens.messages).toEqual(completionTokens.messages);
   });
 });
