@@ -31,6 +31,18 @@ function collectByTag(root: Element, name: string): Element[] {
   return Array.from(root.getElementsByTagName(name));
 }
 
+/**
+ * Key a trans-unit by its `id`, falling back to `resname`, and only then to a positional
+ * `unit-${index}` derived from document order.
+ *
+ * The positional fallback is inherently unstable: it carries no identity of its own, so adding or
+ * removing one id-less (and resname-less) unit anywhere earlier in the document shifts every later
+ * synthesized key. Between runs this silently re-attaches a previously stored translation, diff
+ * baseline, or check result to the wrong unit. There is no better key available for a unit that
+ * declares neither `id` nor `resname`, so this stays a documented degradation rather than an error;
+ * XLIFF producers that need stable identity across runs should emit an `id` (or `resname`) on every
+ * trans-unit.
+ */
 function unitKey(element: Element, index: number): string {
   return element.getAttribute("id") ?? element.getAttribute("resname") ?? `unit-${index}`;
 }
@@ -126,7 +138,9 @@ function unitValue(serializer: XMLSerializer, unit: Unit): string {
 /**
  * Parse XLIFF 1.2 or 2.0 into flat entries keyed by the trans-unit id (falling back to resname),
  * taking the target inner markup when present and non-empty, otherwise the source. Malformed XML is
- * `INVALID_XML`; a non-XLIFF document is `INVALID_STRUCTURE`.
+ * `INVALID_XML`; a non-XLIFF document is `INVALID_STRUCTURE`; two trans-units resolving to the same
+ * key (typically a duplicate `id`) is also `INVALID_STRUCTURE`, since silently keeping one and
+ * dropping the other would lose data on read and misdirect a translation on write.
  */
 export function parseXliffEntries(
   content: string,
@@ -136,6 +150,12 @@ export function parseXliffEntries(
   const serializer = new XMLSerializer();
   const out = new Map<string, TranslationEntry>();
   for (const unit of walkUnits(root)) {
+    if (out.has(unit.key)) {
+      throw new AdapterError(
+        "INVALID_STRUCTURE",
+        "The XLIFF file has two trans-units with the same id.",
+      );
+    }
     const value = unitValue(serializer, unit);
     out.set(unit.key, {
       key: unit.key,
@@ -164,16 +184,47 @@ async function readDestination(filePath: string): Promise<string> {
   return outcome.content;
 }
 
+/**
+ * The genuine XLIFF inline elements allowed to survive as live elements inside a written
+ * `<target>`. Anything else in a translated value (an unexpected tag, a script-bearing element, or
+ * any other markup a provider or translator might introduce) degrades the whole value to a text
+ * node instead, the same fallback already used for unbalanced markup.
+ */
+const XLIFF_INLINE_ELEMENTS = new Set(["x", "g", "bx", "ex", "ph", "it", "mrk"]);
+
+function hasDisallowedElement(root: Element): boolean {
+  return collectByTag(root, "*").some((el) => !XLIFF_INLINE_ELEMENTS.has(el.localName ?? ""));
+}
+
+/**
+ * Re-parse a translated value as an XML fragment so inline placeholder elements (`<x>`, `<g>`, and
+ * the rest of {@link XLIFF_INLINE_ELEMENTS}) survive as live nodes in the written `<target>`. A
+ * translated value is untrusted input (it may come from a provider or a human translator), so this
+ * is a deliberate, narrow markup-interpreting surface: `assertNoDoctype` runs first and rejects a
+ * DTD or entity declaration outright (this must stay outside the catch below, or the throw would be
+ * swallowed into a silent text-node fallback), and any element outside the allow-list also fails the
+ * fragment, degrading the entire value to a text node. Genuinely malformed or unbalanced markup takes
+ * the same text-node fallback.
+ */
 function fragmentNodes(parser: DOMParser, value: string): Node[] | null {
+  assertNoDoctype(value);
   try {
     const root = parser.parseFromString(`<wrapper>${value}</wrapper>`, "text/xml").documentElement;
-    return root === null ? null : Array.from(root.childNodes);
+    if (root === null || hasDisallowedElement(root)) {
+      return null;
+    }
+    return Array.from(root.childNodes);
   } catch {
     return null;
   }
 }
 
-/** Re-parse the value as an XML fragment so inline placeholder elements survive; otherwise fall back to a single text node. */
+/**
+ * Write a translated value into a `<target>` element. The value is re-parsed as an XML fragment (see
+ * {@link fragmentNodes}) so inline placeholder markup survives; anything that fails that narrow
+ * allow-list, or is not well-formed XML at all, is written as a single plain text node instead, so a
+ * translated value can never inject an arbitrary element into the document.
+ */
 function setTargetValue(doc: Document, parser: DOMParser, element: Element, value: string): void {
   while (element.firstChild !== null) {
     element.removeChild(element.firstChild);

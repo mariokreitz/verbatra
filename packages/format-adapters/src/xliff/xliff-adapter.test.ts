@@ -98,6 +98,34 @@ describe("createXliffAdapter read", () => {
     const error = await readError(adapter.read(await tempFile("lc.xlf", doc), "de"));
     expect((error as AdapterError).code).toBe("INVALID_XML");
   });
+
+  it("rejects two trans-units sharing the same id as INVALID_STRUCTURE", async () => {
+    const doc = `<xliff version="1.2"><file><body><trans-unit id="dup"><source>A</source></trans-unit><trans-unit id="dup"><source>B</source></trans-unit></body></file></xliff>`;
+    const error = await readError(adapter.read(await tempFile("dup.xlf", doc), "de"));
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("rejects two 2.0 units sharing the same id as INVALID_STRUCTURE", async () => {
+    const doc = `<xliff version="2.0"><file id="f"><unit id="dup"><segment><source>A</source></segment></unit><unit id="dup"><segment><source>B</source></segment></unit></file></xliff>`;
+    const error = await readError(adapter.read(await tempFile("dup2.xliff", doc), "de"));
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("rejects a synthesized positional key colliding with a real id as INVALID_STRUCTURE", async () => {
+    const doc = `<xliff version="1.2"><file><body><trans-unit><source>A</source></trans-unit><trans-unit id="unit-0"><source>B</source></trans-unit></body></file></xliff>`;
+    const error = await readError(adapter.read(await tempFile("collide.xlf", doc), "de"));
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("documents the positional fallback's instability: inserting an id-less unit shifts every later synthesized key", async () => {
+    const before = `<xliff version="1.2"><file><body><trans-unit><source>Z</source></trans-unit></body></file></xliff>`;
+    const after = `<xliff version="1.2"><file><body><trans-unit><source>Y</source></trans-unit><trans-unit><source>Z</source></trans-unit></body></file></xliff>`;
+    const beforeRead = await adapter.read(await tempFile("shift-before.xlf", before), "de");
+    const afterRead = await adapter.read(await tempFile("shift-after.xlf", after), "de");
+    expect(beforeRead.resource.entries.get("unit-0")?.value).toBe("Z");
+    expect(afterRead.resource.entries.get("unit-0")?.value).toBe("Y");
+    expect(afterRead.resource.entries.get("unit-1")?.value).toBe("Z");
+  });
 });
 
 describe("createXliffAdapter write (round-trip fidelity)", () => {
@@ -196,6 +224,74 @@ describe("createXliffAdapter write (round-trip fidelity)", () => {
     await adapter.write({ ...resource, entries }, path);
     const written = await readFile(path, "utf8");
     expect(written).toContain("a &lt; b &amp; c");
+  });
+
+  it("rejects a translated value declaring a DOCTYPE as INVALID_XML instead of degrading to text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", {
+        ...u1,
+        value: '<!DOCTYPE x [<!ENTITY xxe "pwn">]>&xxe;',
+      });
+    }
+    const error = await readError(adapter.write({ ...resource, entries }, path));
+    expect((error as AdapterError).code).toBe("INVALID_XML");
+  });
+
+  it("rejects a translated value declaring an ENTITY as INVALID_XML instead of degrading to text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: '<!ENTITY xxe "pwn">&xxe;' });
+    }
+    const error = await readError(adapter.write({ ...resource, entries }, path));
+    expect((error as AdapterError).code).toBe("INVALID_XML");
+  });
+
+  it("degrades a translated value with a non-allow-listed element to a plain text node", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: "<script>alert(1)</script>" });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).not.toContain("<script>");
+    expect(written).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
+  it("keeps a translated value whose only element is on the XLIFF inline allow-list", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: 'Bonjour <g id="1">{name}</g>' });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).toContain('<target>Bonjour <g id="1">{name}</g></target>');
+  });
+
+  it("degrades a value mixing an allow-listed and a disallowed element entirely to text", async () => {
+    const path = await tempFile("m.xliff", XLIFF_20);
+    const { resource } = await adapter.read(path, "fr");
+    const entries = new Map(resource.entries);
+    const u1 = entries.get("u1");
+    if (u1) {
+      entries.set("u1", { ...u1, value: '<x id="1"/><b>bold</b>' });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    const written = await readFile(path, "utf8");
+    expect(written).not.toContain("<b>");
+    expect(written).toContain(`&lt;x id="1"/&gt;&lt;b&gt;bold&lt;/b&gt;`);
   });
 
   it("raises INVALID_STRUCTURE when the destination path is not a regular file", async () => {
