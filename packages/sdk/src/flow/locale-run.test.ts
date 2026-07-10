@@ -438,7 +438,7 @@ describe("runLocale: ICU branch-aware comparePlaceholders wiring (real ai-provid
 
     const { summary, lockEntries } = await runLocale(params);
 
-    // Without the fix this would have flattened to a match (the BTS-104 bug); the real ai-providers
+    // A flat, non-branch-aware comparison would flatten this to a match; the real ai-providers
     // integrity path must reject it via the adapter's comparePlaceholders.
     expect(summary.translated).toEqual([]);
     expect(summary.integrityMismatches).toEqual(["items"]);

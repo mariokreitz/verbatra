@@ -168,8 +168,8 @@ describe("importLocale", () => {
   });
 
   it("flags a placeholder invented in a single target branch via the adapter's comparePlaceholders", () => {
-    // Without branch-aware comparison this would flatten to a match (the BTS-104 bug): {author} is
-    // confined to the "other" branch of the row's translation and absent everywhere in the source.
+    // Without branch-aware comparison this would flatten to a match: {author} is confined to the
+    // "other" branch of the row's translation and absent everywhere in the source.
     const src = entry("items", "{count, plural, one {# item} other {# items}}");
     const sheet: WorkbookSheet = {
       locale: "de",

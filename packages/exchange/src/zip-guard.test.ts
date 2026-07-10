@@ -107,11 +107,11 @@ describe("guardWorkbookBytes: accept", () => {
 
   it("accepts a binary part whose raw decompressed bytes are under the cap even though decoding it as UTF-8 would inflate the byte count past the cap", async () => {
     // A stored entry of 1000 raw 0xFF bytes, the kind of binary content a real workbook carries in
-    // parts such as docProps/thumbnail.jpeg or xl/media/*. The raw decompressed size (1000) is
-    // under the 2000 cap and must be accepted. Decoding those bytes as UTF-8 is lossy: each invalid
-    // byte becomes a U+FFFD replacement character (3 bytes wide), so the decoded string re-encodes
-    // to 3000 bytes. The old buggy path summed that re-encoded size against the cap and wrongly
-    // rejected a workbook that never actually exceeded it; the fix sums the true raw byte count.
+    // parts such as docProps/thumbnail.jpeg or xl/media/*. The raw decompressed size (1000) is under
+    // the 2000 cap and must be accepted. Decoding those bytes as UTF-8 is lossy: each invalid byte
+    // becomes a U+FFFD replacement character (3 bytes wide), so the decoded string re-encodes to 3000
+    // bytes, past the cap. The cap must be enforced against the raw decompressed count, not the
+    // re-encoded UTF-8 length.
     const raw = new Uint8Array(1000).fill(0xff);
     const zip = new JSZip();
     zip.file("docProps/thumbnail.jpeg", raw);
@@ -125,7 +125,7 @@ describe("streamEntryBounded", () => {
   it("aborts before materializing an entry once the running total passes the budget", async () => {
     // A stub whose stream would yield roughly 100 MiB in 1 KiB chunks, tracked by a shared pull
     // counter. With a 64 KiB budget the loop must break after reading only a bounded slice, proving
-    // abort-before-materialize. The old full-decompression impl would pull every chunk (100000).
+    // abort-before-materialize instead of pulling all 100000 chunks.
     let pulls = 0;
     async function* gen(): AsyncGenerator<Buffer> {
       for (let index = 0; index < 100_000; index += 1) {

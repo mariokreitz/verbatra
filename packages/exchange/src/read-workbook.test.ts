@@ -206,10 +206,9 @@ describe("readWorkbook: parse-bound caps", () => {
   it("accepts a binary part whose raw bytes are under the actual-bytes cap even though UTF-8 decoding would inflate its byte count past it", async () => {
     // A well-formed workbook plus an added binary part (docProps/thumbnail.jpeg, the kind of part a
     // real .xlsx carries) of 1000 raw, non-UTF-8 bytes. Decoding that part lossily replaces every
-    // invalid byte with U+FFFD (3 bytes in UTF-8), so a buggy actual-bytes pass that re-encodes the
-    // decoded string would overcount it by roughly 3x (2000 extra bytes here) and could wrongly
-    // reject a workbook that never exceeded the real cap. The fix sums true raw decompressed bytes,
-    // so this must be accepted.
+    // invalid byte with U+FFFD (3 bytes in UTF-8), so re-encoding the decoded string would overcount
+    // it by roughly 3x (2000 extra bytes here). The actual-bytes pass must sum true raw decompressed
+    // bytes, not the re-encoded UTF-8 length, so this must be accepted.
     const thumbnailRaw = new Uint8Array(1000).fill(0xff);
     const zip = await JSZip.loadAsync(await buildWorkbook(baseModel));
     zip.file("docProps/thumbnail.jpeg", thumbnailRaw, { compression: "STORE" });
@@ -218,8 +217,8 @@ describe("readWorkbook: parse-bound caps", () => {
     // The cap is derived from the true raw decompressed total (every entry's declared size, honest
     // for both the workbook's own parts and the stored thumbnail) rather than a hardcoded number, so
     // the test does not depend on buildWorkbook's exact byte output. Setting the cap 1000 bytes above
-    // that true total sits strictly between the correct total and the old buggy, 3x-inflated one
-    // (true total + 2000), so only the fix accepts this workbook.
+    // that true total sits strictly between the correct total and the re-encoded, 3x-inflated one
+    // (true total + 2000), so only a comparison against the true raw total accepts this workbook.
     const loaded = await JSZip.loadAsync(bytes);
     const trueRawTotal = Object.values(loaded.files)
       .filter((file) => !file.dir)
