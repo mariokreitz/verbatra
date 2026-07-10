@@ -65,19 +65,6 @@ describe("guardWorkbookBytes: reject matrix", () => {
     expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
   });
 
-  it("rejects in the actual-bytes pass on a lying header whose declared total stays under the cap", async () => {
-    // A stored entry of raw 0xFF bytes: the declared uncompressed size is 1000, but decoding to a
-    // string yields 1000 U+FFFD replacement chars that re-encode to 3000 UTF-8 bytes. With the cap
-    // at 2000 the declared loop passes (1000 <= 2000) and only the actual-byte loop trips, proving
-    // a header that under-declares its decompressed size cannot bypass the cap.
-    const raw = new Uint8Array(1000).fill(0xff);
-    const zip = new JSZip();
-    zip.file("lying.bin", raw);
-    const bytes = await zip.generateAsync({ type: "uint8array", compression: "STORE" });
-    const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 2000 };
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
-  });
-
   it("rejects a part that declares a DTD via DOCTYPE", async () => {
     const zip = new JSZip();
     zip.file("doctype.xml", '<?xml version="1.0"?><!DOCTYPE root><root></root>');
@@ -117,6 +104,21 @@ describe("guardWorkbookBytes: accept", () => {
     const bytes = await buildWorkbook(model);
     await expect(guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS)).resolves.toBeUndefined();
   });
+
+  it("accepts a binary part whose raw decompressed bytes are under the cap even though decoding it as UTF-8 would inflate the byte count past the cap", async () => {
+    // A stored entry of 1000 raw 0xFF bytes, the kind of binary content a real workbook carries in
+    // parts such as docProps/thumbnail.jpeg or xl/media/*. The raw decompressed size (1000) is
+    // under the 2000 cap and must be accepted. Decoding those bytes as UTF-8 is lossy: each invalid
+    // byte becomes a U+FFFD replacement character (3 bytes wide), so the decoded string re-encodes
+    // to 3000 bytes. The old buggy path summed that re-encoded size against the cap and wrongly
+    // rejected a workbook that never actually exceeded it; the fix sums the true raw byte count.
+    const raw = new Uint8Array(1000).fill(0xff);
+    const zip = new JSZip();
+    zip.file("docProps/thumbnail.jpeg", raw);
+    const bytes = await zip.generateAsync({ type: "uint8array", compression: "STORE" });
+    const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 2000 };
+    await expect(guardWorkbookBytes(bytes, limits)).resolves.toBeUndefined();
+  });
 });
 
 describe("streamEntryBounded", () => {
@@ -149,9 +151,24 @@ describe("streamEntryBounded", () => {
     expectWorkbookInvalid(await rejection(streamEntryBounded(stub, 64 * 1024)));
   });
 
-  it("accumulates string chunks and returns the decoded UTF-8 content", async () => {
+  it("accumulates string chunks and returns the raw byte count with the decoded UTF-8 content", async () => {
     const stub = { nodeStream: () => Readable.from(["abc", "def"]) };
-    await expect(streamEntryBounded(stub, 64 * 1024)).resolves.toBe("abcdef");
+    await expect(streamEntryBounded(stub, 64 * 1024)).resolves.toEqual({
+      raw: 6,
+      content: "abcdef",
+    });
+  });
+
+  it("reports a raw byte count that reflects true decompressed bytes, not the UTF-8 re-encoded decoded string", async () => {
+    // 4 raw bytes that are not valid UTF-8 (a lone continuation byte, then a truncated sequence)
+    // decode lossily to more than 4 U+FFFD replacement characters, which would re-encode to more
+    // than 4 UTF-8 bytes. The raw count returned must stay the true 4, proving it is measured from
+    // the stream, never from the decoded text.
+    const invalidUtf8 = Buffer.from([0x80, 0xc2, 0xff, 0xfe]);
+    const stub = { nodeStream: () => Readable.from([invalidUtf8]) };
+    const result = await streamEntryBounded(stub, 64 * 1024);
+    expect(result.raw).toBe(4);
+    expect(Buffer.byteLength(result.content, "utf8")).toBeGreaterThan(4);
   });
 
   it("bounds real JSZip production on a high-ratio DEFLATE entry regardless of its size", async () => {
