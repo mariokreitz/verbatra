@@ -1,5 +1,4 @@
 ---
-"@verbatra/ai-providers": patch
 "@verbatra/sdk": patch
 ---
 
