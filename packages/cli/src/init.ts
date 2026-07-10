@@ -2,18 +2,13 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs
 import { resolve } from "node:path";
 import process from "node:process";
 import {
-  type ProviderId,
+  type ScaffoldableProviderId,
   type SupportedFormat,
   scaffoldingMetadata,
   verbatraConfigSchema,
 } from "@verbatra/sdk";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
-
-// The subset of ProviderId that init can scaffold: every provider with a single env var in
-// scaffoldingMetadata.providerEnv. openai-compatible is excluded (see scaffolding.ts): it has no single
-// required env var, only a three-tier key fallback, so init does not offer it as a scaffold option.
-type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
 
 // Read provider, env-var, and model truth from the SDK scaffolding metadata rather than restating it.
 const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];

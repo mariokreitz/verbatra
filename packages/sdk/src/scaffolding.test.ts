@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProviderId } from "./config/provider-config.js";
 import { providerConfigSchema } from "./config/provider-config.js";
+import type { ScaffoldableProviderId } from "./scaffolding.js";
 import { scaffoldingMetadata } from "./scaffolding.js";
 
 describe("scaffoldingMetadata", () => {
@@ -26,8 +27,7 @@ describe("scaffoldingMetadata", () => {
       .map((variant) => variant.shape.id.value as ProviderId)
       .filter((id) => id !== "openai-compatible");
     for (const id of providerIds) {
-      const envVar =
-        scaffoldingMetadata.providerEnv[id as Exclude<ProviderId, "openai-compatible">];
+      const envVar = scaffoldingMetadata.providerEnv[id as ScaffoldableProviderId];
       expect(envVar).toBeTypeOf("string");
       expect(envVar.length).toBeGreaterThan(0);
     }
