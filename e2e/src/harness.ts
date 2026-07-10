@@ -35,22 +35,50 @@ export async function makeConsumer(): Promise<Consumer> {
 }
 
 export interface RunResult {
-  exitCode: number;
+  /**
+   * The process exit code, or `null` when the process never reported one (killed by a signal, or
+   * failed to spawn). Never coerced to 0: a signal-killed run must not read as a successful one.
+   */
+  exitCode: number | null;
+  /** The signal that terminated the process, or `null` when it exited normally. */
+  signal: string | null;
   stdout: string;
   stderr: string;
+}
+
+export interface RunOptions {
+  cwd?: string;
+  env?: Record<string, string>;
+  /**
+   * Milliseconds to let the process run before force-killing it with SIGKILL. SIGKILL, unlike
+   * SIGINT or SIGTERM, cannot be caught by the CLI's own shutdown handling, so this is the
+   * deterministic way to force a real signal-death (the same shape a crash or an OOM kill
+   * produces) through a helper that otherwise only awaits a process to its natural completion.
+   */
+  timeoutMs?: number;
 }
 
 export async function runVerbatra(
   consumer: Consumer,
   args: string[],
-  options: { cwd?: string; env?: Record<string, string> } = {},
+  options: RunOptions = {},
 ): Promise<RunResult> {
+  const timeoutOptions =
+    options.timeoutMs === undefined
+      ? {}
+      : { timeout: options.timeoutMs, killSignal: "SIGKILL" as const };
   const result = await execa(consumer.bin, args, {
     cwd: options.cwd ?? consumer.dir,
     env: { ...process.env, ...options.env },
     reject: false,
+    ...timeoutOptions,
   });
-  return { exitCode: result.exitCode ?? 0, stdout: result.stdout, stderr: result.stderr };
+  return {
+    exitCode: result.exitCode ?? null,
+    signal: result.signal ?? null,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 export function spawnVerbatra(
@@ -66,6 +94,19 @@ export function spawnVerbatra(
 }
 
 export type Subprocess = ReturnType<typeof spawnVerbatra>;
+
+/** One line of `watch --json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
+export interface WatchRunResultJson {
+  status: "succeeded" | "failed";
+}
+
+export function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
+  return stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as WatchRunResultJson);
+}
 
 export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
