@@ -173,3 +173,74 @@ describe("buildWorkbook: worksheet-name coupling guard", () => {
     expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
   });
 });
+
+describe("buildWorkbook: worksheet-name collision guard", () => {
+  it("rejects two target locales differing only in case", async () => {
+    const bad: WorkbookModel = {
+      sheets: [
+        { locale: "de", rows: [] },
+        { locale: "DE", rows: [] },
+      ],
+    };
+    const error = await buildWorkbook(bad).catch((e) => e);
+    expect(error).toBeInstanceOf(ExchangeError);
+    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    expect((error as ExchangeError).message).toContain("DE");
+  });
+
+  it("rejects two identical target locales", async () => {
+    const bad: WorkbookModel = {
+      sheets: [
+        { locale: "de", rows: [] },
+        { locale: "de", rows: [] },
+      ],
+    };
+    const error = await buildWorkbook(bad).catch((e) => e);
+    expect(error).toBeInstanceOf(ExchangeError);
+    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+  });
+
+  it.each([
+    "Instructions",
+    "instructions",
+    "INSTRUCTIONS",
+  ])("rejects a locale colliding with the reserved instructions sheet name (%s)", async (locale) => {
+    const bad: WorkbookModel = { sheets: [{ locale, rows: [] }] };
+    const error = await buildWorkbook(bad).catch((e) => e);
+    expect(error).toBeInstanceOf(ExchangeError);
+    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    expect((error as ExchangeError).message).toContain(locale);
+  });
+
+  it("never lets a raw exceljs error escape the package boundary on either collision path", async () => {
+    const duplicateLocales: WorkbookModel = {
+      sheets: [
+        { locale: "de", rows: [] },
+        { locale: "DE", rows: [] },
+      ],
+    };
+    const reservedName: WorkbookModel = { sheets: [{ locale: "Instructions", rows: [] }] };
+
+    const errors = await Promise.all([
+      buildWorkbook(duplicateLocales).catch((e) => e),
+      buildWorkbook(reservedName).catch((e) => e),
+    ]);
+
+    for (const error of errors) {
+      expect(error).toBeInstanceOf(ExchangeError);
+      expect((error as Error).message).not.toContain("Worksheet name already exists");
+    }
+  });
+
+  it("builds successfully with distinct, non-colliding locales (no false positive)", async () => {
+    const good: WorkbookModel = {
+      sheets: [
+        { locale: "de", rows: [] },
+        { locale: "fr", rows: [] },
+        { locale: "it-IT", rows: [] },
+      ],
+    };
+    const bytes = await buildWorkbook(good);
+    expect(bytes.length).toBeGreaterThan(0);
+  });
+});

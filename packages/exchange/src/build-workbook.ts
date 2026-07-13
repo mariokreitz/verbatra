@@ -108,6 +108,37 @@ function assertValidWorksheetName(locale: string): void {
 }
 
 /**
+ * Reject a sheet locale that would collide as an Excel worksheet name: exceljs deduplicates worksheet
+ * names case-insensitively (in the `Worksheet` constructor, not in `Workbook.addWorksheet`), so two
+ * target locales differing only in case, or a locale equal to the reserved instructions sheet name,
+ * would otherwise reach `addWorksheet` and throw a raw, uncaught exceljs error. Checked once, up
+ * front, for the whole model, so that error can never escape the package boundary.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` if a locale collides with the reserved
+ *   instructions sheet name, or with another sheet's locale
+ */
+function assertNoWorksheetNameCollisions(sheets: readonly WorkbookSheet[]): void {
+  const reservedKey = INSTRUCTIONS_SHEET_NAME.toLowerCase();
+  const seen = new Set<string>();
+  for (const sheet of sheets) {
+    const key = sheet.locale.toLowerCase();
+    if (key === reservedKey) {
+      throw new ExchangeError(
+        "WORKBOOK_INVALID",
+        `The locale "${sheet.locale}" cannot be an Excel worksheet name: it collides with the reserved "${INSTRUCTIONS_SHEET_NAME}" sheet.`,
+      );
+    }
+    if (seen.has(key)) {
+      throw new ExchangeError(
+        "WORKBOOK_INVALID",
+        `The locale "${sheet.locale}" cannot be an Excel worksheet name: it collides with another target locale's sheet name.`,
+      );
+    }
+    seen.add(key);
+  }
+}
+
+/**
  * Add one styled, protected data sheet for a locale: write the header and rows, apply the geometry,
  * and protect the sheet so only the translation column stays editable.
  *
@@ -150,9 +181,12 @@ function buildInstructionsSheet(workbook: ExcelJS.Workbook): void {
  *
  * @param model - the neutral workbook model (sheets in config order, rows in a stable order)
  * @returns the workbook bytes
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if exceljs fails to serialize the workbook
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` if a locale is not a valid worksheet name, collides
+ *   with the reserved instructions sheet name, collides with another sheet's locale, or if exceljs
+ *   fails to serialize the workbook
  */
 export async function buildWorkbook(model: WorkbookModel): Promise<Uint8Array> {
+  assertNoWorksheetNameCollisions(model.sheets);
   const workbook = new ExcelJS.Workbook();
   buildInstructionsSheet(workbook);
   for (const sheet of model.sheets) {
