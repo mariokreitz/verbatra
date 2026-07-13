@@ -145,6 +145,42 @@ describe("run watch: wiring and rendering", () => {
     h.finishStop();
     await done;
   });
+
+  it("omitting --debounce leaves debounceMs unset (watch() applies its own 300ms default)", async () => {
+    const h = watchHarness();
+    const { deps, calls } = recordingDeps({ watch: h.watch });
+    const cap = captureStreams();
+    const { done, session } = await startWatch(["watch"], deps, cap.streams);
+
+    expect(calls.watch[0]).not.toHaveProperty("debounceMs");
+
+    session.requestStop();
+    h.finishStop();
+    await done;
+  });
+});
+
+describe("run watch: --debounce validation", () => {
+  it.each([
+    "abc",
+    "0",
+    "-5",
+    "250ms",
+    "3.5",
+  ])("rejects an invalid --debounce %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["watch", "--debounce", value], deps, cap.streams, {
+      onWatchSession: () => {},
+    });
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_DEBOUNCE]");
+    expect(cap.out()).toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.watch).toHaveLength(0);
+  });
 });
 
 describe("run watch: shutdown and exit codes", () => {
