@@ -110,6 +110,28 @@ describe("readWorkbook: structural rejection", () => {
     expect(await code(readWorkbook(bytes))).toBe("WORKBOOK_INVALID");
   });
 
+  it("accepts a row with status 'unchanged'", async () => {
+    const withUnchanged: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "k1",
+              source: "Hello",
+              currentTarget: "Hallo",
+              status: "unchanged",
+              sourceHash: "h1",
+              translation: "",
+            },
+          ],
+        },
+      ],
+    };
+    const data = await readWorkbook(await buildWorkbook(withUnchanged));
+    expect(data.sheets[0]?.rows[0]?.status).toBe("unchanged");
+  });
+
   it("rejects a row with an unrecognized status via the zod row check", async () => {
     const bad: WorkbookModel = {
       sheets: [
@@ -120,7 +142,7 @@ describe("readWorkbook: structural rejection", () => {
               key: "k1",
               source: "Hello",
               currentTarget: "",
-              // status is constrained to "new" | "changed" at the type level; force an invalid one.
+              // status is constrained to a known RowStatus at the type level; force an invalid one.
               status: "weird" as "new",
               sourceHash: "h1",
               translation: "Hallo",

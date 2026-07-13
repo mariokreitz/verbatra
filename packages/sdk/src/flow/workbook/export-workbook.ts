@@ -64,7 +64,7 @@ function buildRows(
 ): readonly WorkbookRow[] {
   const diff = diffResources(source, target, { baseline });
   const rows: WorkbookRow[] = [];
-  const add = (keys: readonly string[], status: "new" | "changed"): void => {
+  const add = (keys: readonly string[], status: "new" | "changed" | "unchanged"): void => {
     for (const key of keys) {
       const sourceEntry = source.entries.get(key);
       if (sourceEntry === undefined) {
@@ -83,7 +83,7 @@ function buildRows(
   add(diff.missing, "new");
   add(diff.changed, "changed");
   if (includeUnchanged) {
-    add(diff.unchanged, "changed");
+    add(diff.unchanged, "unchanged");
   }
   // Re-sort across buckets so the whole sheet has a deterministic total order by key.
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));

@@ -29,7 +29,7 @@ The file opens with one **Instructions** sheet, followed by one data sheet per t
 | `Key` | no | The dotted key path. The sole identity that maps a row back to a string. |
 | `Source` | no | The source-locale value, for reference. |
 | `Current translation` | no | The existing target value, if any. |
-| `Status` | no | `new` (no translation yet) or `changed` (the source changed and the translation needs updating). |
+| `Status` | no | `new` (no translation yet), `changed` (the source changed and the translation needs updating), or `unchanged` (already up to date, included only with `--include-unchanged`). |
 | `Translation` | **yes** | The only cell the translator fills. |
 | `Source hash` | no | Hidden. The source content captured at export, used to detect a source that changed after export. |
 
