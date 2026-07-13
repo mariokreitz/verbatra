@@ -22,7 +22,7 @@ By default, export drops `verbatra-translations.xlsx` in the working directory. 
 
 ## The workbook
 
-The file opens with one **Instructions** sheet, followed by one data sheet per target locale, each named for its locale (`de`, `fr`, ...). Every data sheet shares the same columns:
+The file opens with one **Instructions** sheet, followed by one data sheet per target locale, each named for its locale (`de`, `fr`, ...). Because a sheet name is derived directly from its locale, `targetLocales` may not contain a locale named `Instructions` (in any case) or two locales that are case-insensitively equal; both are rejected before the workbook is built. Every data sheet shares the same columns:
 
 | Column | Editable | Purpose |
 | --- | --- | --- |
