@@ -18,6 +18,7 @@ export const INSTRUCTIONS_LINES: readonly string[] = [
   "Status values:",
   "  new      - this string has no translation yet.",
   "  changed  - the source string changed and the translation needs updating.",
+  "  unchanged - already up to date, included for reference. No action needed.",
   "",
   "When you are done, save the file and send it back. verbatra checks every value on import:",
   "a value with a broken placeholder, invalid ICU, or a source that changed since export is",
