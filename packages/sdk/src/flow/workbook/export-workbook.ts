@@ -77,6 +77,7 @@ function buildRows(
         status,
         sourceHash: contentHash(sourceEntry),
         translation: "",
+        context: sourceEntry.description ?? "",
       });
     }
   };

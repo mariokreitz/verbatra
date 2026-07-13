@@ -16,6 +16,7 @@ const model: WorkbookModel = {
           status: "new",
           sourceHash: "abc123",
           translation: "",
+          context: "A friendly greeting",
         },
         {
           key: "farewell",
@@ -24,6 +25,7 @@ const model: WorkbookModel = {
           status: "changed",
           sourceHash: "def456",
           translation: "",
+          context: "",
         },
         {
           key: "welcome",
@@ -56,6 +58,8 @@ describe("buildWorkbook + readWorkbook round trip", () => {
     expect(de?.rows[2]?.currentTarget).toBe("Willkommen");
     // Empty translations stay empty on read.
     expect(de?.rows.every((r) => r.translation === "")).toBe(true);
+    expect(de?.rows[0]?.context).toBe("A friendly greeting");
+    expect(de?.rows[1]?.context).toBe("");
   });
 
   it("round-trips a filled translation by key", async () => {
@@ -71,6 +75,7 @@ describe("buildWorkbook + readWorkbook round trip", () => {
               status: "new",
               sourceHash: "abc123",
               translation: "Hallo {name}",
+              context: "",
             },
           ],
         },
@@ -126,6 +131,7 @@ describe("buildWorkbook + readWorkbook round trip: coercion-prone translations",
               status: "new",
               sourceHash: "abc123",
               translation,
+              context: "",
             },
           ],
         },

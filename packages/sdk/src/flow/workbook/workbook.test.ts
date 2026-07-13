@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import { buildWorkbook, readWorkbook } from "@verbatra/exchange";
+import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../../config/schema.js";
 import {
@@ -146,6 +147,33 @@ describe("exportWorkbook", () => {
       exportWorkbook({ config: cfg(), cwd: dir, locales: ["de", "es"] }),
     ).rejects.toMatchObject({ code: "UNKNOWN_LOCALE" });
   });
+
+  it("carries the source entry's description into the Context column", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, "locales"));
+    await writeJsonFile(join(dir, "locales", "en.arb"), {
+      greeting: "Hello",
+      "@greeting": { description: "A friendly greeting shown on the home screen" },
+    });
+    const config = cfg({
+      targetLocales: ["de"],
+      format: "arb",
+      files: { pattern: "locales/{locale}.arb" },
+    });
+
+    const result = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
+    expect(row?.context).toBe("A friendly greeting shown on the home screen");
+  });
+
+  it("leaves the Context column empty when the source entry carries no description", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined });
+    const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
+    expect(row?.context).toBe("");
+  });
 });
 
 describe("importWorkbook", () => {
@@ -174,6 +202,29 @@ describe("importWorkbook", () => {
     };
     // The orphaned key gets no lock entry; only the two source-present keys do.
     expect(Object.keys(lock.locales.de ?? {}).sort()).toEqual(["farewell", "greeting"]);
+  });
+
+  it("imports a legacy workbook built without the Context column", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "greeting";
+    sheet.getRow(2).getCell(2).value = "Hello";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(5).value = "Hallo";
+    sheet.getRow(2).getCell(6).value = contentHash(entry("Hello"));
+    const path = join(dir, "legacy.xlsx");
+    await workbook.xlsx.writeFile(path);
+
+    const summary = await importWorkbook({ config, workbook: path, cwd: dir });
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(summary.locales[0]?.translated).toEqual(["greeting"]);
   });
 
   it("bootstraps a baseline for an already-synced key with no prior lock entry", async () => {
@@ -430,6 +481,7 @@ describe("importWorkbook", () => {
                 status: "new" as const,
                 sourceHash: "x",
                 translation: "Boo",
+                context: "",
               },
             ],
           },

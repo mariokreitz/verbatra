@@ -168,6 +168,22 @@ describe("createDeepLProvider: glossary", () => {
   });
 });
 
+describe("createDeepLProvider: description/meaning are context-only, never DeepL input", () => {
+  // DeepL is a machine-translation API with no context parameter: unlike the LLM providers, it never
+  // reads entry.description/meaning at all. An entry carrying one translates exactly like one without,
+  // and the value sent to DeepL, and the value returned, both stay free of the description text.
+  it("sends only the entry value to DeepL, never the description, and never echoes it back", async () => {
+    const { client, calls } = deeplStubClient(deeplResult(["Hallo"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({
+        entries: [entry("greeting", "Hello", [], { description: "a friendly greeting" })],
+      }),
+    );
+    expect(firstDeeplCall(calls).texts).toEqual(["Hello"]);
+    expect(result.values.get("greeting")).toBe("Hallo");
+  });
+});
+
 describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () => {
   // Only placeholder-free entries are sent to DeepL, so integrity runs on those and still catches
   // DeepL introducing a placeholder-like token into a source that had none.

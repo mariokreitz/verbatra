@@ -14,6 +14,8 @@ export const INSTRUCTIONS_LINES: readonly string[] = [
   "   structure and the argument names exactly. Translate only the human-readable text.",
   "6. Do not edit the 'Key' column or the hidden 'Source hash' column. They map your translation",
   "   back to the right string. You may sort or filter rows freely; mapping does not depend on row order.",
+  "7. The 'Context' column, when present, is reference text from the source file explaining what the",
+  "   string means or where it is used. It is read-only; leave it as-is.",
   "",
   "Status values:",
   "  new      - this string has no translation yet.",

@@ -55,4 +55,9 @@ describe("instructions: critical guidance", () => {
     expect(unchangedLine).toBeDefined();
     expect(unchangedLine).not.toContain("source string changed");
   });
+
+  it("tells the translator the Context column is read-only reference text", () => {
+    expect(text).toContain("'Context' column");
+    expect(text).toContain("read-only");
+  });
 });

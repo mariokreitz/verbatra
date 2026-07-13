@@ -17,6 +17,9 @@ const XLIFF_12 = `<?xml version="1.0" encoding="UTF-8"?>
 const XLIFF_20 = `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="2.0" srcLang="en" trgLang="fr"><file id="f1"><unit id="u1"><segment><source>Hello {name}</source><target>Bonjour {name}</target></segment></unit></file></xliff>`;
 
+const XLIFF_20_WITH_NOTE = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="2.0" srcLang="en" trgLang="fr"><file id="f1"><unit id="u1"><notes><note category="description">be friendly</note></notes><segment><source>Hi {name}</source></segment></unit></file></xliff>`;
+
 const XLIFF_12_NAMESPACED = `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2"><file source-language="en" target-language="de"><body>
 <trans-unit id="g1"><source>Hi <g id="1">there</g></source></trans-unit>
@@ -60,6 +63,23 @@ describe("createXliffAdapter read", () => {
   it("extracts inline placeholder ids", async () => {
     const { resource } = await adapter.read(await tempFile("m.xlf", XLIFF_12), "de");
     expect(resource.entries.get("greeting")?.placeholders).toEqual(['<x id="1"/>']);
+  });
+
+  it("populates entry.description from a 1.2 trans-unit's <note>", async () => {
+    const { resource } = await adapter.read(await tempFile("m.xlf", XLIFF_12), "de");
+    expect(resource.entries.get("greeting")?.description).toBe("be friendly");
+    // "bye" has no <note>, so its description stays undefined.
+    expect(resource.entries.get("bye")?.description).toBeUndefined();
+  });
+
+  it("populates entry.description from a 2.0 unit's <notes><note>, shared by every segment in the unit", async () => {
+    const { resource } = await adapter.read(await tempFile("m.xliff", XLIFF_20_WITH_NOTE), "fr");
+    expect(resource.entries.get("u1")?.description).toBe("be friendly");
+  });
+
+  it("leaves description undefined for a 2.0 unit with no <notes>", async () => {
+    const { resource } = await adapter.read(await tempFile("m.xliff", XLIFF_20), "fr");
+    expect(resource.entries.get("u1")?.description).toBeUndefined();
   });
 
   it("parses XLIFF 2.0 unit/segment, preferring the target", async () => {
