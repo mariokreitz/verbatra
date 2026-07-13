@@ -101,6 +101,35 @@ describe("createTreeFileAdapter read", () => {
   });
 });
 
+describe("createTreeFileAdapter deriveDescriptions", () => {
+  it("merges a derived description into the matching flattened entry", async () => {
+    const adapter = makeAdapter({
+      deriveDescriptions: () => new Map([["a.b", "context for a.b"]]),
+    });
+    const path = await tempFile("f.tree", JSON.stringify({ a: { b: "x" }, c: "y" }));
+    const { resource } = await adapter.read(path, "en");
+    expect(resource.entries.get("a.b")?.description).toBe("context for a.b");
+    expect(resource.entries.get("c")?.description).toBeUndefined();
+  });
+
+  it("ignores a derived key that matches no flattened entry", async () => {
+    const adapter = makeAdapter({
+      deriveDescriptions: () => new Map([["no-such-key", "orphaned context"]]),
+    });
+    const path = await tempFile("f.tree", JSON.stringify({ a: "x" }));
+    const { resource } = await adapter.read(path, "en");
+    expect(resource.entries.get("a")?.description).toBeUndefined();
+    expect(resource.entries.has("no-such-key")).toBe(false);
+  });
+
+  it("leaves every description undefined when no deriveDescriptions is supplied", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("f.tree", JSON.stringify({ a: "x" }));
+    const { resource } = await adapter.read(path, "en");
+    expect(resource.entries.get("a")?.description).toBeUndefined();
+  });
+});
+
 describe("createTreeFileAdapter write", () => {
   it("serializes the default nested tree through the injected serialize", async () => {
     const adapter = makeAdapter();

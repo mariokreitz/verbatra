@@ -39,6 +39,15 @@ type BuildWriteTree = (
   filePath: string,
 ) => unknown | Promise<unknown>;
 
+/**
+ * Optional whole-file post-flatten hook: extract a `description` per flattened entry key straight
+ * from the raw content. This is a whole-file hook rather than a `deriveEntry` parameter because the
+ * source metadata it reads (for example ARB's `@key.description`) is stripped from the tree before
+ * `flattenTree` ever runs, so a per-leaf hook would have nothing left to receive; only ARB supplies
+ * this, every other tree adapter omits it.
+ */
+type DeriveDescriptions = (content: string) => ReadonlyMap<string, string>;
+
 export interface TreeFileAdapterOptions {
   readonly format: SupportedFormat;
   /** Accepted file extensions, lower-cased and dot-prefixed (for example `[".yaml", ".yml"]`). */
@@ -63,6 +72,25 @@ export interface TreeFileAdapterOptions {
   readonly keyMode?: KeyMode;
   /** Optional branch-aware placeholder comparison; formats without plural/select branching omit it. */
   readonly comparePlaceholders?: ComparePlaceholders;
+  /** Optional; extracts a `description` per entry key from the raw content, merged in after flatten. Only ARB supplies it. */
+  readonly deriveDescriptions?: DeriveDescriptions;
+}
+
+/** Merge each derived description into its matching flattened entry; a key with no match is ignored. */
+function mergeDescriptions(
+  entries: Map<string, TranslationEntry>,
+  content: string,
+  deriveDescriptions?: DeriveDescriptions,
+): void {
+  if (!deriveDescriptions) {
+    return;
+  }
+  for (const [key, description] of deriveDescriptions(content)) {
+    const entry = entries.get(key);
+    if (entry !== undefined) {
+      entries.set(key, { ...entry, description });
+    }
+  }
 }
 
 function toEntries(
@@ -72,11 +100,14 @@ function toEntries(
   deriveEntry: DeriveEntry,
   keyMode: KeyMode,
   validateTree?: ValidateTree,
+  deriveDescriptions?: DeriveDescriptions,
 ): Map<string, TranslationEntry> {
   try {
     const tree = parse(content);
     validateTree?.(tree);
-    return flattenTree(tree, namespace, deriveEntry, keyMode);
+    const entries = flattenTree(tree, namespace, deriveEntry, keyMode);
+    mergeDescriptions(entries, content, deriveDescriptions);
+    return entries;
   } catch (error) {
     rethrowStructured(error, "The file could not be parsed.");
   }
@@ -108,6 +139,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     validateTree,
     buildWriteTree,
     comparePlaceholders,
+    deriveDescriptions,
     keyMode = "literal-leaf",
   } = options;
   return {
@@ -119,7 +151,15 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     async read(filePath, locale): Promise<ReadResult> {
       const content = await readFileContent(filePath);
       const namespace = namespaceOf(filePath);
-      const entries = toEntries(content, namespace, parse, deriveEntry, keyMode, validateTree);
+      const entries = toEntries(
+        content,
+        namespace,
+        parse,
+        deriveEntry,
+        keyMode,
+        validateTree,
+        deriveDescriptions,
+      );
       const resource: LocaleResource = { locale, namespace, format, entries };
       const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
       return { resource, invalidIcuKeys };

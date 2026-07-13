@@ -1,8 +1,10 @@
 /**
  * The fixed column layout shared by the builder and the reader so they cannot drift on which column
  * carries which field. Columns, left to right: Key (the round-trip identity), Source, Current (the
- * existing target), Status ("new" or "changed"), Translation (the only editable cell), and Source
- * hash (the export-time source hash, hidden, used for drift detection).
+ * existing target), Status ("new" or "changed"), Translation (the only editable cell), Source hash
+ * (the export-time source hash, hidden, used for drift detection), and Context (read-only developer
+ * context, appended last rather than inserted so the editable Translation column keeps its position
+ * for anyone scripting against the workbook shape).
  */
 export const COLUMN = {
   key: 1,
@@ -11,6 +13,7 @@ export const COLUMN = {
   status: 4,
   translation: 5,
   sourceHash: 6,
+  context: 7,
 } as const;
 
 /** The header row labels, in column order. The reader matches the Key/Source-hash headers. */
@@ -21,6 +24,7 @@ export const HEADERS: readonly string[] = [
   "Status",
   "Translation",
   "Source hash",
+  "Context",
 ];
 
 /** The 1-based row index the header occupies; data rows start at the next row. */

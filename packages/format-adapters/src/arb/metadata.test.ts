@@ -5,7 +5,12 @@ import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { AdapterError } from "../errors.js";
 import type { JsonRecord } from "../json/json-tree.js";
-import { buildArbWriteTree, parseArbObject, stripArbMetadata } from "./metadata.js";
+import {
+  buildArbWriteTree,
+  extractArbDescriptions,
+  parseArbObject,
+  stripArbMetadata,
+} from "./metadata.js";
 
 function entry(key: string, value: string): TranslationEntry {
   return { key, namespace: "app", value, placeholders: [], isPlural: false };
@@ -61,6 +66,54 @@ describe("stripArbMetadata", () => {
   it("returns a null-prototype object so a hostile key cannot pollute", () => {
     const result = stripArbMetadata({ a: "A" });
     expect(Object.getPrototypeOf(result)).toBeNull();
+  });
+});
+
+describe("extractArbDescriptions", () => {
+  it("maps a message key to its @key.description", () => {
+    const descriptions = extractArbDescriptions(
+      JSON.stringify({ greeting: "Hi", "@greeting": { description: "A greeting" } }),
+    );
+    expect(descriptions.get("greeting")).toBe("A greeting");
+  });
+
+  it("encodes a literal dotted message key the same way flattenTree's literal-leaf mode does", () => {
+    // flattenTree encodes a dotted leaf key so its map key stays distinct from a nested path; the
+    // description map must key by the same encoding or a dotted key's description would never merge.
+    const descriptions = extractArbDescriptions(
+      JSON.stringify({
+        "page.title": "Welcome",
+        "@page.title": { description: "The page title" },
+      }),
+    );
+    expect(descriptions.get("page\\.title")).toBe("The page title");
+    expect(descriptions.has("page.title")).toBe(false);
+  });
+
+  it("skips global @@-prefixed metadata, never treating it as a per-message description", () => {
+    const descriptions = extractArbDescriptions(
+      JSON.stringify({ "@@locale": "en", "@@x-context": { description: "not a message" } }),
+    );
+    expect(descriptions.size).toBe(0);
+  });
+
+  it("skips metadata with no description field, or a non-string one", () => {
+    const descriptions = extractArbDescriptions(
+      JSON.stringify({
+        a: "A",
+        "@a": { placeholders: {} },
+        b: "B",
+        "@b": { description: 42 },
+      }),
+    );
+    expect(descriptions.size).toBe(0);
+  });
+
+  it("skips metadata whose value is not an object at all", () => {
+    const descriptions = extractArbDescriptions(
+      JSON.stringify({ a: "A", "@a": "not an object", b: "B", "@b": null }),
+    );
+    expect(descriptions.size).toBe(0);
   });
 });
 

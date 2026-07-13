@@ -19,6 +19,7 @@ const model: WorkbookModel = {
           status: "new",
           sourceHash: "h1",
           translation: "",
+          context: "",
         },
       ],
     },

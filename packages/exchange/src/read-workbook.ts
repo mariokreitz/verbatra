@@ -19,6 +19,7 @@ const rowSchema = z.object({
   status: z.enum(["new", "changed"]),
   sourceHash: z.string(),
   translation: z.string(),
+  context: z.string(),
 });
 
 /** Coerce a cell value to a string, falling back to the cell's rendered text for object cells. */
@@ -67,6 +68,9 @@ function parseRow(sheet: ExcelJS.Worksheet, row: ExcelJS.Row): WorkbookRow {
     status: cellString(row.getCell(COLUMN.status)) as RowStatus,
     sourceHash: cellString(row.getCell(COLUMN.sourceHash)),
     translation: cellString(row.getCell(COLUMN.translation)),
+    // A workbook built before the Context column existed has no cell here; getCell auto-vivifies an
+    // empty one, so cellString yields "" and the row still validates, keeping import backward-compatible.
+    context: cellString(row.getCell(COLUMN.context)),
   };
   const result = rowSchema.safeParse(candidate);
   if (!result.success) {

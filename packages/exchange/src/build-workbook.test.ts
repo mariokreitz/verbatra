@@ -17,6 +17,7 @@ const model: WorkbookModel = {
           status: "changed",
           sourceHash: "abc123",
           translation: "",
+          context: "A friendly greeting shown on the home screen",
         },
       ],
     },
@@ -71,6 +72,7 @@ describe("buildWorkbook: translator-facing properties", () => {
       COLUMN.current,
       COLUMN.status,
       COLUMN.sourceHash,
+      COLUMN.context,
     ];
     for (const column of lockedColumns) {
       expect(dataRow?.getCell(column).protection?.locked).not.toBe(false);
@@ -82,6 +84,16 @@ describe("buildWorkbook: translator-facing properties", () => {
     const workbook = await loadBuilt();
     const sheet = workbook.getWorksheet("de");
     expect(sheet?.getColumn(COLUMN.sourceHash).hidden).toBe(true);
+  });
+
+  it("writes the context column and keeps it visible, unlike the hidden source-hash column", async () => {
+    const workbook = await loadBuilt();
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.context).value).toBe(
+      "A friendly greeting shown on the home screen",
+    );
+    expect(sheet?.getColumn(COLUMN.context).hidden).not.toBe(true);
   });
 
   it("applies the read-only fill to the locked columns, not the translation column", async () => {
@@ -125,6 +137,7 @@ describe("buildWorkbook: translation column text format", () => {
               status: "new",
               sourceHash: "abc123",
               translation: "",
+              context: "",
             },
           ],
         },

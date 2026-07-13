@@ -67,6 +67,31 @@ describe("createArbAdapter read", () => {
     expect(resource.entries.get("items")?.isPlural).toBe(true);
   });
 
+  it("populates entry.description from @key.description", async () => {
+    const { resource } = await adapter.read(await tempArb("app_en.arb", SAMPLE), "en");
+    expect(resource.entries.get("greeting")?.description).toBe("A greeting");
+    expect(resource.entries.get("items")?.description).toBe("Item count");
+  });
+
+  it("leaves description undefined for a message with no @key.description", async () => {
+    const { resource } = await adapter.read(
+      await tempArb("app_en.arb", { plain: "No metadata" }),
+      "en",
+    );
+    expect(resource.entries.get("plain")?.description).toBeUndefined();
+  });
+
+  it("aligns a dotted message key's description through the same literal-leaf encoding as flatten", async () => {
+    const { resource } = await adapter.read(
+      await tempArb("dotted.arb", {
+        "page.title": "Welcome",
+        "@page.title": { description: "The page title" },
+      }),
+      "en",
+    );
+    expect(resource.entries.get("page\\.title")?.description).toBe("The page title");
+  });
+
   it("records invalid ICU values in invalidIcuKeys without throwing", async () => {
     const { invalidIcuKeys } = await adapter.read(
       await tempArb("app_en.arb", { ok: "Hi {name}", broken: "{count, plural, one {x" }),

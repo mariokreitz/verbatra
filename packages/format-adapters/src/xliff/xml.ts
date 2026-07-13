@@ -14,6 +14,8 @@ interface Unit {
   readonly target: Element | null;
   /** The element a missing `<target>` is created under (the trans-unit or the 2.0 segment). */
   readonly container: Element;
+  /** Developer context from `<note>`, read but never written back (see {@link serializeXliffEntries}). */
+  readonly description?: string;
 }
 
 function isElement(node: Node): node is Element {
@@ -83,16 +85,39 @@ function parseXml(content: string): { doc: Document; root: Element } {
   return { doc, root };
 }
 
+/** The trimmed text of the first `<note>` child of `parent`, or undefined when absent or blank. */
+function firstNoteText(parent: Element): string | undefined {
+  const note = childByName(parent, "note");
+  if (note === null) {
+    return undefined;
+  }
+  const text = (note.textContent ?? "").trim();
+  return text === "" ? undefined : text;
+}
+
+/** XLIFF 1.2: `<note>` sits directly on the trans-unit. */
+function transUnitDescription(tu: Element): string | undefined {
+  return firstNoteText(tu);
+}
+
+/** XLIFF 2.0: `<note>` sits inside the unit's `<notes>` container, shared by every segment in that unit. */
+function unitDescription(unit: Element): string | undefined {
+  const notes = childByName(unit, "notes");
+  return notes === null ? undefined : firstNoteText(notes);
+}
+
 function walkXliff12(root: Element): Unit[] {
   const units: Unit[] = [];
   collectByTag(root, "trans-unit").forEach((tu, index) => {
     const source = childByName(tu, "source");
     if (source !== null) {
+      const description = transUnitDescription(tu);
       units.push({
         key: unitKey(tu, index),
         source,
         target: childByName(tu, "target"),
         container: tu,
+        ...(description !== undefined ? { description } : {}),
       });
     }
   });
@@ -103,12 +128,19 @@ function walkXliff20(root: Element): Unit[] {
   const units: Unit[] = [];
   collectByTag(root, "unit").forEach((unit, index) => {
     const baseKey = unitKey(unit, index);
+    const description = unitDescription(unit);
     const segments = elementChildren(unit).filter((el) => el.localName === "segment");
     segments.forEach((segment, segIndex) => {
       const source = childByName(segment, "source");
       if (source !== null) {
         const key = segments.length > 1 ? `${baseKey}#${segIndex}` : baseKey;
-        units.push({ key, source, target: childByName(segment, "target"), container: segment });
+        units.push({
+          key,
+          source,
+          target: childByName(segment, "target"),
+          container: segment,
+          ...(description !== undefined ? { description } : {}),
+        });
       }
     });
   });
@@ -141,7 +173,10 @@ function unitValue(serializer: XMLSerializer, unit: Unit): string {
  * taking the target inner markup when present and non-empty, otherwise the source. Malformed XML is
  * `INVALID_XML`; a non-XLIFF document is `INVALID_STRUCTURE`; two trans-units resolving to the same
  * key (typically a duplicate `id`) is also `INVALID_STRUCTURE`, since silently keeping one and
- * dropping the other would lose data on read and misdirect a translation on write.
+ * dropping the other would lose data on read and misdirect a translation on write. Each entry's
+ * `description` is populated from `<note>` when present (the trans-unit's own note in 1.2, the
+ * unit's `<notes><note>` in 2.0, shared by every segment in that unit); `serializeXliffEntries`
+ * never writes `description` back, so `<note>` is read-only developer context here.
  */
 export function parseXliffEntries(
   content: string,
@@ -164,6 +199,7 @@ export function parseXliffEntries(
       value,
       placeholders: extractXliffPlaceholders(value),
       isPlural: false,
+      ...(unit.description !== undefined ? { description: unit.description } : {}),
     });
   }
   return out;
