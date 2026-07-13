@@ -11,6 +11,8 @@ import {
 } from "../provider.js";
 import { createDefaultClient } from "./client.js";
 import { type DeepLConfig, deepLConfigSchema } from "./config.js";
+import { chunkTextsForDeepL } from "./limits.js";
+import { assertValidDeepLSourceLocale, assertValidDeepLTargetLocale } from "./locale-validation.js";
 import { PLACEHOLDER_UNSUPPORTED_MESSAGE, partitionByPlaceholders } from "./placeholders.js";
 import { buildTranslateOptions } from "./request.js";
 import { zipResults } from "./response.js";
@@ -90,6 +92,8 @@ async function translate(
   request: TranslateRequest,
 ): Promise<DeepLTranslateResult> {
   const data = validateRequest(request);
+  assertValidDeepLSourceLocale(data.sourceLocale);
+  assertValidDeepLTargetLocale(data.targetLocale);
   const { protectable, unprotectable } = partitionByPlaceholders(data.entries);
   const genericGlossarySupplied =
     request.glossary !== undefined && Object.keys(request.glossary).length > 0;
@@ -137,7 +141,7 @@ async function translateProtectable(
     return { values: new Map(), integrity: new Map() };
   }
   const texts = protectable.map((entry) => entry.value);
-  const results = await callClient(
+  const results = await callClientChunked(
     client,
     texts,
     data.sourceLocale,
@@ -170,4 +174,28 @@ function callClient(
     () => client.translateText(texts, sourceLang, targetLang, options),
     signal,
   );
+}
+
+/**
+ * Call DeepL in as many sequential requests as needed to stay within DeepL's per-request caps
+ * (see {@link chunkTextsForDeepL}), independent of and in addition to the SDK's own
+ * `maxBatchSize`-driven sub-batching upstream. A sub-batch that already fits in one request produces
+ * exactly one chunk, so behavior is unchanged for the common in-cap case. Chunks are sent in order and
+ * their results concatenated in the same order, so the flat result array still lines up positionally
+ * with `texts` for {@link zipResults}.
+ */
+async function callClientChunked(
+  client: DeepLTranslateClient,
+  texts: readonly string[],
+  sourceLang: string,
+  targetLang: string,
+  options: DeepLTranslateOptions,
+  signal: AbortSignal | undefined,
+): Promise<DeepLTextResult[]> {
+  const results: DeepLTextResult[] = [];
+  for (const chunk of chunkTextsForDeepL(texts)) {
+    const chunkResults = await callClient(client, chunk, sourceLang, targetLang, options, signal);
+    results.push(...chunkResults);
+  }
+  return results;
 }
