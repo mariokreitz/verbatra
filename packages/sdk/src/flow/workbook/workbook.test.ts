@@ -86,7 +86,7 @@ describe("exportWorkbook", () => {
     expect(again.sheets[0]?.rows.map((r) => r.key)).toEqual(data.sheets[0]?.rows.map((r) => r.key));
   });
 
-  it("honors --locales and --include-unchanged", async () => {
+  it("honors --locales and --include-unchanged, labeling the included row 'unchanged'", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
     const result = await exportWorkbook({
       config: cfg(),
@@ -97,6 +97,22 @@ describe("exportWorkbook", () => {
     expect(result.locales.map((l) => l.locale)).toEqual(["de"]);
     // Unchanged "a" is included because of the opt-in.
     expect(result.locales[0]?.rows).toBe(1);
+
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    // Must be labeled "unchanged", not "changed": the source never drifted.
+    expect(row?.status).toBe("unchanged");
+  });
+
+  it("never emits an 'unchanged' status row when includeUnchanged is off or omitted", async () => {
+    // "a" is already in sync (unchanged) and "b" is missing, so the default export carries one
+    // "new" row and, absent the bug fix, would carry zero "unchanged" rows either way. Asserting
+    // a non-empty sheet with no "unchanged" row makes this a real check, not a vacuous one.
+    const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
+    const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["b"]);
+    expect(data.sheets[0]?.rows.some((r) => r.status === "unchanged")).toBe(false);
   });
 
   it("produces a valid empty workbook when nothing needs translation", async () => {
@@ -349,6 +365,18 @@ describe("importWorkbook", () => {
     const checked = await check({ config, cwd: dir });
     expect(checked.inSync).toBe(false);
     expect(checked.locales.map((l) => l.stale)).toEqual([2, 2]);
+  });
+
+  it("accepts a filled 'unchanged' row exactly like a 'changed' row, branching on no status", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+    await fillWorkbook(out.path, "de", { a: "Aa updated" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.a).toBe("Aa updated");
   });
 
   it("dry-run validates and reports without writing the locale or the lock", async () => {

@@ -4,7 +4,7 @@
  */
 
 /** The diff bucket a row was exported under, shown to the translator as the row's status. */
-export type RowStatus = "new" | "changed";
+export type RowStatus = "new" | "changed" | "unchanged";
 
 /** One exported/imported translation row, identified by its dotted key path, never by position. */
 export interface WorkbookRow {

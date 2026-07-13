@@ -1,8 +1,8 @@
 /**
  * The fixed column layout shared by the builder and the reader so they cannot drift on which column
  * carries which field. Columns, left to right: Key (the round-trip identity), Source, Current (the
- * existing target), Status ("new" or "changed"), Translation (the only editable cell), and Source
- * hash (the export-time source hash, hidden, used for drift detection).
+ * existing target), Status ("new", "changed", or "unchanged"), Translation (the only editable
+ * cell), and Source hash (the export-time source hash, hidden, used for drift detection).
  */
 export const COLUMN = {
   key: 1,

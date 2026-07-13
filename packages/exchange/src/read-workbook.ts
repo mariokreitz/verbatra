@@ -16,7 +16,7 @@ const rowSchema = z.object({
   key: z.string().min(1),
   source: z.string(),
   currentTarget: z.string(),
-  status: z.enum(["new", "changed"]),
+  status: z.enum(["new", "changed", "unchanged"]),
   sourceHash: z.string(),
   translation: z.string(),
 });
