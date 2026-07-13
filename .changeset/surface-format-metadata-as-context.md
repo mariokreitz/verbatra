@@ -1,5 +1,7 @@
 ---
 "@verbatra/sdk": minor
+"@verbatra/format-adapters": minor
+"@verbatra/exchange": minor
 ---
 
 Developer context that Flutter ARB (`@key.description`) and XLIFF (`<note>`) already carry now
