@@ -144,6 +144,7 @@ describe("readWorkbook: structural rejection", () => {
               status: "unchanged",
               sourceHash: "h1",
               translation: "",
+              context: "",
             },
           ],
         },

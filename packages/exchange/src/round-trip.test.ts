@@ -34,6 +34,7 @@ const model: WorkbookModel = {
           status: "unchanged",
           sourceHash: "ghi789",
           translation: "",
+          context: "",
         },
       ],
     },
