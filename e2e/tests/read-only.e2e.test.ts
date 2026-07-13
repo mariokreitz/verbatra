@@ -257,6 +257,35 @@ describe("config errors (no provider)", () => {
   });
 });
 
+describe("CLI boundary hardening (subprocess-level proof, no provider)", () => {
+  it("translate exits 2 with a structured error when .env is unreadable (a directory named .env)", async () => {
+    const dir = await seedProject("env-eisdir", i18nextConfig, {
+      "locales/en.json": { greeting: "Hello {{name}}" },
+      "locales/de.json": { greeting: "Hallo {{name}}" },
+    });
+    await mkdir(join(dir, ".env"));
+
+    const result = await runVerbatra(consumer, ["translate", "--cwd", dir]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).not.toBe("");
+  });
+
+  it("watch --debounce 250ms exits 2 with a structured INVALID_DEBOUNCE error, never starts", async () => {
+    const dir = await seedProject("debounce-invalid", i18nextConfig, {
+      "locales/en.json": { greeting: "Hello {{name}}" },
+      "locales/de.json": { greeting: "Hallo {{name}}" },
+    });
+
+    const result = await runVerbatra(consumer, ["watch", "--debounce", "250ms", "--cwd", dir]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("INVALID_DEBOUNCE");
+  });
+});
+
 describe("watch SIGINT contract (no provider key needed)", () => {
   it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {
     const dir = join(consumer.dir, "watch-sigint");

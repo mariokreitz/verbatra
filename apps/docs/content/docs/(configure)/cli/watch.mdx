@@ -16,7 +16,7 @@ verbatra watch
 | --- | --- |
 | `--cwd <path>` | resolve config and locale files from this directory |
 | `--config <path>` | load this config file instead of searching for one |
-| `--debounce <ms>` | wait this many milliseconds after a change before translating (default `300`) |
+| `--debounce <ms>` | wait this many milliseconds after a change before translating (default `300`); must be a positive whole number |
 | `--json` | print each run as one NDJSON record |
 
 ## Output
@@ -47,7 +47,7 @@ verbatra watch --json
 | Code | Meaning |
 | --- | --- |
 | `0` | stopped gracefully by a single interrupt |
-| `2` | could not run: the config failed to load, or a usage error |
+| `2` | could not run: the config failed to load, or a usage error (including an invalid `--debounce`, such as a non-integer, zero, negative, or a unit suffix like `250ms`) |
 | `130` | force-stopped by a second interrupt |
 
 Unlike [`translate`](/docs/cli/translate), a per-run failure does not change the exit code: it goes out as a stream record. The exit code reflects only how the watcher stopped.
