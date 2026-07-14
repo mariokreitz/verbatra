@@ -7,14 +7,14 @@ settings:
 catalogs:
   bundled:
     '@anthropic-ai/sdk':
-      specifier: 0.105.0
-      version: 0.105.0
+      specifier: 0.111.0
+      version: 0.111.0
     '@formatjs/icu-messageformat-parser':
       specifier: 3.5.11
       version: 3.5.11
     '@google/genai':
-      specifier: 2.9.0
-      version: 2.9.0
+      specifier: 2.11.0
+      version: 2.11.0
     '@xmldom/xmldom':
       specifier: 0.9.10
       version: 0.9.10
@@ -31,8 +31,8 @@ catalogs:
       specifier: 1.9.2
       version: 1.9.2
     openai:
-      specifier: 6.44.0
-      version: 6.44.0
+      specifier: 6.46.0
+      version: 6.46.0
     yaml:
       specifier: 2.9.0
       version: 2.9.0
@@ -186,10 +186,10 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: catalog:bundled
-        version: 0.105.0(zod@4.4.3)
+        version: 0.111.0(zod@4.4.3)
       '@google/genai':
         specifier: catalog:bundled
-        version: 2.9.0
+        version: 2.11.0
       '@verbatra/core':
         specifier: workspace:*
         version: link:../core
@@ -201,7 +201,7 @@ importers:
         version: 1.9.2
       openai:
         specifier: catalog:bundled
-        version: 6.44.0(ws@8.21.0)(zod@4.4.3)
+        version: 6.46.0(ws@8.21.0)(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -380,13 +380,13 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: catalog:bundled
-        version: 0.105.0(zod@4.4.3)
+        version: 0.111.0(zod@4.4.3)
       '@formatjs/icu-messageformat-parser':
         specifier: catalog:bundled
         version: 3.5.11
       '@google/genai':
         specifier: catalog:bundled
-        version: 2.9.0
+        version: 2.11.0
       '@xmldom/xmldom':
         specifier: catalog:bundled
         version: 0.9.10
@@ -413,7 +413,7 @@ importers:
         version: 1.9.2
       openai:
         specifier: catalog:bundled
-        version: 6.44.0(ws@8.21.0)(zod@4.4.3)
+        version: 6.46.0(ws@8.21.0)(zod@4.4.3)
       yaml:
         specifier: catalog:bundled
         version: 2.9.0
@@ -513,8 +513,8 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@anthropic-ai/sdk@0.105.0':
-    resolution: {integrity: sha512-sDyu+aM9cE6uZE+HgRjjHRb+qqb87GHZOx+8bE0YlWetdL1YcVLxn8h9ltxGOflyChTe6PMEo50kMQV4cw0hfg==}
+  '@anthropic-ai/sdk@0.111.0':
+    resolution: {integrity: sha512-1hUqKi+uJQoS5X90+InwHbFAXMvgq0DnsC5hVLEeSRaODiU5WvmqDAcVCmGS2wC0pN9Z8jtWCbWw7JLzeDdm/Q==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -966,8 +966,8 @@ packages:
       tailwindcss:
         optional: true
 
-  '@google/genai@2.9.0':
-    resolution: {integrity: sha512-3DRdSJ0LaKFig3FNGeRDn9BQxtjZm2qr0hNH2d771LKcG0HvUYddlN0LPdSp8XU7Ekb04i9q3+tt64uYqavUdw==}
+  '@google/genai@2.11.0':
+    resolution: {integrity: sha512-d2Csf29vS0GfHc52H0MG25ccY4FKvvbDgqDlEovLrPLF8sPegWr/GGO+LMOy85/1SnX0iV0zDAW7R8SsvWg8Vg==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.2
@@ -3887,12 +3887,21 @@ packages:
   oniguruma-to-es@4.3.6:
     resolution: {integrity: sha512-csuQ9x3Yr0cEIs/Zgx/OEt9iBw9vqIunAPQkx19R/fiMq2oGVTgcMqO/V3Ybqefr1TBvosI6jU539ksaBULJyA==}
 
-  openai@6.44.0:
-    resolution: {integrity: sha512-09/gH+8jH0RgUwsgWHAaxsKGRT5zVZ95IaJUnqAWj6XejIBmnFRwq2WUIF37VtDEsmGrtPmvCs5+yBSeZGWvkA==}
+  openai@6.46.0:
+    resolution: {integrity: sha512-DFg6jEPT2RO+oAyXtddeUJU8zkGy1OQ1AjGzNIJUMQG03TTqvCpy9tBpQ+2VVVnvrl3E56F8GEin2JYtWpITtA==}
     peerDependencies:
+      '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
+      '@smithy/hash-node': '>=4.3.0 <5'
+      '@smithy/signature-v4': '>=5.4.0 <6'
       ws: ^8.18.0
       zod: ^3.25 || ^4.0
     peerDependenciesMeta:
+      '@aws-sdk/credential-provider-node':
+        optional: true
+      '@smithy/hash-node':
+        optional: true
+      '@smithy/signature-v4':
+        optional: true
       ws:
         optional: true
       zod:
@@ -4658,7 +4667,7 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@anthropic-ai/sdk@0.105.0(zod@4.4.3)':
+  '@anthropic-ai/sdk@0.111.0(zod@4.4.3)':
     dependencies:
       json-schema-to-ts: 3.1.1
       standardwebhooks: 1.0.0
@@ -5141,7 +5150,7 @@ snapshots:
       '@tailwindcss/oxide': 4.3.1
       tailwindcss: 4.3.1
 
-  '@google/genai@2.9.0':
+  '@google/genai@2.11.0':
     dependencies:
       google-auth-library: 10.7.0
       p-retry: 4.6.2
@@ -8095,7 +8104,7 @@ snapshots:
       regex: 6.1.0
       regex-recursion: 6.0.2
 
-  openai@6.44.0(ws@8.21.0)(zod@4.4.3):
+  openai@6.46.0(ws@8.21.0)(zod@4.4.3):
     optionalDependencies:
       ws: 8.21.0
       zod: 4.4.3
