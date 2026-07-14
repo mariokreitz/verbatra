@@ -2,14 +2,16 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { LocaleResource } from "@verbatra/core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AdapterError } from "../errors.js";
 import { createI18nextJsonAdapter } from "../i18next/i18next-adapter.js";
 import { type AtomicWriteOps, atomicWriteFile, tempFileName } from "./atomic-write.js";
 
 const realOps: AtomicWriteOps = {
   writeFile: (path, data) => writeFile(path, data, "utf8"),
+  fsyncFile: async () => {},
   rename: (from, to) => rename(from, to),
+  fsyncDir: async () => {},
   rm: (path) => rm(path, { force: true }),
 };
 
@@ -95,6 +97,7 @@ describe("atomicWriteFile", () => {
     const dir = await makeDir();
     const target = join(dir, "en.json");
     const ops: AtomicWriteOps = {
+      ...realOps,
       writeFile: (path, data) => realOps.writeFile(path, data),
       rename: async () => {
         throw new Error("RENAME_FAIL");
@@ -117,6 +120,7 @@ describe("atomicWriteFile", () => {
     const dir = await makeDir();
     const target = join(dir, "en.json");
     const ops: AtomicWriteOps = {
+      ...realOps,
       writeFile: async () => {
         throw new Error("WRITE_FAIL");
       },
@@ -142,6 +146,71 @@ describe("atomicWriteFile", () => {
     await expect(atomicWriteFile(target, "X\n")).rejects.toThrow();
     const leftovers = (await readdir(dir)).filter((name) => name.startsWith("."));
     expect(leftovers).toEqual([]);
+  });
+});
+
+describe("atomicWriteFile durability sequencing", () => {
+  it("calls writeFile, fsyncFile, rename, fsyncDir in that exact order on the happy path", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "en.json");
+    const calls: string[] = [];
+    const ops: AtomicWriteOps = {
+      writeFile: async (path, data) => {
+        calls.push("writeFile");
+        await realOps.writeFile(path, data);
+      },
+      fsyncFile: async (path) => {
+        calls.push("fsyncFile");
+        await realOps.fsyncFile(path);
+      },
+      rename: async (from, to) => {
+        calls.push("rename");
+        await realOps.rename(from, to);
+      },
+      fsyncDir: async (path) => {
+        calls.push("fsyncDir");
+        await realOps.fsyncDir(path);
+      },
+      rm: (path) => realOps.rm(path),
+    };
+
+    await atomicWriteFile(target, "DATA\n", ops);
+
+    expect(calls).toEqual(["writeFile", "fsyncFile", "rename", "fsyncDir"]);
+  });
+
+  it("aborts before rename, cleans up the temp, and rethrows when fsyncFile rejects", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "en.json");
+    await writeFile(target, "OLD\n", "utf8");
+    const rename = vi.fn(realOps.rename);
+    const ops: AtomicWriteOps = {
+      ...realOps,
+      fsyncFile: async () => {
+        throw new Error("FSYNC_FILE_FAIL");
+      },
+      rename,
+    };
+
+    await expect(atomicWriteFile(target, "NEW\n", ops)).rejects.toThrow("FSYNC_FILE_FAIL");
+
+    expect(rename).not.toHaveBeenCalled();
+    expect(await readFile(target, "utf8")).toBe("OLD\n");
+    expect(await readdir(dir)).toEqual(["en.json"]);
+  });
+
+  it("still resolves when fsyncDir rejects, since the rename already completed", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "en.json");
+    const ops: AtomicWriteOps = {
+      ...realOps,
+      fsyncDir: async () => {
+        throw new Error("FSYNC_DIR_FAIL");
+      },
+    };
+
+    await expect(atomicWriteFile(target, "DATA\n", ops)).resolves.toBeUndefined();
+    expect(await readFile(target, "utf8")).toBe("DATA\n");
   });
 });
 
