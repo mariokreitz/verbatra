@@ -2,14 +2,17 @@ import { z } from "zod";
 import { AdapterError } from "../errors.js";
 import { MAX_DEPTH } from "./limits.js";
 
-/** A value in a JSON translation file: a string or a nested object. */
-export type JsonTree = string | JsonRecord;
+/** A leaf value in a JSON translation file. Only a `string` leaf is translatable; the others are structural, non-message data that is accepted but excluded from the translatable entry set (see `flattenTree`). */
+export type JsonLeaf = string | number | boolean | null;
+
+/** A value in a JSON translation file: a leaf or a nested object. */
+export type JsonTree = JsonLeaf | JsonRecord;
 export interface JsonRecord {
   readonly [key: string]: JsonTree;
 }
 
 const jsonTreeSchema: z.ZodType<JsonTree> = z.lazy(() =>
-  z.union([z.string(), z.record(z.string(), jsonTreeSchema)]),
+  z.union([z.string(), z.number(), z.boolean(), z.null(), z.record(z.string(), jsonTreeSchema)]),
 );
 
 const rootSchema: z.ZodType<JsonRecord> = z.record(z.string(), jsonTreeSchema);
@@ -36,9 +39,10 @@ function assertWithinDepth(value: unknown, max: number): void {
 }
 
 /**
- * Validate an already-parsed value as a tree of nested string values: enforce the depth cap and the
- * "object root, string leaves" shape. Parser-agnostic so JSON, YAML, and ARB share it. Error messages
- * never echo file content or key paths.
+ * Validate an already-parsed value as a tree of nested leaf values: enforce the depth cap and the
+ * "object root, scalar leaves" shape. A leaf may be a string, number, boolean, or null; a non-string
+ * leaf is structural, not a message, and `flattenTree` excludes it from the translatable entry set.
+ * Parser-agnostic so JSON, YAML, and ARB share it. Error messages never echo file content or key paths.
  *
  * @param value - The already-parsed value to validate.
  * @returns The validated {@link JsonRecord}.
@@ -50,14 +54,14 @@ export function assertJsonRecord(value: unknown): JsonRecord {
   if (!result.success) {
     throw new AdapterError(
       "INVALID_STRUCTURE",
-      "The file is not a valid object (expected nested objects of string values).",
+      "The file is not a valid object (expected nested objects of string, number, boolean, or null leaves).",
     );
   }
   return result.data;
 }
 
 /**
- * Parse untrusted file content into a validated JSON object of nested strings, throwing a structured
+ * Parse untrusted file content into a validated JSON object of nested leaves, throwing a structured
  * AdapterError (never a raw parser error) whose message never echoes file content or key paths.
  *
  * @throws {@link AdapterError} `INVALID_JSON`, `MAX_DEPTH_EXCEEDED`, or `INVALID_STRUCTURE`.

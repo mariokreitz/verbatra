@@ -14,7 +14,7 @@ import {
 } from "../shell.js";
 import { atomicWriteFile } from "./atomic-write.js";
 import { readFileContent } from "./bounded-read.js";
-import { type DeriveEntry, flattenTree, type KeyMode } from "./flatten.js";
+import { type DeriveEntry, type FlattenResult, flattenTree, type KeyMode } from "./flatten.js";
 import type { JsonRecord } from "./json-tree.js";
 import { unflattenEntries } from "./unflatten.js";
 
@@ -101,13 +101,13 @@ function toEntries(
   keyMode: KeyMode,
   validateTree?: ValidateTree,
   deriveDescriptions?: DeriveDescriptions,
-): Map<string, TranslationEntry> {
+): FlattenResult {
   try {
     const tree = parse(content);
     validateTree?.(tree);
-    const entries = flattenTree(tree, namespace, deriveEntry, keyMode);
-    mergeDescriptions(entries, content, deriveDescriptions);
-    return entries;
+    const result = flattenTree(tree, namespace, deriveEntry, keyMode);
+    mergeDescriptions(result.entries, content, deriveDescriptions);
+    return result;
   } catch (error) {
     rethrowStructured(error, "The file could not be parsed.");
   }
@@ -151,7 +151,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     async read(filePath, locale): Promise<ReadResult> {
       const content = await readFileContent(filePath);
       const namespace = namespaceOf(filePath);
-      const entries = toEntries(
+      const { entries, excludedLeafPaths } = toEntries(
         content,
         namespace,
         parse,
@@ -162,7 +162,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
       );
       const resource: LocaleResource = { locale, namespace, format, entries };
       const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
-      return { resource, invalidIcuKeys };
+      return { resource, invalidIcuKeys, excludedLeafPaths };
     },
     async write(resource, filePath): Promise<void> {
       const tree = buildWriteTree

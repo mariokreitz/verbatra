@@ -67,6 +67,14 @@ describe("assertNotMixed", () => {
     expect((error as AdapterError).code).toBe("MIXED_STRUCTURE");
   });
 
+  it("treats a null leaf as a leaf, not a nested node, so it does not trip the mixed-structure guard", () => {
+    expect(() => assertNotMixed({ "app.hello": "hi", active: null })).not.toThrow();
+  });
+
+  it("treats a null leaf nested under a namespace as a leaf, not a further nesting level", () => {
+    expect(() => assertNotMixed({ ns: { "a.b": "hi", active: null } })).not.toThrow();
+  });
+
   it("rejects a dotted object key nested under an unrelated namespace", () => {
     const error = (() => {
       try {

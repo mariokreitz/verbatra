@@ -140,6 +140,15 @@ describe("buildArbWriteTree", () => {
     expect(tree).toMatchObject({ a: "AA", b: "B" });
   });
 
+  it("drops a stray non-string, non-metadata destination leaf instead of carrying it over", async () => {
+    const path = await tempArb({ a: "A", revision: 3 });
+    const tree = (await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path)) as Record<
+      string,
+      unknown
+    >;
+    expect(tree).toEqual({ a: "AA" });
+  });
+
   it("appends new message keys not present in the destination, in entry order", async () => {
     const path = await tempArb({ a: "A" });
     const entries = new Map([

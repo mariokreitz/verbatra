@@ -1,6 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import type { JsonRecord } from "./json-tree.js";
+import type { JsonRecord, JsonTree } from "./json-tree.js";
 import { encodeSegment, joinEncodedSegments } from "./key-encoding.js";
 
 /** Derive the format-specific parts of an entry (placeholders, plurality) from its leaf key and value. */
@@ -18,19 +18,32 @@ export type DeriveEntry = (
  */
 export type KeyMode = "literal-leaf" | "path-notation";
 
+/** The result of flattening a tree: translatable entries, plus the paths of excluded non-string leaves. */
+export interface FlattenResult {
+  readonly entries: Map<string, TranslationEntry>;
+  /** Dotted paths of leaves that were present but excluded as non-string, in document order, using the same key encoding as `TranslationEntry.key`. */
+  readonly excludedLeafPaths: readonly string[];
+}
+
+/** A parsed JSON/YAML value is a nested object node, never `null` at this level: `typeof null` is `"object"`, so it must be checked out explicitly to be treated as a leaf. */
+function isNode(value: JsonTree): value is JsonRecord {
+  return typeof value === "object" && value !== null;
+}
+
 interface FlattenContext {
   readonly namespace: string;
   readonly derive: DeriveEntry;
   readonly out: Map<string, TranslationEntry>;
   /** Effective logical path -> the map key that claimed it, for collision detection. */
   readonly claimed: Map<string, string>;
+  readonly excluded: string[];
 }
 
 function addLeaf(
   ctx: FlattenContext,
   segments: readonly string[],
   key: string,
-  value: string,
+  value: string | number | boolean | null,
 ): void {
   const effectivePath = segments.join(".");
   const mapKey = joinEncodedSegments(segments.map(encodeSegment));
@@ -41,6 +54,10 @@ function addLeaf(
     );
   }
   ctx.claimed.set(effectivePath, mapKey);
+  if (typeof value !== "string") {
+    ctx.excluded.push(mapKey);
+    return;
+  }
   const { placeholders, isPlural } = ctx.derive(key, value);
   ctx.out.set(mapKey, { key: mapKey, namespace: ctx.namespace, value, placeholders, isPlural });
 }
@@ -48,10 +65,10 @@ function addLeaf(
 function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRecord): void {
   for (const [key, value] of Object.entries(node)) {
     const segments = [...prefix, key];
-    if (typeof value === "string") {
-      addLeaf(ctx, segments, key, value);
-    } else {
+    if (isNode(value)) {
       addEntries(ctx, segments, value);
+    } else {
+      addLeaf(ctx, segments, key, value);
     }
   }
 }
@@ -74,6 +91,7 @@ function addPathEntries(
   derive: DeriveEntry,
   out: Map<string, TranslationEntry>,
   claimedPaths: Set<string>,
+  excluded: string[],
 ): void {
   for (const [key, value] of Object.entries(node)) {
     const path = prefix === "" ? key : `${prefix}.${key}`;
@@ -84,11 +102,13 @@ function addPathEntries(
       );
     }
     claimedPaths.add(path);
-    if (typeof value === "string") {
+    if (isNode(value)) {
+      addPathEntries(value, path, namespace, derive, out, claimedPaths, excluded);
+    } else if (typeof value === "string") {
       const { placeholders, isPlural } = derive(key, value);
       out.set(path, { key: path, namespace, value, placeholders, isPlural });
     } else {
-      addPathEntries(value, path, namespace, derive, out, claimedPaths);
+      excluded.push(path);
     }
   }
 }
@@ -96,7 +116,10 @@ function addPathEntries(
 /**
  * Flatten a nested JSON object into ordered TranslationEntry records keyed by dotted path,
  * preserving document order and deriving placeholders and isPlural per the adapter's rule.
- * A Map (never a plain object) keeps hostile keys such as __proto__ as inert data.
+ * A Map (never a plain object) keeps hostile keys such as __proto__ as inert data. A non-string
+ * leaf (number, boolean, or null) is excluded from the entry map, never reaches `derive`, and its
+ * path is reported in `excludedLeafPaths` instead; its path is still claimed for collision
+ * detection exactly as a string leaf's path would be.
  *
  * In `literal-leaf` mode (the default) a dotted string key is a single literal leaf and a true
  * collision with a nested path resolving to the same effective path throws `INVALID_STRUCTURE`.
@@ -109,6 +132,7 @@ function addPathEntries(
  * @param namespace - The namespace recorded on each entry.
  * @param derive - Per-leaf placeholder and plurality derivation.
  * @param keyMode - How dotted string keys are interpreted (defaults to `literal-leaf`).
+ * @returns The translatable entries and the excluded non-string leaf paths.
  * @throws {@link AdapterError} `INVALID_STRUCTURE` on a literal-leaf vs nested-path collision, in
  *   either key mode.
  */
@@ -117,12 +141,14 @@ export function flattenTree(
   namespace: string,
   derive: DeriveEntry,
   keyMode: KeyMode = "literal-leaf",
-): Map<string, TranslationEntry> {
+): FlattenResult {
   const out = new Map<string, TranslationEntry>();
   if (keyMode === "path-notation") {
-    addPathEntries(tree, "", namespace, derive, out, new Set());
-    return out;
+    const excluded: string[] = [];
+    addPathEntries(tree, "", namespace, derive, out, new Set(), excluded);
+    return { entries: out, excludedLeafPaths: excluded };
   }
-  addEntries({ namespace, derive, out, claimed: new Map() }, [], tree);
-  return out;
+  const ctx: FlattenContext = { namespace, derive, out, claimed: new Map(), excluded: [] };
+  addEntries(ctx, [], tree);
+  return { entries: out, excludedLeafPaths: ctx.excluded };
 }

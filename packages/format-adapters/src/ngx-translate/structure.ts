@@ -7,6 +7,11 @@ import { unflattenEntries } from "../json/unflatten.js";
 /** ngx-translate's two file styles: flat dotted keys, or nested objects. */
 type Style = "flat" | "nested";
 
+/** A parsed value is a nested object node, never `null`: `typeof null` is `"object"`, so a `null` leaf must be checked out explicitly to avoid being treated as a nested node. */
+function isNode(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null;
+}
+
 /**
  * Reject a nested object key that itself contains a literal dot, at any depth. Path-notation
  * flatten joins segments with a plain, unescaped dot, so such a key is indistinguishable from a
@@ -17,7 +22,7 @@ type Style = "flat" | "nested";
  */
 function assertNoDottedNestedKey(tree: JsonRecord): void {
   for (const [key, value] of Object.entries(tree)) {
-    if (typeof value !== "object") {
+    if (!isNode(value)) {
       continue;
     }
     if (key.includes(".")) {
@@ -41,7 +46,7 @@ export function assertNotMixed(tree: JsonRecord): void {
   let hasNested = false;
   let hasFlatDottedKey = false;
   for (const [key, value] of Object.entries(tree)) {
-    if (typeof value === "object") {
+    if (isNode(value)) {
       hasNested = true;
     } else if (key.includes(".")) {
       hasFlatDottedKey = true;
