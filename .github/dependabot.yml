@@ -1,6 +1,20 @@
 version: 2
 
 updates:
+  # Note: dependencies pinned through a pnpm workspace catalog
+  # (pnpm-workspace.yaml, referenced from package.json as "catalog:" or
+  # "catalog:bundled") receive no update pull requests from this entry.
+  # GitHub announced GA support for pnpm catalogs in Dependabot, and this
+  # entry already uses the documented-correct configuration (npm ecosystem,
+  # directory "/", the workspace root where pnpm-workspace.yaml lives), but
+  # coverage remains unreliable upstream: dependabot-core has multiple open
+  # issues describing catalog entries being left untouched, lockfile
+  # corruption on catalog-sourced updates, and catalog entries being
+  # misclassified for dependency-type group filters. This is an upstream
+  # reliability gap, not a local configuration gap; there is no additional
+  # setting here that fixes it. Catalog-pinned packages need periodic manual
+  # review instead (see the comment near the catalog block in
+  # pnpm-workspace.yaml).
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

@@ -7,17 +7,25 @@ packages:
 # @types/react, @types/react-dom, shared between @verbatra/studio and apps/docs); the "bundled"
 # catalog holds the runtime deps that @verbatra/sdk re-declares from the internal packages it
 # bundles, so the owning package and sdk always pin the same version.
+#
+# Dependabot does not reliably update these entries even though catalog support is
+# GA-announced upstream (see the comment in .github/dependabot.yml). Treat every
+# version below as manually maintained: check the registry by hand on some cadence,
+# or before a release (for example `npm view <package> versions`). The "bundled"
+# AI provider SDK entries below warrant particular attention since they ship inside
+# the published @verbatra/sdk and sit on the prompt-injection and response-schema
+# validation boundary; do not let them go stale unnoticed.
 catalog:
   "@types/node": 26.0.0
   "@types/react": 19.2.17
   "@types/react-dom": 19.2.3
-  "@vitest/coverage-v8": 4.1.9
+  "@vitest/coverage-v8": 4.1.10
   chokidar: 5.0.0
   react: 19.2.7
   react-dom: 19.2.7
   tsup: 8.5.1
   typescript: 6.0.3
-  vitest: 4.1.9
+  vitest: 4.1.10
   zod: 4.4.3
 
 catalogs:
