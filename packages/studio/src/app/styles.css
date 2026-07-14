@@ -4,6 +4,15 @@
  * Design tokens live on :root as custom properties, with a prefers-color-scheme: dark block
  * redefining the same properties. Every rule below reads tokens rather than hard-coded values, so
  * the light/dark switch is a single property swap, not a duplicated rule set.
+ *
+ * The palette is ported from the official docs site's design system (apps/docs/app/global.css):
+ * background, card, border, foreground, muted-foreground, and accent all trace to that site's
+ * --color-fd-* tokens and --v-glow / --v-purple, verbatim in the dark block below. Status colors
+ * (success/warning/danger/neutral) and diff colors (missing/changed/orphaned) are a separate
+ * concern (see the "Status tokens" and "Diff tokens" sections): the docs site defines no status
+ * vocabulary of its own, so those are deliberately-chosen, clearly-related variants tuned to read
+ * on this palette's surfaces, except the diff tokens, which reuse the docs site's own
+ * --v-glow / --v-pink / status-unchanged change-signal precedent verbatim.
  */
 
 :root {
@@ -12,25 +21,47 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
 
-  --color-bg: #ffffff;
-  --color-sidebar-bg: #fafafa;
-  --color-border: #e5e7eb;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-row-hover: #f9fafb;
+  /* Surface and text tokens: a light variant of the docs site's violet-toned neutral family
+     (hue 258, the same hue as --v-glow), invented here since the docs site has no light theme
+     of its own to port. */
+  --color-bg: hsl(255 30% 99%);
+  --color-sidebar-bg: hsl(258 35% 97%);
+  --color-border: hsl(258 20% 88%);
+  --color-text: hsl(240 30% 12%);
+  --color-text-muted: hsl(240 13% 40%);
+  --color-row-hover: hsl(258 35% 96%);
 
-  --color-accent: #4f46e5;
-  --color-accent-soft: #eef2ff;
+  /* Accent: a darker, AA-contrast shade of the docs site's --v-glow hue (258), since --v-glow's
+     own light value (hsl(258 47% 74%)) is too pale for text or an outline against white. */
+  --color-accent: hsl(258 50% 48%);
+  --color-accent-soft: hsl(258 60% 95%);
   --color-accent-contrast: #ffffff;
+  /* Matches the docs site's --v-purple exactly: "the one spot the deep purple shows in the
+     chrome" there is the focus ring, so it is here too, in both themes. */
+  --color-focus-ring: hsl(291 64% 42%);
 
+  /* Status tokens: success/warning/danger/neutral answer "is this correct", kept as recognizable
+     green/amber/red/gray so the signal never depends on reading this file's other purple accent.
+     Deliberately-chosen variants, not ported from the docs palette (it defines none of these). */
   --color-success: #15803d;
   --color-success-soft: #dcfce7;
   --color-warning: #b45309;
   --color-warning-soft: #fef3c7;
-  --color-neutral: #4b5563;
-  --color-neutral-soft: #f3f4f6;
+  --color-neutral: hsl(240 13% 40%);
+  --color-neutral-soft: hsl(240 20% 94%);
   --color-danger: #b91c1c;
   --color-danger-soft: #fee2e2;
+
+  /* Diff tokens: what kind of pending change a key has, not whether it is correct. Darker,
+     legible variants of the docs site's own change-signal hues (--v-glow for "new", --v-pink for
+     "changed", the muted gray for "no longer needed"), since those exact values are too pale for
+     light-mode text. */
+  --diff-missing: hsl(258 47% 45%);
+  --diff-missing-soft: hsl(258 60% 95%);
+  --diff-changed: hsl(289 55% 45%);
+  --diff-changed-soft: hsl(289 60% 96%);
+  --diff-orphaned: hsl(240 10% 40%);
+  --diff-orphaned-soft: hsl(240 15% 94%);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -44,25 +75,38 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #111318;
-    --color-sidebar-bg: #16181d;
-    --color-border: #2a2d34;
-    --color-text: #e5e7eb;
-    --color-text-muted: #9ca3af;
-    --color-row-hover: #1b1e24;
+    /* Ported verbatim from the docs site's dark theme (apps/docs/app/global.css). */
+    --color-bg: hsl(240 24% 6%); /* --color-fd-background */
+    --color-sidebar-bg: hsl(240 28% 14%); /* --color-fd-card */
+    --color-border: hsl(240 23% 22%); /* --color-fd-border */
+    --color-text: hsl(240 30% 94%); /* --color-fd-foreground */
+    --color-text-muted: hsl(240 13% 65%); /* --color-fd-muted-foreground */
+    --color-row-hover: hsl(240 24% 18%); /* --color-fd-muted / --color-fd-popover */
 
-    --color-accent: #818cf8;
-    --color-accent-soft: rgba(129, 140, 248, 0.16);
-    --color-accent-contrast: #0f1115;
+    --color-accent: hsl(258 47% 74%); /* --color-fd-primary / --v-glow */
+    --color-accent-soft: hsl(258 25% 20%); /* --color-fd-accent */
+    --color-accent-contrast: hsl(240 23% 7%); /* --color-fd-primary-foreground */
+    --color-focus-ring: hsl(291 64% 42%); /* --v-purple */
 
+    /* Status tokens: same recognizable hue family as light mode, retuned to read on a near-black
+       surface. Deliberately-chosen variants; the docs palette defines no status vocabulary. */
     --color-success: #4ade80;
-    --color-success-soft: rgba(34, 197, 94, 0.16);
+    --color-success-soft: rgba(74, 222, 128, 0.16);
     --color-warning: #fbbf24;
-    --color-warning-soft: rgba(217, 119, 6, 0.18);
-    --color-neutral: #9ca3af;
-    --color-neutral-soft: rgba(156, 163, 175, 0.14);
+    --color-warning-soft: rgba(251, 191, 36, 0.18);
+    --color-neutral: hsl(240 13% 65%); /* --color-fd-muted-foreground */
+    --color-neutral-soft: hsl(240 24% 18%); /* --color-fd-muted */
     --color-danger: #f87171;
-    --color-danger-soft: rgba(220, 38, 38, 0.18);
+    --color-danger-soft: rgba(248, 113, 113, 0.18);
+
+    /* Diff tokens: the docs site's own change-signal precedent, verbatim
+       (--v-status-new / --v-status-changed / --v-status-unchanged in apps/docs/app/global.css). */
+    --diff-missing: hsl(258 47% 74%); /* --v-glow */
+    --diff-missing-soft: hsla(258, 47%, 74%, 0.16);
+    --diff-changed: #e7b6f2; /* --v-pink */
+    --diff-changed-soft: rgba(231, 182, 242, 0.16);
+    --diff-orphaned: #6f6f86; /* --v-status-unchanged */
+    --diff-orphaned-soft: rgba(111, 111, 134, 0.18);
   }
 }
 
@@ -104,7 +148,7 @@ input {
   display: flex;
   flex-direction: column;
   background: var(--color-sidebar-bg);
-  border-right: 1px solid var(--color-border);
+  border-inline-end: 1px solid var(--color-border);
   padding: var(--space-4) var(--space-3);
 }
 
@@ -124,7 +168,7 @@ input {
 .app-nav-item {
   display: block;
   width: 100%;
-  text-align: left;
+  text-align: start;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
@@ -140,7 +184,7 @@ input {
 }
 
 .app-nav-item:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
 }
 
@@ -215,7 +259,7 @@ input {
 }
 
 .data-table th {
-  text-align: left;
+  text-align: start;
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--color-text-muted);
@@ -241,37 +285,89 @@ input {
   font-size: 0.9rem;
 }
 
-/* Badges */
+/* Badges: the status vocabulary (success/warning/neutral/danger), answering "is this correct".
+   Every tone pairs its color with a glyph and a border-inline-start accent, so the signal never
+   rests on color alone. */
 
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius);
   font-size: 0.8rem;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
+  border-inline-start: 3px solid transparent;
+}
+
+.badge-glyph {
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
 .badge-success {
   color: var(--color-success);
   background: var(--color-success-soft);
+  border-inline-start-color: var(--color-success);
 }
 
 .badge-warning {
   color: var(--color-warning);
   background: var(--color-warning-soft);
+  border-inline-start-color: var(--color-warning);
 }
 
 .badge-neutral {
   color: var(--color-neutral);
   background: var(--color-neutral-soft);
+  border-inline-start-color: var(--color-neutral);
 }
 
 .badge-danger {
   color: var(--color-danger);
   background: var(--color-danger-soft);
+  border-inline-start-color: var(--color-danger);
+}
+
+/* Diff badges: a separate vocabulary from Badge, answering "what kind of change is this", styled
+   from the --diff-* token family. Same glyph-plus-border pairing pattern as Badge. */
+
+.diff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  border-inline-start: 3px solid transparent;
+}
+
+.diff-badge-glyph {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.diff-badge-missing {
+  color: var(--diff-missing);
+  background: var(--diff-missing-soft);
+  border-inline-start-color: var(--diff-missing);
+}
+
+.diff-badge-changed {
+  color: var(--diff-changed);
+  background: var(--diff-changed-soft);
+  border-inline-start-color: var(--diff-changed);
+}
+
+.diff-badge-orphaned {
+  color: var(--diff-orphaned);
+  background: var(--diff-orphaned-soft);
+  border-inline-start-color: var(--diff-orphaned);
 }
 
 /* Loading */
@@ -307,7 +403,7 @@ input {
   gap: var(--space-2);
   color: var(--color-danger);
   background: var(--color-danger-soft);
-  border-left: 3px solid var(--color-danger);
+  border-inline-start: 3px solid var(--color-danger);
   border-radius: var(--radius);
   padding: var(--space-3) var(--space-4);
   margin: 0 0 var(--space-4);
@@ -326,6 +422,38 @@ input {
 .empty-state-inline {
   color: var(--color-text-muted);
   font-size: 0.85rem;
+}
+
+/* The designed all-clear success state (Diff panel), replacing what would otherwise be a wall of
+   empty per-locale key lists. */
+
+.empty-state-success {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--color-success);
+  background: var(--color-success-soft);
+  border-inline-start: 3px solid var(--color-success);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  margin: 0;
+}
+
+.empty-state-success-glyph {
+  font-size: 1.15rem;
+  line-height: 1.4;
+}
+
+.empty-state-success-title {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.empty-state-success-body {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 /* Session expired */
@@ -375,7 +503,7 @@ input {
 }
 
 .filter-input:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-focus-ring);
   outline-offset: 1px;
 }
 
@@ -403,10 +531,16 @@ input {
   margin-bottom: 0;
 }
 
-.key-list h4 {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
+.key-list-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0 0 var(--space-2);
+}
+
+.key-list-count {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .key-list ul {
@@ -418,7 +552,30 @@ input {
 }
 
 .key-list li {
-  padding: var(--space-1) 0;
+  padding: 0;
+}
+
+.key-list-item {
+  display: block;
+  width: 100%;
+  text-align: start;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: var(--space-1) var(--space-2);
+  margin-inline-start: calc(-1 * var(--space-2));
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.key-list-item:hover {
+  background: var(--color-row-hover);
+}
+
+.key-list-item:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
 }
 
 .key-list-note {
@@ -444,4 +601,79 @@ input {
 
 .commit-list li:last-child {
   border-bottom: none;
+}
+
+/* Key detail drawer */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  z-index: 20;
+}
+
+/* A real, separate button covering the backdrop, rather than a click handler on the backdrop div
+   itself: dismissing by clicking outside the panel is then native, keyboard-operable interactive
+   chrome (matching the codebase's no-lint-suppression convention) instead of a mouse-only handler
+   on a static element. Sits behind the drawer panel in stacking order and in the focus trap, so it
+   is not reachable by Tab while the drawer is open. */
+.drawer-backdrop-dismiss {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+  cursor: default;
+}
+
+.drawer {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--color-sidebar-bg);
+  border-inline-start: 1px solid var(--color-border);
+  padding: var(--space-5);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.5);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
+}
+
+.drawer-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+  overflow-wrap: break-word;
+}
+
+.drawer-close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.drawer-close:hover {
+  background: var(--color-row-hover);
+  color: var(--color-text);
+}
+
+.drawer-close:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }

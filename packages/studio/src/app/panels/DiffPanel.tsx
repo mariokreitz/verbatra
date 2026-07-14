@@ -1,14 +1,16 @@
 import type { ChangeEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { DiffLocale } from "../../client/diff-view.js";
+import { isFullyInSync } from "../../client/diff-view.js";
 import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
-import type { RpcCallResult } from "../../client/rpc-client.js";
+import { isRtlLocale } from "../../client/locale-direction.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
+import type { DiffTone } from "../DiffBadge.js";
+import { DiffBadge } from "../DiffBadge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
+import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
-
-type DiffResponse = RpcCallResult<"status.diff">;
-type DiffLocale = Extract<DiffResponse, { ok: true }>["result"]["locales"][number];
 
 type DiffPanelState =
   | { readonly kind: "loading" }
@@ -20,23 +22,30 @@ type DiffPanelState =
     };
 
 function KeyList({
-  title,
+  tone,
   keys,
   query,
+  onSelectKey,
 }: {
-  readonly title: string;
+  readonly tone: DiffTone;
   readonly keys: readonly string[];
   readonly query: string;
+  readonly onSelectKey: (key: string) => void;
 }): ReactNode {
   const capped = filterAndCapKeys(keys, query);
   return (
     <div className="key-list">
-      <h4>
-        {title} ({capped.totalMatches})
+      <h4 className="key-list-heading">
+        <DiffBadge tone={tone} />
+        <span className="key-list-count">({capped.totalMatches})</span>
       </h4>
       <ul>
         {capped.items.map((key) => (
-          <li key={key}>{key}</li>
+          <li key={key}>
+            <button type="button" className="key-list-item" onClick={() => onSelectKey(key)}>
+              {key}
+            </button>
+          </li>
         ))}
       </ul>
       {capped.truncated ? (
@@ -51,24 +60,48 @@ function KeyList({
 function LocaleSection({
   locale,
   query,
+  onSelectKey,
 }: {
   readonly locale: DiffLocale;
   readonly query: string;
+  readonly onSelectKey: (key: string) => void;
 }): ReactNode {
   return (
-    <section className="locale-section">
+    <section className="locale-section" dir={isRtlLocale(locale.locale) ? "rtl" : undefined}>
       <h3 className="locale-section-heading">
         {locale.locale}
         {locale.hasPendingChanges ? (
           <Badge tone="warning">Pending changes</Badge>
         ) : (
-          <span className="empty-state-inline">Up to date</span>
+          <Badge tone="success">Up to date</Badge>
         )}
       </h3>
-      <KeyList title="Missing" keys={locale.missing} query={query} />
-      <KeyList title="Changed" keys={locale.changed} query={query} />
-      <KeyList title="Orphaned" keys={locale.orphaned} query={query} />
+      <KeyList tone="missing" keys={locale.missing} query={query} onSelectKey={onSelectKey} />
+      <KeyList tone="changed" keys={locale.changed} query={query} onSelectKey={onSelectKey} />
+      <KeyList tone="orphaned" keys={locale.orphaned} query={query} onSelectKey={onSelectKey} />
     </section>
+  );
+}
+
+/**
+ * The designed all-clear state: every checked locale has empty missing, changed, and orphaned
+ * lists (see {@link isFullyInSync}, which this render is gated on, not the coarser
+ * `hasPendingChanges`). Replaces what would otherwise be a wall of "(0)" key lists, one per
+ * locale, with a single on-brand success message.
+ */
+function AllClearState(): ReactNode {
+  return (
+    <div className="empty-state-success" role="status">
+      <span className="empty-state-success-glyph" aria-hidden="true">
+        ✓
+      </span>
+      <div>
+        <p className="empty-state-success-title">Everything&apos;s in sync</p>
+        <p className="empty-state-success-body">
+          No missing, changed, or orphaned keys in any configured locale.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -76,11 +109,13 @@ function LocaleSection({
  * Key-level pending-change explorer, from the sdk's read-only `diff` through `status.diff`. Always
  * requests every configured target locale (never sends an empty `locales` array); the filter
  * input narrows the three key lists per locale on the client, capped at {@link MAX_RENDERED_KEYS}
- * items each.
+ * items each. Selecting a key (a click on its list entry) opens {@link KeyDetailDrawer} for it,
+ * reusing this panel's already-loaded locales rather than a second fetch.
  */
 export function DiffPanel(): ReactNode {
   const [state, setState] = useState<DiffPanelState>({ kind: "loading" });
   const [query, setQuery] = useState("");
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +149,10 @@ export function DiffPanel(): ReactNode {
     setQuery(event.target.value);
   };
 
+  if (isFullyInSync(state.locales)) {
+    return <AllClearState />;
+  }
+
   return (
     <div>
       <p className="panel-intro">
@@ -127,8 +166,20 @@ export function DiffPanel(): ReactNode {
         <input className="filter-input" value={query} onChange={onQueryChange} />
       </label>
       {state.locales.map((locale) => (
-        <LocaleSection key={locale.locale} locale={locale} query={query} />
+        <LocaleSection
+          key={locale.locale}
+          locale={locale}
+          query={query}
+          onSelectKey={setSelectedKey}
+        />
       ))}
+      {selectedKey !== null ? (
+        <KeyDetailDrawer
+          keyName={selectedKey}
+          locales={state.locales}
+          onClose={() => setSelectedKey(null)}
+        />
+      ) : null}
     </div>
   );
 }
