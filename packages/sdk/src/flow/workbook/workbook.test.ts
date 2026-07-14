@@ -174,6 +174,93 @@ describe("exportWorkbook", () => {
     const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
     expect(row?.context).toBe("");
   });
+
+  it("exports reviewStatus 'ok' and empty reviewReasons for a row with no current target", async () => {
+    const dir = await project({ greeting: "Hello there, friend" }, { de: undefined });
+    const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
+    expect(row?.status).toBe("new");
+    expect(row?.currentTarget).toBe("");
+    expect(row?.reviewStatus).toBe("ok");
+    expect(row?.reviewReasons).toBe("");
+  });
+
+  it("recomputes EQUALS_SOURCE for a changed row whose current target equals the source", async () => {
+    // de already carries "a" equal to the (new) source value, and the lock records the OLD source
+    // hash, so diffResources classifies "a" as changed with a non-empty currentTarget.
+    const dir = await project({ a: "Hello there, friend" }, { de: { a: "Hello there, friend" } });
+    const config = cfg({ targetLocales: ["de"] });
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: { de: { a: contentHash(entry("A old")) } },
+    });
+
+    const result = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    expect(row?.status).toBe("changed");
+    expect(row?.reviewStatus).toBe("review");
+    expect(row?.reviewReasons).toBe("equals-source");
+  });
+
+  it("recomputes LENGTH_RATIO_OUTLIER for a suspiciously short current target", async () => {
+    const dir = await project({ a: "This is a fairly long source sentence" }, { de: { a: "x" } });
+    const result = await exportWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      cwd: dir,
+      includeUnchanged: true,
+    });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    expect(row?.reviewStatus).toBe("review");
+    expect(row?.reviewReasons).toContain("length-ratio-outlier");
+  });
+
+  it("recomputes GLOSSARY_TERM_MISSED using the configured glossary", async () => {
+    const dir = await project(
+      { a: "Click Save to continue" },
+      { de: { a: "Klicken Sie zum Fortfahren" } },
+    );
+    const config = cfg({ targetLocales: ["de"], glossary: { Save: "Speichern" } });
+    const result = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    expect(row?.reviewStatus).toBe("review");
+    expect(row?.reviewReasons).toBe("glossary-term-missed");
+  });
+
+  it("recomputes INTEGRITY_REORDERED for a matched but reordered placeholder set", async () => {
+    const dir = await project(
+      { a: "Hi {{first}} and {{second}}" },
+      { de: { a: "Hallo {{second}} und {{first}}" } },
+    );
+    const result = await exportWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      cwd: dir,
+      includeUnchanged: true,
+    });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    expect(row?.reviewStatus).toBe("review");
+    expect(row?.reviewReasons).toBe("integrity-reordered");
+  });
+
+  it("exports reviewStatus 'ok' with empty reasons for a clean current target", async () => {
+    const dir = await project({ a: "Hi there" }, { de: { a: "Hallo dort" } });
+    const result = await exportWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      cwd: dir,
+      includeUnchanged: true,
+    });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    // "Hi there" trims to under 12 UTF-16 code units, so no LENGTH_RATIO_OUTLIER; not equal to
+    // source; no glossary configured; no placeholders on either side so integrity always matches
+    // unreordered.
+    expect(row?.reviewStatus).toBe("ok");
+    expect(row?.reviewReasons).toBe("");
+  });
 });
 
 describe("importWorkbook", () => {
@@ -482,6 +569,8 @@ describe("importWorkbook", () => {
                 sourceHash: "x",
                 translation: "Boo",
                 context: "",
+                reviewStatus: "ok" as const,
+                reviewReasons: "",
               },
             ],
           },

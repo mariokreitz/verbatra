@@ -40,10 +40,10 @@ Obtienes el mismo resumen, con la lista de las claves que se traducirían, pero 
 
 Esta es la parte que hace que verbatra sea barato de ejecutar a menudo. Ejecuta `verbatra translate` de nuevo sin editar tu origen y nada llega al proveedor: todas las claves ya están vigentes. Cambia una cadena de origen y solo esa clave se vuelve a traducir en la siguiente ejecución.
 
-El truco es un archivo de bloqueo versionado (`verbatra.lock.json`) que registra lo que se tradujo. Cada ejecución lo compara, así que el proveedor se llama únicamente para lo que realmente cambió. Consulta [Cómo funciona](/docs/how-it-works) para ver el flujo completo.
+El truco es un archivo de bloqueo confirmado (`verbatra.lock.json`) que registra lo que se tradujo. Cada ejecución lo compara, así que el proveedor se llama únicamente para lo que realmente cambió. Consulta [Cómo funciona](/docs/how-it-works) para ver el flujo completo.
 
-<Callout title="Versiona el archivo de bloqueo">
-verbatra escribe `verbatra.lock.json` en la primera ejecución. Versiónalo junto a tus archivos de locale para que cada máquina, y tu CI, comparen con la misma línea base. Consulta [El archivo de bloqueo](/docs/the-lock-file).
+<Callout title="Confirma el archivo de bloqueo">
+verbatra escribe `verbatra.lock.json` en la primera ejecución. Confírmalo junto a tus archivos de locale para que cada máquina, y tu CI, comparen con la misma línea base. Consulta [El archivo de bloqueo](/docs/the-lock-file).
 </Callout>
 
 ## Traduce mientras trabajas

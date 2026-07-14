@@ -8,6 +8,13 @@ export interface ReadResult {
   readonly resource: LocaleResource;
   /** Keys whose values are invalid for the format's message syntax. Empty for non-ICU formats. */
   readonly invalidIcuKeys: readonly string[];
+  /**
+   * Dotted paths of leaves that were present in the source but excluded because they are not
+   * strings (a stray number, boolean, or null). These are never translated, hashed, diffed, or
+   * checked for placeholder or ICU integrity, and are not written back if the file is later
+   * rewritten. Empty for a file with no such leaves.
+   */
+  readonly excludedLeafPaths: readonly string[];
 }
 
 /**

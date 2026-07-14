@@ -567,6 +567,49 @@ describe("createDeepLProvider: internal per-request chunking (independent of max
   });
 });
 
+describe("createDeepLProvider: reviewFlags", () => {
+  it("produces no map entry for a clean key", async () => {
+    const { client } = deeplStubClient(deeplResult(["Hallo dort"]));
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("greeting", "Hi there")] }),
+    )) as DeepLTranslateResult;
+    expect(result.reviewFlags?.has("greeting")).toBe(false);
+  });
+
+  it("flags a key that equals its source", async () => {
+    const { client } = deeplStubClient(deeplResult(["Hello, colleague"]));
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("greeting", "Hello, colleague")] }),
+    )) as DeepLTranslateResult;
+    expect(result.reviewFlags?.get("greeting")?.reasons).toEqual(["EQUALS_SOURCE"]);
+  });
+
+  it("applies PROVIDER_DEGRADED to every accepted key of a degraded batch", async () => {
+    const { client } = deeplStubClient(deeplResult(["x", "y"]));
+    const result = (await createDeepLProvider(config, { client, freeAccount: true }).translateBatch(
+      request({ tone: "formal", entries: [entry("a", "v1"), entry("b", "v2")] }),
+    )) as DeepLTranslateResult;
+    expect(result.reviewFlags?.get("a")?.reasons).toEqual(["PROVIDER_DEGRADED"]);
+    expect(result.reviewFlags?.get("b")?.reasons).toEqual(["PROVIDER_DEGRADED"]);
+  });
+
+  it("appends PROVIDER_DEGRADED alongside an already-computed reason", async () => {
+    const { client } = deeplStubClient(deeplResult(["v1"]));
+    const result = (await createDeepLProvider(config, { client, freeAccount: true }).translateBatch(
+      request({ tone: "formal", entries: [entry("a", "v1")] }),
+    )) as DeepLTranslateResult;
+    expect(result.reviewFlags?.get("a")?.reasons).toEqual(["EQUALS_SOURCE", "PROVIDER_DEGRADED"]);
+  });
+
+  it("applies no PROVIDER_DEGRADED reason on a non-degraded batch", async () => {
+    const { client } = deeplStubClient(deeplResult(["Hallo"]));
+    const result = (await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries: [entry("greeting", "Hello, colleague")] }),
+    )) as DeepLTranslateResult;
+    expect(result.reviewFlags?.get("greeting")?.reasons ?? []).not.toContain("PROVIDER_DEGRADED");
+  });
+});
+
 describe("createDeepLProvider: registry", () => {
   it("resolves under id deepl without disturbing an existing provider", () => {
     const { client } = deeplStubClient(deeplResult([]));

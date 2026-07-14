@@ -94,6 +94,31 @@ export interface ProviderNotice {
   readonly message: string;
 }
 
+/**
+ * Stable codes for a derived, per-key "needs review" signal. This is verbatra's own computed
+ * assessment, never a raw model self-score: four are recomputable from plain source/translated
+ * values (see the shared heuristic function), and `PROVIDER_DEGRADED` is applied by the caller from
+ * a provider notice.
+ *
+ * - `LENGTH_RATIO_OUTLIER`: the translated value's length is far shorter or longer than the source's.
+ * - `EQUALS_SOURCE`: the translated value equals the source value verbatim.
+ * - `GLOSSARY_TERM_MISSED`: a configured glossary target term did not appear in the translation.
+ * - `INTEGRITY_REORDERED`: the placeholder set matched but landed in a different order.
+ * - `PROVIDER_DEGRADED`: the batch this key came from carried a graceful-degradation notice.
+ */
+export type ReviewReasonCode =
+  | "LENGTH_RATIO_OUTLIER"
+  | "EQUALS_SOURCE"
+  | "GLOSSARY_TERM_MISSED"
+  | "INTEGRITY_REORDERED"
+  | "PROVIDER_DEGRADED";
+
+/** A key flagged for human review, carrying every reason code that applies. */
+export interface ReviewFlag {
+  readonly status: "review";
+  readonly reasons: readonly ReviewReasonCode[];
+}
+
 /** Result of a batch translation: per-key values, per-key integrity outcomes, and any notices. */
 export interface TranslateResult {
   /** The translated value for each requested key. */
@@ -108,6 +133,11 @@ export interface TranslateResult {
    * report returns an empty array rather than omitting the field.
    */
   readonly notices?: readonly ProviderNotice[];
+  /**
+   * Derived per-key review flags for this batch. A key absent from the map is implicitly "ok"; a
+   * present key carries one or more {@link ReviewReasonCode}s. Optional and additive.
+   */
+  readonly reviewFlags?: ReadonlyMap<string, ReviewFlag>;
 }
 
 /**

@@ -24,6 +24,8 @@ Standardmäßig löscht ein Lauf nichts. Verwaiste Schlüssel (in einer Zieldate
 
 Ohne `--json` gibt `translate` eine menschenlesbare Lauf-Zusammenfassung aus. Mit `--json` gibt es die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout aus: siehe die [`RunSummary`-Struktur in der SDK-Referenz](/docs/sdk). Ein Fehler des gesamten Laufs wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
 
+Eine Locale-Zeile zeigt eine `needs-review`-Zahl nur, wenn sie größer als null ist: verbatras eigene Heuristiken, die einen übersetzten Key markieren, der einen zweiten Blick wert ist (eine verdächtig kurze oder lange Ausgabe, ein mit der Quelle identischer Wert, ein verpasster Glossarbegriff oder eine neu geordnete Platzhaltermenge). Sie hält von sich aus nichts zurück; siehe [Übersetzungssicherheit](/docs/translation-safety) dafür, was jeder Grund bedeutet. Die `--json`-Ausgabe trägt immer das volle Detail als `needsReview` auf jeder Locale.
+
 ## Beispiele
 
 ```bash

@@ -123,6 +123,22 @@ provider: {
 
 `baseUrl` muss den API-Pfadabschnitt deines Servers enthalten, typischerweise `/v1`: LM Studio, Ollama und vLLM bedienen ihre OpenAI-kompatiblen Routen alle unter `/v1`, derselben Konvention, die der zugrunde liegende Client bereits für den gehosteten `openai`-Provider nutzt. Ein `baseUrl` ohne diesen Pfad erreicht den falschen Pfad auf dem Server und schlägt erst zur Anfragezeit fehl, nicht bei der Konfigurationsvalidierung, da die URL selbst weiterhin syntaktisch gültig ist.
 
+Das ist nicht auf lokale Server beschränkt: Eine gehostete API, die dasselbe OpenAI-kompatible Protokoll spricht, funktioniert genauso. Mistrals Chat-Completions-API ist ein Beispiel dafür:
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "https://api.mistral.ai/v1",
+    model: "mistral-large-latest",
+    maxOutputTokens: 4096,
+    apiKeyEnvVar: "MISTRAL_API_KEY",
+  },
+}
+```
+
+Setze `apiKeyEnvVar` auf die Umgebungsvariable, die deinen eigenen Mistral-API-Schlüssel enthält, und bestätige in [Mistrals eigener Modell-Dokumentation](https://docs.mistral.ai/models), dass `mistral-large-latest` noch Mistrals aktuelle Modell-ID ist, bevor du dich darauf verlässt, da sich Provider-Modell-IDs im Lauf der Zeit ändern. Das ist derselbe `openai-compatible`-Provider wie oben, nur auf einen anderen Endpunkt gerichtet, kein eigener Mistral-Provider.
+
 ### Schlüssel sind optional
 
 Die meisten lokalen Inferenzserver brauchen überhaupt keinen API-Schlüssel, daher löst `openai-compatible` seinen Schlüssel in drei Stufen auf, in dieser Reihenfolge:

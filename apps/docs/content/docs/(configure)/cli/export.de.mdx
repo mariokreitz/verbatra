@@ -10,6 +10,8 @@ verbatra export
 
 Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings: dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
 
+Jede Zeile mit einer aktuellen Übersetzung trägt auch ein nur lesbares Paar `Review status` / `Review reasons`: verbatras eigene beratende Heuristiken, um eine Übersetzung zu erkennen, die einen zweiten Blick wert ist, frisch aus den aktuellen Quell- und Zielwerten zum Exportzeitpunkt neu berechnet. Sie beeinflussen nie, was `import` akzeptiert. Siehe [Menschliche Übersetzung](/docs/manual-translation) für die Spalten und [Übersetzungssicherheit](/docs/translation-safety) für die Grund-Codes.
+
 ## Optionen
 
 | Option | Beschreibung |

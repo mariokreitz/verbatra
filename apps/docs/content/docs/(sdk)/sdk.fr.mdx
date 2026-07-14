@@ -29,7 +29,7 @@ Huit fonctions, plus les types que tu manipules quand tu les appelles.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la config.
   `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride` en mémoire. Elle
   lève une `SdkError` quand il n'y a aucune config à trouver ou que la validation échoue.
-- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, diffuser, traduire, écrire
+- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, comparer, traduire, écrire
   sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
   `prune` (désactivé par défaut) supprime les clés orphelines du fichier écrit et du verrouillage. `generatePlurals`
   (désactivé par défaut) synthétise les formes plurielles CLDR dont une langue cible a besoin mais que la source ne fournit pas
@@ -37,7 +37,7 @@ Huit fonctions, plus les types que tu manipules quand tu les appelles.
   de config correspondante pour cette exécution. Tu récupères un `RunSummary` : les problèmes sur toute l'exécution lèvent une `SdkError`,
   les résultats par locale sont transportés sur le résumé.
 - `watch(input: WatchInput): Promise<WatchController>` surveille le fichier source et se réexécute à chaque
-  changement débondi. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, et `onRun` se déclenche une fois par
+  changement temporisé. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, et `onRun` se déclenche une fois par
   exécution avec un `WatchRunResult`. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
   le surveillant et attend l'exécution en cours.
 - `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` écrit les chaînes qui
@@ -70,6 +70,8 @@ interface RunSummary {
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
   failed: string[];         // locales whose run failed
+  usage?: UsageSummary;     // summed input/output tokens across every locale; absent if none reported usage
+  budget?: RunBudget;       // present only when maxTokens is configured
 }
 
 interface LocaleSummary {
@@ -82,9 +84,25 @@ interface LocaleSummary {
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
   integrityMismatches: string[]; // translations withheld for a placeholder mismatch, never a provider failure
   providerFailures: string[];    // keys withheld because the provider call itself failed (see the notices for why)
+  budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
+  usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
+}
+
+interface UsageSummary {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+interface RunBudget {
+  maxTokens: number;             // the configured ceiling
+  behavior: "warn" | "stop";     // the configured behavior once the ceiling is reached
+  supported: boolean;            // false when the configured provider never reported usage this run
+  tokensUsed: number;            // cumulative input plus output tokens across the run so far
+  exceeded: boolean;             // true once tokensUsed reached or passed maxTokens
 }
 
 // A notice is either a provider-emitted notice or an SDK-emitted one.
@@ -123,8 +141,28 @@ interface LocaleDiff {
 
 Les notifications sont par locale, sur `LocaleSummary.notices`. Elles couvrent les notifications du provider (par exemple une
 dégradation gracieuse de DeepL) et les notifications du SDK (par exemple une langue cible qui a besoin de plus de catégories de pluriel CLDR
-que la source n'en fournit, code `PLURAL_CATEGORIES_INCOMPLETE`). Il n'y a pas de liste de notifications de niveau supérieur sur
+que la source n'en fournit, code `PLURAL_CATEGORIES_INCOMPLETE`, ou un budget de tokens dépassé, code
+`BUDGET_TOKENS_EXCEEDED`). Il n'y a pas de liste de notifications de niveau supérieur sur
 `RunSummary`, donc lis-les toujours sur la locale.
+
+`needsReview` liste chaque clé acceptée que les heuristiques de révision ont signalée pour un second
+regard, chacune avec les codes de motif qui s'appliquent : `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`,
+`GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` et `PROVIDER_DEGRADED`. C'est un signal distinct et non
+bloquant, séparé du verrou d'intégrité des placeholders et de l'ICU : un signal de révision ne retient
+jamais une clé, il la signale seulement comme digne d'être regardée, de sorte qu'une clé n'apparaît
+jamais à la fois dans `needsReview` et dans `integrityMismatches` pour le même motif. Il est toujours
+vide sur la `RunSummary` renvoyée par `importWorkbook`, puisqu'un import de classeur n'appelle jamais de
+provider ni ne recalcule de signaux sur son propre chemin. Voir [Sûreté de la traduction](/docs/translation-safety)
+pour ce que signifie chaque code, et [Traduction humaine](/docs/manual-translation) pour le même signal
+dans les colonnes `Review status` / `Review reasons` du classeur.
+
+`usage` vaut `undefined`, jamais un `{ inputTokens: 0, outputTokens: 0 }` inventé, dès que rien dans cette
+portée n'a signalé d'usage : un dry-run n'appelle jamais de provider, et un provider sans tokens (DeepL)
+n'en signale jamais. `RunSummary.usage` est la somme du `LocaleSummary.usage` de chaque locale.
+`RunSummary.budget` n'est présent que quand `maxTokens` est configuré ; face à un provider sans tokens ou
+à un dry-run, il est tout de même présent, avec `supported: false`, `tokensUsed: 0` et `exceeded: false`,
+de sorte que la protection reste visiblement et honnêtement inactive plutôt que d'être omise en silence
+ou de se déclencher faussement.
 
 `SdkError` est le type d'erreur unique que le SDK lève pour les échecs sur toute l'exécution. Il porte un `code` stable
 et un `message` sans secret. Les codes :
@@ -187,7 +225,7 @@ for (const locale of summary.locales) {
 }
 ```
 
-Passe `dryRun: true` pour lire et diffuser sans appeler de provider ni écrire de fichiers. Passe `prune: true`
+Passe `dryRun: true` pour lire et comparer sans appeler de provider ni écrire de fichiers. Passe `prune: true`
 pour supprimer les clés orphelines, ou `generatePlurals: true` pour synthétiser les catégories de pluriel manquantes
 (i18next-JSON avec un provider LLM uniquement). Chacun de ces flags remplace l'option de config correspondante pour cette
 exécution. `maxBatchSize` est l'exception : elle est réservée à la config (définis-la sur l'objet de config, par défaut 50),

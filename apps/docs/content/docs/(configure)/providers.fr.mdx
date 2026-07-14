@@ -77,7 +77,7 @@ provider: {
 Lit `GEMINI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
 
 <Callout title="Le palier gratuit et ses limites">
-Gemini est le point de départ recommandé pour les petits projets parce que son API a un palier gratuit. Crée une clé sur [Google AI Studio](https://aistudio.google.com/apikey), sans facturation requise. Le palier gratuit plafonne les requêtes par minute et par jour (les chiffres exacts dépendent du modèle et changent au fil du temps, alors vérifie les limites actuelles de Google), et verbatra découpe le travail en sous-lots séquentiels, de sorte qu'une première exécution sur de nombreuses langues peut atteindre ces plafonds. Une brève erreur de limite de débit ou de serveur est retentée automatiquement avec une courte attente, mais cela ne lisse que les accrocs momentanés, pas un plafond soutenu. Si tu atteins le plafond, traduis une langue à la fois ou baisse `maxBatchSize`, puis relance : verbatra ne reprend que ce qui manque encore, les exécutions sont donc sûres à répéter.
+Gemini est le point de départ recommandé pour les petits projets parce que son API a un palier gratuit. Crée une clé sur [Google AI Studio](https://aistudio.google.com/apikey), sans facturation requise. Le palier gratuit plafonne les requêtes par minute et par jour (les chiffres exacts dépendent du modèle et changent au fil du temps, alors vérifie les limites actuelles de Google), et verbatra découpe le travail en sous-lots séquentiels, de sorte qu'une première exécution sur de nombreuses locales peut atteindre ces plafonds. Une brève erreur de limite de débit ou de serveur est retentée automatiquement avec une courte attente, mais cela ne lisse que les accrocs momentanés, pas un plafond soutenu. Si tu atteins le plafond, traduis une locale à la fois ou baisse `maxBatchSize`, puis relance : verbatra ne reprend que ce qui manque encore, les exécutions sont donc sûres à répéter.
 </Callout>
 
 ## DeepL
@@ -122,6 +122,22 @@ provider: {
 `baseUrl`, `model` et `maxOutputTokens` sont requis. Contrairement à tous les autres fournisseurs, `baseUrl` vit dans la configuration plutôt que dans l'environnement : c'est une adresse réseau que tu connais déjà (une IP de LAN ou `localhost`), pas un secret. Elle doit être une URL absolue valide utilisant le schéma `http` ou `https` ; tout le reste, y compris une faute de frappe comme un schéma manquant, échoue immédiatement à la validation de la configuration avec une erreur claire, de la même façon qu'un `model` mal formé le ferait pour n'importe quel autre fournisseur.
 
 `baseUrl` doit inclure le segment de chemin d'API de ton serveur, typiquement `/v1` : LM Studio, Ollama et vLLM servent tous leurs routes compatibles OpenAI sous `/v1`, la même convention que le client sous-jacent utilise déjà pour le fournisseur hébergé `openai`. Un `baseUrl` sans ce segment atteint le mauvais chemin sur le serveur et échoue au moment de la requête, pas à la validation de la configuration, puisque l'URL elle-même reste syntaxiquement valide.
+
+Ce n'est pas limité aux serveurs locaux : une API hébergée qui parle le même protocole compatible OpenAI fonctionne de la même façon. L'API chat completions de Mistral en est un exemple :
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "https://api.mistral.ai/v1",
+    model: "mistral-large-latest",
+    maxOutputTokens: 4096,
+    apiKeyEnvVar: "MISTRAL_API_KEY",
+  },
+}
+```
+
+Définis `apiKeyEnvVar` sur la variable d'environnement qui contient ta propre clé API Mistral, et confirme dans la [documentation des modèles de Mistral](https://docs.mistral.ai/models) que `mistral-large-latest` est toujours l'id de modèle actuel de Mistral avant de t'y fier, car les ids de modèle des fournisseurs changent avec le temps. C'est le même fournisseur `openai-compatible` que ci-dessus, pointé vers un autre endpoint, pas un fournisseur Mistral dédié.
 
 ### Les clés sont facultatives
 

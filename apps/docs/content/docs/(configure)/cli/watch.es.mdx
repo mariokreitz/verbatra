@@ -16,7 +16,7 @@ verbatra watch
 | --- | --- |
 | `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--debounce <ms>` | espera esta cantidad de milisegundos tras un cambio antes de traducir (por defecto `300`) |
+| `--debounce <ms>` | espera esta cantidad de milisegundos tras un cambio antes de traducir (por defecto `300`); debe ser un número entero positivo |
 | `--json` | imprime cada ejecución como un registro NDJSON |
 
 ## Salida
@@ -26,19 +26,19 @@ Sin `--json`, `watch` imprime un resumen legible para humanos por ejecución. Co
 ## Ejemplos
 
 ```bash
-# observa y vuelve a traducir con cada cambio
+# watch and re-translate on each change
 verbatra watch
 
-# espera 1s tras un cambio antes de traducir
+# wait 1s after a change before translating
 verbatra watch --debounce 1000
 
-# observa un proyecto en otro directorio
+# watch a project in another directory
 verbatra watch --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra watch --config config/verbatra.config.ts
 
-# transmite un registro NDJSON por ejecución
+# stream one NDJSON record per run
 verbatra watch --json
 ```
 
@@ -47,7 +47,7 @@ verbatra watch --json
 | Código | Significado |
 | --- | --- |
 | `0` | detenido de forma ordenada por una sola interrupción |
-| `2` | no se pudo ejecutar: la configuración no se pudo cargar, o un error de uso |
+| `2` | no se pudo ejecutar: la configuración no se pudo cargar, o un error de uso (incluido un `--debounce` no válido, como un valor que no es entero, cero, negativo o con un sufijo de unidad como `250ms`) |
 | `130` | detenido a la fuerza por una segunda interrupción |
 
 A diferencia de [`translate`](/docs/cli/translate), un fallo por ejecución no cambia el código de salida: se informa como un registro de flujo. El código de salida refleja únicamente cómo se detuvo el observador.

@@ -51,19 +51,19 @@ Un error de toda la ejecución va a stderr, así que stdout queda limpio y canal
 ## Ejemplos
 
 ```bash
-# informa las claves faltantes y desactualizadas por locale (sale con 1 si hay desviación)
+# report missing and stale keys per locale (exit 1 if drifted)
 verbatra check
 
-# solo comprueba los locales alemán y francés
+# only check the German and French locales
 verbatra check --locales de,fr
 
-# comprueba un proyecto en otro directorio
+# check a project in another directory
 verbatra check --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra check --config config/verbatra.config.ts
 
-# estado legible por máquina en stdout para CI
+# machine-readable status on stdout for CI
 verbatra check --json
 ```
 

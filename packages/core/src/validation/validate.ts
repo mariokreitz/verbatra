@@ -8,7 +8,7 @@ import type {
 } from "./types.js";
 
 function byKey<T extends ValidationFinding>(findings: T[]): readonly T[] {
-  return [...findings].sort((a, b) => a.key.localeCompare(b.key));
+  return [...findings].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 
 function collectMissingKeys(source: LocaleResource, target: LocaleResource): ValidationFinding[] {

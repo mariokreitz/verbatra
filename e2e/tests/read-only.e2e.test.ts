@@ -155,6 +155,12 @@ describe("export then import round-trip (no provider)", () => {
       if (sheet.name === INSTRUCTIONS_SHEET) {
         continue;
       }
+      const headers: string[] = [];
+      sheet.getRow(HEADER_ROW).eachCell((cell) => {
+        headers.push(String(cell.value));
+      });
+      expect(headers).toContain("Review status");
+      expect(headers).toContain("Review reasons");
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === HEADER_ROW) {
           return;
@@ -185,6 +191,22 @@ describe("other formats (read-only, no provider)", () => {
     );
     await writeFileIn(dir, "locales/en.yml", "greeting: Hello {{name}}\nfarewell: Goodbye\n");
     await writeFileIn(dir, "locales/de.yml", "greeting: Hallo {{name}}\n");
+    const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
+    expect(result.exitCode).toBe(1);
+    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    expect(summary.inSync).toBe(false);
+    const de = summary.locales.find((entry) => entry.locale === "de");
+    expect(de?.missing).toBe(1);
+  });
+
+  it("reads a YAML target file with a stray non-string leaf instead of failing the whole file", async () => {
+    const dir = await seedProject(
+      "yaml-nonstring-leaf",
+      { ...i18nextConfig, format: "yaml", files: { pattern: "locales/{locale}.yml" } },
+      {},
+    );
+    await writeFileIn(dir, "locales/en.yml", "greeting: Hello {{name}}\nfarewell: Goodbye\n");
+    await writeFileIn(dir, "locales/de.yml", "greeting: Hallo {{name}}\ncount: 5\nenabled: true\n");
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
     const summary = JSON.parse(result.stdout) as CheckSummaryJson;
@@ -283,6 +305,23 @@ describe("CLI boundary hardening (subprocess-level proof, no provider)", () => {
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("INVALID_DEBOUNCE");
+  });
+
+  it("check exits 2 with a structured CONFIG_INVALID error for a non-positive maxTokens", async () => {
+    const dir = await seedProject(
+      "budget-invalid",
+      { ...i18nextConfig, maxTokens: 0 },
+      {
+        "locales/en.json": { greeting: "Hello {{name}}" },
+        "locales/de.json": { greeting: "Hallo {{name}}" },
+      },
+    );
+
+    const result = await runVerbatra(consumer, ["check", "--cwd", dir]);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("CONFIG_INVALID");
   });
 });
 

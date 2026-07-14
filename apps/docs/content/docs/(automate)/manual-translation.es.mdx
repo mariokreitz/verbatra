@@ -29,11 +29,14 @@ El archivo abre con una hoja de **Instrucciones**, seguida de una hoja de datos 
 | `Key` | no | La ruta de la clave con puntos. La única identidad que mapea una fila de vuelta a una cadena. |
 | `Source` | no | El valor del locale de origen, como referencia. |
 | `Current translation` | no | El valor de destino existente, si lo hay. |
-| `Status` | no | `new` (aún sin traducción) o `changed` (el origen cambió y la traducción necesita actualizarse). |
+| `Status` | no | `new` (aún sin traducción), `changed` (el origen cambió y la traducción necesita actualizarse) o `unchanged` (ya actualizada, incluida solo con `--include-unchanged`). |
 | `Translation` | **sí** | La única celda que rellena el traductor. |
 | `Source hash` | no | Oculta. El contenido de origen capturado en la exportación, usado para detectar un origen que cambió después de la exportación. |
+| `Context` | no | Contexto de desarrollo para la cadena, cuando el formato de origen lleva alguno (`@key.description` de Flutter ARB, `<note>` de XLIFF). Se muestra solo como referencia, nunca se importa como traducción. |
+| `Review status` | no | `ok` o `review`: si las heurísticas de revisión de verbatra marcaron la traducción de esta fila para una segunda mirada. Solo lectura y consultivo, nunca una condición para la importación. |
+| `Review reasons` | no | Una lista separada por comas de etiquetas de motivo que lo explican (por ejemplo `length-ratio-outlier, equals-source`). Vacía cuando `Review status` es `ok`. |
 
-Cada columna excepto `Translation` está bloqueada y la hoja está protegida, así que un traductor solo puede editar la única columna que importa. La fila de encabezado está congelada y la columna `Source hash` está oculta. Ordena o filtra las filas como quieras: el mapeo es por `Key`, nunca por posición.
+Cada columna excepto `Translation` está bloqueada y la hoja está protegida, así que un traductor solo puede editar la única columna que importa. La fila de encabezado está congelada y la columna `Source hash` está oculta. `Context`, `Review status` y `Review reasons` se añaden después de `Source hash` en lugar de insertarse antes, así que `Translation` mantiene su posición para quien escriba scripts contra la forma del libro. Ordena o filtra las filas como quieras: el mapeo es por `Key`, nunca por posición.
 
 Una celda `Translation` vacía significa "aún no traducido". La importación la omite y nunca escribe una cadena vacía, así que un traductor puede devolver un libro medio rellenado y terminar el resto más tarde.
 
@@ -62,6 +65,7 @@ La importación no es un pegado a ciegas. Antes de que verbatra escriba nada, ca
 - **Validez de ICU**: un mensaje ICU debe permanecer estructuralmente válido, con los mismos nombres de argumentos. Solo el texto legible por humanos puede cambiar.
 - **Desviación del origen**: el `Source hash` oculto permite que la importación detecte una cadena de origen que cambió después de exportar el libro. Una fila desactualizada se retiene, así que nunca sobrescribes un origen actual con una traducción de uno antiguo.
 - **Claves desconocidas**: una fila cuya `Key` no está en el origen actual (por ejemplo, una que un traductor añadió a mano) se rechaza.
+- **`Context` nunca es una fuente de traducción**: `Context` es texto de referencia de solo lectura. La importación lo ignora por completo, y un libro exportado antes de que existiera esta columna sigue importando con normalidad.
 
 Un valor que falla cualquier comprobación se **retiene** (no se escribe) y se informa en el resumen de la ejecución, así que puedes corregirlo y reimportarlo. Las claves que pasan se escriben y se bloquean; las que fallan dejan el archivo de locale intacto. Añade `--dry-run` para validar un libro devuelto y previsualizar qué se escribiría sin tocar un solo archivo:
 
@@ -70,6 +74,20 @@ verbatra import verbatra-translations.xlsx --dry-run
 ```
 
 La importación comparte el contrato de códigos de salida de `translate`: devuelve `0` cuando todos los locales tienen éxito, `1` cuando un locale falla y `2` cuando la ejecución no pudo comenzar. Eso significa que una entrega manual encaja en las mismas comprobaciones de CI que una automatizada. Consulta [CI y automatización](/docs/ci-and-exit-codes).
+
+## Señales de revisión
+
+Las comprobaciones de arriba deciden qué escribe la importación. `Review status` y `Review reasons` son una capa distinta, sin capacidad de bloqueo, encima de eso: las propias heurísticas de verbatra para detectar una traducción que está estructuralmente bien pero merece una segunda mirada. Nunca retienen una fila y nunca afectan a lo que acepta la importación. Un traductor no puede limpiar una señal editando una celda; la única forma de limpiarla es corregir el valor de `Translation` y volver a exportar.
+
+Ambas columnas se calculan de nuevo en el momento de la exportación a partir de los valores actuales de origen y destino, no se arrastran de una ejecución de `translate`. `Review reasons` lista las etiquetas que aplicaron, separadas por comas:
+
+- `length-ratio-outlier`: la traducción es mucho más corta o más larga que su origen.
+- `equals-source`: la traducción es idéntica al origen.
+- `glossary-term-missed`: un término de glosario configurado no llegó a la traducción.
+- `integrity-reordered`: el conjunto de marcadores de posición coincidió pero quedó en un orden distinto al del origen.
+- `provider-degraded`: el lote del que viene esta clave llevaba un aviso de degradación de DeepL en el momento de traducir. Como la exportación nunca llama a un proveedor, este motivo nunca aparece en una fila exportada; solo aparece en la salida de `translate --json` o `watch --json`. Una clave que solo disparó este motivo en el momento de traducir exporta `ok`, salvo que también dispare de forma independiente uno de los cuatro motivos de arriba, en cuyo caso la fila exportada lleva ese motivo en su lugar.
+
+Una fila sin nada traducido todavía siempre exporta `ok`; no hay nada que revisar. Consulta [Seguridad de la traducción](/docs/translation-safety) para saber qué significa cada motivo y cómo se relacionan estas señales con las comprobaciones de marcadores de posición e ICU de arriba.
 
 ## Desde el SDK
 

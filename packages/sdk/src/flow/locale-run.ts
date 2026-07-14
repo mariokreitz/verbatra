@@ -1,4 +1,5 @@
 import type {
+  ReviewFlag,
   Tone,
   TranslateRequest,
   TranslateResult,
@@ -15,6 +16,12 @@ import type { FormatAdapter } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
 import { chunk, subBatchFailedNotice } from "./batching.js";
+import {
+  type BudgetTracker,
+  budgetExceededNotice,
+  checkBudgetTrip,
+  foldTrackerUsage,
+} from "./budget.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -28,7 +35,8 @@ import {
   generatePluralForms,
   type PluralGenerationResult,
 } from "./plural-generation.js";
-import type { LocaleNotice, LocaleSummary } from "./summary.js";
+import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
+import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
 export interface LocaleRunParams {
   readonly source: LocaleResource;
@@ -57,6 +65,8 @@ export interface LocaleRunParams {
    */
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
+  /** The run-wide token-budget tracker, shared and mutated across every locale in the run. */
+  readonly budget: BudgetTracker;
 }
 
 export interface LocaleRunResult {
@@ -139,6 +149,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
         generated: [],
         integrityMismatches: [],
         providerFailures: [],
+        budgetWithheld: [],
         pruned,
         notices: sdkNotices,
       }),
@@ -150,16 +161,23 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     .map((key) => params.source.entries.get(key))
     .filter((entry): entry is TranslationEntry => entry !== undefined);
 
+  // Captured before this locale makes any call: distinguishes "this locale caused the trip" from
+  // "a prior locale already tripped stop mode", each of which the budget notice is worded around.
+  const startedStopped = params.budget.stopped;
   const accepted = new Map<string, Accepted>();
   const integrityMismatches: string[] = [];
   const providerFailures: string[] = [];
-  const subBatchNotices = await translateAndCheck(
+  const budgetWithheld: string[] = [];
+  const reviewFlags = new Map<string, ReviewFlag>();
+  const translation = await translateAndCheck(
     provider,
     params,
     entries,
     accepted,
     integrityMismatches,
     providerFailures,
+    budgetWithheld,
+    reviewFlags,
   );
 
   const merged = new Map(target.entries);
@@ -191,8 +209,9 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
   const notices: readonly LocaleNotice[] = [
     ...pluralNotices,
-    ...subBatchNotices,
+    ...translation.notices,
     ...generation.notices,
+    ...budgetLocaleNotices(params.budget, startedStopped, translation.tripped, generation.tripped),
   ];
 
   const withheld = new Set([
@@ -201,7 +220,10 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     ...invalidIcuSource,
     ...generation.withheld,
     ...generation.providerFailures,
+    // Source-present keys withheld by the budget guardrail must keep their prior lock hash too.
+    ...budgetWithheld,
   ]);
+  const localeUsage = combineUsage(translation.usage, generation.usage);
   return {
     summary: baseSummary({
       locale: params.targetLocale,
@@ -214,12 +236,26 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
       // A generation sub-batch whose provider call itself threw is a provider failure, never integrity.
       providerFailures: [...providerFailures, ...generation.providerFailures].sort(),
+      budgetWithheld: [...budgetWithheld, ...generation.budgetWithheld].sort(),
       pruned,
       notices,
+      needsReview: needsReviewFor(accepted.keys(), reviewFlags),
+      ...(localeUsage !== undefined ? { usage: localeUsage } : {}),
     }),
     lockEntries: computeLockEntries(params, merged, withheld, generation.accepted),
   };
 }
+
+/** The empty generation result for when generation is disabled or the provider does not support it. */
+const NO_GENERATION_RESULT: PluralGenerationResult = {
+  accepted: [],
+  withheld: [],
+  providerFailures: [],
+  budgetWithheld: [],
+  notices: [],
+  usage: undefined,
+  tripped: false,
+};
 
 /** Run plural generation when enabled and the provider is an LLM; otherwise skip and fall back to the warning. */
 async function runGeneration(
@@ -227,7 +263,7 @@ async function runGeneration(
   provider: TranslationProvider,
 ): Promise<PluralGenerationResult> {
   if (!params.generatePlurals || provider.kind !== "llm") {
-    return { accepted: [], withheld: [], providerFailures: [], notices: [] };
+    return NO_GENERATION_RESULT;
   }
   return generatePluralForms({
     source: params.source,
@@ -240,7 +276,22 @@ async function runGeneration(
     tone: params.tone,
     baseline: params.baseline,
     maxBatchSize: params.maxBatchSize,
+    budget: params.budget,
   });
+}
+
+/**
+ * One `BUDGET_TOKENS_EXCEEDED` notice for this locale if it caused the trip (main translation or
+ * generation), or if it started already stopped by an earlier locale's trip (`stop` mode only);
+ * otherwise none. Never more than one per locale.
+ */
+function budgetLocaleNotices(
+  budget: BudgetTracker,
+  startedStopped: boolean,
+  mainTripped: boolean,
+  generationTripped: boolean,
+): readonly LocaleNotice[] {
+  return startedStopped || mainTripped || generationTripped ? [budgetExceededNotice(budget)] : [];
 }
 
 /** Recompute the plural warning per base key against the written target; a complete generated set clears it. */
@@ -266,8 +317,12 @@ interface SummaryParts {
   readonly generated: readonly string[];
   readonly integrityMismatches: readonly string[];
   readonly providerFailures: readonly string[];
+  readonly budgetWithheld: readonly string[];
   readonly pruned: readonly string[];
   readonly notices: readonly LocaleNotice[];
+  readonly usage?: UsageSummary;
+  /** Defaults to empty: a dry-run never calls a provider, so it never has anything to flag. */
+  readonly needsReview?: readonly NeedsReviewEntry[];
 }
 
 function baseSummary(parts: SummaryParts): LocaleSummary {
@@ -281,12 +336,41 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
     invalidIcuSource: parts.invalidIcuSource,
     integrityMismatches: parts.integrityMismatches,
     providerFailures: parts.providerFailures,
+    budgetWithheld: parts.budgetWithheld,
     generated: parts.generated,
     notices: parts.notices,
+    needsReview: parts.needsReview ?? [],
+    ...(parts.usage !== undefined ? { usage: parts.usage } : {}),
   };
 }
 
-/** Split entries into sequential sub-batches of at most `maxBatchSize` and run each as its own request. */
+/** Every accepted key with a non-empty review flag, sorted by key. */
+function needsReviewFor(
+  acceptedKeys: Iterable<string>,
+  reviewFlags: ReadonlyMap<string, ReviewFlag>,
+): readonly NeedsReviewEntry[] {
+  const entries: NeedsReviewEntry[] = [];
+  for (const key of acceptedKeys) {
+    const flag = reviewFlags.get(key);
+    if (flag !== undefined) {
+      entries.push({ key, reasons: flag.reasons });
+    }
+  }
+  return entries.sort((a, b) => (a.key < b.key ? -1 : 1));
+}
+
+interface TranslateAndCheckResult {
+  readonly notices: readonly LocaleNotice[];
+  /** Whether a sub-batch in this call was the one that first crossed the configured budget. */
+  readonly tripped: boolean;
+  readonly usage: UsageSummary | undefined;
+}
+
+/**
+ * Split entries into sequential sub-batches of at most `maxBatchSize` and run each as its own request.
+ * The budget is checked between completed sub-batches (see `translate-project.ts` for why never
+ * mid-batch): once `stop` mode trips, remaining sub-batches are withheld without a provider call.
+ */
 async function translateAndCheck(
   provider: TranslationProvider,
   params: LocaleRunParams,
@@ -294,20 +378,41 @@ async function translateAndCheck(
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
   providerFailures: string[],
-): Promise<readonly LocaleNotice[]> {
+  budgetWithheld: string[],
+  reviewFlags: Map<string, ReviewFlag>,
+): Promise<TranslateAndCheckResult> {
   const notices: LocaleNotice[] = [];
+  const usage = createUsageAccumulator();
+  let tripped = false;
   for (const batch of chunk(entries, params.maxBatchSize)) {
-    const subNotices = await runSubBatch(
+    if (params.budget.stopped) {
+      for (const entry of batch) {
+        budgetWithheld.push(entry.key);
+      }
+      continue;
+    }
+    const subResult = await runSubBatch(
       provider,
       params,
       batch,
       accepted,
       integrityMismatches,
       providerFailures,
+      reviewFlags,
     );
-    notices.push(...subNotices);
+    notices.push(...subResult.notices);
+    foldUsage(usage, subResult.usage);
+    foldTrackerUsage(params.budget, subResult.usage);
+    if (checkBudgetTrip(params.budget)) {
+      tripped = true;
+    }
   }
-  return notices;
+  return { notices, tripped, usage: usage.total };
+}
+
+interface SubBatchResult {
+  readonly notices: readonly LocaleNotice[];
+  readonly usage: TranslateResult["usage"];
 }
 
 /**
@@ -327,7 +432,8 @@ async function runSubBatch(
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
   providerFailures: string[],
-): Promise<readonly LocaleNotice[]> {
+  reviewFlags: Map<string, ReviewFlag>,
+): Promise<SubBatchResult> {
   let result: TranslateResult;
   try {
     result = await provider.translateBatch(buildRequest(params, batch));
@@ -335,12 +441,17 @@ async function runSubBatch(
     for (const entry of batch) {
       providerFailures.push(entry.key);
     }
-    return [subBatchFailedNotice(batch.length, error)];
+    return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const entry of batch) {
     foldEntryResult(entry, result, accepted, integrityMismatches, providerFailures);
   }
-  return readNotices(result);
+  if (result.reviewFlags !== undefined) {
+    for (const [key, flag] of result.reviewFlags) {
+      reviewFlags.set(key, flag);
+    }
+  }
+  return { notices: readNotices(result), usage: result.usage };
 }
 
 /** Fold one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. */

@@ -31,6 +31,8 @@ The argument is the path to the workbook produced by [`verbatra export`](/docs/c
 
 A value is **withheld** when it breaks a placeholder, is invalid ICU, or its source changed since the workbook was exported (detected through the hidden source-hash column). A withheld value leaves the locale file untouched so you can fix it and reimport. See [Translation safety](/docs/translation-safety) for the checks.
 
+A workbook's `Review status` and `Review reasons` columns, when present, are read-only and advisory: they never gate `import`. A row marked `review` with a filled `Translation` is accepted or withheld by the exact same rules as any other row. A workbook exported before these two columns existed still imports every row unchanged. See [Human translation](/docs/manual-translation) for what the columns mean.
+
 ## Examples
 
 ```bash

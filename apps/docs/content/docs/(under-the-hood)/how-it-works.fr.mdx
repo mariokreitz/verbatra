@@ -3,7 +3,7 @@ title: Comment ça marche
 description: Ce qu'une exécution de verbatra fait de bout en bout, de la découverte de la config au résumé de l'exécution.
 ---
 Une exécution est un court pipeline. Charger la config, lire la locale source, puis pour chaque locale cible :
-diffuser par rapport à ce que tu as traduit la dernière fois, n'envoyer au provider que ce qui a changé, vérifier le
+comparer à ce que tu as traduit la dernière fois, n'envoyer au provider que ce qui a changé, vérifier le
 résultat, et écrire. C'est tout. Cette page parcourt chaque étape pour que tu saches exactement ce qui
 se passe quand tu lances `verbatra translate`.
 
@@ -32,8 +32,8 @@ Chaque locale cible est traitée séparément. Si une locale explose, les autres
 
 ### Diff par rapport à la base de référence du verrouillage
 
-verbatra lit le fichier cible existant (un fichier absent compte comme vide) et diffuse la source par rapport à
-lui, en utilisant le fichier de verrouillage comme base de référence de ce qui a été traduit auparavant. Le diff trie chaque
+verbatra lit le fichier cible existant (un fichier absent compte comme vide) et compare la source
+à ce fichier, en utilisant le fichier de verrouillage comme base de référence de ce qui a été traduit auparavant. Le diff trie chaque
 clé source dans l'un de quatre paniers :
 
 - les nouvelles clés que la cible n'a pas encore,
@@ -51,7 +51,7 @@ exécution incrémentielle : le provider n'est appelé que pour les chaînes qui
 
 Les entrées candidates vont à ton provider configuré, avec le `glossary` et le `tone` facultatifs
 de ta config. verbatra les répartit en sous-lots séquentiels d'au plus `maxBatchSize` (par défaut
-`50`, voir [Config file](/docs/config-file)) pour qu'une requête surdimensionnée ne puisse pas faire échouer toute la locale.
+`50`, voir [Fichier de configuration](/docs/config-file)) pour qu'une requête surdimensionnée ne puisse pas faire échouer toute la locale.
 Si l'appel d'un sous-lot échoue, il est retenu et réessayé à la prochaine exécution pendant que les autres continuent de
 progresser. La façon dont les entrées sont appliquées dépend du provider.
 
@@ -78,7 +78,7 @@ qu'écrite. Les traductions acceptées sont fusionnées dans la locale cible et 
 ## Le fichier de verrouillage et le travail incrémentiel
 
 verbatra conserve un fichier de verrouillage commité (`verbatra.lock.json`) qui enregistre, par locale, un hachage de contenu
-pour chaque clé source traduite. Cet enregistrement est la base de référence par rapport à laquelle l'exécution suivante diffuse. Après qu'une
+pour chaque clé source traduite. Cet enregistrement est la base de référence à laquelle l'exécution suivante se compare. Après qu'une
 locale est écrite, le verrouillage se rafraîchit avec les hachages source actuels, avec une exception délibérée :
 les clés retenues lors de cette exécution (une non-concordance de placeholder ou un ICU invalide) conservent leur hachage
 précédent, de sorte que l'exécution suivante les voit toujours comme nécessitant du travail et les réessaie. Les clés orphelines n'obtiennent aucune
@@ -107,4 +107,4 @@ locales s'exécute quand même.
 
 Quand un provider LLM (Anthropic, OpenAI, Gemini ou openai-compatible) s'arrête parce qu'il a atteint la limite de jetons de sortie, ce
 sous-lot échoue avec une erreur distincte `OUTPUT_TRUNCATED` qui te dit d'utiliser une taille de lot plus petite ou un
-nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas à DeepL. Voir [Providers](/docs/providers).
+nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas à DeepL. Voir [Fournisseurs](/docs/providers).

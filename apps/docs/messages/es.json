@@ -1,31 +1,31 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra: mantén tus archivos de idioma i18n sincronizados, traduce solo lo que cambió",
-      "description": "Mantén tus archivos de idioma i18n sincronizados. verbatra traduce solo las claves que cambiaron, a través del proveedor de IA o de traducción automática que elijas. Empieza ahora.",
-      "ogImageAlt": "verbatra mantiene tus archivos de idioma i18n sincronizados y traduce solo las claves que cambiaron.",
-      "definition": "verbatra es una CLI y un SDK que mantiene tus archivos de idioma i18n sincronizados, traduciendo solo las claves que cambiaron a través del proveedor de IA o de traducción automática que elijas."
+      "title": "verbatra: mantén tus archivos de locale i18n sincronizados, traduce solo lo que cambió",
+      "description": "Mantén tus archivos de locale i18n sincronizados. verbatra traduce solo las claves que cambiaron, a través del proveedor de IA o de traducción automática que elijas. Empieza ahora.",
+      "ogImageAlt": "verbatra mantiene tus archivos de locale i18n sincronizados y traduce solo las claves que cambiaron.",
+      "definition": "verbatra es una CLI y un SDK que mantiene tus archivos de locale i18n sincronizados, traduciendo solo las claves que cambiaron a través del proveedor de IA o de traducción automática que elijas."
     },
     "hero": {
       "headline": "Traduce solo lo que cambió.",
-      "lead": "verbatra es una CLI y un SDK que mantiene tus archivos de idioma i18n sincronizados. Tú mantienes el idioma de origen; verbatra rellena todos los demás idiomas a través del proveedor de IA que elijas.",
+      "lead": "verbatra es una CLI y un SDK que mantiene tus archivos de locale i18n sincronizados. Tú mantienes el locale de origen; verbatra rellena todos los demás locales a través del proveedor de IA que elijas.",
       "ctaQuickstart": "Lee la guía de inicio rápido",
       "ctaGithub": "Danos una estrella en GitHub"
     },
     "pillars": {
       "heading": "Una herramienta para todo el ciclo de traducción.",
-      "lead": "verbatra es más que traducción con IA. Cubre la traducción automática que tú controlas, una entrega limpia en Excel para traductores humanos y la automatización para mantener cada idioma sincronizado.",
+      "lead": "verbatra es más que traducción con IA. Cubre la traducción automática que tú controlas, una entrega limpia en Excel para traductores humanos y la automatización para mantener cada locale sincronizado.",
       "ai": {
         "title": "Traducción con IA",
         "body": "Traduce solo lo que cambió a través del proveedor que tú elijas: Anthropic, OpenAI, Gemini o DeepL. Un archivo de bloqueo confirmado mantiene cada ejecución incremental, y la integridad de los marcadores de posición y de ICU se comprueba antes de escribir nada."
       },
       "excel": {
         "title": "Entrega en Excel",
-        "body": "Ejecuta verbatra export para producir un libro .xlsx con estilo, entrégalo a una agencia de traducción o a traductores internos, y luego verbatra import vuelve a leer sus cambios en tus archivos de idioma. Combina la traducción automática con el trabajo humano profesional."
+        "body": "Ejecuta verbatra export para producir un libro .xlsx con estilo, entrégalo a una agencia de traducción o a traductores internos, y luego verbatra import vuelve a leer sus cambios en tus archivos de locale. Combina la traducción automática con el trabajo humano profesional."
       },
       "automation": {
         "title": "Automatización",
-        "body": "Mantén cada idioma sincronizado mientras trabajas: verbatra watch traduce al cambiar, los códigos de salida compatibles con CI y la salida --json encajan en cualquier pipeline, y una GitHub Action lo ejecuta en tu flujo de trabajo."
+        "body": "Mantén cada locale sincronizado mientras trabajas: verbatra watch traduce al cambiar, los códigos de salida compatibles con CI y la salida --json encajan en cualquier pipeline, y una GitHub Action lo ejecuta en tu flujo de trabajo."
       }
     },
     "status": {
@@ -45,12 +45,12 @@
     },
     "compat": {
       "heading": "Una herramienta, todos los frameworks.",
-      "body": "verbatra lee los formatos de archivos de idioma JSON que tu framework ya usa, y los rellena a través del proveedor que elijas.",
+      "body": "verbatra lee los formatos de archivos de locale JSON que tu framework ya usa, y los rellena a través del proveedor que elijas.",
       "labelFrameworks": "Frameworks y formatos"
     },
     "providers": {
       "heading": "Traduce con el modelo en el que confías.",
-      "lead": "Anthropic, OpenAI, Gemini o DeepL. Elige uno en una sola línea de configuración y cambia de proveedor sin tocar tus archivos de idioma.",
+      "lead": "Anthropic, OpenAI, Gemini o DeepL. Elige uno en una sola línea de configuración y cambia de proveedor sin tocar tus archivos de locale.",
       "marqueeLabel": "Proveedores de traducción"
     },
     "how": {
@@ -59,11 +59,11 @@
       "steps": {
         "configure": {
           "title": "Configura",
-          "body": "Apunta verbatra a tu idioma de origen, indica los idiomas de destino y elige un proveedor. La configuración vive en un solo archivo; las claves de API se quedan en tu entorno."
+          "body": "Apunta verbatra a tu locale de origen, indica los locales de destino y elige un proveedor. La configuración vive en un solo archivo; las claves de API se quedan en tu entorno."
         },
         "diff": {
           "title": "Compara",
-          "body": "Cada ejecución compara tu idioma de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana."
+          "body": "Cada ejecución compara tu locale de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana."
         },
         "translate": {
           "title": "Traduce",
@@ -71,7 +71,7 @@
         },
         "verifyWrite": {
           "title": "Verifica y escribe",
-          "body": "La integridad de los marcadores de posición y de ICU se comprueba en cada resultado. Cualquier cosa que se rompa se retiene; el resto se escribe en tus archivos de idioma y se actualiza el bloqueo."
+          "body": "La integridad de los marcadores de posición y de ICU se comprueba en cada resultado. Cualquier cosa que se rompa se retiene; el resto se escribe en tus archivos de locale y se actualiza el bloqueo."
         }
       }
     },
@@ -85,7 +85,7 @@
         },
         "provider": {
           "title": "El proveedor que tú elijas",
-          "body": "Anthropic, OpenAI, Gemini o DeepL, elegido en una línea de configuración. Cambia de proveedor sin tocar tus archivos de idioma."
+          "body": "Anthropic, OpenAI, Gemini o DeepL, elegido en una línea de configuración. Cambia de proveedor sin tocar tus archivos de locale."
         },
         "safety": {
           "title": "Seguro por construcción",
@@ -100,8 +100,8 @@
           "body": "El comando verbatra y @verbatra/sdk comparten un único núcleo de orquestación, así que los scripts, la CI y tus propias herramientas se comportan de forma idéntica."
         },
         "dryRun": {
-          "title": "Ejecuciones en seco y modo de observación (watch)",
-          "body": "Previsualiza exactamente lo que una ejecución cambiaría sin escribir nada, o mantén una observación en marcha que traduce a medida que tu idioma de origen evoluciona."
+          "title": "Ejecuciones en seco y modo de observación",
+          "body": "Previsualiza exactamente lo que una ejecución cambiaría sin escribir nada, o mantén una observación en marcha que traduce a medida que tu locale de origen evoluciona."
         }
       }
     },
@@ -113,7 +113,7 @@
       "items": {
         "avoidRetranslate": {
           "question": "¿Cómo evita verbatra volver a traducir todo en cada ejecución?",
-          "answer": "verbatra mantiene un archivo de bloqueo confirmado que registra lo que ya se tradujo. En cada ejecución compara tu idioma de origen con ese bloqueo y envía solo las claves nuevas o cambiadas a tu proveedor; las claves sin cambios se dejan intactas."
+          "answer": "verbatra mantiene un archivo de bloqueo confirmado que registra lo que ya se tradujo. En cada ejecución compara tu locale de origen con ese bloqueo y envía solo las claves nuevas o cambiadas a tu proveedor; las claves sin cambios se dejan intactas."
         },
         "providers": {
           "question": "¿Qué proveedores de traducción admite verbatra?",
@@ -121,7 +121,7 @@
         },
         "icu": {
           "question": "¿Cómo maneja verbatra los marcadores de posición ICU y los formatos de mensaje?",
-          "answer": "Comprueba la integridad de los marcadores de posición y de ICU después de cada traducción. Si una traducción devuelta rompe un marcador de posición o produce ICU inválido, ese resultado se retiene en lugar de escribirse en tu archivo de idioma."
+          "answer": "Comprueba la integridad de los marcadores de posición y de ICU después de cada traducción. Si una traducción devuelta rompe un marcador de posición o produce ICU inválido, ese resultado se retiene en lugar de escribirse en tu archivo de locale."
         },
         "formats": {
           "question": "¿Qué formatos de archivo i18n puede leer verbatra?",
@@ -129,7 +129,7 @@
         },
         "openSource": {
           "question": "¿Puedo previsualizar una ejecución antes de que escriba algo?",
-          "answer": "Sí. Una ejecución en seco informa exactamente de qué claves se enviarían y escribirían sin tocar tus archivos de idioma, y el modo de observación (watch) sigue traduciendo a medida que tu idioma de origen cambia."
+          "answer": "Sí. Una ejecución en seco informa exactamente de qué claves se enviarían y escribirían sin tocar tus archivos de locale, y el modo de observación sigue traduciendo a medida que tu locale de origen cambia."
         },
         "ci": {
           "question": "¿Hay un SDK además de una CLI?",
@@ -137,16 +137,16 @@
         },
         "production": {
           "question": "¿Está verbatra listo para producción?",
-          "answer": "verbatra es joven y se desarrolla de forma activa, así que su API todavía puede cambiar entre versiones; fija una versión y lee el registro de cambios cuando actualices. Lo que ya es sólido es el modelo de seguridad: cada ejecución compara con un archivo de bloqueo confirmado, comprueba la integridad de los marcadores de posición y de ICU en cada resultado, y retiene cualquier cosa que rompa un marcador de posición en lugar de escribirla en tu archivo de idioma. Muchos equipos lo ejecutan hoy en CI; toma eso como una señal para fijar versiones, no como una advertencia de que los resultados no sean seguros."
+          "answer": "verbatra es joven y se desarrolla de forma activa, así que su API todavía puede cambiar entre versiones; fija una versión y lee el registro de cambios cuando actualices. Lo que ya es sólido es el modelo de seguridad: cada ejecución compara con un archivo de bloqueo confirmado, comprueba la integridad de los marcadores de posición y de ICU en cada resultado, y retiene cualquier cosa que rompa un marcador de posición en lugar de escribirla en tu archivo de locale. Muchos equipos lo ejecutan hoy en CI; toma eso como una señal para fijar versiones, no como una advertencia de que los resultados no sean seguros."
         }
       }
     },
     "finalClose": {
-      "heading": "Deja de sincronizar los archivos de idioma a mano.",
+      "heading": "Deja de sincronizar los archivos de locale a mano.",
       "lead": "Añade verbatra, confirma el archivo de bloqueo y deja que cada ejecución toque solo lo que cambió."
     },
     "footer": {
-      "tagline": "Traduce solo lo que cambió. Una CLI y un SDK de código abierto que mantiene tus archivos de idioma i18n sincronizados a través del proveedor que elijas.",
+      "tagline": "Traduce solo lo que cambió. Una CLI y un SDK de código abierto que mantiene tus archivos de locale i18n sincronizados a través del proveedor que elijas.",
       "cols": {
         "product": {
           "title": "Producto",
@@ -221,7 +221,7 @@
       },
       "s6": {
         "heading": "6. Fuentes y recursos",
-        "body": "Las fuentes están autoalojadas: se empaquetan en el momento de la compilación, por lo que no se realizan solicitudes a Google Fonts ni a ningún otro tercero cuando cargas una página. La única excepción son las insignias de estado: la página de inicio y la página de pruebas incrustan imágenes de insignias en vivo de GitHub, Codecov y shields.io que muestran la compilación actual, la cobertura, la versión y la licencia. La carga de estas imágenes transmite tu dirección IP a esos proveedores, que actúan como controladores independientes bajo sus propias políticas de privacidad. La base legal es el Art. 6(1)(f) del GDPR (nuestro interés legítimo en mostrar un estado preciso del proyecto). Aparte de estas insignias y el script autoalojado de Umami descrito anteriormente, no se cargan scripts o incrustaciones de terceros en tiempo de ejecución."
+        "body": "Las fuentes están autoalojadas: se empaquetan en el momento de la compilación, por lo que no se realizan solicitudes a Google Fonts ni a ningún otro tercero cuando cargas una página. La única excepción son las insignias de estado: la página de inicio y la página de pruebas incrustan imágenes de insignias en vivo de GitHub, Codecov y shields.io que muestran la compilación actual, la cobertura, la versión y la licencia. La carga de estas imágenes transmite tu dirección IP a esos proveedores, que actúan como controladores independientes bajo sus propias políticas de privacidad. La base jurídica es el art. 6.1.f) del RGPD (nuestro interés legítimo en mostrar un estado preciso del proyecto). Aparte de estas insignias y el script autoalojado de Umami descrito anteriormente, no se cargan scripts o incrustaciones de terceros en tiempo de ejecución."
       },
       "s7": {
         "heading": "7. GitHub",

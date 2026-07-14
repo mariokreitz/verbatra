@@ -14,8 +14,10 @@ function succeeded(locale: string): LocaleSummary {
     invalidIcuSource: [],
     integrityMismatches: [],
     providerFailures: [],
+    budgetWithheld: [],
     generated: [],
     notices: [],
+    needsReview: [],
   };
 }
 
@@ -56,8 +58,10 @@ describe("failureSummary", () => {
       invalidIcuSource: [],
       integrityMismatches: [],
       providerFailures: [],
+      budgetWithheld: [],
       generated: [],
       notices: [],
+      needsReview: [],
       error: { code: "ADAPTER_WRITE", message: "nope" },
     });
   });

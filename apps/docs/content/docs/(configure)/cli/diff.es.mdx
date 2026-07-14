@@ -74,19 +74,19 @@ El `hasPendingChanges` de cada locale es `missing.length > 0 || changed.length >
 ## Ejemplos
 
 ```bash
-# lista las claves que se añadirían, se volverían a traducir o están huérfanas (sale con 1 si hay pendientes)
+# list the keys that would be added, re-translated, or are orphaned (exit 1 if pending)
 verbatra diff
 
-# solo hace diff de los locales alemán y francés
+# only diff the German and French locales
 verbatra diff --locales de,fr
 
-# hace diff de un proyecto en otro directorio
+# diff a project in another directory
 verbatra diff --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra diff --config config/verbatra.config.ts
 
-# listas de claves legibles por máquina en stdout para herramientas o un comentario de PR
+# machine-readable key lists on stdout for tooling or a PR comment
 verbatra diff --json
 ```
 

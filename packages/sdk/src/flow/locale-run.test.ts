@@ -5,7 +5,7 @@ import {
   ProviderError,
   type TranslationProvider,
 } from "@verbatra/ai-providers";
-import type { LocaleResource } from "@verbatra/core";
+import type { LocaleResource, PlaceholderIntegrityResult } from "@verbatra/core";
 import {
   createDefaultRegistry,
   createNextIntlJsonAdapter,
@@ -20,6 +20,7 @@ import {
   readJsonFile,
   writeJsonFile,
 } from "../test-support.js";
+import { createBudgetTracker } from "./budget.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 
 /**
@@ -110,6 +111,7 @@ function makeParams(
     generatePlurals: false,
     maxBatchSize: 50,
     fs: defaultFs,
+    budget: createBudgetTracker(undefined, "warn"),
     ...overrides,
   };
 }
@@ -521,5 +523,84 @@ describe("runLocale: ICU branch-aware comparePlaceholders wiring (real ai-provid
     expect(lockEntries.msg).toBeDefined();
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.msg).toBe("{count, plural, one {Eine Nachricht von {sender}} other {# Nachrichten}}");
+  });
+});
+
+describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () => {
+  it("folds reviewFlags into needsReview, sorted by key", async () => {
+    const { dir, sourceResource } = await setup({ b: "Hello there", a: "Good day" });
+    const provider = anthropicStubProvider([
+      { key: "b", value: "Hello there" },
+      { key: "a", value: "Good day" },
+    ]);
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider });
+
+    const { summary } = await runLocale(params);
+
+    expect([...summary.translated].sort()).toEqual(["a", "b"]);
+    expect(summary.needsReview).toEqual([
+      { key: "a", reasons: ["EQUALS_SOURCE"] },
+      { key: "b", reasons: ["EQUALS_SOURCE"] },
+    ]);
+  });
+
+  it("never reports a key withheld by the integrity check, even if it also carried a review flag", async () => {
+    const { dir, sourceResource } = await setup({
+      long: "This is a fairly long source with {{ph}} inside",
+    });
+    // Drops the placeholder (integrity mismatch, withheld) and is far shorter than the source
+    // (independently trips LENGTH_RATIO_OUTLIER), so the key gets a review flag despite being withheld.
+    const provider = anthropicStubProvider([{ key: "long", value: "hi" }]);
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider });
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.integrityMismatches).toEqual(["long"]);
+    expect(summary.translated).toEqual([]);
+    expect(summary.needsReview).toEqual([]);
+  });
+
+  it("reports an empty needsReview when the provider flags nothing", async () => {
+    const { dir, sourceResource } = await setup({ a: "Hi there" });
+    const provider = anthropicStubProvider([{ key: "a", value: "Hallo dort" }]);
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider });
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.translated).toEqual(["a"]);
+    expect(summary.needsReview).toEqual([]);
+  });
+
+  it("merges reviewFlags across multiple sub-batches, each with its own TranslateResult", async () => {
+    const { dir, sourceResource } = await setup({ b: "Hello there", a: "Good day" });
+    // A hand-rolled provider (not the real ai-providers heuristic) that sets a distinct reviewFlags
+    // entry per call, so a batch size of 1 exercises two independent TranslateResults to fold.
+    const provider: TranslationProvider = {
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: false,
+      translateBatch: async (request) => {
+        const values = new Map<string, string>();
+        const integrity = new Map<string, PlaceholderIntegrityResult>();
+        const reviewFlags = new Map<
+          string,
+          { status: "review"; reasons: readonly ["EQUALS_SOURCE"] }
+        >();
+        for (const entry of request.entries) {
+          values.set(entry.key, entry.value);
+          integrity.set(entry.key, { matches: true, missing: [], extra: [], reordered: false });
+          reviewFlags.set(entry.key, { status: "review", reasons: ["EQUALS_SOURCE"] });
+        }
+        return { values, integrity, reviewFlags };
+      },
+    };
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider, maxBatchSize: 1 });
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.needsReview).toEqual([
+      { key: "a", reasons: ["EQUALS_SOURCE"] },
+      { key: "b", reasons: ["EQUALS_SOURCE"] },
+    ]);
   });
 });

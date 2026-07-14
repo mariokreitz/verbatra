@@ -39,7 +39,7 @@ if (summary.failed.length > 0) {
 
 ## Vérifier sans écrire
 
-`check` lit et diffuse sans appeler de provider ni écrire de fichiers, et signale la dérive par locale répartie en décomptes de clés manquantes, obsolètes et à jour. Son flag `inSync` est vrai exactement quand rien n'est manquant ni obsolète, ce qui en fait ton garde-fou CI naturel.
+`check` lit et compare sans appeler de provider ni écrire de fichiers, et signale la dérive par locale répartie en décomptes de clés manquantes, obsolètes et à jour. Son flag `inSync` est vrai exactement quand rien n'est manquant ni obsolète, ce qui en fait ton garde-fou CI naturel.
 
 ```ts
 import { check, loadConfig } from "@verbatra/sdk";
@@ -92,7 +92,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Retraduire au fur et à mesure que la source change
 
-`watch` déclenche ton `onRun` une fois par changement débondi et renvoie un contrôleur que tu arrêtes proprement.
+`watch` déclenche ton `onRun` une fois par changement temporisé et renvoie un contrôleur que tu arrêtes proprement.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";

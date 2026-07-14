@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { diffResources } from "../diff/diff-resources.js";
 import { entry, resource } from "../testing/factories.js";
 import { validate } from "./validate.js";
 
@@ -75,7 +76,41 @@ describe("validate", () => {
     expect(validate(source, target).missingKeys.map((f) => f.key)).toEqual(["a", "b", "c"]);
   });
 
+  it("sorts findings by plain code-unit order, not locale-collated order", () => {
+    const keys = ["B", "a", "A", "b"];
+    const source = resource(
+      "en",
+      keys.map((key) => entry({ key })),
+    );
+    const target = resource("de", []);
+    const codeUnitOrder = [...keys].sort();
+    expect(codeUnitOrder).toEqual(["A", "B", "a", "b"]);
+    expect(validate(source, target).missingKeys.map((f) => f.key)).toEqual(codeUnitOrder);
+  });
+
+  it("agrees with diffResources's order for the same key set", () => {
+    const keys = ["Zebra", "apple", "ä", "a"];
+    const source = resource(
+      "en",
+      keys.map((key) => entry({ key })),
+    );
+    const target = resource("de", []);
+    const validationOrder = validate(source, target).missingKeys.map((f) => f.key);
+    const diffOrder = diffResources(source, target).missing;
+    expect(validationOrder).toEqual(diffOrder);
+  });
+
   it("handles empty resources", () => {
     expect(validate(resource("en", []), resource("de", [])).isValid).toBe(true);
+  });
+
+  it("does not drop either finding when two findings share a key (comparator's equal branch)", () => {
+    // Duplicate invalidIcuKeys is the only public path to two equal-key findings, and both are
+    // structurally identical, so this exercises the comparator's `a.key === b.key -> 0` branch
+    // without asserting relative order between two indistinguishable objects.
+    const source = resource("en", [entry({ key: "a" })]);
+    const target = resource("de", [entry({ key: "a" })]);
+    const report = validate(source, target, { invalidIcuKeys: ["a", "a"] });
+    expect(report.invalidIcu.map((f) => f.key)).toEqual(["a", "a"]);
   });
 });

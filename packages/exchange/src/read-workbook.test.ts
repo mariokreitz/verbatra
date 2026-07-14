@@ -21,6 +21,8 @@ const baseModel: WorkbookModel = {
           sourceHash: "h1",
           translation: "",
           context: "A greeting",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
       ],
     },
@@ -56,6 +58,72 @@ describe("readWorkbook: structural rejection", () => {
     const buffer = await workbook.xlsx.writeBuffer();
     const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
     expect(data.sheets[0]?.rows[0]?.context).toBe("");
+  });
+
+  it("reads a well-formed review status and reasons cell verbatim", async () => {
+    const flagged: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "k1",
+              source: "Hello {name}",
+              currentTarget: "Hello {name}",
+              status: "changed",
+              sourceHash: "h1",
+              translation: "",
+              context: "",
+              reviewStatus: "review",
+              reviewReasons: "length-ratio-outlier, equals-source",
+            },
+          ],
+        },
+      ],
+    };
+    const data = await readWorkbook(await buildWorkbook(flagged));
+    expect(data.sheets[0]?.rows[0]?.reviewStatus).toBe("review");
+    expect(data.sheets[0]?.rows[0]?.reviewReasons).toBe("length-ratio-outlier, equals-source");
+  });
+
+  it("falls back an unrecognized review-status cell to ok via .catch, not a rejection", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    [
+      "Key",
+      "Source",
+      "Current translation",
+      "Status",
+      "Translation",
+      "Source hash",
+      "Context",
+      "Review status",
+      "Review reasons",
+    ].forEach((label, index) => {
+      sheet.getRow(1).getCell(index + 1).value = label;
+    });
+    sheet.getRow(2).getCell(1).value = "k1";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(8).value = "not-a-status";
+    const buffer = await workbook.xlsx.writeBuffer();
+    const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
+    expect(data.sheets[0]?.rows[0]?.reviewStatus).toBe("ok");
+  });
+
+  it("reads a pre-change (legacy) workbook with no Review columns as ok/empty, not a rejection", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "k1";
+    sheet.getRow(2).getCell(4).value = "new";
+    const buffer = await workbook.xlsx.writeBuffer();
+    const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
+    expect(data.sheets[0]?.rows[0]?.reviewStatus).toBe("ok");
+    expect(data.sheets[0]?.rows[0]?.reviewReasons).toBe("");
   });
 
   it("rejects a data sheet missing the Key/Source-hash header", async () => {
@@ -145,6 +213,8 @@ describe("readWorkbook: structural rejection", () => {
               sourceHash: "h1",
               translation: "",
               context: "",
+              reviewStatus: "ok",
+              reviewReasons: "",
             },
           ],
         },
@@ -169,6 +239,8 @@ describe("readWorkbook: structural rejection", () => {
               sourceHash: "h1",
               translation: "Hallo",
               context: "",
+              reviewStatus: "ok",
+              reviewReasons: "",
             },
           ],
         },
@@ -202,6 +274,8 @@ describe("readWorkbook: parse-bound caps", () => {
       sourceHash: "h",
       translation: "",
       context: "",
+      reviewStatus: "ok" as const,
+      reviewReasons: "",
     }));
     const model: WorkbookModel = { sheets: [{ locale: "de", rows }] };
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxRowsPerSheet: 2 };

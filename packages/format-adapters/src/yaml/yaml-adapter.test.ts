@@ -57,9 +57,11 @@ describe("createYamlAdapter read", () => {
     expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
   });
 
-  it("rejects a non-string leaf (a YAML number) as INVALID_STRUCTURE", async () => {
-    const error = await readError(adapter.read(await tempFile("num.yml", "count: 5\n"), "en"));
-    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  it("accepts a non-string leaf (a YAML number), excluding it instead of rejecting the file", async () => {
+    const path = await tempFile("num.yml", "count: 5\ngreeting: Hi\n");
+    const { resource, excludedLeafPaths } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["greeting"]);
+    expect(excludedLeafPaths).toEqual(["count"]);
   });
 
   it("rejects nesting beyond the depth cap as MAX_DEPTH_EXCEEDED", async () => {

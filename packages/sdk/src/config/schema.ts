@@ -7,6 +7,11 @@ import { providerConfigSchema } from "./provider-config.js";
 // requests that stay inside provider context windows, large enough that a small project sends one.
 export const DEFAULT_MAX_BATCH_SIZE = 50;
 
+// Default budget behavior when maxTokens is set but budgetBehavior is absent: flag the overrun without
+// interrupting the run, matching how every other withholding path in this SDK degrades gracefully by
+// default rather than stopping.
+export const DEFAULT_BUDGET_BEHAVIOR = "warn" as const;
+
 /**
  * The first target locale that collides case-insensitively with an earlier one in the same list, if
  * any. Two entries differing only in case (or an exact duplicate) resolve to the same Excel worksheet
@@ -68,6 +73,22 @@ export const verbatraConfigSchema = z
      * {@link DEFAULT_MAX_BATCH_SIZE} applies.
      */
     maxBatchSize: z.number().int().positive().optional(),
+    /**
+     * Optional whole-run token ceiling (input plus output tokens summed across every provider call, main
+     * translation and plural generation alike, across all target locales). Checked after each completed
+     * sub-batch, never mid-batch: the sub-batch whose completion crosses the ceiling is retained and
+     * counted, since a call already in flight cannot be undone. Must be a positive integer. Config-only,
+     * no CLI flag. Absent means no budget is enforced. Inert (never a false trip) against a token-less
+     * provider such as DeepL, since it never reports usage to measure against the ceiling.
+     */
+    maxTokens: z.number().int().positive().optional(),
+    /**
+     * What happens once `maxTokens` is reached: `"warn"` (default) flags it and lets the run continue
+     * unchanged; `"stop"` withholds every not-yet-attempted key for the rest of the run (the current
+     * locale's remaining candidates and every later locale's), retried automatically next run. Present
+     * without `maxTokens` is accepted and has no effect. Never changes the command's exit code.
+     */
+    budgetBehavior: z.enum(["warn", "stop"]).optional(),
   })
   .refine((config) => !config.targetLocales.includes(config.sourceLocale), {
     message: "targetLocales must not include the source locale",

@@ -20,6 +20,10 @@ const rowSchema = z.object({
   sourceHash: z.string(),
   translation: z.string(),
   context: z.string(),
+  // A legacy workbook exported before these columns existed has no such cell; cellString then yields
+  // "", and .catch maps it to "ok" / "" rather than rejecting the row.
+  reviewStatus: z.enum(["ok", "review"]).catch("ok"),
+  reviewReasons: z.string().catch(""),
 });
 
 /** Coerce a cell value to a string, falling back to the cell's rendered text for object cells. */
@@ -71,6 +75,9 @@ function parseRow(sheet: ExcelJS.Worksheet, row: ExcelJS.Row): WorkbookRow {
     // A workbook built before the Context column existed has no cell here; getCell auto-vivifies an
     // empty one, so cellString yields "" and the row still validates, keeping import backward-compatible.
     context: cellString(row.getCell(COLUMN.context)),
+    // Same backward-compatible pattern for a workbook built before the Review columns existed.
+    reviewStatus: cellString(row.getCell(COLUMN.reviewStatus)),
+    reviewReasons: cellString(row.getCell(COLUMN.reviewReasons)),
   };
   const result = rowSchema.safeParse(candidate);
   if (!result.success) {

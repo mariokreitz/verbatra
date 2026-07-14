@@ -3,7 +3,9 @@ import type {
   DiffSummary,
   LocaleDiff,
   LocaleSummary,
+  RunBudget,
   RunSummary,
+  UsageSummary,
   WatchRunResult,
 } from "@verbatra/sdk";
 
@@ -42,7 +44,29 @@ export function renderHuman(summary: RunSummary, command = "translate"): string 
   const aggregate = `${summary.succeeded.length} succeeded, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
   }`;
-  return [header, ...localeLines, aggregate].join("\n");
+  const usageLine = summary.usage !== undefined ? [`  total: ${renderTokens(summary.usage)}`] : [];
+  const budgetLine = summary.budget !== undefined ? [renderBudgetLine(summary.budget)] : [];
+  return [header, ...localeLines, ...usageLine, ...budgetLine, aggregate].join("\n");
+}
+
+/** Input plus output token counts as one human-readable fragment; shared by the locale and run lines. */
+function renderTokens(usage: UsageSummary): string {
+  return `${usage.inputTokens + usage.outputTokens} tokens (${usage.inputTokens} in, ${usage.outputTokens} out)`;
+}
+
+/**
+ * The run-wide budget line. `supported: false` is rendered explicitly (the guardrail is configured but
+ * inert against this provider) rather than omitted, so it is never mistaken for a working cap.
+ */
+function renderBudgetLine(budget: RunBudget): string {
+  if (!budget.supported) {
+    return (
+      `  budget: ${budget.maxTokens} tokens configured (${budget.behavior}), ` +
+      "not supported by this provider (no usage reported)"
+    );
+  }
+  const status = budget.exceeded ? "exceeded" : "within budget";
+  return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
 function renderLocaleLine(locale: LocaleSummary): string {
@@ -59,12 +83,15 @@ function renderLocaleLine(locale: LocaleSummary): string {
     [locale.pruned.length, "pruned", false],
     [locale.invalidIcuSource.length, "invalid-ICU skipped", false],
     [locale.integrityMismatches.length, "integrity-withheld", false],
+    [locale.budgetWithheld.length, "budget-withheld", false],
+    [locale.needsReview.length, "needs-review", false],
     [locale.notices.length, "notices", false],
   ];
   const shown = counts
     .filter(([count, , always]) => always || count > 0)
     .map(([count, label]) => `${count} ${label}`);
-  return `  ${locale.locale}: ${shown.join(", ")}`;
+  const tokenSuffix = locale.usage !== undefined ? `, ${renderTokens(locale.usage)}` : "";
+  return `  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`;
 }
 
 /**

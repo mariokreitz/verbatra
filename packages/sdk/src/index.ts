@@ -14,6 +14,7 @@
  * @packageDocumentation
  */
 
+export type { ReviewReasonCode } from "@verbatra/ai-providers";
 export type { SupportedFormat } from "@verbatra/core";
 export { defineConfig } from "./config/define-config.js";
 export {
@@ -53,11 +54,15 @@ export {
   lockState,
 } from "./flow/lock-state.js";
 export type {
+  BudgetBehavior,
   LocaleNotice,
   LocaleSummary,
+  NeedsReviewEntry,
+  RunBudget,
   RunSummary,
   SdkNotice,
   SdkNoticeCode,
+  UsageSummary,
 } from "./flow/summary.js";
 export {
   type TranslateDeps,

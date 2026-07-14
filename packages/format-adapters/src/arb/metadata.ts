@@ -137,10 +137,15 @@ async function readDestinationPairs(filePath: string): Promise<Array<[string, un
 
 /**
  * Build the object to write for ARB, preserving the destination's `@`-prefixed metadata and document
- * order: overwrite each message key with its translation, keep untranslated values, and append new
- * keys in entry order. A missing destination (first write) yields the messages only, in entry order.
- * A destination that exists but is not a usable ARB object throws instead of silently discarding its
- * metadata; see {@link readDestinationPairs}.
+ * order: overwrite each message key with its translation, keep untranslated string values, and append
+ * new keys in entry order. A missing destination (first write) yields the messages only, in entry
+ * order. A destination that exists but is not a usable ARB object throws instead of silently
+ * discarding its metadata; see {@link readDestinationPairs}.
+ *
+ * A destination pair that is neither `@`-prefixed metadata nor a translated or untranslated string
+ * message (a stray non-string leaf accepted by the widened read schema but excluded from the entry
+ * map) is dropped, not carried over: it was never a message this adapter owns the meaning of, so it
+ * follows the same accept-and-exclude, do-not-preserve-on-write policy every tree-file adapter applies.
  *
  * @param entries - The translated entries to persist.
  * @param filePath - The destination ARB file path.
@@ -160,8 +165,10 @@ export async function buildArbWriteTree(
     const translated = isMetadataKey(key) ? undefined : messages.get(key);
     if (translated !== undefined) {
       consumed.add(key);
+      out[key] = translated;
+    } else if (isMetadataKey(key) || typeof value === "string") {
+      out[key] = value;
     }
-    out[key] = translated ?? value;
   }
   for (const [key, value] of messages) {
     if (!consumed.has(key)) {

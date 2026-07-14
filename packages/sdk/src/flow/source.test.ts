@@ -10,7 +10,7 @@ const resource: LocaleResource = {
   format: "i18next-json",
   entries: new Map(),
 };
-const readResult: ReadResult = { resource, invalidIcuKeys: [] };
+const readResult: ReadResult = { resource, invalidIcuKeys: [], excludedLeafPaths: [] };
 
 /** A format adapter whose only relevant method is `read`; the rest are inert stubs. */
 function makeAdapter(read: FormatAdapter["read"]): FormatAdapter {
