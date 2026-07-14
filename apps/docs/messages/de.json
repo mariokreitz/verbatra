@@ -10,14 +10,14 @@
       "headline": "Übersetze nur, was sich geändert hat.",
       "lead": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält. Du pflegst die Quell-Locale; es füllt jede weitere Locale über den KI-Anbieter, den du wählst.",
       "ctaQuickstart": "Zum Schnellstart",
-      "ctaGithub": "Auf GitHub mit Stern versehen"
+      "ctaGithub": "Gib uns einen Stern auf GitHub"
     },
     "pillars": {
       "heading": "Ein Tool für den gesamten Übersetzungsablauf.",
       "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzer und die Automatisierung, um jede Locale synchron zu halten.",
       "ai": {
         "title": "KI-Übersetzung",
-        "body": "Übersetze nur, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini oder DeepL. Eine committete Lock-Datei hält jeden Lauf inkrementell, und die Platzhalter- und ICU-Integrität wird geprüft, bevor irgendetwas geschrieben wird."
+        "body": "Übersetze nur, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini oder DeepL. Eine eingecheckte Lock-Datei hält jeden Lauf inkrementell, und die Platzhalter- und ICU-Integrität wird geprüft, bevor irgendetwas geschrieben wird."
       },
       "excel": {
         "title": "Excel-Übergabe",
@@ -251,7 +251,7 @@
   },
   "docs": {
     "machineTranslated": {
-      "text": "Diese Seite wurde automatisch übersetzt und kann daher Fehler oder seltsame Formulierungen enthalten. Die englische Version ist die massgebliche Quelle.",
+      "text": "Diese Seite wurde automatisch übersetzt und kann daher Fehler oder seltsame Formulierungen enthalten. Die englische Version ist die maßgebliche Quelle.",
       "title": "Maschinell übersetzte Seite",
       "viewOriginal": "Das englische Original lesen"
     },

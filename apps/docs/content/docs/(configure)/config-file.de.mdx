@@ -39,7 +39,7 @@ Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor die bekann
 ## Felder
 
 - **`sourceLocale`** (string): das Locale, in dem deine Quell-Strings geschrieben sind.
-- **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten.
+- **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten, und keine zwei Einträge dürfen sich nur in Groß-/Kleinschreibung unterscheiden (zum Beispiel wird `["de", "DE"]` abgelehnt), da jedes Locale beim Export zum Namen eines eigenen Excel-Arbeitsblatts wird.
 - **`format`** (string): eines von `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` oder `xliff`. Siehe [Formate](/docs/formats) dafür, was jedes erkennt und wie es mit Platzhaltern umgeht.
 - **`files.pattern`** (string): der Pfad zu jeder Locale-Datei. Er muss das `{locale}`-Token enthalten, das verbatra durch jedes Locale ersetzt (zum Beispiel wird `locales/{locale}.json` zu `locales/de.json` aufgelöst).
 - **`provider`** (object): der Übersetzungs-Provider, ausgewählt über `id`. Jeder Provider nimmt seine eigenen `options`, und in TypeScript ist das `model`-Feld auf die bekannten Modell-IDs des gewählten Providers beschränkt (ein Modell eines anderen Providers ist ein Typfehler). Siehe [Provider](/docs/providers).

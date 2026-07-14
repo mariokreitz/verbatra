@@ -6,7 +6,7 @@ Tu veux que les traductions tournent à chaque push ? verbatra fournit une GitHu
 
 ## Disponibilité
 
-Cette action vit dans le dépôt, donc tu la référence directement depuis là avec `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, épinglée à un SHA de commit. Il n'y a aucun package npm, aucune fiche GitHub Marketplace et aucun tag d'action versionné. La référence `uses:` basée sur le chemin et épinglée à un SHA de commit est la seule façon supportée de la consommer.
+Cette action vit dans le dépôt, donc tu la références directement depuis là avec `uses: mariokreitz/verbatra/packages/github-action@<commit-sha>`, épinglée à un SHA de commit. Il n'y a aucun package npm, aucune fiche GitHub Marketplace et aucun tag d'action versionné. La référence `uses:` basée sur le chemin et épinglée à un SHA de commit est la seule façon supportée de la consommer.
 
 ## Utilisation
 
@@ -35,7 +35,7 @@ L'action lance la CLI, donc elle lit la clé d'API du provider depuis l'environn
 
 ## Entrées
 
-| Input | Requis | Défaut | Description |
+| Entrée | Requis | Défaut | Description |
 | --- | --- | --- | --- |
 | `version` | oui | - | la version de `@verbatra/cli` à lancer, par exemple `0.3.0`. Doit être une version semver exacte ; l'étape échoue immédiatement avec une erreur claire sur un dist-tag comme `latest`, une plage, ou un préfixe `^`/`~` |
 | `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche de config normale |
@@ -55,4 +55,4 @@ Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le ch
 
 ## Sécurité
 
-Épingle à la fois l'action et la CLI à des références exactes. Épingle `uses:` à un SHA de commit, et règle l'input `version` sur une release exacte de `@verbatra/cli` plutôt qu'un tag flottant comme `latest`. Ça garde un run reproductible et l'empêche de récupérer automatiquement une release compromise. Ne donne au workflow que le privilège dont il a besoin : `contents: read` pour une vérification, plus `contents: write` et `pull-requests: write` seulement quand une étape ultérieure commit ou ouvre une pull request. Les inputs atteignent la CLI en tant que données, jamais insérés dans le shell, donc une valeur d'input forgée reste un argument et ne devient jamais du code exécutable.
+Épingle à la fois l'action et la CLI à des références exactes. Épingle `uses:` à un SHA de commit, et règle l'entrée `version` sur une release exacte de `@verbatra/cli` plutôt qu'un tag flottant comme `latest`. Ça garde un run reproductible et l'empêche de récupérer automatiquement une release compromise. Ne donne au workflow que le privilège dont il a besoin : `contents: read` pour une vérification, plus `contents: write` et `pull-requests: write` seulement quand une étape ultérieure commit ou ouvre une pull request. Les entrées atteignent la CLI en tant que données, jamais insérées dans le shell, donc une valeur d'entrée forgée reste un argument et ne devient jamais du code exécutable.

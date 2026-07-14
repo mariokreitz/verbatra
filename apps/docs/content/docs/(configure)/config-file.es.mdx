@@ -39,7 +39,7 @@ Cuando escribes la configuración en TypeScript, tu editor ofrece los IDs de mod
 ## Campos
 
 - **`sourceLocale`** (cadena): el locale en el que están escritas tus cadenas de origen.
-- **`targetLocales`** (array de cadenas): los locales a los que traducir. No debe incluir `sourceLocale`.
+- **`targetLocales`** (array de cadenas): los locales a los que traducir. No debe incluir `sourceLocale`, y no puede haber dos entradas iguales si se ignoran mayúsculas y minúsculas (por ejemplo, `["de", "DE"]` se rechaza), ya que cada locale se convierte en el nombre de su propia hoja de Excel al exportar.
 - **`format`** (cadena): uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` o `xliff`. Consulta [Formatos](/docs/formats) para saber qué detecta cada uno y cómo maneja los marcadores de posición.
 - **`files.pattern`** (cadena): la ruta a cada archivo de locale. Debe contener el token `{locale}`, que verbatra sustituye por cada locale (por ejemplo, `locales/{locale}.json` se resuelve a `locales/de.json`).
 - **`provider`** (objeto): el proveedor de traducción, seleccionado por `id`. Cada proveedor toma sus propias `options`, y en TypeScript el campo `model` está restringido a los IDs de modelo conocidos del proveedor elegido (un modelo de otro proveedor es un error de tipo). Consulta [Proveedores](/docs/providers).

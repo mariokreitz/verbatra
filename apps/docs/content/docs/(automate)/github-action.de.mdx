@@ -33,9 +33,9 @@ jobs:
 
 Die Action führt die CLI aus, also liest sie den API-Schlüssel des Providers aus der Umgebung. Übergib ihn aus deinen Repository-Secrets unter der Variable, die dein Provider erwartet (siehe [Providers](/docs/providers)): `ANTHROPIC_API_KEY` im Beispiel oben, `OPENAI_API_KEY`, wenn du OpenAI nutzt, und so weiter.
 
-## Inputs
+## Eingaben
 
-| Input | Erforderlich | Standard | Beschreibung |
+| Eingabe | Erforderlich | Standard | Beschreibung |
 | --- | --- | --- | --- |
 | `version` | ja | - | die auszuführende `@verbatra/cli`-Version, z. B. `0.3.0`. Muss eine exakte Semver-Version sein; der Schritt schlägt sofort mit einer klaren Fehlermeldung fehl bei einem Dist-Tag wie `latest`, einem Bereich oder einem `^`/`~`-Präfix |
 | `config-path` | nein | `""` | explizite Konfigurationsdatei zum Laden (bildet auf `--config` ab); leer nutzt die normale Konfigurationssuche |
@@ -47,7 +47,7 @@ Die Action führt immer `translate --json` aus. Sie führt niemals `init` oder `
 
 ## Exit-Verhalten
 
-Die Action greift stdout und Exit-Code der CLI ab, ohne vorzeitig abzubrechen. Sie annotiert Fehler, schreibt die Job-Zusammenfassung und propagiert erst dann den Exit-Code der CLI. Der Schritt schlägt also bei `1` (einige Locales sind fehlgeschlagen) oder `2` (konnte nicht laufen) fehl, aber nicht bevor du die Annotationen und die Zusammenfassung bekommst. Die [CLI exit codes](/docs/cli#exit-codes) erklären, was jeder Code bedeutet.
+Die Action greift stdout und Exit-Code der CLI ab, ohne vorzeitig abzubrechen. Sie annotiert Fehler, schreibt die Job-Zusammenfassung und propagiert erst dann den Exit-Code der CLI. Der Schritt schlägt also bei `1` (einige Locales sind fehlgeschlagen) oder `2` (konnte nicht laufen) fehl, aber nicht bevor du die Annotationen und die Zusammenfassung bekommst. Die [CLI-Exit-Codes](/docs/cli#exit-codes) erklären, was jeder Code bedeutet.
 
 ## Übersetzungen persistieren
 
@@ -55,4 +55,4 @@ Ohne `dry-run` schreibt `translate` aktualisierte Locale-Dateien in den Checkout
 
 ## Sicherheit
 
-Pinne sowohl die Action als auch die CLI auf exakte Referenzen an. Pinne `uses:` auf einen Commit-SHA an und setze den `version`-Input auf ein exaktes `@verbatra/cli`-Release statt auf ein bewegliches Tag wie `latest`. Das hält einen Lauf reproduzierbar und verhindert, dass er automatisch ein kompromittiertes Release zieht. Gib dem Workflow nur die Berechtigung, die er braucht: `contents: read` für eine Prüfung, plus `contents: write` und `pull-requests: write` nur, wenn ein späterer Schritt committet oder einen Pull Request öffnet. Inputs erreichen die CLI als Daten, niemals in die Shell eingefügt, sodass ein manipulierter Input-Wert ein Argument bleibt und niemals zu ausführbarem Code wird.
+Pinne sowohl die Action als auch die CLI auf exakte Referenzen an. Pinne `uses:` auf einen Commit-SHA an und setze die Eingabe `version` auf ein exaktes `@verbatra/cli`-Release statt auf ein bewegliches Tag wie `latest`. Das hält einen Lauf reproduzierbar und verhindert, dass er automatisch ein kompromittiertes Release zieht. Gib dem Workflow nur die Berechtigung, die er braucht: `contents: read` für eine Prüfung, plus `contents: write` und `pull-requests: write` nur, wenn ein späterer Schritt committet oder einen Pull Request öffnet. Die Eingaben erreichen die CLI als Daten, niemals in die Shell eingefügt, sodass ein manipulierter Eingabewert ein Argument bleibt und niemals zu ausführbarem Code wird.

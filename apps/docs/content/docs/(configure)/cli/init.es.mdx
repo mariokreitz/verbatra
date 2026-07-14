@@ -31,22 +31,22 @@ Por defecto, `init` nunca sobrescribe. Si ya hay un `verbatra.config.ts` o un `.
 ## Ejemplos
 
 ```bash
-# crea config + .env de ejemplo, solicitando el resto
+# create config + .env example, prompting for the rest
 verbatra init --provider gemini
 
-# no interactivo, acepta todos los valores por defecto
+# non-interactive, accept all defaults
 verbatra init --provider deepl --yes
 
-# establece los locales de origen y destino de antemano
+# set the source and target locales up front
 verbatra init --provider gemini --source en --targets de,es,fr
 
-# apunta a una disposición de archivos de locale no predeterminada
+# point at a non-default locale file layout
 verbatra init --provider gemini --path src/locales/{locale}.json
 
-# genera en otro directorio
+# scaffold into another directory
 verbatra init --provider gemini --cwd packages/app
 
-# sobrescribe una configuración y un .env de ejemplo existentes
+# overwrite an existing config and .env example
 verbatra init --provider gemini --force
 ```
 

@@ -32,7 +32,7 @@ Jede Ziel-Locale läuft für sich. Wenn eine Locale explodiert, machen die ander
 
 ### Diff gegen die Lock-Baseline
 
-verbatra liest die vorhandene Zieldatei (eine fehlende Datei zählt als leer) und diffe die Quelle dagegen,
+verbatra liest die vorhandene Zieldatei (eine fehlende Datei zählt als leer) und vergleicht die Quelle damit,
 unter Nutzung der Lock-Datei als Baseline dessen, was zuvor übersetzt wurde. Der Diff sortiert jeden Quell-Key
 in einen von vier Eimern:
 
@@ -51,7 +51,7 @@ Lauf inkrementell hält: der Provider wird nur für die Strings aufgerufen, die 
 
 Die Kandidaten-Einträge gehen an deinen konfigurierten Provider, zusammen mit dem optionalen `glossary` und `tone`
 aus deiner Konfiguration. verbatra teilt sie in sequenzielle Unter-Batches von höchstens `maxBatchSize` (Standard
-`50`, siehe [Config file](/docs/config-file)), sodass eine übergroße Anfrage nicht die ganze Locale lahmlegen kann.
+`50`, siehe [Konfigurationsdatei](/docs/config-file)), sodass eine übergroße Anfrage nicht die ganze Locale lahmlegen kann.
 Wenn ein Unter-Batch-Aufruf fehlschlägt, wird er zurückgehalten und im nächsten Lauf erneut versucht, während die anderen weiter
 Fortschritt machen. Wie die Inputs angewandt werden, hängt vom Provider ab.
 
@@ -78,7 +78,7 @@ unterbrochener Schreibvorgang dich nie mit einer halbfertigen Datei zurückläss
 ## Die Lock-Datei und inkrementelle Arbeit
 
 verbatra hält eine committete Lock-Datei (`verbatra.lock.json`), die pro Locale einen Inhalts-Hash
-für jeden übersetzten Quell-Key aufzeichnet. Diese Aufzeichnung ist die Baseline, gegen die der nächste Lauf diffe. Nachdem eine
+für jeden übersetzten Quell-Key aufzeichnet. Diese Aufzeichnung ist die Baseline, mit der der nächste Lauf vergleicht. Nachdem eine
 Locale geschrieben wurde, aktualisiert sich der Lock mit den aktuellen Quell-Hashes, mit einer bewussten Ausnahme:
 Keys, die in diesem Lauf zurückgehalten wurden (ein Platzhalter-Mismatch oder ungültiges ICU), behalten ihren vorherigen Hash, sodass der nächste Lauf
 sie weiterhin als arbeitsbedürftig sieht und erneut versucht. Verwaiste Keys bekommen keinen Eintrag. Eine fehlende Lock-Datei
@@ -107,4 +107,4 @@ Locales läuft trotzdem.
 
 Wenn ein LLM-Provider (Anthropic, OpenAI, Gemini oder openai-compatible) stoppt, weil er das Output-Token-Limit erreicht hat, scheitert dieser
 Unter-Batch mit einem eigenen `OUTPUT_TRUNCATED`-Fehler, der dir sagt, eine kleinere Batch-Größe oder ein
-höheres Max-Output-Token-Limit zu nutzen. Das gilt nicht für DeepL. Siehe [Providers](/docs/providers).
+höheres Max-Output-Token-Limit zu nutzen. Das gilt nicht für DeepL. Siehe [Provider](/docs/providers).

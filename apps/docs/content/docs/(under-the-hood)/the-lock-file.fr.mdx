@@ -3,8 +3,8 @@ title: Le fichier de verrouillage
 description: Ce que verbatra.lock.json enregistre, pourquoi c'est la base de référence des exécutions incrémentielles, et pourquoi tu le commites.
 ---
 verbatra conserve un seul fichier commité, `verbatra.lock.json`, dans ton projet. C'est l'enregistrement de ce que
-verbatra a déjà traduit, et c'est ce qui rend une exécution incrémentielle : chaque exécution diffuse ta source
-par rapport à cette base de référence et n'appelle le provider que pour les clés qui ont réellement changé.
+verbatra a déjà traduit, et c'est ce qui rend une exécution incrémentielle : chaque exécution compare ta source
+à cette base de référence et n'appelle le provider que pour les clés qui ont réellement changé.
 
 ## Ce qu'il enregistre
 
@@ -14,7 +14,7 @@ Aucune traduction, aucune clé API. Juste des hachages.
 
 ## Comment une exécution l'utilise
 
-Quand verbatra lit une locale cible, il diffuse la source par rapport à cette locale en utilisant le fichier de verrouillage comme
+Quand verbatra lit une locale cible, il compare la source à cette locale en utilisant le fichier de verrouillage comme
 base de référence de ce qui a été traduit auparavant. Chaque clé source se trie dans l'un de quatre paniers :
 
 - nouvelle : la cible n'a pas encore la clé.
@@ -44,7 +44,7 @@ puisses l'inspecter plutôt que de perdre la base de référence.
 
 ## Commite-le
 
-Commite `verbatra.lock.json` aux côtés de tes fichiers de locale. C'est la base de référence partagée par rapport à laquelle ton équipe et ton
-CI diffusent, donc le garder sous contrôle de version est ce qui rend les exécutions incrémentielles reproductibles d'une
-machine à l'autre. Voir [How it works](/docs/how-it-works) pour le pipeline d'exécution complet, et
-[Translation safety](/docs/translation-safety) pour les vérifications qui décident de ce qui est retenu.
+Commite `verbatra.lock.json` aux côtés de tes fichiers de locale. C'est la base de référence partagée à laquelle ton équipe et ta
+CI se comparent, donc le garder sous contrôle de version est ce qui rend les exécutions incrémentielles reproductibles d'une
+machine à l'autre. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline d'exécution complet, et
+[Sûreté de la traduction](/docs/translation-safety) pour les vérifications qui décident de ce qui est retenu.

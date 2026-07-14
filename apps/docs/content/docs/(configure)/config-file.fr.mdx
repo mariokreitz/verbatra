@@ -39,7 +39,7 @@ Lorsque tu écris la configuration en TypeScript, ton éditeur propose pour `opt
 ## Champs
 
 - **`sourceLocale`** (chaîne de caractères) : la locale dans laquelle tes chaînes source sont écrites.
-- **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`.
+- **`targetLocales`** (tableau de chaînes de caractères) : les locales vers lesquelles traduire. Il ne doit pas inclure `sourceLocale`, et deux entrées ne peuvent pas être égales en ignorant la casse (par exemple, `["de", "DE"]` est rejeté), car chaque locale devient le nom de sa propre feuille Excel lors de l'export.
 - **`format`** (chaîne de caractères) : l'un des formats `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` ou `xliff`. Voir [Formats](/docs/formats) pour ce que chacun détecte et comment il gère les espaces réservés.
 - **`files.pattern`** (chaîne de caractères) : le chemin vers chaque fichier de locale. Il doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale (par exemple, `locales/{locale}.json` se résout en `locales/de.json`).
 - **`provider`** (objet) : le fournisseur de traduction, sélectionné par `id`. Chaque fournisseur prend ses propres `options`, et en TypeScript le champ `model` est restreint aux identifiants de modèle connus du fournisseur choisi (le modèle d'un autre fournisseur est une erreur de type). Voir [Fournisseurs](/docs/providers).

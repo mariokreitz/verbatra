@@ -29,7 +29,7 @@ Huit fonctions, plus les types que tu manipules quand tu les appelles.
 - `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la config.
   `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride` en mémoire. Elle
   lève une `SdkError` quand il n'y a aucune config à trouver ou que la validation échoue.
-- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, diffuser, traduire, écrire
+- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, comparer, traduire, écrire
   sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
   `prune` (désactivé par défaut) supprime les clés orphelines du fichier écrit et du verrouillage. `generatePlurals`
   (désactivé par défaut) synthétise les formes plurielles CLDR dont une langue cible a besoin mais que la source ne fournit pas
@@ -37,7 +37,7 @@ Huit fonctions, plus les types que tu manipules quand tu les appelles.
   de config correspondante pour cette exécution. Tu récupères un `RunSummary` : les problèmes sur toute l'exécution lèvent une `SdkError`,
   les résultats par locale sont transportés sur le résumé.
 - `watch(input: WatchInput): Promise<WatchController>` surveille le fichier source et se réexécute à chaque
-  changement débondi. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, et `onRun` se déclenche une fois par
+  changement temporisé. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, et `onRun` se déclenche une fois par
   exécution avec un `WatchRunResult`. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
   le surveillant et attend l'exécution en cours.
 - `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` écrit les chaînes qui
@@ -225,7 +225,7 @@ for (const locale of summary.locales) {
 }
 ```
 
-Passe `dryRun: true` pour lire et diffuser sans appeler de provider ni écrire de fichiers. Passe `prune: true`
+Passe `dryRun: true` pour lire et comparer sans appeler de provider ni écrire de fichiers. Passe `prune: true`
 pour supprimer les clés orphelines, ou `generatePlurals: true` pour synthétiser les catégories de pluriel manquantes
 (i18next-JSON avec un provider LLM uniquement). Chacun de ces flags remplace l'option de config correspondante pour cette
 exécution. `maxBatchSize` est l'exception : elle est réservée à la config (définis-la sur l'objet de config, par défaut 50),

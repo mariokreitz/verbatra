@@ -142,7 +142,7 @@ interface LocaleDiff {
 Hinweise leben pro Locale, auf `LocaleSummary.notices`. Sie decken Provider-Hinweise (etwa eine DeepL-
 Herabstufung) und SDK-Hinweise ab (etwa eine Zielsprache, die mehr CLDR-Plural-Kategorien braucht
 als die Quelle liefert, Code `PLURAL_CATEGORIES_INCOMPLETE`, oder ein überschrittenes Token-Budget, Code
-`BUDGET_TOKENS_EXCEEDED`). Es gibt keine Hinweis-Liste auf oberster Ebene auf
+`BUDGET_TOKENS_EXCEEDED`). Es gibt keine Hinweis-Liste auf oberster Ebene in
 `RunSummary`, also lies sie immer von der Locale ab.
 
 `needsReview` listet jeden akzeptierten Key, den die Review-Heuristiken für einen zweiten Blick markiert
@@ -152,8 +152,8 @@ blockierendes Signal, getrennt von der Platzhalter- und ICU-Integritätssperre: 
 niemals einen Key zurück, es markiert ihn nur als sehenswert, sodass ein Key nie aus demselben Grund
 sowohl in `needsReview` als auch in `integrityMismatches` erscheint. Es ist auf der von `importWorkbook`
 zurückgegebenen `RunSummary` immer leer, da ein Arbeitsmappen-Import nie einen Provider aufruft oder
-Flags auf seinem eigenen Pfad neu berechnet. Siehe [Translation safety](/docs/translation-safety) dafür,
-was jeder Code bedeutet, und [Human translation](/docs/manual-translation) für dasselbe Signal in den
+Flags auf seinem eigenen Pfad neu berechnet. Siehe [Übersetzungssicherheit](/docs/translation-safety) dafür,
+was jeder Code bedeutet, und [Menschliche Übersetzung](/docs/manual-translation) für dasselbe Signal in den
 Arbeitsmappen-Spalten `Review status` / `Review reasons`.
 
 `usage` ist `undefined`, niemals ein erfundenes `{ inputTokens: 0, outputTokens: 0 }`, wann immer nichts

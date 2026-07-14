@@ -36,7 +36,7 @@ Le fichier s'ouvre sur une feuille **Instructions**, suivie d'une feuille de don
 | `Review status` | non | `ok` ou `review` : si les heuristiques de révision de verbatra ont signalé la traduction de cette ligne pour un second regard. Lecture seule et consultatif, jamais un verrou à l'import. |
 | `Review reasons` | non | Une liste d'étiquettes de motifs séparées par des virgules qui l'expliquent (par exemple `length-ratio-outlier, equals-source`). Vide quand `Review status` vaut `ok`. |
 
-Chaque colonne sauf `Translation` est verrouillée et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. `Context`, `Review status` et `Review reasons` sont ajoutées après `Source hash` plutôt qu'insérées plus tôt, de sorte que `Translation` garde sa position pour qui script contre la forme du classeur. Trie ou filtre les lignes comme tu veux : le rattachement se fait par `Key`, jamais par position.
+Chaque colonne sauf `Translation` est verrouillée et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. `Context`, `Review status` et `Review reasons` sont ajoutées après `Source hash` plutôt qu'insérées plus tôt, de sorte que `Translation` garde sa position pour quiconque écrit des scripts contre la forme du classeur. Trie ou filtre les lignes comme tu veux : le rattachement se fait par `Key`, jamais par position.
 
 Une cellule `Translation` vide signifie « pas encore traduite ». L'import l'ignore et n'écrit jamais une chaîne vide, de sorte qu'un traducteur peut renvoyer un classeur à moitié rempli et terminer le reste plus tard.
 

@@ -16,7 +16,7 @@ verbatra watch
 | --- | --- |
 | `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
 | `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--debounce <ms>` | wartet diese Anzahl Millisekunden nach einer Änderung, bevor übersetzt wird (Standard `300`) |
+| `--debounce <ms>` | wartet diese Anzahl Millisekunden nach einer Änderung, bevor übersetzt wird (Standard `300`); muss eine positive ganze Zahl sein |
 | `--json` | gibt jeden Lauf als einen NDJSON-Datensatz aus |
 
 ## Ausgabe
@@ -47,7 +47,7 @@ verbatra watch --json
 | Code | Bedeutung |
 | --- | --- |
 | `0` | durch eine einzelne Unterbrechung ordnungsgemäß gestoppt |
-| `2` | konnte nicht ausgeführt werden: die Konfiguration konnte nicht geladen werden oder ein Nutzungsfehler |
+| `2` | konnte nicht ausgeführt werden: die Konfiguration konnte nicht geladen werden, oder ein Nutzungsfehler (einschließlich eines ungültigen `--debounce`, etwa keine Ganzzahl, null, negativ oder ein Einheitensuffix wie `250ms`) |
 | `130` | durch eine zweite Unterbrechung erzwungen gestoppt |
 
 Anders als bei [`translate`](/docs/cli/translate) ändert ein Fehlschlag eines einzelnen Laufs den Exit-Code nicht: Er wird als Stream-Datensatz gemeldet. Der Exit-Code spiegelt nur wider, wie der Watcher gestoppt wurde.

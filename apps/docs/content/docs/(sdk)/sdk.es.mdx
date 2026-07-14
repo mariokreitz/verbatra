@@ -37,7 +37,7 @@ Ocho funciones, además de los tipos que tocas cuando las llamas.
   configuración correspondiente para esa ejecución. Recibes un `RunSummary`: los problemas de toda la ejecución lanzan un
   `SdkError`, los resultados por locale van en el resumen.
 - `watch(input: WatchInput): Promise<WatchController>` observa el archivo de origen y se vuelve a ejecutar con cada
-  cambio con rebote. `WatchInput` es `{ config, cwd?, debounceMs?, onRun }`, y `onRun` se dispara una vez por ejecución
+  cambio con anti-rebote. `WatchInput` es `{ config, cwd?, debounceMs?, onRun }`, y `onRun` se dispara una vez por ejecución
   con un `WatchRunResult`. El `WatchController` devuelto tiene un único método, `stop()`, que cierra el observador
   y espera la ejecución en curso.
 - `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` escribe las cadenas que

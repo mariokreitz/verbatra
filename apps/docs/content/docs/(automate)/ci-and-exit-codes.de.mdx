@@ -17,7 +17,7 @@ Willst du eine Pipeline scheitern lassen, wenn Übersetzungen abgedriftet sind, 
 verbatra check
 ```
 
-Brauchst du die genauen Keys hinter diesem Drift (etwa um sie in einem Pull-Request-Kommentar zu posten)? Führe [`verbatra diff`](/docs/cli/diff) aus: dasselbe read-only Gate, aber statt nur zu zählen, listet es die Keys auf, die hinzugefügt, neu übersetzt oder verwaist wären.
+Brauchst du die genauen Keys hinter diesem Drift (etwa um sie in einem Pull-Request-Kommentar zu posten)? Führe [`verbatra diff`](/docs/cli/diff) aus: dasselbe schreibgeschützte Gate, aber statt nur zu zählen, listet es die Keys auf, die hinzugefügt, neu übersetzt oder verwaist wären.
 
 ```bash
 # read-only gate with the key lists: exit 1 if any locale has pending changes
@@ -32,7 +32,7 @@ Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
 | --- | --- |
 | `0` | Erfolg (bei `check` ist jede Locale synchron; bei `diff` gibt es keine ausstehenden Änderungen) |
 | `1` | `translate` oder `import` ist fertig, aber einige Locales sind fehlgeschlagen, `check` hat eine nicht synchrone Locale gefunden, oder `diff` hat ausstehende Änderungen gefunden |
-| `2` | konnte nicht laufen (ein Gesamtlauf-Fehler oder ein Nutzungsfehler, einschließlich eines unbekannten oder leeren `--locales`-Werts) |
+| `2` | konnte nicht laufen (ein Gesamtlauf-Fehler oder ein Nutzungsfehler, einschließlich eines unbekannten oder leeren `--locales`-Werts oder eines ungültigen `--debounce`-Werts) |
 | `130` | `watch` oder `ui` wurde durch einen zweiten Interrupt zwangsgestoppt |
 
 `watch` ist die Ausnahme: ein Fehler pro Lauf erscheint als Stream-Eintrag, nicht als Exit-Code, und ein einzelner Interrupt stoppt `watch` sauber und beendet sich mit `0`.
@@ -62,7 +62,7 @@ type WatchRunResult =
 
 Ein fehlgeschlagener Lauf während `watch` landet als einer dieser Einträge auf dem Stream. Er stoppt den Watcher nicht und setzt keinen Exit-Code ungleich null.
 
-`verbatra check --json` gibt ein read-only Statusdokument als ein JSON-Objekt aus. Das oberste `inSync` ist genau dann wahr, wenn jede Locale synchron ist, was genau dann ist, wenn der Befehl sich mit `0` beendet:
+`verbatra check --json` gibt ein schreibgeschütztes Statusdokument als ein JSON-Objekt aus. Das oberste `inSync` ist genau dann wahr, wenn jede Locale synchron ist, was genau dann ist, wenn der Befehl sich mit `0` beendet:
 
 ```ts
 interface CheckSummary {
@@ -79,7 +79,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` führt dieselbe read-only Berechnung aus, gibt dir aber Key-Listen statt Zählungen. Das oberste `hasPendingChanges` ist genau dann wahr, wenn mindestens eine Locale einen Key zum Hinzufügen oder Neuübersetzen hat, was genau dann ist, wenn der Befehl sich mit `1` beendet. Verwaiste Keys erscheinen in den Listen, setzen aber nie `hasPendingChanges`:
+`verbatra diff --json` führt dieselbe schreibgeschützte Berechnung aus, gibt dir aber Key-Listen statt Zählungen. Das oberste `hasPendingChanges` ist genau dann wahr, wenn mindestens eine Locale einen Key zum Hinzufügen oder Neuübersetzen hat, was genau dann ist, wenn der Befehl sich mit `1` beendet. Verwaiste Keys erscheinen in den Listen, setzen aber nie `hasPendingChanges`:
 
 ```ts
 interface DiffSummary {

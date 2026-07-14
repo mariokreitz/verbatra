@@ -36,19 +36,19 @@ Las columnas `Review status` y `Review reasons` de un libro, cuando están prese
 ## Ejemplos
 
 ```bash
-# importa el libro rellenado
+# import the filled workbook
 verbatra import verbatra-translations.xlsx
 
-# valida e informa, no escribe nada
+# validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
 
-# importa contra un proyecto en otro directorio
+# import against a project in another directory
 verbatra import verbatra-translations.xlsx --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra import verbatra-translations.xlsx --config config/verbatra.config.ts
 
-# resumen legible por máquina en stdout
+# machine-readable summary on stdout
 verbatra import verbatra-translations.xlsx --json
 ```
 

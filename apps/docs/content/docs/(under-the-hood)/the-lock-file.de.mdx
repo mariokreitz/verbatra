@@ -3,8 +3,8 @@ title: Die Lock-Datei
 description: Was verbatra.lock.json aufzeichnet, warum sie die Baseline für inkrementelle Läufe ist und warum du sie committest.
 ---
 verbatra hält eine committete Datei, `verbatra.lock.json`, in deinem Projekt. Sie ist die Aufzeichnung dessen, was
-verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf diffe deine Quelle
-gegen diese Baseline und ruft den Provider nur für die Keys auf, die sich tatsächlich geändert haben.
+verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf vergleicht deine Quelle
+mit dieser Baseline und ruft den Provider nur für die Keys auf, die sich tatsächlich geändert haben.
 
 ## Was sie aufzeichnet
 
@@ -14,7 +14,7 @@ Keine Übersetzungen, keine API-Schlüssel. Nur Hashes.
 
 ## Wie ein Lauf sie nutzt
 
-Wenn verbatra eine Ziel-Locale liest, diffe es die Quelle gegen diese Locale, wobei die Lock-Datei als
+Wenn verbatra eine Ziel-Locale liest, vergleicht es die Quelle mit dieser Locale, wobei die Lock-Datei als
 Baseline dessen dient, was zuvor übersetzt wurde. Jeder Quell-Key sortiert sich in einen von vier Eimern:
 
 - neu: das Ziel hat den Key noch nicht.
@@ -44,6 +44,6 @@ ihn inspizieren kannst, statt die Baseline zu verlieren.
 
 ## Committe sie
 
-Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Sie ist die gemeinsame Baseline, gegen die dein Team und deine
-CI diffen, sodass sie in der Versionskontrolle zu halten das ist, was inkrementelle Läufe maschinenübergreifend reproduzierbar macht. Siehe [How it works](/docs/how-it-works) für die vollständige Lauf-Pipeline und
-[Translation safety](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Sie ist die gemeinsame Baseline, mit der dein Team und deine
+CI vergleichen, sodass sie in der Versionskontrolle zu halten das ist, was inkrementelle Läufe maschinenübergreifend reproduzierbar macht. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Lauf-Pipeline und
+[Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.

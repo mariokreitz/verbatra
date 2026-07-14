@@ -16,7 +16,7 @@ verbatra watch
 | --- | --- |
 | `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
 | `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
-| `--debounce <ms>` | attendre ce nombre de millisecondes après une modification avant de traduire (par défaut `300`) |
+| `--debounce <ms>` | attendre ce nombre de millisecondes après une modification avant de traduire (par défaut `300`) ; doit être un entier positif |
 | `--json` | afficher chaque exécution sous forme d'un enregistrement NDJSON |
 
 ## Sortie
@@ -47,7 +47,7 @@ verbatra watch --json
 | Code | Signification |
 | --- | --- |
 | `0` | arrêté proprement par une seule interruption |
-| `2` | impossible de s'exécuter : la configuration n'a pas pu être chargée, ou une erreur d'usage |
+| `2` | impossible de s'exécuter : la configuration n'a pas pu être chargée, ou une erreur d'usage (y compris un `--debounce` invalide, par exemple non entier, zéro, négatif ou avec un suffixe d'unité comme `250ms`) |
 | `130` | arrêté de force par une seconde interruption |
 
 Contrairement à [`translate`](/docs/cli/translate), l'échec d'une exécution ne change pas le code de sortie : il est signalé comme un enregistrement de flux. Le code de sortie reflète uniquement la façon dont le surveillant s'est arrêté.

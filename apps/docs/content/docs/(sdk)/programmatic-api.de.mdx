@@ -19,7 +19,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Einen Build- oder CI-Schritt am Ergebnis ausrichten
 
-Die Zusammenfassung sagt dir, was sich geändert hat und was fehlgeschlagen ist, kein Ausgabe-Parsen nötig. Lass den Schritt fehlschlagen, wenn eine Locale fehlgeschlagen ist, und grabe dich in das Detail pro Locale, um zu protokollieren, warum.
+Die Zusammenfassung sagt dir, was sich geändert hat und was fehlgeschlagen ist, kein Ausgabe-Parsen nötig. Lass den Schritt fehlschlagen, wenn eine Locale fehlgeschlagen ist, und sieh dir das Detail pro Locale genauer an, um zu protokollieren, warum.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -39,7 +39,7 @@ if (summary.failed.length > 0) {
 
 ## Prüfen ohne zu schreiben
 
-`check` liest und diffe, ohne einen Provider aufzurufen oder Dateien zu schreiben, und meldet die Abweichung pro Locale, aufgeteilt in fehlende, veraltete und aktuelle Anzahlen. Sein `inSync`-Flag ist genau dann true, wenn nichts fehlend oder veraltet ist, was es zu deinem natürlichen CI-Gate macht.
+`check` liest und vergleicht, ohne einen Provider aufzurufen oder Dateien zu schreiben, und meldet die Abweichung pro Locale, aufgeteilt in fehlende, veraltete und aktuelle Anzahlen. Sein `inSync`-Flag ist genau dann true, wenn nichts fehlend oder veraltet ist, was es zu deinem natürlichen CI-Gate macht.
 
 ```ts
 import { check, loadConfig } from "@verbatra/sdk";
@@ -131,4 +131,4 @@ const config = await loadConfig({
 await translate({ config });
 ```
 
-Für die vollständige Liste der Funktionen, die `RunSummary`- und `LocaleSummary`-Strukturen und jeden `SdkError`-Code siehe die [SDK-Referenz](/docs/sdk). Läufst du stattdessen die CLI in CI? Siehe den Exit-Code-Vertrag in [CI and exit codes](/docs/ci-and-exit-codes).
+Für die vollständige Liste der Funktionen, die `RunSummary`- und `LocaleSummary`-Strukturen und jeden `SdkError`-Code siehe die [SDK-Referenz](/docs/sdk). Führst du stattdessen die CLI in CI aus? Siehe den Exit-Code-Vertrag in [CI und Exit-Codes](/docs/ci-and-exit-codes).

@@ -92,7 +92,7 @@ console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
 
 ## Volver a traducir a medida que cambia el origen
 
-`watch` dispara tu `onRun` una vez por cada cambio con rebote y devuelve un controlador que detienes de forma limpia.
+`watch` dispara tu `onRun` una vez por cada cambio con anti-rebote y devuelve un controlador que detienes de forma limpia.
 
 ```ts
 import { loadConfig, watch } from "@verbatra/sdk";

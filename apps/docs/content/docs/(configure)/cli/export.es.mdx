@@ -30,25 +30,25 @@ Sin `--json`, `export` imprime la ruta de salida y una línea por locale con su 
 ## Ejemplos
 
 ```bash
-# escribe el libro con las cadenas faltantes y modificadas
+# write the workbook with missing and changed strings
 verbatra export
 
-# solo las hojas de alemán y francés
+# only the German and French sheets
 verbatra export --locales de,fr
 
-# incluye las cadenas que ya están al día para tener contexto completo
+# include already up-to-date strings for full context
 verbatra export --include-unchanged
 
-# escribe en una ruta específica
+# write to a specific path
 verbatra export --out handoff/round-2.xlsx
 
-# exporta un proyecto en otro directorio
+# export a project in another directory
 verbatra export --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra export --config config/verbatra.config.ts
 
-# resultado legible por máquina en stdout
+# machine-readable result on stdout
 verbatra export --json
 ```
 

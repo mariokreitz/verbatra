@@ -18,7 +18,7 @@ verbatra export
 verbatra import verbatra-translations.xlsx
 ```
 
-Standardmäßig legt der Export `verbatra-translations.xlsx` im Arbeitsverzeichnis ab. Der Import liest sie zurück, validiert jeden Wert, schreibt die bestandenen in deine Locale-Dateien und aktualisiert die [lock file](/docs/the-lock-file) für die akzeptierten Keys, genau wie es ein `translate`-Lauf täte.
+Standardmäßig legt der Export `verbatra-translations.xlsx` im Arbeitsverzeichnis ab. Der Import liest sie zurück, validiert jeden Wert, schreibt die bestandenen in deine Locale-Dateien und aktualisiert die [Lock-Datei](/docs/the-lock-file) für die akzeptierten Keys, genau wie es ein `translate`-Lauf täte.
 
 ## Die Arbeitsmappe
 
@@ -73,7 +73,7 @@ Ein Wert, der irgendeine Prüfung nicht besteht, wird **zurückgehalten** (nicht
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
-Der Import teilt den Exit-Code-Vertrag von `translate`: er gibt `0` zurück, wenn jede Locale erfolgreich ist, `1`, wenn eine Locale fehlschlägt, und `2`, wenn der Lauf nicht starten konnte. Das heißt, eine manuelle Übergabe fällt in dieselben CI-Prüfungen wie eine automatisierte. Siehe [CI and automation](/docs/ci-and-exit-codes).
+Der Import teilt den Exit-Code-Vertrag von `translate`: er gibt `0` zurück, wenn jede Locale erfolgreich ist, `1`, wenn eine Locale fehlschlägt, und `2`, wenn der Lauf nicht starten konnte. Das heißt, eine manuelle Übergabe fällt in dieselben CI-Prüfungen wie eine automatisierte. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes).
 
 ## Review-Flags
 
@@ -87,7 +87,7 @@ Beide Spalten werden frisch zum Exportzeitpunkt aus den Quell- und aktuellen Zie
 - `integrity-reordered`: die Platzhalter-Menge stimmte überein, landete aber in einer anderen Reihenfolge als die Quelle.
 - `provider-degraded`: der Batch, aus dem dieser Key stammt, trug zum Übersetzungszeitpunkt einen DeepL-Degradierungshinweis. Da der Export nie einen Provider aufruft, taucht dieser Grund niemals auf einer exportierten Zeile auf; er erscheint nur in der `translate --json`- oder `watch --json`-Ausgabe. Ein Key, der zum Übersetzungszeitpunkt nur diesen Grund ausgelöst hat, exportiert `ok`, außer er löst unabhängig auch einen der vier obigen Gründe aus, in welchem Fall die exportierte Zeile stattdessen diesen Grund trägt.
 
-Eine Zeile, in der noch nichts übersetzt wurde, exportiert immer `ok`; es gibt nichts zu überprüfen. Siehe [Translation safety](/docs/translation-safety), was jeder Grund bedeutet und wie sich diese Flags zu den Platzhalter- und ICU-Prüfungen oben verhalten.
+Eine Zeile, in der noch nichts übersetzt wurde, exportiert immer `ok`; es gibt nichts zu überprüfen. Siehe [Übersetzungssicherheit](/docs/translation-safety), was jeder Grund bedeutet und wie sich diese Flags zu den Platzhalter- und ICU-Prüfungen oben verhalten.
 
 ## Aus dem SDK
 
@@ -111,4 +111,4 @@ Beide nehmen die validierte Konfiguration von [`loadConfig`](/docs/sdk), und `im
 
 - [`verbatra export`](/docs/cli/export): jedes Export-Flag und der Bericht, den es ausgibt.
 - [`verbatra import`](/docs/cli/import): jedes Import-Flag, die Lauf-Zusammenfassung und die Exit-Codes.
-- [Translation safety](/docs/translation-safety): die Platzhalter- und ICU-Prüfungen, die jeden Schreibvorgang bewachen, manuell oder automatisiert.
+- [Übersetzungssicherheit](/docs/translation-safety): die Platzhalter- und ICU-Prüfungen, die jeden Schreibvorgang bewachen, manuell oder automatisiert.

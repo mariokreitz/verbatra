@@ -29,25 +29,25 @@ Una línea de locale muestra un contador `needs-review` solo cuando es mayor que
 ## Ejemplos
 
 ```bash
-# traduce una vez usando la configuración que encuentra
+# translate once using the config it finds
 verbatra translate
 
-# previsualiza los cambios sin llamar a un proveedor ni escribir archivos
+# preview changes without calling a provider or writing files
 verbatra translate --dry-run
 
-# además elimina las claves huérfanas de los archivos de destino
+# also remove orphaned keys from target files
 verbatra translate --prune
 
-# previsualiza las claves que se eliminarían
+# preview the keys that would be pruned
 verbatra translate --prune --dry-run
 
-# ejecuta contra un proyecto en otro directorio
+# run against a project in another directory
 verbatra translate --cwd packages/app
 
-# carga una configuración específica en lugar de buscar una
+# load a specific config instead of searching for one
 verbatra translate --config config/verbatra.config.ts
 
-# resumen legible por máquina en stdout
+# machine-readable summary on stdout
 verbatra translate --json
 ```
 
