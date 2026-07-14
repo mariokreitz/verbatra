@@ -198,6 +198,11 @@ input {
   flex: 1 1 auto;
   min-width: 0;
   overflow-y: auto;
+  /* .data-table and .status-grid are no longer width: 100%, so at a narrow enough window they can
+     be wider than .app-main itself (.data-table alone floors at 480px, see its own rule below);
+     without this, .app-shell's overflow: hidden would clip the table's right-hand columns with no
+     way to reach them at all, rather than letting the panel scroll to them. */
+  overflow-x: auto;
   padding: var(--space-6);
 }
 
