@@ -103,4 +103,14 @@ describe("validate", () => {
   it("handles empty resources", () => {
     expect(validate(resource("en", []), resource("de", [])).isValid).toBe(true);
   });
+
+  it("does not drop either finding when two findings share a key (comparator's equal branch)", () => {
+    // Duplicate invalidIcuKeys is the only public path to two equal-key findings, and both are
+    // structurally identical, so this exercises the comparator's `a.key === b.key -> 0` branch
+    // without asserting relative order between two indistinguishable objects.
+    const source = resource("en", [entry({ key: "a" })]);
+    const target = resource("de", [entry({ key: "a" })]);
+    const report = validate(source, target, { invalidIcuKeys: ["a", "a"] });
+    expect(report.invalidIcu.map((f) => f.key)).toEqual(["a", "a"]);
+  });
 });
