@@ -64,6 +64,8 @@ export type {
   ProviderKind,
   ProviderNotice,
   ProviderNoticeCode,
+  ReviewFlag,
+  ReviewReasonCode,
   Tone,
   TranslateRequest,
   TranslateResult,
@@ -72,4 +74,5 @@ export type {
 } from "./provider.js";
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
+export { computeReviewFlags, type ReviewFlagInput } from "./review-flags.js";
 export { SCAFFOLD_MODELS } from "./scaffold.js";

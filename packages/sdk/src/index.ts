@@ -14,6 +14,7 @@
  * @packageDocumentation
  */
 
+export type { ReviewReasonCode } from "@verbatra/ai-providers";
 export type { SupportedFormat } from "@verbatra/core";
 export { defineConfig } from "./config/define-config.js";
 export {
@@ -56,6 +57,7 @@ export type {
   BudgetBehavior,
   LocaleNotice,
   LocaleSummary,
+  NeedsReviewEntry,
   RunBudget,
   RunSummary,
   SdkNotice,

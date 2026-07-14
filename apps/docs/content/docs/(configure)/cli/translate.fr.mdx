@@ -24,6 +24,8 @@ Par défaut, une exécution ne supprime rien. Les clés orphelines (présentes d
 
 Sans `--json`, `translate` affiche un résumé d'exécution lisible par un humain. Avec `--json`, il affiche le résumé de l'exécution sous forme d'un seul objet JSON sur stdout : voir la [structure `RunSummary` dans la référence du SDK](/docs/sdk). Une erreur d'exécution globale est écrite sur stderr, de sorte que stdout reste propre et redirigeable sous `--json`.
 
+Une ligne de locale affiche un compteur `needs-review` seulement quand il est supérieur à zéro : les propres heuristiques de verbatra qui signalent une clé traduite qui mérite un second regard (une sortie suspectement courte ou longue, une valeur identique à la source, un terme de glossaire manqué, ou un ensemble de placeholders réordonné). Cela ne retient rien par soi-même ; voir [Sûreté de la traduction](/docs/translation-safety) pour ce que signifie chaque motif. La sortie `--json` porte toujours le détail complet sous forme de `needsReview` sur chaque locale.
+
 ## Exemples
 
 ```bash

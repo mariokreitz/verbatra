@@ -10,6 +10,8 @@ verbatra export
 
 Por defecto, esto escribe `verbatra-translations.xlsx` en el directorio de trabajo, solo con las cadenas **faltantes y modificadas**: las mismas claves que una ejecución automatizada de `translate` enviaría a un proveedor. Consulta [Traducción humana](/docs/manual-translation) para ver el ciclo completo.
 
+Cada fila con una traducción actual también lleva un par `Review status` / `Review reasons` de solo lectura: las propias heurísticas consultivas de verbatra para detectar una traducción que merece una segunda mirada, recalculadas de nuevo a partir de los valores actuales de origen y destino en el momento de la exportación. Nunca afectan a lo que acepta `import`. Consulta [Traducción humana](/docs/manual-translation) para ver las columnas y [Seguridad de la traducción](/docs/translation-safety) para los códigos de motivo.
+
 ## Opciones
 
 | Opción | Descripción |

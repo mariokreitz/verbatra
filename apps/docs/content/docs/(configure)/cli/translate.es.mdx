@@ -24,6 +24,8 @@ Por defecto, una ejecución no elimina nada. Las claves huérfanas (presentes en
 
 Sin `--json`, `translate` imprime un resumen de la ejecución legible para humanos. Con `--json`, imprime el resumen de la ejecución como un único objeto JSON en stdout: consulta la [forma de `RunSummary` en la referencia del SDK](/docs/sdk). Un error de toda la ejecución va a stderr, así que stdout queda limpio y canalizable con `--json`.
 
+Una línea de locale muestra un contador `needs-review` solo cuando es mayor que cero: las propias heurísticas de verbatra que marcan una clave traducida digna de una segunda mirada (una salida sospechosamente corta o larga, un valor idéntico al origen, un término de glosario que se perdió, o un conjunto de marcadores de posición reordenado). No retiene nada por sí mismo; consulta [Seguridad de la traducción](/docs/translation-safety) para saber qué significa cada motivo. La salida `--json` siempre lleva el detalle completo como `needsReview` en cada locale.
+
 ## Ejemplos
 
 ```bash

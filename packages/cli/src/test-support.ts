@@ -46,6 +46,7 @@ export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummar
     budgetWithheld: [],
     generated: [],
     notices: [],
+    needsReview: [],
     ...overrides,
   };
 }

@@ -1,3 +1,4 @@
+import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import { buildWorkbook } from "./build-workbook.js";
 import { ExchangeError } from "./errors.js";
@@ -17,6 +18,8 @@ const model: WorkbookModel = {
           sourceHash: "abc123",
           translation: "",
           context: "A friendly greeting",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
         {
           key: "farewell",
@@ -26,6 +29,8 @@ const model: WorkbookModel = {
           sourceHash: "def456",
           translation: "",
           context: "",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
         {
           key: "welcome",
@@ -35,6 +40,8 @@ const model: WorkbookModel = {
           sourceHash: "ghi789",
           translation: "",
           context: "",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
       ],
     },
@@ -77,6 +84,8 @@ describe("buildWorkbook + readWorkbook round trip", () => {
               sourceHash: "abc123",
               translation: "Hallo {name}",
               context: "",
+              reviewStatus: "ok",
+              reviewReasons: "",
             },
           ],
         },
@@ -97,6 +106,66 @@ describe("buildWorkbook + readWorkbook round trip", () => {
     const error = await readWorkbook(new Uint8Array([1, 2, 3, 4])).catch((e) => e);
     expect(error).toBeInstanceOf(ExchangeError);
     expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+  });
+
+  it("round-trips a flagged review status and its reasons by key", async () => {
+    const flagged: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "greeting",
+              source: "Hello {name}",
+              currentTarget: "Hello {name}",
+              status: "changed",
+              sourceHash: "abc123",
+              translation: "",
+              context: "",
+              reviewStatus: "review",
+              reviewReasons: "length-ratio-outlier, equals-source",
+            },
+          ],
+        },
+      ],
+    };
+    const data = await readWorkbook(await buildWorkbook(flagged));
+    expect(data.sheets[0]?.rows[0]?.reviewStatus).toBe("review");
+    expect(data.sheets[0]?.rows[0]?.reviewReasons).toBe("length-ratio-outlier, equals-source");
+  });
+
+  it("imports every row of a legacy workbook built with no Review columns at all", async () => {
+    // A workbook built entirely by hand, mirroring a real .xlsx exported before this change: no
+    // Review status / Review reasons columns exist at all, unlike buildWorkbook's current output.
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    [
+      "Key",
+      "Source",
+      "Current translation",
+      "Status",
+      "Translation",
+      "Source hash",
+      "Context",
+    ].forEach((label, index) => {
+      sheet.getRow(1).getCell(index + 1).value = label;
+    });
+    sheet.getRow(2).getCell(1).value = "greeting";
+    sheet.getRow(2).getCell(2).value = "Hello";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(6).value = "abc123";
+    sheet.getRow(3).getCell(1).value = "farewell";
+    sheet.getRow(3).getCell(2).value = "Bye";
+    sheet.getRow(3).getCell(4).value = "new";
+    sheet.getRow(3).getCell(6).value = "def456";
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
+    expect(data.sheets[0]?.rows).toHaveLength(2);
+    for (const row of data.sheets[0]?.rows ?? []) {
+      expect(row.reviewStatus).toBe("ok");
+      expect(row.reviewReasons).toBe("");
+    }
   });
 });
 
@@ -133,6 +202,8 @@ describe("buildWorkbook + readWorkbook round trip: coercion-prone translations",
               sourceHash: "abc123",
               translation,
               context: "",
+              reviewStatus: "ok",
+              reviewReasons: "",
             },
           ],
         },

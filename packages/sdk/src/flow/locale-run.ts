@@ -1,4 +1,5 @@
 import type {
+  ReviewFlag,
   Tone,
   TranslateRequest,
   TranslateResult,
@@ -34,7 +35,7 @@ import {
   generatePluralForms,
   type PluralGenerationResult,
 } from "./plural-generation.js";
-import type { LocaleNotice, LocaleSummary, UsageSummary } from "./summary.js";
+import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
 export interface LocaleRunParams {
@@ -167,6 +168,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   const integrityMismatches: string[] = [];
   const providerFailures: string[] = [];
   const budgetWithheld: string[] = [];
+  const reviewFlags = new Map<string, ReviewFlag>();
   const translation = await translateAndCheck(
     provider,
     params,
@@ -175,6 +177,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     integrityMismatches,
     providerFailures,
     budgetWithheld,
+    reviewFlags,
   );
 
   const merged = new Map(target.entries);
@@ -236,6 +239,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       budgetWithheld: [...budgetWithheld, ...generation.budgetWithheld].sort(),
       pruned,
       notices,
+      needsReview: needsReviewFor(accepted.keys(), reviewFlags),
       ...(localeUsage !== undefined ? { usage: localeUsage } : {}),
     }),
     lockEntries: computeLockEntries(params, merged, withheld, generation.accepted),
@@ -317,6 +321,8 @@ interface SummaryParts {
   readonly pruned: readonly string[];
   readonly notices: readonly LocaleNotice[];
   readonly usage?: UsageSummary;
+  /** Defaults to empty: a dry-run never calls a provider, so it never has anything to flag. */
+  readonly needsReview?: readonly NeedsReviewEntry[];
 }
 
 function baseSummary(parts: SummaryParts): LocaleSummary {
@@ -333,8 +339,24 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
     budgetWithheld: parts.budgetWithheld,
     generated: parts.generated,
     notices: parts.notices,
+    needsReview: parts.needsReview ?? [],
     ...(parts.usage !== undefined ? { usage: parts.usage } : {}),
   };
+}
+
+/** Every accepted key with a non-empty review flag, sorted by key. */
+function needsReviewFor(
+  acceptedKeys: Iterable<string>,
+  reviewFlags: ReadonlyMap<string, ReviewFlag>,
+): readonly NeedsReviewEntry[] {
+  const entries: NeedsReviewEntry[] = [];
+  for (const key of acceptedKeys) {
+    const flag = reviewFlags.get(key);
+    if (flag !== undefined) {
+      entries.push({ key, reasons: flag.reasons });
+    }
+  }
+  return entries.sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 
 interface TranslateAndCheckResult {
@@ -357,6 +379,7 @@ async function translateAndCheck(
   integrityMismatches: string[],
   providerFailures: string[],
   budgetWithheld: string[],
+  reviewFlags: Map<string, ReviewFlag>,
 ): Promise<TranslateAndCheckResult> {
   const notices: LocaleNotice[] = [];
   const usage = createUsageAccumulator();
@@ -375,6 +398,7 @@ async function translateAndCheck(
       accepted,
       integrityMismatches,
       providerFailures,
+      reviewFlags,
     );
     notices.push(...subResult.notices);
     foldUsage(usage, subResult.usage);
@@ -408,6 +432,7 @@ async function runSubBatch(
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
   providerFailures: string[],
+  reviewFlags: Map<string, ReviewFlag>,
 ): Promise<SubBatchResult> {
   let result: TranslateResult;
   try {
@@ -420,6 +445,11 @@ async function runSubBatch(
   }
   for (const entry of batch) {
     foldEntryResult(entry, result, accepted, integrityMismatches, providerFailures);
+  }
+  if (result.reviewFlags !== undefined) {
+    for (const [key, flag] of result.reviewFlags) {
+      reviewFlags.set(key, flag);
+    }
   }
   return { notices: readNotices(result), usage: result.usage };
 }

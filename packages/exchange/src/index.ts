@@ -17,6 +17,7 @@ export { ExchangeError, type ExchangeErrorCode } from "./errors.js";
 export { DEFAULT_WORKBOOK_LIMITS, type WorkbookLimits } from "./limits.js";
 export { type ReadWorkbookOptions, readWorkbook } from "./read-workbook.js";
 export type {
+  ReviewStatus,
   RowStatus,
   WorkbookData,
   WorkbookModel,

@@ -194,6 +194,25 @@ describe("render: human run summary", () => {
     expect(text).not.toContain("pruned");
   });
 
+  it("shows the needs-review count when the run flagged keys for review", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [
+          makeLocale({
+            translated: ["a"],
+            needsReview: [{ key: "a", reasons: ["EQUALS_SOURCE"] }],
+          }),
+        ],
+      }),
+    );
+    expect(text).toContain("1 needs-review");
+  });
+
+  it("omits the needs-review count when nothing was flagged", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("needs-review");
+  });
+
   it("shows the generated count when plural forms were synthesized", () => {
     const text = renderHuman(
       makeSummary({

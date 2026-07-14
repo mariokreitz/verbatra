@@ -87,6 +87,7 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
   usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
 }
@@ -143,6 +144,17 @@ dégradation gracieuse de DeepL) et les notifications du SDK (par exemple une la
 que la source n'en fournit, code `PLURAL_CATEGORIES_INCOMPLETE`, ou un budget de tokens dépassé, code
 `BUDGET_TOKENS_EXCEEDED`). Il n'y a pas de liste de notifications de niveau supérieur sur
 `RunSummary`, donc lis-les toujours sur la locale.
+
+`needsReview` liste chaque clé acceptée que les heuristiques de révision ont signalée pour un second
+regard, chacune avec les codes de motif qui s'appliquent : `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`,
+`GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` et `PROVIDER_DEGRADED`. C'est un signal distinct et non
+bloquant, séparé du verrou d'intégrité des placeholders et de l'ICU : un signal de révision ne retient
+jamais une clé, il la signale seulement comme digne d'être regardée, de sorte qu'une clé n'apparaît
+jamais à la fois dans `needsReview` et dans `integrityMismatches` pour le même motif. Il est toujours
+vide sur la `RunSummary` renvoyée par `importWorkbook`, puisqu'un import de classeur n'appelle jamais de
+provider ni ne recalcule de signaux sur son propre chemin. Voir [Sûreté de la traduction](/docs/translation-safety)
+pour ce que signifie chaque code, et [Traduction humaine](/docs/manual-translation) pour le même signal
+dans les colonnes `Review status` / `Review reasons` du classeur.
 
 `usage` vaut `undefined`, jamais un `{ inputTokens: 0, outputTokens: 0 }` inventé, dès que rien dans cette
 portée n'a signalé d'usage : un dry-run n'appelle jamais de provider, et un provider sans tokens (DeepL)

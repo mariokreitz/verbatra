@@ -34,6 +34,22 @@ n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutô
 et elle est signalée comme ICU invalide sur le résumé. Le corps ICU reste tel quel tout au long du pipeline :
 rien n'est résolu ni réécrit.
 
+## Signaux de révision
+
+Réussir les vérifications ci-dessus prouve seulement qu'une traduction est structurellement sûre : rien n'est cassé, mais elle pourrait quand même être fausse. verbatra fait tourner une seconde couche, non bloquante, par-dessus : une heuristique pure qui signale une clé pour une révision humaine sans jamais la retenir. Un signal de révision est purement consultatif. Il ne retient jamais une clé, et rien dans le classeur ni dans le résumé de l'exécution ne peut être modifié pour l'effacer ; le seul moyen d'effacer un signal est de corriger la traduction sous-jacente.
+
+Cinq codes de motif, et une clé signalée peut en porter plus d'un :
+
+- `LENGTH_RATIO_OUTLIER` : la longueur réduite de la valeur traduite est nettement plus courte ou plus longue que celle de la source (en dessous de 0,35x ou au-dessus de 3,0x, ignoré quand la source réduite fait moins de 12 unités de code UTF-16). C'est une vérification brute de ratio de longueur sur la longueur UTF-16, elle peut donc sursignaler une langue cible légitimement verbeuse (l'allemand) ou une cible CJK dense ; traite-la comme une invitation à regarder, pas comme un verdict.
+- `EQUALS_SOURCE` : la valeur traduite est identique mot pour mot à la valeur source, dans une locale cible différente de la locale source, et la source avait effectivement quelque chose de traduisible (au moins une lettre Unicode). Une source qui ne contient que des placeholders, des chiffres ou de la ponctuation n'est jamais signalée ainsi.
+- `GLOSSARY_TERM_MISSED` : un terme source de glossaire configuré apparaît dans la valeur source mais son terme cible associé n'apparaît pas dans la traduction. Évalué seulement quand un glossaire est configuré.
+- `INTEGRITY_REORDERED` : l'ensemble des placeholders correspondait exactement (la vérification d'intégrité des placeholders ci-dessus a déjà accepté la traduction) mais est arrivé dans un ordre différent de celui de la source. Ce signal ne chevauche jamais un échec d'intégrité des placeholders : il ne se déclenche que sur une traduction déjà acceptée.
+- `PROVIDER_DEGRADED` : le lot dont vient cette clé portait un avis `FORMALITY_DOWNGRADED` ou `GLOSSARY_IGNORED`. Dans l'ensemble de providers actuel, c'est exclusif à DeepL, aucun provider LLM n'émettant aujourd'hui l'un ou l'autre de ces avis.
+
+Où tu vois ça : `translate` et `watch` le rapportent par locale comme `needsReview` sur le résumé de l'exécution, restreint aux clés effectivement acceptées et écrites cette exécution, et la CLI affiche un compteur `needs-review` quand il est supérieur à zéro ; voir [`verbatra translate`](/docs/cli/translate) et la [référence du SDK](/docs/sdk). Le classeur Excel porte le même signal dans ses colonnes `Review status` et `Review reasons`, recalculées à chaque export ; voir [Traduction humaine](/docs/manual-translation).
+
+`PROVIDER_DEGRADED` n'existe qu'au moment de la traduction. Il vient d'un avis de provider qui n'existe qu'en mémoire pendant l'exécution qui l'a produit : rien sur le disque ne l'enregistre, car y remédier signifierait persister des faits du moment du provider dans le [fichier de verrouillage](/docs/the-lock-file), ce que cette fonctionnalité ne fait délibérément pas. Un classeur exporté plus tard depuis le même fichier cible sur disque ne montre donc jamais `PROVIDER_DEGRADED` pour cette clé, même si la clé elle-même est toujours là : il exporte `ok`, sauf si la clé déclenche aussi indépendamment l'un des quatre codes de motif recalculables ci-dessus, auquel cas la ligne exportée porte ce motif à la place.
+
 ## La limite d'injection de prompt
 
 Les chaînes que tu traduis ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction
@@ -55,7 +71,7 @@ d'être expurgée. Une clé ne peut pas apparaître dans les journaux, dans les 
 ## Ce que tu vois
 
 Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles
-retenues pour une non-concordance de placeholder, les clés source ignorées pour ICU invalide, et toute notification. Les notifications
+retenues pour une non-concordance de placeholder, les clés source ignorées pour ICU invalide, les clés signalées pour révision, et toute notification. Les notifications
 incluent les notifications du provider et les notifications du SDK, telles qu'un avertissement de catégorie de pluriel (code
 `PLURAL_CATEGORIES_INCOMPLETE`) quand une langue cible a besoin de plus de catégories de pluriel que la source
 n'en fournit ; voir [Add a language](/docs/add-a-language) pour savoir comment synthétiser ces formes à la place.

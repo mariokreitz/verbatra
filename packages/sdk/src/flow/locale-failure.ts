@@ -24,6 +24,7 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
     budgetWithheld: [],
     generated: [],
     notices: [],
+    needsReview: [],
     error: describeError(error),
   };
 }

@@ -182,6 +182,9 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     generated: [],
     notices:
       buckets.blankDrifted.size > 0 ? [blankRowBaselineNotice(buckets.blankDrifted.size)] : [],
+    // A workbook import never calls a provider and never recomputes review flags on its own path; the
+    // Excel workbook's Review status/reasons columns are informational only (see export-workbook.ts).
+    needsReview: [],
   };
   return { summary, accepted: buckets.accepted, withheld: buckets.withheld };
 }

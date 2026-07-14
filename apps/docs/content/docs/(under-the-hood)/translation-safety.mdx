@@ -34,6 +34,22 @@ isn't valid ICU gets set aside and skipped for translation instead of being sent
 and it's reported as invalid ICU on the summary. The ICU body stays verbatim through the pipeline:
 nothing is resolved or rewritten.
 
+## Review flags
+
+Passing the checks above only proves a translation is structurally safe: nothing is broken, but it might still be wrong. verbatra runs a second, non-blocking layer on top of that: a pure heuristic that flags a key for human review without ever withholding it. A review flag is advisory only. It never withholds a key, and nothing on the workbook or the run summary can be edited to clear it; the only way to clear a flag is to fix the underlying translation.
+
+Five reason codes, and a flagged key can carry more than one:
+
+- `LENGTH_RATIO_OUTLIER`: the translated value's trimmed length is far shorter or longer than the source's (below 0.35x or above 3.0x, skipped when the trimmed source is under 12 UTF-16 code units). This is a raw length-ratio check on UTF-16 length, so it can over-flag a legitimately verbose target language (German) or a dense CJK target; treat it as a nudge to look, not a verdict.
+- `EQUALS_SOURCE`: the translated value equals the source value verbatim, in a target locale that differs from the source locale, and the source actually had something translatable (at least one Unicode letter). A placeholder-only, numeric-only, or punctuation-only source is never flagged this way.
+- `GLOSSARY_TERM_MISSED`: a configured glossary source term occurs in the source value but its mapped target term does not occur in the translation. Only evaluated when a glossary is configured.
+- `INTEGRITY_REORDERED`: the placeholder set matched exactly (the placeholder-integrity check above already accepted the translation) but landed in a different order than the source. This flag never overlaps with a placeholder-integrity failure: it only fires on a translation that already passed.
+- `PROVIDER_DEGRADED`: the batch this key came from carried a `FORMALITY_DOWNGRADED` or `GLOSSARY_IGNORED` notice. In today's provider set this is DeepL-only, since no LLM provider currently emits either notice.
+
+Where you see this: `translate` and `watch` report it per locale as `needsReview` on the run summary, restricted to keys actually accepted and written this run, and the CLI prints a `needs-review` count when it is above zero; see [`verbatra translate`](/docs/cli/translate) and the [SDK reference](/docs/sdk). The Excel workbook carries the same signal as its `Review status` and `Review reasons` columns, recomputed fresh at every export; see [Human translation](/docs/manual-translation).
+
+`PROVIDER_DEGRADED` is translate-time only. It comes from a provider notice that exists only in memory during the run that produced it: nothing on disk records it, since fixing that would mean persisting provider-time facts in the [lock file](/docs/the-lock-file), which this feature deliberately does not do. So a workbook exported later from the same on-disk target file never shows `PROVIDER_DEGRADED` for that key, even though the key itself is still there: it exports as `ok` unless the key also independently trips one of the four recomputable reason codes above, in which case the exported row carries that reason instead.
+
 ## The prompt-injection boundary
 
 The strings you translate aren't trustworthy: they can contain text that looks like an instruction
@@ -55,7 +71,8 @@ that would need scrubbing. A key can't show up in logs, in error messages, or in
 ## What you see
 
 Every one of these outcomes is data on the run summary, per locale: the keys translated, the ones
-withheld for a placeholder mismatch, the source keys skipped for invalid ICU, and any notices. Notices
+withheld for a placeholder mismatch, the source keys skipped for invalid ICU, the keys flagged for
+review, and any notices. Notices
 include provider notices and SDK notices, such as a plural-category warning (code
 `PLURAL_CATEGORIES_INCOMPLETE`) when a target language needs more plural categories than the source
 supplies; see [Add a language](/docs/add-a-language) for how to synthesize those forms instead.

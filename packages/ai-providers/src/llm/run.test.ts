@@ -338,3 +338,37 @@ describe("runLlmTranslation: failure paths", () => {
     });
   });
 });
+
+describe("runLlmTranslation: reviewFlags", () => {
+  it("produces no map entry for a clean key", async () => {
+    const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hallo {{name}}" }]));
+    const result = await runLlmTranslation(request(), mechanism);
+    expect(result.reviewFlags?.has("greeting")).toBe(false);
+  });
+
+  it("flags a key that equals its source in a different locale", async () => {
+    const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hello {{name}}" }]));
+    const result = await runLlmTranslation(request(), mechanism);
+    expect(result.reviewFlags?.get("greeting")?.reasons).toEqual(["EQUALS_SOURCE"]);
+  });
+
+  it("threads the request glossary into GLOSSARY_TERM_MISSED", async () => {
+    const { mechanism } = stubMechanism(
+      rawResult([{ key: "a", value: "Klicken Sie zum Fortfahren" }]),
+    );
+    const result = await runLlmTranslation(
+      request({
+        entries: [entry("a", "Click Save to continue", [])],
+        glossary: { Save: "Speichern" },
+      }),
+      mechanism,
+    );
+    expect(result.reviewFlags?.get("a")?.reasons).toEqual(["GLOSSARY_TERM_MISSED"]);
+  });
+
+  it("never applies PROVIDER_DEGRADED since the LLM layer's notices are always empty", async () => {
+    const { mechanism } = stubMechanism(rawResult([{ key: "greeting", value: "Hello {{name}}" }]));
+    const result = await runLlmTranslation(request(), mechanism);
+    expect(result.reviewFlags?.get("greeting")?.reasons).not.toContain("PROVIDER_DEGRADED");
+  });
+});

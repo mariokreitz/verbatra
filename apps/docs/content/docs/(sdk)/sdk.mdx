@@ -87,6 +87,7 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
   usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
 }
@@ -143,6 +144,16 @@ graceful degradation) and SDK notices (say, a target language that needs more CL
 than the source supplies, code `PLURAL_CATEGORIES_INCOMPLETE`, or a token budget crossed, code
 `BUDGET_TOKENS_EXCEEDED`). There is no top-level notices list on `RunSummary`, so always read them off
 the locale.
+
+`needsReview` lists every accepted key the review heuristics flagged for a second look, each with the
+reason codes that applied: `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`, `GLOSSARY_TERM_MISSED`,
+`INTEGRITY_REORDERED`, and `PROVIDER_DEGRADED`. This is a distinct, non-blocking signal, separate from
+the placeholder and ICU integrity gate: a review flag never withholds a key, it only marks one worth a
+look, so a key never appears in both `needsReview` and `integrityMismatches` for the same reason. It is
+always empty on the `RunSummary` returned by `importWorkbook`, since a workbook import never calls a
+provider or recomputes flags on its own path. See [Translation safety](/docs/translation-safety) for
+what each code means, and [Human translation](/docs/manual-translation) for the same signal surfaced as
+the workbook's `Review status` / `Review reasons` columns.
 
 `usage` is `undefined`, never a fabricated `{ inputTokens: 0, outputTokens: 0 }`, whenever nothing in
 that scope reported usage: a dry-run never calls a provider, and a token-less provider (DeepL) never

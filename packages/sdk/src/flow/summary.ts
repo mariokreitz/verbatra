@@ -1,4 +1,4 @@
-import type { ProviderNotice } from "@verbatra/ai-providers";
+import type { ProviderNotice, ReviewReasonCode } from "@verbatra/ai-providers";
 
 /** A stable code for an SDK-originated notice (not a provider notice). */
 export type SdkNoticeCode =
@@ -49,6 +49,14 @@ export interface SdkNotice {
 
 /** A notice on a locale summary: either a provider-emitted notice or an SDK-emitted one. */
 export type LocaleNotice = ProviderNotice | SdkNotice;
+
+/** One key flagged for human review, and every reason code that applies to it. */
+export interface NeedsReviewEntry {
+  /** The flagged key. */
+  readonly key: string;
+  /** Every {@link ReviewReasonCode} that applies to this key. */
+  readonly reasons: readonly ReviewReasonCode[];
+}
 
 /** Structured outcome for one target locale; surfaced as data on the run, never thrown. */
 export interface LocaleSummary {
@@ -115,6 +123,15 @@ export interface LocaleSummary {
    * nothing was degraded or flagged.
    */
   readonly notices: readonly LocaleNotice[];
+  /**
+   * Keys accepted and written this run that the review heuristics flagged for a second look, sorted
+   * by key. Distinct from the placeholder/ICU integrity gate: a review flag is advisory only and never
+   * withholds a key, so this never double-reports a key already surfaced through
+   * {@link LocaleSummary.integrityMismatches} or {@link LocaleSummary.providerFailures}. Empty when
+   * nothing was flagged, always empty for a workbook import (which never calls a provider or recomputes
+   * flags on its own path).
+   */
+  readonly needsReview: readonly NeedsReviewEntry[];
   /**
    * Present only when status is "failed": a structured, secret-free error. `code` is a PRESERVED string
    * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback), intentionally
