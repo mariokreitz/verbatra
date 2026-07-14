@@ -11,6 +11,9 @@ import { DiffBadge } from "../DiffBadge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
+import { StatusGrid } from "../StatusGrid.js";
+
+type DiffViewMode = "grid" | "flat";
 
 type DiffPanelState =
   | { readonly kind: "loading" }
@@ -84,6 +87,45 @@ function LocaleSection({
 }
 
 /**
+ * The grid/list switch above the Diff panel's content. Grid is the default view (rows = keys,
+ * columns = locales); the flat per-locale list stays reachable as a fallback, since it renders
+ * key names as a plain scrollable list rather than a wide table, which some readers may prefer
+ * when there are many target locales.
+ */
+function ViewToggle({
+  mode,
+  onChange,
+}: {
+  readonly mode: DiffViewMode;
+  readonly onChange: (mode: DiffViewMode) => void;
+}): ReactNode {
+  return (
+    <fieldset className="view-toggle" aria-label="Diff view">
+      <button
+        type="button"
+        className={
+          mode === "grid" ? "view-toggle-button view-toggle-button-active" : "view-toggle-button"
+        }
+        aria-pressed={mode === "grid"}
+        onClick={() => onChange("grid")}
+      >
+        Grid
+      </button>
+      <button
+        type="button"
+        className={
+          mode === "flat" ? "view-toggle-button view-toggle-button-active" : "view-toggle-button"
+        }
+        aria-pressed={mode === "flat"}
+        onClick={() => onChange("flat")}
+      >
+        List
+      </button>
+    </fieldset>
+  );
+}
+
+/**
  * The designed all-clear state: every checked locale has empty missing, changed, and orphaned
  * lists (see {@link isFullyInSync}, which this render is gated on, not the coarser
  * `hasPendingChanges`). Replaces what would otherwise be a wall of "(0)" key lists, one per
@@ -116,6 +158,7 @@ export function DiffPanel(): ReactNode {
   const [state, setState] = useState<DiffPanelState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
 
   useEffect(() => {
     let cancelled = false;
@@ -161,18 +204,25 @@ export function DiffPanel(): ReactNode {
           {state.hasPendingChanges ? "Pending changes" : "Up to date"}
         </Badge>
       </p>
-      <label className="filter-label">
-        Filter keys
-        <input className="filter-input" value={query} onChange={onQueryChange} />
-      </label>
-      {state.locales.map((locale) => (
-        <LocaleSection
-          key={locale.locale}
-          locale={locale}
-          query={query}
-          onSelectKey={setSelectedKey}
-        />
-      ))}
+      <ViewToggle mode={viewMode} onChange={setViewMode} />
+      {viewMode === "grid" ? (
+        <StatusGrid locales={state.locales} onSelectKey={setSelectedKey} />
+      ) : (
+        <>
+          <label className="filter-label">
+            Filter keys
+            <input className="filter-input" value={query} onChange={onQueryChange} />
+          </label>
+          {state.locales.map((locale) => (
+            <LocaleSection
+              key={locale.locale}
+              locale={locale}
+              query={query}
+              onSelectKey={setSelectedKey}
+            />
+          ))}
+        </>
+      )}
       {selectedKey !== null ? (
         <KeyDetailDrawer
           keyName={selectedKey}
