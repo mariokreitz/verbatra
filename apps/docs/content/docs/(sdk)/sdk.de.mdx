@@ -70,6 +70,8 @@ interface RunSummary {
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
   failed: string[];         // locales whose run failed
+  usage?: UsageSummary;     // summed input/output tokens across every locale; absent if none reported usage
+  budget?: RunBudget;       // present only when maxTokens is configured
 }
 
 interface LocaleSummary {
@@ -82,9 +84,24 @@ interface LocaleSummary {
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
   integrityMismatches: string[]; // translations withheld for a placeholder mismatch, never a provider failure
   providerFailures: string[];    // keys withheld because the provider call itself failed (see the notices for why)
+  budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
+}
+
+interface UsageSummary {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+interface RunBudget {
+  maxTokens: number;             // the configured ceiling
+  behavior: "warn" | "stop";     // the configured behavior once the ceiling is reached
+  supported: boolean;            // false when the configured provider never reported usage this run
+  tokensUsed: number;            // cumulative input plus output tokens across the run so far
+  exceeded: boolean;             // true once tokensUsed reached or passed maxTokens
 }
 
 // A notice is either a provider-emitted notice or an SDK-emitted one.
@@ -123,8 +140,17 @@ interface LocaleDiff {
 
 Hinweise leben pro Locale, auf `LocaleSummary.notices`. Sie decken Provider-Hinweise (etwa eine DeepL-
 Herabstufung) und SDK-Hinweise ab (etwa eine Zielsprache, die mehr CLDR-Plural-Kategorien braucht
-als die Quelle liefert, Code `PLURAL_CATEGORIES_INCOMPLETE`). Es gibt keine Hinweis-Liste auf oberster Ebene auf
+als die Quelle liefert, Code `PLURAL_CATEGORIES_INCOMPLETE`, oder ein überschrittenes Token-Budget, Code
+`BUDGET_TOKENS_EXCEEDED`). Es gibt keine Hinweis-Liste auf oberster Ebene auf
 `RunSummary`, also lies sie immer von der Locale ab.
+
+`usage` ist `undefined`, niemals ein erfundenes `{ inputTokens: 0, outputTokens: 0 }`, wann immer nichts
+in diesem Bereich Nutzung gemeldet hat: Ein Dry-Run ruft nie einen Provider auf, und ein token-loser
+Provider (DeepL) meldet nie eine. `RunSummary.usage` ist die Summe der `LocaleSummary.usage` jeder Locale.
+`RunSummary.budget` ist nur vorhanden, wenn `maxTokens` konfiguriert ist; gegenüber einem token-losen
+Provider oder einem Dry-Run ist es dennoch vorhanden, mit `supported: false`, `tokensUsed: 0` und
+`exceeded: false`, sodass die Schutzfunktion sichtbar und ehrlich inaktiv ist, statt stillschweigend
+wegzufallen oder fälschlich auszulösen.
 
 `SdkError` ist der eine Fehlertyp, den das SDK für Gesamtlauf-Fehler wirft. Er trägt einen stabilen `code`
 und eine geheimnisfreie `message`. Die Codes:
