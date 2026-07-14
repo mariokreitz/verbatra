@@ -86,7 +86,11 @@ function GlossaryEntries({
         {terms.map(([term, translation]) => (
           <tr key={term}>
             <td className="mono">{term}</td>
-            <td>{translation}</td>
+            {/* The glossary has no per-entry locale (it is one project-wide term map, see
+                sdk's VerbatraConfig.glossary), so which locale's script a preferred term is
+                written in cannot be known here. dir="auto" lets the browser infer direction
+                from the value's own first strong character instead of guessing a locale. */}
+            <td dir="auto">{translation}</td>
           </tr>
         ))}
       </tbody>
