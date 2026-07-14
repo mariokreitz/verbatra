@@ -2,14 +2,13 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { refreshBus, sessionStore } from "./api.js";
 import type { PanelProps } from "./panel-props.js";
-import { ConfigPanel } from "./panels/ConfigPanel.js";
 import { DiffPanel } from "./panels/DiffPanel.js";
 import { HistoryPanel } from "./panels/HistoryPanel.js";
 import { LockPanel } from "./panels/LockPanel.js";
 import { OverviewPanel } from "./panels/OverviewPanel.js";
 import { StatusPanel } from "./panels/StatusPanel.js";
 
-const TABS = ["overview", "status", "diff", "config", "lock", "history"] as const;
+const TABS = ["overview", "status", "diff", "lock", "history"] as const;
 
 type Tab = (typeof TABS)[number];
 
@@ -17,7 +16,6 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   overview: "Overview",
   status: "Status",
   diff: "Diff",
-  config: "Config",
   lock: "Lock",
   history: "History",
 };
@@ -29,7 +27,6 @@ const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,
   diff: DiffPanel,
-  config: ConfigPanel,
   lock: LockPanel,
   history: HistoryPanel,
 };

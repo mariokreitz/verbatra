@@ -7,19 +7,45 @@ import { Loading } from "./Loading.js";
 import type { HistoryState } from "./use-history-list.js";
 
 /**
- * One commit's summary line. Rendered through {@link renderCommitSummary} (`src/client/`, covered)
- * via a ref callback rather than direct JSX interpolation, so the commit's fields, including its
- * message, always reach the DOM through `textContent`, never `innerHTML`.
+ * The files a commit touched, from `history.list`'s `touchedPaths`. Rendered as a wrapping row of
+ * monospace path chips rather than appended to the summary line, since a commit can touch several
+ * locale files at once and the summary line already carries the hash, date, and subject.
+ */
+function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNode {
+  if (paths.length === 0) {
+    return null;
+  }
+  return (
+    <ul className="commit-touched-paths" aria-label="Files changed">
+      {paths.map((path) => (
+        <li key={path} className="commit-touched-path mono">
+          {path}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * One commit's summary line plus the files it touched. The summary is rendered through
+ * {@link renderCommitSummary} (`src/client/`, covered) via a ref callback rather than direct JSX
+ * interpolation, so the commit's fields, including its message, always reach the DOM through
+ * `textContent`, never `innerHTML`. `touchedPaths` carries no such requirement (it is a list of
+ * repository-relative file paths, not free-form commit text) and renders as ordinary JSX children.
  */
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   return (
-    <li
-      ref={(element) => {
-        if (element !== null) {
-          renderCommitSummary(element, commit);
-        }
-      }}
-    />
+    <li className="commit-row">
+      <p
+        className="commit-summary"
+        ref={(element) => {
+          if (element !== null) {
+            renderCommitSummary(element, commit);
+          }
+        }}
+      />
+      <TouchedPaths paths={commit.touchedPaths} />
+    </li>
   );
 }
 

@@ -207,17 +207,23 @@ input {
   margin: 0 0 var(--space-5);
 }
 
+/* 1280px comfortably fits the widest current surface (the locale x key status grid at a handful
+   of target locales) without the empty-chrome effect of stretching to the full viewport on a wide
+   monitor: every panel's actual content (tables, detail lists, commit history) is intrinsically
+   sized well under this, see the width rules on .data-table, .status-grid, and .detail-list below,
+   so raising this further would only add unused right-hand margin, not usable panel content. */
 .app-main-content {
-  max-width: 960px;
+  max-width: min(1280px, 100%);
 }
 
 /* Details lists (key/value panels) */
 
 .detail-list {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: max-content minmax(0, 480px);
   gap: var(--space-2) var(--space-5);
   margin: 0;
+  max-width: 760px;
 }
 
 .detail-list dt {
@@ -253,8 +259,13 @@ input {
 
 /* Tables */
 
+/* Sized to content rather than stretched to fill the panel: every column here (locale code,
+   percentage, counts, a status badge) is short and fixed-shape, so a width: 100% table on a wide
+   panel just stretches narrow columns into wide gaps of empty cell space instead of filling the
+   panel with more information. min-width keeps it from ever looking cramped on a narrow viewport. */
 .data-table {
-  width: 100%;
+  width: auto;
+  min-width: 480px;
   border-collapse: collapse;
 }
 
@@ -612,8 +623,13 @@ input {
   border-radius: var(--radius);
 }
 
+/* Sized to content, same rationale as .data-table above: the key and locale columns each carry a
+   min-width already (see .status-grid-key-header / .status-grid-locale-header), so the grid's own
+   width tracks how many locales are actually configured instead of stretching them to fill
+   whatever width the panel happens to have. .status-grid-scroll's horizontal scroll is the escape
+   hatch once a project has enough target locales to exceed the panel width. */
 .status-grid {
-  width: 100%;
+  width: auto;
   border-collapse: collapse;
 }
 
@@ -723,17 +739,41 @@ input {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-width: 860px;
   font-family: var(--font-mono);
   font-size: 0.85rem;
 }
 
-.commit-list li {
+.commit-row {
   padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
 }
 
-.commit-list li:last-child {
+.commit-row:last-child {
   border-bottom: none;
+}
+
+.commit-summary {
+  margin: 0;
+}
+
+/* One chip per file the commit touched (history.list's touchedPaths), wrapping onto as many lines
+   as needed rather than a single unreadable comma-joined string. */
+.commit-touched-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+
+.commit-touched-path {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  background: var(--color-neutral-soft);
+  border-radius: var(--radius);
+  padding: 2px var(--space-2);
 }
 
 /* Key detail drawer */
