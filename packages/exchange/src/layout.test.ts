@@ -11,13 +11,15 @@ describe("layout: column map", () => {
       translation: 5,
       sourceHash: 6,
       context: 7,
+      reviewStatus: 8,
+      reviewReasons: 9,
     });
   });
 
   it("assigns a unique consecutive index to every field starting at 1", () => {
     const indices = Object.values(COLUMN);
     const sorted = [...indices].sort((a, b) => a - b);
-    expect(sorted).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(sorted).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(new Set(indices).size).toBe(indices.length);
   });
 
@@ -28,6 +30,12 @@ describe("layout: column map", () => {
 
   it("appends context after source hash instead of inserting it before translation", () => {
     expect(COLUMN.context).toBeGreaterThan(COLUMN.sourceHash);
+    expect(COLUMN.translation).toBe(5);
+  });
+
+  it("appends the review columns after context instead of inserting them before translation", () => {
+    expect(COLUMN.reviewStatus).toBeGreaterThan(COLUMN.context);
+    expect(COLUMN.reviewReasons).toBeGreaterThan(COLUMN.reviewStatus);
     expect(COLUMN.translation).toBe(5);
   });
 });
@@ -42,6 +50,8 @@ describe("layout: headers", () => {
       "Translation",
       "Source hash",
       "Context",
+      "Review status",
+      "Review reasons",
     ]);
   });
 

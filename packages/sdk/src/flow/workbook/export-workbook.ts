@@ -1,6 +1,12 @@
 import { resolve } from "node:path";
-import { contentHash, diffResources, type LocaleResource } from "@verbatra/core";
-import { buildWorkbook, type WorkbookModel, type WorkbookRow } from "@verbatra/exchange";
+import { computeReviewFlags, type ReviewFlag } from "@verbatra/ai-providers";
+import { checkPlaceholders, contentHash, diffResources, type LocaleResource } from "@verbatra/core";
+import {
+  buildWorkbook,
+  type ReviewStatus,
+  type WorkbookModel,
+  type WorkbookRow,
+} from "@verbatra/exchange";
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
@@ -56,11 +62,62 @@ async function readTarget(
   return (await adapter.read(path, locale)).resource;
 }
 
+/** A reason code's lowercase-hyphenated label, e.g. "LENGTH_RATIO_OUTLIER" -> "length-ratio-outlier". */
+function reasonLabel(reason: string): string {
+  return reason.toLowerCase().replace(/_/g, "-");
+}
+
+/** Convert a recomputed {@link ReviewFlag} to the workbook row's plain-string review columns. */
+function reviewColumns(flag: ReviewFlag | undefined): {
+  reviewStatus: ReviewStatus;
+  reviewReasons: string;
+} {
+  if (flag === undefined) {
+    return { reviewStatus: "ok", reviewReasons: "" };
+  }
+  return { reviewStatus: "review", reviewReasons: flag.reasons.map(reasonLabel).join(", ") };
+}
+
+/**
+ * Recompute a row's review flags from on-disk source/current-target values, exactly like the
+ * translate-time heuristic, but never applying PROVIDER_DEGRADED: no provider call happens during
+ * export, so that fact does not exist here (see the manual-translation review-flags design).
+ */
+function computeRowReview(
+  adapter: FormatAdapter,
+  sourceValue: string,
+  currentTarget: string,
+  sourceLocale: string,
+  targetLocale: string,
+  glossary: Readonly<Record<string, string>> | undefined,
+): { reviewStatus: ReviewStatus; reviewReasons: string } {
+  if (currentTarget === "") {
+    return { reviewStatus: "ok", reviewReasons: "" };
+  }
+  const integrity =
+    adapter.comparePlaceholders?.(sourceValue, currentTarget) ??
+    checkPlaceholders(
+      adapter.extractPlaceholders(sourceValue),
+      adapter.extractPlaceholders(currentTarget),
+    );
+  const flag = computeReviewFlags({
+    sourceValue,
+    translatedValue: currentTarget,
+    sourceLocale,
+    targetLocale,
+    integrity,
+    glossary,
+  });
+  return reviewColumns(flag);
+}
+
 function buildRows(
   source: LocaleResource,
   target: LocaleResource,
   baseline: ReadonlyMap<string, string>,
   includeUnchanged: boolean,
+  adapter: FormatAdapter,
+  glossary: Readonly<Record<string, string>> | undefined,
 ): readonly WorkbookRow[] {
   const diff = diffResources(source, target, { baseline });
   const rows: WorkbookRow[] = [];
@@ -70,14 +127,23 @@ function buildRows(
       if (sourceEntry === undefined) {
         continue;
       }
+      const currentTarget = target.entries.get(key)?.value ?? "";
       rows.push({
         key,
         source: sourceEntry.value,
-        currentTarget: target.entries.get(key)?.value ?? "",
+        currentTarget,
         status,
         sourceHash: contentHash(sourceEntry),
         translation: "",
         context: sourceEntry.description ?? "",
+        ...computeRowReview(
+          adapter,
+          sourceEntry.value,
+          currentTarget,
+          source.locale,
+          target.locale,
+          glossary,
+        ),
       });
     }
   };
@@ -124,6 +190,8 @@ export async function exportWorkbook(
         target,
         baselineFor(lock, locale),
         input.includeUnchanged ?? false,
+        adapter,
+        config.glossary,
       );
       return { locale, rows };
     }),

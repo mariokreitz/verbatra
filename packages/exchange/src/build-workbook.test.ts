@@ -18,6 +18,8 @@ const model: WorkbookModel = {
           sourceHash: "abc123",
           translation: "",
           context: "A friendly greeting shown on the home screen",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
       ],
     },
@@ -73,6 +75,8 @@ describe("buildWorkbook: translator-facing properties", () => {
       COLUMN.status,
       COLUMN.sourceHash,
       COLUMN.context,
+      COLUMN.reviewStatus,
+      COLUMN.reviewReasons,
     ];
     for (const column of lockedColumns) {
       expect(dataRow?.getCell(column).protection?.locked).not.toBe(false);
@@ -116,6 +120,66 @@ describe("buildWorkbook: translator-facing properties", () => {
   });
 });
 
+describe("buildWorkbook: review columns", () => {
+  const flagged: WorkbookModel = {
+    sheets: [
+      {
+        locale: "de",
+        rows: [
+          {
+            key: "greeting",
+            source: "Hello {name}",
+            currentTarget: "Hello {name}",
+            status: "changed",
+            sourceHash: "abc123",
+            translation: "",
+            context: "",
+            reviewStatus: "review",
+            reviewReasons: "length-ratio-outlier, equals-source",
+          },
+        ],
+      },
+    ],
+  };
+
+  it("writes reviewStatus and reviewReasons under the documented headers, in order", async () => {
+    const workbook = await loadBuilt(flagged);
+    const sheet = workbook.getWorksheet("de");
+    const header = sheet?.getRow(HEADER_ROW);
+    expect(header?.getCell(COLUMN.reviewStatus).value).toBe("Review status");
+    expect(header?.getCell(COLUMN.reviewReasons).value).toBe("Review reasons");
+    expect(COLUMN.reviewReasons).toBe(COLUMN.reviewStatus + 1);
+  });
+
+  it("writes the row's review status and reasons read-only", async () => {
+    const workbook = await loadBuilt(flagged);
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.reviewStatus).value).toBe("review");
+    expect(dataRow?.getCell(COLUMN.reviewReasons).value).toBe(
+      "length-ratio-outlier, equals-source",
+    );
+    expect(dataRow?.getCell(COLUMN.reviewStatus).protection?.locked).not.toBe(false);
+    expect(dataRow?.getCell(COLUMN.reviewReasons).protection?.locked).not.toBe(false);
+  });
+
+  it("writes an ok review status with empty reasons for a clean row", async () => {
+    const workbook = await loadBuilt();
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.reviewStatus).value).toBe("ok");
+    expect(dataRow?.getCell(COLUMN.reviewReasons).value).toBe("");
+  });
+
+  it("does not format the review columns as text, like the other read-only columns", async () => {
+    const workbook = await loadBuilt(flagged);
+    const sheet = workbook.getWorksheet("de");
+    const dataRow = sheet?.getRow(HEADER_ROW + 1);
+    expect(dataRow?.getCell(COLUMN.reviewStatus).numFmt).not.toBe("@");
+    expect(dataRow?.getCell(COLUMN.reviewReasons).numFmt).not.toBe("@");
+  });
+});
+
 describe("buildWorkbook: translation column text format", () => {
   it("formats a filled translation cell as text so Excel cannot coerce typed input", async () => {
     const workbook = await loadBuilt();
@@ -138,6 +202,8 @@ describe("buildWorkbook: translation column text format", () => {
               sourceHash: "abc123",
               translation: "",
               context: "",
+              reviewStatus: "ok",
+              reviewReasons: "",
             },
           ],
         },

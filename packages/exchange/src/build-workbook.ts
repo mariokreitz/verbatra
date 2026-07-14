@@ -23,6 +23,8 @@ const COLUMN_WIDTHS: Readonly<Record<number, number>> = {
   [COLUMN.status]: 12,
   [COLUMN.translation]: 50,
   [COLUMN.context]: 50,
+  [COLUMN.reviewStatus]: 12,
+  [COLUMN.reviewReasons]: 40,
 };
 
 /**
@@ -68,10 +70,12 @@ function writeRow(sheet: ExcelJS.Worksheet, sheetRow: WorkbookSheet["rows"][numb
   translationCell.value = sheetRow.translation === "" ? null : sheetRow.translation;
   row.getCell(COLUMN.sourceHash).value = sheetRow.sourceHash;
   row.getCell(COLUMN.context).value = sheetRow.context;
+  row.getCell(COLUMN.reviewStatus).value = sheetRow.reviewStatus;
+  row.getCell(COLUMN.reviewReasons).value = sheetRow.reviewReasons;
 
   // COLUMN holds literal indexes, so without widening the loop variable to `number` control flow
   // narrows it and TS reports the `!== COLUMN.translation` comparison as having no overlap (TS2367).
-  for (let column: number = COLUMN.key; column <= COLUMN.context; column += 1) {
+  for (let column: number = COLUMN.key; column <= COLUMN.reviewReasons; column += 1) {
     const cell = row.getCell(column);
     cell.protection = { locked: column !== COLUMN.translation };
     if (column !== COLUMN.translation) {

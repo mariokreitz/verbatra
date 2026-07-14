@@ -20,6 +20,8 @@ const model: WorkbookModel = {
           sourceHash: "h1",
           translation: "",
           context: "",
+          reviewStatus: "ok",
+          reviewReasons: "",
         },
       ],
     },

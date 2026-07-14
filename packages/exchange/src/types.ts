@@ -6,6 +6,12 @@
 /** The diff bucket a row was exported under, shown to the translator as the row's status. */
 export type RowStatus = "new" | "changed" | "unchanged";
 
+/**
+ * Whether a row's translation was flagged by the review heuristics for a second look. Read-only and
+ * advisory, never a gate: a translator cannot clear it by editing a cell, and import never inspects it.
+ */
+export type ReviewStatus = "ok" | "review";
+
 /** One exported/imported translation row, identified by its dotted key path, never by position. */
 export interface WorkbookRow {
   /** The dotted key path. The sole round-trip identity; a row with no key is rejected on read. */
@@ -30,6 +36,13 @@ export interface WorkbookRow {
    * it back yields an empty string, so import stays backward-compatible.
    */
   readonly context: string;
+  /** Whether the row was flagged for human review by the review heuristics. Read-only, never a gate. */
+  readonly reviewStatus: ReviewStatus;
+  /**
+   * A comma-and-space-joined, lowercase-hyphenated list of reason labels (for example
+   * `"length-ratio-outlier, equals-source"`); empty when `reviewStatus` is `"ok"`.
+   */
+  readonly reviewReasons: string;
 }
 
 /** One target-locale data sheet: its locale and the rows to translate, in a stable order. */
