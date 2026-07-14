@@ -15,8 +15,3 @@ function primarySubtag(locale: string): string {
 export function isRtlLocale(locale: string): boolean {
   return RTL_LANGUAGE_SUBTAGS.has(primarySubtag(locale));
 }
-
-/** The `dir` attribute value for `locale`: `"rtl"` for a known right-to-left language, `"ltr"` otherwise. */
-export function textDirectionForLocale(locale: string): "rtl" | "ltr" {
-  return isRtlLocale(locale) ? "rtl" : "ltr";
-}

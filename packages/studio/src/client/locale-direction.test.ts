@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRtlLocale, textDirectionForLocale } from "./locale-direction.js";
+import { isRtlLocale } from "./locale-direction.js";
 
 describe("isRtlLocale", () => {
   it("recognizes every known right-to-left base subtag", () => {
@@ -26,15 +26,5 @@ describe("isRtlLocale", () => {
 
   it("returns false for an empty string", () => {
     expect(isRtlLocale("")).toBe(false);
-  });
-});
-
-describe("textDirectionForLocale", () => {
-  it("returns rtl for a known right-to-left locale", () => {
-    expect(textDirectionForLocale("ar")).toBe("rtl");
-  });
-
-  it("returns ltr for every other locale", () => {
-    expect(textDirectionForLocale("fr")).toBe("ltr");
   });
 });

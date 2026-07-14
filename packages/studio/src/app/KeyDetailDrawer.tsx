@@ -1,22 +1,12 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
 import type { DiffLocale, KeyLocaleStatusRow } from "../client/diff-view.js";
 import { deriveKeyLocaleStatus } from "../client/diff-view.js";
 import { isRtlLocale } from "../client/locale-direction.js";
-import { renderCommitSummary } from "../client/render-text.js";
-import type { HistoryCommit } from "../shared/rpc/history.js";
-import { rpcClient } from "./api.js";
 import { Badge } from "./Badge.js";
+import { CommitList } from "./CommitList.js";
 import { DiffBadge } from "./DiffBadge.js";
-import { ErrorMessage } from "./ErrorMessage.js";
-import { Loading } from "./Loading.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
-
-type HistoryState =
-  | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
-  | { readonly kind: "unavailable" }
-  | { readonly kind: "loaded"; readonly commits: readonly HistoryCommit[] };
+import { useHistoryList } from "./use-history-list.js";
 
 export interface KeyDetailDrawerProps {
   /** The key this drawer reports on. */
@@ -38,45 +28,6 @@ function LocaleStatusRow({ row }: { readonly row: KeyLocaleStatusRow }): ReactNo
         )}
       </td>
     </tr>
-  );
-}
-
-function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
-  return (
-    <li
-      ref={(element) => {
-        if (element !== null) {
-          renderCommitSummary(element, commit);
-        }
-      }}
-    />
-  );
-}
-
-function HistorySection({ state }: { readonly state: HistoryState }): ReactNode {
-  if (state.kind === "loading") {
-    return <Loading />;
-  }
-  if (state.kind === "error") {
-    return <ErrorMessage message={state.message} />;
-  }
-  if (state.kind === "unavailable") {
-    return (
-      <p className="empty-state-inline">
-        <Badge tone="neutral">Unavailable</Badge> This project is not a git repository, or git is
-        not installed.
-      </p>
-    );
-  }
-  if (state.commits.length === 0) {
-    return <p className="empty-state-inline">No commit history yet for the locale files.</p>;
-  }
-  return (
-    <ul className="commit-list">
-      {state.commits.map((commit) => (
-        <CommitRow commit={commit} key={commit.hash} />
-      ))}
-    </ul>
   );
 }
 
@@ -104,29 +55,8 @@ function HistorySection({ state }: { readonly state: HistoryState }): ReactNode 
  * isolation rather than in a browser.
  */
 export function KeyDetailDrawer({ keyName, locales, onClose }: KeyDetailDrawerProps): ReactNode {
-  const [history, setHistory] = useState<HistoryState>({ kind: "loading" });
+  const history = useHistoryList();
   const containerRef = useDialogA11y<HTMLDivElement>({ isOpen: true, onClose });
-
-  useEffect(() => {
-    let cancelled = false;
-    void rpcClient.call("history.list", {}).then((response) => {
-      if (cancelled) {
-        return;
-      }
-      if (!response.ok) {
-        setHistory({ kind: "error", message: response.error.message });
-        return;
-      }
-      if (!response.result.available) {
-        setHistory({ kind: "unavailable" });
-        return;
-      }
-      setHistory({ kind: "loaded", commits: response.result.commits });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const rows = deriveKeyLocaleStatus(locales, keyName);
 
@@ -172,7 +102,11 @@ export function KeyDetailDrawer({ keyName, locales, onClose }: KeyDetailDrawerPr
           <p className="panel-intro">
             Commit history for this project's locale files, not filtered to this key.
           </p>
-          <HistorySection state={history} />
+          <CommitList
+            state={history}
+            emptyClassName="empty-state-inline"
+            emptyMessage="No commit history yet for the locale files."
+          />
         </section>
       </div>
     </div>

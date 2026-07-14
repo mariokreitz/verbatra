@@ -285,11 +285,14 @@ input {
   font-size: 0.9rem;
 }
 
-/* Badges: the status vocabulary (success/warning/neutral/danger), answering "is this correct".
-   Every tone pairs its color with a glyph and a border-inline-start accent, so the signal never
-   rests on color alone. */
+/* Badges: Badge is the status vocabulary (success/warning/neutral/danger), answering "is this
+   correct". DiffBadge is a separate vocabulary, answering "what kind of change is this", styled
+   from the --diff-* token family. Both share the same shape and glyph-plus-border-inline-start
+   pairing so the signal never rests on color alone; only the per-tone color rules below differ
+   between the two vocabularies. */
 
-.badge {
+.badge,
+.diff-badge {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -302,7 +305,8 @@ input {
   border-inline-start: 3px solid transparent;
 }
 
-.badge-glyph {
+.badge-glyph,
+.diff-badge-glyph {
   font-family: var(--font-mono);
   font-weight: 700;
 }
@@ -329,27 +333,6 @@ input {
   color: var(--color-danger);
   background: var(--color-danger-soft);
   border-inline-start-color: var(--color-danger);
-}
-
-/* Diff badges: a separate vocabulary from Badge, answering "what kind of change is this", styled
-   from the --diff-* token family. Same glyph-plus-border pairing pattern as Badge. */
-
-.diff-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  border-inline-start: 3px solid transparent;
-}
-
-.diff-badge-glyph {
-  font-family: var(--font-mono);
-  font-weight: 700;
 }
 
 .diff-badge-missing {
