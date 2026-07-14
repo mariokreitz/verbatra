@@ -6,6 +6,7 @@ import type {
   TranslateRequest,
   TranslateResult,
   TranslationProvider,
+  Usage,
 } from "@verbatra/ai-providers";
 import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
 import type { VerbatraConfig } from "./config/schema.js";
@@ -29,6 +30,12 @@ export interface StubOptions {
   readonly notices?: readonly ProviderNotice[];
   readonly throwForLocales?: ReadonlySet<string>;
   readonly error?: Error;
+  /**
+   * Token usage to report on every successful `translateBatch` call, simulating a usage-reporting
+   * provider. Absent by default, matching a token-less provider (DeepL) or a provider whose SDK response
+   * mapping omits usage.
+   */
+  readonly usage?: Usage;
 }
 
 export interface StubProvider {
@@ -75,10 +82,12 @@ export function makeStubProvider(options: StubOptions = {}): StubProvider {
         values.set(entry.key, translate(entry.value, entry.key, request.targetLocale));
         integrity.set(entry.key, options.failIntegrity?.has(entry.key) === true ? FAIL : PASS);
       }
-      const result: TranslateResult & { notices?: readonly ProviderNotice[] } =
-        options.notices !== undefined
-          ? { values, integrity, notices: options.notices }
-          : { values, integrity };
+      const result: TranslateResult = {
+        values,
+        integrity,
+        ...(options.notices !== undefined ? { notices: options.notices } : {}),
+        ...(options.usage !== undefined ? { usage: options.usage } : {}),
+      };
       return result;
     },
   };

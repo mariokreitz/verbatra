@@ -176,6 +176,8 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     integrityMismatches: [...buckets.mismatches].sort(),
     // A workbook import never calls a provider, so a provider-call failure cannot occur here.
     providerFailures: [],
+    // A workbook import never calls a provider, so the budget guardrail never withholds anything here.
+    budgetWithheld: [],
     // Plural generation is a translate-flow concern; the manual workbook import never generates forms.
     generated: [],
     notices:

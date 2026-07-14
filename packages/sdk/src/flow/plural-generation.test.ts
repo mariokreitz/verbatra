@@ -19,6 +19,7 @@ import {
   readTextFile,
   writeJsonFile,
 } from "../test-support.js";
+import { createBudgetTracker } from "./budget.js";
 import { generatePluralForms, type PluralGenerationContext } from "./plural-generation.js";
 import { translate } from "./translate-project.js";
 
@@ -655,6 +656,88 @@ describe("translate: plural generation respects maxBatchSize", () => {
   });
 });
 
+describe("translate: plural generation and the token budget", () => {
+  it("counts plural-generation usage alongside main-translation usage in the locale total", async () => {
+    const usage = { inputTokens: 10, outputTokens: 10 };
+
+    const withGenerationDir = await project(PLURAL_SOURCE, { pl: {} });
+    const withGeneration = await translate(
+      { config: cfg(), cwd: withGenerationDir, generatePlurals: true },
+      { createProvider: () => makeStubProvider({ usage }).provider },
+    );
+
+    const withoutGenerationDir = await project(PLURAL_SOURCE, { pl: {} });
+    const withoutGeneration = await translate(
+      { config: cfg(), cwd: withoutGenerationDir, generatePlurals: false },
+      { createProvider: () => makeStubProvider({ usage }).provider },
+    );
+
+    const withTokens = withGeneration.locales[0]?.usage;
+    const withoutTokens = withoutGeneration.locales[0]?.usage;
+    expect(withTokens).toBeDefined();
+    expect(withoutTokens).toBeDefined();
+    const withTotal = (withTokens?.inputTokens ?? 0) + (withTokens?.outputTokens ?? 0);
+    const withoutTotal = (withoutTokens?.inputTokens ?? 0) + (withoutTokens?.outputTokens ?? 0);
+    expect(withTotal).toBeGreaterThan(withoutTotal);
+  });
+
+  it("skips generation entirely once the budget already stopped during main translation", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: {} });
+    const stub = makeStubProvider({ usage: { inputTokens: 60, outputTokens: 40 } });
+
+    const summary = await translate(
+      {
+        config: cfg({ maxTokens: 50, budgetBehavior: "stop" }),
+        cwd: dir,
+        generatePlurals: true,
+      },
+      { createProvider: () => stub.provider },
+    );
+
+    const locale = summary.locales[0];
+    // Main translation (items_one, items_other) trips the budget on its only sub-batch and is accepted;
+    // generation's stale items (items_few, items_many) are never sent to the provider.
+    expect([...(locale?.translated ?? [])].sort()).toEqual(["items_one", "items_other"]);
+    expect(locale?.generated).toEqual([]);
+    expect([...(locale?.budgetWithheld ?? [])].sort()).toEqual(["items_few", "items_many"]);
+    expect(locale?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
+
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBeUndefined();
+    expect(pl.items_many).toBeUndefined();
+  });
+
+  it("trips the budget during generation's own sub-batches, withholding the remaining generation batch", async () => {
+    // Main translation has nothing new to send (items_one/items_other are already unchanged), so the
+    // trip must happen inside generation's own sub-batches: [items_zero, items_two] then [items_few,
+    // items_many], chunked at size 2.
+    const dir = await project(PLURAL_SOURCE, {
+      ar: { items_one: "seeded one", items_other: "seeded other" },
+    });
+    const stub = makeStubProvider({ usage: { inputTokens: 60, outputTokens: 40 } });
+
+    const summary = await translate(
+      {
+        config: cfg({
+          targetLocales: ["ar"],
+          maxBatchSize: 2,
+          maxTokens: 100,
+          budgetBehavior: "stop",
+        }),
+        cwd: dir,
+        generatePlurals: true,
+      },
+      { createProvider: () => stub.provider },
+    );
+
+    const locale = summary.locales[0];
+    expect([...(locale?.generated ?? [])].sort()).toEqual(["items_two", "items_zero"]);
+    expect([...(locale?.budgetWithheld ?? [])].sort()).toEqual(["items_few", "items_many"]);
+    expect(locale?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
+    expect(locale?.status).toBe("succeeded");
+  });
+});
+
 describe("translate: a failed plural-generation sub-batch does not discard accepted work", () => {
   it("withholds only the thrown sub-batch's forms; main translations and the other sub-batch survive", async () => {
     // ar: four stale forms (zero, two, few, many) chunked at size 2 -> [zero, two] then [few, many].
@@ -778,6 +861,7 @@ describe("generatePluralForms: comparePlaceholders wiring (the second buildReque
       tone: undefined,
       baseline: new Map(),
       maxBatchSize: 50,
+      budget: createBudgetTracker(undefined, "warn"),
     };
   }
 

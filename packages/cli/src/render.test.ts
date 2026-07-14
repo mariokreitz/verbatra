@@ -241,6 +241,92 @@ describe("render: human run summary", () => {
     expect(text).toContain("fr: failed");
     expect(text).not.toContain("[");
   });
+
+  it("shows the budget-withheld count only when non-zero", () => {
+    const withheld = renderHuman(
+      makeSummary({ locales: [makeLocale({ budgetWithheld: ["a", "b"] })] }),
+    );
+    expect(withheld).toContain("2 budget-withheld");
+
+    const none = renderHuman(makeSummary({ locales: [makeLocale()] }));
+    expect(none).not.toContain("budget-withheld");
+  });
+
+  it("shows per-locale token counts when usage is present, and omits them when absent", () => {
+    const withUsage = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ usage: { inputTokens: 100, outputTokens: 50 } })],
+      }),
+    );
+    expect(withUsage).toContain("150 tokens (100 in, 50 out)");
+
+    const withoutUsage = renderHuman(makeSummary({ locales: [makeLocale()] }));
+    expect(withoutUsage).not.toContain("tokens");
+  });
+
+  it("shows a run-aggregate token line when RunSummary.usage is defined", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ usage: { inputTokens: 100, outputTokens: 50 } })],
+        usage: { inputTokens: 100, outputTokens: 50 },
+      }),
+    );
+    expect(text).toContain("total: 150 tokens (100 in, 50 out)");
+  });
+
+  it("omits the run-aggregate token line when RunSummary.usage is absent", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale()] }));
+    expect(text).not.toContain("total:");
+  });
+
+  it("shows a budget line with the ceiling, tokens used, and exceeded status", () => {
+    const exceeded = renderHuman(
+      makeSummary({
+        budget: {
+          maxTokens: 1000,
+          behavior: "stop",
+          supported: true,
+          tokensUsed: 1200,
+          exceeded: true,
+        },
+      }),
+    );
+    expect(exceeded).toContain("budget: 1200/1000 tokens (stop), exceeded");
+
+    const withinBudget = renderHuman(
+      makeSummary({
+        budget: {
+          maxTokens: 1000,
+          behavior: "warn",
+          supported: true,
+          tokensUsed: 200,
+          exceeded: false,
+        },
+      }),
+    );
+    expect(withinBudget).toContain("budget: 200/1000 tokens (warn), within budget");
+  });
+
+  it("renders the supported: false case as an explicit inert guardrail, not silently omitted", () => {
+    const text = renderHuman(
+      makeSummary({
+        budget: {
+          maxTokens: 500,
+          behavior: "warn",
+          supported: false,
+          tokensUsed: 0,
+          exceeded: false,
+        },
+      }),
+    );
+    expect(text).toContain("budget: 500 tokens configured (warn)");
+    expect(text).toContain("not supported by this provider");
+  });
+
+  it("omits the budget line entirely when no budget is configured", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale()] }));
+    expect(text).not.toContain("budget:");
+  });
 });
 
 describe("render: json and errors", () => {

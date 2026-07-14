@@ -163,4 +163,49 @@ describe("loadConfig", () => {
       code: "CONFIG_INVALID",
     });
   });
+
+  it("accepts a positive-integer maxTokens and loads it unchanged", async () => {
+    const config = await loadConfig({ configOverride: { ...baseConfig(), maxTokens: 50000 } });
+    expect(config.maxTokens).toBe(50000);
+  });
+
+  it("leaves maxTokens undefined when absent, so no budget is enforced", async () => {
+    const config = await loadConfig({ configOverride: baseConfig() });
+    expect(config.maxTokens).toBeUndefined();
+  });
+
+  it("rejects a non-positive, non-integer, or non-number maxTokens as CONFIG_INVALID", async () => {
+    for (const value of [0, -5, 1.5, "50000"]) {
+      const bad = { ...baseConfig(), maxTokens: value };
+      await expect(loadConfig({ configOverride: bad })).rejects.toMatchObject({
+        code: "CONFIG_INVALID",
+      });
+    }
+  });
+
+  it("accepts 'warn' and 'stop' as budgetBehavior", async () => {
+    const warn = await loadConfig({
+      configOverride: { ...baseConfig(), maxTokens: 100, budgetBehavior: "warn" },
+    });
+    expect(warn.budgetBehavior).toBe("warn");
+    const stop = await loadConfig({
+      configOverride: { ...baseConfig(), maxTokens: 100, budgetBehavior: "stop" },
+    });
+    expect(stop.budgetBehavior).toBe("stop");
+  });
+
+  it("rejects an unrecognized budgetBehavior value as CONFIG_INVALID", async () => {
+    const bad = { ...baseConfig(), maxTokens: 100, budgetBehavior: "abort" };
+    await expect(loadConfig({ configOverride: bad })).rejects.toMatchObject({
+      code: "CONFIG_INVALID",
+    });
+  });
+
+  it("accepts budgetBehavior without maxTokens with no validation error", async () => {
+    const config = await loadConfig({
+      configOverride: { ...baseConfig(), budgetBehavior: "stop" },
+    });
+    expect(config.budgetBehavior).toBe("stop");
+    expect(config.maxTokens).toBeUndefined();
+  });
 });

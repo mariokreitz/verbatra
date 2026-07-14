@@ -53,11 +53,14 @@ export {
   lockState,
 } from "./flow/lock-state.js";
 export type {
+  BudgetBehavior,
   LocaleNotice,
   LocaleSummary,
+  RunBudget,
   RunSummary,
   SdkNotice,
   SdkNoticeCode,
+  UsageSummary,
 } from "./flow/summary.js";
 export {
   type TranslateDeps,

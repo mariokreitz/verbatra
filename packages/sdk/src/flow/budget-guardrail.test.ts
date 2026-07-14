@@ -1,0 +1,339 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import type {
+  TranslateRequest,
+  TranslateResult,
+  TranslationProvider,
+  Usage,
+} from "@verbatra/ai-providers";
+import type { PlaceholderIntegrityResult } from "@verbatra/core";
+import { describe, expect, it } from "vitest";
+import type { VerbatraConfig } from "../config/schema.js";
+import { baseConfig, makeStubProvider, makeTempDir, readJsonFile } from "../test-support.js";
+import { translate } from "./translate-project.js";
+
+async function project(
+  source: Record<string, unknown>,
+  targets: Record<string, Record<string, unknown> | undefined>,
+): Promise<string> {
+  const dir = await makeTempDir();
+  await mkdir(join(dir, "locales"));
+  await writeFile(join(dir, "locales", "en.json"), `${JSON.stringify(source, null, 2)}\n`, "utf8");
+  for (const [locale, obj] of Object.entries(targets)) {
+    if (obj !== undefined) {
+      await writeFile(
+        join(dir, "locales", `${locale}.json`),
+        `${JSON.stringify(obj, null, 2)}\n`,
+        "utf8",
+      );
+    }
+  }
+  return dir;
+}
+
+function keyedSource(count: number): Record<string, string> {
+  const source: Record<string, string> = {};
+  for (let index = 0; index < count; index += 1) {
+    source[`k${index}`] = `v${index}`;
+  }
+  return source;
+}
+
+const cfg = (overrides: Partial<VerbatraConfig> = {}): VerbatraConfig =>
+  baseConfig({ targetLocales: ["de"], ...overrides });
+
+function targetPath(dir: string, locale: string): string {
+  return join(dir, "locales", `${locale}.json`);
+}
+
+async function readLock(dir: string): Promise<Record<string, Record<string, string>>> {
+  const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+    locales: Record<string, Record<string, string>>;
+  };
+  return lock.locales;
+}
+
+const USAGE_100: Usage = { inputTokens: 60, outputTokens: 40 };
+
+describe("translate: usage aggregation", () => {
+  it("stays undefined for every locale and the run when nothing reported usage (dry-run)", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+
+    const summary = await translate({ config: cfg(), cwd: dir, dryRun: true });
+
+    expect(summary.usage).toBeUndefined();
+    expect(summary.locales[0]?.usage).toBeUndefined();
+  });
+
+  it("sums a single sub-batch's usage onto the locale and the run", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.usage).toEqual({ inputTokens: 60, outputTokens: 40 });
+    expect(summary.usage).toEqual({ inputTokens: 60, outputTokens: 40 });
+  });
+
+  it("sums multiple sub-batches within one locale", async () => {
+    const dir = await project(keyedSource(4), { de: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 2 }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    // 4 entries / 2 per batch -> 2 calls, 100 tokens each.
+    expect(summary.locales[0]?.usage).toEqual({ inputTokens: 120, outputTokens: 80 });
+    expect(summary.usage).toEqual({ inputTokens: 120, outputTokens: 80 });
+  });
+
+  it("sums usage across multiple locales onto the run total", async () => {
+    const dir = await project(keyedSource(2), { de: undefined, fr: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales.map((l) => l.usage)).toEqual([
+      { inputTokens: 60, outputTokens: 40 },
+      { inputTokens: 60, outputTokens: 40 },
+    ]);
+    expect(summary.usage).toEqual({ inputTokens: 120, outputTokens: 80 });
+  });
+
+  it("a sub-batch whose provider call throws contributes nothing to the total", async () => {
+    const dir = await project(keyedSource(4), { de: undefined });
+    let call = 0;
+    const provider: TranslationProvider = {
+      id: "flaky",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: (request: TranslateRequest): Promise<TranslateResult> => {
+        call += 1;
+        if (call === 2) {
+          return Promise.reject(new Error("boom"));
+        }
+        const values = new Map<string, string>();
+        const integrity = new Map<string, PlaceholderIntegrityResult>();
+        for (const entry of request.entries) {
+          values.set(entry.key, `[${request.targetLocale}] ${entry.value}`);
+          integrity.set(entry.key, { matches: true, missing: [], extra: [], reordered: false });
+        }
+        return Promise.resolve({ values, integrity, usage: USAGE_100 });
+      },
+    };
+
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 2 }), cwd: dir },
+      { createProvider: () => provider },
+    );
+
+    // Only the first (successful) sub-batch's usage counts; the thrown second sub-batch contributes nothing.
+    expect(summary.locales[0]?.usage).toEqual({ inputTokens: 60, outputTokens: 40 });
+  });
+});
+
+describe("translate: budget just-under the ceiling", () => {
+  it("leaves exceeded false and withholds nothing when the total stays under maxTokens", async () => {
+    const dir = await project(keyedSource(2), { de: undefined, fr: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["de", "fr"], maxTokens: 1000 }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.budget).toEqual({
+      maxTokens: 1000,
+      behavior: "warn",
+      supported: true,
+      tokensUsed: 200,
+      exceeded: false,
+    });
+    expect(summary.locales.flatMap((l) => l.budgetWithheld)).toEqual([]);
+    expect(
+      summary.locales.every((l) => l.notices.every((n) => n.code !== "BUDGET_TOKENS_EXCEEDED")),
+    ).toBe(true);
+  });
+});
+
+describe("translate: budget crossed, warn behavior", () => {
+  it("continues the run fully, withholds nothing, and adds exactly one notice on the tripping locale", async () => {
+    const dir = await project(keyedSource(2), { de: undefined, fr: undefined, it: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      {
+        config: cfg({ targetLocales: ["de", "fr", "it"], maxTokens: 50, budgetBehavior: "warn" }),
+        cwd: dir,
+      },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.budget?.exceeded).toBe(true);
+    expect(summary.budget?.behavior).toBe("warn");
+    expect(summary.locales.every((l) => l.status === "succeeded")).toBe(true);
+    expect(summary.locales.flatMap((l) => l.translated)).toEqual([
+      "k0",
+      "k1",
+      "k0",
+      "k1",
+      "k0",
+      "k1",
+    ]);
+    expect(summary.locales.flatMap((l) => l.budgetWithheld)).toEqual([]);
+
+    const notices = summary.locales.flatMap((l) => l.notices.map((n) => n.code));
+    expect(notices.filter((code) => code === "BUDGET_TOKENS_EXCEEDED")).toHaveLength(1);
+    expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
+  });
+});
+
+describe("translate: budget crossed, stop behavior", () => {
+  it("accepts the crossing sub-batch, withholds later sub-batches in-locale, and skips later locales entirely", async () => {
+    // maxBatchSize 2 over 6 entries -> 3 sub-batches of 2, 100 tokens each. maxTokens 150 trips after
+    // the second sub-batch (200 >= 150); the third sub-batch's keys are withheld.
+    const dir = await project(keyedSource(6), { de: undefined, fr: undefined });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+
+    const summary = await translate(
+      {
+        config: cfg({
+          targetLocales: ["de", "fr"],
+          maxBatchSize: 2,
+          maxTokens: 150,
+          budgetBehavior: "stop",
+        }),
+        cwd: dir,
+      },
+      { createProvider: () => stub.provider },
+    );
+
+    const de = summary.locales.find((l) => l.locale === "de");
+    const fr = summary.locales.find((l) => l.locale === "fr");
+
+    expect(de?.status).toBe("succeeded");
+    expect([...(de?.translated ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3"]);
+    expect(de?.budgetWithheld).toEqual(["k4", "k5"]);
+    expect(de?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
+
+    expect(fr?.status).toBe("succeeded");
+    expect(fr?.translated).toEqual([]);
+    expect([...(fr?.budgetWithheld ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3", "k4", "k5"]);
+    expect(fr?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
+
+    // The exit-code-relevant field is unaffected: no locale ever failed because of a budget trip.
+    expect(summary.failed).toEqual([]);
+
+    // The crossing sub-batch's tokens are retained and counted, so tokensUsed (200) may exceed
+    // maxTokens (150); the ceiling is a post-hoc soft cap, never retroactively undone.
+    expect(summary.budget).toEqual({
+      maxTokens: 150,
+      behavior: "stop",
+      supported: true,
+      tokensUsed: 200,
+      exceeded: true,
+    });
+
+    const deFile = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect(deFile.k0).toBe("[de] v0");
+    expect(deFile.k4).toBeUndefined();
+  });
+});
+
+describe("translate: budget-withheld keys retry next run", () => {
+  it("keeps a withheld changed key's prior lock hash, then translates it once the budget allows", async () => {
+    const dir = await project(keyedSource(1), { de: undefined, fr: { k0: "[fr] v0" } });
+
+    // Run 0: establish fr's baseline lock entry for k0 with no budget configured.
+    const stub0 = makeStubProvider();
+    await translate(
+      { config: cfg({ targetLocales: ["fr"] }), cwd: dir },
+      { createProvider: () => stub0.provider },
+    );
+    const baselineHash = (await readLock(dir)).fr?.k0;
+    expect(baselineHash).toBeDefined();
+
+    // Drift the source so fr's k0 becomes "changed" against that baseline.
+    await writeFile(
+      join(dir, "locales", "en.json"),
+      `${JSON.stringify({ k0: "v0-changed" }, null, 2)}\n`,
+      "utf8",
+    );
+
+    // Run 1: "de" trips the budget on its only sub-batch; "fr" starts already stopped, so its changed
+    // key k0 is never sent and must keep the baseline hash, not advance to the new source hash.
+    const stub1 = makeStubProvider({ usage: USAGE_100 });
+    const run1 = await translate(
+      {
+        config: cfg({ targetLocales: ["de", "fr"], maxTokens: 50, budgetBehavior: "stop" }),
+        cwd: dir,
+      },
+      { createProvider: () => stub1.provider },
+    );
+
+    const fr1 = run1.locales.find((l) => l.locale === "fr");
+    expect(fr1?.budgetWithheld).toEqual(["k0"]);
+    expect((await readLock(dir)).fr?.k0).toBe(baselineHash);
+    const frFileAfterRun1 = (await readJsonFile(targetPath(dir, "fr"))) as Record<string, string>;
+    expect(frFileAfterRun1.k0).toBe("[fr] v0");
+
+    // Run 2: no budget configured, so fr's k0 is picked up as changed and translated.
+    const stub2 = makeStubProvider();
+    const run2 = await translate(
+      { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },
+      { createProvider: () => stub2.provider },
+    );
+
+    const fr2 = run2.locales.find((l) => l.locale === "fr");
+    expect(fr2?.translated).toEqual(["k0"]);
+    const frFileAfterRun2 = (await readJsonFile(targetPath(dir, "fr"))) as Record<string, string>;
+    expect(frFileAfterRun2.k0).toBe("[fr] v0-changed");
+    expect((await readLock(dir)).fr?.k0).not.toBe(baselineHash);
+  });
+});
+
+describe("translate: token-less provider with a configured budget", () => {
+  it("reports an inert, honest budget instead of a false trip, and withholds nothing", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+    const stub = makeStubProvider({ kind: "machine-translation" });
+
+    const summary = await translate(
+      { config: cfg({ maxTokens: 1 }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.budget).toEqual({
+      maxTokens: 1,
+      behavior: "warn",
+      supported: false,
+      tokensUsed: 0,
+      exceeded: false,
+    });
+    expect(summary.usage).toBeUndefined();
+    expect(summary.locales[0]?.usage).toBeUndefined();
+    expect(summary.locales.flatMap((l) => l.budgetWithheld)).toEqual([]);
+  });
+
+  it("stays inert for a dry-run with maxTokens set, since the provider is never called", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+
+    const summary = await translate({ config: cfg({ maxTokens: 1 }), cwd: dir, dryRun: true });
+
+    expect(summary.budget).toEqual({
+      maxTokens: 1,
+      behavior: "warn",
+      supported: false,
+      tokensUsed: 0,
+      exceeded: false,
+    });
+    expect(summary.usage).toBeUndefined();
+  });
+});
