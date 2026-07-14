@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DiffLocale, deriveKeyLocaleStatus, isFullyInSync } from "./diff-view.js";
+import { type DiffLocale, deriveKeyLocaleStatus, driftKeys, isFullyInSync } from "./diff-view.js";
 
 function locale(overrides: Partial<DiffLocale> & { readonly locale: string }): DiffLocale {
   return {
@@ -113,5 +113,39 @@ describe("isFullyInSync", () => {
     expect(
       isFullyInSync([locale({ locale: "de", orphaned: ["greeting"], hasPendingChanges: false })]),
     ).toBe(false);
+  });
+});
+
+describe("driftKeys", () => {
+  it("returns an empty list for no locales", () => {
+    expect(driftKeys([])).toEqual([]);
+  });
+
+  it("returns an empty list when no locale has any drift", () => {
+    expect(driftKeys([locale({ locale: "de" }), locale({ locale: "fr" })])).toEqual([]);
+  });
+
+  it("unions missing, changed, and orphaned keys across locales", () => {
+    const keys = driftKeys([
+      locale({ locale: "de", missing: ["a"], changed: ["b"] }),
+      locale({ locale: "fr", orphaned: ["c"] }),
+    ]);
+
+    expect(keys).toEqual(["a", "b", "c"]);
+  });
+
+  it("deduplicates a key that drifts in more than one locale or list", () => {
+    const keys = driftKeys([
+      locale({ locale: "de", missing: ["greeting"] }),
+      locale({ locale: "fr", changed: ["greeting"] }),
+    ]);
+
+    expect(keys).toEqual(["greeting"]);
+  });
+
+  it("returns keys sorted alphabetically regardless of input order", () => {
+    const keys = driftKeys([locale({ locale: "de", missing: ["zebra", "apple", "mango"] })]);
+
+    expect(keys).toEqual(["apple", "mango", "zebra"]);
   });
 });

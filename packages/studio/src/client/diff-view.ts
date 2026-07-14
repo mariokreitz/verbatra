@@ -50,3 +50,31 @@ export function isFullyInSync(locales: readonly DiffLocale[]): boolean {
       locale.missing.length === 0 && locale.changed.length === 0 && locale.orphaned.length === 0,
   );
 }
+
+/**
+ * The full set of keys that have any drift in at least one checked locale: the union of missing,
+ * changed, and orphaned key names across every locale in `locales`, deduplicated and sorted.
+ *
+ * This is deliberately not the full set of keys that exist. `check()` reports counts only, never
+ * key names, and `diff()` reports only keys that have drift in at least one locale; a key that is
+ * fully in sync everywhere never appears in any of the three lists for any locale, so it is not
+ * reconstructable from the RPC surface Studio already has. Getting the complete key universe
+ * (drift-free keys included) would need a new RPC method exposing the full synced key set, which
+ * is out of scope here. The grid this feeds therefore rows only drift-affected keys, by design:
+ * a fully in-sync key never gets a row, not because it was missed.
+ */
+export function driftKeys(locales: readonly DiffLocale[]): readonly string[] {
+  const keys = new Set<string>();
+  for (const locale of locales) {
+    for (const key of locale.missing) {
+      keys.add(key);
+    }
+    for (const key of locale.changed) {
+      keys.add(key);
+    }
+    for (const key of locale.orphaned) {
+      keys.add(key);
+    }
+  }
+  return [...keys].sort();
+}
