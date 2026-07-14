@@ -14,6 +14,7 @@
     "@verbatra/studio": "0.0.0"
   },
   "changesets": [
+    "accept-non-string-json-leaves",
     "deepl-locale-validation-and-request-chunking",
     "formalize-provider-notices",
     "guard-worksheet-name-collisions",
@@ -28,6 +29,8 @@
     "provider-error-classification",
     "strip-utf8-bom-before-json-parse",
     "surface-format-metadata-as-context",
+    "token-usage-and-budget-guardrail",
+    "translation-review-flags",
     "xliff-hardening",
     "zip-guard-byte-counting"
   ]
