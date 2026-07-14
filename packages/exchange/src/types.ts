@@ -4,7 +4,7 @@
  */
 
 /** The diff bucket a row was exported under, shown to the translator as the row's status. */
-export type RowStatus = "new" | "changed";
+export type RowStatus = "new" | "changed" | "unchanged";
 
 /** One exported/imported translation row, identified by its dotted key path, never by position. */
 export interface WorkbookRow {
@@ -23,6 +23,13 @@ export interface WorkbookRow {
   readonly sourceHash: string;
   /** The translator-filled value. Empty means "not translated yet" and is skipped on import. */
   readonly translation: string;
+  /**
+   * Read-only developer context (for example ARB's `@key.description` or XLIFF's `<note>`), shown
+   * for reference only. Empty when the source entry carries none. Never read as a translation source
+   * on import; a workbook built before this field existed simply has no Context column, and reading
+   * it back yields an empty string, so import stays backward-compatible.
+   */
+  readonly context: string;
 }
 
 /** One target-locale data sheet: its locale and the rows to translate, in a stable order. */

@@ -33,15 +33,6 @@ interface SharedOpts {
   readonly cwd?: string;
   readonly config?: string;
 }
-interface TranslateOpts extends SharedOpts {
-  readonly dryRun?: boolean;
-  readonly prune?: boolean;
-  readonly json?: boolean;
-}
-interface WatchOpts extends SharedOpts {
-  readonly debounce?: string;
-  readonly json?: boolean;
-}
 
 // A comma-separated locale list normalized to a trimmed non-empty array (or omitted).
 const localeListSchema = z
@@ -55,6 +46,22 @@ const localeListSchema = z
           .map((entry) => entry.trim())
           .filter((entry) => entry.length > 0),
   );
+
+const translateOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  dryRun: z.boolean().optional(),
+  prune: z.boolean().optional(),
+  json: z.boolean().optional(),
+});
+
+const watchOptsSchema = z.object({
+  cwd: z.string().optional(),
+  config: z.string().optional(),
+  debounce: z.string().optional(),
+  json: z.boolean().optional(),
+});
+type WatchOpts = z.infer<typeof watchOptsSchema>;
 
 const exportOptsSchema = z.object({
   cwd: z.string().optional(),
@@ -86,15 +93,42 @@ const diffOptsSchema = z.object({
   json: z.boolean().optional(),
 });
 
-/** A CLI-local usage error for a malformed `--locales` value; routed to exit 2 like an `SdkError`. */
+/** A CLI-local usage error for a malformed option value; routed to exit 2 like an `SdkError`. */
 class UsageError extends Error {
   /** Stable, secret-free code read by {@link toRenderableError}; branch on this, not the message. */
-  readonly code = "INVALID_LOCALES";
+  readonly code: string;
 
-  constructor(message: string) {
+  constructor(code: string, message: string) {
     super(message);
     this.name = "UsageError";
+    this.code = code;
   }
+}
+
+/** Render a caught error to stderr as one structured line and return exit `2`. */
+function renderFailureExit2(streams: Streams, error: unknown): number {
+  streams.err(`${renderError(toRenderableError(error))}\n`);
+  return 2;
+}
+
+/**
+ * Run a synchronous option-parsing step inside a try that renders any parse or usage failure to
+ * stderr and returns exit `2`, keeping stdout clean for `--json`. On success the parsed options are
+ * handed to `body`. This is the single copy of the parse/render/return-2 wiring shared by every
+ * command's option parsing.
+ */
+async function withParsedOpts<T>(
+  parse: () => T,
+  streams: Streams,
+  body: (opts: T) => Promise<number>,
+): Promise<number> {
+  let opts: T;
+  try {
+    opts = parse();
+  } catch (error) {
+    return renderFailureExit2(streams, error);
+  }
+  return body(opts);
 }
 
 /**
@@ -111,6 +145,7 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
   const opts = schema.parse(rawOpts);
   if (opts.locales !== undefined && opts.locales.length === 0) {
     throw new UsageError(
+      "INVALID_LOCALES",
       "The --locales option was provided but lists no locale. Pass a comma-separated list of " +
         "configured target locales, or omit --locales to use all of them.",
     );
@@ -119,9 +154,8 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
 }
 
 /**
- * Parse a locale command's options inside a try that renders any parse or usage failure to stderr and
- * returns exit 2, keeping stdout clean for `--json`. On success the parsed options are handed to `body`.
- * This is the single copy of the parse/render/return-2 wiring shared by `check`, `diff`, and `export`.
+ * Parse a locale command's options inside the shared parse/render/return-2 scaffold. On success the
+ * parsed options are handed to `body`. Used by `check`, `diff`, and `export`.
  */
 async function withLocaleOpts<T extends { readonly locales?: readonly string[] | undefined }>(
   schema: z.ZodType<T>,
@@ -129,14 +163,7 @@ async function withLocaleOpts<T extends { readonly locales?: readonly string[] |
   streams: Streams,
   body: (opts: T) => Promise<number>,
 ): Promise<number> {
-  let opts: T;
-  try {
-    opts = parseLocaleCommandOpts(schema, rawOpts);
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
-  return body(opts);
+  return withParsedOpts(() => parseLocaleCommandOpts(schema, rawOpts), streams, body);
 }
 
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
@@ -147,77 +174,138 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
 }
 
 /**
- * Shared whole-run error scaffold for the one-shot commands: load the config and run the body in one
- * try, mapping any thrown SdkError to stderr and exit `2` while leaving stdout clean for `--json`. A
- * `1` comes only from a body that returns it without throwing. The `await` on `body` is load-bearing:
- * returning it unawaited would let a rejection escape this try as an unhandled rejection.
+ * Shared whole-run error scaffold for the one-shot commands: run `beforeLoad` (if given), load the
+ * config, then run the body, all in one try, mapping any thrown error to stderr and exit `2` while
+ * leaving stdout clean for `--json`. A `1` comes only from a body that returns it without throwing. The
+ * `await` on `body` is load-bearing: returning it unawaited would let a rejection escape this try as an
+ * unhandled rejection.
+ *
+ * @param beforeLoad - An optional step (e.g. loading `.env` files) run before `loadConfig`, inside the
+ *   same try, so a non-ENOENT read error is rendered structurally instead of escaping unhandled.
  */
 async function withWholeRunErrors(
   deps: CliDeps,
   streams: Streams,
   loadOpts: { cwd: string; configPath?: string },
   body: (config: Awaited<ReturnType<CliDeps["loadConfig"]>>) => Promise<number>,
+  beforeLoad?: () => void,
 ): Promise<number> {
   try {
+    beforeLoad?.();
     const config = await deps.loadConfig(loadOpts);
     return await body(config);
   } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
+    return renderFailureExit2(streams, error);
   }
 }
 
+/**
+ * Parse `--debounce` into milliseconds. An omitted flag stays `undefined` (watch applies its own
+ * 300ms default). A given value must be a bare positive integer string; anything else (non-numeric,
+ * zero, negative, or a unit suffix like "250ms") is a usage error, never a silent fallback to the
+ * default.
+ *
+ * @throws {@link UsageError} `INVALID_DEBOUNCE` when `value` is not a positive integer string.
+ */
 function parseDebounce(value: string | undefined): number | undefined {
   if (value === undefined) {
     return undefined;
   }
-  const ms = Number.parseInt(value, 10);
-  return Number.isFinite(ms) && ms > 0 ? ms : undefined;
+  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
+    throw new UsageError(
+      "INVALID_DEBOUNCE",
+      `The --debounce option must be a positive whole number of milliseconds, got "${value}".`,
+    );
+  }
+  return Number.parseInt(value, 10);
 }
 
-async function runTranslate(opts: TranslateOpts, deps: CliDeps, streams: Streams): Promise<number> {
-  const cwd = opts.cwd ?? process.cwd();
-  loadEnvFiles(cwd);
-  return withWholeRunErrors(deps, streams, loadOptions(opts, cwd), async (config) => {
-    const summary = await deps.translate({
-      config,
-      cwd,
-      ...(opts.dryRun === true ? { dryRun: true } : {}),
-      ...(opts.prune === true ? { prune: true } : {}),
-    });
-    streams.out(opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`);
-    return summary.failed.length > 0 ? 1 : 0;
-  });
+/**
+ * Run the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
+ * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
+ * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
+ */
+export async function runTranslate(
+  rawOpts: unknown,
+  deps: CliDeps,
+  streams: Streams,
+): Promise<number> {
+  return withParsedOpts(
+    () => translateOptsSchema.parse(rawOpts),
+    streams,
+    async (opts) => {
+      const cwd = opts.cwd ?? process.cwd();
+      return withWholeRunErrors(
+        deps,
+        streams,
+        loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+        async (config) => {
+          const summary = await deps.translate({
+            config,
+            cwd,
+            ...(opts.dryRun === true ? { dryRun: true } : {}),
+            ...(opts.prune === true ? { prune: true } : {}),
+          });
+          streams.out(
+            opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`,
+          );
+          return summary.failed.length > 0 ? 1 : 0;
+        },
+        () => loadEnvFiles(cwd),
+      );
+    },
+  );
+}
+
+/** `watchOptsSchema`'s shape plus the debounce value already parsed to milliseconds. */
+interface ParsedWatchOpts extends WatchOpts {
+  readonly debounceMs?: number;
+}
+
+/**
+ * Parse and validate the `watch` command's options: the zod schema shape, then `--debounce` on top.
+ * Both run here so a single {@link withParsedOpts} call covers either failure.
+ */
+function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
+  const opts = watchOptsSchema.parse(rawOpts);
+  const debounceMs = parseDebounce(opts.debounce);
+  return { ...opts, ...(debounceMs !== undefined ? { debounceMs } : {}) };
 }
 
 async function runWatchCommand(
-  opts: WatchOpts,
+  rawOpts: unknown,
   deps: CliDeps,
   streams: Streams,
   hooks: RunHooks,
 ): Promise<number> {
-  const cwd = opts.cwd ?? process.cwd();
-  loadEnvFiles(cwd);
-  let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
-  try {
-    config = await deps.loadConfig(loadOptions(opts, cwd));
-  } catch (error) {
-    streams.err(`${renderError(toRenderableError(error))}\n`);
-    return 2;
-  }
-  const debounceMs = parseDebounce(opts.debounce);
-  const session = runWatch(
-    {
-      config,
-      json: opts.json === true,
-      cwd,
-      ...(debounceMs !== undefined ? { debounceMs } : {}),
-    },
-    deps,
+  return withParsedOpts(
+    () => parseWatchCommandOpts(rawOpts),
     streams,
+    async (opts) => {
+      const cwd = opts.cwd ?? process.cwd();
+      let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
+      try {
+        loadEnvFiles(cwd);
+        config = await deps.loadConfig(
+          loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+        );
+      } catch (error) {
+        return renderFailureExit2(streams, error);
+      }
+      const session = runWatch(
+        {
+          config,
+          json: opts.json === true,
+          cwd,
+          ...(opts.debounceMs !== undefined ? { debounceMs: opts.debounceMs } : {}),
+        },
+        deps,
+        streams,
+      );
+      hooks.onWatchSession?.(session);
+      return session.done;
+    },
   );
-  hooks.onWatchSession?.(session);
-  return session.done;
 }
 
 /**
@@ -266,31 +354,38 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
 
 /**
  * Run the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
- * failed, `2` the run could not start.
+ * failed, `2` the run could not start. Exported for the same reason as {@link runTranslate}: every
+ * field on `importOptsSchema` is an optional string or boolean, so no CLI flag can organically trigger
+ * a `ZodError`; a test calls this directly with a malformed `rawOpts` instead.
  */
-async function runImport(
+export async function runImport(
   workbook: string,
   rawOpts: unknown,
   deps: CliDeps,
   streams: Streams,
 ): Promise<number> {
-  const opts = importOptsSchema.parse(rawOpts);
-  const cwd = opts.cwd ?? process.cwd();
-  return withWholeRunErrors(
-    deps,
+  return withParsedOpts(
+    () => importOptsSchema.parse(rawOpts),
     streams,
-    loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-    async (config) => {
-      const summary = await deps.importWorkbook({
-        config,
-        workbook,
-        cwd,
-        ...(opts.dryRun === true ? { dryRun: true } : {}),
-      });
-      streams.out(
-        opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+    async (opts) => {
+      const cwd = opts.cwd ?? process.cwd();
+      return withWholeRunErrors(
+        deps,
+        streams,
+        loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+        async (config) => {
+          const summary = await deps.importWorkbook({
+            config,
+            workbook,
+            cwd,
+            ...(opts.dryRun === true ? { dryRun: true } : {}),
+          });
+          streams.out(
+            opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+          );
+          return summary.failed.length > 0 ? 1 : 0;
+        },
       );
-      return summary.failed.length > 0 ? 1 : 0;
     },
   );
 }
@@ -374,7 +469,7 @@ function buildProgram(
       "remove orphaned keys (in a target file but absent from source) from the written file",
     )
     .option("--json", "print the run summary as JSON")
-    .action(async (opts: TranslateOpts) => {
+    .action(async (opts: unknown) => {
       setCode(await runTranslate(opts, deps, streams));
     })
     .addHelpText(
@@ -400,7 +495,7 @@ function buildProgram(
       "wait this many milliseconds after a change before translating (default 300)",
     )
     .option("--json", "print each run as one NDJSON record")
-    .action(async (opts: WatchOpts) => {
+    .action(async (opts: unknown) => {
       setCode(await runWatchCommand(opts, deps, streams, hooks));
     });
 
@@ -553,8 +648,10 @@ function buildProgram(
  * @param deps - The SDK entry points to call (injected so tests pass offline stubs).
  * @param streams - The stdout/stderr sink the CLI writes through.
  * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
- * @returns The process exit code: `0` success (or `--help`/`--version`); `1` some locales failed; `2`
- *   could not run (a whole-run `SdkError` or a commander usage error); `130` `watch` force-stopped.
+ * @returns The process exit code: `0` success (or `--help`/`--version`); `1` `translate`/`import`
+ *   finished but some locales failed, or `check`/`diff` found drift/pending changes; `2` could not run
+ *   (a whole-run `SdkError`, a CLI usage error, or a commander usage error); `130` `watch` or `studio`
+ *   force-stopped by a second interrupt.
  * @throws Re-throws a non-`CommanderError` thrown during parsing; commander usage errors are mapped to
  *   an exit code, not thrown.
  */

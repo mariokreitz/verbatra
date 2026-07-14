@@ -8,6 +8,23 @@ import { providerConfigSchema } from "./provider-config.js";
 export const DEFAULT_MAX_BATCH_SIZE = 50;
 
 /**
+ * The first target locale that collides case-insensitively with an earlier one in the same list, if
+ * any. Two entries differing only in case (or an exact duplicate) resolve to the same Excel worksheet
+ * name on export, so they must be rejected here rather than surfacing as a raw exceljs error later.
+ */
+function findCaseInsensitiveDuplicate(locales: readonly string[]): string | undefined {
+  const seen = new Set<string>();
+  for (const locale of locales) {
+    const key = locale.toLowerCase();
+    if (seen.has(key)) {
+      return locale;
+    }
+    seen.add(key);
+  }
+  return undefined;
+}
+
+/**
  * The verbatra project configuration. It carries no API key (the provider reads its key from the
  * environment), and unknown top-level keys are rejected so a stray secret cannot hide in it. Validated
  * with zod at the boundary regardless of where it was loaded from.
@@ -54,6 +71,15 @@ export const verbatraConfigSchema = z
   })
   .refine((config) => !config.targetLocales.includes(config.sourceLocale), {
     message: "targetLocales must not include the source locale",
+    path: ["targetLocales"],
+  })
+  .refine((config) => findCaseInsensitiveDuplicate(config.targetLocales) === undefined, {
+    error: (issue) => {
+      const duplicate = findCaseInsensitiveDuplicate(
+        (issue.input as { targetLocales: readonly string[] }).targetLocales,
+      );
+      return `targetLocales must not contain case-insensitively duplicate locales: "${duplicate}"`;
+    },
     path: ["targetLocales"],
   })
   .refine((config) => config.files.pattern.includes(LOCALE_TOKEN), {

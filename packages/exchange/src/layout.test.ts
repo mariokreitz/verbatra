@@ -10,19 +10,25 @@ describe("layout: column map", () => {
       status: 4,
       translation: 5,
       sourceHash: 6,
+      context: 7,
     });
   });
 
   it("assigns a unique consecutive index to every field starting at 1", () => {
     const indices = Object.values(COLUMN);
     const sorted = [...indices].sort((a, b) => a - b);
-    expect(sorted).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(sorted).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(new Set(indices).size).toBe(indices.length);
   });
 
   it("places the sole editable column (translation) after the read-only columns", () => {
     expect(COLUMN.translation).toBeGreaterThan(COLUMN.status);
     expect(COLUMN.sourceHash).toBeGreaterThan(COLUMN.translation);
+  });
+
+  it("appends context after source hash instead of inserting it before translation", () => {
+    expect(COLUMN.context).toBeGreaterThan(COLUMN.sourceHash);
+    expect(COLUMN.translation).toBe(5);
   });
 });
 
@@ -35,6 +41,7 @@ describe("layout: headers", () => {
       "Status",
       "Translation",
       "Source hash",
+      "Context",
     ]);
   });
 

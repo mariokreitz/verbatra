@@ -39,7 +39,7 @@ When you author the config in TypeScript, your editor offers the selected provid
 ## Fields
 
 - **`sourceLocale`** (string): the locale your source strings are written in.
-- **`targetLocales`** (string array): the locales to translate into. It must not include `sourceLocale`.
+- **`targetLocales`** (string array): the locales to translate into. It must not include `sourceLocale`, and no two entries may be case-insensitively equal (for example `["de", "DE"]` is rejected), since each locale becomes its own Excel worksheet name on export.
 - **`format`** (string): one of `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml`, or `xliff`. See [Formats](/docs/formats) for what each one detects and how it handles placeholders.
 - **`files.pattern`** (string): the path to each locale file. It must contain the `{locale}` token, which verbatra replaces with each locale (for example, `locales/{locale}.json` resolves to `locales/de.json`).
 - **`provider`** (object): the translation provider, selected by `id`. Each provider takes its own `options`, and in TypeScript the `model` field is restricted to the chosen provider's known model IDs (a model from another provider is a type error). See [Providers](/docs/providers).

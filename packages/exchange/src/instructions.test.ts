@@ -44,8 +44,20 @@ describe("instructions: critical guidance", () => {
     expect(text).toContain("Source hash");
   });
 
-  it("documents both status values the diff produces", () => {
+  it("documents all three status values the diff produces", () => {
     expect(text).toContain("new");
     expect(text).toContain("changed");
+    expect(text).toContain("unchanged");
+  });
+
+  it("does not claim an unchanged row's source changed", () => {
+    const unchangedLine = INSTRUCTIONS_LINES.find((line) => line.trim().startsWith("unchanged"));
+    expect(unchangedLine).toBeDefined();
+    expect(unchangedLine).not.toContain("source string changed");
+  });
+
+  it("tells the translator the Context column is read-only reference text", () => {
+    expect(text).toContain("'Context' column");
+    expect(text).toContain("read-only");
   });
 });

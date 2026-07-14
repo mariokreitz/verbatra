@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import { buildWorkbook, readWorkbook } from "@verbatra/exchange";
+import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../../config/schema.js";
 import {
@@ -86,7 +87,7 @@ describe("exportWorkbook", () => {
     expect(again.sheets[0]?.rows.map((r) => r.key)).toEqual(data.sheets[0]?.rows.map((r) => r.key));
   });
 
-  it("honors --locales and --include-unchanged", async () => {
+  it("honors --locales and --include-unchanged, labeling the included row 'unchanged'", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
     const result = await exportWorkbook({
       config: cfg(),
@@ -97,6 +98,22 @@ describe("exportWorkbook", () => {
     expect(result.locales.map((l) => l.locale)).toEqual(["de"]);
     // Unchanged "a" is included because of the opt-in.
     expect(result.locales[0]?.rows).toBe(1);
+
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    // Must be labeled "unchanged", not "changed": the source never drifted.
+    expect(row?.status).toBe("unchanged");
+  });
+
+  it("never emits an 'unchanged' status row when includeUnchanged is off or omitted", async () => {
+    // "a" is already in sync (unchanged) and "b" is missing, so the default export carries one
+    // "new" row and, absent the bug fix, would carry zero "unchanged" rows either way. Asserting
+    // a non-empty sheet with no "unchanged" row makes this a real check, not a vacuous one.
+    const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
+    const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["b"]);
+    expect(data.sheets[0]?.rows.some((r) => r.status === "unchanged")).toBe(false);
   });
 
   it("produces a valid empty workbook when nothing needs translation", async () => {
@@ -130,6 +147,33 @@ describe("exportWorkbook", () => {
       exportWorkbook({ config: cfg(), cwd: dir, locales: ["de", "es"] }),
     ).rejects.toMatchObject({ code: "UNKNOWN_LOCALE" });
   });
+
+  it("carries the source entry's description into the Context column", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, "locales"));
+    await writeJsonFile(join(dir, "locales", "en.arb"), {
+      greeting: "Hello",
+      "@greeting": { description: "A friendly greeting shown on the home screen" },
+    });
+    const config = cfg({
+      targetLocales: ["de"],
+      format: "arb",
+      files: { pattern: "locales/{locale}.arb" },
+    });
+
+    const result = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
+    expect(row?.context).toBe("A friendly greeting shown on the home screen");
+  });
+
+  it("leaves the Context column empty when the source entry carries no description", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined });
+    const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "greeting");
+    expect(row?.context).toBe("");
+  });
 });
 
 describe("importWorkbook", () => {
@@ -158,6 +202,29 @@ describe("importWorkbook", () => {
     };
     // The orphaned key gets no lock entry; only the two source-present keys do.
     expect(Object.keys(lock.locales.de ?? {}).sort()).toEqual(["farewell", "greeting"]);
+  });
+
+  it("imports a legacy workbook built without the Context column", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "greeting";
+    sheet.getRow(2).getCell(2).value = "Hello";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(5).value = "Hallo";
+    sheet.getRow(2).getCell(6).value = contentHash(entry("Hello"));
+    const path = join(dir, "legacy.xlsx");
+    await workbook.xlsx.writeFile(path);
+
+    const summary = await importWorkbook({ config, workbook: path, cwd: dir });
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(summary.locales[0]?.translated).toEqual(["greeting"]);
   });
 
   it("bootstraps a baseline for an already-synced key with no prior lock entry", async () => {
@@ -351,6 +418,18 @@ describe("importWorkbook", () => {
     expect(checked.locales.map((l) => l.stale)).toEqual([2, 2]);
   });
 
+  it("accepts a filled 'unchanged' row exactly like a 'changed' row, branching on no status", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+    await fillWorkbook(out.path, "de", { a: "Aa updated" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.a).toBe("Aa updated");
+  });
+
   it("dry-run validates and reports without writing the locale or the lock", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const config = cfg({ targetLocales: ["de"] });
@@ -402,6 +481,7 @@ describe("importWorkbook", () => {
                 status: "new" as const,
                 sourceHash: "x",
                 translation: "Boo",
+                context: "",
               },
             ],
           },

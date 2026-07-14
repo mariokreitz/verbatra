@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
 import type { ProviderNotice, TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
+import type { DeepLCall } from "../test-support.js";
 import {
   deeplResult,
   deeplStubClient,
@@ -10,8 +11,21 @@ import {
   regexExtractor,
 } from "../test-support.js";
 import { createDeepLProvider } from "./deepl-provider.js";
+import { DEEPL_MAX_TEXTS_PER_REQUEST } from "./limits.js";
 import { PLACEHOLDER_UNSUPPORTED_MESSAGE } from "./placeholders.js";
 import type { DeepLTranslateClient, DeepLTranslateResult } from "./types.js";
+
+/** An offline DeepL stub whose translateText echoes one result per input text, per call. */
+function deeplEchoStubClient(): { client: DeepLTranslateClient; calls: DeepLCall[] } {
+  const calls: DeepLCall[] = [];
+  const client: DeepLTranslateClient = {
+    translateText: async (texts, sourceLang, targetLang, options) => {
+      calls.push({ texts, sourceLang, targetLang, options });
+      return texts.map((text) => ({ text: `${text}!` }));
+    },
+  };
+  return { client, calls };
+}
 
 const config = {};
 
@@ -151,6 +165,22 @@ describe("createDeepLProvider: glossary", () => {
     expect(firstDeeplCall(calls).options.glossary).toBeUndefined();
     expect(noticeCodes(result)).toContain("GLOSSARY_IGNORED");
     expect(result.values.get("k")).toBe("x");
+  });
+});
+
+describe("createDeepLProvider: description/meaning are context-only, never DeepL input", () => {
+  // DeepL is a machine-translation API with no context parameter: unlike the LLM providers, it never
+  // reads entry.description/meaning at all. An entry carrying one translates exactly like one without,
+  // and the value sent to DeepL, and the value returned, both stay free of the description text.
+  it("sends only the entry value to DeepL, never the description, and never echoes it back", async () => {
+    const { client, calls } = deeplStubClient(deeplResult(["Hallo"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({
+        entries: [entry("greeting", "Hello", [], { description: "a friendly greeting" })],
+      }),
+    );
+    expect(firstDeeplCall(calls).texts).toEqual(["Hello"]);
+    expect(result.values.get("greeting")).toBe("Hallo");
   });
 });
 
@@ -439,6 +469,101 @@ describe("createDeepLProvider: comparePlaceholders wiring", () => {
     // "Free" carries no placeholders, so it is protectable and reaches DeepL; the comparator, not
     // extractPlaceholders plus checkPlaceholders, is the one invoked for its integrity check.
     expect(calls).toEqual([{ source: "Free", translated: "Frei" }]);
+  });
+});
+
+describe("createDeepLProvider: locale validation (pre-flight, before any network call)", () => {
+  it("rejects a regional source locale code (de-DE) as INVALID_REQUEST before calling translateText", async () => {
+    // "de-DE" appears nowhere in the static message text, so this proves the code is interpolated,
+    // not merely that a fixed example string happens to match.
+    const translateText = vi.fn();
+    const client: DeepLTranslateClient = { translateText };
+    await expect(
+      createDeepLProvider(config, { client }).translateBatch(
+        request({ sourceLocale: "de-DE", entries: [entry("k", "v")] }),
+      ),
+    ).rejects.toMatchObject({
+      code: "INVALID_REQUEST",
+      message: expect.stringContaining('"de-DE"'),
+    });
+    expect(translateText).not.toHaveBeenCalled();
+  });
+
+  it("rejects a deprecated bare target locale code (en) as INVALID_REQUEST before calling translateText", async () => {
+    // The quoted form `"en"` only occurs at the interpolation site; the message's hardcoded examples
+    // are "en-GB"/"en-US", neither of which contains the exact substring `"en"`.
+    const translateText = vi.fn();
+    const client: DeepLTranslateClient = { translateText };
+    await expect(
+      createDeepLProvider(config, { client }).translateBatch(
+        request({ targetLocale: "en", entries: [entry("k", "v")] }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST", message: expect.stringContaining('"en"') });
+    expect(translateText).not.toHaveBeenCalled();
+  });
+
+  it("passes a title-case Chinese script subtag through unmodified (zh-Hans)", async () => {
+    const { client, calls } = deeplStubClient(deeplResult(["x"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ targetLocale: "zh-Hans", entries: [entry("k", "v")] }),
+    );
+    expect(firstDeeplCall(calls).targetLang).toBe("zh-Hans");
+    expect(result.values.get("k")).toBe("x");
+  });
+
+  it("passes a valid, in-cap request through unmodified (no rewriting of a disambiguated target)", async () => {
+    const { client, calls } = deeplStubClient(deeplResult(["Frei"]));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ targetLocale: "en-US", entries: [entry("k", "Free")] }),
+    );
+    expect(firstDeeplCall(calls).targetLang).toBe("en-US");
+    expect(result.values.get("k")).toBe("Frei");
+  });
+
+  it("rejects the same code as a source but accepts it as a target (en-US)", async () => {
+    const sourceRejected = deeplStubClient(deeplResult(["x"]));
+    await expect(
+      createDeepLProvider(config, { client: sourceRejected.client }).translateBatch(
+        request({ sourceLocale: "en-US", entries: [entry("k", "v")] }),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+
+    const targetAccepted = deeplStubClient(deeplResult(["x"]));
+    const result = await createDeepLProvider(config, {
+      client: targetAccepted.client,
+    }).translateBatch(request({ targetLocale: "en-US", entries: [entry("k", "v")] }));
+    expect(result.values.get("k")).toBe("x");
+  });
+});
+
+describe("createDeepLProvider: internal per-request chunking (independent of maxBatchSize)", () => {
+  it("keeps an in-cap sub-batch in a single translateText call (no behavior change)", async () => {
+    const { client, calls } = deeplEchoStubClient();
+    const entries = Array.from({ length: 10 }, (_, i) => entry(`k${i}`, `v${i}`));
+    await createDeepLProvider(config, { client }).translateBatch(request({ entries }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.texts).toHaveLength(10);
+  });
+
+  it("splits an over-cap sub-batch into multiple sequential translateText calls and merges the results", async () => {
+    const { client, calls } = deeplEchoStubClient();
+    const entryCount = DEEPL_MAX_TEXTS_PER_REQUEST + 5;
+    const entries = Array.from({ length: entryCount }, (_, i) => entry(`k${i}`, `v${i}`));
+    const result = await createDeepLProvider(config, { client }).translateBatch(
+      request({ entries }),
+    );
+
+    expect(calls.length).toBeGreaterThan(1);
+    for (const call of calls) {
+      expect(call.texts.length).toBeLessThanOrEqual(DEEPL_MAX_TEXTS_PER_REQUEST);
+    }
+    expect(calls.flatMap((call) => call.texts)).toEqual(entries.map((e) => e.value));
+
+    // Every entry still ends up correctly translated and zipped back to its own key, transparent to
+    // the caller, regardless of how many underlying requests it took.
+    for (const e of entries) {
+      expect(result.values.get(e.key)).toBe(`${e.value}!`);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { run } from "./run.js";
+import { run, runImport } from "./run.js";
 import {
   captureStreams,
   makeExportResult,
@@ -162,5 +162,21 @@ describe("run import: SDK delegation and rendering", () => {
 
     expect(code).toBe(2);
     expect(cap.err()).toContain("[SOURCE_INVALID]");
+  });
+
+  // importOptsSchema's fields are all optional strings/booleans, which real commander argv always
+  // produces correctly, so no CLI flag can organically trigger a ZodError here. runImport is exported
+  // so this test can call it directly with a malformed rawOpts, proving importOptsSchema.parse now
+  // runs inside the error scaffold (it used to sit outside any try, risking an unhandled rethrow).
+  it("a malformed rawOpts renders a structured error and exits 2, never throws", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await runImport("wb.xlsx", { cwd: 123 }, deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).not.toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
   });
 });

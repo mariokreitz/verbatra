@@ -22,18 +22,19 @@ By default, export drops `verbatra-translations.xlsx` in the working directory. 
 
 ## The workbook
 
-The file opens with one **Instructions** sheet, followed by one data sheet per target locale, each named for its locale (`de`, `fr`, ...). Every data sheet shares the same columns:
+The file opens with one **Instructions** sheet, followed by one data sheet per target locale, each named for its locale (`de`, `fr`, ...). Because a sheet name is derived directly from its locale, `targetLocales` may not contain a locale named `Instructions` (in any case) or two locales that are case-insensitively equal; both are rejected before the workbook is built. Every data sheet shares the same columns:
 
 | Column | Editable | Purpose |
 | --- | --- | --- |
 | `Key` | no | The dotted key path. The sole identity that maps a row back to a string. |
 | `Source` | no | The source-locale value, for reference. |
 | `Current translation` | no | The existing target value, if any. |
-| `Status` | no | `new` (no translation yet) or `changed` (the source changed and the translation needs updating). |
+| `Status` | no | `new` (no translation yet), `changed` (the source changed and the translation needs updating), or `unchanged` (already up to date, included only with `--include-unchanged`). |
 | `Translation` | **yes** | The only cell the translator fills. |
 | `Source hash` | no | Hidden. The source content captured at export, used to detect a source that changed after export. |
+| `Context` | no | Developer context for the string, when the source format carries any (Flutter ARB's `@key.description`, XLIFF's `<note>`). Shown for reference only, never imported as a translation. |
 
-Every column except `Translation` is locked and the sheet is protected, so a translator can only edit the one column that matters. The header row is frozen and the `Source hash` column is hidden. Sort or filter the rows however you like: mapping is by `Key`, never by position.
+Every column except `Translation` is locked and the sheet is protected, so a translator can only edit the one column that matters. The header row is frozen and the `Source hash` column is hidden. `Context` is appended after `Source hash` rather than inserted earlier, so `Translation` keeps the same position for anyone scripting against the workbook shape. Sort or filter the rows however you like: mapping is by `Key`, never by position.
 
 An empty `Translation` cell means "not translated yet". Import skips it and never writes an empty string, so a translator can send back a half-filled workbook and finish the rest later.
 
@@ -62,6 +63,7 @@ Import is not a blind paste. Before verbatra writes anything, every value the tr
 - **ICU validity**: an ICU message must stay structurally valid, with the same argument names. Only the human-readable text may change.
 - **Source drift**: the hidden `Source hash` lets import spot a source string that changed after the workbook was exported. A stale row is withheld, so you never overwrite a current source with a translation of an old one.
 - **Unknown keys**: a row whose `Key` is not in the current source (say, one a translator added by hand) is rejected.
+- **Context is never a translation source**: `Context` is read-only reference text. Import ignores it entirely, and a workbook exported before this column existed still imports normally.
 
 A value that fails any check is **withheld** (not written) and reported in the run summary, so you can fix it and reimport. Keys that pass get written and locked in; the ones that fail leave the locale file untouched. Add `--dry-run` to validate a returned workbook and preview what would be written without touching a single file:
 

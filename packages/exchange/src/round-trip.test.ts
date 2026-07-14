@@ -16,6 +16,7 @@ const model: WorkbookModel = {
           status: "new",
           sourceHash: "abc123",
           translation: "",
+          context: "A friendly greeting",
         },
         {
           key: "farewell",
@@ -24,6 +25,16 @@ const model: WorkbookModel = {
           status: "changed",
           sourceHash: "def456",
           translation: "",
+          context: "",
+        },
+        {
+          key: "welcome",
+          source: "Welcome",
+          currentTarget: "Willkommen",
+          status: "unchanged",
+          sourceHash: "ghi789",
+          translation: "",
+          context: "",
         },
       ],
     },
@@ -39,13 +50,17 @@ describe("buildWorkbook + readWorkbook round trip", () => {
     const data = await readWorkbook(bytes);
     expect(data.sheets.map((s) => s.locale)).toEqual(["de", "fr"]);
     const de = data.sheets[0];
-    expect(de?.rows.map((r) => r.key)).toEqual(["greeting", "farewell"]);
+    expect(de?.rows.map((r) => r.key)).toEqual(["greeting", "farewell", "welcome"]);
     expect(de?.rows[0]?.source).toBe("Hello {name}");
     expect(de?.rows[0]?.sourceHash).toBe("abc123");
     expect(de?.rows[1]?.status).toBe("changed");
     expect(de?.rows[1]?.currentTarget).toBe("Tschuss");
+    expect(de?.rows[2]?.status).toBe("unchanged");
+    expect(de?.rows[2]?.currentTarget).toBe("Willkommen");
     // Empty translations stay empty on read.
     expect(de?.rows.every((r) => r.translation === "")).toBe(true);
+    expect(de?.rows[0]?.context).toBe("A friendly greeting");
+    expect(de?.rows[1]?.context).toBe("");
   });
 
   it("round-trips a filled translation by key", async () => {
@@ -61,6 +76,7 @@ describe("buildWorkbook + readWorkbook round trip", () => {
               status: "new",
               sourceHash: "abc123",
               translation: "Hallo {name}",
+              context: "",
             },
           ],
         },
@@ -116,6 +132,7 @@ describe("buildWorkbook + readWorkbook round trip: coercion-prone translations",
               status: "new",
               sourceHash: "abc123",
               translation,
+              context: "",
             },
           ],
         },

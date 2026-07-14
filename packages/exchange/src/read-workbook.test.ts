@@ -20,6 +20,7 @@ const baseModel: WorkbookModel = {
           status: "new",
           sourceHash: "h1",
           translation: "",
+          context: "A greeting",
         },
       ],
     },
@@ -35,6 +36,26 @@ describe("readWorkbook: structural rejection", () => {
   it("reads a valid workbook", async () => {
     const data = await buildWorkbook(baseModel);
     expect((await readWorkbook(data)).sheets[0]?.rows[0]?.key).toBe("k1");
+  });
+
+  it("reads the context column back verbatim", async () => {
+    const data = await buildWorkbook(baseModel);
+    expect((await readWorkbook(data)).sheets[0]?.rows[0]?.context).toBe("A greeting");
+  });
+
+  it("reads a pre-change workbook with no Context column as an empty context, not a rejection", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "k1";
+    sheet.getRow(2).getCell(4).value = "new";
+    const buffer = await workbook.xlsx.writeBuffer();
+    const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
+    expect(data.sheets[0]?.rows[0]?.context).toBe("");
   });
 
   it("rejects a data sheet missing the Key/Source-hash header", async () => {
@@ -110,6 +131,29 @@ describe("readWorkbook: structural rejection", () => {
     expect(await code(readWorkbook(bytes))).toBe("WORKBOOK_INVALID");
   });
 
+  it("accepts a row with status 'unchanged'", async () => {
+    const withUnchanged: WorkbookModel = {
+      sheets: [
+        {
+          locale: "de",
+          rows: [
+            {
+              key: "k1",
+              source: "Hello",
+              currentTarget: "Hallo",
+              status: "unchanged",
+              sourceHash: "h1",
+              translation: "",
+              context: "",
+            },
+          ],
+        },
+      ],
+    };
+    const data = await readWorkbook(await buildWorkbook(withUnchanged));
+    expect(data.sheets[0]?.rows[0]?.status).toBe("unchanged");
+  });
+
   it("rejects a row with an unrecognized status via the zod row check", async () => {
     const bad: WorkbookModel = {
       sheets: [
@@ -120,10 +164,11 @@ describe("readWorkbook: structural rejection", () => {
               key: "k1",
               source: "Hello",
               currentTarget: "",
-              // status is constrained to "new" | "changed" at the type level; force an invalid one.
+              // status is constrained to a known RowStatus at the type level; force an invalid one.
               status: "weird" as "new",
               sourceHash: "h1",
               translation: "Hallo",
+              context: "",
             },
           ],
         },
@@ -156,6 +201,7 @@ describe("readWorkbook: parse-bound caps", () => {
       status: "new" as const,
       sourceHash: "h",
       translation: "",
+      context: "",
     }));
     const model: WorkbookModel = { sheets: [{ locale: "de", rows }] };
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxRowsPerSheet: 2 };

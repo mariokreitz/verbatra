@@ -1,7 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
 import { readFileContent } from "../json/bounded-read.js";
-import { decodeKeyToSegments } from "../json/key-encoding.js";
+import { decodeKeyToSegments, encodeSegment } from "../json/key-encoding.js";
 
 /** Both per-message (`@id`) and global (`@@locale`) ARB metadata keys start with `@`. */
 function isMetadataKey(key: string): boolean {
@@ -51,6 +51,46 @@ export function stripArbMetadata(tree: Record<string, unknown>): Record<string, 
 
 function originalKey(encoded: string): string {
   return decodeKeyToSegments(encoded).join(".");
+}
+
+/** The per-message key a metadata key describes, or null for a global `@@`-prefixed key. */
+function messageKeyForMetadata(key: string): string | null {
+  return isMetadataKey(key) && !key.startsWith("@@") ? key.slice(1) : null;
+}
+
+/** The `description` field of a metadata value, or undefined when absent or not a string. */
+function descriptionOf(value: unknown): string | undefined {
+  if (typeof value !== "object" || value === null) {
+    return undefined;
+  }
+  const description = (value as Record<string, unknown>).description;
+  return typeof description === "string" ? description : undefined;
+}
+
+/**
+ * Extract each `@<key>.description` from raw ARB content into a map keyed the same way
+ * {@link flattenTree}'s literal-leaf encoding keys a top-level ARB message, so the result lines up
+ * with the flattened entries by key. The content is parsed independently of the message tree, since
+ * the description lives in metadata {@link stripArbMetadata} discards before flatten ever runs.
+ *
+ * @param content - The untrusted ARB file content.
+ * @returns A map from flattened entry key to description; a key with no `@key.description` metadata
+ *   is absent, never mapped to an empty or undefined description.
+ */
+export function extractArbDescriptions(content: string): ReadonlyMap<string, string> {
+  const tree = parseArbObject(content);
+  const out = new Map<string, string>();
+  for (const [key, value] of Object.entries(tree)) {
+    const messageKey = messageKeyForMetadata(key);
+    if (messageKey === null) {
+      continue;
+    }
+    const description = descriptionOf(value);
+    if (description !== undefined) {
+      out.set(encodeSegment(messageKey), description);
+    }
+  }
+  return out;
 }
 
 function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Map<string, string> {

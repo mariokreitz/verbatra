@@ -3,7 +3,9 @@
  *
  * - `WORKBOOK_INVALID`: the returned workbook could not be parsed into the neutral row model (a
  *   non-xlsx or corrupt file, a missing identifier column, an unexpected sheet shape, or any cap
- *   breach from {@link WorkbookLimits}).
+ *   breach from {@link WorkbookLimits}), or, on the build side, a sheet locale that cannot be a valid
+ *   worksheet name (too long, a forbidden character, a collision with the reserved instructions sheet
+ *   name, or a collision with another sheet locale).
  */
 export type ExchangeErrorCode = "WORKBOOK_INVALID";
 

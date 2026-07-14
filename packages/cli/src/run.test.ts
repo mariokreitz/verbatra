@@ -1,9 +1,9 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SdkError, type WatchController } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { run } from "./run.js";
+import { run, runTranslate } from "./run.js";
 import {
   captureStreams,
   flush,
@@ -312,6 +312,52 @@ describe("run: .env loading is wired before the SDK flow", () => {
 
     expect(await done).toBe(0);
     expect(seen).toBe("valW");
+  });
+
+  it("translate: a non-ENOENT .env read error (EISDIR) exits 2 with a structured error, no unhandled throw", async () => {
+    mkdirSync(join(dir, ".env"));
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--cwd", dir], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).not.toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
+  });
+
+  it("watch: a non-ENOENT .env read error (EISDIR) exits 2 with a structured error, no unhandled throw", async () => {
+    mkdirSync(join(dir, ".env"));
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["watch", "--cwd", dir], deps, cap.streams, {
+      onWatchSession: () => {},
+    });
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).not.toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
+  });
+});
+
+describe("run translate: rawOpts is zod-validated inside the error scaffold", () => {
+  // translateOptsSchema's fields are all optional strings/booleans, which real commander argv always
+  // produces correctly, so no CLI flag can organically trigger a ZodError here. runTranslate is
+  // exported so this test can call it directly with a malformed rawOpts instead, proving the parse
+  // failure is caught by the scaffold rather than escaping as an unhandled rejection.
+  it("a malformed rawOpts renders a structured error and exits 2, never throws", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await runTranslate({ cwd: 123 }, deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).not.toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
   });
 });
 
