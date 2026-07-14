@@ -1,6 +1,6 @@
 {
   "name": "@verbatra/exchange",
-  "version": "0.2.1",
+  "version": "0.3.0-next.0",
   "private": true,
   "type": "module",
   "description": "Translator interchange for verbatra: build and read styled Excel workbooks over a neutral, format-agnostic row model.",
