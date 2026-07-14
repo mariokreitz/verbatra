@@ -1,5 +1,9 @@
 import type { AdapterRegistry } from "@verbatra/format-adapters";
-import { DEFAULT_MAX_BATCH_SIZE, type VerbatraConfig } from "../config/schema.js";
+import {
+  DEFAULT_BUDGET_BEHAVIOR,
+  DEFAULT_MAX_BATCH_SIZE,
+  type VerbatraConfig,
+} from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import {
   baselineFor,
@@ -10,10 +14,12 @@ import {
 } from "../lock/lock-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { type CreateProvider, selectProvider } from "../selection/select-provider.js";
+import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 import { readSource } from "./source.js";
 import type { LocaleSummary, RunSummary } from "./summary.js";
+import { combineUsage } from "./usage.js";
 
 /** Everything the one-shot run needs: the validated config and where/how to run it. */
 export interface TranslateInput {
@@ -105,6 +111,11 @@ export async function translate(
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
   const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
   const fs = deps.fs ?? defaultFs;
+  // A fresh tracker per translate() invocation: the ceiling is per-run, not cumulative across watch cycles.
+  const budget = createBudgetTracker(
+    config.maxTokens,
+    config.budgetBehavior ?? DEFAULT_BUDGET_BEHAVIOR,
+  );
 
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
@@ -133,6 +144,7 @@ export async function translate(
         generatePlurals,
         maxBatchSize,
         fs,
+        budget,
       };
       const { summary, lockEntries } = await runLocale(params);
       if (!dryRun) {
@@ -146,5 +158,17 @@ export async function translate(
   }
 
   const { succeeded, failed } = partition(summaries);
-  return { dryRun, locales: summaries, succeeded, failed };
+  const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
+    (total, summary) => combineUsage(total, summary.usage),
+    undefined,
+  );
+  const budgetSummary = toBudgetSummary(budget);
+  return {
+    dryRun,
+    locales: summaries,
+    succeeded,
+    failed,
+    ...(usage !== undefined ? { usage } : {}),
+    ...(budgetSummary !== undefined ? { budget: budgetSummary } : {}),
+  };
 }

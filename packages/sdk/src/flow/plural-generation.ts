@@ -7,13 +7,15 @@ import type {
 import { contentHash, type LocaleResource, type TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { chunk, subBatchFailedNotice } from "./batching.js";
+import { type BudgetTracker, checkBudgetTrip, foldTrackerUsage } from "./budget.js";
 import { readNotices } from "./notices.js";
 import {
   type CldrPluralCategory,
   type PluralGenerationItem,
   planPluralGeneration,
 } from "./plural-categories.js";
-import type { LocaleNotice } from "./summary.js";
+import type { LocaleNotice, UsageSummary } from "./summary.js";
+import { createUsageAccumulator, foldUsage } from "./usage.js";
 
 /** Everything plural generation needs from the locale run, without depending on the run module. */
 export interface PluralGenerationContext {
@@ -33,6 +35,8 @@ export interface PluralGenerationContext {
    * generation request cannot sink the whole locale.
    */
   readonly maxBatchSize: number;
+  /** The run-wide token-budget tracker; a second token-spending loop feeding the same total and gate. */
+  readonly budget: BudgetTracker;
 }
 
 /** One generated plural form accepted into the target file. */
@@ -55,9 +59,30 @@ export interface PluralGenerationResult {
    * response after the shared LLM layer's bounded reconcile repair round.
    */
   readonly providerFailures: readonly string[];
+  /**
+   * Generated keys never sent to the provider because the run-wide token budget already tripped in
+   * `"stop"` mode: every not-yet-attempted stale item, in this locale and, once tripped, every
+   * subsequent one. Empty unless a budget is configured and behavior is `"stop"`.
+   */
+  readonly budgetWithheld: readonly string[];
   /** Notices from generation: a provider notice, or an SDK notice for a failed sub-batch. */
   readonly notices: readonly LocaleNotice[];
+  /** Summed token usage across every generation sub-batch call for this locale; absent if none reported one. */
+  readonly usage: UsageSummary | undefined;
+  /** Whether a generation sub-batch's completion was the call that first crossed the configured budget. */
+  readonly tripped: boolean;
 }
+
+/** The empty result for generation that made no provider call at all (disabled, or nothing stale). */
+const EMPTY_RESULT: PluralGenerationResult = {
+  accepted: [],
+  withheld: [],
+  providerFailures: [],
+  budgetWithheld: [],
+  notices: [],
+  usage: undefined,
+  tripped: false,
+};
 
 /**
  * Lock basis for a source-absent generated key: hash the governing source plural forms of its base key
@@ -132,24 +157,51 @@ export async function generatePluralForms(
   const plan = planPluralGeneration(context.source, context.targetLocale, context.format);
   const stale = staleItems(plan.items, context.baseline);
   if (stale.length === 0) {
-    return { accepted: [], withheld: [], providerFailures: [], notices: [] };
+    return EMPTY_RESULT;
   }
 
   const accepted: GeneratedForm[] = [];
   const withheld: string[] = [];
   const providerFailures: string[] = [];
+  const budgetWithheld: string[] = [];
   const notices: LocaleNotice[] = [];
+  const usage = createUsageAccumulator();
+  let tripped = false;
   for (const batch of chunk(stale, context.maxBatchSize)) {
-    const batchNotices = await runGenerationSubBatch(
+    if (context.budget.stopped) {
+      for (const item of batch) {
+        budgetWithheld.push(item.targetKey);
+      }
+      continue;
+    }
+    const subResult = await runGenerationSubBatch(
       context,
       batch,
       accepted,
       withheld,
       providerFailures,
     );
-    notices.push(...batchNotices);
+    notices.push(...subResult.notices);
+    foldUsage(usage, subResult.usage);
+    foldTrackerUsage(context.budget, subResult.usage);
+    if (checkBudgetTrip(context.budget)) {
+      tripped = true;
+    }
   }
-  return { accepted, withheld, providerFailures, notices };
+  return {
+    accepted,
+    withheld,
+    providerFailures,
+    budgetWithheld,
+    notices,
+    usage: usage.total,
+    tripped,
+  };
+}
+
+interface GenerationSubBatchResult {
+  readonly notices: readonly LocaleNotice[];
+  readonly usage: TranslateResult["usage"];
 }
 
 /**
@@ -166,7 +218,7 @@ async function runGenerationSubBatch(
   accepted: GeneratedForm[],
   withheld: string[],
   providerFailures: string[],
-): Promise<readonly LocaleNotice[]> {
+): Promise<GenerationSubBatchResult> {
   let result: TranslateResult;
   try {
     const entries = batch.map(syntheticEntry);
@@ -175,12 +227,12 @@ async function runGenerationSubBatch(
     for (const item of batch) {
       providerFailures.push(item.targetKey);
     }
-    return [subBatchFailedNotice(batch.length, error)];
+    return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const item of batch) {
     foldGenerationItem(item, result, accepted, withheld, providerFailures);
   }
-  return readNotices(result);
+  return { notices: readNotices(result), usage: result.usage };
 }
 
 /** Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. */

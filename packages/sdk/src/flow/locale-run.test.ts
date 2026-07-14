@@ -20,6 +20,7 @@ import {
   readJsonFile,
   writeJsonFile,
 } from "../test-support.js";
+import { createBudgetTracker } from "./budget.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 
 /**
@@ -110,6 +111,7 @@ function makeParams(
     generatePlurals: false,
     maxBatchSize: 50,
     fs: defaultFs,
+    budget: createBudgetTracker(undefined, "warn"),
     ...overrides,
   };
 }

@@ -14,6 +14,7 @@ function succeeded(locale: string): LocaleSummary {
     invalidIcuSource: [],
     integrityMismatches: [],
     providerFailures: [],
+    budgetWithheld: [],
     generated: [],
     notices: [],
   };
@@ -56,6 +57,7 @@ describe("failureSummary", () => {
       invalidIcuSource: [],
       integrityMismatches: [],
       providerFailures: [],
+      budgetWithheld: [],
       generated: [],
       notices: [],
       error: { code: "ADAPTER_WRITE", message: "nope" },

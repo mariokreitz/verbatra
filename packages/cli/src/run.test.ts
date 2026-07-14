@@ -116,6 +116,33 @@ describe("run translate: SDK delegation and rendering", () => {
     const parsed = JSON.parse(json.out().trim()) as typeof summary;
     expect(parsed.locales[0]?.pruned).toEqual(["x", "y"]);
   });
+
+  it("--json includes usage, budget, and budgetWithheld verbatim from the RunSummary", async () => {
+    const summary = makeSummary({
+      locales: [
+        makeLocale({
+          usage: { inputTokens: 100, outputTokens: 50 },
+          budgetWithheld: ["a.title"],
+        }),
+      ],
+      succeeded: ["de"],
+      usage: { inputTokens: 100, outputTokens: 50 },
+      budget: {
+        maxTokens: 1000,
+        behavior: "stop",
+        supported: true,
+        tokensUsed: 100,
+        exceeded: false,
+      },
+    });
+    const { deps } = recordingDeps({ translate: async () => summary });
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--json"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+  });
 });
 
 describe("run translate: exit codes", () => {
