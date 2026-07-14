@@ -1,17 +1,15 @@
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { StatusData } from "../client/coverage.js";
-import { toStatusOutcome } from "../client/coverage.js";
 import type { DiffLocale, KeyLocaleStatus } from "../client/diff-view.js";
 import { deriveKeyLocaleStatus, driftKeys } from "../client/diff-view.js";
 import { isRtlLocale } from "../client/locale-direction.js";
 import type { GridArrowKey, GridPosition } from "../client/roving-tabindex.js";
 import { moveGridFocus } from "../client/roving-tabindex.js";
 import type { RefreshableView } from "../client/state.js";
-import { applyRefreshOutcome } from "../client/state.js";
-import { rpcClient } from "./api.js";
 import { Badge } from "./Badge.js";
 import { DiffBadge } from "./DiffBadge.js";
+import { useStatusData } from "./use-status-data.js";
 
 export interface StatusGridProps {
   /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
@@ -205,23 +203,9 @@ function GridBodyRow({
  */
 export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode {
   const keys = useMemo(() => driftKeys(locales), [locales]);
-  const [status, setStatus] = useState<RefreshableView<StatusData>>({ kind: "loading" });
+  const status = useStatusData();
   const [position, setPosition] = useState<GridPosition>({ row: 0, col: 0 });
   const cellRefs = useRef(new Map<string, HTMLButtonElement>());
-
-  useEffect(() => {
-    let cancelled = false;
-    void rpcClient.call("status.check", {}).then((response) => {
-      if (cancelled) {
-        return;
-      }
-      const outcome = toStatusOutcome(response);
-      setStatus((previous) => applyRefreshOutcome(previous, outcome));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function registerCell(row: number, col: number, element: HTMLButtonElement | null): void {
     const key = cellRefKey(row, col);
