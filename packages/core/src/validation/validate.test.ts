@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { diffResources } from "../diff/diff-resources.js";
 import { entry, resource } from "../testing/factories.js";
 import { validate } from "./validate.js";
 
@@ -73,6 +74,30 @@ describe("validate", () => {
     const source = resource("en", [entry({ key: "b" }), entry({ key: "a" }), entry({ key: "c" })]);
     const target = resource("de", []);
     expect(validate(source, target).missingKeys.map((f) => f.key)).toEqual(["a", "b", "c"]);
+  });
+
+  it("sorts findings by plain code-unit order, not locale-collated order", () => {
+    const keys = ["B", "a", "A", "b"];
+    const source = resource(
+      "en",
+      keys.map((key) => entry({ key })),
+    );
+    const target = resource("de", []);
+    const codeUnitOrder = [...keys].sort();
+    expect(codeUnitOrder).toEqual(["A", "B", "a", "b"]);
+    expect(validate(source, target).missingKeys.map((f) => f.key)).toEqual(codeUnitOrder);
+  });
+
+  it("agrees with diffResources's order for the same key set", () => {
+    const keys = ["Zebra", "apple", "ä", "a"];
+    const source = resource(
+      "en",
+      keys.map((key) => entry({ key })),
+    );
+    const target = resource("de", []);
+    const validationOrder = validate(source, target).missingKeys.map((f) => f.key);
+    const diffOrder = diffResources(source, target).missing;
+    expect(validationOrder).toEqual(diffOrder);
   });
 
   it("handles empty resources", () => {
