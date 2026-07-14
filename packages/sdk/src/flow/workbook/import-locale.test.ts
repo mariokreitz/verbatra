@@ -267,6 +267,24 @@ describe("importLocale", () => {
     ).toThrow(UnknownKeyError);
   });
 
+  it('accepts a filled row with reviewStatus "review" exactly like an equivalent "ok" row', () => {
+    // reviewStatus is advisory metadata from the exchange workbook, never a gate: a needs-review row
+    // must go through the same drift/placeholder/ICU rules as an "ok" row and be accepted identically.
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "Hallo", contentHash(src)), reviewStatus: "review" }],
+    };
+    const result = importLocale(
+      params({ sheet, source: resource("en", [src]), target: resource("de", []) }),
+    );
+
+    expect(result.accepted.get("greet")?.value).toBe("Hallo");
+    expect(result.withheld.size).toBe(0);
+    expect(result.summary.translated).toEqual(["greet"]);
+    expect(result.summary.integrityMismatches).toEqual([]);
+  });
+
   it("never treats the row's context as a translation source, even a hostile one that matches nothing else", () => {
     // Regression: the Context column carries read-only developer context, not translator input. A
     // row whose context looks like an accepted value, an instruction, or markup must have no effect
