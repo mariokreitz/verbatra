@@ -1,6 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import type { JsonRecord, JsonTree } from "./json-tree.js";
+import { isJsonNode, type JsonRecord } from "./json-tree.js";
 import { encodeSegment, joinEncodedSegments } from "./key-encoding.js";
 
 /** Derive the format-specific parts of an entry (placeholders, plurality) from its leaf key and value. */
@@ -23,11 +23,6 @@ export interface FlattenResult {
   readonly entries: Map<string, TranslationEntry>;
   /** Dotted paths of leaves that were present but excluded as non-string, in document order, using the same key encoding as `TranslationEntry.key`. */
   readonly excludedLeafPaths: readonly string[];
-}
-
-/** A parsed JSON/YAML value is a nested object node, never `null` at this level: `typeof null` is `"object"`, so it must be checked out explicitly to be treated as a leaf. */
-function isNode(value: JsonTree): value is JsonRecord {
-  return typeof value === "object" && value !== null;
 }
 
 interface FlattenContext {
@@ -65,7 +60,7 @@ function addLeaf(
 function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRecord): void {
   for (const [key, value] of Object.entries(node)) {
     const segments = [...prefix, key];
-    if (isNode(value)) {
+    if (isJsonNode(value)) {
       addEntries(ctx, segments, value);
     } else {
       addLeaf(ctx, segments, key, value);
@@ -102,7 +97,7 @@ function addPathEntries(
       );
     }
     claimedPaths.add(path);
-    if (isNode(value)) {
+    if (isJsonNode(value)) {
       addPathEntries(value, path, namespace, derive, out, claimedPaths, excluded);
     } else if (typeof value === "string") {
       const { placeholders, isPlural } = derive(key, value);

@@ -80,3 +80,8 @@ export function parseJsonObject(content: string): JsonRecord {
 export function serializeJsonTree(tree: unknown): string {
   return `${JSON.stringify(tree, null, 2)}\n`;
 }
+
+/** A parsed JSON/YAML value is a nested object node, never `null`: `typeof null` is `"object"`, so a `null` leaf must be checked out explicitly to avoid being treated as a nested node. */
+export function isJsonNode(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null;
+}
