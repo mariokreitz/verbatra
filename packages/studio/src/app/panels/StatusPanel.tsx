@@ -1,14 +1,10 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import type { StatusData, StatusRow } from "../../client/coverage.js";
-import { toStatusOutcome } from "../../client/coverage.js";
-import type { RefreshableView } from "../../client/state.js";
-import { applyRefreshOutcome } from "../../client/state.js";
-import { rpcClient } from "../api.js";
+import type { StatusRow } from "../../client/coverage.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
+import { useStatusData } from "../use-status-data.js";
 
 function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   return (
@@ -68,21 +64,7 @@ function StatusTable({
  * `client/state.ts`'s covered `applyRefreshOutcome`, the one tested place that decision lives.
  */
 export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
-  const [view, setView] = useState<RefreshableView<StatusData>>({ kind: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    void rpcClient.call("status.check", {}).then((response) => {
-      if (cancelled) {
-        return;
-      }
-      const outcome = toStatusOutcome(response);
-      setView((previous) => applyRefreshOutcome(previous, outcome));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshToken]);
+  const view = useStatusData(refreshToken);
 
   if (view.kind === "loading") {
     return <Loading />;

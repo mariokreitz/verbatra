@@ -567,6 +567,156 @@ input {
   margin: var(--space-2) 0 0;
 }
 
+/* Diff panel: grid/list view toggle */
+
+.view-toggle {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-1);
+}
+
+.view-toggle-button {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+
+.view-toggle-button:hover {
+  background: var(--color-row-hover);
+  color: var(--color-text);
+}
+
+.view-toggle-button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.view-toggle-button-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* Diff panel: locale x key status grid */
+
+.status-grid-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.status-grid {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.status-grid th,
+.status-grid td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: start;
+  white-space: nowrap;
+}
+
+.status-grid thead th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  border-bottom: 2px solid var(--color-border);
+  vertical-align: bottom;
+}
+
+.status-grid-key-header {
+  min-width: 160px;
+}
+
+.status-grid-locale-header {
+  min-width: 140px;
+}
+
+.status-grid-key-cell {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: start;
+  position: sticky;
+  inset-inline-start: 0;
+  background: var(--color-bg);
+}
+
+.status-grid tbody tr:last-child th,
+.status-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.status-grid tbody tr:hover {
+  background: var(--color-row-hover);
+}
+
+.status-grid-cell {
+  padding: var(--space-1) var(--space-2);
+}
+
+.status-grid-cell-button {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.status-grid-cell-button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.completeness-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.completeness-bar-track {
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-neutral-soft);
+  overflow: hidden;
+}
+
+.completeness-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: inherit;
+}
+
+.completeness-bar-label {
+  white-space: nowrap;
+}
+
+.completeness-bar-placeholder {
+  display: block;
+  margin-top: var(--space-1);
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
 /* History panel */
 
 .commit-list {
