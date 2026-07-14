@@ -28,10 +28,12 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
 
 /**
  * One commit's summary line plus the files it touched. The summary is rendered through
- * {@link renderCommitSummary} (`src/client/`, covered) via a ref callback rather than direct JSX
- * interpolation, so the commit's fields, including its message, always reach the DOM through
- * `textContent`, never `innerHTML`. `touchedPaths` carries no such requirement (it is a list of
- * repository-relative file paths, not free-form commit text) and renders as ordinary JSX children.
+ * {@link renderCommitSummary} (`src/client/`, covered) via a ref callback into `textContent`, so
+ * that logic stays unit-tested outside a browser (`src/app` has no browser test harness, see
+ * `vitest.config.ts`). `touchedPaths` renders as ordinary JSX children instead: React's JSX child
+ * rendering already writes strings to DOM text nodes, the same anti-markup guarantee `textContent`
+ * gives `renderCommitSummary`, just without a plain-object-friendly seam to unit test through, so
+ * there is nothing this component needs the ref/`textContent` pattern for here.
  */
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   return (

@@ -774,6 +774,7 @@ input {
   background: var(--color-neutral-soft);
   border-radius: var(--radius);
   padding: 2px var(--space-2);
+  overflow-wrap: break-word;
 }
 
 /* Key detail drawer */
@@ -849,4 +850,12 @@ input {
 .drawer-close:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+}
+
+/* The drawer is min(420px, 100%) wide with --space-5 padding on each side, about 372px of content
+   width, narrower than .data-table's own 480px min-width (sized for the wider Status and Lock
+   panels). Without this override, the drawer's status-by-locale table would overflow its own
+   container; its two columns (a short locale code and a badge) never needed that floor anyway. */
+.drawer .data-table {
+  min-width: 0;
 }
