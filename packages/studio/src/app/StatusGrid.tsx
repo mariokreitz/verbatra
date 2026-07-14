@@ -44,13 +44,25 @@ function percentForLocale(status: RefreshableView<StatusData>, locale: string): 
 /**
  * A locale header's completeness bar, sourced from `check()`'s own already-computed percentage
  * (`upToDate / (missing + stale + upToDate)`, see `client/coverage.ts`), never recomputed from the
- * diff key lists here: recounting client-side risks drifting from `check()`'s own numbers. Renders
- * a placeholder dash while `status.check` is still loading, rather than blocking the grid, which
- * already has everything it needs to render from the diff data alone.
+ * diff key lists here: recounting client-side risks drifting from `check()`'s own numbers. `percent`
+ * is only ever null while `status.check` has not yet produced any data (still loading, or its first
+ * fetch failed); `unavailable` distinguishes those two so a genuine failure never sits mislabeled as
+ * "still loading" forever. The grid itself does not depend on this: it already has everything it
+ * needs to render from the diff data alone, whether or not the completeness fetch succeeds.
  */
-function CompletenessBar({ percent }: { readonly percent: number | null }): ReactNode {
+function CompletenessBar({
+  percent,
+  unavailable,
+}: {
+  readonly percent: number | null;
+  readonly unavailable: boolean;
+}): ReactNode {
   if (percent === null) {
-    return <span className="completeness-bar-placeholder">Loading coverage</span>;
+    return (
+      <span className="completeness-bar-placeholder">
+        {unavailable ? "Coverage unavailable" : "Loading coverage"}
+      </span>
+    );
   }
   return (
     <div className="completeness-bar">
@@ -253,7 +265,10 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
                 dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
               >
                 <span className="mono">{locale.locale}</span>
-                <CompletenessBar percent={percentForLocale(status, locale.locale)} />
+                <CompletenessBar
+                  percent={percentForLocale(status, locale.locale)}
+                  unavailable={status.kind === "error"}
+                />
               </th>
             ))}
           </tr>
