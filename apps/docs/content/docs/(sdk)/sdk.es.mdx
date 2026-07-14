@@ -87,6 +87,7 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
   usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
 }
@@ -143,6 +144,17 @@ degradación elegante de DeepL) y avisos del SDK (por ejemplo, una lengua de des
 CLDR de las que aporta el origen, código `PLURAL_CATEGORIES_INCOMPLETE`, o un presupuesto de tokens superado,
 código `BUDGET_TOKENS_EXCEEDED`). No hay una lista de avisos de nivel superior en
 `RunSummary`, así que léelos siempre desde el locale.
+
+`needsReview` lista cada clave aceptada que las heurísticas de revisión marcaron para una segunda
+mirada, cada una con los códigos de motivo que aplicaron: `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`,
+`GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` y `PROVIDER_DEGRADED`. Es una señal distinta y no
+bloqueante, separada de la puerta de integridad de marcadores de posición e ICU: una señal de revisión
+nunca retiene una clave, solo la marca como digna de mirar, así que una clave nunca aparece a la vez en
+`needsReview` y en `integrityMismatches` por el mismo motivo. Siempre está vacía en el `RunSummary` que
+devuelve `importWorkbook`, ya que una importación de libro nunca llama a un proveedor ni recalcula
+señales en su propio camino. Consulta [Seguridad de la traducción](/docs/translation-safety) para saber
+qué significa cada código, y [Traducción humana](/docs/manual-translation) para la misma señal en las
+columnas `Review status` / `Review reasons` del libro.
 
 `usage` es `undefined`, nunca un `{ inputTokens: 0, outputTokens: 0 }` inventado, siempre que nada en ese
 ámbito haya informado uso: una ejecución en seco nunca llama a un proveedor, y un proveedor sin tokens

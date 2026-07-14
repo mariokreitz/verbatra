@@ -10,6 +10,8 @@ verbatra export
 
 By default this writes `verbatra-translations.xlsx` in the working directory with only the **missing and changed** strings: the same keys an automated `translate` run would send to a provider. See [Human translation](/docs/manual-translation) for the full round-trip.
 
+Every row with a current translation also carries a read-only `Review status` / `Review reasons` pair: verbatra's own advisory heuristics for spotting a translation worth a second look, recomputed fresh from the current source and target values at export time. They never affect what `import` accepts. See [Human translation](/docs/manual-translation) for the columns and [Translation safety](/docs/translation-safety) for the reason codes.
+
 ## Options
 
 | Option | Description |

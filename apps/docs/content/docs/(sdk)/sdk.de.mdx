@@ -87,6 +87,7 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
   generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
   notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
   usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
 }
@@ -143,6 +144,17 @@ Herabstufung) und SDK-Hinweise ab (etwa eine Zielsprache, die mehr CLDR-Plural-K
 als die Quelle liefert, Code `PLURAL_CATEGORIES_INCOMPLETE`, oder ein überschrittenes Token-Budget, Code
 `BUDGET_TOKENS_EXCEEDED`). Es gibt keine Hinweis-Liste auf oberster Ebene auf
 `RunSummary`, also lies sie immer von der Locale ab.
+
+`needsReview` listet jeden akzeptierten Key, den die Review-Heuristiken für einen zweiten Blick markiert
+haben, jeweils mit den zutreffenden Grund-Codes: `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`,
+`GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` und `PROVIDER_DEGRADED`. Das ist ein eigenständiges, nicht
+blockierendes Signal, getrennt von der Platzhalter- und ICU-Integritätssperre: ein Review-Flag hält
+niemals einen Key zurück, es markiert ihn nur als sehenswert, sodass ein Key nie aus demselben Grund
+sowohl in `needsReview` als auch in `integrityMismatches` erscheint. Es ist auf der von `importWorkbook`
+zurückgegebenen `RunSummary` immer leer, da ein Arbeitsmappen-Import nie einen Provider aufruft oder
+Flags auf seinem eigenen Pfad neu berechnet. Siehe [Translation safety](/docs/translation-safety) dafür,
+was jeder Code bedeutet, und [Human translation](/docs/manual-translation) für dasselbe Signal in den
+Arbeitsmappen-Spalten `Review status` / `Review reasons`.
 
 `usage` ist `undefined`, niemals ein erfundenes `{ inputTokens: 0, outputTokens: 0 }`, wann immer nichts
 in diesem Bereich Nutzung gemeldet hat: Ein Dry-Run ruft nie einen Provider auf, und ein token-loser

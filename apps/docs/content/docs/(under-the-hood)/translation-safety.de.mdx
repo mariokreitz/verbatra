@@ -34,6 +34,22 @@ kein gültiges ICU ist, wird beiseitegelegt und von der Übersetzung übersprung
 und er wird als ungültiges ICU in der Zusammenfassung gemeldet. Der ICU-Körper bleibt wörtlich durch die Pipeline:
 nichts wird aufgelöst oder umgeschrieben.
 
+## Review-Flags
+
+Die Prüfungen oben beweisen nur, dass eine Übersetzung strukturell sicher ist: nichts ist kaputt, aber sie könnte trotzdem falsch sein. verbatra fährt eine zweite, nicht blockierende Schicht darüber: eine reine Heuristik, die einen Key für die menschliche Überprüfung markiert, ohne ihn jemals zurückzuhalten. Ein Review-Flag ist rein beratend. Es hält niemals einen Key zurück, und nichts in der Arbeitsmappe oder der Lauf-Zusammenfassung lässt sich bearbeiten, um es zu löschen; der einzige Weg, ein Flag zu löschen, ist, die zugrunde liegende Übersetzung zu korrigieren.
+
+Fünf Grund-Codes, und ein markierter Key kann mehr als einen tragen:
+
+- `LENGTH_RATIO_OUTLIER`: die getrimmte Länge des übersetzten Werts ist deutlich kürzer oder länger als die der Quelle (unter 0,35x oder über 3,0x, übersprungen wenn die getrimmte Quelle unter 12 UTF-16-Codeeinheiten liegt). Das ist eine reine Längenverhältnis-Prüfung auf UTF-16-Länge, sie kann also eine legitim ausführliche Zielsprache (Deutsch) oder ein dichtes CJK-Ziel überflaggen; behandle es als Anstoß zum Hinschauen, nicht als Urteil.
+- `EQUALS_SOURCE`: der übersetzte Wert entspricht wortwörtlich dem Quellwert, in einer Ziel-Locale, die sich von der Quell-Locale unterscheidet, und die Quelle hatte tatsächlich etwas Übersetzbares (mindestens einen Unicode-Buchstaben). Eine reine Platzhalter-, Zahlen- oder Interpunktionsquelle wird so nie markiert.
+- `GLOSSARY_TERM_MISSED`: ein konfigurierter Glossar-Quellbegriff kommt im Quellwert vor, aber sein zugeordneter Zielbegriff kommt nicht in der Übersetzung vor. Nur ausgewertet, wenn ein Glossar konfiguriert ist.
+- `INTEGRITY_REORDERED`: die Platzhaltermenge stimmte exakt überein (die Platzhalter-Integritätsprüfung oben hat die Übersetzung bereits akzeptiert), landete aber in einer anderen Reihenfolge als die Quelle. Dieses Flag überschneidet sich nie mit einem Platzhalter-Integritätsfehler: es feuert nur bei einer Übersetzung, die bereits bestanden hat.
+- `PROVIDER_DEGRADED`: der Batch, aus dem dieser Key stammt, trug einen `FORMALITY_DOWNGRADED`- oder `GLOSSARY_IGNORED`-Hinweis. Im heutigen Provider-Set ist das nur bei DeepL der Fall, da kein LLM-Provider derzeit einen der beiden Hinweise ausgibt.
+
+Wo du das siehst: `translate` und `watch` melden es pro Locale als `needsReview` auf der Lauf-Zusammenfassung, beschränkt auf Keys, die in diesem Lauf tatsächlich akzeptiert und geschrieben wurden, und die CLI gibt eine `needs-review`-Zahl aus, wenn sie größer als null ist; siehe [`verbatra translate`](/docs/cli/translate) und die [SDK-Referenz](/docs/sdk). Die Excel-Arbeitsmappe trägt dasselbe Signal in ihren Spalten `Review status` und `Review reasons`, frisch bei jedem Export neu berechnet; siehe [Human translation](/docs/manual-translation).
+
+`PROVIDER_DEGRADED` gilt nur zum Übersetzungszeitpunkt. Es kommt von einem Provider-Hinweis, der nur im Speicher während des Laufs existiert, der ihn erzeugt hat: nichts auf der Festplatte zeichnet ihn auf, da das Beheben bedeuten würde, Provider-Zeitpunkt-Fakten in der [Lock-Datei](/docs/the-lock-file) zu persistieren, was dieses Feature absichtlich nicht tut. Eine später aus derselben Ziel-Datei exportierte Arbeitsmappe zeigt `PROVIDER_DEGRADED` für diesen Key also nie, selbst wenn der Key selbst noch da ist: sie exportiert `ok`, es sei denn, der Key löst unabhängig auch einen der vier oben genannten neu berechenbaren Grund-Codes aus, in welchem Fall die exportierte Zeile stattdessen diesen Grund trägt.
+
 ## Die Prompt-Injection-Grenze
 
 Die Strings, die du übersetzt, sind nicht vertrauenswürdig: sie können Text enthalten, der wie eine Instruktion aussieht
@@ -55,7 +71,7 @@ der bereinigt werden müsste. Ein Schlüssel kann nicht in Logs, in Fehlermeldun
 ## Was du siehst
 
 Jedes dieser Ergebnisse ist Daten in der Lauf-Zusammenfassung, pro Locale: die übersetzten Keys, die wegen eines
-Platzhalter-Mismatch zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quell-Keys und etwaige Hinweise. Hinweise
+Platzhalter-Mismatch zurückgehaltenen, die wegen ungültigem ICU übersprungenen Quell-Keys, die für die Überprüfung markierten Keys und etwaige Hinweise. Hinweise
 umfassen Provider-Hinweise und SDK-Hinweise, wie eine Plural-Kategorie-Warnung (Code
 `PLURAL_CATEGORIES_INCOMPLETE`), wenn eine Zielsprache mehr Plural-Kategorien benötigt, als die Quelle
 liefert; siehe [Add a language](/docs/add-a-language) dafür, wie du diese Formen stattdessen synthetisierst.

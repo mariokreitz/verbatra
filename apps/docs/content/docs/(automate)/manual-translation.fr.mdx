@@ -29,11 +29,14 @@ Le fichier s'ouvre sur une feuille **Instructions**, suivie d'une feuille de don
 | `Key` | non | Le chemin de clé pointé. La seule identité qui rattache une ligne à une chaîne. |
 | `Source` | non | La valeur de la locale source, pour référence. |
 | `Current translation` | non | La valeur cible existante, le cas échéant. |
-| `Status` | non | `new` (pas encore de traduction) ou `changed` (la source a changé et la traduction doit être mise à jour). |
+| `Status` | non | `new` (pas encore de traduction), `changed` (la source a changé et la traduction doit être mise à jour) ou `unchanged` (déjà à jour, incluse seulement avec `--include-unchanged`). |
 | `Translation` | **oui** | La seule cellule que le traducteur remplit. |
 | `Source hash` | non | Masquée. Le contenu source capturé à l'export, utilisé pour détecter une source qui a changé après l'export. |
+| `Context` | non | Contexte développeur pour la chaîne, quand le format source en porte un (`@key.description` de Flutter ARB, `<note>` de XLIFF). Affiché pour référence seulement, jamais importé comme traduction. |
+| `Review status` | non | `ok` ou `review` : si les heuristiques de révision de verbatra ont signalé la traduction de cette ligne pour un second regard. Lecture seule et consultatif, jamais un verrou à l'import. |
+| `Review reasons` | non | Une liste d'étiquettes de motifs séparées par des virgules qui l'expliquent (par exemple `length-ratio-outlier, equals-source`). Vide quand `Review status` vaut `ok`. |
 
-Chaque colonne sauf `Translation` est verrouillée et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. Trie ou filtre les lignes comme tu veux : le rattachement se fait par `Key`, jamais par position.
+Chaque colonne sauf `Translation` est verrouillée et la feuille est protégée, de sorte qu'un traducteur ne peut modifier que la seule colonne qui compte. La ligne d'en-tête est figée et la colonne `Source hash` est masquée. `Context`, `Review status` et `Review reasons` sont ajoutées après `Source hash` plutôt qu'insérées plus tôt, de sorte que `Translation` garde sa position pour qui script contre la forme du classeur. Trie ou filtre les lignes comme tu veux : le rattachement se fait par `Key`, jamais par position.
 
 Une cellule `Translation` vide signifie « pas encore traduite ». L'import l'ignore et n'écrit jamais une chaîne vide, de sorte qu'un traducteur peut renvoyer un classeur à moitié rempli et terminer le reste plus tard.
 
@@ -62,6 +65,7 @@ L'import n'est pas un collage aveugle. Avant que verbatra n'écrive quoi que ce 
 - **Validité ICU** : un message ICU doit rester structurellement valide, avec les mêmes noms d'argument. Seul le texte lisible par l'humain peut changer.
 - **Dérive de la source** : le `Source hash` masqué permet à l'import de repérer une chaîne source qui a changé après l'export du classeur. Une ligne périmée est retenue, de sorte que tu n'écrases jamais une source actuelle par une traduction d'une ancienne.
 - **Clés inconnues** : une ligne dont la `Key` n'est pas dans la source actuelle (par exemple, une qu'un traducteur a ajoutée à la main) est rejetée.
+- **`Context` n'est jamais une source de traduction** : `Context` est un texte de référence en lecture seule. L'import l'ignore entièrement, et un classeur exporté avant l'existence de cette colonne s'importe toujours normalement.
 
 Une valeur qui échoue à une vérification est **retenue** (non écrite) et signalée dans le résumé de l'exécution, de sorte que tu peux la corriger et la réimporter. Les clés qui passent sont écrites et verrouillées ; celles qui échouent laissent le fichier de locale intact. Ajoute `--dry-run` pour valider un classeur retourné et prévisualiser ce qui serait écrit sans toucher à un seul fichier :
 
@@ -70,6 +74,20 @@ verbatra import verbatra-translations.xlsx --dry-run
 ```
 
 L'import partage le contrat des codes de sortie de `translate` : il renvoie `0` quand toutes les locales réussissent, `1` quand une locale échoue, et `2` quand l'exécution n'a pas pu démarrer. Cela signifie qu'un transfert manuel s'intègre aux mêmes vérifications CI qu'un transfert automatisé. Voir [CI et automatisation](/docs/ci-and-exit-codes).
+
+## Signaux de révision
+
+Les vérifications ci-dessus décident de ce que l'import écrit. `Review status` et `Review reasons` sont une couche différente, non bloquante, par-dessus : les propres heuristiques de verbatra pour repérer une traduction structurellement correcte mais qui mérite un second regard. Elles ne retiennent jamais une ligne et n'affectent jamais ce que l'import accepte. Un traducteur ne peut pas effacer un signal en modifiant une cellule ; le seul moyen de l'effacer est de corriger la valeur de `Translation` et de réexporter.
+
+Les deux colonnes sont recalculées à chaque export à partir des valeurs source et cible actuelles, pas reportées d'une exécution `translate`. `Review reasons` liste les étiquettes qui s'appliquent, séparées par des virgules :
+
+- `length-ratio-outlier` : la traduction est nettement plus courte ou plus longue que sa source.
+- `equals-source` : la traduction est identique à la source.
+- `glossary-term-missed` : un terme de glossaire configuré n'a pas fait son chemin dans la traduction.
+- `integrity-reordered` : l'ensemble des placeholders correspondait mais est arrivé dans un ordre différent de celui de la source.
+- `provider-degraded` : le lot dont vient cette clé portait un avis de dégradation DeepL au moment de la traduction. Comme l'export n'appelle jamais de provider, ce motif n'apparaît jamais sur une ligne exportée ; il n'apparaît que dans la sortie `translate --json` ou `watch --json`. Une clé qui n'a déclenché que ce motif au moment de la traduction exporte `ok`, sauf si elle déclenche aussi indépendamment l'un des quatre motifs ci-dessus, auquel cas la ligne exportée porte ce motif à la place.
+
+Une ligne sans rien de traduit encore exporte toujours `ok` : il n'y a rien à réviser. Voir [Sûreté de la traduction](/docs/translation-safety) pour ce que signifie chaque motif et comment ces signaux se rapportent aux vérifications de placeholders et d'ICU ci-dessus.
 
 ## Depuis le SDK
 

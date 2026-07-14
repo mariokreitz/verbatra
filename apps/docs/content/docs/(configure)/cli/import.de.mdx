@@ -31,6 +31,8 @@ Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs
 
 Ein Wert wird **zurückgehalten**, wenn er einen Platzhalter zerbricht, ungültiges ICU ist oder sich seine Quelle geändert hat, seit die Arbeitsmappe exportiert wurde (erkannt über die verborgene Quell-Hash-Spalte). Ein zurückgehaltener Wert lässt die Locale-Datei unberührt, sodass du ihn korrigieren und erneut importieren kannst. Siehe [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen.
 
+Die Spalten `Review status` und `Review reasons` einer Arbeitsmappe sind, wenn vorhanden, nur lesbar und beratend: sie sperren `import` niemals. Eine Zeile, die als `review` markiert ist und ein ausgefülltes `Translation` hat, wird nach genau denselben Regeln akzeptiert oder zurückgehalten wie jede andere Zeile. Eine Arbeitsmappe, die vor diesen beiden Spalten exportiert wurde, importiert weiterhin jede Zeile unverändert. Siehe [Menschliche Übersetzung](/docs/manual-translation) dafür, was die Spalten bedeuten.
+
 ## Beispiele
 
 ```bash

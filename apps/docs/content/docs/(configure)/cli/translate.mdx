@@ -24,6 +24,8 @@ By default a run deletes nothing. Orphaned keys (present in a target file but no
 
 Without `--json`, `translate` prints a human-readable run summary. With `--json`, it prints the run summary as one JSON object on stdout: see the [`RunSummary` shape in the SDK reference](/docs/sdk). A whole-run error goes to stderr, so stdout stays clean and pipeable under `--json`.
 
+A locale line shows a `needs-review` count only when it is greater than zero: verbatra's own heuristics flagging a translated key worth a second look (a suspiciously short or long output, a value identical to the source, a missed glossary term, or a reordered placeholder set). It never withholds anything by itself; see [Translation safety](/docs/translation-safety) for what each reason means. The `--json` output always carries the full detail as `needsReview` on each locale.
+
 ## Examples
 
 ```bash

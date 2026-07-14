@@ -33,8 +33,10 @@ The file opens with one **Instructions** sheet, followed by one data sheet per t
 | `Translation` | **yes** | The only cell the translator fills. |
 | `Source hash` | no | Hidden. The source content captured at export, used to detect a source that changed after export. |
 | `Context` | no | Developer context for the string, when the source format carries any (Flutter ARB's `@key.description`, XLIFF's `<note>`). Shown for reference only, never imported as a translation. |
+| `Review status` | no | `ok` or `review`: whether verbatra's review heuristics flagged this row's translation for a second look. Read-only and advisory, never a gate on import. |
+| `Review reasons` | no | A comma-separated list of reason labels explaining why (for example `length-ratio-outlier, equals-source`). Empty when `Review status` is `ok`. |
 
-Every column except `Translation` is locked and the sheet is protected, so a translator can only edit the one column that matters. The header row is frozen and the `Source hash` column is hidden. `Context` is appended after `Source hash` rather than inserted earlier, so `Translation` keeps the same position for anyone scripting against the workbook shape. Sort or filter the rows however you like: mapping is by `Key`, never by position.
+Every column except `Translation` is locked and the sheet is protected, so a translator can only edit the one column that matters. The header row is frozen and the `Source hash` column is hidden. `Context`, `Review status`, and `Review reasons` are appended after `Source hash` rather than inserted earlier, so `Translation` keeps the same position for anyone scripting against the workbook shape. Sort or filter the rows however you like: mapping is by `Key`, never by position.
 
 An empty `Translation` cell means "not translated yet". Import skips it and never writes an empty string, so a translator can send back a half-filled workbook and finish the rest later.
 
@@ -72,6 +74,20 @@ verbatra import verbatra-translations.xlsx --dry-run
 ```
 
 Import shares the `translate` exit-code contract: it returns `0` when every locale succeeds, `1` when a locale fails, and `2` when the run could not start. That means a manual handoff drops into the same CI checks as an automated one. See [CI and automation](/docs/ci-and-exit-codes).
+
+## Review flags
+
+The checks above decide what import writes. `Review status` and `Review reasons` are a different, non-gating layer on top: verbatra's own heuristics for spotting a translation that is structurally fine but worth a second look. They never withhold a row and never affect what import accepts. A translator cannot clear a flag by editing a cell; the only way to clear it is to fix the `Translation` value and re-export.
+
+Both columns are computed fresh at export time from the source and current target values, not carried over from a `translate` run. `Review reasons` lists the labels that applied, comma-separated:
+
+- `length-ratio-outlier`: the translation is far shorter or longer than its source.
+- `equals-source`: the translation is identical to the source.
+- `glossary-term-missed`: a configured glossary term did not make it into the translation.
+- `integrity-reordered`: the placeholder set matched but landed in a different order than the source.
+- `provider-degraded`: the batch this key came from carried a DeepL degradation notice at translate time. Since export never calls a provider, this reason never appears on an exported row; it only appears in `translate --json` or `watch --json` output. A key that only tripped this reason at translate time exports as `ok`, unless it also independently trips one of the four reasons above, in which case the exported row carries that reason instead.
+
+A row with nothing translated yet always exports `ok`; there is nothing to review. See [Translation safety](/docs/translation-safety) for what each reason means and how these flags relate to the placeholder and ICU checks above.
 
 ## From the SDK
 
