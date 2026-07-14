@@ -1,11 +1,13 @@
 version: 2
 
 updates:
-  # This ecosystem block only sees literal package.json version pins. Most of this repo's
-  # dependency surface is pinned through pnpm catalogs in pnpm-workspace.yaml instead, and
-  # Dependabot does not read that file, so catalog-pinned packages never get an update proposal
-  # here. See the comment above the "catalog" key in pnpm-workspace.yaml for the manual review
-  # process that covers that blind spot.
+  # Dependabot does parse pnpm-workspace.yaml's catalog entries (pnpm catalog support is
+  # GA-announced upstream), but coverage is unreliable in practice: this repo has never
+  # received an update proposal for a catalog-pinned package, and dependabot-core has open
+  # issues describing catalog entries being left untouched or misclassified. This entry
+  # already uses the documented-correct configuration (npm ecosystem, directory "/", the
+  # workspace root); there is no local fix. Catalog-pinned packages need periodic manual
+  # review instead, see the comment above the "catalog" key in pnpm-workspace.yaml.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

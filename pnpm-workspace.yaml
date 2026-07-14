@@ -8,13 +8,17 @@ packages:
 # catalog holds the runtime deps that @verbatra/sdk re-declares from the internal packages it
 # bundles, so the owning package and sdk always pin the same version.
 #
-# Dependabot's npm updater does not parse this file, so none of the entries below (in either
-# "catalog" or "catalogs.bundled") ever get an automated update proposal; only literal
-# package.json version pins do. These need periodic manual review instead: check the latest
-# version with `npm view <package> version` (or `npm view <package> versions` to see the full
-# release history), then bump here and run `pnpm install` to refresh the lockfile. The
-# "catalogs.bundled" entries below are the highest risk to leave stale, since they ship inside
-# the published @verbatra/sdk rather than staying internal to this repo.
+# Dependabot does not reliably update these entries even though pnpm catalog support is
+# GA-announced upstream (see the comment in .github/dependabot.yml): dependabot-core has
+# multiple open issues describing catalog entries being left untouched, lockfile corruption
+# on catalog-sourced updates, and catalog entries being misclassified for dependency-type
+# group filters. This is an upstream reliability gap, not a local configuration mistake;
+# there is no additional setting here that fixes it. Treat every version below (in either
+# "catalog" or "catalogs.bundled") as manually maintained: check the latest with
+# `npm view <package> version` (or `npm view <package> versions` for the full release
+# history), then bump here and run `pnpm install` to refresh the lockfile. The
+# "catalogs.bundled" entries are the highest risk to leave stale, since they ship inside the
+# published @verbatra/sdk rather than staying internal to this repo.
 catalog:
   "@types/node": 26.0.0
   "@types/react": 19.2.17
