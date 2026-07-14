@@ -18,7 +18,7 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
   return (
     <ul className="commit-touched-paths" aria-label="Files changed">
       {paths.map((path) => (
-        <li key={path} className="commit-touched-path mono">
+        <li key={path} className="commit-touched-path">
           {path}
         </li>
       ))}
