@@ -35,14 +35,14 @@
     "release": "changeset publish"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.0",
+    "@biomejs/biome": "2.5.3",
     "@changesets/cli": "2.31.0",
-    "@commitlint/cli": "21.0.2",
-    "@commitlint/config-conventional": "21.0.2",
+    "@commitlint/cli": "21.2.1",
+    "@commitlint/config-conventional": "21.2.0",
     "@vitest/coverage-v8": "catalog:",
-    "lefthook": "2.1.9",
+    "lefthook": "2.1.10",
     "tsup": "catalog:",
-    "turbo": "2.9.18",
+    "turbo": "2.10.5",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }
