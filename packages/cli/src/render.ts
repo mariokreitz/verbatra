@@ -84,6 +84,7 @@ function renderLocaleLine(locale: LocaleSummary): string {
     [locale.invalidIcuSource.length, "invalid-ICU skipped", false],
     [locale.integrityMismatches.length, "integrity-withheld", false],
     [locale.budgetWithheld.length, "budget-withheld", false],
+    [locale.needsReview.length, "needs-review", false],
     [locale.notices.length, "notices", false],
   ];
   const shown = counts

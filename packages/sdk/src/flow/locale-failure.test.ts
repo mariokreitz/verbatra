@@ -17,6 +17,7 @@ function succeeded(locale: string): LocaleSummary {
     budgetWithheld: [],
     generated: [],
     notices: [],
+    needsReview: [],
   };
 }
 
@@ -60,6 +61,7 @@ describe("failureSummary", () => {
       budgetWithheld: [],
       generated: [],
       notices: [],
+      needsReview: [],
       error: { code: "ADAPTER_WRITE", message: "nope" },
     });
   });
