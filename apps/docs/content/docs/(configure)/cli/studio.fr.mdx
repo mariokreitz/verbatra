@@ -44,7 +44,7 @@ La configuration est résolue une seule fois, au démarrage, et chaque vue, pend
 
 - **Statut** : les décomptes de clés manquantes, obsolètes et à jour par locale, le même calcul que `verbatra check`.
 - **Diff** : les clés exactes qui seraient ajoutées, retraduites ou orphelines par locale, le même calcul que `verbatra diff`. Les longues listes de clés sont plafonnées dans la vue (avec une mention "affiche N sur le total") pour qu'un très grand catalogue reste réactif ; le filtrage continue de parcourir la liste complète.
-- **Configuration et glossaire** : une projection expurgée de ta configuration résolue (locales source et cible, format, motif de fichier, id du fournisseur et les options scalaires sûres) ainsi que tes termes de glossaire, s'il y en a. Les valeurs en texte libre qui pourraient contenir un secret collé ne sont jamais incluses.
+- **Aperçu** : une projection expurgée de ta configuration résolue (locales source et cible, format, motif de fichier, id du fournisseur et les options scalaires sûres) ainsi que tes termes de glossaire, s'il y en a. Les valeurs en texte libre qui pourraient contenir un secret collé ne sont jamais incluses.
 - **Dérive du verrouillage** : si un fichier de verrouillage existe, sa version et sa dérive par locale par rapport aux fichiers source et cible actuels, sans y écrire.
 - **Historique** : l'historique des commits pour tes fichiers de locale surveillés, lu via `git log` avec un nombre de commits plafonné et sans `--follow`. Un projet sans dépôt git, ou avec git indisponible, affiche l'historique comme non disponible plutôt qu'une erreur. L'historique tronqué d'un clone superficiel n'est pas non plus une erreur : il affiche simplement ce que le clone possède.
 

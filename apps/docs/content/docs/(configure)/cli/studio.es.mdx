@@ -44,7 +44,7 @@ La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la
 
 - **Estado**: los recuentos de claves faltantes, desactualizadas y al día por locale, el mismo cálculo que `verbatra check`.
 - **Diff**: las claves exactas que se añadirían, se volverían a traducir o quedarían huérfanas por locale, el mismo cálculo que `verbatra diff`. Las listas de claves largas están limitadas en la vista (con una nota "mostrando N de total") para que un catálogo muy grande siga siendo responsivo; el filtrado sigue buscando en la lista completa.
-- **Configuración y glosario**: una proyección redactada de tu configuración resuelta (locales de origen y destino, formato, patrón de archivo, id del proveedor y las opciones escalares seguras) más tus términos de glosario, si los hay. Los valores de texto libre que podrían contener un secreto pegado nunca se incluyen.
+- **Vista general**: una proyección redactada de tu configuración resuelta (locales de origen y destino, formato, patrón de archivo, id del proveedor y las opciones escalares seguras) más tus términos de glosario, si los hay. Los valores de texto libre que podrían contener un secreto pegado nunca se incluyen.
 - **Desviación del bloqueo**: si existe un archivo de bloqueo, su versión y su desviación por locale frente a los archivos de origen y destino actuales, sin escribir en él.
 - **Historial**: el historial de commits de tus archivos de locale vigilados, leído mediante `git log` con un número de commits acotado y sin `--follow`. Un proyecto sin repositorio git, o con git no disponible, muestra el historial como no disponible en lugar de un error. El historial truncado de un clon superficial tampoco es un error: simplemente muestra lo que tiene el clon.
 

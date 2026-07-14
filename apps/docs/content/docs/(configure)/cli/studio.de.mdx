@@ -44,7 +44,7 @@ Die Konfiguration wird einmal beim Start aufgelöst, und jede Ansicht für die L
 
 - **Status**: pro Locale die Anzahl fehlender, veralteter und aktueller Schlüssel, dieselbe Berechnung wie `verbatra check`.
 - **Diff**: die genauen Schlüssel, die pro Locale hinzugefügt, neu übersetzt oder verwaist wären, dieselbe Berechnung wie `verbatra diff`. Lange Schlüssellisten sind in der Ansicht begrenzt (mit einem Hinweis "zeige N von insgesamt"), damit ein sehr großer Katalog reaktionsfähig bleibt; das Filtern durchsucht weiterhin die vollständige Liste.
-- **Konfiguration und Glossar**: eine geschwärzte Projektion deiner aufgelösten Konfiguration (Quell- und Ziel-Locales, Format, Datei-Muster, Provider-ID und die sicheren skalaren Optionen) sowie deine Glossar-Begriffe, falls vorhanden. Freitext-Werte, die ein eingefügtes Geheimnis enthalten könnten, sind niemals enthalten.
+- **Übersicht**: eine geschwärzte Projektion deiner aufgelösten Konfiguration (Quell- und Ziel-Locales, Format, Datei-Muster, Provider-ID und die sicheren skalaren Optionen) sowie deine Glossar-Begriffe, falls vorhanden. Freitext-Werte, die ein eingefügtes Geheimnis enthalten könnten, sind niemals enthalten.
 - **Lock-Abweichung**: ob eine Lock-Datei existiert, ihre Version und ihre Abweichung pro Locale gegenüber den aktuellen Quell- und Zieldateien, ohne sie zu schreiben.
 - **Historie**: die Commit-Historie für deine beobachteten Locale-Dateien, gelesen über `git log` mit einer begrenzten Commit-Anzahl und ohne `--follow`. Ein Projekt ohne Git-Repository oder mit nicht verfügbarem Git zeigt die Historie als nicht verfügbar an, statt eines Fehlers. Die abgeschnittene Historie eines Shallow-Clones ist ebenfalls kein Fehler: Sie zeigt einfach, was der Clone hat.
 

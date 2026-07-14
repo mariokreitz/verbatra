@@ -44,7 +44,7 @@ The config is resolved once, at startup, and every view for the life of that pro
 
 - **Status**: per-locale missing, stale, and up-to-date counts, the same computation as `verbatra check`.
 - **Diff**: the exact keys that would be added, re-translated, or are orphaned per locale, the same computation as `verbatra diff`. Long key lists are capped in the view (with a "showing N of total" note) so a very large catalog stays responsive; filtering still searches the full list.
-- **Config and glossary**: a redacted projection of your resolved config (source and target locales, format, file pattern, provider id, and the safe scalar options) plus your glossary terms, if any. Free-form values that could carry a pasted secret are never included.
+- **Overview**: a redacted projection of your resolved config (source and target locales, format, file pattern, provider id, and the safe scalar options) plus your glossary terms, if any. Free-form values that could carry a pasted secret are never included.
 - **Lock drift**: whether a lock file exists, its version, and its per-locale drift against the current source and target files, without writing to it.
 - **History**: the commit history for your watched locale files, read via `git log` with a bounded commit count and no `--follow`. A project with no git repository, or with git unavailable, shows history as unavailable rather than an error. A shallow clone's truncated history is also not an error: it simply shows what the clone has.
 
