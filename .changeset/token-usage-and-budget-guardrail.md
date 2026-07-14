@@ -1,6 +1,5 @@
 ---
 "@verbatra/sdk": minor
-"@verbatra/cli": minor
 ---
 
 `translate`, `watch`, and `importWorkbook` now aggregate the token usage every LLM provider already
