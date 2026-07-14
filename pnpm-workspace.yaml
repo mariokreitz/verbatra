@@ -30,7 +30,7 @@ catalogs:
     exceljs: 4.4.0
     jszip: 3.10.1
     loglevel: 1.9.2
-    openai: 6.47.0
+    openai: 6.46.0
     yaml: 2.9.0
 
 overrides:
@@ -56,6 +56,3 @@ allowBuilds:
   lefthook: true
   protobufjs: false
   sharp: true
-
-minimumReleaseAgeExclude:
-  - openai@6.47.0

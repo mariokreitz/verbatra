@@ -1,10 +1,12 @@
 ---
-"@verbatra/ai-providers": patch
 "@verbatra/sdk": patch
 ---
 
 Refresh the bundled Anthropic (`@anthropic-ai/sdk`, 0.105.0 to 0.111.0), Gemini (`@google/genai`,
-2.9.0 to 2.11.0), and OpenAI (`openai`, 6.44.0 to 6.47.0) SDKs pinned in the `bundled` pnpm catalog.
+2.9.0 to 2.11.0), and OpenAI (`openai`, 6.44.0 to 6.46.0) SDKs pinned in the `bundled` pnpm catalog.
+OpenAI's 6.47.0 was published the same day as this change and is deliberately left one patch behind
+current latest, to give a freshly published release a cycle to surface any issues upstream before
+verbatra bundles it.
 `@verbatra/sdk` bundles `@verbatra/ai-providers` into its published dist, so these exact versions
 ship to every consumer of `@verbatra/sdk` and `@verbatra/cli`.
 
