@@ -1,6 +1,5 @@
 ---
 "@verbatra/sdk": minor
-"@verbatra/cli": minor
 ---
 
 Add a derived, per-key "needs review" signal for translations, distinct from the
