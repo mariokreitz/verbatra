@@ -64,7 +64,7 @@ describe("read is bounded and fails structurally (MEDIUM)", () => {
 
 describe("error hygiene (LOW)", () => {
   it("does not echo untrusted key paths in structure errors", async () => {
-    const path = await tempFile('{"apiKeySecretName": 42}');
+    const path = await tempFile('{"apiKeySecretName": [1, 2, 3]}');
     const error = await adapter.read(path, "en").catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AdapterError);
     expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");

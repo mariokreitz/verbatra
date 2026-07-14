@@ -111,6 +111,18 @@ describe("ngx-translate adapter: read (both structures)", () => {
     const error = await adapter.read(path, "en").catch((e: unknown) => e);
     expect((error as { code?: string }).code).toBe("MIXED_STRUCTURE");
   });
+
+  it("reads a flat file with scalar leaves (including null), excluding them, not the whole file", async () => {
+    const dir = await tempDir();
+    const path = await write(
+      dir,
+      "scalars.json",
+      '{"app.hello":"Hi","count":5,"enabled":true,"active":null}',
+    );
+    const { resource, excludedLeafPaths } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["app.hello"]);
+    expect([...excludedLeafPaths].sort()).toEqual(["active", "count", "enabled"]);
+  });
 });
 
 describe("ngx-translate adapter: structure-preserving round-trip", () => {

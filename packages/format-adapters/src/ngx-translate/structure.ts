@@ -1,7 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
 import { readBounded } from "../json/bounded-read.js";
-import type { JsonRecord } from "../json/json-tree.js";
+import { isJsonNode, type JsonRecord } from "../json/json-tree.js";
 import { unflattenEntries } from "../json/unflatten.js";
 
 /** ngx-translate's two file styles: flat dotted keys, or nested objects. */
@@ -17,7 +17,7 @@ type Style = "flat" | "nested";
  */
 function assertNoDottedNestedKey(tree: JsonRecord): void {
   for (const [key, value] of Object.entries(tree)) {
-    if (typeof value !== "object") {
+    if (!isJsonNode(value)) {
       continue;
     }
     if (key.includes(".")) {
@@ -41,7 +41,7 @@ export function assertNotMixed(tree: JsonRecord): void {
   let hasNested = false;
   let hasFlatDottedKey = false;
   for (const [key, value] of Object.entries(tree)) {
-    if (typeof value === "object") {
+    if (isJsonNode(value)) {
       hasNested = true;
     } else if (key.includes(".")) {
       hasFlatDottedKey = true;

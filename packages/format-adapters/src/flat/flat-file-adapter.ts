@@ -87,7 +87,7 @@ export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAd
       const entries = toEntries(content, namespace, parseEntries);
       const resource: LocaleResource = { locale, namespace, format, entries };
       const invalidIcuKeys = computeIcu(entries, computeInvalidIcuKeys);
-      return { resource, invalidIcuKeys };
+      return { resource, invalidIcuKeys, excludedLeafPaths: [] };
     },
     async write(resource, filePath): Promise<void> {
       const data = await serializeEntries(resource.entries, filePath);
