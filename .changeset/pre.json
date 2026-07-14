@@ -14,8 +14,12 @@
     "@verbatra/studio": "0.0.0"
   },
   "changesets": [
+    "deepl-locale-validation-and-request-chunking",
     "formalize-provider-notices",
+    "guard-worksheet-name-collisions",
+    "harden-cli-boundary-error-scaffold",
     "icu-branch-aware-placeholder-integrity",
+    "label-unchanged-workbook-rows",
     "llm-reconcile-partial-accept",
     "lock-file-version-validation",
     "openai-compatible-provider",
@@ -23,6 +27,7 @@
     "openai-compatible-token-limit-field",
     "provider-error-classification",
     "strip-utf8-bom-before-json-parse",
+    "surface-format-metadata-as-context",
     "xliff-hardening",
     "zip-guard-byte-counting"
   ]

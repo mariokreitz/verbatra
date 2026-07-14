@@ -1,5 +1,70 @@
 # @verbatra/sdk
 
+## 0.5.0-next.3
+
+### Minor Changes
+
+- 35fe0f6: Fix the DeepL provider silently mishandling two boundary cases it never checked. First, a locale code DeepL's API does not accept (a regional source code like `en-US`, when only the base code is valid as a DeepL source; or a deprecated bare target code like `en` or `pt` that DeepL requires disambiguated) now fails fast with a structured `INVALID_REQUEST` error naming the rejected code, instead of reaching DeepL and surfacing as an opaque generic provider failure. A locale code DeepL does accept, including a title-case script subtag like `zh-Hans`, passes through unchanged.
+
+  Second, the DeepL provider now chunks its own outgoing requests to stay within DeepL's documented per-request caps (50 texts, 128 KiB of payload), independent of and in addition to the existing `maxBatchSize` config. Previously a `maxBatchSize` above DeepL's real cap (its default of 50 happened to match, but any larger configured value did not) reached `translateText` unchunked and failed only at the provider. A sub-batch that already fits in one request is sent exactly as before; only an over-cap sub-batch is now split into multiple sequential requests and merged back transparently.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- dfd2b77: Developer context that Flutter ARB (`@key.description`) and XLIFF (`<note>`) already carry now
+  reaches both the translation provider and the exported workbook, instead of always being blank.
+
+  ARB reads populate `entry.description` from `@key.description` via a new post-flatten hook on the
+  tree-file adapter, aligned by key with dotted literal keys. XLIFF reads populate `entry.description`
+  from a trans-unit's `<note>` (or, in XLIFF 2.0, the unit's `<notes><note>`, shared by every segment in
+  that unit). Neither format's write or round-trip behavior changes: the metadata is read-only context,
+  never written back.
+
+  `entry.description` already reached the AI provider payload as disambiguation context and was never
+  translated or echoed; this change only makes sure the field is finally populated for these two
+  formats. The exported workbook (`exportWorkbook`) gains a 7th column, `Context`, appended after
+  `Source hash` so the editable `Translation` column keeps its position. It is read-only and protected
+  like `Source` and `Current translation`. `importWorkbook` never reads `Context` as a translation
+  source, and a workbook built before this column existed still imports successfully.
+
+  One behavior change worth calling out: an ARB or XLIFF entry that carries a description or note will
+  re-export and re-translate once on upgrade, since the lock baseline's content hash already accounts
+  for `description` and now sees a value where it previously saw none. This is intentional: the newly
+  surfaced context can change how the string should be translated, so it gets one reconsideration pass,
+  and the baseline then stabilizes.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is
+  unchanged.
+
+### Patch Changes
+
+- 874cf70: Fix a raw, uncaught exceljs crash when a target locale collided, case-insensitively, with another
+  target locale (for example `"de"` and `"DE"`) or with the reserved "Instructions" worksheet name
+  (for example a target locale of `"instructions"`). exceljs deduplicates worksheet names
+  case-insensitively inside its own `Worksheet` constructor, not in `addWorksheet`, so both cases
+  previously escaped as a raw library error instead of a structured one.
+
+  `targetLocales` is now validated at config-load time: two entries that are case-insensitively equal
+  are rejected with a clear zod error naming the colliding locale, matching the existing
+  source-locale-exclusion check. As defense in depth, `exportWorkbook` also rejects the same
+  collisions, and a locale colliding with the reserved instructions sheet, before any worksheet is
+  added, surfacing an `ExchangeError` (`WORKBOOK_INVALID`) instead of letting the exceljs error
+  propagate.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- e617c6b: Fix `exportWorkbook`'s `includeUnchanged` option labeling already up-to-date rows as `"changed"`.
+  `RowStatus` gains a third value, `"unchanged"`, and rows from the unchanged diff bucket are now
+  exported with that status instead of the misleading `"changed"`, which told translators the source
+  string had changed and needed re-translation even though it had not. The read-side row schema
+  accepts `"unchanged"` so a previously exported sheet round-trips through import without error, and
+  the instructions sheet gains an honest line explaining the new status. Import behavior is
+  unaffected: it already decides accept-or-withhold purely from source-hash drift, placeholder, and
+  ICU checks, never from the status column.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
 ## 0.5.0-next.2
 
 ### Minor Changes
