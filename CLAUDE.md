@@ -59,9 +59,11 @@ Turbo task graph: build, lint, and test all depend on `^build`. Test outputs
 
 ## Packages
 
-Published (public): `@verbatra/sdk` and `@verbatra/cli`. These two are version-locked
-together (Changesets `fixed`). Everything else is private or internal and must not be
-published by accident.
+Published (public): `@verbatra/sdk`, `@verbatra/cli`, and `@verbatra/studio`.
+`@verbatra/cli` and `@verbatra/sdk` are version-locked together (Changesets
+`fixed`); `@verbatra/studio` versions independently, since it consumes the sdk
+contract but ships its own dashboard surface with no 1:1 coupling to it.
+Everything else is private or internal and must not be published by accident.
 
 - `@verbatra/config` (private): shared build, TS, and lint config (tsconfig base,
   Biome config, tsup preset). New publishable packages extend this rather than
@@ -81,13 +83,17 @@ published by accident.
   interface resolved through `ProviderRegistry`.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
   Excel workbooks over a neutral, format-agnostic row model.
+- `@verbatra/studio` (public): read-only local dashboard, a prebuilt single-page
+  app served over a verbatra project. Depends on `@verbatra/sdk`; reached only
+  through the CLI `studio` command via a dynamic import, so its absence never
+  breaks the rest of the CLI.
 - `@verbatra/sdk` (public): central orchestration API. One-shot `translate()`,
   long-running `watch()`, read-only `check()` and `diff()` (per-locale drift over the
   core `diffResources`, no provider call), `exportWorkbook()` and `importWorkbook()`
   for the Excel handoff, and config loading.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
   `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, `import`. Deps: `@verbatra/sdk`, commander, zod.
+  `check`, `diff`, `export`, `import`, `studio`. Deps: `@verbatra/sdk`, commander, zod.
 - `@verbatra/github-action` (private): composite action that runs the CLI in CI.
   Consumed via `uses:`, not published to npm.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
@@ -120,6 +126,8 @@ published by accident.
 - Conventional Commits, enforced by commitlint via the lefthook `commit-msg` hook.
   Example: `feat(ai-providers): add Gemini provider`.
 - Any publishable `src` change ships a changeset with the right bump level.
+  `@verbatra/studio` is now published like sdk and cli; a `src` change there needs a
+  changeset too, even though it used to be private and changeset-exempt.
 
 ## Security
 
