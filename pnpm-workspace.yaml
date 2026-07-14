@@ -30,15 +30,15 @@ catalog:
 
 catalogs:
   bundled:
-    "@anthropic-ai/sdk": 0.105.0
+    "@anthropic-ai/sdk": 0.111.0
     "@formatjs/icu-messageformat-parser": 3.5.11
-    "@google/genai": 2.9.0
+    "@google/genai": 2.11.0
     "@xmldom/xmldom": 0.9.10
     deepl-node: 1.27.0
     exceljs: 4.4.0
     jszip: 3.10.1
     loglevel: 1.9.2
-    openai: 6.44.0
+    openai: 6.46.0
     yaml: 2.9.0
 
 overrides:
