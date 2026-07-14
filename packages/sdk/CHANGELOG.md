@@ -1,5 +1,75 @@
 # @verbatra/sdk
 
+## 0.5.0-next.4
+
+### Minor Changes
+
+- 81dd225: A JSON, YAML, or ARB locale file that contains a stray non-string leaf, such as `"count": 5`,
+  `"enabled": true`, or `"active": null`, no longer fails `translate`, `watch`, `check`, `diff`,
+  `import`, or `export` for the whole file. The non-string leaf is accepted as valid file structure,
+  excluded from the translatable set (never sent to a provider, hashed, diffed, or checked for
+  placeholder or ICU integrity), and every sibling string key in that file is read and translated
+  normally. This is a strict widening of what was previously rejected outright with
+  `INVALID_STRUCTURE`. A non-string leaf is not preserved if the same file is later rewritten by
+  verbatra: its path is silently absent from the output the next time that target file is written,
+  since the write path rebuilds the file purely from the translatable entries. This applies to every
+  JSON-family format (i18next, vue-i18n, next-intl, ngx-translate), YAML, and Flutter ARB.
+
+  Two smaller, unrelated correctness fixes ship on the same branch. `check` and `diff` findings from
+  `validate()` now sort by plain code-unit order instead of locale-sensitive `localeCompare`, so their
+  order no longer depends on the host's locale and always agrees with `diff()`'s own ordering for the
+  same key set. Writes to locale files are now crash-durable: the temp file is fsynced before the
+  rename that makes it visible, and the containing directory is fsynced (best-effort) after, closing a
+  window where a crash between the rename and disk flush could leave a target file renamed but empty
+  or corrupt.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump.
+
+- 435e048: `translate`, `watch`, and `importWorkbook` now aggregate the token usage every LLM provider already
+  reports per call. `LocaleSummary.usage` and `RunSummary.usage` sum input and output tokens across
+  every provider call in scope (main translation and plural generation alike); both stay `undefined`,
+  never a fabricated zero, whenever nothing in that scope reported usage (a dry-run, or a token-less
+  provider such as DeepL).
+
+  A new optional config pair, `maxTokens` and `budgetBehavior` (`"warn"` or `"stop"`, default `"warn"`),
+  lets a project cap or flag a run's spend. The check runs after each completed provider sub-batch, never
+  mid-batch: the sub-batch whose completion crosses the ceiling is retained and counted, since a call
+  already in flight cannot be undone. Under `"warn"` the run continues unchanged past the ceiling. Under
+  `"stop"`, every not-yet-attempted key for the rest of the run, in the current locale and every later
+  target locale, is withheld into a new `LocaleSummary.budgetWithheld` array (parallel to
+  `integrityMismatches` and `providerFailures`) and retried automatically next run, exactly like a failed
+  provider call today. A budget trip never fails a locale and never changes the exit code of `translate`,
+  `watch`, or `import`. `RunSummary.budget` is present only when `maxTokens` is configured, including a
+  `supported: false` case against a token-less provider or a dry-run, so the guardrail is visibly and
+  honestly inert rather than silently omitted or falsely tripped.
+
+  The CLI's human `translate`/`watch` summary now shows per-locale and aggregate token counts when usage
+  was reported, and a budget line when a ceiling is configured. `--json` output needed no new rendering
+  code: the new fields serialize automatically once populated.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump for the new rendering.
+
+- ad431ca: Add a derived, per-key "needs review" signal for translations, distinct from the
+  placeholder/ICU integrity gate: a suspiciously short or long output, a translation
+  identical to the source, a missed glossary term, a placeholder set that matches but
+  landed in a different order, or a batch that was gracefully degraded by the provider
+  (currently DeepL only) now surfaces as a review flag instead of passing silently.
+
+  `translate` and `watch` summaries gain a `needsReview` list of flagged keys and their
+  reason codes, and `verbatra translate`/`watch`'s human output shows a `needs-review`
+  count alongside `integrity-withheld` and `notices` when it is non-zero (already
+  present in `--json` once the summary carries the field). The Excel export/import
+  workbook gains two read-only "Review status" / "Review reasons" columns, recomputed
+  fresh from the on-disk source and current target at export time; they are purely
+  informational and never gate what import accepts, and importing a workbook exported
+  before this change (with no such columns) is unaffected.
+
+  This is advisory only: a review flag never withholds a translation, and there is no
+  way to "clear" it other than fixing the underlying value. A workbook exported later
+  from the same on-disk target does not retroactively show a `PROVIDER_DEGRADED` flag
+  from an earlier run, since that fact lives only in memory during the run that
+  produced it.
+
 ## 0.5.0-next.3
 
 ### Minor Changes
