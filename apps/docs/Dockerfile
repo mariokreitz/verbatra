@@ -36,7 +36,7 @@ USER node
 COPY --from=builder --chown=node:node /app/apps/docs/.next/standalone ./
 # Static assets live outside the standalone tree; place them where server.js expects them.
 COPY --from=builder --chown=node:node /app/apps/docs/.next/static ./apps/docs/.next/static
-# This app has no public/ directory, so there is nothing else to copy.
+COPY --from=builder --chown=node:node /app/apps/docs/public ./apps/docs/public
 
 EXPOSE 3000
 
