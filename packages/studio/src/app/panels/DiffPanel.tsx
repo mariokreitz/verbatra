@@ -13,6 +13,7 @@ import { DiffBadge } from "../DiffBadge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
+import type { PanelProps } from "../panel-props.js";
 import { StatusGrid } from "../StatusGrid.js";
 
 type DiffViewMode = "grid" | "flat";
@@ -205,8 +206,12 @@ function AllClearState(): ReactNode {
  * manual click here already performs, without a second RPC call. The open-key request is cleared
  * on unmount and on a manual close, so leaving the Diff tab never leaves a stale request behind
  * for a later, unrelated visit to reopen.
+ *
+ * `refreshToken` (from {@link PanelProps}) is passed straight through to the open drawer, so a
+ * live-refresh event reaches its own `key.integrity` re-fetch; this panel's own diff data is not
+ * re-fetched on every refresh (a deliberate, existing scope choice, unchanged here).
  */
-export function DiffPanel(): ReactNode {
+export function DiffPanel({ refreshToken }: PanelProps): ReactNode {
   const [state, setState] = useState<DiffPanelState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(openKeyStore.getState());
@@ -289,6 +294,7 @@ export function DiffPanel(): ReactNode {
         <KeyDetailDrawer
           keyName={selectedKey}
           locales={state.locales}
+          refreshToken={refreshToken}
           onClose={() => openKeyStore.clear()}
         />
       ) : null}

@@ -2,15 +2,9 @@ import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
-import { type BoundedFileRead, defaultFs } from "../fs.js";
+import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
 import { makeFakeFs, makeTempDir, readTextFile } from "../test-support.js";
-import {
-  baselineFor,
-  lockFilePath,
-  readLockFile,
-  updateLockLocale,
-  writeLockFile,
-} from "./lock-file.js";
+import { baselineFor, lockFilePath, readLockFile, updateLockFileLocale } from "./lock-file.js";
 
 describe("lock-file", () => {
   it("a missing lock-file reads as an empty lock (first-run degradation)", async () => {
@@ -22,8 +16,10 @@ describe("lock-file", () => {
   it("writes deterministically (sorted keys, trailing newline) and round-trips", async () => {
     const dir = await makeTempDir();
     const path = lockFilePath(dir);
-    const lock = updateLockLocale({ version: 1, locales: {} }, "de", { b: "2", a: "1" });
-    await writeLockFile(path, lock, defaultFs);
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { b: "2", a: "1" },
+    });
     const text = await readTextFile(path);
     expect(text.endsWith("\n")).toBe(true);
     expect(text.indexOf('"a"')).toBeLessThan(text.indexOf('"b"'));
@@ -114,15 +110,17 @@ describe("lock-file", () => {
   it("writes atomically: overwrite leaves valid content and no leftover temp file", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
-    await writeLockFile(
+    // Writes the raw lock content directly through defaultFs, bypassing updateLockFileLocale's own
+    // lock guard: this test is about defaultFs.writeFile's own atomic-overwrite property, not the
+    // lock-file update semantics, and the guard would leave a `.verbatra-local/` directory behind
+    // that would break the exact-one-entry assertion below.
+    await defaultFs.writeFile(
       path,
-      updateLockLocale({ version: 1, locales: {} }, "de", { a: "1" }),
-      defaultFs,
+      `${JSON.stringify({ version: 1, locales: { de: { a: "1" } } })}\n`,
     );
-    await writeLockFile(
+    await defaultFs.writeFile(
       path,
-      updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" }),
-      defaultFs,
+      `${JSON.stringify({ version: 1, locales: { de: { a: "2" } } })}\n`,
     );
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "2" });
@@ -132,20 +130,133 @@ describe("lock-file", () => {
 
   it("a failed write leaves the prior lock-file intact", async () => {
     const dir = await makeTempDir();
-    const path = join(dir, "verbatra.lock.json");
-    const good = updateLockLocale({ version: 1, locales: {} }, "de", { a: "1" });
-    await writeLockFile(path, good, defaultFs);
+    const path = lockFilePath(dir);
+    await updateLockFileLocale(dir, defaultFs, "de", { mode: "replace", entries: { a: "1" } });
 
     const throwingFs = makeFakeFs({
       fileExists: async () => true,
+      readFileBounded: defaultFs.readFileBounded,
       writeFile: async () => {
         throw new Error("disk full");
       },
     });
-    const next = updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" });
-    await expect(writeLockFile(path, next, throwingFs)).rejects.toThrow();
+    await expect(
+      updateLockFileLocale(dir, throwingFs, "de", { mode: "replace", entries: { a: "2" } }),
+    ).rejects.toThrow();
 
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "1" });
+  });
+});
+
+describe("updateLockFileLocale: replace mode", () => {
+  it("replaces the locale's entire entries record, leaving other locales untouched", async () => {
+    const dir = await makeTempDir();
+    await updateLockFileLocale(dir, defaultFs, "de", { mode: "replace", entries: { old: "h1" } });
+    await updateLockFileLocale(dir, defaultFs, "fr", { mode: "replace", entries: { keep: "h2" } });
+
+    const result = await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { fresh: "h3" },
+    });
+
+    expect(result.locales.de).toEqual({ fresh: "h3" });
+    expect(result.locales.fr).toEqual({ keep: "h2" });
+  });
+});
+
+describe("updateLockFileLocale: merge mode", () => {
+  it("overlays only the given keys, leaving every other key in the locale untouched", async () => {
+    const dir = await makeTempDir();
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { a: "h1", b: "h2" },
+    });
+
+    const result = await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "merge",
+      entries: { a: "h1-new" },
+    });
+
+    expect(result.locales.de).toEqual({ a: "h1-new", b: "h2" });
+  });
+
+  it("performs exactly one read and one write, no internal retry loop", async () => {
+    // updateLockFileLocale no longer guards its own concurrency (that is withLocaleWriteLock's
+    // job): it is a plain read-modify-write, so it must touch the file system exactly once each way
+    // regardless of what it reads.
+    let reads = 0;
+    const writes: string[] = [];
+    const fs = makeFakeFs({
+      readFileBounded: async (): Promise<BoundedFileRead> => {
+        reads += 1;
+        return { kind: "ok", content: `${JSON.stringify({ version: 1, locales: {} })}\n` };
+      },
+      writeFile: async (_path: string, data: string): Promise<void> => {
+        writes.push(data);
+      },
+    });
+
+    const result = await updateLockFileLocale("/anywhere", fs, "de", {
+      mode: "merge",
+      entries: { mine: "h" },
+    });
+
+    expect(result.locales.de).toEqual({ mine: "h" });
+    expect(reads).toBe(1);
+    expect(writes).toHaveLength(1);
+  });
+});
+
+describe("updateLockFileLocale: the internal lock-file guard serializes concurrent different-locale writers", () => {
+  it("never overlaps two read-modify-write steps, even across two different locales (regression guard for the shared lock-file race)", async () => {
+    // withLocaleWriteLock only serializes writers for the SAME locale; two different locales are
+    // allowed to run their own critical sections fully concurrently by design. Both still
+    // read-modify-write the one shared lock-file, so without updateLockFileLocale's own internal
+    // withLockFileGuard, this scenario loses one locale's update exactly like the old,
+    // now-removed compare-and-swap was built to prevent (see lock-file-race.test.ts for the same
+    // proof through real disk I/O and real timing).
+    let content = `${JSON.stringify({ version: 1, locales: {} })}\n`;
+    const held = new Set<string>();
+    let insideCount = 0;
+    let maxInsideCount = 0;
+
+    const fs: SdkFs = {
+      fileExists: async () => true,
+      readFileBounded: async (): Promise<BoundedFileRead> => {
+        insideCount += 1;
+        maxInsideCount = Math.max(maxInsideCount, insideCount);
+        // Forces the read-to-write span to be wide enough that, absent the guard, a concurrent
+        // caller's own read would start while this one is still in flight.
+        await new Promise((res) => setTimeout(res, 10));
+        return { kind: "ok", content };
+      },
+      readBytesBounded: async () => ({ kind: "missing" }),
+      writeFile: async (_path: string, data: string): Promise<void> => {
+        content = data;
+        insideCount -= 1;
+      },
+      writeBytes: async () => {},
+      createExclusive: async (path: string): Promise<boolean> => {
+        if (held.has(path)) {
+          return false;
+        }
+        held.add(path);
+        return true;
+      },
+      deleteFile: async (path: string): Promise<void> => {
+        held.delete(path);
+      },
+    };
+
+    await Promise.all([
+      updateLockFileLocale("/proj", fs, "de", { mode: "merge", entries: { greeting: "hde" } }),
+      updateLockFileLocale("/proj", fs, "fr", { mode: "merge", entries: { greeting: "hfr" } }),
+    ]);
+
+    expect(maxInsideCount).toBe(1);
+    const final = JSON.parse(content) as { locales: Record<string, Record<string, string>> };
+    expect(final.locales.de).toEqual({ greeting: "hde" });
+    expect(final.locales.fr).toEqual({ greeting: "hfr" });
   });
 });

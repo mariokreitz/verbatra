@@ -176,6 +176,8 @@ und eine geheimnisfreie `message`. Die Codes:
 | `SOURCE_UNREADABLE` | die Quell-Locale-Datei existiert nicht |
 | `SOURCE_INVALID` | die Quell-Locale-Datei konnte nicht gelesen oder geparst werden |
 | `LOCK_FILE_INVALID` | die Lock-Datei ist vorhanden, aber korrupt oder zu groß |
+| `LOCK_CONTENDED` | der Schreib-Lock eines Locale konnte vor Ablauf des Timeouts nicht erworben werden; ein anderer Prozess hält ihn möglicherweise |
+| `UNKNOWN_KEY` | der angeforderte Key existiert nicht in der Quellressource; geworfen von der `retranslateEntry`-Nahtstelle hinter der [Retranslate-Aktion von Studio](/docs/cli/studio) |
 | `LOCALE_FAILED` | nicht geworfen: der Fallback-`code`, der auf dem `error` einer fehlgeschlagenen Locale aufgezeichnet wird |
 
 Eine einzelne fehlschlagende Locale wirft nie. Sie landet auf der `LocaleSummary` dieser Locale mit `status:

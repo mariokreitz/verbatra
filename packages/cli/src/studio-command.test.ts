@@ -1,7 +1,13 @@
 import { SdkError } from "@verbatra/sdk";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run } from "./run.js";
-import { captureStreams, flush, makeStudioModule, recordingDeps } from "./test-support.js";
+import {
+  captureStreams,
+  flush,
+  makeLoadedConfig,
+  makeStudioModule,
+  recordingDeps,
+} from "./test-support.js";
 import type { RunHooks, StudioSession } from "./types.js";
 
 /** A 64-hex-char string is what the command's own token generation always produces. */
@@ -351,6 +357,148 @@ describe("run studio: success path and shutdown", () => {
 
     expect(code).toBe(1);
     expect(cap.err()).toContain("CLOSE_FAILED");
+  });
+});
+
+describe("run studio: --allow-spend / --allow-write capability resolution", () => {
+  const ENV_VARS = ["VERBATRA_STUDIO_ALLOW_SPEND", "VERBATRA_STUDIO_ALLOW_WRITE"] as const;
+  const originalValues: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const name of ENV_VARS) {
+      originalValues[name] = process.env[name];
+      delete process.env[name];
+    }
+  });
+
+  afterEach(() => {
+    for (const name of ENV_VARS) {
+      const value = originalValues[name];
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  });
+
+  async function captureResolvedCapabilities(
+    argv: readonly string[],
+  ): Promise<{ spend: boolean | undefined; writeToDisk: boolean | undefined }> {
+    let resolved: { spend: boolean | undefined; writeToDisk: boolean | undefined } = {
+      spend: undefined,
+      writeToDisk: undefined,
+    };
+    const { deps } = recordingDeps({
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            resolved = { spend: options.spend, writeToDisk: options.writeToDisk };
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run([...argv], deps, cap.streams, captured.hooks);
+    await flush();
+    captured.session()?.requestStop();
+    await donePromise;
+
+    return resolved;
+  }
+
+  it("defaults both capabilities to false when neither flag nor env var is set", async () => {
+    const resolved = await captureResolvedCapabilities(["studio"]);
+    expect(resolved).toEqual({ spend: false, writeToDisk: false });
+  });
+
+  it("sets a capability true from its own CLI flag alone", async () => {
+    const resolved = await captureResolvedCapabilities(["studio", "--allow-spend"]);
+    expect(resolved).toEqual({ spend: true, writeToDisk: false });
+  });
+
+  it("sets both capabilities true when both flags are given", async () => {
+    const resolved = await captureResolvedCapabilities([
+      "studio",
+      "--allow-spend",
+      "--allow-write",
+    ]);
+    expect(resolved).toEqual({ spend: true, writeToDisk: true });
+  });
+
+  it("falls back to the environment variable when the CLI flag is absent", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+    process.env.VERBATRA_STUDIO_ALLOW_WRITE = "1";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: true, writeToDisk: true });
+  });
+
+  it("treats an unrecognized or falsy environment value as off", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "0";
+    process.env.VERBATRA_STUDIO_ALLOW_WRITE = "false";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: false, writeToDisk: false });
+  });
+
+  it("the CLI flag wins when both the flag and the environment variable are given", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+
+    const resolved = await captureResolvedCapabilities(["studio", "--allow-spend"]);
+
+    expect(resolved.spend).toBe(true);
+  });
+
+  it("resolves capabilities before loadConfigWithMeta ever runs, and never re-derives them afterward", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+    const { deps } = recordingDeps({
+      // Simulates a hostile or merely buggy project config module: it mutates the very
+      // environment variable capability resolution reads, after that resolution has already
+      // happened. If the flag were re-read anywhere after this point, it would flip to false.
+      loadConfigWithMeta: async () => {
+        process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+        throw new SdkError("CONFIG_NOT_FOUND", "irrelevant for this test");
+      },
+    });
+    const cap = captureStreams();
+
+    await run(["studio"], deps, cap.streams);
+
+    // The command exits 2 (config load failed) before ever reaching startStudioServer, so this
+    // proves the mutation happened; the capability-resolution test below proves it had no effect.
+    expect(process.env.VERBATRA_STUDIO_ALLOW_SPEND).toBe("false");
+  });
+
+  it("the flag stays true even when the config module mutates its source env var afterward", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+    const startCalls: Array<{ spend: boolean | undefined }> = [];
+    const { deps } = recordingDeps({
+      loadConfigWithMeta: async () => {
+        process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+        return makeLoadedConfig();
+      },
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            startCalls.push({ spend: options.spend });
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run(["studio"], deps, cap.streams, captured.hooks);
+    await flush(20);
+    captured.session()?.requestStop();
+    await donePromise;
+
+    expect(startCalls).toEqual([{ spend: true }]);
   });
 });
 

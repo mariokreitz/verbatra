@@ -5,12 +5,12 @@ import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
   lockFilePath,
   readLockFile,
-  updateLockLocale,
-  writeLockFile,
+  updateLockFileLocale,
 } from "../../lock/lock-file.js";
 import type { LockFile } from "../../lock/types.js";
 import { localeFilePath } from "../../paths.js";
@@ -202,8 +202,10 @@ export async function importWorkbook(
     throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
   }
 
-  const lockPath = lockFilePath(cwd);
-  let lock = await readLockFile(lockPath, fs);
+  // Read once for each sheet's diff baseline. Each sheet's own run-and-lock-update step below
+  // holds that locale's withLocaleWriteLock for its whole critical section, so a concurrent writer
+  // touching the same locale can never interleave with it.
+  const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const ctx: SheetContext = {
     config,
@@ -218,10 +220,20 @@ export async function importWorkbook(
   const summaries: LocaleSummary[] = [];
   for (const sheet of data.sheets) {
     try {
-      const { summary, lockEntries } = await runSheet(ctx, sheet, lock);
-      if (!dryRun) {
-        lock = updateLockLocale(lock, sheet.locale, lockEntries);
-        await writeLockFile(lockPath, lock, fs);
+      let summary: LocaleSummary;
+      if (dryRun) {
+        // A dry run never calls adapter.write or updateLockFileLocale, so there is nothing to
+        // protect and no reason to pay lock-acquire latency.
+        summary = (await runSheet(ctx, sheet, lock)).summary;
+      } else {
+        summary = await withLocaleWriteLock(cwd, sheet.locale, fs, async () => {
+          const result = await runSheet(ctx, sheet, lock);
+          await updateLockFileLocale(cwd, fs, sheet.locale, {
+            mode: "replace",
+            entries: result.lockEntries,
+          });
+          return result.summary;
+        });
       }
       summaries.push(summary);
     } catch (error) {

@@ -1,7 +1,7 @@
 import { relative } from "node:path";
 import type { LoadedConfig } from "@verbatra/sdk";
 import type { GlossaryIndicator } from "../shared/rpc/glossary.js";
-import type { ProjectSnapshotResult } from "../shared/rpc/snapshot.js";
+import type { ProjectSnapshotResult, StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { redact } from "./redaction.js";
 
 function projectConfigSource(source: LoadedConfig["source"], projectRoot: string): string {
@@ -34,10 +34,14 @@ export function projectGlossaryIndicator(
  * default batch size). `format`, `provider.id`, and `tone` are closed enums fixed by the config
  * schema and are passed through as-is; they have no free-form capacity to carry a secret. Every
  * other projected string passes through the redaction backstop.
+ *
+ * @param capabilities - The server's own resolved write capabilities, projected verbatim as
+ *   defense-in-depth only; never the authoritative gate (see {@link ProjectSnapshotResult}).
  */
 export function buildProjectSnapshot(
   loaded: LoadedConfig,
   projectRoot: string,
+  capabilities: StudioCapabilities,
 ): ProjectSnapshotResult {
   const { config } = loaded;
   return {
@@ -48,6 +52,7 @@ export function buildProjectSnapshot(
     provider: { id: config.provider.id },
     configSource: projectConfigSource(loaded.source, projectRoot),
     glossary: projectGlossaryIndicator(loaded.glossary, projectRoot),
+    capabilities,
     ...(config.prune !== undefined ? { prune: config.prune } : {}),
     ...(config.generatePlurals !== undefined ? { generatePlurals: config.generatePlurals } : {}),
     ...(config.maxBatchSize !== undefined ? { maxBatchSize: config.maxBatchSize } : {}),

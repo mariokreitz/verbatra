@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { defaultFs } from "../fs.js";
 import { makeTempDir, writeJsonFile } from "../test-support.js";
 import { loadLockFile } from "./load-lock-file.js";
-import { updateLockLocale, writeLockFile } from "./lock-file.js";
+import { updateLockFileLocale } from "./lock-file.js";
 
 describe("loadLockFile", () => {
   it("degrades a missing lock-file to an empty lock, mirroring readLockFile", async () => {
@@ -14,9 +14,10 @@ describe("loadLockFile", () => {
 
   it("reads an existing lock-file's recorded entries", async () => {
     const dir = await makeTempDir();
-    const path = join(dir, "verbatra.lock.json");
-    const lock = updateLockLocale({ version: 1, locales: {} }, "de", { greeting: "abc" });
-    await writeLockFile(path, lock, defaultFs);
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { greeting: "abc" },
+    });
 
     const result = await loadLockFile({ cwd: dir });
     expect(result.locales.de).toEqual({ greeting: "abc" });

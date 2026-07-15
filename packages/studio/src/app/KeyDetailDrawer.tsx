@@ -3,9 +3,13 @@ import type { DiffLocale, KeyLocaleStatusRow } from "../client/diff-view.js";
 import { deriveKeyLocaleStatus } from "../client/diff-view.js";
 import { deriveIntegrityPillView, type KeyIntegrityLocaleEntry } from "../client/integrity-pill.js";
 import { isRtlLocale } from "../client/locale-direction.js";
+import { canRetranslate } from "../client/retranslate-eligibility.js";
+import type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { Badge } from "./Badge.js";
 import { CommitList } from "./CommitList.js";
 import { DiffBadge } from "./DiffBadge.js";
+import { RetranslateButton } from "./RetranslateButton.js";
+import { useCapabilities } from "./use-capabilities.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 import { useHistoryList } from "./use-history-list.js";
 import { useKeyIntegrity } from "./use-key-integrity.js";
@@ -15,38 +19,56 @@ export interface KeyDetailDrawerProps {
   readonly keyName: string;
   /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
   readonly locales: readonly DiffLocale[];
+  /** Bumped once per live-refresh event; re-fetches this drawer's own integrity view. */
+  readonly refreshToken: number;
   readonly onClose: () => void;
 }
 
 /**
  * The placeholder or ICU integrity pill for one locale row, or nothing when the key is not
- * "changed" in that locale (no integrity check applies) or the result has not loaded yet.
+ * "changed" in that locale (no integrity check applies) or the result has not loaded yet. Renders
+ * the Retranslate action alongside the pill only when `canRetranslate` says both write
+ * capabilities are granted and this row currently fails integrity; otherwise the action is absent
+ * entirely, not merely disabled.
  */
 function IntegrityCell({
   integrity,
   locale,
+  keyName,
+  capabilities,
 }: {
   readonly integrity: readonly KeyIntegrityLocaleEntry[];
   readonly locale: string;
+  readonly keyName: string;
+  readonly capabilities: StudioCapabilities | undefined;
 }): ReactNode {
   const pill = deriveIntegrityPillView(integrity, locale);
   if (pill === null) {
     return null;
   }
   return (
-    <Badge tone={pill.tone}>
-      {pill.label}
-      {pill.detail !== null ? `: ${pill.detail}` : ""}
-    </Badge>
+    <>
+      <Badge tone={pill.tone}>
+        {pill.label}
+        {pill.detail !== null ? `: ${pill.detail}` : ""}
+      </Badge>
+      {canRetranslate(capabilities, pill) ? (
+        <RetranslateButton locale={locale} keyName={keyName} />
+      ) : null}
+    </>
   );
 }
 
 function LocaleStatusRow({
   row,
+  keyName,
   integrity,
+  capabilities,
 }: {
   readonly row: KeyLocaleStatusRow;
+  readonly keyName: string;
   readonly integrity: readonly KeyIntegrityLocaleEntry[];
+  readonly capabilities: StudioCapabilities | undefined;
 }): ReactNode {
   return (
     <tr dir={isRtlLocale(row.locale) ? "rtl" : undefined}>
@@ -59,7 +81,12 @@ function LocaleStatusRow({
         )}
       </td>
       <td>
-        <IntegrityCell integrity={integrity} locale={row.locale} />
+        <IntegrityCell
+          integrity={integrity}
+          locale={row.locale}
+          keyName={keyName}
+          capabilities={capabilities}
+        />
       </td>
     </tr>
   );
@@ -89,14 +116,27 @@ function LocaleStatusRow({
  * `client/locale-direction.test.ts`. src/app has no browser-rendered test harness in this package
  * (see vitest.config.ts), so this was verified by reading the rendered attribute logic in
  * isolation rather than in a browser.
+ *
+ * `refreshToken` threads the app's existing live-refresh signal into this drawer's own
+ * `key.integrity` fetch (`useKeyIntegrity`): a successful retranslate writes the target file and
+ * the lock, the project watcher observes that change and broadcasts the same `refresh` SSE event
+ * any external edit already triggers, and this drawer re-fetches without closing and reopening.
  */
-export function KeyDetailDrawer({ keyName, locales, onClose }: KeyDetailDrawerProps): ReactNode {
+export function KeyDetailDrawer({
+  keyName,
+  locales,
+  refreshToken,
+  onClose,
+}: KeyDetailDrawerProps): ReactNode {
   const history = useHistoryList();
-  const integrity = useKeyIntegrity(keyName);
+  const integrity = useKeyIntegrity(keyName, refreshToken);
+  const capabilitiesState = useCapabilities();
   const containerRef = useDialogA11y<HTMLDivElement>({ isOpen: true, onClose });
 
   const rows = deriveKeyLocaleStatus(locales, keyName);
   const integrityLocales = integrity.kind === "loaded" ? integrity.locales : [];
+  const capabilities =
+    capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities : undefined;
 
   return (
     <div className="drawer-backdrop">
@@ -131,7 +171,13 @@ export function KeyDetailDrawer({ keyName, locales, onClose }: KeyDetailDrawerPr
             </thead>
             <tbody>
               {rows.map((row) => (
-                <LocaleStatusRow row={row} integrity={integrityLocales} key={row.locale} />
+                <LocaleStatusRow
+                  row={row}
+                  keyName={keyName}
+                  integrity={integrityLocales}
+                  capabilities={capabilities}
+                  key={row.locale}
+                />
               ))}
             </tbody>
           </table>

@@ -8,6 +8,7 @@ function entry(overrides: Partial<KeyIntegrityLocaleEntry> = {}): KeyIntegrityLo
     matches: true,
     missing: [],
     extra: [],
+    icuValid: true,
     ...overrides,
   };
 }
@@ -77,6 +78,42 @@ describe("deriveIntegrityPillView", () => {
       tone: "danger",
       label: "Placeholder mismatch",
       detail: "extra {{name}}",
+    });
+  });
+
+  it("renders danger for invalid ICU message syntax when placeholders otherwise match", () => {
+    expect(deriveIntegrityPillView([entry({ icuValid: false })], "de")).toEqual({
+      tone: "danger",
+      label: "Invalid message syntax",
+      detail: null,
+    });
+  });
+
+  it("renders danger, not neutral, when a placeholder-free source received an ICU-invalid target", () => {
+    // hasPlaceholders is false and matches is true (nothing to compare on placeholders), but the
+    // ICU check still fails: the ICU-invalid branch must be reached before the neutral one.
+    expect(
+      deriveIntegrityPillView(
+        [entry({ hasPlaceholders: false, matches: true, icuValid: false })],
+        "de",
+      ),
+    ).toEqual({
+      tone: "danger",
+      label: "Invalid message syntax",
+      detail: null,
+    });
+  });
+
+  it("a placeholder mismatch still takes precedence over an ICU-invalid target", () => {
+    expect(
+      deriveIntegrityPillView(
+        [entry({ matches: false, missing: ["{{name}}"], icuValid: false })],
+        "de",
+      ),
+    ).toEqual({
+      tone: "danger",
+      label: "Placeholder mismatch",
+      detail: "missing {{name}}",
     });
   });
 

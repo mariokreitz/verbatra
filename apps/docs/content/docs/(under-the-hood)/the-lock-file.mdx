@@ -32,9 +32,9 @@ won't mark a key as changed or kick off a re-translation.
 ## How it is refreshed
 
 After a locale is written, verbatra refreshes the lock with the current source hashes, with one
-deliberate exception. A key withheld this run (because its translation failed the placeholder check or
-its source ICU was invalid) keeps its prior hash. The next run then still sees it as needing work and
-retries it, instead of recording it as done. Orphaned keys get no entry.
+deliberate exception. A key withheld this run (because its translated candidate failed the placeholder
+or message-syntax check, or its source ICU was invalid) keeps its prior hash. The next run then still
+sees it as needing work and retries it, instead of recording it as done. Orphaned keys get no entry.
 
 ## First run, missing lock, corrupt lock
 

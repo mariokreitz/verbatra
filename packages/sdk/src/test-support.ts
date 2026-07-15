@@ -60,6 +60,32 @@ function defaultTranslate(value: string, _key: string, locale: string): string {
   return `[${locale}] ${value}`;
 }
 
+/**
+ * A token no real source value is expected to contain, appended to a `failIntegrity`-flagged key's
+ * translated value so the placeholder check genuinely fails (an unexpected extra placeholder) no
+ * matter which format's adapter recomputes it from the value itself, not merely the synthetic
+ * `integrity` map this stub also reports for callers that still consult it directly.
+ */
+const INTEGRITY_FAIL_MARKER = " {{__stub_integrity_fail__}}";
+
+/** Fold one entry's stubbed translation into `values` and `integrity`, honoring `missingValues`/`failIntegrity`. */
+function foldStubEntry(
+  entry: { readonly key: string; readonly value: string },
+  targetLocale: string,
+  translate: (value: string, key: string, locale: string) => string,
+  options: StubOptions,
+  values: Map<string, string>,
+  integrity: Map<string, PlaceholderIntegrityResult>,
+): void {
+  if (options.missingValues?.has(entry.key) === true) {
+    return;
+  }
+  const shouldFail = options.failIntegrity?.has(entry.key) === true;
+  const translated = translate(entry.value, entry.key, targetLocale);
+  values.set(entry.key, shouldFail ? `${translated}${INTEGRITY_FAIL_MARKER}` : translated);
+  integrity.set(entry.key, shouldFail ? FAIL : PASS);
+}
+
 /** An offline stub provider that records every request and returns deterministic values. */
 export function makeStubProvider(options: StubOptions = {}): StubProvider {
   const calls: StubCall[] = [];
@@ -76,11 +102,7 @@ export function makeStubProvider(options: StubOptions = {}): StubProvider {
       const values = new Map<string, string>();
       const integrity = new Map<string, PlaceholderIntegrityResult>();
       for (const entry of request.entries) {
-        if (options.missingValues?.has(entry.key) === true) {
-          continue;
-        }
-        values.set(entry.key, translate(entry.value, entry.key, request.targetLocale));
-        integrity.set(entry.key, options.failIntegrity?.has(entry.key) === true ? FAIL : PASS);
+        foldStubEntry(entry, request.targetLocale, translate, options, values, integrity);
       }
       const result: TranslateResult = {
         values,
@@ -164,6 +186,10 @@ export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
     readBytesBounded: async (): Promise<BoundedBytesRead> => ({ kind: "missing" }),
     writeFile: async (): Promise<void> => {},
     writeBytes: async (): Promise<void> => {},
+    // Defaults to an always-succeeding lock acquire, so a test that does not care about locking
+    // (most tests using this fake) never has withLocaleWriteLock poll to its timeout.
+    createExclusive: async (): Promise<boolean> => true,
+    deleteFile: async (): Promise<void> => {},
     ...overrides,
   };
 }

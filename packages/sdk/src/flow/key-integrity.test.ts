@@ -56,7 +56,14 @@ describe("keyIntegrity", () => {
       {
         locale: "de",
         entries: [
-          { key: "greeting", hasPlaceholders: true, matches: true, missing: [], extra: [] },
+          {
+            key: "greeting",
+            hasPlaceholders: true,
+            matches: true,
+            missing: [],
+            extra: [],
+            icuValid: true,
+          },
         ],
       },
     ]);
@@ -76,6 +83,7 @@ describe("keyIntegrity", () => {
         matches: false,
         missing: ["{{name}}"],
         extra: [],
+        icuValid: true,
       },
     ]);
   });
@@ -96,6 +104,7 @@ describe("keyIntegrity", () => {
         matches: false,
         missing: [],
         extra: ["{{name}}"],
+        icuValid: true,
       },
     ]);
   });
@@ -108,7 +117,14 @@ describe("keyIntegrity", () => {
     const results = await keyIntegrity({ config: cfg(), cwd: dir });
 
     expect(results[0]?.entries).toEqual([
-      { key: "plain", hasPlaceholders: false, matches: true, missing: [], extra: [] },
+      {
+        key: "plain",
+        hasPlaceholders: false,
+        matches: true,
+        missing: [],
+        extra: [],
+        icuValid: true,
+      },
     ]);
   });
 
@@ -130,6 +146,45 @@ describe("keyIntegrity", () => {
     expect(found?.key).toBe("count");
     expect(found?.matches).toBe(false);
     expect(found?.missing).toContain("{name}");
+    // Syntactically well-formed ICU on the target side, so icuValid is true even though the
+    // placeholder check itself failed: the two checks are independent, not short-circuited.
+    expect(found?.icuValid).toBe(true);
+  });
+
+  it("computes icuValid even when the key already fails the placeholder check, never short-circuited", async () => {
+    const source = { count: "{count, plural, one {# item} other {# items}}" };
+    const dir = await project(source, { de: { count: "{count, plural, one {Eins" } });
+    await withBaseline(dir, "de", {
+      count: "{count, plural, one {# item} other {# items} old}",
+    });
+
+    const results = await keyIntegrity({ config: cfg({ format: "next-intl-json" }), cwd: dir });
+
+    // The malformed target both fails to parse (icuValid: false) and, as a consequence, loses its
+    // placeholder ({count}) under the ICU comparator's fallback (matches: false): both checks run
+    // and are both reported, neither one skipped because the other already failed.
+    expect(results[0]?.entries).toEqual([
+      expect.objectContaining({ key: "count", matches: false, icuValid: false }),
+    ]);
+  });
+
+  it("reports icuValid: false even when the source carries no placeholders (hasPlaceholders: false, matches trivially true)", async () => {
+    const source = { plain: "Just text new" };
+    const dir = await project(source, { de: { plain: "Hallo {unbalanced" } });
+    await withBaseline(dir, "de", { plain: "Just text old" });
+
+    const results = await keyIntegrity({ config: cfg({ format: "next-intl-json" }), cwd: dir });
+
+    expect(results[0]?.entries).toEqual([
+      {
+        key: "plain",
+        hasPlaceholders: false,
+        matches: true,
+        missing: [],
+        extra: [],
+        icuValid: false,
+      },
+    ]);
   });
 
   it("checks only changed keys, never missing or orphaned ones", async () => {
@@ -222,7 +277,14 @@ describe("keyIntegrity", () => {
       const results = await keyIntegrity({ config: cfg() });
       expect(results[0]?.locale).toBe("de");
       expect(results[0]?.entries).toEqual([
-        { key: "greeting", hasPlaceholders: false, matches: true, missing: [], extra: [] },
+        {
+          key: "greeting",
+          hasPlaceholders: false,
+          matches: true,
+          missing: [],
+          extra: [],
+          icuValid: true,
+        },
       ]);
     } finally {
       process.chdir(previous);

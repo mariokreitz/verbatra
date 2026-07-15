@@ -2,13 +2,15 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import type { LoadedConfig } from "@verbatra/sdk";
+import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
 import { buildBanner } from "./banner.js";
 import { cookieName } from "./cookie.js";
 import { resolvePort } from "./default-port.js";
 import { type DispatchContext, handleRequest } from "./dispatch.js";
 import { StudioServerStartError } from "./errors.js";
+import { createRpcRateLimiter, type RpcRateLimiter } from "./rate-limiter.js";
 import { resolveBoundAddress } from "./resolve-bound-port.js";
-import type { RpcHandlerDeps } from "./rpc.js";
+import { createRpcHandlers, type RpcHandlerDeps, type StudioCapabilities } from "./rpc.js";
 import { createSseHub, type SseHub } from "./sse.js";
 import { generateToken } from "./token.js";
 import { FORBIDDEN_BODY } from "./transport-responses.js";
@@ -18,6 +20,19 @@ import {
   defaultCreateStudioWatcher,
   type ProjectWatcher,
 } from "./watcher.js";
+
+/** Production default: 20 calls per rolling minute, generous for a human clicking one action repeatedly. */
+const DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_RETRANSLATE_RATE_LIMIT_MAX = 20;
+
+function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
+  return createRpcRateLimiter({
+    [RETRANSLATE_ENTRY_METHOD]: {
+      windowMs: options.retranslateRateLimitWindowMs ?? DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.retranslateRateLimitMax ?? DEFAULT_RETRANSLATE_RATE_LIMIT_MAX,
+    },
+  });
+}
 
 const RAW_FORBIDDEN_RESPONSE = [
   "HTTP/1.1 403 Forbidden",
@@ -59,15 +74,21 @@ function defaultOutput(line: string): void {
  * Builds the deps every RPC handler receives, resolved once here (see the `loader` call in
  * {@link startStudioServer}, before listen) and reused for the life of the process (G11/G12): no
  * handler re-loads the config, and the server otherwise caches no project data between requests.
+ * `spend`/`writeToDisk` are threaded through unchanged so `project.snapshot`'s handler can build
+ * the read-only `capabilities` projection from the same resolved booleans `createRpcHandlers` used
+ * to build the registry itself.
  */
 function buildRpcHandlerDeps(
   config: LoadedConfig,
   projectRoot: string,
+  capabilities: StudioCapabilities,
   options: StudioServerOptions,
 ): RpcHandlerDeps {
   return {
     config,
     projectRoot,
+    spend: capabilities.spend,
+    writeToDisk: capabilities.writeToDisk,
     ...(options.fs !== undefined ? { fs: options.fs } : {}),
     ...(options.adapterRegistry !== undefined ? { adapterRegistry: options.adapterRegistry } : {}),
     ...(options.execFileImpl !== undefined ? { execFileImpl: options.execFileImpl } : {}),
@@ -75,6 +96,7 @@ function buildRpcHandlerDeps(
     ...(options.heartbeatIntervalMs !== undefined
       ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
       : {}),
+    ...(options.createProvider !== undefined ? { createProvider: options.createProvider } : {}),
   };
 }
 
@@ -147,6 +169,13 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   const assetsRootPath = fileURLToPath(options.assetsRoot ?? defaultAssetsRoot());
   const output = options.output ?? defaultOutput;
   const token = options.token ?? generateToken();
+  // Fixed before the config loader ever runs (G11-style ordering, matching how token/loader/cwd
+  // are resolved once): nothing the loader or the project's own config module does can feed back
+  // into which capabilities this process was granted.
+  const capabilities: StudioCapabilities = {
+    spend: options.spend ?? false,
+    writeToDisk: options.writeToDisk ?? false,
+  };
   const config = await options.loader();
   const projectRoot = options.cwd ?? process.cwd();
 
@@ -167,6 +196,11 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   );
   watcher.onRefresh((event) => sseHub.broadcastRefresh(event));
 
+  // Built once, before listen(): a disabled write method is simply absent from the returned
+  // registry, never rebuilt or re-derived for the life of the process.
+  const handlers = createRpcHandlers(capabilities);
+  const rateLimiter = buildRateLimiter(options);
+
   const server = createServer();
   server.on("clientError", handleClientError);
   const address = await listen(server, resolvePort(options.port));
@@ -179,7 +213,9 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     cookieName: cookieName(port),
     assetsRootPath,
     log: output,
-    rpcDeps: buildRpcHandlerDeps(config, projectRoot, options),
+    rpcDeps: buildRpcHandlerDeps(config, projectRoot, capabilities, options),
+    handlers,
+    rateLimiter,
     sseHub,
   };
   server.on("request", (request, response) => {

@@ -22,9 +22,10 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   history: "History",
 };
 
-// Every panel receives refreshToken, but StatusPanel is currently the only one that reacts to it
-// (through the covered client/state.ts reducer); the rest ignore the prop for now, a deliberate,
-// incremental scope choice rather than an oversight.
+// Every panel receives refreshToken. StatusPanel reacts to it directly (through the covered
+// client/state.ts reducer); DiffPanel passes it straight through to an open KeyDetailDrawer,
+// which re-fetches its own key.integrity view on change. The remaining panels ignore the prop for
+// now, a deliberate, incremental scope choice rather than an oversight.
 const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,

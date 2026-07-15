@@ -34,6 +34,13 @@ kein gültiges ICU ist, wird beiseitegelegt und von der Übersetzung übersprung
 und er wird als ungültiges ICU in der Zusammenfassung gemeldet. Der ICU-Körper bleibt wörtlich durch die Pipeline:
 nichts wird aufgelöst oder umgeschrieben.
 
+Derselbe Parser prüft auch die andere Seite des Laufs: Sobald eine Übersetzung zurückkommt, validiert
+verbatra den Ergebniswert selbst gegen die Nachrichten-Syntax des Formats, nicht nur seine Platzhaltermenge.
+Ein Ergebnis, das jeden Platzhalter unverändert lässt, aber die ICU-Plural- oder Select-Struktur bricht,
+besteht die Prüfung trotzdem nicht und wird genau wie ein Platzhalter-Mismatch zurückgehalten, gemeldet
+auf dieselbe Weise in der Lauf-Zusammenfassung. Das gilt für `translate`, `watch`, den Workbook-Import und
+die [Retranslate-Aktion](/docs/cli/studio) von Studio.
+
 ## Review-Flags
 
 Die Prüfungen oben beweisen nur, dass eine Übersetzung strukturell sicher ist: nichts ist kaputt, aber sie könnte trotzdem falsch sein. verbatra legt eine zweite, nicht blockierende Schicht darüber: eine reine Heuristik, die einen Key für die menschliche Überprüfung markiert, ohne ihn jemals zurückzuhalten. Ein Review-Flag ist rein beratend. Es hält niemals einen Key zurück, und nichts in der Arbeitsmappe oder der Lauf-Zusammenfassung lässt sich bearbeiten, um es zu löschen; der einzige Weg, ein Flag zu löschen, ist, die zugrunde liegende Übersetzung zu korrigieren.

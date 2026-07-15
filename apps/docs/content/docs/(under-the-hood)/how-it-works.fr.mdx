@@ -70,10 +70,12 @@ notification.
 
 ### Vérification des placeholders et écriture
 
-Après la traduction, verbatra compare l'ensemble des placeholders de chaque valeur traduite à sa source.
-Une traduction qui supprime ou altère un placeholder échoue à cette vérification d'intégrité et est retenue plutôt
-qu'écrite. Les traductions acceptées sont fusionnées dans la locale cible et écrites de façon atomique, de sorte qu'une
-écriture interrompue ne te laisse jamais avec un fichier à moitié terminé.
+Après la traduction, verbatra compare l'ensemble des placeholders de chaque valeur traduite à sa source, et,
+pour les formats ICU (next-intl et ARB), valide aussi la valeur traduite par rapport à la syntaxe du format.
+Une traduction qui supprime ou altère un placeholder, ou qui casse la structure plural ou select ICU, échoue
+à cette vérification d'intégrité et est retenue plutôt qu'écrite. Les traductions acceptées sont fusionnées
+dans la locale cible et écrites de façon atomique, de sorte qu'une écriture interrompue ne te laisse jamais
+avec un fichier à moitié terminé.
 
 ## Le fichier de verrouillage et le travail incrémentiel
 

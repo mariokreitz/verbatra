@@ -16,8 +16,8 @@ export type KeyIntegrityParams = z.infer<typeof keyIntegrityParamsSchema>;
  * a locale where the key is currently "changed" (a current source and a current target value both
  * exist); a locale where the key is missing, orphaned, or already in sync carries no entry here.
  *
- * Never carries a full source or target string value: only the boolean match result and, on a
- * mismatch, the specific placeholder tokens involved (for example `"{{name}}"`), never the
+ * Never carries a full source or target string value: only the boolean results and, on a
+ * placeholder mismatch, the specific tokens involved (for example `"{{name}}"`), never the
  * surrounding sentence.
  */
 export interface KeyIntegrityLocaleResult {
@@ -27,6 +27,8 @@ export interface KeyIntegrityLocaleResult {
   readonly matches: boolean;
   readonly missing: readonly string[];
   readonly extra: readonly string[];
+  /** Whether the target value parses as valid ICU MessageFormat. Always true for a non-ICU format. Computed independently of `matches`. */
+  readonly icuValid: boolean;
 }
 
 /** The result of `key.integrity`: one entry per target locale where the requested key is "changed". */

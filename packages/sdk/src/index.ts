@@ -75,6 +75,12 @@ export {
   lockState,
 } from "./flow/lock-state.js";
 export {
+  type RetranslateEntryDeps,
+  type RetranslateEntryInput,
+  type RetranslateEntryResult,
+  retranslateEntry,
+} from "./flow/retranslate-entry.js";
+export {
   type RunStatusDeps,
   type RunStatusInput,
   type RunStatusResult,

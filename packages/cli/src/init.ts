@@ -182,8 +182,10 @@ function writeFileIfAllowed(
 }
 
 /**
- * Ensure .env, .env.local, and .verbatra-local/ (the local run-status directory `translate`/`watch`
- * write to) are gitignored: create if absent, idempotently append otherwise.
+ * Ensure .env, .env.local, and .verbatra-local/ are gitignored: create if absent, idempotently
+ * append otherwise. .verbatra-local/ holds process-local, never-committed state (the run-status
+ * snapshot `translate`/`watch` write, the per-locale write lock files under locks/, and any
+ * future run-local scratch data).
  */
 function ensureGitignore(cwd: string, streams: Streams): void {
   const gitignorePath = resolve(cwd, ".gitignore");

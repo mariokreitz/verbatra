@@ -1,4 +1,4 @@
-import type { CheckDeps, LoadedConfig, SdkFs } from "@verbatra/sdk";
+import type { CheckDeps, CreateProvider, LoadedConfig, SdkFs } from "@verbatra/sdk";
 
 /** The result of one `execFileImpl` call: captured stdout and stderr, never a raw child_process error. */
 export interface ExecFileResult {
@@ -61,6 +61,26 @@ export interface StudioServerDeps {
   readonly output?: (line: string) => void;
   /** Overrides where static assets are served from; defaults to the built SPA next to this module. */
   readonly assetsRoot?: URL;
+  /**
+   * Authorizes a provider invocation (network egress, an API key read from its environment
+   * variable, a billable call). Resolved once at process start (CLI flag or environment variable
+   * fallback) and read exactly once here, before `listen()`; never re-derived and never an RPC
+   * parameter. Off (`false`) by default. Composed independently with {@link writeToDisk}: neither
+   * implies the other.
+   */
+  readonly spend?: boolean;
+  /**
+   * Authorizes mutating a source-controlled locale file and its lock entry. Resolved once at
+   * process start (CLI flag or environment variable fallback) and read exactly once here, before
+   * `listen()`; never re-derived and never an RPC parameter. Off (`false`) by default.
+   */
+  readonly writeToDisk?: boolean;
+  /** Provider builder for the write-capable RPC handlers; defaults to constructing the configured provider (which reads its key from env). Test-only injection seam, mirroring the sdk's own `TranslateDeps.createProvider`. */
+  readonly createProvider?: CreateProvider;
+  /** Rolling window, in milliseconds, `translation.retranslateEntry`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */
+  readonly retranslateRateLimitWindowMs?: number;
+  /** Maximum `translation.retranslateEntry` calls allowed within the rolling window before `RATE_LIMITED`. */
+  readonly retranslateRateLimitMax?: number;
 }
 
 /** Options accepted by {@link startStudioServer}: every {@link StudioServerDeps} field, plus the bind port and cwd. */

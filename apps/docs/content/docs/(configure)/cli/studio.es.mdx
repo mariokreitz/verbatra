@@ -1,8 +1,8 @@
 ---
 title: Verbatra Studio (verbatra studio)
-description: Inicia Verbatra Studio, un panel de traducción local y de solo lectura sobre tu proyecto.
+description: Inicia Verbatra Studio, un panel de traducción local sobre tu proyecto, de solo lectura por defecto.
 ---
-Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, la configuración, la desviación del archivo de bloqueo y el historial, sin llamar nunca a un proveedor ni escribir un archivo. Inícialo con:
+Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, la configuración, la desviación del archivo de bloqueo y el historial. Por defecto nunca llama a un proveedor ni escribe un archivo. Inícialo con dos flags adicionales y gana también una acción de escritura: volver a traducir una sola clave que falla (mira "Volver a traducir una clave que falla" más abajo). Inícialo con:
 
 ```bash
 verbatra studio
@@ -12,9 +12,9 @@ verbatra studio
 Verbatra Studio por ahora solo está disponible como prerelease, todavía no hay una versión estable. Para usarlo, instala `@verbatra/cli` explícitamente bajo la etiqueta `next`: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` en sí todavía no ha tenido una versión estable, así que su propia etiqueta `latest` ya trae el build de prerelease actual, sin necesidad de etiqueta. Un simple `pnpm add -D @verbatra/cli` (sin etiqueta) resuelve a la versión estable actual y no incluye este comando.
 </Callout>
 
-## Solo local y de solo lectura
+## Solo local, y de solo lectura por defecto
 
-Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. No hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff).
+Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. Por defecto no hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff). Pasa `--allow-spend` y `--allow-write` juntos al iniciar y Studio gana exactamente una acción de escritura, descrita en "Volver a traducir una clave que falla" más abajo; deja cualquiera de los dos flags sin activar y Studio sigue siendo igual de solo lectura.
 
 ## Referencia de comandos
 
@@ -23,6 +23,10 @@ Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máqu
 | `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
 | `--port <n>` | sobrescribe el puerto por defecto de Studio (debe ser un entero de 1 a 65535) |
+| `--allow-spend` | permite que Studio llame a un proveedor de traducción (también: `VERBATRA_STUDIO_ALLOW_SPEND`) |
+| `--allow-write` | permite que Studio escriba archivos de locale y el archivo de bloqueo (también: `VERBATRA_STUDIO_ALLOW_WRITE`) |
+
+`--allow-spend` y `--allow-write` están ambos desactivados por defecto. Cada uno también lee su variable de entorno equivalente cuando el flag mismo está ausente (`"1"`, `"true"`, `"yes"` o `"on"`, sin distinguir mayúsculas y minúsculas, cuenta como activado); un flag explícito de la CLI siempre gana sobre la variable de entorno.
 
 `verbatra studio` carga `.env.local` y `.env` igual que cualquier otro comando, luego resuelve tu configuración una vez, antes de tocar siquiera la red. Una configuración ausente o no válida sale con `2` y el mismo error renderizado que cualquier otro comando; Studio en sí nunca llega a iniciarse.
 
@@ -61,6 +65,16 @@ Igual que el resto de Studio, la paleta es de solo lectura: ningún elemento, en
 ## Vista de detalle de una clave
 
 En Diff, haz clic en una clave modificada para abrir su vista de detalle, con una fila por locale de destino. Cada fila también muestra un indicador de integridad de marcadores de posición e ICU: verde significa que la traducción de ese locale todavía tiene los mismos marcadores de posición que el origen (cosas como `{name}` o `{{count}}`, según tu formato); rojo significa que falta un marcador de posición o que se añadió uno inesperado, y nombra el token concreto para que sepas qué corregir. Un indicador neutro y sin etiqueta significa que el formato no tiene marcadores de posición que comprobar, o que la comprobación todavía no se ha cargado, ya que se obtiene solo al abrir la vista de detalle, no de forma anticipada. Esto solo se aplica a las claves modificadas: una clave faltante todavía no tiene un valor de destino, y una clave huérfana no tiene un valor de origen actual, así que ninguna de las dos tiene un segundo valor que comparar.
+
+## Volver a traducir una clave que falla
+
+Inicia Studio con `--allow-spend` y `--allow-write` juntos (o sus variables de entorno equivalentes) y la vista de detalle de la clave gana una acción de escritura: un botón "Retranslate" junto a cualquier fila de locale cuyo indicador de integridad esté en rojo. Deja cualquiera de los dos flags sin activar y el botón está ausente del panel, no simplemente desactivado.
+
+```bash
+verbatra studio --allow-spend --allow-write
+```
+
+Al hacer clic se realiza una única llamada en vivo a tu proveedor de traducción configurado para exactamente esa clave y ese locale, el mismo costo de proveedor que volver a traducir una clave con [`verbatra translate`](/docs/cli/translate). El resultado que devuelve pasa por la misma comprobación de integridad de marcadores de posición e ICU antes de escribir nada: un resultado aceptado actualiza el archivo de locale de destino y la entrada de bloqueo para esa única clave, dejando intactas todas las demás claves y locales; un resultado rechazado no escribe nada. El botón informa del resultado: "Retranslated" si tiene éxito, "Rejected: placeholder mismatch" o "Rejected: invalid message syntax" cuando el nuevo resultado en sí falla la comprobación, o "Failed: ..." para cualquier otro caso, por ejemplo si la propia llamada al proveedor falla. Una retraducción exitosa llega a tu pestaña del navegador mediante la misma señal de actualización en vivo que un cambio hecho fuera de Studio.
 
 ## Instalación
 

@@ -34,6 +34,13 @@ n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutô
 et elle est signalée comme ICU invalide sur le résumé. Le corps ICU reste tel quel tout au long du pipeline :
 rien n'est résolu ni réécrit.
 
+Le même analyseur vérifie aussi l'autre côté de l'exécution : dès qu'une traduction revient, verbatra
+valide la valeur du résultat elle-même par rapport à la syntaxe du format, pas seulement son ensemble de
+placeholders. Un résultat qui garde chaque placeholder intact mais casse la structure plural ou select ICU
+échoue quand même à la vérification et est retenu exactement comme un mismatch de placeholder, signalé de
+la même façon sur le résumé de l'exécution. Cela s'applique à `translate`, `watch`, l'import de classeur, et
+à l'[action de retraduction](/docs/cli/studio) de Studio.
+
 ## Signaux de révision
 
 Réussir les vérifications ci-dessus prouve seulement qu'une traduction est structurellement sûre : rien n'est cassé, mais elle pourrait quand même être fausse. verbatra fait tourner une seconde couche, non bloquante, par-dessus : une heuristique pure qui signale une clé pour une révision humaine sans jamais la retenir. Un signal de révision est purement consultatif. Il ne retient jamais une clé, et rien dans le classeur ni dans le résumé de l'exécution ne peut être modifié pour l'effacer ; le seul moyen d'effacer un signal est de corriger la traduction sous-jacente.

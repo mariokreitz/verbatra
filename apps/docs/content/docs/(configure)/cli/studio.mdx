@@ -1,8 +1,8 @@
 ---
 title: Verbatra Studio (verbatra studio)
-description: Start Verbatra Studio, a local, read-only translation dashboard over your project.
+description: Start Verbatra Studio, a local translation dashboard over your project, read-only by default.
 ---
-Verbatra Studio is a local web dashboard over your verbatra project: a live view of translation status, pending changes, configuration, lock-file drift, and history, without ever calling a provider or writing a file. Start it with:
+Verbatra Studio is a local web dashboard over your verbatra project: a live view of translation status, pending changes, configuration, lock-file drift, and history. By default it never calls a provider or writes a file. Start it with two extra flags and it also gains one write action, retranslating a single failing key (see "Retranslate a failing key" below). Start it with:
 
 ```bash
 verbatra studio
@@ -12,9 +12,9 @@ verbatra studio
 Verbatra Studio is currently available only as a prerelease, not yet a stable release. To use it, install `@verbatra/cli` explicitly under the `next` tag: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` itself has not had a stable release yet, so its own `latest` tag already carries the current prerelease build, no tag needed. A plain `pnpm add -D @verbatra/cli` (no tag) resolves to the current stable release and does not include this command.
 </Callout>
 
-## Local-only and read-only
+## Local-only, and read-only by default
 
-Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. There is no state-changing endpoint anywhere in Studio: it never calls `translate`, never runs `watch`, and never imports or exports a workbook. Everything you see comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff).
+Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. By default there is no state-changing endpoint anywhere in Studio: it never calls `translate`, never runs `watch`, and never imports or exports a workbook. Everything you see comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff). Pass both `--allow-spend` and `--allow-write` at startup and Studio gains exactly one write action, described in "Retranslate a failing key" below; leave either flag off and Studio stays exactly this read-only.
 
 ## Command reference
 
@@ -23,6 +23,10 @@ Studio binds to `127.0.0.1` only: it is never reachable from another machine, an
 | `--cwd <path>` | resolve config and locale files from this directory |
 | `--config <path>` | load this config file instead of searching for one |
 | `--port <n>` | override the default Studio port (must be an integer from 1 to 65535) |
+| `--allow-spend` | allow Studio to call a translation provider (also: `VERBATRA_STUDIO_ALLOW_SPEND`) |
+| `--allow-write` | allow Studio to write locale files and the lock (also: `VERBATRA_STUDIO_ALLOW_WRITE`) |
+
+`--allow-spend` and `--allow-write` both default to off. Each also reads its environment variable equivalent when the flag itself is absent (`"1"`, `"true"`, `"yes"`, or `"on"`, case-insensitive, counts as on); an explicit CLI flag always wins over the environment variable.
 
 `verbatra studio` loads `.env.local` and `.env` exactly like every other command, then resolves your config once, before it ever touches the network. A missing or invalid config exits `2` with the same rendered error every other command uses; Studio itself is never started.
 
@@ -61,6 +65,16 @@ Like the rest of Studio, the palette is read-only: no entry, in any state, ever 
 ## Key detail view
 
 In Diff, click a changed key to open its detail view, with one row per target locale. Each row also shows a placeholder and ICU integrity indicator: green means that locale's translation still has the same placeholders as the source (things like `{name}` or `{{count}}`, depending on your format); red means a placeholder is missing or an unexpected one was added, and names the specific token so you know what to fix. A neutral, unlabeled indicator means either the format has no placeholders to check, or the check has not loaded yet, since it fetches only once you open the detail view, not eagerly. This only applies to changed keys: a missing key has no target value yet, and an orphaned key has no current source value, so neither has a second value worth comparing.
+
+## Retranslate a failing key
+
+Start Studio with both `--allow-spend` and `--allow-write` (or their environment variable equivalents) and the key detail view gains one write action: a "Retranslate" button next to any locale row whose integrity indicator is red. Leave either flag off and the button is absent from the dashboard, not merely disabled.
+
+```bash
+verbatra studio --allow-spend --allow-write
+```
+
+Clicking it makes one live call to your configured translation provider for exactly that key and locale, the same provider cost as retranslating one key with [`verbatra translate`](/docs/cli/translate). The candidate it gets back runs through the same placeholder and ICU integrity check before anything is written: an accepted candidate updates the target locale file and the lock entry for that single key, leaving every other key and every other locale untouched; a rejected candidate writes nothing. The button reports the outcome: "Retranslated" on success, "Rejected: placeholder mismatch" or "Rejected: invalid message syntax" when the new candidate itself fails the check, or "Failed: ..." for anything else, for example the provider call itself failing. A successful retranslate reaches your browser tab through the same live-refresh signal as a change made outside Studio.
 
 ## Installation
 

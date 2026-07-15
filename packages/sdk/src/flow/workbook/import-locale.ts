@@ -1,5 +1,4 @@
 import {
-  checkPlaceholders,
   contentHash,
   diffResources,
   type LocaleResource,
@@ -7,6 +6,7 @@ import {
 } from "@verbatra/core";
 import type { WorkbookRow, WorkbookSheet } from "@verbatra/exchange";
 import type { FormatAdapter } from "@verbatra/format-adapters";
+import { gateCandidateValue } from "../integrity-gate.js";
 import type { LocaleSummary, SdkNotice } from "../summary.js";
 
 /** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
@@ -57,8 +57,8 @@ type Reason = "drift" | "placeholder" | "icu";
 /**
  * Judge one filled row against the live source. Returns `undefined` to accept, or the first failing
  * reason: `"drift"` when the row's export-time source hash no longer matches the current source
- * (the source changed since export), `"placeholder"` when the translation's placeholder set differs
- * from the source's, or `"icu"` when the adapter reports the value invalid for the format's syntax.
+ * (the source changed since export, an import-specific check with no equivalent in a provider-sourced
+ * translation), or the shared {@link gateCandidateValue}'s `"placeholder"`/`"icu"` reason.
  */
 function judge(
   row: WorkbookRow,
@@ -68,17 +68,8 @@ function judge(
   if (contentHash(sourceEntry) !== row.sourceHash) {
     return "drift";
   }
-  const integrity =
-    adapter.comparePlaceholders !== undefined
-      ? adapter.comparePlaceholders(sourceEntry.value, row.translation)
-      : checkPlaceholders(sourceEntry.placeholders, adapter.extractPlaceholders(row.translation));
-  if (!integrity.matches) {
-    return "placeholder";
-  }
-  if (!adapter.validateMessage(row.translation)) {
-    return "icu";
-  }
-  return undefined;
+  const gate = gateCandidateValue(sourceEntry, row.translation, adapter);
+  return gate.accepted ? undefined : gate.reason;
 }
 
 interface Buckets {

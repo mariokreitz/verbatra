@@ -595,6 +595,14 @@ function buildProgram(
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--port <n>", "override the default Studio port (must be 1-65535)")
+    .option(
+      "--allow-spend",
+      "allow Studio to call a translation provider (also: VERBATRA_STUDIO_ALLOW_SPEND)",
+    )
+    .option(
+      "--allow-write",
+      "allow Studio to write locale files and the lock (also: VERBATRA_STUDIO_ALLOW_WRITE)",
+    )
     .action(async (opts: unknown) => {
       setCode(await runStudioCommand(opts, deps, streams, hooks));
     })
@@ -603,8 +611,9 @@ function buildProgram(
       [
         "",
         "Examples:",
-        "  $ verbatra studio                start Verbatra Studio on the default port",
-        "  $ verbatra studio --port 6000    start Verbatra Studio on a specific port",
+        "  $ verbatra studio                             start Verbatra Studio on the default port",
+        "  $ verbatra studio --port 6000                 start Verbatra Studio on a specific port",
+        "  $ verbatra studio --allow-spend --allow-write start Studio with retranslate enabled",
       ].join("\n"),
     );
 

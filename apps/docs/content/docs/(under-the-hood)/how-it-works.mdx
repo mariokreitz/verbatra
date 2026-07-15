@@ -70,10 +70,12 @@ notices.
 
 ### Checking placeholders and writing
 
-After translation, verbatra compares the placeholder set of each translated value against its source.
-A translation that drops or alters a placeholder fails this integrity check and is withheld instead of
-written. The accepted translations get merged into the target locale and written atomically, so an
-interrupted write never leaves you with a half-finished file.
+After translation, verbatra compares the placeholder set of each translated value against its source,
+and, for the ICU formats (next-intl and ARB), also validates the translated value against the
+format's message syntax. A translation that drops or alters a placeholder, or that breaks the ICU
+plural or select structure, fails this integrity check and is withheld instead of written. The
+accepted translations get merged into the target locale and written atomically, so an interrupted
+write never leaves you with a half-finished file.
 
 ## The lock file and incremental work
 

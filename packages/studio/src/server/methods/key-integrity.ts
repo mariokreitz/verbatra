@@ -34,6 +34,7 @@ export const keyIntegrityHandler: RpcHandler<"key.integrity"> = async (params, d
       matches: entry.matches,
       missing: entry.missing,
       extra: entry.extra,
+      icuValid: entry.icuValid,
     });
   }
   return { locales };

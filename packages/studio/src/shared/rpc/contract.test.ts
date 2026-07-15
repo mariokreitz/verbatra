@@ -9,10 +9,14 @@ const EXPECTED_METHOD_NAMES = [
   "lock.state",
   "history.list",
   "key.integrity",
+  "translation.retranslateEntry",
 ];
 
 describe("RPC_METHOD_NAMES", () => {
-  it("contains exactly the seven agreed method names, no more, no fewer", () => {
+  it("contains exactly the eight agreed method names, no more, no fewer", () => {
+    // translation.retranslateEntry's schema is declared unconditionally here, independent of
+    // capability flags: contract shape is static and shared; only the handler registry
+    // (server/rpc.ts's createRpcHandlers) is capability-built.
     expect(new Set(RPC_METHOD_NAMES)).toEqual(new Set(EXPECTED_METHOD_NAMES));
     expect(RPC_METHOD_NAMES).toHaveLength(EXPECTED_METHOD_NAMES.length);
   });
@@ -33,9 +37,35 @@ describe("rpcParamsSchemas", () => {
     ["lock.state", {}, { extra: true }],
     ["history.list", { limit: 5 }, { limit: 0 }],
     ["key.integrity", { key: "greeting" }, { key: "" }],
+    [
+      "translation.retranslateEntry",
+      { locale: "de", key: "greeting" },
+      { locale: "", key: "greeting" },
+    ],
   ] as const)("%s accepts a valid shape and rejects an invalid shape", (method, valid, invalid) => {
     const schema = rpcParamsSchemas[method];
     expect(schema.safeParse(valid).success).toBe(true);
     expect(schema.safeParse(invalid).success).toBe(false);
+  });
+
+  it('declares no field capable of expressing "enable spend" or "enable write" on any method, read or write', () => {
+    // Every schema here is z.strictObject, which already rejects an unrecognized extra key
+    // outright; this additionally confirms none of them ever declares such a field itself, so
+    // capability enablement has no expressible shape at the RPC boundary at all, not merely a
+    // rejected one.
+    for (const method of RPC_METHOD_NAMES) {
+      const shapeKeys = Object.keys(rpcParamsSchemas[method].shape);
+      expect(shapeKeys).not.toContain("spend");
+      expect(shapeKeys).not.toContain("writeToDisk");
+    }
+  });
+
+  it("rejects a body that smuggles a spend or writeToDisk field alongside otherwise-valid params", () => {
+    const result = rpcParamsSchemas["translation.retranslateEntry"].safeParse({
+      locale: "de",
+      key: "greeting",
+      spend: true,
+    });
+    expect(result.success).toBe(false);
   });
 });

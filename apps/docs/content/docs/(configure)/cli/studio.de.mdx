@@ -1,8 +1,8 @@
 ---
 title: Verbatra Studio (verbatra studio)
-description: Starte Verbatra Studio, ein lokales, schreibgeschütztes Übersetzungs-Dashboard über dein Projekt.
+description: Starte Verbatra Studio, ein lokales Übersetzungs-Dashboard über dein Projekt, standardmäßig schreibgeschützt.
 ---
-Verbatra Studio ist ein lokales Web-Dashboard über dein verbatra-Projekt: eine Live-Ansicht des Übersetzungsstatus, ausstehender Änderungen, der Konfiguration, der Lock-Datei-Abweichung und der Historie, ohne jemals einen Provider aufzurufen oder eine Datei zu schreiben. Starte es mit:
+Verbatra Studio ist ein lokales Web-Dashboard über dein verbatra-Projekt: eine Live-Ansicht des Übersetzungsstatus, ausstehender Änderungen, der Konfiguration, der Lock-Datei-Abweichung und der Historie. Standardmäßig ruft es niemals einen Provider auf und schreibt niemals eine Datei. Startest du es mit zwei zusätzlichen Flags, erhält es zusätzlich eine Schreibaktion: das erneute Übersetzen eines einzelnen fehlschlagenden Schlüssels (siehe "Einen fehlschlagenden Schlüssel erneut übersetzen" weiter unten). Starte es mit:
 
 ```bash
 verbatra studio
@@ -12,9 +12,9 @@ verbatra studio
 Verbatra Studio ist aktuell nur als Prerelease verfügbar, noch nicht als stabile Version. Um es zu nutzen, installiere `@verbatra/cli` explizit unter dem `next`-Tag: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` selbst hatte noch keine stabile Version, daher liefert schon sein eigener `latest`-Tag den aktuellen Prerelease-Build, kein Tag nötig. Ein einfaches `pnpm add -D @verbatra/cli` (ohne Tag) löst die aktuelle stabile Version auf und enthält diesen Befehl nicht.
 </Callout>
 
-## Nur lokal und schreibgeschützt
+## Nur lokal, und standardmäßig schreibgeschützt
 
-Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen Rechner erreichbar, und es gibt keine Option, das zu ändern. Jede Anfrage wird gegen eine strikte Host- und Origin-Allowlist geprüft, und jede Seite und jeder API-Aufruf benötigt das im Start-URL ausgegebene Session-Token, das zeitkonstant verglichen wird, sodass ein falscher Versuch nicht per Timing erraten werden kann. Studio sendet keine CORS-Header, sodass ein Browser-Tab auf einem anderen Origin es nicht lesen könnte, selbst wenn er es versuchen würde. Es gibt keinen zustandsändernden Endpunkt in Studio: Es ruft niemals `translate` auf, führt niemals `watch` aus und importiert oder exportiert niemals ein Workbook. Alles, was du siehst, stammt aus denselben schreibgeschützten Berechnungen wie [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff).
+Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen Rechner erreichbar, und es gibt keine Option, das zu ändern. Jede Anfrage wird gegen eine strikte Host- und Origin-Allowlist geprüft, und jede Seite und jeder API-Aufruf benötigt das im Start-URL ausgegebene Session-Token, das zeitkonstant verglichen wird, sodass ein falscher Versuch nicht per Timing erraten werden kann. Studio sendet keine CORS-Header, sodass ein Browser-Tab auf einem anderen Origin es nicht lesen könnte, selbst wenn er es versuchen würde. Standardmäßig gibt es keinen zustandsändernden Endpunkt in Studio: Es ruft niemals `translate` auf, führt niemals `watch` aus und importiert oder exportiert niemals ein Workbook. Alles, was du siehst, stammt aus denselben schreibgeschützten Berechnungen wie [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff). Übergibst du beim Start sowohl `--allow-spend` als auch `--allow-write`, erhält Studio genau eine Schreibaktion, beschrieben in "Einen fehlschlagenden Schlüssel erneut übersetzen" weiter unten; lässt du eines der beiden Flags weg, bleibt Studio genauso schreibgeschützt wie bisher.
 
 ## Befehlsreferenz
 
@@ -23,6 +23,10 @@ Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen 
 | `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
 | `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
 | `--port <n>` | überschreibt den Standard-Port von Studio (muss eine Ganzzahl von 1 bis 65535 sein) |
+| `--allow-spend` | erlaubt Studio, einen Übersetzungs-Provider aufzurufen (auch: `VERBATRA_STUDIO_ALLOW_SPEND`) |
+| `--allow-write` | erlaubt Studio, Locale-Dateien und die Lock-Datei zu schreiben (auch: `VERBATRA_STUDIO_ALLOW_WRITE`) |
+
+`--allow-spend` und `--allow-write` sind beide standardmäßig aus. Jedes liest zusätzlich seine entsprechende Umgebungsvariable, wenn das Flag selbst fehlt (`"1"`, `"true"`, `"yes"` oder `"on"`, ohne Groß- und Kleinschreibung, zählt als an); ein explizites CLI-Flag gewinnt immer gegenüber der Umgebungsvariable.
 
 `verbatra studio` lädt `.env.local` und `.env` genau wie jeder andere Befehl, löst dann deine Konfiguration einmal auf, bevor es überhaupt das Netzwerk berührt. Eine fehlende oder ungültige Konfiguration beendet sich mit `2` und demselben gerenderten Fehler wie jeder andere Befehl; Studio selbst wird nie gestartet.
 
@@ -61,6 +65,16 @@ Wie der Rest von Studio ist auch die Palette schreibgeschützt: Kein Eintrag lö
 ## Detailansicht eines Schlüssels
 
 Klicke in Diff auf einen geänderten Schlüssel, um seine Detailansicht zu öffnen, mit einer Zeile pro Ziel-Locale. Jede Zeile zeigt außerdem einen Hinweis zur Platzhalter- und ICU-Integrität: Grün bedeutet, dass die Übersetzung dieses Locales weiterhin dieselben Platzhalter wie die Quelle hat (etwa `{name}` oder `{{count}}`, je nach Format); Rot bedeutet, dass ein Platzhalter fehlt oder ein unerwarteter hinzugekommen ist, und nennt den genauen Token, damit du weißt, was zu beheben ist. Ein neutraler, unbeschrifteter Hinweis bedeutet entweder, dass das Format keine Platzhalter zu prüfen hat, oder dass die Prüfung noch nicht geladen ist, da sie erst beim Öffnen der Detailansicht abgerufen wird, nicht im Voraus. Das gilt nur für geänderte Schlüssel: Ein fehlender Schlüssel hat noch keinen Zielwert, und ein verwaister Schlüssel hat keinen aktuellen Quellwert, sodass keiner von beiden einen zweiten Wert zum Vergleichen hat.
+
+## Einen fehlschlagenden Schlüssel erneut übersetzen
+
+Startest du Studio mit sowohl `--allow-spend` als auch `--allow-write` (oder ihren Umgebungsvariablen-Entsprechungen), erhält die Detailansicht eines Schlüssels eine Schreibaktion: eine Schaltfläche "Retranslate" neben jeder Locale-Zeile, deren Integritätsanzeige rot ist. Lässt du eines der beiden Flags weg, fehlt die Schaltfläche im Dashboard vollständig, statt nur deaktiviert zu sein.
+
+```bash
+verbatra studio --allow-spend --allow-write
+```
+
+Ein Klick darauf löst genau einen Live-Aufruf an deinen konfigurierten Übersetzungs-Provider für exakt diesen Schlüssel und dieses Locale aus, mit denselben Provider-Kosten wie das erneute Übersetzen eines Schlüssels mit [`verbatra translate`](/docs/cli/translate). Das zurückgegebene Ergebnis durchläuft dieselbe Platzhalter- und ICU-Integritätsprüfung, bevor irgendetwas geschrieben wird: Ein akzeptiertes Ergebnis aktualisiert die Ziel-Locale-Datei und den Lock-Eintrag für genau diesen einen Schlüssel, alle anderen Schlüssel und Locales bleiben unberührt; ein abgelehntes Ergebnis schreibt nichts. Die Schaltfläche zeigt das Ergebnis an: "Retranslated" bei Erfolg, "Rejected: placeholder mismatch" oder "Rejected: invalid message syntax", wenn das neue Ergebnis selbst die Prüfung nicht besteht, oder "Failed: ..." für alles andere, zum Beispiel wenn schon der Provider-Aufruf selbst fehlschlägt. Ein erfolgreiches erneutes Übersetzen erreicht deinen Browser-Tab über dasselbe Live-Aktualisierungssignal wie eine Änderung außerhalb von Studio.
 
 ## Installation
 
