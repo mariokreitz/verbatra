@@ -9,8 +9,7 @@ import {
   baselineFor,
   lockFilePath,
   readLockFile,
-  updateLockLocale,
-  writeLockFile,
+  updateLockFileLocale,
 } from "../../lock/lock-file.js";
 import type { LockFile } from "../../lock/types.js";
 import { localeFilePath } from "../../paths.js";
@@ -202,8 +201,11 @@ export async function importWorkbook(
     throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
   }
 
-  const lockPath = lockFilePath(cwd);
-  let lock = await readLockFile(lockPath, fs);
+  // Read once for each sheet's diff baseline; the actual write-back for an accepted sheet goes
+  // through updateLockFileLocale below, which re-reads fresh immediately before writing so a
+  // concurrent writer never has its own update silently discarded by a blind overwrite of this
+  // stale snapshot.
+  const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const ctx: SheetContext = {
     config,
@@ -220,8 +222,10 @@ export async function importWorkbook(
     try {
       const { summary, lockEntries } = await runSheet(ctx, sheet, lock);
       if (!dryRun) {
-        lock = updateLockLocale(lock, sheet.locale, lockEntries);
-        await writeLockFile(lockPath, lock, fs);
+        await updateLockFileLocale(cwd, fs, sheet.locale, {
+          mode: "replace",
+          entries: lockEntries,
+        });
       }
       summaries.push(summary);
     } catch (error) {
