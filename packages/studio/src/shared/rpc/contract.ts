@@ -7,6 +7,11 @@ import {
   glossaryGetParamsSchema,
 } from "./glossary.js";
 import { HISTORY_LIST_METHOD, type HistoryListResult, historyListParamsSchema } from "./history.js";
+import {
+  KEY_INTEGRITY_METHOD,
+  type KeyIntegrityResult,
+  keyIntegrityParamsSchema,
+} from "./key-integrity.js";
 import { LOCK_STATE_METHOD, type LockStateResult, lockStateParamsSchema } from "./lock.js";
 import {
   PROJECT_SNAPSHOT_METHOD,
@@ -17,7 +22,7 @@ import {
 /**
  * The single source of truth for the RPC surface: one params schema per method, keyed by its
  * method name. Everything else in this module (the method name list, the method name type, and
- * the request/result type maps) is derived from this record so the six methods can never drift
+ * the request/result type maps) is derived from this record so the agreed methods can never drift
  * out of step with each other.
  */
 export const rpcParamsSchemas = {
@@ -27,9 +32,10 @@ export const rpcParamsSchemas = {
   [GLOSSARY_GET_METHOD]: glossaryGetParamsSchema,
   [LOCK_STATE_METHOD]: lockStateParamsSchema,
   [HISTORY_LIST_METHOD]: historyListParamsSchema,
+  [KEY_INTEGRITY_METHOD]: keyIntegrityParamsSchema,
 } as const;
 
-/** The exact six agreed RPC methods, derived from {@link rpcParamsSchemas}. */
+/** The exact set of agreed RPC methods, derived from {@link rpcParamsSchemas}. */
 export type RpcMethodName = keyof typeof rpcParamsSchemas;
 
 /** The method name list, derived from the same record every schema lookup uses. */
@@ -43,6 +49,7 @@ export interface RpcResultMap {
   readonly [GLOSSARY_GET_METHOD]: GlossaryGetResult;
   readonly [LOCK_STATE_METHOD]: LockStateResult;
   readonly [HISTORY_LIST_METHOD]: HistoryListResult;
+  readonly [KEY_INTEGRITY_METHOD]: KeyIntegrityResult;
 }
 
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;

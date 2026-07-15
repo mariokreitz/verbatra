@@ -3,7 +3,7 @@ import { RPC_METHOD_NAMES } from "../shared/rpc/contract.js";
 import { rpcHandlers } from "./rpc.js";
 
 describe("the shared contract's method list", () => {
-  it("is exactly the six agreed methods", () => {
+  it("is exactly the seven agreed methods", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(
       new Set([
         "project.snapshot",
@@ -12,9 +12,10 @@ describe("the shared contract's method list", () => {
         "glossary.get",
         "lock.state",
         "history.list",
+        "key.integrity",
       ]),
     );
-    expect(RPC_METHOD_NAMES).toHaveLength(6);
+    expect(RPC_METHOD_NAMES).toHaveLength(7);
   });
 });
 

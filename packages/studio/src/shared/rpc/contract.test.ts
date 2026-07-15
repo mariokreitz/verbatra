@@ -8,10 +8,11 @@ const EXPECTED_METHOD_NAMES = [
   "glossary.get",
   "lock.state",
   "history.list",
+  "key.integrity",
 ];
 
 describe("RPC_METHOD_NAMES", () => {
-  it("contains exactly the six agreed method names, no more, no fewer", () => {
+  it("contains exactly the seven agreed method names, no more, no fewer", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(new Set(EXPECTED_METHOD_NAMES));
     expect(RPC_METHOD_NAMES).toHaveLength(EXPECTED_METHOD_NAMES.length);
   });
@@ -31,6 +32,7 @@ describe("rpcParamsSchemas", () => {
     ["glossary.get", {}, { extra: true }],
     ["lock.state", {}, { extra: true }],
     ["history.list", { limit: 5 }, { limit: 0 }],
+    ["key.integrity", { key: "greeting" }, { key: "" }],
   ] as const)("%s accepts a valid shape and rejects an invalid shape", (method, valid, invalid) => {
     const schema = rpcParamsSchemas[method];
     expect(schema.safeParse(valid).success).toBe(true);
