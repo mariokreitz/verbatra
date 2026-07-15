@@ -2,9 +2,10 @@
  * The verbatra SDK: the central orchestration API for running translation. {@link loadConfig} loads and
  * validates the project config; {@link translate} runs the one-shot read, diff, translate, write flow
  * over all target locales; {@link watch} runs the same flow on each debounced source change;
- * {@link check} and {@link diff} report pending work without writing; {@link lockState} reports the
- * lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the lock-file
- * itself. {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a
+ * {@link check} and {@link diff} report pending work without writing; {@link keyIntegrity} reports, per
+ * changed key, whether its placeholders or ICU structure still match the source; {@link lockState}
+ * reports the lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the
+ * lock-file itself. {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a
  * per-key content hash and compare two such snapshots, the building blocks a caller like Studio's
  * live-refresh watcher uses to report a locale file's own added, changed, and removed key counts
  * since its last observed state. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
@@ -49,6 +50,13 @@ export {
   diff,
   type LocaleDiff,
 } from "./flow/diff.js";
+export {
+  type KeyIntegrityDeps,
+  type KeyIntegrityEntry,
+  type KeyIntegrityInput,
+  keyIntegrity,
+  type LocaleKeyIntegrity,
+} from "./flow/key-integrity.js";
 export {
   diffLocaleSnapshots,
   type LocaleFileSnapshot,

@@ -58,6 +58,10 @@ Drücke Cmd+K (unter Windows und Linux: Strg+K) an einer beliebigen Stelle in St
 
 Wie der Rest von Studio ist auch die Palette schreibgeschützt: Kein Eintrag löst, in welchem Zustand auch immer, jemals eine Netzwerkanfrage, einen Dateischreibvorgang oder einen Provider-Aufruf aus. Sie ist reine Navigation.
 
+## Detailansicht eines Schlüssels
+
+Klicke in Diff auf einen geänderten Schlüssel, um seine Detailansicht zu öffnen, mit einer Zeile pro Ziel-Locale. Jede Zeile zeigt außerdem einen Hinweis zur Platzhalter- und ICU-Integrität: Grün bedeutet, dass die Übersetzung dieses Locales weiterhin dieselben Platzhalter wie die Quelle hat (etwa `{name}` oder `{{count}}`, je nach Format); Rot bedeutet, dass ein Platzhalter fehlt oder ein unerwarteter hinzugekommen ist, und nennt den genauen Token, damit du weißt, was zu beheben ist. Ein neutraler, unbeschrifteter Hinweis bedeutet entweder, dass das Format keine Platzhalter zu prüfen hat, oder dass die Prüfung noch nicht geladen ist, da sie erst beim Öffnen der Detailansicht abgerufen wird, nicht im Voraus. Das gilt nur für geänderte Schlüssel: Ein fehlender Schlüssel hat noch keinen Zielwert, und ein verwaister Schlüssel hat keinen aktuellen Quellwert, sodass keiner von beiden einen zweiten Wert zum Vergleichen hat.
+
 ## Installation
 
 `@verbatra/studio` ist das eigene Paket von Studio. Es hatte noch keine stabile Version, daher liefert eine einfache Installation schon den aktuellen Prerelease-Build, kein Dist-Tag nötig. Wenn es nicht installiert ist, beendet sich `verbatra studio` mit `2` und:

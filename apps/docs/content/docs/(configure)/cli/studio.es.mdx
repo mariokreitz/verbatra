@@ -58,6 +58,10 @@ Pulsa Cmd+K (Ctrl+K en Windows y Linux) en cualquier parte de Studio para abrir 
 
 Igual que el resto de Studio, la paleta es de solo lectura: ningún elemento, en ningún estado, dispara nunca una solicitud de red, una escritura de archivo ni una llamada a un proveedor. Es pura navegación.
 
+## Vista de detalle de una clave
+
+En Diff, haz clic en una clave modificada para abrir su vista de detalle, con una fila por locale de destino. Cada fila también muestra un indicador de integridad de marcadores de posición e ICU: verde significa que la traducción de ese locale todavía tiene los mismos marcadores de posición que el origen (cosas como `{name}` o `{{count}}`, según tu formato); rojo significa que falta un marcador de posición o que se añadió uno inesperado, y nombra el token concreto para que sepas qué corregir. Un indicador neutro y sin etiqueta significa que el formato no tiene marcadores de posición que comprobar, o que la comprobación todavía no se ha cargado, ya que se obtiene solo al abrir la vista de detalle, no de forma anticipada. Esto solo se aplica a las claves modificadas: una clave faltante todavía no tiene un valor de destino, y una clave huérfana no tiene un valor de origen actual, así que ninguna de las dos tiene un segundo valor que comparar.
+
 ## Instalación
 
 `@verbatra/studio` es el paquete propio de Studio. Todavía no ha tenido una versión estable, así que una instalación simple ya trae el build de prerelease actual, sin necesidad de etiqueta. Si no está instalado, `verbatra studio` sale con `2` y:

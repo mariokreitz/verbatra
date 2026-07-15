@@ -58,6 +58,10 @@ Press Cmd+K (Ctrl+K on Windows and Linux) anywhere in Studio to open a command p
 
 Like the rest of Studio, the palette is read-only: no entry, in any state, ever triggers a network request, a file write, or a provider call. It is pure navigation.
 
+## Key detail view
+
+In Diff, click a changed key to open its detail view, with one row per target locale. Each row also shows a placeholder and ICU integrity indicator: green means that locale's translation still has the same placeholders as the source (things like `{name}` or `{{count}}`, depending on your format); red means a placeholder is missing or an unexpected one was added, and names the specific token so you know what to fix. A neutral, unlabeled indicator means either the format has no placeholders to check, or the check has not loaded yet, since it fetches only once you open the detail view, not eagerly. This only applies to changed keys: a missing key has no target value yet, and an orphaned key has no current source value, so neither has a second value worth comparing.
+
 ## Installation
 
 `@verbatra/studio` is Studio's own package. It has not had a stable release yet, so a plain install already gets the current prerelease build, no dist-tag needed. If it is not installed, `verbatra studio` exits `2` with:
