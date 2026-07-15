@@ -6,7 +6,7 @@ import type { SdkFs } from "../fs.js";
 import type { RunStatusFile, RunStatusLocale } from "./types.js";
 
 /** The gitignored local-state directory, scaffolded by `verbatra init` into a project's `.gitignore`. */
-export const RUN_STATUS_DIR_NAME = ".verbatra-local";
+const RUN_STATUS_DIR_NAME = ".verbatra-local";
 const RUN_STATUS_FILE_NAME = "run-status.json";
 
 const CURRENT_VERSION = 1;
