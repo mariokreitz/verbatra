@@ -7,3 +7,6 @@
 
 # ...but the template (key name only, no real value) is meant to be committed.
 !.env.example
+
+# verbatra's local-only run-status snapshot (review flags, token usage); never committed.
+.verbatra-local/
