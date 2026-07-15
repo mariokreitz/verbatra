@@ -32,9 +32,12 @@ function formatMismatchDetail(missing: readonly string[], extra: readonly string
  *
  * A mismatch always takes precedence, checked before `hasPlaceholders`: a source value with no
  * placeholders of its own can still receive an invented one in translation (`matches: false`,
- * `extra` non-empty), which is a real integrity violation, not a "nothing to check" case. Only
- * once a genuine match is confirmed does `hasPlaceholders` decide between a trivial match (no
- * placeholders on either side, nothing was actually checked) and a meaningful one.
+ * `extra` non-empty), which is a real integrity violation, not a "nothing to check" case. Once
+ * placeholders match, an ICU-invalid target value is checked next, also before `hasPlaceholders`:
+ * a source with no placeholders of its own can still receive a target that is malformed ICU
+ * message syntax, which must render danger, not the "nothing to check" neutral state. Only once
+ * both checks pass does `hasPlaceholders` decide between a trivial match (no placeholders on
+ * either side, nothing was actually checked) and a meaningful one.
  */
 export function deriveIntegrityPillView(
   locales: readonly KeyIntegrityLocaleEntry[],
@@ -50,6 +53,9 @@ export function deriveIntegrityPillView(
       label: "Placeholder mismatch",
       detail: formatMismatchDetail(entry.missing, entry.extra),
     };
+  }
+  if (!entry.icuValid) {
+    return { tone: "danger", label: "Invalid message syntax", detail: null };
   }
   if (!entry.hasPlaceholders) {
     return { tone: "neutral", label: "No placeholders", detail: null };

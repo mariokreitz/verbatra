@@ -52,7 +52,14 @@ describe("keyIntegrityHandler", () => {
       const result = await keyIntegrityHandler({ key: "greeting" }, deps(project));
 
       expect(result.locales).toEqual([
-        { locale: "de", hasPlaceholders: true, matches: true, missing: [], extra: [] },
+        {
+          locale: "de",
+          hasPlaceholders: true,
+          matches: true,
+          missing: [],
+          extra: [],
+          icuValid: true,
+        },
       ]);
     } finally {
       await project.cleanup();
@@ -77,6 +84,7 @@ describe("keyIntegrityHandler", () => {
           matches: false,
           missing: ["{{name}}"],
           extra: [],
+          icuValid: true,
         },
       ]);
     } finally {
@@ -99,6 +107,7 @@ describe("keyIntegrityHandler", () => {
           matches: false,
           missing: [],
           extra: ["{{name}}"],
+          icuValid: true,
         },
       ]);
     } finally {
@@ -115,7 +124,14 @@ describe("keyIntegrityHandler", () => {
       const result = await keyIntegrityHandler({ key: "plain" }, deps(project));
 
       expect(result.locales).toEqual([
-        { locale: "de", hasPlaceholders: false, matches: true, missing: [], extra: [] },
+        {
+          locale: "de",
+          hasPlaceholders: false,
+          matches: true,
+          missing: [],
+          extra: [],
+          icuValid: true,
+        },
       ]);
     } finally {
       await project.cleanup();
@@ -138,6 +154,26 @@ describe("keyIntegrityHandler", () => {
       expect(result.locales).toHaveLength(1);
       expect(result.locales[0]?.matches).toBe(false);
       expect(result.locales[0]?.missing).toContain("{name}");
+    } finally {
+      await project.cleanup();
+    }
+  });
+
+  it("reports icuValid: false for a target that is malformed ICU message syntax, independent of the placeholder result", async () => {
+    const project = await makeFixtureProject(
+      { targetLocales: ["de"], format: "arb" },
+      { count: "{count, plural, one {# item} other {# items}}" },
+    );
+    try {
+      // Unbalanced braces: placeholder-comparable text still lines up, but this does not parse as
+      // valid ICU MessageFormat.
+      await writeTargetFile(project, "de", { count: "{count, plural, one {# Artikel" });
+      await writeLockFile(project, "de", { count: "old-hash-forces-changed" });
+
+      const result = await keyIntegrityHandler({ key: "count" }, deps(project));
+
+      expect(result.locales).toHaveLength(1);
+      expect(result.locales[0]?.icuValid).toBe(false);
     } finally {
       await project.cleanup();
     }
