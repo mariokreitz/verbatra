@@ -186,6 +186,10 @@ export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
     readBytesBounded: async (): Promise<BoundedBytesRead> => ({ kind: "missing" }),
     writeFile: async (): Promise<void> => {},
     writeBytes: async (): Promise<void> => {},
+    // Defaults to an always-succeeding lock acquire, so a test that does not care about locking
+    // (most tests using this fake) never has withLocaleWriteLock poll to its timeout.
+    createExclusive: async (): Promise<boolean> => true,
+    deleteFile: async (): Promise<void> => {},
     ...overrides,
   };
 }

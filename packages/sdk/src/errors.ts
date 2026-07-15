@@ -14,12 +14,15 @@
  * - `SOURCE_UNREADABLE`: the source locale file is absent (thrown by `translate`, and by `watch` at startup).
  * - `SOURCE_INVALID`: the source locale file could not be read or parsed; wraps the adapter read error
  *   (thrown by `translate`).
- * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt, oversized, at an unsupported version,
- *   or (rarely) still conflicting after every write retry was exhausted under persistent concurrent
- *   contention (thrown by `translate`, `check`, `diff`, `exportWorkbook`, `importWorkbook`, and
+ * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt, oversized, or at an unsupported
+ *   version (thrown by `translate`, `check`, `diff`, `exportWorkbook`, `importWorkbook`, and
  *   `retranslateEntry`).
  * - `UNKNOWN_KEY`: a requested key is not among the source resource's own keys (thrown by
  *   `retranslateEntry`).
+ * - `LOCK_CONTENDED`: a locale's write lock (`withLocaleWriteLock`) could not be acquired before
+ *   its timeout elapsed, because another process is holding it (or an orphaned lock file was left
+ *   behind by a killed process); the message names the lock file's path (thrown by `translate`,
+ *   `importWorkbook`, and `retranslateEntry`).
  * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
  *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction on
  *   `translate`.
@@ -34,6 +37,7 @@ export type SdkErrorCode =
   | "SOURCE_UNREADABLE"
   | "SOURCE_INVALID"
   | "LOCK_FILE_INVALID"
+  | "LOCK_CONTENDED"
   | "LOCALE_FAILED";
 
 /** The single structured error the SDK throws or records. Never carries a secret. */

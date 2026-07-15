@@ -49,6 +49,7 @@ describe("runInit", () => {
     const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(gitignore).toContain(".env");
     expect(gitignore).toContain(".env.local");
+    expect(gitignore).toContain(".verbatra-local/");
   });
 
   it("scaffolds an LLM provider with a default model and token limit", async () => {
@@ -195,6 +196,7 @@ describe("runInit", () => {
     const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(gitignore.match(/^\.env$/gm)?.length).toBe(1);
     expect(gitignore).toContain(".env.local");
+    expect(gitignore).toContain(".verbatra-local/");
 
     const cap2 = captureStreams();
     await runInit(
