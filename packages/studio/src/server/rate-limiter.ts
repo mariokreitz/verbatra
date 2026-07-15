@@ -1,4 +1,4 @@
-/** A fixed-window rate rule: at most `maxCalls` within any rolling `windowMs` window. */
+/** A sliding-window rate rule: at most `maxCalls` within any rolling `windowMs` window. */
 export interface RateLimitRule {
   readonly windowMs: number;
   readonly maxCalls: number;
@@ -19,7 +19,7 @@ export interface RpcRateLimiter {
 }
 
 /**
- * Builds an {@link RpcRateLimiter} enforcing one fixed-window rule per rate-limited method name;
+ * Builds an {@link RpcRateLimiter} enforcing one sliding-window rule per rate-limited method name;
  * every other method is always allowed. `now` is injectable so tests never depend on a real clock.
  */
 export function createRpcRateLimiter(
