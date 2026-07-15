@@ -1,8 +1,10 @@
-import { access, mkdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AdapterRegistry } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
+import { runStatusFilePath } from "../run-status/run-status-file.js";
+import type { RunStatusFile } from "../run-status/types.js";
 import {
   baseConfig,
   makeFakeFs,
@@ -114,6 +116,136 @@ describe("translate: per-locale isolation", () => {
     expect(summary.succeeded).toEqual(["de"]);
     expect(summary.failed).toEqual(["fr"]);
     expect(summary.locales.find((s) => s.locale === "fr")?.error?.code).toBe("LOCK_FILE_WRITE");
+  });
+});
+
+async function readRunStatusJson(dir: string): Promise<RunStatusFile> {
+  return JSON.parse(await readFile(runStatusFilePath(dir), "utf8")) as RunStatusFile;
+}
+
+describe("translate: run-status persistence", () => {
+  it("writes .verbatra-local/run-status.json after the loop, matching the returned RunSummary", async () => {
+    const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
+    const stub = makeStubProvider({ usage: { inputTokens: 3, outputTokens: 4 } });
+
+    const summary = await translate(
+      { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    const runStatus = await readRunStatusJson(dir);
+    expect(runStatus.version).toBe(1);
+    expect(typeof runStatus.generatedAt).toBe("string");
+    expect(runStatus.usage).toEqual(summary.usage);
+    expect(runStatus.locales).toEqual(
+      summary.locales.map((locale) => ({
+        locale: locale.locale,
+        status: locale.status,
+        needsReview: locale.needsReview,
+        ...(locale.usage !== undefined ? { usage: locale.usage } : {}),
+      })),
+    );
+  });
+
+  it("records a failed locale's status even though its needsReview is empty", async () => {
+    const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
+    const stub = makeStubProvider();
+    // The lock write throws only for fr, so it never completes runLocale and is recorded failed,
+    // exactly like the "per-locale isolation" test above.
+    const fs = makeFakeFs({
+      fileExists: (path: string) =>
+        access(path)
+          .then(() => true)
+          .catch(() => false),
+      writeFile: async (path: string, data: string) => {
+        if (path.endsWith("verbatra.lock.json") && data.includes('"fr"')) {
+          throw new Error("lock write failed");
+        }
+        await writeFile(path, data, "utf8");
+      },
+    });
+
+    await translate(
+      { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },
+      { createProvider: () => stub.provider, fs },
+    );
+
+    const runStatus = await readRunStatusJson(dir);
+    const fr = runStatus.locales.find((locale) => locale.locale === "fr");
+    expect(fr?.status).toBe("failed");
+    expect(fr?.needsReview).toEqual([]);
+  });
+
+  it("the .verbatra-local directory is created on a project's first real run", async () => {
+    const dir = await project({ a: "A" }, { de: undefined });
+    const stub = makeStubProvider();
+
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+
+    expect(await exists(runStatusFilePath(dir))).toBe(true);
+  });
+
+  it("a dry-run leaves a pre-existing run-status.json byte-for-byte unchanged", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "da" } });
+    const stub = makeStubProvider();
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+    const before = await readFile(runStatusFilePath(dir), "utf8");
+
+    await translate(
+      { config: cfg(), cwd: dir, dryRun: true },
+      {
+        createProvider: () => {
+          throw new Error("provider must not be constructed in dry-run");
+        },
+      },
+    );
+
+    const after = await readFile(runStatusFilePath(dir), "utf8");
+    expect(after).toBe(before);
+  });
+
+  it("a whole-run throw ahead of the loop leaves a pre-existing run-status.json byte-for-byte unchanged", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "da" } });
+    const stub = makeStubProvider();
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+    const before = await readFile(runStatusFilePath(dir), "utf8");
+
+    await expect(
+      translate(
+        { config: cfg(), cwd: dir },
+        { createProvider: () => stub.provider, adapterRegistry: new AdapterRegistry() },
+      ),
+    ).rejects.toMatchObject({ code: "UNKNOWN_FORMAT" });
+
+    const after = await readFile(runStatusFilePath(dir), "utf8");
+    expect(after).toBe(before);
+  });
+
+  it("a failure writing run-status.json is caught and swallowed: the run still completes and the lock still writes", async () => {
+    const dir = await project({ a: "A" }, { de: undefined });
+    const stub = makeStubProvider();
+    const fs = makeFakeFs({
+      fileExists: (path: string) =>
+        access(path)
+          .then(() => true)
+          .catch(() => false),
+      writeFile: async (path: string, data: string) => {
+        if (path.endsWith("run-status.json")) {
+          throw new Error("disk full");
+        }
+        await writeFile(path, data, "utf8");
+      },
+    });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider, fs },
+    );
+
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(summary.failed).toEqual([]);
+    expect(await exists(join(dir, "verbatra.lock.json"))).toBe(true);
+    expect(await exists(runStatusFilePath(dir))).toBe(false);
   });
 });
 
