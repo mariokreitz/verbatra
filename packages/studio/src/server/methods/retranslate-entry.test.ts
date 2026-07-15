@@ -1,12 +1,16 @@
-import { access, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { access, mkdir, open, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { CreateProvider, LoadedConfig, SdkFs } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import type { RpcHandlerDeps } from "../rpc.js";
 import { type FixtureProject, makeFixtureProject } from "../test-support.js";
 import { retranslateEntryHandler } from "./retranslate-entry.js";
 
-/** A minimal real-disk SdkFs, only to exercise the handler's deps.fs pass-through branch. */
+/**
+ * A minimal real-disk SdkFs, to exercise the handler's deps.fs pass-through branch. Includes real
+ * createExclusive/deleteFile implementations (mirroring the sdk's own defaultFs), since
+ * retranslateEntry now acquires a real per-locale write lock through this same seam.
+ */
 const realFs: SdkFs = {
   fileExists: async (path) => {
     try {
@@ -28,6 +32,26 @@ const realFs: SdkFs = {
     await writeFile(path, data, "utf8");
   },
   writeBytes: async () => {},
+  createExclusive: async (path, data) => {
+    await mkdir(dirname(path), { recursive: true });
+    try {
+      const handle = await open(path, "wx");
+      try {
+        await handle.writeFile(data, "utf8");
+      } finally {
+        await handle.close();
+      }
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        return false;
+      }
+      throw error;
+    }
+  },
+  deleteFile: async (path) => {
+    await rm(path, { force: true });
+  },
 };
 
 function deps(project: FixtureProject, createProvider: CreateProvider): RpcHandlerDeps {

@@ -8,6 +8,7 @@ import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { withLocaleWriteLock } from "../lock/locale-write-lock.js";
 import { updateLockFileLocale } from "../lock/lock-file.js";
 import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
@@ -98,15 +99,16 @@ function buildSingleEntryRequest(
  *   missing `*_API_KEY` as `MISSING_API_KEY`).
  * @throws {@link ProviderError} the provider call itself failed, or returned no value at all for
  *   this key (`INVALID_RESPONSE`).
- * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, or the write-race retry
- *   was exhausted under persistent concurrent contention.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ *   unsupported version.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: this locale's write lock could not be acquired before
+ *   its timeout, because another process (another CLI run, or a second Studio write) is holding it.
  *
- * Not atomic across the two writes: the target locale file is written before the lock entry is
- * updated. If `updateLockFileLocale` then throws `LOCK_FILE_INVALID` (the rare retry-exhausted
- * case under persistent contention), the target file already carries the new value while the lock
- * still records the old hash, and the thrown error does not imply nothing was saved. The same
- * ordering, and the same partial-write shape on that rare path, also exists in `translate()` and
- * `importWorkbook()` since their shared refactor onto `updateLockFileLocale`.
+ * The target-file write and the lock-file update run inside the same held
+ * `withLocaleWriteLock(cwd, locale, fs, ...)` critical section as the provider call itself, so no
+ * second writer for this locale can ever observe the target file updated but the lock entry not
+ * yet, or vice versa: the ordering between the two writes is safe by construction, not merely
+ * disclosed. The same locking now also covers `translate()`/`watch()` and `importWorkbook()`.
  */
 export async function retranslateEntry(
   input: RetranslateEntryInput,
@@ -133,37 +135,40 @@ export async function retranslateEntry(
   }
 
   const provider = selectProvider(config.provider, deps.createProvider);
-  const target = await readTarget(cwd, config, adapter, fs, locale);
 
-  const result = await provider.translateBatch(
-    buildSingleEntryRequest(config, locale, sourceEntry, adapter),
-  );
-  const value = result.values.get(input.key);
-  if (value === undefined) {
-    throw new ProviderError(
-      "INVALID_RESPONSE",
-      `The provider returned no translated value for key "${input.key}".`,
+  return withLocaleWriteLock(cwd, locale, fs, async () => {
+    const target = await readTarget(cwd, config, adapter, fs, locale);
+
+    const result = await provider.translateBatch(
+      buildSingleEntryRequest(config, locale, sourceEntry, adapter),
     );
-  }
+    const value = result.values.get(input.key);
+    if (value === undefined) {
+      throw new ProviderError(
+        "INVALID_RESPONSE",
+        `The provider returned no translated value for key "${input.key}".`,
+      );
+    }
 
-  const gate = gateCandidateValue(sourceEntry, value, adapter);
-  if (!gate.accepted) {
-    return { accepted: false, reason: gate.reason, value };
-  }
+    const gate = gateCandidateValue(sourceEntry, value, adapter);
+    if (!gate.accepted) {
+      return { accepted: false, reason: gate.reason, value };
+    }
 
-  const merged = new Map(target.entries);
-  merged.set(input.key, { ...sourceEntry, value, namespace: target.namespace });
-  const path = localeFilePath(cwd, config.files.pattern, locale);
-  await adapter.write(
-    { locale, namespace: target.namespace, format: config.format, entries: merged },
-    path,
-  );
+    const merged = new Map(target.entries);
+    merged.set(input.key, { ...sourceEntry, value, namespace: target.namespace });
+    const path = localeFilePath(cwd, config.files.pattern, locale);
+    await adapter.write(
+      { locale, namespace: target.namespace, format: config.format, entries: merged },
+      path,
+    );
 
-  await updateLockFileLocale(cwd, fs, locale, {
-    mode: "merge",
-    entries: { [input.key]: contentHash(sourceEntry) },
+    await updateLockFileLocale(cwd, fs, locale, {
+      mode: "merge",
+      entries: { [input.key]: contentHash(sourceEntry) },
+    });
+
+    const reviewReasons = result.reviewFlags?.get(input.key)?.reasons ?? [];
+    return { accepted: true, value, reviewReasons };
   });
-
-  const reviewReasons = result.reviewFlags?.get(input.key)?.reasons ?? [];
-  return { accepted: true, value, reviewReasons };
 }

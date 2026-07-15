@@ -5,6 +5,7 @@ import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
   lockFilePath,
@@ -201,10 +202,9 @@ export async function importWorkbook(
     throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
   }
 
-  // Read once for each sheet's diff baseline; the actual write-back for an accepted sheet goes
-  // through updateLockFileLocale below, which re-reads fresh immediately before writing so a
-  // concurrent writer never has its own update silently discarded by a blind overwrite of this
-  // stale snapshot.
+  // Read once for each sheet's diff baseline. Each sheet's own run-and-lock-update step below
+  // holds that locale's withLocaleWriteLock for its whole critical section, so a concurrent writer
+  // touching the same locale can never interleave with it.
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const ctx: SheetContext = {
@@ -220,11 +220,19 @@ export async function importWorkbook(
   const summaries: LocaleSummary[] = [];
   for (const sheet of data.sheets) {
     try {
-      const { summary, lockEntries } = await runSheet(ctx, sheet, lock);
-      if (!dryRun) {
-        await updateLockFileLocale(cwd, fs, sheet.locale, {
-          mode: "replace",
-          entries: lockEntries,
+      let summary: LocaleSummary;
+      if (dryRun) {
+        // A dry run never calls adapter.write or updateLockFileLocale, so there is nothing to
+        // protect and no reason to pay lock-acquire latency.
+        summary = (await runSheet(ctx, sheet, lock)).summary;
+      } else {
+        summary = await withLocaleWriteLock(cwd, sheet.locale, fs, async () => {
+          const result = await runSheet(ctx, sheet, lock);
+          await updateLockFileLocale(cwd, fs, sheet.locale, {
+            mode: "replace",
+            entries: result.lockEntries,
+          });
+          return result.summary;
         });
       }
       summaries.push(summary);

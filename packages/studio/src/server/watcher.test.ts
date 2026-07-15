@@ -656,6 +656,8 @@ describe("createProjectWatcher: default read wiring", () => {
         readBytesBounded: async () => ({ kind: "missing" }),
         writeFile: async () => {},
         writeBytes: async () => {},
+        createExclusive: async () => true,
+        deleteFile: async () => {},
       };
 
       const harness = multiWatcherHarness();

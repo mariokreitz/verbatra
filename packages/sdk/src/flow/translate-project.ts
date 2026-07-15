@@ -5,6 +5,7 @@ import {
   type VerbatraConfig,
 } from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { withLocaleWriteLock } from "../lock/locale-write-lock.js";
 import {
   baselineFor,
   lockFilePath,
@@ -120,11 +121,10 @@ export async function translate(
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
   const source = await readSource(config, cwd, fs, adapter);
-  // Read once for each locale's diff baseline; the actual write-back for an accepted run goes
-  // through updateLockFileLocale below, which re-reads fresh immediately before writing so a
-  // concurrent writer (a Studio retranslateEntry call, another CLI run, or a workbook import) never
-  // has its own update to a different locale, or a different key in the same locale, silently
-  // discarded by a blind overwrite of this stale snapshot.
+  // Read once for each locale's diff baseline. Each locale's own run-and-lock-update step below
+  // holds that locale's withLocaleWriteLock for its whole critical section, so a concurrent writer
+  // (a Studio retranslateEntry call, another CLI run, or a workbook import) touching that same
+  // locale can never interleave with it; a different locale is never blocked by this one.
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const summaries: LocaleSummary[] = [];
@@ -149,11 +149,19 @@ export async function translate(
         fs,
         budget,
       };
-      const { summary, lockEntries } = await runLocale(params);
-      if (!dryRun) {
-        await updateLockFileLocale(cwd, fs, targetLocale, {
-          mode: "replace",
-          entries: lockEntries,
+      let summary: LocaleSummary;
+      if (dryRun) {
+        // A dry run never calls adapter.write or updateLockFileLocale, so there is nothing to
+        // protect and no reason to pay lock-acquire latency.
+        summary = (await runLocale(params)).summary;
+      } else {
+        summary = await withLocaleWriteLock(cwd, targetLocale, fs, async () => {
+          const result = await runLocale(params);
+          await updateLockFileLocale(cwd, fs, targetLocale, {
+            mode: "replace",
+            entries: result.lockEntries,
+          });
+          return result.summary;
         });
       }
       summaries.push(summary);

@@ -1,5 +1,10 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type {
+  TranslateRequest,
+  TranslateResult,
+  TranslationProvider,
+} from "@verbatra/ai-providers";
 import { buildWorkbook, readWorkbook } from "@verbatra/exchange";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
@@ -7,7 +12,7 @@ import { retranslateEntry } from "../flow/retranslate-entry.js";
 import { translate } from "../flow/translate-project.js";
 import { exportWorkbook } from "../flow/workbook/export-workbook.js";
 import { importWorkbook } from "../flow/workbook/import-workbook.js";
-import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
+import { defaultFs } from "../fs.js";
 import {
   baseConfig,
   makeStubProvider,
@@ -15,32 +20,25 @@ import {
   readJsonFile,
   writeJsonFile,
 } from "../test-support.js";
-import { lockFilePath } from "./lock-file.js";
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((res) => {
+    setTimeout(res, ms);
+  });
+}
 
 /**
- * Wraps a real {@link SdkFs}, running `inject` immediately before the `n`th read of `lockPath`
- * (1-indexed), then letting that read proceed against whatever `inject` itself left on disk. Used
- * to force a concrete, deterministic interleaving between two writers racing the lock file's
- * read-modify-write step: `inject` plays the role of a second writer that completes in full between
- * this writer's own freshness-check reads.
+ * Wraps a provider's `translateBatch` with a delay, so a real, unforced `Promise.all` of two
+ * calls genuinely interleaves around the delayed call rather than one completing before the other
+ * even starts. This is what makes the tests below exercise real concurrency (the actual gap
+ * between a locale-file read and its write) instead of a scripted single-process interleaving.
  */
-function raceBeforeNthLockRead(
-  base: SdkFs,
-  lockPath: string,
-  n: number,
-  inject: () => Promise<void>,
-): SdkFs {
-  let count = 0;
+function delayedProvider(base: TranslationProvider, delayMs: number): TranslationProvider {
   return {
     ...base,
-    readFileBounded: async (path: string, maxBytes: number): Promise<BoundedFileRead> => {
-      if (path === lockPath) {
-        count += 1;
-        if (count === n) {
-          await inject();
-        }
-      }
-      return base.readFileBounded(path, maxBytes);
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      await sleep(delayMs);
+      return base.translateBatch(request);
     },
   };
 }
@@ -62,46 +60,77 @@ async function lockLocales(dir: string): Promise<Record<string, Record<string, s
   return lock.locales;
 }
 
-describe("lock-file write race: retranslateEntry versus a concurrent CLI translate run", () => {
-  it("neither writer's lock update is discarded when both land around the same read-modify-write window (criterion 12, test 1)", async () => {
-    // A same-locale race is naturally self-healing here: translate()'s own per-locale lock write
-    // recomputes every source-present key's hash from the source alone (see computeLockEntries),
-    // so it would independently reconstruct the same value retranslateEntry writes for a stable
-    // source key regardless of write ordering. The write-race protection is instead exercised, and
-    // only exercised, across two locales: translate() writing "fr" must not blindly overwrite the
-    // whole lock file (as the pre-refactor blind read-once-write-many loop did) and silently drop a
-    // concurrent retranslateEntry write to "de".
+async function targetLocaleFile(dir: string, locale: string): Promise<Record<string, string>> {
+  const raw = (await readJsonFile(join(dir, "locales", `${locale}.json`))) as Record<
+    string,
+    string
+  >;
+  return raw;
+}
+
+describe("withLocaleWriteLock closes gap 2: two concurrent retranslateEntry calls on the same locale", () => {
+  it("both keys survive in the locale file's actual written content, not only the lock file", async () => {
     const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
-    const lockPath = lockFilePath(dir);
     const stub = makeStubProvider();
+    // Call A's provider call is slower than call B's, so absent the lock, B would read the target
+    // file before A writes, translate, and write, then overwrite A's already-written key when it
+    // writes its own merged snapshot.
+    const providerA = delayedProvider(stub.provider, 30);
+    const providerB = delayedProvider(stub.provider, 5);
 
-    const raceFs = raceBeforeNthLockRead(defaultFs, lockPath, 3, async () => {
-      // Plays the concurrent writer: completes an entire retranslateEntry call against a different
-      // locale in between translate()'s own before/after freshness-check reads for "fr".
-      const result = await retranslateEntry(
+    const [resultA, resultB] = await Promise.all([
+      retranslateEntry(
         { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
-        { createProvider: () => stub.provider },
-      );
-      expect(result.accepted).toBe(true);
-    });
+        { createProvider: () => providerA },
+      ),
+      retranslateEntry(
+        { config: cfg(), cwd: dir, locale: "de", key: "farewell" },
+        { createProvider: () => providerB },
+      ),
+    ]);
 
-    const summary = await translate(
-      { config: cfg({ targetLocales: ["fr"] }), cwd: dir },
-      { createProvider: () => stub.provider, fs: raceFs },
-    );
+    expect(resultA.accepted).toBe(true);
+    expect(resultB.accepted).toBe(true);
 
-    expect(summary.failed).toEqual([]);
+    // The direct regression proof for gap 2: read the locale file's actual content, not lockLocales().
+    const target = await targetLocaleFile(dir, "de");
+    expect(target.greeting).toBe("[de] Hello");
+    expect(target.farewell).toBe("[de] Goodbye");
+
     const locales = await lockLocales(dir);
-    expect(locales.fr?.greeting).toBeDefined(); // translate()'s own write survived
-    expect(locales.fr?.farewell).toBeDefined();
-    expect(locales.de?.greeting).toBeDefined(); // retranslateEntry's concurrent write to "de" survived
+    expect(locales.de?.greeting).toBeDefined();
+    expect(locales.de?.farewell).toBeDefined();
   });
 });
 
-describe("lock-file write race: retranslateEntry versus a concurrent Excel import", () => {
-  it("neither writer's lock update is discarded (criterion 12, test 1, workbook import)", async () => {
+describe("withLocaleWriteLock: retranslateEntry versus a concurrent CLI translate run", () => {
+  it("neither writer's lock update is discarded when both target different locales concurrently", async () => {
     const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
-    const lockPath = lockFilePath(dir);
+    const stub = makeStubProvider();
+
+    const [translateSummary, retranslateResult] = await Promise.all([
+      translate(
+        { config: cfg({ targetLocales: ["fr"] }), cwd: dir },
+        { createProvider: () => delayedProvider(stub.provider, 20) },
+      ),
+      retranslateEntry(
+        { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
+        { createProvider: () => delayedProvider(stub.provider, 5) },
+      ),
+    ]);
+
+    expect(translateSummary.failed).toEqual([]);
+    expect(retranslateResult.accepted).toBe(true);
+    const locales = await lockLocales(dir);
+    expect(locales.fr?.greeting).toBeDefined();
+    expect(locales.fr?.farewell).toBeDefined();
+    expect(locales.de?.greeting).toBeDefined();
+  });
+});
+
+describe("withLocaleWriteLock: retranslateEntry versus a concurrent Excel import", () => {
+  it("neither writer's lock update is discarded when both target different locales concurrently", async () => {
+    const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
     const stub = makeStubProvider();
 
     const out = await exportWorkbook({ config: cfg({ targetLocales: ["fr"] }), cwd: dir });
@@ -113,53 +142,21 @@ describe("lock-file write race: retranslateEntry versus a concurrent Excel impor
         translation: `${row.translation || row.source} FR`,
       })),
     }));
-    await writeFile(out.path, await buildWorkbook({ sheets: filled }));
+    const workbookBytes = await buildWorkbook({ sheets: filled });
+    await defaultFs.writeBytes(out.path, workbookBytes);
 
-    const raceFs = raceBeforeNthLockRead(defaultFs, lockPath, 3, async () => {
-      const result = await retranslateEntry(
+    const [importSummary, retranslateResult] = await Promise.all([
+      importWorkbook({ config: cfg({ targetLocales: ["fr"] }), workbook: out.path, cwd: dir }),
+      retranslateEntry(
         { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
-        { createProvider: () => stub.provider },
-      );
-      expect(result.accepted).toBe(true);
-    });
+        { createProvider: () => delayedProvider(stub.provider, 20) },
+      ),
+    ]);
 
-    const summary = await importWorkbook(
-      { config: cfg({ targetLocales: ["fr"] }), workbook: out.path, cwd: dir },
-      { fs: raceFs },
-    );
-
-    expect(summary.failed).toEqual([]);
+    expect(importSummary.failed).toEqual([]);
+    expect(retranslateResult.accepted).toBe(true);
     const locales = await lockLocales(dir);
     expect(locales.fr?.greeting).toBeDefined();
-    expect(locales.de?.greeting).toBeDefined(); // survives the concurrent import to a different locale
-  });
-});
-
-describe("lock-file write race: two concurrent retranslateEntry calls", () => {
-  it("both keys' lock entries survive when they race on the same locale (criterion 12, test 2)", async () => {
-    const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
-    const lockPath = lockFilePath(dir);
-    const stub = makeStubProvider();
-
-    // Call A's own attempt reads the lock twice (before, after). Inject call B's full completion
-    // between them, forcing call A to detect the conflict, retry, and merge its own key onto call
-    // B's already-written state.
-    const raceFs = raceBeforeNthLockRead(defaultFs, lockPath, 2, async () => {
-      const resultB = await retranslateEntry(
-        { config: cfg(), cwd: dir, locale: "de", key: "farewell" },
-        { createProvider: () => stub.provider },
-      );
-      expect(resultB.accepted).toBe(true);
-    });
-
-    const resultA = await retranslateEntry(
-      { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
-      { createProvider: () => stub.provider, fs: raceFs },
-    );
-
-    expect(resultA.accepted).toBe(true);
-    const locales = await lockLocales(dir);
     expect(locales.de?.greeting).toBeDefined();
-    expect(locales.de?.farewell).toBeDefined();
   });
 });

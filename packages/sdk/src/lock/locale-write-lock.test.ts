@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
 import type { SdkFs } from "../fs.js";
 import { makeFakeFs } from "../test-support.js";
-import { localeLockPath, withLocaleWriteLock } from "./locale-write-lock.js";
+import {
+  localeLockPath,
+  lockFileGuardPath,
+  withLocaleWriteLock,
+  withLockFileGuard,
+} from "./locale-write-lock.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((res) => {
@@ -36,6 +41,36 @@ describe("localeLockPath", () => {
   it("resolves under .verbatra-local/locks/<locale>.lock", () => {
     const path = localeLockPath("/proj", "de");
     expect(path).toBe(join("/proj", ".verbatra-local", "locks", "de.lock"));
+  });
+});
+
+describe("lockFileGuardPath", () => {
+  it("resolves under .verbatra-local/locks/_lockfile.lock, a stem no real BCP-47 locale tag ever starts with", () => {
+    const path = lockFileGuardPath("/proj");
+    expect(path).toBe(join("/proj", ".verbatra-local", "locks", "_lockfile.lock"));
+  });
+});
+
+describe("withLockFileGuard: mutual exclusion", () => {
+  it("never runs two callbacks for the same cwd concurrently", async () => {
+    const fs = makeLockFs();
+    let insideCount = 0;
+    let maxInsideCount = 0;
+
+    async function criticalSection(): Promise<void> {
+      insideCount += 1;
+      maxInsideCount = Math.max(maxInsideCount, insideCount);
+      await sleep(20);
+      insideCount -= 1;
+    }
+
+    const options = { pollIntervalMs: 5, acquireTimeoutMs: 2000 };
+    await Promise.all([
+      withLockFileGuard("/proj", fs, criticalSection, options),
+      withLockFileGuard("/proj", fs, criticalSection, options),
+    ]);
+
+    expect(maxInsideCount).toBe(1);
   });
 });
 

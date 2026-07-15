@@ -2,7 +2,7 @@ import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
-import { type BoundedFileRead, defaultFs } from "../fs.js";
+import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
 import { makeFakeFs, makeTempDir, readTextFile } from "../test-support.js";
 import {
   baselineFor,
@@ -209,5 +209,58 @@ describe("updateLockFileLocale: merge mode", () => {
     expect(result.locales.de).toEqual({ mine: "h" });
     expect(reads).toBe(1);
     expect(writes).toHaveLength(1);
+  });
+});
+
+describe("updateLockFileLocale: the internal lock-file guard serializes concurrent different-locale writers", () => {
+  it("never overlaps two read-modify-write steps, even across two different locales (regression guard for the shared lock-file race)", async () => {
+    // withLocaleWriteLock only serializes writers for the SAME locale; two different locales are
+    // allowed to run their own critical sections fully concurrently by design. Both still
+    // read-modify-write the one shared lock-file, so without updateLockFileLocale's own internal
+    // withLockFileGuard, this scenario loses one locale's update exactly like the old,
+    // now-removed compare-and-swap was built to prevent (see lock-file-race.test.ts for the same
+    // proof through real disk I/O and real timing).
+    let content = `${JSON.stringify({ version: 1, locales: {} })}\n`;
+    const held = new Set<string>();
+    let insideCount = 0;
+    let maxInsideCount = 0;
+
+    const fs: SdkFs = {
+      fileExists: async () => true,
+      readFileBounded: async (): Promise<BoundedFileRead> => {
+        insideCount += 1;
+        maxInsideCount = Math.max(maxInsideCount, insideCount);
+        // Forces the read-to-write span to be wide enough that, absent the guard, a concurrent
+        // caller's own read would start while this one is still in flight.
+        await new Promise((res) => setTimeout(res, 10));
+        return { kind: "ok", content };
+      },
+      readBytesBounded: async () => ({ kind: "missing" }),
+      writeFile: async (_path: string, data: string): Promise<void> => {
+        content = data;
+        insideCount -= 1;
+      },
+      writeBytes: async () => {},
+      createExclusive: async (path: string): Promise<boolean> => {
+        if (held.has(path)) {
+          return false;
+        }
+        held.add(path);
+        return true;
+      },
+      deleteFile: async (path: string): Promise<void> => {
+        held.delete(path);
+      },
+    };
+
+    await Promise.all([
+      updateLockFileLocale("/proj", fs, "de", { mode: "merge", entries: { greeting: "hde" } }),
+      updateLockFileLocale("/proj", fs, "fr", { mode: "merge", entries: { greeting: "hfr" } }),
+    ]);
+
+    expect(maxInsideCount).toBe(1);
+    const final = JSON.parse(content) as { locales: Record<string, Record<string, string>> };
+    expect(final.locales.de).toEqual({ greeting: "hde" });
+    expect(final.locales.fr).toEqual({ greeting: "hfr" });
   });
 });

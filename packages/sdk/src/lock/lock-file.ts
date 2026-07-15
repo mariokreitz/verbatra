@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { SdkError } from "../errors.js";
 import type { BoundedFileRead, SdkFs } from "../fs.js";
+import { withLockFileGuard } from "./locale-write-lock.js";
 import type { LockEntries, LockFile } from "./types.js";
 
 /** The committed lock-file name, chosen to be obviously JSON and to not match a `*.lock` ignore rule. */
@@ -132,12 +133,20 @@ function applyLockLocalePatch(
 }
 
 /**
- * Read-modify-write the lock-file's entries for exactly one locale. Performs no locking of its
- * own: mutual exclusion across concurrent writers (another CLI `translate`/`watch` run, a workbook
- * import, or a Studio write, in this process or another) is the caller's responsibility. Every
- * caller must invoke this only from inside a `withLocaleWriteLock(cwd, locale, fs, ...)` callback
- * held for that same `locale`, covering this call and everything else touching that locale's
- * target file in the same critical section; see `locale-write-lock.ts`.
+ * Read-modify-write the lock-file's entries for exactly one locale.
+ *
+ * Performs no per-locale content locking of its own: mutual exclusion between two writers for the
+ * *same* locale (another CLI `translate`/`watch` run, a workbook import, or a Studio write, in this
+ * process or another) is the caller's responsibility. Every caller must invoke this only from
+ * inside a `withLocaleWriteLock(cwd, locale, fs, ...)` callback held for that same `locale`,
+ * covering this call and everything else touching that locale's target file in the same critical
+ * section; see `locale-write-lock.ts`.
+ *
+ * It does, however, guard its own read-modify-write step with {@link withLockFileGuard}: the
+ * physical lock-file is one shared resource every locale's critical section eventually writes to,
+ * and two *different* locales are, by design, allowed to hold their own `withLocaleWriteLock` at
+ * the same time, so without this second, much shorter-lived lock two concurrently-running locales
+ * could still race on the one file underneath their otherwise-disjoint subtrees.
  *
  * @param cwd - Directory the lock-file resolves against.
  * @param fs - The file system seam.
@@ -147,6 +156,8 @@ function applyLockLocalePatch(
  * @returns The lock-file as written.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  *   unsupported version.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: the internal lock-file guard could not be acquired
+ *   before its timeout (see {@link withLockFileGuard}).
  */
 export async function updateLockFileLocale(
   cwd: string,
@@ -154,10 +165,12 @@ export async function updateLockFileLocale(
   locale: string,
   patch: LockLocalePatch,
 ): Promise<LockFile> {
-  const path = lockFilePath(cwd);
-  const lock = parseLockFileRead(await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES), path);
-  const nextEntries = applyLockLocalePatch(lock.locales[locale], patch);
-  const next = updateLockLocale(lock, locale, nextEntries);
-  await fs.writeFile(path, serializeLockFile(next));
-  return next;
+  return withLockFileGuard(cwd, fs, async () => {
+    const path = lockFilePath(cwd);
+    const lock = parseLockFileRead(await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES), path);
+    const nextEntries = applyLockLocalePatch(lock.locales[locale], patch);
+    const next = updateLockLocale(lock, locale, nextEntries);
+    await fs.writeFile(path, serializeLockFile(next));
+    return next;
+  });
 }
