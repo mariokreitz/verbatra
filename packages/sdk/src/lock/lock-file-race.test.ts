@@ -103,60 +103,90 @@ describe("withLocaleWriteLock closes gap 2: two concurrent retranslateEntry call
   });
 });
 
-describe("withLocaleWriteLock: retranslateEntry versus a concurrent CLI translate run", () => {
-  it("neither writer's lock update is discarded when both target different locales concurrently", async () => {
+describe("withLocaleWriteLock: retranslateEntry versus a concurrent CLI translate run on the SAME locale", () => {
+  it("neither writer's write is lost when both target the same locale concurrently", async () => {
     const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
     const stub = makeStubProvider();
 
-    const [translateSummary, retranslateResult] = await Promise.all([
-      translate(
-        { config: cfg({ targetLocales: ["fr"] }), cwd: dir },
-        { createProvider: () => delayedProvider(stub.provider, 20) },
-      ),
+    // Seed an existing translation for "greeting" so the racing translate() call below sees it as
+    // unchanged (matching baseline) and only retranslates "farewell": this isolates the two racing
+    // writers to disjoint keys, the same shape as the same-locale scenario above, so the assertions
+    // below can pin exact expected values instead of depending on which writer wins the lock.
+    await retranslateEntry(
+      { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
+      { createProvider: () => stub.provider },
+    );
+
+    // retranslateEntry is the slower call here (30ms vs 5ms): without the lock, its write completes
+    // last, and since its own read of the target file happened before translate() wrote "farewell",
+    // its merge would carry only "greeting", silently discarding translate()'s already-written key.
+    const [retranslateResult, translateSummary] = await Promise.all([
       retranslateEntry(
         { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
+        { createProvider: () => delayedProvider(stub.provider, 30) },
+      ),
+      translate(
+        { config: cfg({ targetLocales: ["de"] }), cwd: dir },
         { createProvider: () => delayedProvider(stub.provider, 5) },
       ),
     ]);
 
-    expect(translateSummary.failed).toEqual([]);
     expect(retranslateResult.accepted).toBe(true);
+    expect(translateSummary.failed).toEqual([]);
+
+    // The direct regression proof for the same-locale race: read the locale file's actual content,
+    // not only the lock file.
+    const target = await targetLocaleFile(dir, "de");
+    expect(target.greeting).toBe("[de] Hello");
+    expect(target.farewell).toBe("[de] Goodbye");
+
     const locales = await lockLocales(dir);
-    expect(locales.fr?.greeting).toBeDefined();
-    expect(locales.fr?.farewell).toBeDefined();
     expect(locales.de?.greeting).toBeDefined();
+    expect(locales.de?.farewell).toBeDefined();
   });
 });
 
-describe("withLocaleWriteLock: retranslateEntry versus a concurrent Excel import", () => {
-  it("neither writer's lock update is discarded when both target different locales concurrently", async () => {
+describe("withLocaleWriteLock: retranslateEntry versus a concurrent Excel import on the SAME locale", () => {
+  it("neither writer's write is lost when both target the same locale concurrently", async () => {
     const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
     const stub = makeStubProvider();
 
-    const out = await exportWorkbook({ config: cfg({ targetLocales: ["fr"] }), cwd: dir });
+    const out = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
     const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    // Leaves "greeting" blank (skipped on import) and fills only "farewell", isolating the import
+    // and the racing retranslateEntry call below to disjoint keys, the same shape as the same-locale
+    // scenario above.
     const filled = data.sheets.map((sheet) => ({
       locale: sheet.locale,
-      rows: sheet.rows.map((row) => ({
-        ...row,
-        translation: `${row.translation || row.source} FR`,
-      })),
+      rows: sheet.rows.map((row) =>
+        row.key === "greeting"
+          ? row
+          : { ...row, translation: `${row.translation || row.source} DE` },
+      ),
     }));
     const workbookBytes = await buildWorkbook({ sheets: filled });
     await defaultFs.writeBytes(out.path, workbookBytes);
 
-    const [importSummary, retranslateResult] = await Promise.all([
-      importWorkbook({ config: cfg({ targetLocales: ["fr"] }), workbook: out.path, cwd: dir }),
+    // The import has no provider call to delay, so it always completes quickly; retranslateEntry's
+    // 30ms provider delay makes it the writer that would finish last without the lock, exposing the
+    // same lost-update shape as the scenario above.
+    const [retranslateResult, importSummary] = await Promise.all([
       retranslateEntry(
         { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
-        { createProvider: () => delayedProvider(stub.provider, 20) },
+        { createProvider: () => delayedProvider(stub.provider, 30) },
       ),
+      importWorkbook({ config: cfg({ targetLocales: ["de"] }), workbook: out.path, cwd: dir }),
     ]);
 
-    expect(importSummary.failed).toEqual([]);
     expect(retranslateResult.accepted).toBe(true);
+    expect(importSummary.failed).toEqual([]);
+
+    const target = await targetLocaleFile(dir, "de");
+    expect(target.greeting).toBe("[de] Hello");
+    expect(target.farewell).toBe("Goodbye DE");
+
     const locales = await lockLocales(dir);
-    expect(locales.fr?.greeting).toBeDefined();
     expect(locales.de?.greeting).toBeDefined();
+    expect(locales.de?.farewell).toBeDefined();
   });
 });
