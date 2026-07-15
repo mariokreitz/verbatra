@@ -63,9 +63,15 @@ export const ERROR_CODE_COPY: Readonly<Record<string, string>> = {
   ...FORWARD_LOOKING_CODE_COPY,
 };
 
-/** The specific copy for a known error code, or `undefined` when the code is not in the table. */
+/**
+ * The specific copy for a known error code, or `undefined` when the code is not in the table.
+ * Guarded with `Object.hasOwn` rather than a bare index lookup: `error.code` is server-controlled
+ * but not statically narrowed to the table's keys by the time it reaches this function, and an
+ * unguarded lookup would resolve an `Object.prototype` member name (for example `"constructor"` or
+ * `"toString"`) to that inherited value instead of falling back to the generic message.
+ */
 export function copyForErrorCode(code: string): string | undefined {
-  return ERROR_CODE_COPY[code];
+  return Object.hasOwn(ERROR_CODE_COPY, code) ? ERROR_CODE_COPY[code] : undefined;
 }
 
 /**

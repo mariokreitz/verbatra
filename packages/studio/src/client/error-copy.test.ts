@@ -49,6 +49,16 @@ describe("copyForErrorCode", () => {
     expect(copyForErrorCode("SOMETHING_UNKNOWN")).toBeUndefined();
   });
 
+  it.each([
+    "constructor",
+    "toString",
+    "hasOwnProperty",
+    "__proto__",
+    "valueOf",
+  ])("returns undefined for the inherited Object.prototype member name %s", (code) => {
+    expect(copyForErrorCode(code)).toBeUndefined();
+  });
+
   it("every code in the table maps to a non-empty string", () => {
     for (const copy of Object.values(ERROR_CODE_COPY)) {
       expect(typeof copy).toBe("string");
