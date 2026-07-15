@@ -32,8 +32,8 @@ markiert also einen Key nicht als geändert und löst keine Neuübersetzung aus.
 ## Wie sie aktualisiert wird
 
 Nachdem eine Locale geschrieben wurde, aktualisiert verbatra den Lock mit den aktuellen Quell-Hashes, mit einer
-bewussten Ausnahme. Ein in diesem Lauf zurückgehaltener Key (weil seine Übersetzung die Platzhalter-Prüfung nicht bestand oder
-sein Quell-ICU ungültig war) behält seinen vorherigen Hash. Der nächste Lauf sieht ihn dann weiterhin als arbeitsbedürftig und
+bewussten Ausnahme. Ein in diesem Lauf zurückgehaltener Key (weil sein übersetztes Ergebnis die Platzhalter- oder
+Nachrichten-Syntax-Prüfung nicht bestand, oder sein Quell-ICU ungültig war) behält seinen vorherigen Hash. Der nächste Lauf sieht ihn dann weiterhin als arbeitsbedürftig und
 versucht ihn erneut, statt ihn als erledigt aufzuzeichnen. Verwaiste Keys bekommen keinen Eintrag.
 
 ## Erster Lauf, fehlende Lock-Datei, korrupte Lock-Datei

@@ -40,7 +40,7 @@ DeepL también informa avisos cuando se degrada de forma elegante. Con una clave
 
 ### Comprobar marcadores de posición y escribir
 
-Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada valor traducido con su origen. Una traducción que elimina o altera un marcador de posición falla esta comprobación de integridad y se retiene en lugar de escribirse. Las traducciones aceptadas se fusionan en el locale de destino y se escriben de forma atómica, así que una escritura interrumpida nunca te deja con un archivo a medio terminar.
+Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada valor traducido con su origen, y, para los formatos ICU (next-intl y ARB), también valida el valor traducido frente a la sintaxis del formato. Una traducción que elimina o altera un marcador de posición, o que rompe la estructura de plural o select de ICU, falla esta comprobación de integridad y se retiene en lugar de escribirse. Las traducciones aceptadas se fusionan en el locale de destino y se escriben de forma atómica, así que una escritura interrumpida nunca te deja con un archivo a medio terminar.
 
 ## El archivo de bloqueo y el trabajo incremental
 

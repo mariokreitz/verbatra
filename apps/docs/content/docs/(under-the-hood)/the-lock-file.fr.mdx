@@ -32,8 +32,8 @@ ne marque pas une clé comme modifiée ni ne déclenche une retraduction.
 ## Comment il est rafraîchi
 
 Après qu'une locale est écrite, verbatra rafraîchit le verrouillage avec les hachages source actuels, avec une
-exception délibérée. Une clé retenue lors de cette exécution (parce que sa traduction a échoué à la vérification de placeholder ou
-que son ICU source était invalide) conserve son hachage précédent. L'exécution suivante la voit alors toujours comme nécessitant du
+exception délibérée. Une clé retenue lors de cette exécution (parce que son candidat traduit a échoué à la vérification de placeholder
+ou de syntaxe de message, ou que son ICU source était invalide) conserve son hachage précédent. L'exécution suivante la voit alors toujours comme nécessitant du
 travail et la réessaie, plutôt que de l'enregistrer comme terminée. Les clés orphelines n'obtiennent aucune entrée.
 
 ## Première exécution, verrouillage manquant, verrouillage corrompu

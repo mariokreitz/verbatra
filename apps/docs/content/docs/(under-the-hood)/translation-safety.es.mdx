@@ -20,6 +20,14 @@ rama del origen.
 
 Para los formatos ICU, next-intl y ARB, verbatra analiza cada valor de origen. Una clave de origen cuyo valor no es ICU válido se aparta y se omite para la traducción en lugar de enviarse en un estado roto, y se informa como ICU no válido en el resumen. El cuerpo ICU se mantiene literal a lo largo de la canalización: nada se resuelve ni se reescribe.
 
+El mismo analizador también comprueba el otro lado de la ejecución: en cuanto vuelve una traducción,
+verbatra valida el propio valor resultante frente a la sintaxis del formato, no solo su conjunto de
+marcadores de posición. Un resultado que mantiene intacto cada marcador de posición pero rompe la
+estructura de plural o select de ICU sigue sin pasar la comprobación y se retiene igual que un fallo
+de marcadores de posición, informado de la misma manera en el resumen de la ejecución. Esto se aplica a
+`translate`, `watch`, la importación de workbooks y la [acción de retraducción](/docs/cli/studio) de
+Studio.
+
 ## Señales de revisión
 
 Superar las comprobaciones de arriba solo demuestra que una traducción es estructuralmente segura: nada está roto, pero aun así podría ser incorrecta. verbatra ejecuta una segunda capa, no bloqueante, encima de esa: una heurística pura que marca una clave para revisión humana sin retenerla jamás. Una señal de revisión es solo consultiva. Nunca retiene una clave, y nada en el libro ni en el resumen de la ejecución se puede editar para limpiarla; la única forma de limpiar una señal es corregir la traducción subyacente.

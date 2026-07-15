@@ -176,6 +176,7 @@ y un `message` sin secretos. Los códigos:
 | `SOURCE_UNREADABLE` | el archivo de locale de origen no existe |
 | `SOURCE_INVALID` | el archivo de locale de origen no se pudo leer o analizar |
 | `LOCK_FILE_INVALID` | el archivo de bloqueo está presente pero corrupto o demasiado grande |
+| `UNKNOWN_KEY` | la clave solicitada no existe en el recurso de origen; lanzado por la vía `retranslateEntry` que hay detrás de la [acción de retraducción de Studio](/docs/cli/studio) |
 | `LOCALE_FAILED` | no lanzado: el `code` de reserva registrado en el `error` de un locale fallido |
 
 Que un solo locale falle nunca lanza. Cae en el `LocaleSummary` de ese locale con `status:

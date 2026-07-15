@@ -34,6 +34,13 @@ isn't valid ICU gets set aside and skipped for translation instead of being sent
 and it's reported as invalid ICU on the summary. The ICU body stays verbatim through the pipeline:
 nothing is resolved or rewritten.
 
+The same parser also checks the other side of the run: once a translation comes back, verbatra
+validates the candidate value itself against the format's message syntax, not just its placeholder
+set. A candidate that keeps every placeholder intact but breaks the ICU plural or select structure
+still fails the check and gets withheld exactly like a placeholder mismatch, reported the same way on
+the run summary. This applies to `translate`, `watch`, workbook import, and Studio's [retranslate
+action](/docs/cli/studio).
+
 ## Review flags
 
 Passing the checks above only proves a translation is structurally safe: nothing is broken, but it might still be wrong. verbatra runs a second, non-blocking layer on top of that: a pure heuristic that flags a key for human review without ever withholding it. A review flag is advisory only. It never withholds a key, and nothing on the workbook or the run summary can be edited to clear it; the only way to clear a flag is to fix the underlying translation.

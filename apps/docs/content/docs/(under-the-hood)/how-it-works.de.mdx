@@ -70,10 +70,13 @@ Hinweise aus.
 
 ### Platzhalter prüfen und schreiben
 
-Nach der Übersetzung vergleicht verbatra die Platzhaltermenge jedes übersetzten Werts gegen seine Quelle.
-Eine Übersetzung, die einen Platzhalter weglässt oder verändert, besteht diese Integritätsprüfung nicht und wird zurückgehalten statt
-geschrieben. Die akzeptierten Übersetzungen werden in die Ziel-Locale zusammengeführt und atomar geschrieben, sodass ein
-unterbrochener Schreibvorgang dich nie mit einer halbfertigen Datei zurücklässt.
+Nach der Übersetzung vergleicht verbatra die Platzhaltermenge jedes übersetzten Werts gegen seine Quelle
+und validiert bei den ICU-Formaten (next-intl und ARB) zusätzlich den übersetzten Wert gegen die
+Nachrichten-Syntax des Formats. Eine Übersetzung, die einen Platzhalter weglässt oder verändert, oder
+die die ICU-Plural- oder Select-Struktur bricht, besteht diese Integritätsprüfung nicht und wird
+zurückgehalten statt geschrieben. Die akzeptierten Übersetzungen werden in die Ziel-Locale
+zusammengeführt und atomar geschrieben, sodass ein unterbrochener Schreibvorgang dich nie mit einer
+halbfertigen Datei zurücklässt.
 
 ## Die Lock-Datei und inkrementelle Arbeit
 

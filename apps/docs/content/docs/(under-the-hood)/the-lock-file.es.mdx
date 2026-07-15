@@ -23,7 +23,7 @@ El hash de contenido trata el Unicode canónicamente equivalente (NFC) y los fin
 
 ## Cómo se actualiza
 
-Después de escribir un locale, verbatra actualiza el bloqueo con los hashes de origen actuales, con una excepción deliberada. Una clave retenida en esta ejecución (porque su traducción falló la comprobación de marcadores de posición o su ICU de origen no era válido) conserva su hash anterior. La siguiente ejecución la sigue viendo como que necesita trabajo y la reintenta, en lugar de registrarla como hecha. Las claves huérfanas no obtienen entrada.
+Después de escribir un locale, verbatra actualiza el bloqueo con los hashes de origen actuales, con una excepción deliberada. Una clave retenida en esta ejecución (porque su candidato traducido falló la comprobación de marcadores de posición o de sintaxis del mensaje, o su ICU de origen no era válido) conserva su hash anterior. La siguiente ejecución la sigue viendo como que necesita trabajo y la reintenta, en lugar de registrarla como hecha. Las claves huérfanas no obtienen entrada.
 
 ## Primera ejecución, bloqueo ausente, bloqueo corrupto
 
