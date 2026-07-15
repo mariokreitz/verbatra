@@ -70,13 +70,11 @@ export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
     return <Loading />;
   }
   if (view.kind === "error") {
-    return <ErrorMessage message={view.error.message} />;
+    return <ErrorMessage error={view.error} />;
   }
   return (
     <div>
-      {view.stale && (
-        <ErrorMessage message={`Showing the last known status. ${view.error.message}`} />
-      )}
+      {view.stale && <ErrorMessage error={view.error} prefix="Showing the last known status." />}
       <StatusTable inSync={view.data.inSync} rows={view.data.rows} />
     </div>
   );

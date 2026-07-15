@@ -65,7 +65,7 @@ export function CommitList({ state, emptyClassName, emptyMessage }: CommitListPr
     return <Loading />;
   }
   if (state.kind === "error") {
-    return <ErrorMessage message={state.message} />;
+    return <ErrorMessage error={state.error} />;
   }
   if (state.kind === "unavailable") {
     return (

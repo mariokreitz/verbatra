@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { RpcCallResult } from "../../client/rpc-client.js";
+import type { StructuredError } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
@@ -14,7 +15,7 @@ type LockLocaleState = Extract<
 
 type LockPanelState =
   | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
+  | { readonly kind: "error"; readonly error: StructuredError }
   | { readonly kind: "no-lock" }
   | {
       readonly kind: "loaded";
@@ -92,7 +93,7 @@ export function LockPanel(): ReactNode {
         return;
       }
       if (!response.ok) {
-        setState({ kind: "error", message: response.error.message });
+        setState({ kind: "error", error: response.error });
         return;
       }
       if (!response.result.exists) {
@@ -114,7 +115,7 @@ export function LockPanel(): ReactNode {
     return <Loading />;
   }
   if (state.kind === "error") {
-    return <ErrorMessage message={state.message} />;
+    return <ErrorMessage error={state.error} />;
   }
   if (state.kind === "no-lock") {
     return (

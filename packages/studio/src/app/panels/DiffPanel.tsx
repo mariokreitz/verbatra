@@ -1,10 +1,12 @@
 import type { ChangeEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DiffLocale } from "../../client/diff-view.js";
 import { isFullyInSync } from "../../client/diff-view.js";
 import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
-import { rpcClient } from "../api.js";
+import { buildReviewReportMarkdown } from "../../client/review-report.js";
+import type { StructuredError } from "../../client/state.js";
+import { diffDataStore, openKeyStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import type { DiffTone } from "../DiffBadge.js";
 import { DiffBadge } from "../DiffBadge.js";
@@ -17,12 +19,53 @@ type DiffViewMode = "grid" | "flat";
 
 type DiffPanelState =
   | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
+  | { readonly kind: "error"; readonly error: StructuredError }
   | {
       readonly kind: "loaded";
       readonly hasPendingChanges: boolean;
       readonly locales: readonly DiffLocale[];
     };
+
+/** How long the "Copied" confirmation stays visible after a successful clipboard write. */
+const COPY_CONFIRMATION_MS = 2000;
+
+/**
+ * A "copy as review report" button: it renders the panel's full, currently loaded diff data
+ * (never the on-screen filtered or capped view) as a Markdown review report and copies it to the
+ * clipboard. The confirmation is a transient label swap, not a new toast system, matching this
+ * codebase's existing preference for small, direct feedback. Clipboard access can fail (an
+ * insecure context, or a browser permission denial); there is nothing actionable to surface
+ * beyond the button simply not confirming.
+ */
+function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale[] }): ReactNode {
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      if (timeoutRef.current !== undefined) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  async function handleClick(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(buildReviewReportMarkdown(locales));
+      setCopied(true);
+      timeoutRef.current = window.setTimeout(() => setCopied(false), COPY_CONFIRMATION_MS);
+    } catch {
+      // No actionable detail to show; the button simply does not confirm.
+    }
+  }
+
+  return (
+    <button type="button" className="review-report-button" onClick={() => void handleClick()}>
+      {copied ? "Copied" : "Copy as review report"}
+    </button>
+  );
+}
 
 function KeyList({
   tone,
@@ -151,14 +194,26 @@ function AllClearState(): ReactNode {
  * Key-level pending-change explorer, from the sdk's read-only `diff` through `status.diff`. Always
  * requests every configured target locale (never sends an empty `locales` array); the filter
  * input narrows the three key lists per locale on the client, capped at {@link MAX_RENDERED_KEYS}
- * items each. Selecting a key (a click on its list entry) opens {@link KeyDetailDrawer} for it,
- * reusing this panel's already-loaded locales rather than a second fetch.
+ * items each. Selecting a key (a click on its list entry, or a command palette key/locale
+ * selection) opens {@link KeyDetailDrawer} for it, reusing this panel's already-loaded locales
+ * rather than a second fetch.
+ *
+ * The selected key and the loaded locales both flow through module-level stores
+ * (`client/diff-session.ts`'s `OpenKeyStore` and `DiffDataStore`, wired in `app/api.ts`) rather
+ * than purely local state: the command palette lives at the app shell, a sibling of this panel,
+ * and needs to read the same already-loaded diff data and request the same key-drawer open a
+ * manual click here already performs, without a second RPC call. The open-key request is cleared
+ * on unmount and on a manual close, so leaving the Diff tab never leaves a stale request behind
+ * for a later, unrelated visit to reopen.
  */
 export function DiffPanel(): ReactNode {
   const [state, setState] = useState<DiffPanelState>({ kind: "loading" });
   const [query, setQuery] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(openKeyStore.getState());
   const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
+
+  useEffect(() => openKeyStore.subscribe(setSelectedKey), []);
+  useEffect(() => () => openKeyStore.clear(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -167,9 +222,10 @@ export function DiffPanel(): ReactNode {
         return;
       }
       if (!response.ok) {
-        setState({ kind: "error", message: response.error.message });
+        setState({ kind: "error", error: response.error });
         return;
       }
+      diffDataStore.setLocales(response.result.locales);
       setState({
         kind: "loaded",
         hasPendingChanges: response.result.hasPendingChanges,
@@ -185,7 +241,7 @@ export function DiffPanel(): ReactNode {
     return <Loading />;
   }
   if (state.kind === "error") {
-    return <ErrorMessage message={state.message} />;
+    return <ErrorMessage error={state.error} />;
   }
 
   const onQueryChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -193,11 +249,17 @@ export function DiffPanel(): ReactNode {
   };
 
   if (isFullyInSync(state.locales)) {
-    return <AllClearState />;
+    return (
+      <div>
+        <ReviewReportButton locales={state.locales} />
+        <AllClearState />
+      </div>
+    );
   }
 
   return (
     <div>
+      <ReviewReportButton locales={state.locales} />
       <p className="panel-intro">
         Overall:{" "}
         <Badge tone={state.hasPendingChanges ? "warning" : "success"}>
@@ -206,7 +268,7 @@ export function DiffPanel(): ReactNode {
       </p>
       <ViewToggle mode={viewMode} onChange={setViewMode} />
       {viewMode === "grid" ? (
-        <StatusGrid locales={state.locales} onSelectKey={setSelectedKey} />
+        <StatusGrid locales={state.locales} onSelectKey={openKeyStore.request} />
       ) : (
         <>
           <label className="filter-label">
@@ -218,7 +280,7 @@ export function DiffPanel(): ReactNode {
               key={locale.locale}
               locale={locale}
               query={query}
-              onSelectKey={setSelectedKey}
+              onSelectKey={openKeyStore.request}
             />
           ))}
         </>
@@ -227,7 +289,7 @@ export function DiffPanel(): ReactNode {
         <KeyDetailDrawer
           keyName={selectedKey}
           locales={state.locales}
-          onClose={() => setSelectedKey(null)}
+          onClose={() => openKeyStore.clear()}
         />
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { StructuredError } from "../../client/state.js";
 import type { GlossaryGetResult } from "../../shared/rpc/glossary.js";
 import type { ProjectSnapshotResult } from "../../shared/rpc/snapshot.js";
 import { rpcClient } from "../api.js";
@@ -8,7 +9,7 @@ import { Loading } from "../Loading.js";
 
 type OverviewState =
   | { readonly status: "loading" }
-  | { readonly status: "error"; readonly message: string }
+  | { readonly status: "error"; readonly error: StructuredError }
   | {
       readonly status: "loaded";
       readonly snapshot: ProjectSnapshotResult;
@@ -130,11 +131,11 @@ export function OverviewPanel(): ReactNode {
         return;
       }
       if (!snapshotResponse.ok) {
-        setState({ status: "error", message: snapshotResponse.error.message });
+        setState({ status: "error", error: snapshotResponse.error });
         return;
       }
       if (!glossaryResponse.ok) {
-        setState({ status: "error", message: glossaryResponse.error.message });
+        setState({ status: "error", error: glossaryResponse.error });
         return;
       }
       setState({
@@ -152,7 +153,7 @@ export function OverviewPanel(): ReactNode {
     return <Loading />;
   }
   if (state.status === "error") {
-    return <ErrorMessage message={state.message} />;
+    return <ErrorMessage error={state.error} />;
   }
   return (
     <div>
