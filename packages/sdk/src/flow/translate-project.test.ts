@@ -174,6 +174,11 @@ describe("translate: run-status persistence", () => {
     const fr = runStatus.locales.find((locale) => locale.locale === "fr");
     expect(fr?.status).toBe("failed");
     expect(fr?.needsReview).toEqual([]);
+    // fr carries a real error ("lock write failed") in the in-memory summary; the persisted entry
+    // must never widen to include it. An exact key-set check (not a spot-check on `error`, which
+    // is not even a field on RunStatusLocale) catches a future `toRunStatusLocale` regression such
+    // as returning the whole LocaleSummary, which would type-check as a width subtype but leak.
+    expect(Object.keys(fr as object).sort()).toEqual(["locale", "needsReview", "status"]);
   });
 
   it("the .verbatra-local directory is created on a project's first real run", async () => {
