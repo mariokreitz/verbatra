@@ -176,6 +176,7 @@ et un `message` sans secret. Les codes :
 | `SOURCE_UNREADABLE` | le fichier de locale source n'existe pas |
 | `SOURCE_INVALID` | le fichier de locale source n'a pas pu être lu ou analysé |
 | `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu ou trop volumineux |
+| `LOCK_CONTENDED` | le verrou d'écriture d'un locale n'a pas pu être acquis avant son délai d'attente ; un autre processus le détient peut-être |
 | `UNKNOWN_KEY` | la clé demandée n'existe pas dans la ressource source ; levé par la voie `retranslateEntry` derrière l'[action de retraduction de Studio](/docs/cli/studio) |
 | `LOCALE_FAILED` | non levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |
 
