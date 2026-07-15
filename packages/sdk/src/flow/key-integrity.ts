@@ -17,9 +17,12 @@ import { readSource } from "./source.js";
  * One key's placeholder or ICU integrity result for one target locale. Only ever computed for a
  * "changed" key (a current source and a current target value both exist); `hasPlaceholders` is
  * false when the source value carries no placeholders at all, in which case `matches` is
- * trivially true and carries no meaningful signal on its own. Carries no source or target string
- * value: only the boolean match result and, on a mismatch, the specific placeholder tokens
- * involved.
+ * trivially true and carries no meaningful signal on its own. `icuValid` is computed
+ * unconditionally, independent of `matches`: unlike `gateCandidateValue` (a decision function that
+ * may stop at the first failing check), this is an information report and must stay accurate even
+ * when the key already fails on placeholders. Always true for a non-ICU format, by construction of
+ * `adapter.validateMessage`. Carries no source or target string value: only the boolean results
+ * and, on a placeholder mismatch, the specific tokens involved.
  */
 export interface KeyIntegrityEntry {
   readonly key: string;
@@ -27,6 +30,7 @@ export interface KeyIntegrityEntry {
   readonly matches: boolean;
   readonly missing: readonly string[];
   readonly extra: readonly string[];
+  readonly icuValid: boolean;
 }
 
 /** One target locale's integrity entries for the keys checked against it. */
@@ -67,6 +71,7 @@ function checkEntryIntegrity(
     matches: result.matches,
     missing: result.missing,
     extra: result.extra,
+    icuValid: adapter.validateMessage(targetEntry.value),
   };
 }
 
@@ -103,15 +108,17 @@ function integrityEntriesFor(
 
 /**
  * For each selected target locale's "changed" keys (present with a current value on both sides,
- * per core's `diffResources`), run the placeholder or ICU integrity check and report a per-key
- * result. Reuses `checkPlaceholders` (`@verbatra/core`) directly, and an adapter's own
- * `comparePlaceholders` when present (the branch-aware ICU path), exactly as they exist today; it
- * does not reimplement either. Read-only: it calls no provider, writes no file, and never touches
- * the lock. "Missing" and "orphaned" keys are never checked, since one side's value does not
- * exist for those.
+ * per core's `diffResources`), run the placeholder check and the ICU message-validity check and
+ * report a per-key result. Reuses `checkPlaceholders` (`@verbatra/core`) directly, and an
+ * adapter's own `comparePlaceholders` when present (the branch-aware ICU path), exactly as they
+ * exist today; it does not reimplement either. `icuValid` is `adapter.validateMessage(target)`,
+ * computed unconditionally and independently of the placeholder result, so a target that is
+ * placeholder-valid but syntactically invalid ICU is still reported accurately. Read-only: it
+ * calls no provider, writes no file, and never touches the lock. "Missing" and "orphaned" keys are
+ * never checked, since one side's value does not exist for those.
  *
- * The returned entries never carry a source or target string value, only the boolean match
- * result and, on a mismatch, the specific placeholder tokens involved.
+ * The returned entries never carry a source or target string value, only the boolean results and,
+ * on a placeholder mismatch, the specific tokens involved.
  *
  * @param input - The validated config, which locales to check, and an optional key filter.
  * @param deps - Optional composition seams (registry, file system) for tests.
