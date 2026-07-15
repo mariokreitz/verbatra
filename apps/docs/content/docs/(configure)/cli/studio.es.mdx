@@ -48,6 +48,10 @@ La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la
 - **Desviación del bloqueo**: si existe un archivo de bloqueo, su versión y su desviación por locale frente a los archivos de origen y destino actuales, sin escribir en él.
 - **Historial**: el historial de commits de tus archivos de locale vigilados, leído mediante `git log` con un número de commits acotado y sin `--follow`. Un proyecto sin repositorio git, o con git no disponible, muestra el historial como no disponible en lugar de un error. El historial truncado de un clon superficial tampoco es un error: simplemente muestra lo que tiene el clon.
 
+## Vista de detalle de una clave
+
+En Diff, haz clic en una clave modificada para abrir su vista de detalle, con una fila por locale de destino. Cada fila también muestra un indicador de integridad de marcadores de posición e ICU: verde significa que la traducción de ese locale todavía tiene los mismos marcadores de posición que el origen (cosas como `{name}` o `{{count}}`, según tu formato); rojo significa que falta un marcador de posición o que se añadió uno inesperado, y nombra el token concreto para que sepas qué corregir. Un indicador neutro y sin etiqueta significa que el formato no tiene marcadores de posición que comprobar, o que la comprobación todavía no se ha cargado, ya que se obtiene solo al abrir la vista de detalle, no de forma anticipada. Esto solo se aplica a las claves modificadas: una clave faltante todavía no tiene un valor de destino, y una clave huérfana no tiene un valor de origen actual, así que ninguna de las dos tiene un segundo valor que comparar.
+
 ## Instalación
 
 `@verbatra/studio` es el paquete propio de Studio. Todavía no ha tenido una versión estable, así que una instalación simple ya trae el build de prerelease actual, sin necesidad de etiqueta. Si no está instalado, `verbatra studio` sale con `2` y:

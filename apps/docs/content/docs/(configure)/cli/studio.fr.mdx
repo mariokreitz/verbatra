@@ -48,6 +48,10 @@ La configuration est résolue une seule fois, au démarrage, et chaque vue, pend
 - **Dérive du verrouillage** : si un fichier de verrouillage existe, sa version et sa dérive par locale par rapport aux fichiers source et cible actuels, sans y écrire.
 - **Historique** : l'historique des commits pour tes fichiers de locale surveillés, lu via `git log` avec un nombre de commits plafonné et sans `--follow`. Un projet sans dépôt git, ou avec git indisponible, affiche l'historique comme non disponible plutôt qu'une erreur. L'historique tronqué d'un clone superficiel n'est pas non plus une erreur : il affiche simplement ce que le clone possède.
 
+## Vue détaillée d'une clé
+
+Dans Diff, clique sur une clé modifiée pour ouvrir sa vue détaillée, avec une ligne par locale cible. Chaque ligne affiche aussi un indicateur d'intégrité des placeholders et ICU : vert signifie que la traduction de cette locale a toujours les mêmes placeholders que la source (des choses comme `{name}` ou `{{count}}`, selon ton format) ; rouge signifie qu'un placeholder manque ou qu'un placeholder inattendu a été ajouté, et nomme le jeton précis pour que tu saches quoi corriger. Un indicateur neutre et sans étiquette signifie soit que le format n'a aucun placeholder à vérifier, soit que la vérification n'est pas encore chargée, puisqu'elle n'est récupérée qu'à l'ouverture de la vue détaillée, pas de façon anticipée. Cela ne s'applique qu'aux clés modifiées : une clé manquante n'a pas encore de valeur cible, et une clé orpheline n'a pas de valeur source actuelle, donc aucune des deux n'a de seconde valeur à comparer.
+
 ## Installation
 
 `@verbatra/studio` est le paquet propre de Studio. Il n'a pas encore eu de version stable, donc une installation simple apporte déjà le build de préversion actuel, aucun dist-tag requis. S'il n'est pas installé, `verbatra studio` quitte avec `2` et :

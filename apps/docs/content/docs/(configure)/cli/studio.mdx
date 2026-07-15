@@ -48,6 +48,10 @@ The config is resolved once, at startup, and every view for the life of that pro
 - **Lock drift**: whether a lock file exists, its version, and its per-locale drift against the current source and target files, without writing to it.
 - **History**: the commit history for your watched locale files, read via `git log` with a bounded commit count and no `--follow`. A project with no git repository, or with git unavailable, shows history as unavailable rather than an error. A shallow clone's truncated history is also not an error: it simply shows what the clone has.
 
+## Key detail view
+
+In Diff, click a changed key to open its detail view, with one row per target locale. Each row also shows a placeholder and ICU integrity indicator: green means that locale's translation still has the same placeholders as the source (things like `{name}` or `{{count}}`, depending on your format); red means a placeholder is missing or an unexpected one was added, and names the specific token so you know what to fix. A neutral, unlabeled indicator means either the format has no placeholders to check, or the check has not loaded yet, since it fetches only once you open the detail view, not eagerly. This only applies to changed keys: a missing key has no target value yet, and an orphaned key has no current source value, so neither has a second value worth comparing.
+
 ## Installation
 
 `@verbatra/studio` is Studio's own package. It has not had a stable release yet, so a plain install already gets the current prerelease build, no dist-tag needed. If it is not installed, `verbatra studio` exits `2` with:
