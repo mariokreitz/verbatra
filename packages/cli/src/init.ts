@@ -181,16 +181,19 @@ function writeFileIfAllowed(
   streams.out(`${existed ? "overwrote" : "created"} ${label}\n`);
 }
 
-/** Ensure .env and .env.local are gitignored: create if absent, idempotently append otherwise. */
+/**
+ * Ensure .env, .env.local, and .verbatra-local/ (the local run-status directory `translate`/`watch`
+ * write to) are gitignored: create if absent, idempotently append otherwise.
+ */
 function ensureGitignore(cwd: string, streams: Streams): void {
   const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".env", ".env.local"];
+  const entries = [".env", ".env.local", ".verbatra-local/"];
   if (!existsSync(gitignorePath)) {
     writeFileSync(
       gitignorePath,
       `# Local environment files (never commit real keys)\n${entries.join("\n")}\n`,
     );
-    streams.out("created .gitignore (.env, .env.local)\n");
+    streams.out(`created .gitignore (${entries.join(", ")})\n`);
     return;
   }
   const content = readFileSync(gitignorePath, "utf8");
@@ -198,7 +201,7 @@ function ensureGitignore(cwd: string, streams: Streams): void {
   const present = new Set(content.split(/\r?\n/).map((line) => line.trim()));
   const missing = entries.filter((entry) => !present.has(entry));
   if (missing.length === 0) {
-    streams.out(".gitignore already ignores .env and .env.local\n");
+    streams.out(`.gitignore already ignores ${entries.join(", ")}\n`);
     return;
   }
   // Prepend a newline when the file is non-empty and lacks a trailing one so the entry starts on its own line.

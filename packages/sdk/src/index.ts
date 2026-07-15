@@ -5,7 +5,9 @@
  * {@link check} and {@link diff} report pending work without writing; {@link keyIntegrity} reports, per
  * changed key, whether its placeholders or ICU structure still match the source; {@link lockState}
  * reports the lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the
- * lock-file itself. {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a
+ * lock-file itself. {@link runStatus} reads the persisted review-flag and token/usage snapshot a prior
+ * non-dry-run {@link translate}/{@link watch} run left behind. {@link readLocaleFileSnapshot} and
+ * {@link diffLocaleSnapshots} read one locale file as a
  * per-key content hash and compare two such snapshots, the building blocks a caller like Studio's
  * live-refresh watcher uses to report a locale file's own added, changed, and removed key counts
  * since its last observed state. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
@@ -72,6 +74,12 @@ export {
   type LockStateResult,
   lockState,
 } from "./flow/lock-state.js";
+export {
+  type RunStatusDeps,
+  type RunStatusInput,
+  type RunStatusResult,
+  runStatus,
+} from "./flow/run-status.js";
 export type {
   BudgetBehavior,
   LocaleNotice,
@@ -108,6 +116,7 @@ export {
 } from "./lock/load-lock-file.js";
 export { LOCK_FILE_NAME } from "./lock/lock-file.js";
 export type { LockFile } from "./lock/types.js";
+export type { RunStatusFile, RunStatusLocale } from "./run-status/types.js";
 export { type ScaffoldableProviderId, scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";
 export {

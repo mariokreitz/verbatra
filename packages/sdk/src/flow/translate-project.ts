@@ -12,6 +12,11 @@ import {
   updateLockLocale,
   writeLockFile,
 } from "../lock/lock-file.js";
+import {
+  buildRunStatusFile,
+  runStatusFilePath,
+  writeRunStatusFile,
+} from "../run-status/run-status-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { type CreateProvider, selectProvider } from "../selection/select-provider.js";
 import { createBudgetTracker, toBudgetSummary } from "./budget.js";
@@ -68,6 +73,11 @@ export interface TranslateDeps {
  * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
  * surface on each `LocaleSummary`, never as throws.
  *
+ * On a non-dry-run that reaches the end of the loop, the run's review-flag and token/usage data is
+ * also written to `.verbatra-local/run-status.json` (readable back through {@link runStatus}). This
+ * write is best-effort: any failure is caught and swallowed, never re-thrown and never reflected on
+ * the returned {@link RunSummary}.
+ *
  * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
  * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
  * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
@@ -100,6 +110,30 @@ export interface TranslateDeps {
  * const preview = await translate({ config, dryRun: true });
  * ```
  */
+/**
+ * Persist the run's review-flag and token/usage snapshot to `.verbatra-local/run-status.json`, skipped
+ * on dry-run for the same reason the lock-file write is skipped (dry-run never populates `needsReview`
+ * or `usage`, so writing would clobber a real prior run's snapshot with an empty one). Best-effort by
+ * design (unlike the lock-file write): any failure, including the directory not being creatable, is
+ * caught and swallowed here so it never fails the run or reaches the caller. Studio already tolerates a
+ * stale or absent run-status file.
+ */
+async function recordRunStatus(
+  cwd: string,
+  dryRun: boolean,
+  summary: RunSummary,
+  fs: SdkFs,
+): Promise<void> {
+  if (dryRun) {
+    return;
+  }
+  try {
+    await writeRunStatusFile(runStatusFilePath(cwd), buildRunStatusFile(summary), fs);
+  } catch {
+    // Swallowed on purpose; see the doc comment above.
+  }
+}
+
 export async function translate(
   input: TranslateInput,
   deps: TranslateDeps = {},
@@ -163,7 +197,7 @@ export async function translate(
     undefined,
   );
   const budgetSummary = toBudgetSummary(budget);
-  return {
+  const summary: RunSummary = {
     dryRun,
     locales: summaries,
     succeeded,
@@ -171,4 +205,8 @@ export async function translate(
     ...(usage !== undefined ? { usage } : {}),
     ...(budgetSummary !== undefined ? { budget: budgetSummary } : {}),
   };
+
+  await recordRunStatus(cwd, dryRun, summary, fs);
+
+  return summary;
 }

@@ -2,7 +2,7 @@
 title: verbatra init
 description: Genera una configuración de verbatra y un ejemplo de .env para tu proyecto.
 ---
-Genera un `verbatra.config.ts` y un `.env.example`, y añade `.env` y `.env.local` a tu `.gitignore` para que una clave real nunca aterrice en un commit. Con un terminal conectado y sin `--yes`, `init` solicita los valores que no puede establecer por defecto; de lo contrario, se ejecuta de forma no interactiva y toma los valores por defecto.
+Genera un `verbatra.config.ts` y un `.env.example`, y añade `.env`, `.env.local` y `.verbatra-local/` a tu `.gitignore`, para que una clave real nunca aterrice en un commit y los datos locales de ejecución que `translate` y `watch` escriben ahí (como `run-status.json`) tampoco queden dentro. Con un terminal conectado y sin `--yes`, `init` solicita los valores que no puede establecer por defecto; de lo contrario, se ejecuta de forma no interactiva y toma los valores por defecto.
 
 ¿Empiezas un proyecto pequeño? Gemini tiene un nivel gratuito, así que es un buen valor por defecto con el que generar:
 
