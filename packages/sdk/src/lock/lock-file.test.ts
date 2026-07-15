@@ -4,14 +4,7 @@ import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
 import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
 import { makeFakeFs, makeTempDir, readTextFile } from "../test-support.js";
-import {
-  baselineFor,
-  lockFilePath,
-  readLockFile,
-  updateLockFileLocale,
-  updateLockLocale,
-  writeLockFile,
-} from "./lock-file.js";
+import { baselineFor, lockFilePath, readLockFile, updateLockFileLocale } from "./lock-file.js";
 
 describe("lock-file", () => {
   it("a missing lock-file reads as an empty lock (first-run degradation)", async () => {
@@ -23,8 +16,10 @@ describe("lock-file", () => {
   it("writes deterministically (sorted keys, trailing newline) and round-trips", async () => {
     const dir = await makeTempDir();
     const path = lockFilePath(dir);
-    const lock = updateLockLocale({ version: 1, locales: {} }, "de", { b: "2", a: "1" });
-    await writeLockFile(path, lock, defaultFs);
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { b: "2", a: "1" },
+    });
     const text = await readTextFile(path);
     expect(text.endsWith("\n")).toBe(true);
     expect(text.indexOf('"a"')).toBeLessThan(text.indexOf('"b"'));
@@ -115,15 +110,17 @@ describe("lock-file", () => {
   it("writes atomically: overwrite leaves valid content and no leftover temp file", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
-    await writeLockFile(
+    // Writes the raw lock content directly through defaultFs, bypassing updateLockFileLocale's own
+    // lock guard: this test is about defaultFs.writeFile's own atomic-overwrite property, not the
+    // lock-file update semantics, and the guard would leave a `.verbatra-local/` directory behind
+    // that would break the exact-one-entry assertion below.
+    await defaultFs.writeFile(
       path,
-      updateLockLocale({ version: 1, locales: {} }, "de", { a: "1" }),
-      defaultFs,
+      `${JSON.stringify({ version: 1, locales: { de: { a: "1" } } })}\n`,
     );
-    await writeLockFile(
+    await defaultFs.writeFile(
       path,
-      updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" }),
-      defaultFs,
+      `${JSON.stringify({ version: 1, locales: { de: { a: "2" } } })}\n`,
     );
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "2" });
@@ -133,18 +130,19 @@ describe("lock-file", () => {
 
   it("a failed write leaves the prior lock-file intact", async () => {
     const dir = await makeTempDir();
-    const path = join(dir, "verbatra.lock.json");
-    const good = updateLockLocale({ version: 1, locales: {} }, "de", { a: "1" });
-    await writeLockFile(path, good, defaultFs);
+    const path = lockFilePath(dir);
+    await updateLockFileLocale(dir, defaultFs, "de", { mode: "replace", entries: { a: "1" } });
 
     const throwingFs = makeFakeFs({
       fileExists: async () => true,
+      readFileBounded: defaultFs.readFileBounded,
       writeFile: async () => {
         throw new Error("disk full");
       },
     });
-    const next = updateLockLocale({ version: 1, locales: {} }, "de", { a: "2" });
-    await expect(writeLockFile(path, next, throwingFs)).rejects.toThrow();
+    await expect(
+      updateLockFileLocale(dir, throwingFs, "de", { mode: "replace", entries: { a: "2" } }),
+    ).rejects.toThrow();
 
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "1" });
@@ -154,12 +152,8 @@ describe("lock-file", () => {
 describe("updateLockFileLocale: replace mode", () => {
   it("replaces the locale's entire entries record, leaving other locales untouched", async () => {
     const dir = await makeTempDir();
-    const path = lockFilePath(dir);
-    await writeLockFile(
-      path,
-      { version: 1, locales: { de: { old: "h1" }, fr: { keep: "h2" } } },
-      defaultFs,
-    );
+    await updateLockFileLocale(dir, defaultFs, "de", { mode: "replace", entries: { old: "h1" } });
+    await updateLockFileLocale(dir, defaultFs, "fr", { mode: "replace", entries: { keep: "h2" } });
 
     const result = await updateLockFileLocale(dir, defaultFs, "de", {
       mode: "replace",
@@ -174,8 +168,10 @@ describe("updateLockFileLocale: replace mode", () => {
 describe("updateLockFileLocale: merge mode", () => {
   it("overlays only the given keys, leaving every other key in the locale untouched", async () => {
     const dir = await makeTempDir();
-    const path = lockFilePath(dir);
-    await writeLockFile(path, { version: 1, locales: { de: { a: "h1", b: "h2" } } }, defaultFs);
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { a: "h1", b: "h2" },
+    });
 
     const result = await updateLockFileLocale(dir, defaultFs, "de", {
       mode: "merge",

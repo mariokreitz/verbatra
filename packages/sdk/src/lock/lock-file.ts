@@ -105,11 +105,6 @@ function serializeLockFile(lock: LockFile): string {
   return `${JSON.stringify(ordered, null, 2)}\n`;
 }
 
-/** Serialize and write the lock-file deterministically (sorted keys) for human-readable diffs. */
-export async function writeLockFile(path: string, lock: LockFile, fs: SdkFs): Promise<void> {
-  await fs.writeFile(path, serializeLockFile(lock));
-}
-
 /**
  * How {@link updateLockFileLocale} folds its caller's computed entries into one locale's current
  * on-disk entries: `"replace"` discards every existing key for that locale in favor of the given
