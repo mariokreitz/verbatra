@@ -6,7 +6,7 @@ import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
 import { buildReviewReportMarkdown } from "../../client/review-report.js";
 import type { StructuredError } from "../../client/state.js";
-import { rpcClient } from "../api.js";
+import { diffDataStore, openKeyStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import type { DiffTone } from "../DiffBadge.js";
 import { DiffBadge } from "../DiffBadge.js";
@@ -194,14 +194,26 @@ function AllClearState(): ReactNode {
  * Key-level pending-change explorer, from the sdk's read-only `diff` through `status.diff`. Always
  * requests every configured target locale (never sends an empty `locales` array); the filter
  * input narrows the three key lists per locale on the client, capped at {@link MAX_RENDERED_KEYS}
- * items each. Selecting a key (a click on its list entry) opens {@link KeyDetailDrawer} for it,
- * reusing this panel's already-loaded locales rather than a second fetch.
+ * items each. Selecting a key (a click on its list entry, or a command palette key/locale
+ * selection) opens {@link KeyDetailDrawer} for it, reusing this panel's already-loaded locales
+ * rather than a second fetch.
+ *
+ * The selected key and the loaded locales both flow through module-level stores
+ * (`client/diff-session.ts`'s `OpenKeyStore` and `DiffDataStore`, wired in `app/api.ts`) rather
+ * than purely local state: the command palette lives at the app shell, a sibling of this panel,
+ * and needs to read the same already-loaded diff data and request the same key-drawer open a
+ * manual click here already performs, without a second RPC call. The open-key request is cleared
+ * on unmount and on a manual close, so leaving the Diff tab never leaves a stale request behind
+ * for a later, unrelated visit to reopen.
  */
 export function DiffPanel(): ReactNode {
   const [state, setState] = useState<DiffPanelState>({ kind: "loading" });
   const [query, setQuery] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedKey, setSelectedKey] = useState<string | null>(openKeyStore.getState());
   const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
+
+  useEffect(() => openKeyStore.subscribe(setSelectedKey), []);
+  useEffect(() => () => openKeyStore.clear(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -213,6 +225,7 @@ export function DiffPanel(): ReactNode {
         setState({ kind: "error", error: response.error });
         return;
       }
+      diffDataStore.setLocales(response.result.locales);
       setState({
         kind: "loaded",
         hasPendingChanges: response.result.hasPendingChanges,
@@ -255,7 +268,7 @@ export function DiffPanel(): ReactNode {
       </p>
       <ViewToggle mode={viewMode} onChange={setViewMode} />
       {viewMode === "grid" ? (
-        <StatusGrid locales={state.locales} onSelectKey={setSelectedKey} />
+        <StatusGrid locales={state.locales} onSelectKey={openKeyStore.request} />
       ) : (
         <>
           <label className="filter-label">
@@ -267,7 +280,7 @@ export function DiffPanel(): ReactNode {
               key={locale.locale}
               locale={locale}
               query={query}
-              onSelectKey={setSelectedKey}
+              onSelectKey={openKeyStore.request}
             />
           ))}
         </>
@@ -276,7 +289,7 @@ export function DiffPanel(): ReactNode {
         <KeyDetailDrawer
           keyName={selectedKey}
           locales={state.locales}
-          onClose={() => setSelectedKey(null)}
+          onClose={() => openKeyStore.clear()}
         />
       ) : null}
     </div>

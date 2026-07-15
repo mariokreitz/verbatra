@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { isPaletteShortcut } from "../client/command-palette.js";
 import { refreshBus, sessionStore } from "./api.js";
+import { CommandPalette } from "./CommandPalette.js";
 import type { PanelProps } from "./panel-props.js";
 import { DiffPanel } from "./panels/DiffPanel.js";
 import { HistoryPanel } from "./panels/HistoryPanel.js";
@@ -62,6 +64,7 @@ export function App(): ReactNode {
   // panel so it can re-fetch. The event's own reason and timestamp are not needed here: every
   // panel re-fetches its own view wholesale rather than branching on which category changed.
   const [refreshToken, setRefreshToken] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(
     () => sessionStore.subscribe((state) => setSessionExpired(state.kind === "session-expired")),
@@ -69,11 +72,30 @@ export function App(): ReactNode {
   );
   useEffect(() => refreshBus.subscribe(() => setRefreshToken((token) => token + 1)), []);
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent): void {
+      if (isPaletteShortcut(event)) {
+        event.preventDefault();
+        setPaletteOpen(true);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   if (sessionExpired) {
     return <SessionExpiredNotice />;
   }
 
   const ActivePanel = TAB_PANELS[tab];
+
+  // The palette only ever resolves a selection to one of `TABS`'s own values (see
+  // `buildPaletteCommands`, which builds every tab command from this same list), so this cast is
+  // sound even though the palette's own types stay generic over `string`, independent of App's Tab
+  // union (client modules do not depend on app-layer types).
+  function handleSelectTab(nextTab: string): void {
+    setTab(nextTab as Tab);
+  }
 
   return (
     <div className="app-shell">
@@ -99,6 +121,13 @@ export function App(): ReactNode {
           <ActivePanel refreshToken={refreshToken} />
         </div>
       </main>
+      {paletteOpen ? (
+        <CommandPalette
+          tabs={TABS.map((id) => ({ tab: id, label: TAB_LABELS[id] }))}
+          onSelectTab={handleSelectTab}
+          onClose={() => setPaletteOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
