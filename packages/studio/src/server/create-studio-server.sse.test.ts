@@ -1,6 +1,13 @@
+import type { CreateProvider } from "@verbatra/sdk";
 import { afterEach, describe, expect, it } from "vitest";
 import { startStudioServer } from "./create-studio-server.js";
-import { authenticatedCookie, stubLoader, withServer } from "./test-support.js";
+import {
+  authenticatedCookie,
+  fixtureLoader,
+  makeFixtureProject,
+  stubLoader,
+  withServer,
+} from "./test-support.js";
 import type { CreateStudioWatcher, StudioServer, StudioWatcher } from "./types.js";
 
 const TOKEN = "sse-test-token-0123456789abcdef01234567";
@@ -204,6 +211,88 @@ describe("GET /events: secret sweep", () => {
       );
     } finally {
       restoreSentinels();
+    }
+  }, 5000);
+});
+
+describe("GET /events: no sentinel leaks through the refresh event a retranslateEntry write triggers", () => {
+  it("the refresh frame delivered after a successful retranslateEntry call carries no sentinel from the provider's own output", async () => {
+    const project = await makeFixtureProject(
+      { targetLocales: ["de"] },
+      { greeting: "Hello {{name}}" },
+    );
+    const harness = multiWatcherHarness();
+    const sentinel = "sentinel-provider-output-sse-9e7b3a";
+    const stubCreateProvider: CreateProvider = () => ({
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: async (request) => ({
+        values: new Map(request.entries.map((entry) => [entry.key, `Hallo {{name}} ${sentinel}`])),
+        integrity: new Map(),
+      }),
+    });
+
+    try {
+      await withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const controller = new AbortController();
+          const response = await connectEvents(server.url, cookie, controller.signal);
+          const reader = response.body?.getReader();
+          expect(reader).toBeDefined();
+          if (reader === undefined) {
+            controller.abort();
+            return;
+          }
+          try {
+            await readFrames(reader, 1); // the initial ": connected" comment
+
+            const rpcResponse = await fetch(new URL("/rpc", server.url), {
+              method: "POST",
+              headers: {
+                Cookie: cookie,
+                "Content-Type": "application/json",
+                Origin: server.url.replace(/\/$/, ""),
+              },
+              body: JSON.stringify({
+                method: "translation.retranslateEntry",
+                params: { locale: "de", key: "greeting" },
+              }),
+            });
+            const rpcBody = (await rpcResponse.json()) as {
+              ok: boolean;
+              result?: { accepted: boolean };
+            };
+            expect(rpcBody).toMatchObject({ ok: true, result: { accepted: true } });
+
+            // The stubbed watcher never observed the real write above (it is not wired to the
+            // fixture's real chokidar instance); this emits the same category a real watcher
+            // would raise for the target locale file that was just written, so the SSE payload
+            // itself, the thing this test is checking, is exercised through the real broadcast
+            // path.
+            harness.emit(1);
+            const frames = await readFrames(reader, 1);
+            const combined = frames.join("\n");
+            expect(combined).toContain("event: refresh");
+            expect(combined).not.toContain(sentinel);
+          } finally {
+            await reader.cancel();
+            controller.abort();
+          }
+        },
+        {
+          token: TOKEN,
+          cwd: project.root,
+          loader: fixtureLoader(project),
+          createWatcher: harness.createWatcher,
+          spend: true,
+          writeToDisk: true,
+          createProvider: stubCreateProvider,
+        },
+      );
+    } finally {
+      await project.cleanup();
     }
   }, 5000);
 });
