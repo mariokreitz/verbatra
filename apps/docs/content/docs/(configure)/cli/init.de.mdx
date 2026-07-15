@@ -2,7 +2,7 @@
 title: verbatra init
 description: Erstellt das Grundgerüst einer verbatra-Konfiguration und einer .env-Beispieldatei für dein Projekt.
 ---
-Erstellt eine `verbatra.config.ts` und eine `.env.example` und fügt `.env` und `.env.local` zu deiner `.gitignore` hinzu, damit ein echter Schlüssel niemals in einem Commit landet. Mit einem angeschlossenen Terminal und ohne `--yes` fragt `init` nach den Werten, für die es keine Standardwerte hat; andernfalls läuft es nicht-interaktiv und verwendet die Standardwerte.
+Erstellt eine `verbatra.config.ts` und eine `.env.example` und fügt `.env`, `.env.local` und `.verbatra-local/` zu deiner `.gitignore` hinzu, damit ein echter Schlüssel niemals in einem Commit landet und die lokalen Laufdaten, die `translate` und `watch` dort ablegen (zum Beispiel `run-status.json`), ebenfalls draußen bleiben. Mit einem angeschlossenen Terminal und ohne `--yes` fragt `init` nach den Werten, für die es keine Standardwerte hat; andernfalls läuft es nicht-interaktiv und verwendet die Standardwerte.
 
 Startest du ein kleines Projekt? Gemini hat eine kostenlose Stufe, daher ist es ein guter Standard für das Grundgerüst:
 
