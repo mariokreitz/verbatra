@@ -177,7 +177,12 @@ export interface ProjectWatcherDeps {
 export interface ProjectWatcher {
   /** Registers a listener invoked once per debounced, coalesced refresh event. */
   onRefresh(listener: (event: RefreshEvent) => void): void;
-  /** Stops every underlying watcher and clears any pending debounce timer. */
+  /**
+   * Stops every underlying watcher and clears any pending debounce timer. Does not await an
+   * in-flight settle: a delta still resolving after this returns will emit into whatever listener
+   * is still registered, so the caller must detach or close its own downstream sink (for example
+   * an SSE hub) first if a post-close emit must be a guaranteed no-op.
+   */
   close(): Promise<void>;
 }
 
