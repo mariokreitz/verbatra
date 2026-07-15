@@ -1,9 +1,10 @@
 import type { ChangeEvent, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DiffLocale } from "../../client/diff-view.js";
 import { isFullyInSync } from "../../client/diff-view.js";
 import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
+import { buildReviewReportMarkdown } from "../../client/review-report.js";
 import type { StructuredError } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
@@ -24,6 +25,47 @@ type DiffPanelState =
       readonly hasPendingChanges: boolean;
       readonly locales: readonly DiffLocale[];
     };
+
+/** How long the "Copied" confirmation stays visible after a successful clipboard write. */
+const COPY_CONFIRMATION_MS = 2000;
+
+/**
+ * A "copy as review report" button: it renders the panel's full, currently loaded diff data
+ * (never the on-screen filtered or capped view) as a Markdown review report and copies it to the
+ * clipboard. The confirmation is a transient label swap, not a new toast system, matching this
+ * codebase's existing preference for small, direct feedback. Clipboard access can fail (an
+ * insecure context, or a browser permission denial); there is nothing actionable to surface
+ * beyond the button simply not confirming.
+ */
+function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale[] }): ReactNode {
+  const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      if (timeoutRef.current !== undefined) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  async function handleClick(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(buildReviewReportMarkdown(locales));
+      setCopied(true);
+      timeoutRef.current = window.setTimeout(() => setCopied(false), COPY_CONFIRMATION_MS);
+    } catch {
+      // No actionable detail to show; the button simply does not confirm.
+    }
+  }
+
+  return (
+    <button type="button" className="review-report-button" onClick={() => void handleClick()}>
+      {copied ? "Copied" : "Copy as review report"}
+    </button>
+  );
+}
 
 function KeyList({
   tone,
@@ -194,11 +236,17 @@ export function DiffPanel(): ReactNode {
   };
 
   if (isFullyInSync(state.locales)) {
-    return <AllClearState />;
+    return (
+      <div>
+        <ReviewReportButton locales={state.locales} />
+        <AllClearState />
+      </div>
+    );
   }
 
   return (
     <div>
+      <ReviewReportButton locales={state.locales} />
       <p className="panel-intro">
         Overall:{" "}
         <Badge tone={state.hasPendingChanges ? "warning" : "success"}>
