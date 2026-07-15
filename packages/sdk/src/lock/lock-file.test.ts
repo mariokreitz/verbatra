@@ -2,12 +2,13 @@ import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../errors.js";
-import { type BoundedFileRead, defaultFs } from "../fs.js";
+import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
 import { makeFakeFs, makeTempDir, readTextFile } from "../test-support.js";
 import {
   baselineFor,
   lockFilePath,
   readLockFile,
+  updateLockFileLocale,
   updateLockLocale,
   writeLockFile,
 } from "./lock-file.js";
@@ -147,5 +148,138 @@ describe("lock-file", () => {
 
     const reread = await readLockFile(path, defaultFs);
     expect(reread.locales.de).toEqual({ a: "1" });
+  });
+});
+
+/** A raw lock-file JSON string for the given per-locale entries, matching writeLockFile's own sorted-key shape. */
+function lockFileText(locales: Readonly<Record<string, Readonly<Record<string, string>>>>): string {
+  return `${JSON.stringify({ version: 1, locales }, null, 2)}\n`;
+}
+
+/**
+ * A fake {@link SdkFs} whose `readFileBounded` returns `contents[callIndex]` (clamped to the last
+ * entry once exhausted) on each successive call, so a test can script exactly which reads see a
+ * concurrent writer's change and which do not. `writeFile` records every write it receives.
+ */
+function scriptedReadFs(contents: readonly (string | undefined)[]): {
+  readonly fs: SdkFs;
+  readonly writes: string[];
+} {
+  const writes: string[] = [];
+  let call = 0;
+  const fs: SdkFs = {
+    fileExists: async () => true,
+    readFileBounded: async (): Promise<BoundedFileRead> => {
+      const index = Math.min(call, contents.length - 1);
+      call += 1;
+      const content = contents[index];
+      return content === undefined ? { kind: "missing" } : { kind: "ok", content };
+    },
+    readBytesBounded: async () => ({ kind: "missing" }),
+    writeFile: async (_path: string, data: string): Promise<void> => {
+      writes.push(data);
+    },
+    writeBytes: async () => {},
+  };
+  return { fs, writes };
+}
+
+describe("updateLockFileLocale: replace mode", () => {
+  it("replaces the locale's entire entries record, leaving other locales untouched", async () => {
+    const dir = await makeTempDir();
+    const path = lockFilePath(dir);
+    await writeLockFile(
+      path,
+      { version: 1, locales: { de: { old: "h1" }, fr: { keep: "h2" } } },
+      defaultFs,
+    );
+
+    const result = await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: { fresh: "h3" },
+    });
+
+    expect(result.locales.de).toEqual({ fresh: "h3" });
+    expect(result.locales.fr).toEqual({ keep: "h2" });
+  });
+});
+
+describe("updateLockFileLocale: merge mode", () => {
+  it("overlays only the given keys, leaving every other key in the locale untouched", async () => {
+    const dir = await makeTempDir();
+    const path = lockFilePath(dir);
+    await writeLockFile(path, { version: 1, locales: { de: { a: "h1", b: "h2" } } }, defaultFs);
+
+    const result = await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "merge",
+      entries: { a: "h1-new" },
+    });
+
+    expect(result.locales.de).toEqual({ a: "h1-new", b: "h2" });
+  });
+
+  it("two concurrent single-key merges against the same locale both survive (criterion 12, test 2)", async () => {
+    // Call A reads the lock (empty), computes its own key's entry, and is about to write. Before it
+    // does, call B runs to completion (read, compute, write), landing its own key. Call A's own
+    // freshness check then sees content different from what it first read, retries, re-reads B's
+    // already-written state, and merges its key on top without discarding B's.
+    const dir = await makeTempDir();
+    const path = lockFilePath(dir);
+    await writeLockFile(path, { version: 1, locales: {} }, defaultFs);
+
+    const callAFs = scriptedReadFs([
+      lockFileText({}), // call A's "before" read: nothing yet
+      lockFileText({ de: { keyB: "hB" } }), // call A's "after" check: call B already landed
+      lockFileText({ de: { keyB: "hB" } }), // call A's retry "before" read: sees call B's write
+      lockFileText({ de: { keyB: "hB" } }), // call A's retry "after" check: unchanged, proceed
+    ]);
+    const resultA = await updateLockFileLocale(dir, callAFs.fs, "de", {
+      mode: "merge",
+      entries: { keyA: "hA" },
+    });
+
+    expect(resultA.locales.de).toEqual({ keyA: "hA", keyB: "hB" });
+    expect(callAFs.writes).toHaveLength(1);
+  });
+
+  it("retries the whole read-apply-check step (not a partial write) when the file changes mid-attempt", async () => {
+    const scripted = scriptedReadFs([
+      lockFileText({}),
+      lockFileText({ de: { other: "landed" } }), // changed between the two reads of attempt 1
+      lockFileText({ de: { other: "landed" } }), // attempt 2's fresh read
+      lockFileText({ de: { other: "landed" } }), // attempt 2's freshness check: unchanged now
+    ]);
+
+    const result = await updateLockFileLocale("/anywhere", scripted.fs, "de", {
+      mode: "merge",
+      entries: { mine: "h" },
+    });
+
+    expect(result.locales.de).toEqual({ other: "landed", mine: "h" });
+    // Only the second (successful) attempt ever calls writeFile: the aborted first attempt never does.
+    expect(scripted.writes).toHaveLength(1);
+  });
+
+  it("gives up with a structured LOCK_FILE_INVALID once every retry is exhausted under persistent contention", async () => {
+    let call = 0;
+    const alwaysChangingFs: SdkFs = {
+      fileExists: async () => true,
+      readFileBounded: async (): Promise<BoundedFileRead> => {
+        call += 1;
+        // Every single read observes different content, so the before/after check inside every
+        // attempt always disagrees.
+        return { kind: "ok", content: lockFileText({ de: { spin: String(call) } }) };
+      },
+      readBytesBounded: async () => ({ kind: "missing" }),
+      writeFile: async () => {},
+      writeBytes: async () => {},
+    };
+
+    await expect(
+      updateLockFileLocale("/anywhere", alwaysChangingFs, "de", {
+        mode: "merge",
+        entries: { mine: "h" },
+      }),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
   });
 });

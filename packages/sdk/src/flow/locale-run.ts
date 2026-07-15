@@ -22,6 +22,7 @@ import {
   checkBudgetTrip,
   foldTrackerUsage,
 } from "./budget.js";
+import { gateCandidateValue } from "./integrity-gate.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -444,7 +445,7 @@ async function runSubBatch(
     return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const entry of batch) {
-    foldEntryResult(entry, result, accepted, integrityMismatches, providerFailures);
+    foldEntryResult(entry, result, params.adapter, accepted, integrityMismatches, providerFailures);
   }
   if (result.reviewFlags !== undefined) {
     for (const [key, flag] of result.reviewFlags) {
@@ -454,10 +455,16 @@ async function runSubBatch(
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/** Fold one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. */
+/**
+ * Fold one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. The
+ * accept/reject decision is recomputed directly from the candidate value via the shared
+ * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report: this is
+ * the same accept/reject choke point workbook import and the future write-capable seams call.
+ */
 function foldEntryResult(
   entry: TranslationEntry,
   result: TranslateResult,
+  adapter: FormatAdapter,
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
   providerFailures: string[],
@@ -467,7 +474,7 @@ function foldEntryResult(
     providerFailures.push(entry.key);
     return;
   }
-  if (result.integrity.get(entry.key)?.matches === true) {
+  if (gateCandidateValue(entry, value, adapter).accepted) {
     accepted.set(entry.key, { value, source: entry });
   } else {
     integrityMismatches.push(entry.key);

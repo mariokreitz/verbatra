@@ -526,6 +526,61 @@ describe("runLocale: ICU branch-aware comparePlaceholders wiring (real ai-provid
   });
 });
 
+describe("runLocale: gateCandidateValue's validateMessage delta", () => {
+  const nextIntl = createNextIntlJsonAdapter();
+
+  it("withholds a candidate that passes placeholder comparison but fails ICU syntax validation", async () => {
+    // Plain-text source (no ICU syntax at all): the placeholder-comparison fallback trivially
+    // matches on both sides being empty. Before this refactor, ai-providers' checkBatchIntegrity
+    // only ran comparePlaceholders, so this candidate was accepted despite its unbalanced brace;
+    // gateCandidateValue's added validateMessage call now withholds it.
+    const { dir, sourceResource } = await setupWithAdapter(nextIntl, { greeting: "Hello world" });
+    const provider = anthropicStubProvider([{ key: "greeting", value: "Hallo {name" }]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider, adapter: nextIntl, format: "next-intl-json" },
+    );
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toEqual([]);
+    expect(summary.integrityMismatches).toEqual(["greeting"]);
+    expect(lockEntries.greeting).toBeUndefined(); // withheld, keeps its prior baseline and retries
+  });
+
+  it("keeps the placeholder dimension unchanged: a well-formed ICU candidate is still accepted or withheld purely on its placeholders", async () => {
+    const { dir, sourceResource } = await setupWithAdapter(nextIntl, {
+      dropped: "{count, plural, one {# by {author}} other {# by {author}}}",
+      matching: "{count, plural, one {One} other {# items}}",
+    });
+    const provider = anthropicStubProvider([
+      // Well-formed ICU, but drops a placeholder from one branch: still a placeholder rejection.
+      { key: "dropped", value: "{count, plural, one {# by {author}} other {#}}" },
+      // Well-formed ICU with matching placeholders: still accepted.
+      { key: "matching", value: "{count, plural, one {Eins} other {# Elemente}}" },
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider, adapter: nextIntl, format: "next-intl-json" },
+    );
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.integrityMismatches).toEqual(["dropped"]);
+    expect(summary.translated).toEqual(["matching"]);
+  });
+
+  it("keeps the non-ICU placeholder dimension unchanged: validateMessage is unconditionally true and never withholds", async () => {
+    const { dir, sourceResource } = await setup({ a: "Hello {{name}}" });
+    const stub = makeStubProvider({ failIntegrity: new Set(["a"]) });
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
+
+    const { summary } = await runLocale(params);
+
+    expect(summary.integrityMismatches).toEqual(["a"]);
+  });
+});
+
 describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () => {
   it("folds reviewFlags into needsReview, sorted by key", async () => {
     const { dir, sourceResource } = await setup({ b: "Hello there", a: "Good day" });

@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 import { SdkError } from "../errors.js";
-import type { SdkFs } from "../fs.js";
+import type { BoundedFileRead, SdkFs } from "../fs.js";
 import type { LockEntries, LockFile } from "./types.js";
 
 /** The committed lock-file name, chosen to be obviously JSON and to not match a `*.lock` ignore rule. */
@@ -13,6 +13,9 @@ const EMPTY_LOCK: LockFile = { version: CURRENT_VERSION, locales: {} };
 /** Size cap for the lock-file read: it is committed and tamperable, so the read is bounded. */
 const MAX_LOCK_FILE_BYTES = 16 * 1024 * 1024;
 
+/** How many times {@link updateLockFileLocale} retries its read-modify-write step on a detected conflict. */
+const LOCK_WRITE_MAX_ATTEMPTS = 5;
+
 const lockFileSchema = z.object({
   version: z.number().int().positive(),
   locales: z.record(z.string(), z.record(z.string(), z.string())),
@@ -23,12 +26,13 @@ export function lockFilePath(cwd: string): string {
 }
 
 /**
- * Read the lock-file. A missing file degrades to an empty lock (first-run); a corrupt file or a
- * `version` other than {@link CURRENT_VERSION} is a structured error so it is never silently
- * overwritten or misinterpreted under the wrong version's semantics.
+ * Parse a bounded read of the lock-file's raw content into a {@link LockFile}. A missing file
+ * degrades to an empty lock (first-run); an oversized, unparseable, structurally invalid, or
+ * wrong-version file is a structured `LOCK_FILE_INVALID` error so it is never silently
+ * overwritten or misinterpreted under the wrong version's semantics. Shared by {@link readLockFile}
+ * and {@link updateLockFileLocale}'s own re-reads, so both apply exactly the same validation.
  */
-export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
-  const read = await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES);
+function parseLockFileRead(read: BoundedFileRead, path: string): LockFile {
   if (read.kind === "missing") {
     return EMPTY_LOCK;
   }
@@ -63,6 +67,15 @@ export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
   return result.data;
 }
 
+/**
+ * Read the lock-file. A missing file degrades to an empty lock (first-run); a corrupt file or a
+ * `version` other than {@link CURRENT_VERSION} is a structured error so it is never silently
+ * overwritten or misinterpreted under the wrong version's semantics.
+ */
+export async function readLockFile(path: string, fs: SdkFs): Promise<LockFile> {
+  return parseLockFileRead(await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES), path);
+}
+
 /** The recorded baseline for one locale, as the map core's diff expects. */
 export function baselineFor(lock: LockFile, locale: string): ReadonlyMap<string, string> {
   return new Map(Object.entries(lock.locales[locale] ?? {}));
@@ -85,11 +98,97 @@ function sortRecord(record: Readonly<Record<string, string>>): Record<string, st
 }
 
 /** Serialize the lock-file deterministically (sorted keys) for human-readable diffs. */
-export async function writeLockFile(path: string, lock: LockFile, fs: SdkFs): Promise<void> {
+function serializeLockFile(lock: LockFile): string {
   const locales: Record<string, Record<string, string>> = {};
   for (const [locale, entries] of Object.entries(lock.locales).sort(byKey)) {
     locales[locale] = sortRecord(entries);
   }
   const ordered = { version: lock.version, locales };
-  await fs.writeFile(path, `${JSON.stringify(ordered, null, 2)}\n`);
+  return `${JSON.stringify(ordered, null, 2)}\n`;
+}
+
+/** Serialize and write the lock-file deterministically (sorted keys) for human-readable diffs. */
+export async function writeLockFile(path: string, lock: LockFile, fs: SdkFs): Promise<void> {
+  await fs.writeFile(path, serializeLockFile(lock));
+}
+
+/**
+ * How {@link updateLockFileLocale} folds its caller's computed entries into one locale's current
+ * on-disk entries: `"replace"` discards every existing key for that locale in favor of the given
+ * entries (translate()'s and workbook import's own full per-locale recompute, each run's
+ * authoritative result for every key it processed); `"merge"` overlays only the given keys onto
+ * whatever is currently recorded, leaving every other key untouched (a single-key patch, as
+ * `retranslateEntry` makes).
+ */
+export type LockLocalePatch =
+  | { readonly mode: "replace"; readonly entries: LockEntries }
+  | { readonly mode: "merge"; readonly entries: LockEntries };
+
+function applyLockLocalePatch(
+  currentEntries: LockEntries | undefined,
+  patch: LockLocalePatch,
+): LockEntries {
+  if (patch.mode === "replace") {
+    return patch.entries;
+  }
+  return { ...currentEntries, ...patch.entries };
+}
+
+/** Whether two bounded reads of the same path observed the same content (both missing, or equal bytes). */
+function sameRawRead(a: BoundedFileRead, b: BoundedFileRead): boolean {
+  if (a.kind === "ok" && b.kind === "ok") {
+    return a.content === b.content;
+  }
+  return a.kind === b.kind;
+}
+
+/**
+ * Read-modify-write the lock-file's entries for exactly one locale, guarding the read-modify-write
+ * step against a concurrent writer racing the same file (another CLI `translate`/`watch` run, a
+ * workbook import, or a second Studio write): immediately before writing, the file is re-read and
+ * compared against the content this call itself read at the start of the attempt; a mismatch means
+ * another writer landed in between, so the whole read-apply-check step retries from a fresh read
+ * rather than blindly overwriting whatever is now on disk. This narrows, but does not fully
+ * eliminate, the write-race window (there remains a brief gap between the final freshness check and
+ * the write itself); an OS-level advisory lock was not used here to avoid widening the injectable
+ * {@link SdkFs} surface for a mechanism the architecture decision left open at ticket-scoping time.
+ *
+ * @param cwd - Directory the lock-file resolves against.
+ * @param fs - The file system seam.
+ * @param locale - The locale whose entries this call updates.
+ * @param patch - How to fold the caller's computed entries into the locale's current entries; see
+ *   {@link LockLocalePatch}.
+ * @param maxAttempts - How many times to retry on a detected conflict before giving up.
+ * @returns The lock-file as written.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, at an
+ *   unsupported version, or (in the rare case of persistent contention) still conflicting after
+ *   every retry was exhausted.
+ */
+export async function updateLockFileLocale(
+  cwd: string,
+  fs: SdkFs,
+  locale: string,
+  patch: LockLocalePatch,
+  maxAttempts: number = LOCK_WRITE_MAX_ATTEMPTS,
+): Promise<LockFile> {
+  const path = lockFilePath(cwd);
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const before = await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES);
+    const lock = parseLockFileRead(before, path);
+    const nextEntries = applyLockLocalePatch(lock.locales[locale], patch);
+    const next = updateLockLocale(lock, locale, nextEntries);
+    const serialized = serializeLockFile(next);
+
+    const after = await fs.readFileBounded(path, MAX_LOCK_FILE_BYTES);
+    if (!sameRawRead(before, after)) {
+      continue;
+    }
+    await fs.writeFile(path, serialized);
+    return next;
+  }
+  throw new SdkError(
+    "LOCK_FILE_INVALID",
+    `Could not update the lock-file at ${path} for locale "${locale}" after ${maxAttempts} ` +
+      "attempts: a concurrent writer kept changing it.",
+  );
 }
