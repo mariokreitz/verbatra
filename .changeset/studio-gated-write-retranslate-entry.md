@@ -25,3 +25,20 @@ with an environment variable fallback (`VERBATRA_STUDIO_ALLOW_SPEND`,
 `VERBATRA_STUDIO_ALLOW_WRITE`); the CLI flag wins when both are given. Both default to off. These
 flags are the only way to enable Studio's new gated retranslate action; with either flag off,
 Studio remains exactly as read-only as before.
+
+`keyIntegrity`'s per-key result gains a new `icuValid: boolean` field, computed unconditionally
+and independently of the placeholder check: a target value can now be reported as placeholder-valid
+but ICU-invalid, the exact failure the gated retranslate action exists to fix. Always true for a
+non-ICU format.
+
+`translate()`/`watch()` and `importWorkbook()` now serialize their writes per target locale: each
+locale's read-translate-write step, including the provider call, holds a new real, cross-process
+advisory lock for that locale before touching its target file or lock-file entry, so a concurrent
+writer for the same locale (another CLI run, a workbook import, or a Studio `retranslateEntry`
+call) can never interleave with it and silently lose a key. A new `LOCK_CONTENDED` error code is
+thrown if a locale's lock cannot be acquired within its timeout, naming the lock file's path. This
+also removes the lock-file's previous compare-and-swap retry, which left a residual race window of
+its own; mutual exclusion is now provided entirely by the new lock. A dry run never acquires a
+lock, since it never writes anything. `SdkFs` gains two new required methods, `createExclusive` and
+`deleteFile`, backing the new lock: any custom `SdkFs` implementation passed to `deps.fs` needs
+both.

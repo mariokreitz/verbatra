@@ -21,3 +21,10 @@ affordance the server would refuse anyway, never as an authorization check.
 Internally, the RPC handler registry is now built per server instance from its resolved
 capabilities (`createRpcHandlers`) rather than a fixed module-level constant, and the write method
 is gated by a dedicated, process-scoped rate limit at the dispatch layer.
+
+`key.integrity`'s per-locale result gains a new `icuValid: boolean` field (a boolean only, never a
+message string), and the key detail drawer's integrity pill gains a new danger state, "Invalid
+message syntax", for a target value that is placeholder-valid but fails ICU message-syntax
+validation, checked before the existing neutral "no placeholders" state. This is exactly the kind
+of failure the new Retranslate action exists to fix, so it was already covered by
+`canRetranslate`'s existing `tone === "danger"` gate once the pill itself learned to render it.
