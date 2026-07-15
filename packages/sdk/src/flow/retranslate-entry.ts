@@ -100,6 +100,13 @@ function buildSingleEntryRequest(
  *   this key (`INVALID_RESPONSE`).
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, or the write-race retry
  *   was exhausted under persistent concurrent contention.
+ *
+ * Not atomic across the two writes: the target locale file is written before the lock entry is
+ * updated. If `updateLockFileLocale` then throws `LOCK_FILE_INVALID` (the rare retry-exhausted
+ * case under persistent contention), the target file already carries the new value while the lock
+ * still records the old hash, and the thrown error does not imply nothing was saved. The same
+ * ordering, and the same partial-write shape on that rare path, also exists in `translate()` and
+ * `importWorkbook()` since their shared refactor onto `updateLockFileLocale`.
  */
 export async function retranslateEntry(
   input: RetranslateEntryInput,
