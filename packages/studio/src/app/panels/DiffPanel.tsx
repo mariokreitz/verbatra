@@ -4,6 +4,7 @@ import type { DiffLocale } from "../../client/diff-view.js";
 import { isFullyInSync } from "../../client/diff-view.js";
 import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
+import type { StructuredError } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import type { DiffTone } from "../DiffBadge.js";
@@ -17,7 +18,7 @@ type DiffViewMode = "grid" | "flat";
 
 type DiffPanelState =
   | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
+  | { readonly kind: "error"; readonly error: StructuredError }
   | {
       readonly kind: "loaded";
       readonly hasPendingChanges: boolean;
@@ -167,7 +168,7 @@ export function DiffPanel(): ReactNode {
         return;
       }
       if (!response.ok) {
-        setState({ kind: "error", message: response.error.message });
+        setState({ kind: "error", error: response.error });
         return;
       }
       setState({
@@ -185,7 +186,7 @@ export function DiffPanel(): ReactNode {
     return <Loading />;
   }
   if (state.kind === "error") {
-    return <ErrorMessage message={state.message} />;
+    return <ErrorMessage error={state.error} />;
   }
 
   const onQueryChange = (event: ChangeEvent<HTMLInputElement>): void => {
