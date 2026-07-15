@@ -886,6 +886,51 @@ input {
   min-width: 0;
 }
 
+.retranslate-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: var(--space-2);
+}
+
+.retranslate-button {
+  display: inline-block;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.retranslate-button:hover:not(:disabled) {
+  background: var(--color-row-hover);
+}
+
+.retranslate-button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.retranslate-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.retranslate-status {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.retranslate-status-success {
+  color: var(--color-success);
+}
+
+.retranslate-status-error {
+  color: var(--color-danger);
+}
+
 /* Command palette */
 
 .palette-backdrop {

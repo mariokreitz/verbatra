@@ -9,9 +9,14 @@ export type KeyIntegrityState =
 
 /**
  * Fetches one key's placeholder or ICU integrity per target locale via `key.integrity`, scoped to
- * the key currently open in {@link KeyDetailDrawer}. Re-fetches whenever `key` changes.
+ * the key currently open in {@link KeyDetailDrawer}. Re-fetches whenever `key` changes, and also
+ * whenever `refreshToken` changes: a successful `retranslateEntry` call writes the target locale
+ * file and the lock, the project watcher observes that change and broadcasts the existing
+ * `refresh` SSE event exactly as it would for any other external edit, and `refreshToken` is
+ * bumped once per such event (see `App.tsx`), so the drawer's integrity view picks up the resolved
+ * state without closing and reopening.
  */
-export function useKeyIntegrity(key: string): KeyIntegrityState {
+export function useKeyIntegrity(key: string, refreshToken: number): KeyIntegrityState {
   const [state, setState] = useState<KeyIntegrityState>({ kind: "loading" });
 
   useEffect(() => {
@@ -30,7 +35,7 @@ export function useKeyIntegrity(key: string): KeyIntegrityState {
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, refreshToken]);
 
   return state;
 }
