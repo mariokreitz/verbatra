@@ -150,9 +150,15 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   const config = await options.loader();
   const projectRoot = options.cwd ?? process.cwd();
 
-  const watcher = createProjectWatcher(
+  const watcher = await createProjectWatcher(
     { config: config.config, projectRoot },
-    { createWatcher: options.createWatcher ?? defaultCreateStudioWatcher },
+    {
+      createWatcher: options.createWatcher ?? defaultCreateStudioWatcher,
+      ...(options.fs !== undefined ? { fs: options.fs } : {}),
+      ...(options.adapterRegistry !== undefined
+        ? { adapterRegistry: options.adapterRegistry }
+        : {}),
+    },
   );
   const sseHub = createSseHub(
     options.heartbeatIntervalMs !== undefined

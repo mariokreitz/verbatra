@@ -4,7 +4,10 @@
  * over all target locales; {@link watch} runs the same flow on each debounced source change;
  * {@link check} and {@link diff} report pending work without writing; {@link lockState} reports the
  * lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the lock-file
- * itself. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
+ * itself. {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a
+ * per-key content hash and compare two such snapshots, the building blocks a caller like Studio's
+ * live-refresh watcher uses to report a locale file's own added, changed, and removed key counts
+ * since its last observed state. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
  * `.xlsx` workbook and {@link importWorkbook} reads a filled workbook back through the same diff, lock,
  * and integrity checks. Whole-run failures
  * throw a structured, secret-free {@link SdkError}; per-locale failures, provider notices, and integrity
@@ -46,6 +49,14 @@ export {
   diff,
   type LocaleDiff,
 } from "./flow/diff.js";
+export {
+  diffLocaleSnapshots,
+  type LocaleFileSnapshot,
+  type LocaleSnapshotDelta,
+  type ReadLocaleFileSnapshotDeps,
+  type ReadLocaleFileSnapshotInput,
+  readLocaleFileSnapshot,
+} from "./flow/locale-snapshot.js";
 export {
   type LockLocaleState,
   type LockStateDeps,
