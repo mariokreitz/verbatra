@@ -40,13 +40,23 @@ Open that exact URL. The token in the query string bootstraps a session cookie f
 
 The config is resolved once, at startup, and every view for the life of that process is built from that same resolved config. If you change `verbatra.config.ts` (a new target locale, a different provider, a different file pattern), stop Studio and start it again to pick up the change. Project files are different: Studio watches your source locale file, every target locale file, and the lock file, and pushes a live refresh signal to your open browser tab the moment one of them changes on disk (rapid successive writes are debounced into a single signal). The tab re-fetches the view you're currently looking at automatically, no reload needed. If a re-fetch fails, the view keeps showing its last good data with a subtle stale indicator instead of going blank, and tries again on the next signal. A dropped connection reconnects on its own with backoff; if Studio itself shuts down, the tab shows a full-screen notice to restart it from the terminal.
 
+## Error messages
+
+When something goes wrong, for example the source locale file cannot be read, a target locale file fails to parse for its configured format, or your session has expired, Studio shows a specific, actionable description of what happened instead of one generic message. An error Studio does not specifically recognize still falls back to the same generic message as before; you never see a raw stack trace or an internal error object.
+
 ## The views
 
 - **Status**: per-locale missing, stale, and up-to-date counts, the same computation as `verbatra check`.
-- **Diff**: the exact keys that would be added, re-translated, or are orphaned per locale, the same computation as `verbatra diff`. Long key lists are capped in the view (with a "showing N of total" note) so a very large catalog stays responsive; filtering still searches the full list.
+- **Diff**: the exact keys that would be added, re-translated, or are orphaned per locale, the same computation as `verbatra diff`. Long key lists are capped in the view (with a "showing N of total" note) so a very large catalog stays responsive; filtering still searches the full list. A "Copy as review report" button turns the complete diff, including everything past the cap, into a Markdown summary on your clipboard, with a brief "Copied" confirmation, ready to paste into a pull request description or a chat message.
 - **Overview**: a redacted projection of your resolved config (source and target locales, format, file pattern, provider id, and the safe scalar options) plus your glossary terms, if any. Free-form values that could carry a pasted secret are never included.
 - **Lock drift**: whether a lock file exists, its version, and its per-locale drift against the current source and target files, without writing to it.
 - **History**: the commit history for your watched locale files, read via `git log` with a bounded commit count and no `--follow`. A project with no git repository, or with git unavailable, shows history as unavailable rather than an error. A shallow clone's truncated history is also not an error: it simply shows what the clone has.
+
+## Command palette
+
+Press Cmd+K (Ctrl+K on Windows and Linux) anywhere in Studio to open a command palette. Type to filter its list: it always offers all five views above as jump targets, plus, once the Diff view has loaded data during the current session, every key and locale combination currently shown there. Selecting a view switches to it. Selecting a key and locale switches to Diff and opens that key's detail view directly, the same view a manual click on that key opens. Press Esc, or click outside the palette, to close it and return focus to where you were.
+
+Like the rest of Studio, the palette is read-only: no entry, in any state, ever triggers a network request, a file write, or a provider call. It is pure navigation.
 
 ## Installation
 

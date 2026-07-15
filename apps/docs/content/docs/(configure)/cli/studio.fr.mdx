@@ -40,13 +40,23 @@ Ouvre exactement cette URL. Le jeton dans la chaîne de requête amorce un cooki
 
 La configuration est résolue une seule fois, au démarrage, et chaque vue, pendant toute la durée de vie de ce processus, s'appuie sur cette même configuration résolue. Si tu modifies `verbatra.config.ts` (une nouvelle locale cible, un fournisseur différent, un motif de fichier différent), arrête Studio et redémarre-le pour appliquer le changement. Les fichiers du projet, eux, sont différents : Studio surveille ton fichier de locale source, chaque fichier de locale cible et le fichier de verrouillage, et pousse un signal de rafraîchissement en direct vers ton onglet de navigateur ouvert dès que l'un d'eux change sur le disque (les écritures rapprochées successives sont regroupées en un seul signal). L'onglet recharge automatiquement la vue que tu regardes en ce moment, sans qu'il soit besoin de recharger la page. Si un rechargement échoue, la vue continue d'afficher ses dernières bonnes données avec un discret indicateur de données obsolètes plutôt que de s'effacer, et réessaie au signal suivant. Une connexion coupée se reconnecte d'elle-même avec un délai croissant ; si Studio lui-même s'arrête, l'onglet affiche un avis plein écran invitant à le redémarrer depuis le terminal.
 
+## Messages d'erreur
+
+Quand quelque chose ne va pas, par exemple si le fichier de locale source ne peut pas être lu, si un fichier de locale cible ne peut pas être analysé pour son format configuré, ou si ta session a expiré, Studio affiche une description précise et utile de ce qui s'est passé au lieu d'un simple message générique. Une erreur que Studio ne reconnaît pas spécifiquement continue de s'afficher avec le même message générique qu'avant ; tu ne vois jamais de trace de pile brute ni d'objet d'erreur interne.
+
 ## Les vues
 
 - **Statut** : les décomptes de clés manquantes, obsolètes et à jour par locale, le même calcul que `verbatra check`.
-- **Diff** : les clés exactes qui seraient ajoutées, retraduites ou orphelines par locale, le même calcul que `verbatra diff`. Les longues listes de clés sont plafonnées dans la vue (avec une mention "affiche N sur le total") pour qu'un très grand catalogue reste réactif ; le filtrage continue de parcourir la liste complète.
+- **Diff** : les clés exactes qui seraient ajoutées, retraduites ou orphelines par locale, le même calcul que `verbatra diff`. Les longues listes de clés sont plafonnées dans la vue (avec une mention "affiche N sur le total") pour qu'un très grand catalogue reste réactif ; le filtrage continue de parcourir la liste complète. Un bouton "Copier comme rapport de révision" transforme le diff complet, y compris tout ce qui dépasse la limite, en un résumé Markdown dans ton presse-papiers, avec une brève confirmation "Copié" - prêt à coller dans la description d'une pull request ou dans un message de chat.
 - **Aperçu** : une projection expurgée de ta configuration résolue (locales source et cible, format, motif de fichier, id du fournisseur et les options scalaires sûres) ainsi que tes termes de glossaire, s'il y en a. Les valeurs en texte libre qui pourraient contenir un secret collé ne sont jamais incluses.
 - **Dérive du verrouillage** : si un fichier de verrouillage existe, sa version et sa dérive par locale par rapport aux fichiers source et cible actuels, sans y écrire.
 - **Historique** : l'historique des commits pour tes fichiers de locale surveillés, lu via `git log` avec un nombre de commits plafonné et sans `--follow`. Un projet sans dépôt git, ou avec git indisponible, affiche l'historique comme non disponible plutôt qu'une erreur. L'historique tronqué d'un clone superficiel n'est pas non plus une erreur : il affiche simplement ce que le clone possède.
+
+## Palette de commandes
+
+Appuie sur Cmd+K (Ctrl+K sous Windows et Linux) n'importe où dans Studio pour ouvrir une palette de commandes. Tape pour filtrer sa liste : elle propose toujours les cinq vues ci-dessus comme cibles de navigation, plus, dès que la vue Diff a chargé des données pendant la session en cours, chaque combinaison de clé et de locale actuellement affichée. Sélectionner une vue bascule vers elle. Sélectionner une clé et une locale bascule vers Diff et ouvre directement la vue détaillée de cette clé, la même vue qu'ouvre un clic manuel sur cette clé. Appuie sur Échap, ou clique en dehors de la palette, pour la fermer et rendre le focus à l'endroit où tu étais.
+
+Comme le reste de Studio, la palette est en lecture seule : aucune entrée, quel que soit son état, ne déclenche jamais de requête réseau, d'écriture de fichier ni d'appel à un fournisseur. C'est de la navigation pure.
 
 ## Installation
 
