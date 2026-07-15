@@ -1,7 +1,8 @@
 import { AdapterError } from "@verbatra/format-adapters";
 import { SdkError } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
-import type { RpcHandlerDeps } from "./rpc.js";
+import { createRpcRateLimiter } from "./rate-limiter.js";
+import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
 import { baseStudioConfig } from "./test-support.js";
 
@@ -114,6 +115,7 @@ describe("dispatchRpc envelope", () => {
         provider: { id: "anthropic" },
         configSource: "override",
         glossary: { source: "none" },
+        capabilities: { spend: false, writeToDisk: false },
       }),
     });
 
@@ -194,11 +196,89 @@ describe("dispatchRpc envelope", () => {
     expect(result.body).not.toContain("ENOENT");
   });
 
-  it("defaults to the production handler registry when none is injected", async () => {
-    const result = await dispatchRpc(body({ method: "project.snapshot", params: {} }), deps());
+  it("dispatches through a real capability-built registry, not only a stubbed one", async () => {
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      createRpcHandlers({ spend: false, writeToDisk: false }),
+    );
 
     expect(result.statusCode).toBe(200);
     const parsed = await parseBody(result);
     expect(parsed).toMatchObject({ ok: true });
+  });
+
+  it("answers 429 RATE_LIMITED once the limiter trips, without ever invoking the handler", async () => {
+    let calls = 0;
+    const limiter: { tryAcquire: (method: string) => boolean } = {
+      tryAcquire: () => false,
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      deps(),
+      {
+        "translation.retranslateEntry": async () => {
+          calls += 1;
+          return { accepted: true, value: "x", reviewReasons: [] };
+        },
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(429);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+    expect(calls).toBe(0);
+  });
+
+  it("does not rate-limit a method the limiter has no rule for", async () => {
+    // A real limiter with a rule only for translation.retranslateEntry: project.snapshot is
+    // untouched by any rule, so it must succeed regardless of how tight that other rule is.
+    const limiter = createRpcRateLimiter({
+      "translation.retranslateEntry": { windowMs: 1000, maxCalls: 0 },
+    });
+
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      {
+        "project.snapshot": async () => ({
+          sourceLocale: "en",
+          targetLocales: ["de"],
+          format: "i18next-json",
+          files: { pattern: "locales/{locale}.json" },
+          provider: { id: "anthropic" },
+          configSource: "override",
+          glossary: { source: "none" },
+          capabilities: { spend: false, writeToDisk: false },
+        }),
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  it("checks the rate limit only after method resolution, so an unregistered method still answers METHOD_UNKNOWN", async () => {
+    let acquireCalls = 0;
+    const limiter = {
+      tryAcquire: (): boolean => {
+        acquireCalls += 1;
+        return false;
+      },
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "status.check", params: {} }),
+      deps(),
+      {},
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(400);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+    expect(acquireCalls).toBe(0);
   });
 });

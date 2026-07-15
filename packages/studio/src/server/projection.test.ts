@@ -1,9 +1,11 @@
 import type { LoadedConfig } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
+import type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { buildProjectSnapshot } from "./projection.js";
 import { baseStudioConfig } from "./test-support.js";
 
 const PROJECT_ROOT = "/home/user/project";
+const NO_CAPABILITIES: StudioCapabilities = { spend: false, writeToDisk: false };
 
 describe("buildProjectSnapshot", () => {
   it("projects only the allowlisted fields, never the raw config", () => {
@@ -13,7 +15,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot).toEqual({
       sourceLocale: "en",
@@ -23,6 +25,7 @@ describe("buildProjectSnapshot", () => {
       provider: { id: "anthropic" },
       configSource: "override",
       glossary: { source: "none" },
+      capabilities: NO_CAPABILITIES,
     });
     expect(snapshot).not.toHaveProperty("prune");
     expect(snapshot).not.toHaveProperty("maxBatchSize");
@@ -37,7 +40,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.configSource).toBe("verbatra.config.ts");
   });
@@ -49,7 +52,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.configSource).toBe("config/custom.config.ts");
   });
@@ -61,7 +64,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "inline" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.glossary).toEqual({ source: "inline" });
   });
@@ -73,7 +76,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "file", path: `${PROJECT_ROOT}/glossary.json` },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.glossary).toEqual({ source: "file", path: "glossary.json" });
   });
@@ -85,7 +88,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.tone).toBe("formal");
     expect(snapshot.prune).toBe(true);
@@ -100,7 +103,7 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.maxBatchSize).toBe(25);
     expect(snapshot.generatePlurals).toBe(true);
@@ -113,8 +116,25 @@ describe("buildProjectSnapshot", () => {
       glossary: { source: "none" },
     };
 
-    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT);
+    const snapshot = buildProjectSnapshot(loaded, PROJECT_ROOT, NO_CAPABILITIES);
 
     expect(snapshot.sourceLocale).toBe("[REDACTED]");
+  });
+
+  it("projects the given capabilities verbatim, as a read-only reflection, not a computed value", () => {
+    const loaded: LoadedConfig = {
+      config: baseStudioConfig(),
+      source: { kind: "override" },
+      glossary: { source: "none" },
+    };
+
+    const bothOn = buildProjectSnapshot(loaded, PROJECT_ROOT, { spend: true, writeToDisk: true });
+    expect(bothOn.capabilities).toEqual({ spend: true, writeToDisk: true });
+
+    const spendOnly = buildProjectSnapshot(loaded, PROJECT_ROOT, {
+      spend: true,
+      writeToDisk: false,
+    });
+    expect(spendOnly.capabilities).toEqual({ spend: true, writeToDisk: false });
   });
 });

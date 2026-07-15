@@ -3,9 +3,10 @@ import { BODY_CAP_BYTES, PayloadTooLargeError, readBodyWithCap } from "./body-re
 import { contentTypeFor } from "./content-type.js";
 import { buildSetCookieHeader, readCookieValue } from "./cookie.js";
 import { isAllowedHost, isAllowedOrigin } from "./host-origin.js";
+import type { RpcRateLimiter } from "./rate-limiter.js";
 import { isJsonRequestContentType } from "./request-content-type.js";
 import { formatRequestLog } from "./request-log.js";
-import type { RpcHandlerDeps } from "./rpc.js";
+import type { HandlersRegistry, RpcHandlerDeps } from "./rpc.js";
 import { handleRpcBody } from "./rpc-gate.js";
 import { applyNoStore, applySecurityHeaders } from "./security-headers.js";
 import type { SseHub } from "./sse.js";
@@ -30,6 +31,13 @@ export interface DispatchContext {
   readonly log: (line: string) => void;
   /** Resolved once at startup (G11); every POST /rpc call reuses this same value, never re-loading it. */
   readonly rpcDeps: RpcHandlerDeps;
+  /**
+   * The capability-gated handlers registry `createRpcHandlers` built once at startup, before
+   * `listen()`; a sibling to `rpcDeps`, never rebuilt for the life of the process.
+   */
+  readonly handlers: HandlersRegistry;
+  /** Process-scoped rate limiter applied to POST /rpc before a handler is invoked. */
+  readonly rateLimiter: RpcRateLimiter;
   /** The live-refresh SSE hub every `GET /events` connection registers with. */
   readonly sseHub: SseHub;
 }
@@ -212,7 +220,7 @@ async function handlePost(
   }
   // Method dispatch, parameter validation, and the RPC response envelope are a separate concern
   // that plugs in through handleRpcBody; this only gates transport-level access to it.
-  const result = await handleRpcBody(body, context.rpcDeps);
+  const result = await handleRpcBody(body, context.rpcDeps, context.handlers, context.rateLimiter);
   applyNoStore(response);
   response.statusCode = result.statusCode;
   response.setHeader("Content-Type", "application/json; charset=utf-8");

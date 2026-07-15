@@ -14,6 +14,11 @@ import {
 } from "./key-integrity.js";
 import { LOCK_STATE_METHOD, type LockStateResult, lockStateParamsSchema } from "./lock.js";
 import {
+  RETRANSLATE_ENTRY_METHOD,
+  type RetranslateEntryResult,
+  retranslateEntryParamsSchema,
+} from "./retranslate-entry.js";
+import {
   PROJECT_SNAPSHOT_METHOD,
   type ProjectSnapshotResult,
   projectSnapshotParamsSchema,
@@ -24,6 +29,10 @@ import {
  * method name. Everything else in this module (the method name list, the method name type, and
  * the request/result type maps) is derived from this record so the agreed methods can never drift
  * out of step with each other.
+ *
+ * `translation.retranslateEntry`'s schema is declared here unconditionally, independent of which
+ * capability flags a given server instance was started with: contract shape is static and shared,
+ * only the handler registry (see `server/rpc.ts`'s `createRpcHandlers`) is capability-built.
  */
 export const rpcParamsSchemas = {
   [PROJECT_SNAPSHOT_METHOD]: projectSnapshotParamsSchema,
@@ -33,6 +42,7 @@ export const rpcParamsSchemas = {
   [LOCK_STATE_METHOD]: lockStateParamsSchema,
   [HISTORY_LIST_METHOD]: historyListParamsSchema,
   [KEY_INTEGRITY_METHOD]: keyIntegrityParamsSchema,
+  [RETRANSLATE_ENTRY_METHOD]: retranslateEntryParamsSchema,
 } as const;
 
 /** The exact set of agreed RPC methods, derived from {@link rpcParamsSchemas}. */
@@ -50,6 +60,7 @@ export interface RpcResultMap {
   readonly [LOCK_STATE_METHOD]: LockStateResult;
   readonly [HISTORY_LIST_METHOD]: HistoryListResult;
   readonly [KEY_INTEGRITY_METHOD]: KeyIntegrityResult;
+  readonly [RETRANSLATE_ENTRY_METHOD]: RetranslateEntryResult;
 }
 
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;

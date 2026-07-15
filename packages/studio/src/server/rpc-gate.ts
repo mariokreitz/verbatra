@@ -1,7 +1,8 @@
 import type { z } from "zod";
 import { RPC_METHOD_NAMES, type RpcMethodName, rpcParamsSchemas } from "../shared/rpc/contract.js";
+import type { RpcRateLimiter } from "./rate-limiter.js";
 import { redact } from "./redaction.js";
-import { type RpcHandler, type RpcHandlerDeps, rpcHandlers } from "./rpc.js";
+import type { HandlersRegistry, RpcHandlerDeps } from "./rpc.js";
 
 /** The transport-level result of a POST /rpc call: a status and a body ready to write as-is. */
 export interface RpcResult {
@@ -9,11 +10,10 @@ export interface RpcResult {
   readonly body: string;
 }
 
-type HandlersRegistry = { readonly [M in RpcMethodName]?: RpcHandler<M> };
-
 const REQUEST_INVALID_MESSAGE = "The request body must be JSON shaped as { method, params }.";
 const METHOD_UNKNOWN_MESSAGE = "The requested method is not recognized.";
 const PARAMS_INVALID_MESSAGE = "The request parameters failed validation.";
+const RATE_LIMITED_MESSAGE = "Too many calls to this method; wait before retrying.";
 const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred.";
 
 /** One failing zod issue, carrying only its path and code: never a message or a received value (G9). */
@@ -75,22 +75,32 @@ function errorEnvelope(
   return jsonEnvelope(statusCode, { ok: false, error });
 }
 
-/** The minimal shape of an SdkError or an AdapterError: a `name` and a string `code`. */
+/** The minimal shape of an SdkError, an AdapterError, or a ProviderError: a `name` and a string `code`. */
 interface DomainError {
   readonly code: string;
   readonly message: string;
 }
 
 /**
- * Structurally detects an SdkError (`@verbatra/sdk`) or an AdapterError (`@verbatra/format-adapters`)
- * without importing either class: studio must never depend on ai-providers, format-adapters, or
- * exchange (dependency direction). Both classes fix `name` to their class name and carry a string
- * `code`; that is exactly what is checked here, so the check stays correct without the import.
+ * Structurally detects an SdkError (`@verbatra/sdk`), an AdapterError (`@verbatra/format-adapters`),
+ * or a ProviderError (`@verbatra/ai-providers`) without importing any of the three: studio must
+ * never depend on ai-providers, format-adapters, or exchange (dependency direction). All three
+ * classes fix `name` to their class name and carry a string `code`; that is exactly what is
+ * checked here, so the check stays correct without the import.
+ *
+ * ProviderError joins this check because `translation.retranslateEntry` is the first Studio RPC
+ * method that can reach a provider call at all: the underlying provider throws a ProviderError on
+ * a failure (an invalid or missing key, a rate limit, a malformed response), and that class is
+ * already secret-free by construction (see its own redaction guarantee), so routing it through the
+ * same structured-error and redaction backstop as SdkError and AdapterError is correct, not a new
+ * bypass.
  */
 function isDomainError(error: unknown): error is DomainError {
   return (
     error instanceof Error &&
-    (error.name === "SdkError" || error.name === "AdapterError") &&
+    (error.name === "SdkError" ||
+      error.name === "AdapterError" ||
+      error.name === "ProviderError") &&
     typeof (error as { code?: unknown }).code === "string"
   );
 }
@@ -116,6 +126,7 @@ async function invokeHandler(
   params: unknown,
   deps: RpcHandlerDeps,
   handlers: HandlersRegistry,
+  rateLimiter: RpcRateLimiter | undefined,
 ): Promise<RpcResult> {
   const schema = rpcParamsSchemas[method];
   const parsedParams = schema.safeParse(params);
@@ -131,6 +142,12 @@ async function invokeHandler(
   if (handler === undefined) {
     return errorEnvelope(400, "METHOD_UNKNOWN", METHOD_UNKNOWN_MESSAGE);
   }
+  // The rate-limit check runs after method resolution (a disabled write method already answered
+  // METHOD_UNKNOWN above, so there is nothing to limit) but before the handler is ever invoked: a
+  // rate-limited call never reaches the sdk seam, the provider, or disk.
+  if (rateLimiter?.tryAcquire(method) === false) {
+    return errorEnvelope(429, "RATE_LIMITED", RATE_LIMITED_MESSAGE);
+  }
   try {
     // Sound at runtime only: `handler` and `parsedParams.data` are both looked up by the same
     // `method` key, so the params a schema produced always match what its own handler expects.
@@ -145,15 +162,19 @@ async function invokeHandler(
 
 /**
  * The complete POST /rpc envelope (G8): parses and shape-checks the body, resolves the method
- * against the shared contract, validates its parameters, dispatches to the matching handler, and
- * maps every outcome, a success, a domain error, or an unexpected throw, to the fixed response
- * envelope. `handlers` defaults to the production registry; tests inject a stub registry to
- * exercise every envelope row without needing a real handler for every method.
+ * against the shared contract, validates its parameters, applies the per-method rate limit,
+ * dispatches to the matching handler, and maps every outcome, a success, a domain error, or an
+ * unexpected throw, to the fixed response envelope. `handlers` is the capability-gated registry
+ * `createRpcHandlers` built at startup (see `rpc.ts`); there is no module-level default, so an
+ * absent handler for a disabled write method degrades to `METHOD_UNKNOWN` exactly like any other
+ * unregistered method. `rateLimiter` is optional so tests exercising envelope rows other than
+ * `RATE_LIMITED` do not need to construct one.
  */
 export async function dispatchRpc(
   body: Buffer,
   deps: RpcHandlerDeps,
-  handlers: HandlersRegistry = rpcHandlers,
+  handlers: HandlersRegistry,
+  rateLimiter?: RpcRateLimiter,
 ): Promise<RpcResult> {
   const request = parseRequestShape(body);
   if (request === undefined) {
@@ -162,13 +183,18 @@ export async function dispatchRpc(
   if (!isKnownMethod(request.method)) {
     return errorEnvelope(400, "METHOD_UNKNOWN", METHOD_UNKNOWN_MESSAGE);
   }
-  return invokeHandler(request.method, request.params, deps, handlers);
+  return invokeHandler(request.method, request.params, deps, handlers, rateLimiter);
 }
 
 /**
  * Transport-level extension point for POST /rpc. A request reaches this function only after
  * passing the host, origin, authentication, content-type, and body-size gate.
  */
-export function handleRpcBody(body: Buffer, deps: RpcHandlerDeps): Promise<RpcResult> {
-  return dispatchRpc(body, deps);
+export function handleRpcBody(
+  body: Buffer,
+  deps: RpcHandlerDeps,
+  handlers: HandlersRegistry,
+  rateLimiter?: RpcRateLimiter,
+): Promise<RpcResult> {
+  return dispatchRpc(body, deps, handlers, rateLimiter);
 }

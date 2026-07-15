@@ -32,6 +32,12 @@ function collectSourceFiles(root: string): string[] {
 }
 
 describe("static proof: no write-capable sdk call is ever referenced", () => {
+  // This grep scans for the literal call-shaped substrings of the four sdk functions Phase 1
+  // never imported at all (translate, watch, importWorkbook, exportWorkbook); it does not, and by
+  // its own literal pattern list cannot, cover retranslateEntry (a fifth, later, capability-gated
+  // write seam with a different name). That seam's own reachability is proved separately by
+  // "capability-gated proof" below and by server/rpc.test.ts's createRpcHandlers tests; this proof
+  // still holds unconditionally for the four names it actually checks.
   it("never calls translate(, watch(, importWorkbook(, or exportWorkbook( anywhere in studio's own source", () => {
     // Built via concatenation so this file's own source text never contains the literal
     // call-shaped substring it searches for. Each pattern requires the call to be unqualified (not
@@ -75,6 +81,13 @@ async function hashTree(root: string): Promise<string> {
   return createHash("sha256").update(entries.join("\n")).digest("hex");
 }
 
+// Proves "no write-capable call is reachable when neither capability flag is set", not an
+// absolute, permanent, repository-wide invariant: with both flags off (the default `withServer`
+// below never sets them), translation.retranslateEntry is absent from the dispatch registry
+// (server/rpc.ts's createRpcHandlers), so driving every registered method still leaves the tree
+// untouched. This no longer holds unconditionally once a server is started with both capabilities
+// on; that flag-dependent reachability is covered separately by
+// create-studio-server.capabilities.test.ts, not by this proof.
 describe("read-only proof: the fixture project's file tree is untouched", () => {
   it("hashes identically before and after driving every registered method through the server", async () => {
     const project = await makeFixtureProject();
@@ -115,5 +128,20 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
     } finally {
       await project.cleanup();
     }
+  });
+});
+
+describe("static proof: the retranslateEntry handler never reads a provider's environment directly", () => {
+  it("never references process.env, the PROVIDER_ENV table, or a raw provider construction call", () => {
+    const path = join(SRC_ROOT, "server", "methods", "retranslate-entry.ts");
+    const content = readFileSync(path, "utf8");
+
+    expect(content).not.toContain("process.env");
+    expect(content).not.toContain("PROVIDER_ENV");
+    // The handler reaches a provider only by delegating to the sdk's retranslateEntry seam, which
+    // itself is proved (packages/sdk's own retranslate-entry.no-direct-env.test.ts) to reach a
+    // provider only through selectProvider; this handler never constructs one itself.
+    expect(content).not.toMatch(/(?<![.\w])buildProvider\(/);
+    expect(content).not.toMatch(/(?<![.\w])selectProvider\(/);
   });
 });

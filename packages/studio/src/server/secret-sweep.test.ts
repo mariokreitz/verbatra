@@ -1,7 +1,14 @@
+import type { CreateProvider } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { RpcHandlerDeps } from "./rpc.js";
+import { createRpcRateLimiter } from "./rate-limiter.js";
+import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
-import { baseStudioConfig } from "./test-support.js";
+import { baseStudioConfig, type FixtureProject, makeFixtureProject } from "./test-support.js";
+
+/** The seven read-only handlers, matching the module-level default before capability-gating. */
+const readOnlyHandlers = createRpcHandlers({ spend: false, writeToDisk: false });
+/** The full registry with translation.retranslateEntry also registered. */
+const writeCapableHandlers = createRpcHandlers({ spend: true, writeToDisk: true });
 
 const SENTINELS = {
   ANTHROPIC_API_KEY: "sentinel-anthropic-9f3ac1",
@@ -75,6 +82,7 @@ describe("secret sweep across every registered method and error path", () => {
     const result = await dispatchRpc(
       body({ method: "project.snapshot", params: {} }),
       depsWithSentinelConfig(),
+      readOnlyHandlers,
     );
 
     expect(result.statusCode).toBe(200);
@@ -100,6 +108,7 @@ describe("secret sweep across every registered method and error path", () => {
     const result = await dispatchRpc(
       body({ method: "status.check", params: {} }),
       depsWithSentinelConfig(),
+      readOnlyHandlers,
     );
 
     assertNoSentinel(result.body);
@@ -109,10 +118,12 @@ describe("secret sweep across every registered method and error path", () => {
     const unknown = await dispatchRpc(
       body({ method: `not.${SENTINELS.ANTHROPIC_API_KEY}`, params: {} }),
       depsWithSentinelConfig(),
+      readOnlyHandlers,
     );
     const invalidParams = await dispatchRpc(
       body({ method: "status.check", params: { locales: [] } }),
       depsWithSentinelConfig(),
+      readOnlyHandlers,
     );
 
     assertNoSentinel(unknown.body);
@@ -132,5 +143,154 @@ describe("secret sweep across every registered method and error path", () => {
 
     expect(result.statusCode).toBe(500);
     assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel for translation.retranslateEntry's UNKNOWN_LOCALE error path", async () => {
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "fr", key: "greeting" } }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel for translation.retranslateEntry's PROVIDER_CONSTRUCTION_FAILED error path", async () => {
+    const throwingCreateProvider: CreateProvider = () => {
+      throw new Error(`missing key near ${SENTINELS.OPENAI_API_KEY}`);
+    };
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      { ...depsWithSentinelConfig(), createProvider: throwingCreateProvider },
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel through a tripped RATE_LIMITED response", async () => {
+    const alwaysTripped = createRpcRateLimiter({
+      "translation.retranslateEntry": { windowMs: 60_000, maxCalls: 0 },
+    });
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+      alwaysTripped,
+    );
+
+    expect(result.statusCode).toBe(429);
+    assertNoSentinel(result.body);
+  });
+});
+
+describe("secret sweep: translation.retranslateEntry against a real fixture project", () => {
+  let project: FixtureProject;
+
+  beforeEach(async () => {
+    project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "Hello {{name}}" });
+  });
+
+  afterEach(async () => {
+    await project.cleanup();
+  });
+
+  function fixtureDeps(createProvider: CreateProvider): RpcHandlerDeps {
+    return {
+      config: {
+        config: project.config,
+        source: { kind: "override" },
+        glossary: { source: "none" },
+      },
+      projectRoot: project.root,
+      createProvider,
+    };
+  }
+
+  const SENTINEL_VALUE = "sentinel-fixture-provider-4c8e21";
+
+  function assertNoSentinelValue(responseBody: string): void {
+    expect(responseBody).not.toContain(SENTINEL_VALUE);
+  }
+
+  it("never leaks a planted sentinel through the success path (the accepted translation itself is excluded by design)", async () => {
+    const provider: CreateProvider = () => ({
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: async (request) => ({
+        values: new Map(request.entries.map((entry) => [entry.key, "Hallo {{name}}"])),
+        integrity: new Map(),
+      }),
+    });
+
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      fixtureDeps(provider),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; result?: { accepted: boolean } };
+    expect(parsed).toMatchObject({ ok: true, result: { accepted: true, value: "Hallo {{name}}" } });
+    assertNoSentinelValue(result.body);
+  });
+
+  it("never leaks a planted sentinel through the rejection path (a genuine placeholder mismatch)", async () => {
+    const provider: CreateProvider = () => ({
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      // Drops the {{name}} placeholder: a genuine, non-secret rejection, distinct from the
+      // sentinel-bearing scenario this test is checking never leaks alongside it.
+      translateBatch: async () => ({
+        values: new Map([["greeting", "Hallo"]]),
+        integrity: new Map(),
+      }),
+    });
+
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      fixtureDeps(provider),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as {
+      ok: boolean;
+      result?: { accepted: boolean; reason?: string };
+    };
+    expect(parsed).toMatchObject({ ok: true, result: { accepted: false, reason: "placeholder" } });
+    assertNoSentinelValue(result.body);
+  });
+
+  it("never leaks a planted sentinel through the UNKNOWN_KEY error path", async () => {
+    const provider: CreateProvider = () => ({
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: async () => ({
+        values: new Map([["greeting", `Hallo ${SENTINEL_VALUE}`]]),
+        integrity: new Map(),
+      }),
+    });
+
+    const result = await dispatchRpc(
+      body({
+        method: "translation.retranslateEntry",
+        params: { locale: "de", key: "missing-key" },
+      }),
+      fixtureDeps(provider),
+      writeCapableHandlers,
+    );
+
+    // UNKNOWN_KEY is thrown before the provider is ever called; the sentinel-bearing stub value
+    // never had a chance to be produced, let alone returned.
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; error?: { code: string } };
+    expect(parsed).toMatchObject({ ok: false, error: { code: "UNKNOWN_KEY" } });
+    assertNoSentinelValue(result.body);
   });
 });
