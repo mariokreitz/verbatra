@@ -407,6 +407,22 @@ describe("translation.translatePending reachability across the capability table"
       { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
     );
   });
+
+  it("the params schema still rejects an unexpected key even with both capabilities off", async () => {
+    // The shared params schema is looked up and validated before the handler registry is ever
+    // consulted (rpc-gate.ts's invokeHandler), so PARAMS_INVALID for a malformed body is not
+    // itself gated on capability state, unlike the handler's own reachability above.
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending", {
+          locale: "de",
+        });
+        expect(body).toMatchObject({ ok: false, error: { code: "PARAMS_INVALID" } });
+      },
+      { token: TOKEN, loader: stubLoader() },
+    );
+  });
 });
 
 describe("translation.translatePending completes a real run end to end", () => {
