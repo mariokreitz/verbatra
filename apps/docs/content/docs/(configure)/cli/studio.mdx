@@ -2,7 +2,7 @@
 title: Verbatra Studio (verbatra studio)
 description: Start Verbatra Studio, a local translation dashboard over your project, read-only by default.
 ---
-Verbatra Studio is a local web dashboard over your verbatra project: a live view of translation status, pending changes, flagged reviews, configuration, lock-file drift, and history. By default it never calls a provider or writes a file. Start it with `--allow-write` and it also gains a write action in the needs-review queue, editing one flagged key at a time (see "Needs-review queue" below); add `--allow-spend` as well and it also gains the ability to retranslate a failing key (see "Retranslate a failing key" below). Start it with:
+Verbatra Studio is a local web dashboard over your verbatra project: a live view of translation status, pending changes, flagged reviews, configuration, lock-file drift, and history. By default it never calls a provider or writes a file. Start it with `--allow-write` and it also gains a write action in the needs-review queue, editing one flagged key at a time (see "Needs-review queue" below); add `--allow-spend` as well and it also gains the ability to retranslate a failing key and to translate every pending change across all locales at once from a live-refresh toast (see "Retranslate a failing key" and "Translate pending changes from a toast" below). Start it with:
 
 ```bash
 verbatra studio
@@ -14,7 +14,7 @@ Verbatra Studio is currently available only as a prerelease, not yet a stable re
 
 ## Local-only, and read-only by default
 
-Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. By default there is no state-changing endpoint anywhere in Studio: it never calls `translate`, never runs `watch`, and never imports or exports a workbook. Everything you see, including the needs-review queue, comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff), or from data a prior `translate`/`watch` run already persisted to disk. Pass `--allow-write` at startup and the needs-review queue gains its edit action, described in "Needs-review queue" below. Add `--allow-spend` as well and Studio also gains the retranslate action described in "Retranslate a failing key" below; leave `--allow-write` off and Studio stays exactly this read-only.
+Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. By default there is no state-changing endpoint anywhere in Studio: it never calls `translate`, never runs `watch`, and never imports or exports a workbook. Everything you see, including the needs-review queue, comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff), or from data a prior `translate`/`watch` run already persisted to disk. Pass `--allow-write` at startup and the needs-review queue gains its edit action, described in "Needs-review queue" below. Add `--allow-spend` as well and Studio also gains the retranslate action described in "Retranslate a failing key" below and the translate-pending action described in "Translate pending changes from a toast" below; leave `--allow-write` off and Studio stays exactly this read-only.
 
 ## Command reference
 
@@ -43,6 +43,20 @@ Open that exact URL. The token in the query string bootstraps a session cookie f
 ## Restart on config change
 
 The config is resolved once, at startup, and every view for the life of that process is built from that same resolved config. If you change `verbatra.config.ts` (a new target locale, a different provider, a different file pattern), stop Studio and start it again to pick up the change. Project files are different: Studio watches your source locale file, every target locale file, and the lock file, and pushes a live refresh signal to your open browser tab the moment one of them changes on disk (rapid successive writes are debounced into a single signal). The tab re-fetches the view you're currently looking at automatically, no reload needed. If a re-fetch fails, the view keeps showing its last good data with a subtle stale indicator instead of going blank, and tries again on the next signal. A dropped connection reconnects on its own with backoff; if Studio itself shuts down, the tab shows a full-screen notice to restart it from the terminal.
+
+A change that adds, changes, or removes at least one key also shows a dismissable toast summarizing what changed, for example "1 added, 3 changed"; a lock-only change, or a change with no net effect on any key, shows no toast at all. See "Translate pending changes from a toast" below for the action a source-change toast can carry.
+
+## Translate pending changes from a toast
+
+When your source locale file changes on disk, its toast (see "Restart on config change" above) can carry a "Translate pending changes across all locales" action, gated the same way as retranslating a failing key: both `--allow-spend` and `--allow-write` (or their environment variable equivalents). Leave either flag off and the toast still appears, only without that action, not merely disabled.
+
+```bash
+verbatra studio --allow-spend --allow-write
+```
+
+Clicking it makes the exact same whole-project call [`verbatra translate`](/docs/cli/translate) itself makes: every configured target locale brought current against the source, at the same provider cost. A toast for a target locale's own content change never carries this action: `translate`'s diff mostly cannot see a target file's own content changing, so the action would either do nothing or spend on unrelated drift; use the key-scoped Retranslate action instead for a bad target value.
+
+The toast reports the outcome: "Translated" on full success, "Failed for" followed by the locales that failed while others succeeded, or "Failed: ..." for anything else, for example the whole call itself failing. A second overlapping call, for example from another open tab, is refused immediately instead of left to wait, so you never trigger two whole-project runs at once.
 
 ## Error messages
 
