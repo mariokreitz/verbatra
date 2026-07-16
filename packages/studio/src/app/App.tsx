@@ -8,9 +8,10 @@ import { DiffPanel } from "./panels/DiffPanel.js";
 import { HistoryPanel } from "./panels/HistoryPanel.js";
 import { LockPanel } from "./panels/LockPanel.js";
 import { OverviewPanel } from "./panels/OverviewPanel.js";
+import { ReviewPanel } from "./panels/ReviewPanel.js";
 import { StatusPanel } from "./panels/StatusPanel.js";
 
-const TABS = ["overview", "status", "diff", "lock", "history"] as const;
+const TABS = ["overview", "status", "diff", "review", "lock", "history"] as const;
 
 type Tab = (typeof TABS)[number];
 
@@ -18,18 +19,21 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   overview: "Overview",
   status: "Status",
   diff: "Diff",
+  review: "Review",
   lock: "Lock",
   history: "History",
 };
 
 // Every panel receives refreshToken. StatusPanel reacts to it directly (through the covered
 // client/state.ts reducer); DiffPanel passes it straight through to an open KeyDetailDrawer,
-// which re-fetches its own key.integrity view on change. The remaining panels ignore the prop for
-// now, a deliberate, incremental scope choice rather than an oversight.
+// which re-fetches its own key.integrity view on change. ReviewPanel reacts to it the same way
+// StatusPanel does, re-fetching review.queue on every live-refresh event. The remaining panels
+// ignore the prop for now, a deliberate, incremental scope choice rather than an oversight.
 const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,
   diff: DiffPanel,
+  review: ReviewPanel,
   lock: LockPanel,
   history: HistoryPanel,
 };
