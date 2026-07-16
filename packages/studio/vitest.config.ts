@@ -6,7 +6,7 @@ export default createVitestConfig({
   // against the 90% gate. Two directories are deliberately left off this list, not
   // silently:
   //
-  // - src/app/** (the React SPA shell and its five panel components) has no tests and
+  // - src/app/** (the React SPA shell and its seven panel components) has no tests and
   //   is not gated this sprint. It is exercised manually and indirectly through the
   //   server-side RPC and SSE contract tests it consumes; component-level testing
   //   (render, interaction, and snapshot coverage) is real follow-up work, not part

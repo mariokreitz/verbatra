@@ -15,9 +15,10 @@ import { LockPanel } from "./panels/LockPanel.js";
 import { OverviewPanel } from "./panels/OverviewPanel.js";
 import { ReviewPanel } from "./panels/ReviewPanel.js";
 import { StatusPanel } from "./panels/StatusPanel.js";
+import { UsagePanel } from "./panels/UsagePanel.js";
 import { RefreshToast } from "./RefreshToast.js";
 
-const TABS = ["overview", "status", "diff", "review", "lock", "history"] as const;
+const TABS = ["overview", "status", "diff", "review", "usage", "lock", "history"] as const;
 
 type Tab = (typeof TABS)[number];
 
@@ -26,21 +27,24 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   status: "Status",
   diff: "Diff",
   review: "Review",
+  usage: "Usage",
   lock: "Lock",
   history: "History",
 };
 
 // Every panel receives refreshToken. StatusPanel reacts to it directly (through the covered
 // client/state.ts reducer); DiffPanel passes it straight through to an open KeyDetailDrawer,
-// which re-fetches its own key.integrity view on change. ReviewPanel reacts to it the same way
-// StatusPanel does, re-fetching review.queue on every live-refresh event. The remaining panels
-// ignore the prop for now, a deliberate, incremental scope choice rather than an oversight.
-// The refresh toast below is a second, independent reaction to the same live-refresh event.
+// which re-fetches its own key.integrity view on change. ReviewPanel and UsagePanel react to it
+// the same way StatusPanel does, re-fetching review.queue/usage.summary on every live-refresh
+// event. The remaining panels ignore the prop for now, a deliberate, incremental scope choice
+// rather than an oversight. The refresh toast below is a second, independent reaction to the
+// same live-refresh event.
 const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,
   diff: DiffPanel,
   review: ReviewPanel,
+  usage: UsagePanel,
   lock: LockPanel,
   history: HistoryPanel,
 };

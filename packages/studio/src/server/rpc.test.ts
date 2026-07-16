@@ -11,22 +11,23 @@ const READ_ONLY_METHODS = [
   "history.list",
   "key.integrity",
   "review.queue",
+  "usage.summary",
 ] as const;
 
 const WRITE_TO_DISK_ONLY_METHODS = ["translation.editEntry", "key.value"] as const;
 const SPEND_AND_WRITE_METHODS = ["translation.retranslateEntry", "translation.translatePending"];
 
 describe("the shared contract's method list", () => {
-  it("is exactly the twelve agreed methods, including the schema-only write methods", () => {
+  it("is exactly the thirteen agreed methods, including the schema-only write methods", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(
       new Set([...READ_ONLY_METHODS, ...SPEND_AND_WRITE_METHODS, ...WRITE_TO_DISK_ONLY_METHODS]),
     );
-    expect(RPC_METHOD_NAMES).toHaveLength(12);
+    expect(RPC_METHOD_NAMES).toHaveLength(13);
   });
 });
 
 describe("createRpcHandlers: capability gating", () => {
-  it("always includes exactly the eight read handlers when neither capability is set", () => {
+  it("always includes exactly the nine read handlers when neither capability is set", () => {
     const handlers = createRpcHandlers({ spend: false, writeToDisk: false });
     expect(new Set(Object.keys(handlers))).toEqual(new Set(READ_ONLY_METHODS));
     expect(Object.keys(handlers)).toHaveLength(READ_ONLY_METHODS.length);
@@ -65,5 +66,18 @@ describe("createRpcHandlers: capability gating", () => {
     const off = createRpcHandlers({ spend: false, writeToDisk: false });
     const on = createRpcHandlers({ spend: true, writeToDisk: true });
     expect(off["project.snapshot"]).toBe(on["project.snapshot"]);
+  });
+
+  it("keeps usage.summary reachable identically regardless of either capability flag", () => {
+    const neither = createRpcHandlers({ spend: false, writeToDisk: false });
+    const spendOnly = createRpcHandlers({ spend: true, writeToDisk: false });
+    const writeOnly = createRpcHandlers({ spend: false, writeToDisk: true });
+    const both = createRpcHandlers({ spend: true, writeToDisk: true });
+
+    expect(neither["usage.summary"]).toBeDefined();
+    expect(spendOnly["usage.summary"]).toBeDefined();
+    expect(writeOnly["usage.summary"]).toBeDefined();
+    expect(both["usage.summary"]).toBeDefined();
+    expect(neither["usage.summary"]).toBe(both["usage.summary"]);
   });
 });
