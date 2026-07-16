@@ -1,9 +1,11 @@
-import type { AdapterRegistry } from "@verbatra/format-adapters";
+import type { TranslationProvider } from "@verbatra/ai-providers";
+import type { AdapterRegistry, FormatAdapter, ReadResult } from "@verbatra/format-adapters";
 import {
   DEFAULT_BUDGET_BEHAVIOR,
   DEFAULT_MAX_BATCH_SIZE,
   type VerbatraConfig,
 } from "../config/schema.js";
+import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import { withLocaleWriteLock } from "../lock/locale-write-lock.js";
 import {
@@ -12,6 +14,7 @@ import {
   readLockFile,
   updateLockFileLocale,
 } from "../lock/lock-file.js";
+import type { LockFile } from "../lock/types.js";
 import {
   buildRunStatusFile,
   runStatusFilePath,
@@ -19,6 +22,7 @@ import {
 } from "../run-status/run-status-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { type CreateProvider, selectProvider } from "../selection/select-provider.js";
+import type { BudgetTracker } from "./budget.js";
 import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
@@ -134,6 +138,135 @@ async function recordRunStatus(
   }
 }
 
+/** Everything one locale's run needs that does not vary by locale or by baseline. */
+interface LocaleRunContext {
+  readonly source: ReadResult;
+  readonly adapter: FormatAdapter;
+  readonly provider: TranslationProvider | undefined;
+  readonly cwd: string;
+  readonly config: VerbatraConfig;
+  readonly prune: boolean;
+  readonly generatePlurals: boolean;
+  readonly maxBatchSize: number;
+  readonly fs: SdkFs;
+  readonly budget: BudgetTracker;
+}
+
+function buildLocaleRunParams(
+  context: LocaleRunContext,
+  targetLocale: string,
+  baseline: ReadonlyMap<string, string>,
+): LocaleRunParams {
+  return {
+    source: context.source.resource,
+    sourceInvalidIcuKeys: context.source.invalidIcuKeys,
+    baseline,
+    adapter: context.adapter,
+    provider: context.provider,
+    cwd: context.cwd,
+    filesPattern: context.config.files.pattern,
+    sourceLocale: context.config.sourceLocale,
+    targetLocale,
+    format: context.config.format,
+    glossary: context.config.glossary,
+    tone: context.config.tone,
+    prune: context.prune,
+    generatePlurals: context.generatePlurals,
+    maxBatchSize: context.maxBatchSize,
+    fs: context.fs,
+    budget: context.budget,
+  };
+}
+
+/**
+ * Dry-run path for one locale: the baseline comes from the single, pre-loop lock read `translate`
+ * takes for the whole dry run (see its own call site). A dry run never calls `adapter.write` or
+ * `updateLockFileLocale`, so there is nothing to protect and no reason to pay lock-acquire latency.
+ */
+async function runDryLocale(
+  context: LocaleRunContext,
+  targetLocale: string,
+  lock: LockFile,
+): Promise<LocaleSummary> {
+  const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
+  return (await runLocale(params)).summary;
+}
+
+/**
+ * Live (non-dry-run) path for one locale: the lock file is read fresh from disk once this
+ * locale's write lock is actually held, not from a snapshot taken before the loop started. A
+ * second concurrent `translate()` call for the same locale (another CLI process, or two
+ * overlapping Studio actions) blocks on the real lock until the first releases, then re-reads a
+ * lock file that already reflects the first call's write, so it diffs against a clean baseline
+ * instead of a stale one and never re-sends an already-translated key to the provider. See the
+ * lock-file-read relocation this function embodies: previously `translate` read the lock exactly
+ * once before this loop, which let two concurrent calls both diff against the same stale snapshot
+ * and both pay for the same provider call.
+ */
+async function runLiveLocale(
+  context: LocaleRunContext,
+  targetLocale: string,
+): Promise<LocaleSummary> {
+  return withLocaleWriteLock(context.cwd, targetLocale, context.fs, async () => {
+    const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
+    const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
+    const result = await runLocale(params);
+    await updateLockFileLocale(context.cwd, context.fs, targetLocale, {
+      mode: "replace",
+      entries: result.lockEntries,
+    });
+    return result.summary;
+  });
+}
+
+/**
+ * Runs one locale, isolating a per-locale failure as a `failed` summary instead of aborting the
+ * run. `LOCK_FILE_INVALID` is the one exception, re-thrown rather than isolated: the live path now
+ * reads the lock file inside each locale's own critical section (see `runLiveLocale`), but a
+ * corrupt lock file is a whole-project condition, the same physical file every locale shares, not
+ * a per-locale one, matching `translate()`'s own documented contract (it lists a corrupt lock-file
+ * alongside its other whole-run failures) and every read-only flow function's own `LOCK_FILE_INVALID`
+ * behavior (`check`, `diff`, `keyIntegrity`, `lockState`).
+ */
+async function runOneLocale(
+  targetLocale: string,
+  run: () => Promise<LocaleSummary>,
+): Promise<LocaleSummary> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof SdkError && error.code === "LOCK_FILE_INVALID") {
+      throw error;
+    }
+    return failureSummary(targetLocale, error);
+  }
+}
+
+async function runAllLocalesDry(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+): Promise<LocaleSummary[]> {
+  const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
+  const summaries: LocaleSummary[] = [];
+  for (const targetLocale of targetLocales) {
+    summaries.push(
+      await runOneLocale(targetLocale, () => runDryLocale(context, targetLocale, lock)),
+    );
+  }
+  return summaries;
+}
+
+async function runAllLocalesLive(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+): Promise<LocaleSummary[]> {
+  const summaries: LocaleSummary[] = [];
+  for (const targetLocale of targetLocales) {
+    summaries.push(await runOneLocale(targetLocale, () => runLiveLocale(context, targetLocale)));
+  }
+  return summaries;
+}
+
 export async function translate(
   input: TranslateInput,
   deps: TranslateDeps = {},
@@ -155,54 +288,27 @@ export async function translate(
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
   const source = await readSource(config, cwd, fs, adapter);
-  // Read once for each locale's diff baseline. Each locale's own run-and-lock-update step below
-  // holds that locale's withLocaleWriteLock for its whole critical section, so a concurrent writer
-  // (a Studio retranslateEntry call, another CLI run, or a workbook import) touching that same
-  // locale can never interleave with it; a different locale is never blocked by this one.
-  const lock = await readLockFile(lockFilePath(cwd), fs);
+  const context: LocaleRunContext = {
+    source,
+    adapter,
+    provider,
+    cwd,
+    config,
+    prune,
+    generatePlurals,
+    maxBatchSize,
+    fs,
+    budget,
+  };
 
-  const summaries: LocaleSummary[] = [];
-  for (const targetLocale of config.targetLocales) {
-    try {
-      const params: LocaleRunParams = {
-        source: source.resource,
-        sourceInvalidIcuKeys: source.invalidIcuKeys,
-        baseline: baselineFor(lock, targetLocale),
-        adapter,
-        provider,
-        cwd,
-        filesPattern: config.files.pattern,
-        sourceLocale: config.sourceLocale,
-        targetLocale,
-        format: config.format,
-        glossary: config.glossary,
-        tone: config.tone,
-        prune,
-        generatePlurals,
-        maxBatchSize,
-        fs,
-        budget,
-      };
-      let summary: LocaleSummary;
-      if (dryRun) {
-        // A dry run never calls adapter.write or updateLockFileLocale, so there is nothing to
-        // protect and no reason to pay lock-acquire latency.
-        summary = (await runLocale(params)).summary;
-      } else {
-        summary = await withLocaleWriteLock(cwd, targetLocale, fs, async () => {
-          const result = await runLocale(params);
-          await updateLockFileLocale(cwd, fs, targetLocale, {
-            mode: "replace",
-            entries: result.lockEntries,
-          });
-          return result.summary;
-        });
-      }
-      summaries.push(summary);
-    } catch (error) {
-      summaries.push(failureSummary(targetLocale, error));
-    }
-  }
+  // Dry-run reads the lock once, outside any lock, and reuses that one snapshot for every
+  // locale: a dry run never writes, so there is nothing to serialize against and no
+  // staleness-vs-a-write to protect. A live run instead re-reads the lock fresh inside each
+  // locale's own write lock (see runLiveLocale), so two concurrent live calls never both diff
+  // against the same stale pre-loop snapshot; see runLiveLocale's own doc comment for why.
+  const summaries = dryRun
+    ? await runAllLocalesDry(context, config.targetLocales)
+    : await runAllLocalesLive(context, config.targetLocales);
 
   const { succeeded, failed } = partition(summaries);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
