@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { cn } from "./lib/cn.js";
+import { pillClassName, pillGlyphClassName } from "./ui.js";
 
 /** The four visual states a status pill can carry across the dashboard's panels. */
 export type BadgeTone = "success" | "warning" | "neutral" | "danger";
@@ -6,14 +8,21 @@ export type BadgeTone = "success" | "warning" | "neutral" | "danger";
 /**
  * A glyph paired with each tone so the signal never rests on color alone: a colorblind reader (or
  * a low-color-fidelity display) still distinguishes success from danger by shape, not just hue.
- * Combined with the border-inline-start accent in styles.css, every tone carries two non-color
- * cues in addition to its color.
+ * Combined with the border-inline-start accent below, every tone carries two non-color cues in
+ * addition to its color.
  */
 const BADGE_GLYPH: Readonly<Record<BadgeTone, string>> = {
   success: "✓",
   warning: "!",
   neutral: "•",
   danger: "✕",
+};
+
+const BADGE_TONE_CLASSES: Readonly<Record<BadgeTone, string>> = {
+  success: "border-success bg-success-soft text-success",
+  warning: "border-warning bg-warning-soft text-warning",
+  neutral: "border-neutral bg-neutral-soft text-neutral",
+  danger: "border-danger bg-danger-soft text-danger",
 };
 
 /**
@@ -31,8 +40,8 @@ export function Badge({
   readonly children: ReactNode;
 }): ReactNode {
   return (
-    <span className={`badge badge-${tone}`}>
-      <span className="badge-glyph" aria-hidden="true">
+    <span className={cn(pillClassName, BADGE_TONE_CLASSES[tone])}>
+      <span className={pillGlyphClassName} aria-hidden="true">
         {BADGE_GLYPH[tone]}
       </span>
       {children}

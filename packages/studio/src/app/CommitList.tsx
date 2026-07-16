@@ -16,9 +16,12 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
     return null;
   }
   return (
-    <ul className="commit-touched-paths" aria-label="Files changed">
+    <ul className="m-0 mt-1 flex list-none flex-wrap gap-1 p-0" aria-label="Files changed">
       {paths.map((path) => (
-        <li key={path} className="commit-touched-path">
+        <li
+          key={path}
+          className="break-words rounded-md bg-neutral-soft px-2 py-0.5 text-xs text-muted-foreground"
+        >
           {path}
         </li>
       ))}
@@ -37,9 +40,9 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
  */
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   return (
-    <li className="commit-row">
+    <li className="py-2">
       <p
-        className="commit-summary"
+        className="m-0"
         ref={(element) => {
           if (element !== null) {
             renderCommitSummary(element, commit);
@@ -79,7 +82,7 @@ export function CommitList({ state, emptyClassName, emptyMessage }: CommitListPr
     return <p className={emptyClassName}>{emptyMessage}</p>;
   }
   return (
-    <ul className="commit-list">
+    <ul className="m-0 max-w-[860px] list-none divide-y divide-border p-0 font-mono text-sm">
       {state.commits.map((commit) => (
         <CommitRow commit={commit} key={commit.hash} />
       ))}

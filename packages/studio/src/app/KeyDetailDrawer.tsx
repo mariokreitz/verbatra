@@ -9,10 +9,16 @@ import { Badge } from "./Badge.js";
 import { CommitList } from "./CommitList.js";
 import { DiffBadge } from "./DiffBadge.js";
 import { RetranslateButton } from "./RetranslateButton.js";
+import { DrawerShell, Section, tableClasses } from "./ui.js";
 import { useCapabilities } from "./use-capabilities.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 import { useHistoryList } from "./use-history-list.js";
 import { useKeyIntegrity } from "./use-key-integrity.js";
+
+/** The drawer's own table treatment: unlike `ui.tsx`'s `tableClasses.table`, it does not floor at
+ * 480px, since the drawer's content column (min(420px,100%) minus padding) is narrower than that;
+ * its two columns (a short locale code and a badge) never needed the floor anyway. */
+const drawerTableClasses = { ...tableClasses, table: "w-full border-collapse text-sm" };
 
 export interface KeyDetailDrawerProps {
   /** The key this drawer reports on. */
@@ -72,15 +78,15 @@ function LocaleStatusRow({
 }): ReactNode {
   return (
     <tr dir={isRtlLocale(row.locale) ? "rtl" : undefined}>
-      <td className="mono">{row.locale}</td>
-      <td>
+      <td className={`${drawerTableClasses.td} font-mono`}>{row.locale}</td>
+      <td className={drawerTableClasses.td}>
         {row.status === "in-sync" ? (
           <Badge tone="success">In sync</Badge>
         ) : (
           <DiffBadge tone={row.status} />
         )}
       </td>
-      <td>
+      <td className={drawerTableClasses.td}>
         <IntegrityCell
           integrity={integrity}
           locale={row.locale}
@@ -139,61 +145,45 @@ export function KeyDetailDrawer({
     capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities : undefined;
 
   return (
-    <div className="drawer-backdrop">
-      <button
-        type="button"
-        className="drawer-backdrop-dismiss"
-        onClick={onClose}
-        aria-label={`Close details for ${keyName}`}
-      />
-      <div
-        className="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Details for ${keyName}`}
-        ref={containerRef}
+    <DrawerShell
+      title={keyName}
+      ariaLabel={`Details for ${keyName}`}
+      closeLabel={`Close details for ${keyName}`}
+      onClose={onClose}
+      containerRef={containerRef}
+    >
+      <Section title="Status by locale">
+        <table className={drawerTableClasses.table}>
+          <thead>
+            <tr>
+              <th className={drawerTableClasses.th}>Locale</th>
+              <th className={drawerTableClasses.th}>Status</th>
+              <th className={drawerTableClasses.th}>Integrity</th>
+            </tr>
+          </thead>
+          <tbody className={drawerTableClasses.tbody}>
+            {rows.map((row) => (
+              <LocaleStatusRow
+                row={row}
+                keyName={keyName}
+                integrity={integrityLocales}
+                capabilities={capabilities}
+                key={row.locale}
+              />
+            ))}
+          </tbody>
+        </table>
+      </Section>
+      <Section
+        title="History"
+        intro="Commit history for this project's locale files, not filtered to this key."
       >
-        <div className="drawer-header">
-          <h2 className="drawer-title mono">{keyName}</h2>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <section className="panel-section">
-          <h3>Status by locale</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Locale</th>
-                <th>Status</th>
-                <th>Integrity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <LocaleStatusRow
-                  row={row}
-                  keyName={keyName}
-                  integrity={integrityLocales}
-                  capabilities={capabilities}
-                  key={row.locale}
-                />
-              ))}
-            </tbody>
-          </table>
-        </section>
-        <section className="panel-section">
-          <h3>History</h3>
-          <p className="panel-intro">
-            Commit history for this project's locale files, not filtered to this key.
-          </p>
-          <CommitList
-            state={history}
-            emptyClassName="empty-state-inline"
-            emptyMessage="No commit history yet for the locale files."
-          />
-        </section>
-      </div>
-    </div>
+        <CommitList
+          state={history}
+          emptyClassName="text-sm text-muted-foreground"
+          emptyMessage="No commit history yet for the locale files."
+        />
+      </Section>
+    </DrawerShell>
   );
 }

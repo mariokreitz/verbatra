@@ -5,7 +5,9 @@ import type { StructuredError } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
-import { Loading } from "../Loading.js";
+import { TableSkeleton } from "../Skeleton.js";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
+import { EmptyState } from "../ui.js";
 
 type LockStateResponse = RpcCallResult<"lock.state">;
 type LockLocaleState = Extract<
@@ -34,16 +36,16 @@ function hasDrift(locale: LockLocaleState): boolean {
 function LockLocaleRow({ locale }: { readonly locale: LockLocaleState }): ReactNode {
   const drift = hasDrift(locale);
   return (
-    <tr>
-      <td className="mono">{locale.locale}</td>
-      <td>{locale.keyCount}</td>
-      <td>{locale.missing}</td>
-      <td>{locale.stale}</td>
-      <td>{locale.upToDate}</td>
-      <td>
+    <TableRow>
+      <TableCell mono>{locale.locale}</TableCell>
+      <TableCell>{locale.keyCount}</TableCell>
+      <TableCell>{locale.missing}</TableCell>
+      <TableCell>{locale.stale}</TableCell>
+      <TableCell>{locale.upToDate}</TableCell>
+      <TableCell>
         <Badge tone={drift ? "warning" : "success"}>{drift ? "Drift" : "In sync"}</Badge>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -56,24 +58,24 @@ function LockTable({
 }): ReactNode {
   return (
     <div>
-      <p className="panel-intro">Lock-file present, version {version}.</p>
-      <table className="data-table">
-        <thead>
+      <p className="mb-3 text-sm text-muted-foreground">Lock-file present, version {version}.</p>
+      <Table>
+        <TableHead>
           <tr>
-            <th>Locale</th>
-            <th>Recorded keys</th>
-            <th>Missing</th>
-            <th>Stale</th>
-            <th>Up to date</th>
-            <th>Status</th>
+            <TableHeaderCell>Locale</TableHeaderCell>
+            <TableHeaderCell>Recorded keys</TableHeaderCell>
+            <TableHeaderCell>Missing</TableHeaderCell>
+            <TableHeaderCell>Stale</TableHeaderCell>
+            <TableHeaderCell>Up to date</TableHeaderCell>
+            <TableHeaderCell>Status</TableHeaderCell>
           </tr>
-        </thead>
-        <tbody>
+        </TableHead>
+        <TableBody>
           {locales.map((locale) => (
             <LockLocaleRow key={locale.locale} locale={locale} />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -112,16 +114,21 @@ export function LockPanel(): ReactNode {
   }, []);
 
   if (state.kind === "loading") {
-    return <Loading />;
+    return (
+      <div role="status">
+        <span className="sr-only">Loading lock state…</span>
+        <TableSkeleton />
+      </div>
+    );
   }
   if (state.kind === "error") {
     return <ErrorMessage error={state.error} />;
   }
   if (state.kind === "no-lock") {
     return (
-      <p className="empty-state">
+      <EmptyState>
         No lock-file yet. It is written after the first successful translate run.
-      </p>
+      </EmptyState>
     );
   }
   return <LockTable version={state.version} locales={state.locales} />;

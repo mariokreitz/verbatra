@@ -9,9 +9,11 @@ import { reviewOverlayStore } from "../api.js";
 import { Badge } from "../Badge.js";
 import { EditEntryDialog } from "../EditEntryDialog.js";
 import { ErrorMessage } from "../ErrorMessage.js";
-import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
 import { ReviewRowActions } from "../ReviewRowActions.js";
+import { TableSkeleton } from "../Skeleton.js";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
+import { EmptyState } from "../ui.js";
 import { useCapabilities } from "../use-capabilities.js";
 import { useReviewOverlaySignal } from "../use-review-overlay-signal.js";
 import { useReviewQueue } from "../use-review-queue.js";
@@ -46,22 +48,22 @@ function ReviewRow({
   readonly onEdit: (target: EditingTarget) => void;
 }): ReactNode {
   return (
-    <tr>
-      <td className="mono">{row.locale}</td>
-      <td className="mono">{row.key}</td>
-      <td>
+    <TableRow>
+      <TableCell mono>{row.locale}</TableCell>
+      <TableCell mono>{row.key}</TableCell>
+      <TableCell>
         <ReasonChips reasons={row.reasons} />
-      </td>
+      </TableCell>
       {capabilities?.writeToDisk === true ? (
-        <td>
+        <TableCell>
           <ReviewRowActions
             onApprove={() => reviewOverlayStore.markActioned(row)}
             onReject={() => reviewOverlayStore.markActioned(row)}
             onEdit={() => onEdit({ locale: row.locale, key: row.key })}
           />
-        </td>
+        </TableCell>
       ) : null}
-    </tr>
+    </TableRow>
   );
 }
 
@@ -76,16 +78,16 @@ function ReviewTable({
 }): ReactNode {
   const showActions = capabilities?.writeToDisk === true;
   return (
-    <table className="data-table">
-      <thead>
+    <Table>
+      <TableHead>
         <tr>
-          <th>Locale</th>
-          <th>Key</th>
-          <th>Reasons</th>
-          {showActions ? <th>Actions</th> : null}
+          <TableHeaderCell>Locale</TableHeaderCell>
+          <TableHeaderCell>Key</TableHeaderCell>
+          <TableHeaderCell>Reasons</TableHeaderCell>
+          {showActions ? <TableHeaderCell>Actions</TableHeaderCell> : null}
         </tr>
-      </thead>
-      <tbody>
+      </TableHead>
+      <TableBody>
         {rows.map((row) => (
           <ReviewRow
             row={row}
@@ -94,8 +96,8 @@ function ReviewTable({
             key={`${row.locale} ${row.key}`}
           />
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
@@ -119,7 +121,12 @@ export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
   const [editing, setEditing] = useState<EditingTarget | null>(null);
 
   if (view.kind === "loading") {
-    return <Loading />;
+    return (
+      <div role="status">
+        <span className="sr-only">Loading review queue…</span>
+        <TableSkeleton />
+      </div>
+    );
   }
   if (view.kind === "error") {
     return <ErrorMessage error={view.error} />;
@@ -128,10 +135,10 @@ export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
   const data = view.data;
   if (!data.available) {
     return (
-      <p className="empty-state">
+      <EmptyState>
         No run has been recorded yet. Run <code>verbatra translate</code> or{" "}
         <code>verbatra watch</code> to populate this queue.
-      </p>
+      </EmptyState>
     );
   }
 
@@ -141,7 +148,7 @@ export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
     <div>
       {view.stale && <ErrorMessage error={view.error} prefix="Showing the last known queue." />}
       {rows.length === 0 ? (
-        <p className="empty-state">Nothing to review right now.</p>
+        <EmptyState>Nothing to review right now.</EmptyState>
       ) : (
         <ReviewTable rows={rows} capabilities={capabilities} onEdit={setEditing} />
       )}

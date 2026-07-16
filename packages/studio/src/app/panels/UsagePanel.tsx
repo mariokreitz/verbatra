@@ -5,57 +5,44 @@ import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
+import { DetailList, EmptyState, MonoValue } from "../ui.js";
 import { useUsageTicker } from "../use-usage-ticker.js";
 
-function UsageDetails({ usage }: { readonly usage: UsageDisplay }): ReactNode {
+function usageItems(usage: UsageDisplay): Array<readonly [string, ReactNode]> {
   if (usage.kind === "not-reported") {
-    return (
-      <>
-        <dt>Tokens</dt>
-        <dd>Not reported by this provider.</dd>
-      </>
-    );
+    return [["Tokens", "Not reported by this provider."]];
   }
-  return (
-    <>
-      <dt>Input tokens</dt>
-      <dd className="detail-value-mono">{usage.inputTokens}</dd>
-      <dt>Output tokens</dt>
-      <dd className="detail-value-mono">{usage.outputTokens}</dd>
-    </>
-  );
+  return [
+    ["Input tokens", <MonoValue key="input-tokens">{usage.inputTokens}</MonoValue>],
+    ["Output tokens", <MonoValue key="output-tokens">{usage.outputTokens}</MonoValue>],
+  ];
 }
 
-function BudgetDetails({ budget }: { readonly budget: BudgetDisplay }): ReactNode {
+function budgetItems(budget: BudgetDisplay): Array<readonly [string, ReactNode]> {
   if (budget.kind === "none") {
-    return null;
+    return [];
   }
   if (budget.kind === "not-tracked") {
-    return (
-      <>
-        <dt>Budget ceiling</dt>
-        <dd className="detail-value-mono">{budget.maxTokens}</dd>
-        <dt>Budget status</dt>
-        <dd>Not tracked for this provider.</dd>
-      </>
-    );
+    return [
+      ["Budget ceiling", <MonoValue key="budget-ceiling">{budget.maxTokens}</MonoValue>],
+      ["Budget status", "Not tracked for this provider."],
+    ];
   }
-  return (
-    <>
-      <dt>Budget ceiling</dt>
-      <dd className="detail-value-mono">
+  return [
+    [
+      "Budget ceiling",
+      <MonoValue key="budget-ceiling">
         {budget.tokensUsed} / {budget.maxTokens}
-      </dd>
-      <dt>Budget behavior</dt>
-      <dd className="detail-value-mono">{budget.behavior}</dd>
-      <dt>Budget status</dt>
-      <dd>
-        <Badge tone={budget.exceeded ? "danger" : "success"}>
-          {budget.exceeded ? "Ceiling reached" : "Within budget"}
-        </Badge>
-      </dd>
-    </>
-  );
+      </MonoValue>,
+    ],
+    ["Budget behavior", <MonoValue key="budget-behavior">{budget.behavior}</MonoValue>],
+    [
+      "Budget status",
+      <Badge tone={budget.exceeded ? "danger" : "success"} key="budget-status">
+        {budget.exceeded ? "Ceiling reached" : "Within budget"}
+      </Badge>,
+    ],
+  ];
 }
 
 /**
@@ -81,21 +68,20 @@ export function UsagePanel({ refreshToken }: PanelProps): ReactNode {
 
   if (state.kind === "unavailable") {
     return (
-      <p className="empty-state">
+      <EmptyState>
         No run has been recorded yet. Run <code>verbatra translate</code> or{" "}
         <code>verbatra watch</code> to populate this ticker.
-      </p>
+      </EmptyState>
     );
   }
 
   return (
     <div>
       {view.stale && <ErrorMessage error={view.error} prefix="Showing the last known usage." />}
-      <p className="panel-intro">As of {new Date(state.generatedAt).toLocaleString()}</p>
-      <dl className="detail-list">
-        <UsageDetails usage={state.usage} />
-        <BudgetDetails budget={state.budget} />
-      </dl>
+      <p className="mb-3 text-sm text-muted-foreground">
+        As of {new Date(state.generatedAt).toLocaleString()}
+      </p>
+      <DetailList items={[...usageItems(state.usage), ...budgetItems(state.budget)]} />
     </div>
   );
 }

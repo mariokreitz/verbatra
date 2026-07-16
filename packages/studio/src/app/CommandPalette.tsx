@@ -8,6 +8,7 @@ import {
   resolvePaletteSelection,
 } from "../client/command-palette.js";
 import { diffDataStore, openKeyStore } from "./api.js";
+import { OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
 export interface CommandPaletteProps {
@@ -65,15 +66,10 @@ export function CommandPalette({ tabs, onSelectTab, onClose }: CommandPalettePro
   }
 
   return (
-    <div className="palette-backdrop">
-      <button
-        type="button"
-        className="palette-backdrop-dismiss"
-        onClick={onClose}
-        aria-label="Close command palette"
-      />
+    <div className="fixed inset-0 z-30 flex justify-center pt-[12vh]">
+      <OverlayBackdrop onClose={onClose} label="Close command palette" />
       <div
-        className="palette"
+        className="relative z-10 flex max-h-[70vh] w-[min(560px,92vw)] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-panel-lg"
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
@@ -81,25 +77,27 @@ export function CommandPalette({ tabs, onSelectTab, onClose }: CommandPalettePro
       >
         <input
           type="text"
-          className="palette-input"
+          className="border-0 border-b border-border bg-transparent p-4 text-base text-foreground outline-none focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           placeholder="Jump to a tab, key, or locale"
           value={query}
           onChange={onQueryChange}
           onKeyDown={onInputKeyDown}
         />
-        <ul className="palette-results">
+        <ul className="m-0 list-none overflow-y-auto p-2">
           {results.map((command) => (
             <li key={command.id}>
               <button
                 type="button"
-                className="palette-result"
+                className="block w-full rounded-md px-3 py-2 text-start text-sm text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                 onClick={() => handleSelect(command)}
               >
                 {command.label}
               </button>
             </li>
           ))}
-          {results.length === 0 ? <li className="palette-empty">No matches.</li> : null}
+          {results.length === 0 ? (
+            <li className="px-3 py-3 text-sm text-muted-foreground">No matches.</li>
+          ) : null}
         </ul>
       </div>
     </div>

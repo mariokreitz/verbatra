@@ -4,11 +4,10 @@ import {
   deriveRetranslateOutcome,
   type RetranslateOutcome,
 } from "../client/retranslate-outcome.js";
-import {
-  settledActionStatusClassName,
-  settledActionStatusLabel,
-} from "../client/settled-action-status.js";
+import { settledActionStatusLabel } from "../client/settled-action-status.js";
 import { rpcClient } from "./api.js";
+import { Button } from "./Button.js";
+import { actionStatusTextClassName, settledOutcomeTone } from "./lib/action-status-classes.js";
 
 type ButtonState =
   | { readonly kind: "idle" }
@@ -53,19 +52,14 @@ export function RetranslateButton({
   }
 
   return (
-    <span className="retranslate-action">
-      <button
-        type="button"
-        className="retranslate-button"
-        disabled={state.kind === "loading"}
-        onClick={() => void handleClick()}
-      >
+    <span className="ms-2 inline-flex items-center gap-2">
+      <Button disabled={state.kind === "loading"} onClick={() => void handleClick()}>
         Retranslate
-      </button>
+      </Button>
       {state.kind !== "idle" ? (
         <span
-          className={settledActionStatusClassName(
-            state.kind === "settled" ? state.outcome : undefined,
+          className={actionStatusTextClassName(
+            settledOutcomeTone(state.kind === "settled" ? state.outcome : undefined),
           )}
         >
           {statusLabel(state)}

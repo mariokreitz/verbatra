@@ -2,24 +2,25 @@ import type { ReactNode } from "react";
 import type { StatusRow } from "../../client/coverage.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
-import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
+import { TableSkeleton } from "../Skeleton.js";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
 import { useStatusData } from "../use-status-data.js";
 
 function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   return (
-    <tr>
-      <td className="mono">{row.locale}</td>
-      <td>{row.percent}%</td>
-      <td>{row.missing}</td>
-      <td>{row.stale}</td>
-      <td>{row.upToDate}</td>
-      <td>
+    <TableRow>
+      <TableCell mono>{row.locale}</TableCell>
+      <TableCell>{row.percent}%</TableCell>
+      <TableCell>{row.missing}</TableCell>
+      <TableCell>{row.stale}</TableCell>
+      <TableCell>{row.upToDate}</TableCell>
+      <TableCell>
         <Badge tone={row.inSync ? "success" : "warning"}>
           {row.inSync ? "In sync" : "Out of sync"}
         </Badge>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -32,27 +33,27 @@ function StatusTable({
 }): ReactNode {
   return (
     <div>
-      <p className="panel-intro">
+      <p className="mb-3 text-sm text-muted-foreground">
         Overall status:{" "}
         <Badge tone={inSync ? "success" : "warning"}>{inSync ? "In sync" : "Out of sync"}</Badge>
       </p>
-      <table className="data-table">
-        <thead>
+      <Table>
+        <TableHead>
           <tr>
-            <th>Locale</th>
-            <th>Coverage</th>
-            <th>Missing</th>
-            <th>Stale</th>
-            <th>Up to date</th>
-            <th>In sync</th>
+            <TableHeaderCell>Locale</TableHeaderCell>
+            <TableHeaderCell>Coverage</TableHeaderCell>
+            <TableHeaderCell>Missing</TableHeaderCell>
+            <TableHeaderCell>Stale</TableHeaderCell>
+            <TableHeaderCell>Up to date</TableHeaderCell>
+            <TableHeaderCell>In sync</TableHeaderCell>
           </tr>
-        </thead>
-        <tbody>
+        </TableHead>
+        <TableBody>
           {rows.map((row) => (
             <StatusRowView key={row.locale} row={row} />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -67,7 +68,12 @@ export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
   const view = useStatusData(refreshToken);
 
   if (view.kind === "loading") {
-    return <Loading />;
+    return (
+      <div role="status">
+        <span className="sr-only">Loading status…</span>
+        <TableSkeleton />
+      </div>
+    );
   }
   if (view.kind === "error") {
     return <ErrorMessage error={view.error} />;

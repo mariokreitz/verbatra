@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Button } from "./Button.js";
 
 /**
  * Approve, Edit, and Reject for one flagged row. Approve and Reject are purely client-side
@@ -19,20 +20,12 @@ export function ReviewRowActions({
   readonly onEdit: () => void;
 }): ReactNode {
   return (
-    <span className="retranslate-action">
-      <button type="button" className="retranslate-button" onClick={onEdit}>
-        Edit
-      </button>
-      <button
-        type="button"
-        className="retranslate-button retranslate-status-success"
-        onClick={onApprove}
-      >
+    <span className="ms-2 inline-flex items-center gap-2">
+      <Button onClick={onEdit}>Edit</Button>
+      <Button className="text-success" onClick={onApprove}>
         Approve
-      </button>
-      <button type="button" className="retranslate-button" onClick={onReject}>
-        Reject
-      </button>
+      </Button>
+      <Button onClick={onReject}>Reject</Button>
     </span>
   );
 }

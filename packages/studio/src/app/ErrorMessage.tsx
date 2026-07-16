@@ -15,7 +15,10 @@ export interface ErrorMessageProps {
  */
 export function ErrorMessage({ error, prefix }: ErrorMessageProps): ReactNode {
   return (
-    <p className="error-message" role="alert">
+    <p
+      className="mb-4 flex items-center gap-2 rounded-md border-s-[3px] border-danger bg-danger-soft px-4 py-3 text-danger"
+      role="alert"
+    >
       {prefix !== undefined ? `${prefix} ` : null}
       {resolveErrorCopy(error)}
     </p>

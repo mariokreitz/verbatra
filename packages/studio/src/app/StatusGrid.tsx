@@ -9,7 +9,13 @@ import { moveGridFocus } from "../client/roving-tabindex.js";
 import type { RefreshableView } from "../client/state.js";
 import { Badge } from "./Badge.js";
 import { DiffBadge } from "./DiffBadge.js";
+import { cn } from "./lib/cn.js";
+import { EmptyState } from "./ui.js";
 import { useStatusData } from "./use-status-data.js";
+
+const gridCellClassName = "px-3 py-2 text-start whitespace-nowrap";
+const gridHeaderClassName =
+  "border-b-2 border-border px-3 py-2 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
 export interface StatusGridProps {
   /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
@@ -57,17 +63,23 @@ function CompletenessBar({
 }): ReactNode {
   if (percent === null) {
     return (
-      <span className="completeness-bar-placeholder">
+      <span className="mt-1 block text-xs font-normal text-muted-foreground">
         {unavailable ? "Coverage unavailable" : "Loading coverage"}
       </span>
     );
   }
   return (
-    <div className="completeness-bar">
-      <span className="completeness-bar-track" aria-hidden="true">
-        <span className="completeness-bar-fill" style={{ width: `${percent}%` }} />
+    <div className="mt-1 flex items-center gap-2 text-xs font-normal text-muted-foreground">
+      <span
+        className="inline-block h-1.5 w-[60px] overflow-hidden rounded-full bg-neutral-soft"
+        aria-hidden="true"
+      >
+        <span
+          className="block h-full rounded-[inherit] bg-primary"
+          style={{ width: `${percent}%` }}
+        />
       </span>
-      <span className="completeness-bar-label">{percent}% up to date</span>
+      <span className="whitespace-nowrap">{percent}% up to date</span>
     </div>
   );
 }
@@ -117,11 +129,14 @@ function GridCell({
   }
 
   return (
-    <td className="status-grid-cell" dir={isRtlLocale(localeName) ? "rtl" : undefined}>
+    <td
+      className={cn(gridCellClassName, "px-2 py-1")}
+      dir={isRtlLocale(localeName) ? "rtl" : undefined}
+    >
       <button
         type="button"
         ref={(element) => registerCell(row, col, element)}
-        className="status-grid-cell-button"
+        className="block w-full rounded-md p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
         tabIndex={isCurrent ? 0 : -1}
         onFocus={() => onFocusCell(row, col)}
         onKeyDown={handleKeyDown}
@@ -157,8 +172,14 @@ function GridBodyRow({
 }: GridBodyRowProps): ReactNode {
   const statusRows = deriveKeyLocaleStatus(locales, keyName);
   return (
-    <tr>
-      <th scope="row" className="status-grid-key-cell mono">
+    <tr className="hover:bg-accent/40">
+      <th
+        scope="row"
+        className={cn(
+          gridCellClassName,
+          "sticky start-0 bg-background text-start font-mono text-sm font-semibold text-foreground",
+        )}
+      >
         {keyName}
       </th>
       {statusRows.map((cell, col) => (
@@ -230,25 +251,25 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
   }
 
   if (keys.length === 0) {
-    return <p className="empty-state-inline">No drift-affected keys to show.</p>;
+    return <EmptyState>No drift-affected keys to show.</EmptyState>;
   }
 
   return (
-    <div className="status-grid-scroll">
-      <table className="status-grid">
+    <div className="overflow-x-auto rounded-lg border border-border">
+      <table className="w-auto border-collapse text-sm">
         <thead>
           <tr>
-            <th scope="col" className="status-grid-key-header">
+            <th scope="col" className={cn(gridHeaderClassName, "min-w-[160px]")}>
               Key
             </th>
             {locales.map((locale) => (
               <th
                 key={locale.locale}
                 scope="col"
-                className="status-grid-locale-header"
+                className={cn(gridHeaderClassName, "min-w-[140px]")}
                 dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
               >
-                <span className="mono">{locale.locale}</span>
+                <span className="font-mono">{locale.locale}</span>
                 <CompletenessBar
                   percent={percentForLocale(status, locale.locale)}
                   unavailable={status.kind === "error"}
@@ -257,7 +278,7 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-border">
           {keys.map((keyName, row) => (
             <GridBodyRow
               key={keyName}

@@ -6,6 +6,9 @@ import {
   type TranslatePendingOutcome,
 } from "../client/translate-pending-outcome.js";
 import { rpcClient } from "./api.js";
+import { Button } from "./Button.js";
+import { actionStatusTextClassName } from "./lib/action-status-classes.js";
+import { Toast } from "./Toast.js";
 import { useCapabilities } from "./use-capabilities.js";
 
 type ActionState =
@@ -30,13 +33,10 @@ function actionStatusLabel(state: ActionState): string {
 }
 
 function actionStatusClassName(state: ActionState): string {
-  if (state.kind === "settled" && state.outcome.kind === "success") {
-    return "refresh-toast-status refresh-toast-status-success";
+  if (state.kind !== "settled") {
+    return actionStatusTextClassName(undefined);
   }
-  if (state.kind === "settled" && state.outcome.kind !== "success") {
-    return "refresh-toast-status refresh-toast-status-error";
-  }
-  return "refresh-toast-status";
+  return actionStatusTextClassName(state.outcome.kind === "success" ? "success" : "failure");
 }
 
 export interface RefreshToastProps {
@@ -68,34 +68,33 @@ export function RefreshToast({ view, onDismiss }: RefreshToastProps): ReactNode 
   }
 
   return (
-    <div className="refresh-toast" role="status">
-      <div className="refresh-toast-body">
-        <span className="refresh-toast-label">{view.label}</span>
-        <span className="refresh-toast-summary">{view.summary}</span>
+    <Toast>
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold text-foreground">{view.label}</span>
+        <span className="text-sm text-muted-foreground">{view.summary}</span>
       </div>
-      <div className="refresh-toast-actions">
+      <div className="flex flex-wrap items-center gap-2">
         {showAction ? (
-          <button
-            type="button"
-            className="refresh-toast-action"
+          <Button
+            variant="primary"
             disabled={state.kind === "loading"}
             onClick={() => void handleClick()}
           >
             Translate pending changes across all locales
-          </button>
+          </Button>
         ) : null}
         {state.kind !== "idle" ? (
           <span className={actionStatusClassName(state)}>{actionStatusLabel(state)}</span>
         ) : null}
-        <button
-          type="button"
-          className="refresh-toast-dismiss"
+        <Button
+          variant="ghost"
+          className="ms-auto text-base leading-none"
           onClick={onDismiss}
           aria-label="Dismiss"
         >
           ×
-        </button>
+        </Button>
       </div>
-    </div>
+    </Toast>
   );
 }

@@ -4,8 +4,34 @@ import type { StructuredError } from "../../client/state.js";
 import type { GlossaryGetResult } from "../../shared/rpc/glossary.js";
 import type { ProjectSnapshotResult } from "../../shared/rpc/snapshot.js";
 import { rpcClient } from "../api.js";
+import { Card } from "../Card.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
+import { DetailList, EmptyState, MonoValue, Section } from "../ui.js";
+
+/** A small labeled stat card, the panel's at-a-glance row (source locale, targets, format, provider). */
+function StatCard({ label, value }: { readonly label: string; readonly value: string }): ReactNode {
+  return (
+    <Card padding="sm">
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-1 truncate font-mono text-sm text-foreground" title={value}>
+        {value}
+      </dd>
+    </Card>
+  );
+}
+
+function OverviewStats({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
+  return (
+    <dl className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <StatCard label="Source locale" value={snapshot.sourceLocale} />
+      <StatCard label="Target locales" value={String(snapshot.targetLocales.length)} />
+      <StatCard label="Format" value={snapshot.format} />
+      <StatCard label="Provider" value={snapshot.provider.id} />
+    </dl>
+  );
+}
 
 type OverviewState =
   | { readonly status: "loading" }
@@ -17,46 +43,30 @@ type OverviewState =
     };
 
 function OverviewDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
-  return (
-    <dl className="detail-list">
-      <dt>Source locale</dt>
-      <dd className="detail-value-mono">{snapshot.sourceLocale}</dd>
-      <dt>Target locales</dt>
-      <dd className="detail-value-mono">{snapshot.targetLocales.join(", ")}</dd>
-      <dt>Format</dt>
-      <dd className="detail-value-mono">{snapshot.format}</dd>
-      <dt>File pattern</dt>
-      <dd className="detail-value-mono">{snapshot.files.pattern}</dd>
-      <dt>Provider</dt>
-      <dd className="detail-value-mono">{snapshot.provider.id}</dd>
-      <dt>Config source</dt>
-      <dd className="detail-value-mono">{snapshot.configSource}</dd>
-      {snapshot.prune !== undefined ? (
-        <>
-          <dt>Prune</dt>
-          <dd>{snapshot.prune ? "yes" : "no"}</dd>
-        </>
-      ) : null}
-      {snapshot.generatePlurals !== undefined ? (
-        <>
-          <dt>Generate plurals</dt>
-          <dd>{snapshot.generatePlurals ? "yes" : "no"}</dd>
-        </>
-      ) : null}
-      {snapshot.maxBatchSize !== undefined ? (
-        <>
-          <dt>Max batch size</dt>
-          <dd>{snapshot.maxBatchSize}</dd>
-        </>
-      ) : null}
-      {snapshot.tone !== undefined ? (
-        <>
-          <dt>Tone</dt>
-          <dd>{snapshot.tone}</dd>
-        </>
-      ) : null}
-    </dl>
-  );
+  const items: Array<readonly [string, ReactNode]> = [
+    ["Source locale", <MonoValue key="source-locale">{snapshot.sourceLocale}</MonoValue>],
+    [
+      "Target locales",
+      <MonoValue key="target-locales">{snapshot.targetLocales.join(", ")}</MonoValue>,
+    ],
+    ["Format", <MonoValue key="format">{snapshot.format}</MonoValue>],
+    ["File pattern", <MonoValue key="file-pattern">{snapshot.files.pattern}</MonoValue>],
+    ["Provider", <MonoValue key="provider">{snapshot.provider.id}</MonoValue>],
+    ["Config source", <MonoValue key="config-source">{snapshot.configSource}</MonoValue>],
+  ];
+  if (snapshot.prune !== undefined) {
+    items.push(["Prune", snapshot.prune ? "yes" : "no"]);
+  }
+  if (snapshot.generatePlurals !== undefined) {
+    items.push(["Generate plurals", snapshot.generatePlurals ? "yes" : "no"]);
+  }
+  if (snapshot.maxBatchSize !== undefined) {
+    items.push(["Max batch size", String(snapshot.maxBatchSize)]);
+  }
+  if (snapshot.tone !== undefined) {
+    items.push(["Tone", snapshot.tone]);
+  }
+  return <DetailList items={items} />;
 }
 
 function glossaryIndicatorLabel(glossary: GlossaryGetResult): string {
@@ -73,39 +83,37 @@ function GlossaryEntries({
 }): ReactNode {
   const terms = Object.entries(entries);
   if (terms.length === 0) {
-    return <p className="empty-state">No glossary configured.</p>;
+    return <EmptyState>No glossary configured.</EmptyState>;
   }
   return (
-    <table className="data-table">
-      <thead>
+    <Table>
+      <TableHead>
         <tr>
-          <th>Source term</th>
-          <th>Preferred translation</th>
+          <TableHeaderCell>Source term</TableHeaderCell>
+          <TableHeaderCell>Preferred translation</TableHeaderCell>
         </tr>
-      </thead>
-      <tbody>
+      </TableHead>
+      <TableBody>
         {terms.map(([term, translation]) => (
-          <tr key={term}>
-            <td className="mono">{term}</td>
+          <TableRow key={term}>
+            <TableCell mono>{term}</TableCell>
             {/* The glossary has no per-entry locale (it is one project-wide term map, see
                 sdk's VerbatraConfig.glossary), so which locale's script a preferred term is
                 written in cannot be known here. dir="auto" lets the browser infer direction
                 from the value's own first strong character instead of guessing a locale. */}
-            <td dir="auto">{translation}</td>
-          </tr>
+            <TableCell dir="auto">{translation}</TableCell>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
 function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult }): ReactNode {
   return (
-    <section className="panel-section">
-      <h3>Glossary</h3>
-      <p className="panel-intro">Source: {glossaryIndicatorLabel(glossary)}</p>
+    <Section title="Glossary" intro={`Source: ${glossaryIndicatorLabel(glossary)}`}>
       <GlossaryEntries entries={glossary.entries} />
-    </section>
+    </Section>
   );
 }
 
@@ -157,9 +165,10 @@ export function OverviewPanel(): ReactNode {
   }
   return (
     <div>
-      <div className="panel-section">
+      <OverviewStats snapshot={state.snapshot} />
+      <Section title="Project">
         <OverviewDetails snapshot={state.snapshot} />
-      </div>
+      </Section>
       <GlossarySection glossary={state.glossary} />
     </div>
   );

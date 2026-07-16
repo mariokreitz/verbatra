@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CommitList } from "../CommitList.js";
+import { emptyStateClassName } from "../ui.js";
 import { useHistoryList } from "../use-history-list.js";
 
 /**
@@ -14,7 +15,7 @@ export function HistoryPanel(): ReactNode {
   return (
     <CommitList
       state={state}
-      emptyClassName="empty-state"
+      emptyClassName={emptyStateClassName}
       emptyMessage="No commit history yet for the source or target locale files."
     />
   );

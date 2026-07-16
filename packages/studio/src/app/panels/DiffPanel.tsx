@@ -6,15 +6,18 @@ import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
 import { buildReviewReportMarkdown } from "../../client/review-report.js";
 import type { StructuredError } from "../../client/state.js";
+import { AccordionItem } from "../Accordion.js";
 import { diffDataStore, openKeyStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import type { DiffTone } from "../DiffBadge.js";
 import { DiffBadge } from "../DiffBadge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
+import { TextField } from "../Input.js";
 import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
 import type { PanelProps } from "../panel-props.js";
 import { StatusGrid } from "../StatusGrid.js";
+import { Tabs } from "../Tabs.js";
 
 type DiffViewMode = "grid" | "flat";
 
@@ -62,7 +65,11 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
   }
 
   return (
-    <button type="button" className="review-report-button" onClick={() => void handleClick()}>
+    <button
+      type="button"
+      className="mb-4 inline-block rounded-md border border-border bg-transparent px-3 py-1 text-sm text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+      onClick={() => void handleClick()}
+    >
       {copied ? "Copied" : "Copy as review report"}
     </button>
   );
@@ -81,22 +88,26 @@ function KeyList({
 }): ReactNode {
   const capped = filterAndCapKeys(keys, query);
   return (
-    <div className="key-list">
-      <h4 className="key-list-heading">
+    <div className="mb-4 last:mb-0">
+      <h4 className="mb-2 flex items-center gap-2">
         <DiffBadge tone={tone} />
-        <span className="key-list-count">({capped.totalMatches})</span>
+        <span className="text-sm text-muted-foreground">({capped.totalMatches})</span>
       </h4>
-      <ul>
+      <ul className="m-0 list-none p-0 font-mono text-sm">
         {capped.items.map((key) => (
           <li key={key}>
-            <button type="button" className="key-list-item" onClick={() => onSelectKey(key)}>
+            <button
+              type="button"
+              className="-ms-2 block w-full rounded-md px-2 py-1 text-start hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+              onClick={() => onSelectKey(key)}
+            >
               {key}
             </button>
           </li>
         ))}
       </ul>
       {capped.truncated ? (
-        <p className="key-list-note">
+        <p className="mt-2 text-xs text-muted-foreground">
           Showing {MAX_RENDERED_KEYS} of {capped.totalMatches}, refine the filter to see more.
         </p>
       ) : null}
@@ -104,6 +115,13 @@ function KeyList({
   );
 }
 
+/**
+ * One locale's missing/changed/orphaned key lists, collapsed by default when that locale is
+ * already up to date and expanded by default when it has pending changes: a project with many
+ * target locales does not present as a wall of open sections, only the ones that need attention
+ * do. Built on `AccordionItem` (native `<details>`/`<summary>`), so a reader can still expand a
+ * synced locale manually; nothing here is ever hidden outright.
+ */
 function LocaleSection({
   locale,
   query,
@@ -114,60 +132,32 @@ function LocaleSection({
   readonly onSelectKey: (key: string) => void;
 }): ReactNode {
   return (
-    <section className="locale-section" dir={isRtlLocale(locale.locale) ? "rtl" : undefined}>
-      <h3 className="locale-section-heading">
-        {locale.locale}
-        {locale.hasPendingChanges ? (
-          <Badge tone="warning">Pending changes</Badge>
-        ) : (
-          <Badge tone="success">Up to date</Badge>
-        )}
-      </h3>
+    <AccordionItem
+      className="mb-4"
+      defaultOpen={locale.hasPendingChanges}
+      dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
+      summary={
+        <span className="inline-flex items-center gap-2">
+          {locale.locale}
+          {locale.hasPendingChanges ? (
+            <Badge tone="warning">Pending changes</Badge>
+          ) : (
+            <Badge tone="success">Up to date</Badge>
+          )}
+        </span>
+      }
+    >
       <KeyList tone="missing" keys={locale.missing} query={query} onSelectKey={onSelectKey} />
       <KeyList tone="changed" keys={locale.changed} query={query} onSelectKey={onSelectKey} />
       <KeyList tone="orphaned" keys={locale.orphaned} query={query} onSelectKey={onSelectKey} />
-    </section>
+    </AccordionItem>
   );
 }
 
-/**
- * The grid/list switch above the Diff panel's content. Grid is the default view (rows = keys,
- * columns = locales); the flat per-locale list stays reachable as a fallback, since it renders
- * key names as a plain scrollable list rather than a wide table, which some readers may prefer
- * when there are many target locales.
- */
-function ViewToggle({
-  mode,
-  onChange,
-}: {
-  readonly mode: DiffViewMode;
-  readonly onChange: (mode: DiffViewMode) => void;
-}): ReactNode {
-  return (
-    <fieldset className="view-toggle" aria-label="Diff view">
-      <button
-        type="button"
-        className={
-          mode === "grid" ? "view-toggle-button view-toggle-button-active" : "view-toggle-button"
-        }
-        aria-pressed={mode === "grid"}
-        onClick={() => onChange("grid")}
-      >
-        Grid
-      </button>
-      <button
-        type="button"
-        className={
-          mode === "flat" ? "view-toggle-button view-toggle-button-active" : "view-toggle-button"
-        }
-        aria-pressed={mode === "flat"}
-        onClick={() => onChange("flat")}
-      >
-        List
-      </button>
-    </fieldset>
-  );
-}
+const VIEW_MODE_ITEMS: ReadonlyArray<{ readonly id: DiffViewMode; readonly label: string }> = [
+  { id: "grid", label: "Grid" },
+  { id: "flat", label: "List" },
+];
 
 /**
  * The designed all-clear state: every checked locale has empty missing, changed, and orphaned
@@ -177,13 +167,16 @@ function ViewToggle({
  */
 function AllClearState(): ReactNode {
   return (
-    <div className="empty-state-success" role="status">
-      <span className="empty-state-success-glyph" aria-hidden="true">
+    <div
+      className="flex items-start gap-3 rounded-lg border-s-[3px] border-success bg-success-soft px-5 py-4 text-success"
+      role="status"
+    >
+      <span className="text-lg leading-snug" aria-hidden="true">
         ✓
       </span>
       <div>
-        <p className="empty-state-success-title">Everything&apos;s in sync</p>
-        <p className="empty-state-success-body">
+        <p className="mb-1 font-semibold text-foreground">Everything&apos;s in sync</p>
+        <p className="text-sm text-muted-foreground">
           No missing, changed, or orphaned keys in any configured locale.
         </p>
       </div>
@@ -265,20 +258,22 @@ export function DiffPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <div>
       <ReviewReportButton locales={state.locales} />
-      <p className="panel-intro">
+      <p className="mb-3 text-sm text-muted-foreground">
         Overall:{" "}
         <Badge tone={state.hasPendingChanges ? "warning" : "success"}>
           {state.hasPendingChanges ? "Pending changes" : "Up to date"}
         </Badge>
       </p>
-      <ViewToggle mode={viewMode} onChange={setViewMode} />
+      <div className="mb-4">
+        <Tabs items={VIEW_MODE_ITEMS} active={viewMode} onChange={setViewMode} label="Diff view" />
+      </div>
       {viewMode === "grid" ? (
         <StatusGrid locales={state.locales} onSelectKey={openKeyStore.request} />
       ) : (
         <>
-          <label className="filter-label">
+          <label htmlFor="diff-filter-keys" className="mb-4 block text-sm text-muted-foreground">
             Filter keys
-            <input className="filter-input" value={query} onChange={onQueryChange} />
+            <TextField id="diff-filter-keys" value={query} onChange={onQueryChange} />
           </label>
           {state.locales.map((locale) => (
             <LocaleSection

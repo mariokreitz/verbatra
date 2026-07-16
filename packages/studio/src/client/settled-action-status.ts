@@ -32,17 +32,3 @@ export function settledActionStatusLabel(
   }
   return `Failed: ${outcome.message}`;
 }
-
-/**
- * Renders the status span's className for a settled outcome, or the neutral className when no
- * outcome has settled yet (`undefined`, e.g. while idle or still in flight).
- */
-export function settledActionStatusClassName(outcome: SettledActionOutcome | undefined): string {
-  if (outcome?.kind === "success") {
-    return "retranslate-status retranslate-status-success";
-  }
-  if (outcome?.kind === "rejected" || outcome?.kind === "error") {
-    return "retranslate-status retranslate-status-error";
-  }
-  return "retranslate-status";
-}

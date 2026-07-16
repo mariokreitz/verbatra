@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { deriveEditEntryOutcome, type EditEntryOutcome } from "../client/edit-entry-outcome.js";
 import { deriveKeyValueContext, type KeyValueContext } from "../client/key-value-context.js";
-import {
-  settledActionStatusClassName,
-  settledActionStatusLabel,
-} from "../client/settled-action-status.js";
+import { settledActionStatusLabel } from "../client/settled-action-status.js";
 import { rpcClient } from "./api.js";
+import { Button } from "./Button.js";
+import { TextArea } from "./Input.js";
+import { actionStatusTextClassName, settledOutcomeTone } from "./lib/action-status-classes.js";
+import { DrawerShell, Section } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
 type SubmitState =
@@ -57,7 +58,9 @@ function submitStatusLabel(state: SubmitState): string {
 }
 
 function submitStatusClassName(state: SubmitState): string {
-  return settledActionStatusClassName(state.kind === "settled" ? state.outcome : undefined);
+  return actionStatusTextClassName(
+    settledOutcomeTone(state.kind === "settled" ? state.outcome : undefined),
+  );
 }
 
 function EditorFields({
@@ -73,24 +76,23 @@ function EditorFields({
 }): ReactNode {
   return (
     <>
-      <section className="panel-section">
-        <h3>Source</h3>
-        <p className="panel-intro mono">{context.source}</p>
-      </section>
-      <section className="panel-section">
-        <h3>Translation</h3>
+      <Section title="Source">
+        <p className="m-0 font-mono text-sm text-muted-foreground">{context.source}</p>
+      </Section>
+      <Section title="Translation">
         {context.target === undefined ? (
-          <p className="empty-state-inline">No translation exists yet for this locale.</p>
+          <p className="mb-2 text-sm text-muted-foreground">
+            No translation exists yet for this locale.
+          </p>
         ) : null}
-        <textarea
-          className="filter-input"
+        <TextArea
           aria-label={`Translation for ${context.source}`}
           value={value}
           onChange={(event) => onChangeValue(event.target.value)}
           disabled={disabled}
           rows={4}
         />
-      </section>
+      </Section>
     </>
   );
 }
@@ -136,54 +138,41 @@ export function EditEntryDialog({
   }
 
   return (
-    <div className="drawer-backdrop">
-      <button
-        type="button"
-        className="drawer-backdrop-dismiss"
-        onClick={onClose}
-        aria-label={`Close the editor for ${keyName}`}
-      />
-      <div
-        className="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Edit ${keyName} in ${locale}`}
-        ref={containerRef}
-      >
-        <div className="drawer-header">
-          <h2 className="drawer-title mono">
-            {keyName} <span className="empty-state-inline">({locale})</span>
-          </h2>
-          <button type="button" className="drawer-close" onClick={onClose} aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        {context.kind === "loading" ? <p className="panel-intro">Loading current value…</p> : null}
-        {context.kind === "error" ? <p className="panel-intro">{context.message}</p> : null}
-        {context.kind === "loaded" ? (
-          <>
-            <EditorFields
-              context={context}
-              value={value}
-              onChangeValue={setValue}
-              disabled={submit.kind === "submitting"}
-            />
-            <span className="retranslate-action">
-              <button
-                type="button"
-                className="retranslate-button"
-                disabled={submit.kind === "submitting"}
-                onClick={() => void handleSubmit()}
-              >
-                Save
-              </button>
-              {submit.kind !== "idle" ? (
-                <span className={submitStatusClassName(submit)}>{submitStatusLabel(submit)}</span>
-              ) : null}
-            </span>
-          </>
-        ) : null}
-      </div>
-    </div>
+    <DrawerShell
+      title={
+        <>
+          {keyName} <span className="text-sm text-muted-foreground">({locale})</span>
+        </>
+      }
+      ariaLabel={`Edit ${keyName} in ${locale}`}
+      closeLabel={`Close the editor for ${keyName}`}
+      onClose={onClose}
+      containerRef={containerRef}
+    >
+      {context.kind === "loading" ? (
+        <p className="mb-3 text-sm text-muted-foreground">Loading current value…</p>
+      ) : null}
+      {context.kind === "error" ? (
+        <p className="mb-3 text-sm text-muted-foreground">{context.message}</p>
+      ) : null}
+      {context.kind === "loaded" ? (
+        <>
+          <EditorFields
+            context={context}
+            value={value}
+            onChangeValue={setValue}
+            disabled={submit.kind === "submitting"}
+          />
+          <span className="ms-2 inline-flex items-center gap-2">
+            <Button disabled={submit.kind === "submitting"} onClick={() => void handleSubmit()}>
+              Save
+            </Button>
+            {submit.kind !== "idle" ? (
+              <span className={submitStatusClassName(submit)}>{submitStatusLabel(submit)}</span>
+            ) : null}
+          </span>
+        </>
+      ) : null}
+    </DrawerShell>
   );
 }
