@@ -185,6 +185,35 @@ describe("secret sweep across every registered method and error path", () => {
     assertNoSentinel(result.body);
   });
 
+  it("never leaks a sentinel for translation.translatePending's PROVIDER_CONSTRUCTION_FAILED error path", async () => {
+    const throwingCreateProvider: CreateProvider = () => {
+      throw new Error(`missing key near ${SENTINELS.GEMINI_API_KEY}`);
+    };
+    const result = await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      { ...depsWithSentinelConfig(), createProvider: throwingCreateProvider },
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel through a tripped RATE_LIMITED response for translation.translatePending", async () => {
+    const alwaysTripped = createRpcRateLimiter({
+      "translation.translatePending": { windowMs: 60_000, maxCalls: 0 },
+    });
+    const result = await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+      alwaysTripped,
+    );
+
+    expect(result.statusCode).toBe(429);
+    assertNoSentinel(result.body);
+  });
+
   it("never leaks a sentinel for translation.editEntry's UNKNOWN_LOCALE error path", async () => {
     const result = await dispatchRpc(
       body({

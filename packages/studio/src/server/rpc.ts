@@ -11,6 +11,7 @@ import { LOCK_STATE_METHOD } from "../shared/rpc/lock.js";
 import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
 import { REVIEW_QUEUE_METHOD } from "../shared/rpc/review-queue.js";
 import { PROJECT_SNAPSHOT_METHOD, type StudioCapabilities } from "../shared/rpc/snapshot.js";
+import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
 import { statusCheckHandler } from "./methods/check.js";
 import { statusDiffHandler } from "./methods/diff.js";
 import { editEntryHandler } from "./methods/edit-entry.js";
@@ -22,6 +23,7 @@ import { lockStateHandler } from "./methods/lock.js";
 import { retranslateEntryHandler } from "./methods/retranslate-entry.js";
 import { reviewQueueHandler } from "./methods/review-queue.js";
 import { snapshotHandler } from "./methods/snapshot.js";
+import { translatePendingHandler } from "./methods/translate-pending.js";
 import type { StudioServerDeps } from "./types.js";
 
 export type { StudioCapabilities } from "../shared/rpc/snapshot.js";
@@ -66,27 +68,30 @@ const readOnlyHandlers: HandlersRegistry = {
 
 /**
  * Builds the capability-gated handlers registry: always the eight read handlers above, plus
- * `translation.retranslateEntry` only when both `capabilities.spend` and `capabilities.writeToDisk`
- * are true, plus `translation.editEntry` and `key.value` when `capabilities.writeToDisk` alone is
- * true (neither needs `spend`: `editEntry` never calls a provider, and `key.value` performs no
- * write and only exists to feed an edit dialog that itself requires `writeToDisk`). Called exactly
- * once by `createStudioServer`, before `listen()`; the built registry is threaded into
- * `DispatchContext` alongside `rpcDeps` and never rebuilt afterward. A disabled write method is
- * simply absent from the returned record; `handleRpcBody` already falls back to `METHOD_UNKNOWN`
- * when `handlers[method]` is `undefined`, so no new gate mechanism is introduced here, only a
- * capability-dependent registry.
+ * `translation.retranslateEntry` and `translation.translatePending` only when both
+ * `capabilities.spend` and `capabilities.writeToDisk` are true, plus `translation.editEntry` and
+ * `key.value` when `capabilities.writeToDisk` alone is true (neither needs `spend`: `editEntry`
+ * never calls a provider, and `key.value` performs no write and only exists to feed an edit
+ * dialog that itself requires `writeToDisk`). Called exactly once by `createStudioServer`, before
+ * `listen()`; the built registry is threaded into `DispatchContext` alongside `rpcDeps` and never
+ * rebuilt afterward. A disabled write method is simply absent from the returned record;
+ * `handleRpcBody` already falls back to `METHOD_UNKNOWN` when `handlers[method]` is `undefined`,
+ * so no new gate mechanism is introduced here, only a capability-dependent registry.
  *
  * The server caches no project data between requests: `project.snapshot` only reads the config
  * resolved once at startup (see {@link RpcHandlerDeps.config}), which is the one value this whole
  * dashboard intentionally holds in memory. A handler that reads anything else from disk (the
- * status, diff, lock, history, key-integrity, review-queue, retranslate, edit, or key-value views)
- * must read it fresh on every call, never caching it.
+ * status, diff, lock, history, key-integrity, review-queue, retranslate, translate-pending, edit,
+ * or key-value views) must read it fresh on every call, never caching it.
  */
 export function createRpcHandlers(capabilities: StudioCapabilities): HandlersRegistry {
   return {
     ...readOnlyHandlers,
     ...(capabilities.spend && capabilities.writeToDisk
-      ? { [RETRANSLATE_ENTRY_METHOD]: retranslateEntryHandler }
+      ? {
+          [RETRANSLATE_ENTRY_METHOD]: retranslateEntryHandler,
+          [TRANSLATE_PENDING_METHOD]: translatePendingHandler,
+        }
       : {}),
     ...(capabilities.writeToDisk
       ? {

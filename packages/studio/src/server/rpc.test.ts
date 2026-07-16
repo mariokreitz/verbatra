@@ -14,17 +14,14 @@ const READ_ONLY_METHODS = [
 ] as const;
 
 const WRITE_TO_DISK_ONLY_METHODS = ["translation.editEntry", "key.value"] as const;
+const SPEND_AND_WRITE_METHODS = ["translation.retranslateEntry", "translation.translatePending"];
 
 describe("the shared contract's method list", () => {
-  it("is exactly the eleven agreed methods, including the schema-only write methods", () => {
+  it("is exactly the twelve agreed methods, including the schema-only write methods", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(
-      new Set([
-        ...READ_ONLY_METHODS,
-        "translation.retranslateEntry",
-        ...WRITE_TO_DISK_ONLY_METHODS,
-      ]),
+      new Set([...READ_ONLY_METHODS, ...SPEND_AND_WRITE_METHODS, ...WRITE_TO_DISK_ONLY_METHODS]),
     );
-    expect(RPC_METHOD_NAMES).toHaveLength(11);
+    expect(RPC_METHOD_NAMES).toHaveLength(12);
   });
 });
 
@@ -38,14 +35,16 @@ describe("createRpcHandlers: capability gating", () => {
   it("still omits every write method with only spend set", () => {
     const handlers = createRpcHandlers({ spend: true, writeToDisk: false });
     expect(handlers["translation.retranslateEntry"]).toBeUndefined();
+    expect(handlers["translation.translatePending"]).toBeUndefined();
     expect(handlers["translation.editEntry"]).toBeUndefined();
     expect(handlers["key.value"]).toBeUndefined();
     expect(Object.keys(handlers)).toHaveLength(READ_ONLY_METHODS.length);
   });
 
-  it("includes translation.editEntry and key.value, but still omits translation.retranslateEntry, with only writeToDisk set", () => {
+  it("includes translation.editEntry and key.value, but still omits translation.retranslateEntry and translation.translatePending, with only writeToDisk set", () => {
     const handlers = createRpcHandlers({ spend: false, writeToDisk: true });
     expect(handlers["translation.retranslateEntry"]).toBeUndefined();
+    expect(handlers["translation.translatePending"]).toBeUndefined();
     expect(handlers["translation.editEntry"]).toBeDefined();
     expect(handlers["key.value"]).toBeDefined();
     expect(new Set(Object.keys(handlers))).toEqual(
@@ -53,9 +52,10 @@ describe("createRpcHandlers: capability gating", () => {
     );
   });
 
-  it("includes every method, including translation.retranslateEntry, only when both capabilities are set", () => {
+  it("includes every method, including translation.retranslateEntry and translation.translatePending, only when both capabilities are set", () => {
     const handlers = createRpcHandlers({ spend: true, writeToDisk: true });
     expect(handlers["translation.retranslateEntry"]).toBeDefined();
+    expect(handlers["translation.translatePending"]).toBeDefined();
     expect(handlers["translation.editEntry"]).toBeDefined();
     expect(handlers["key.value"]).toBeDefined();
     expect(new Set(Object.keys(handlers))).toEqual(new Set(RPC_METHOD_NAMES));

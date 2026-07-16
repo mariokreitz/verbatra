@@ -2,7 +2,7 @@
 title: Verbatra Studio (verbatra studio)
 description: Inicia Verbatra Studio, un panel de traducción local sobre tu proyecto, de solo lectura por defecto.
 ---
-Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, las revisiones marcadas, la configuración, la desviación del archivo de bloqueo y el historial. Por defecto nunca llama a un proveedor ni escribe un archivo. Inícialo con `--allow-write` y gana también una acción de escritura en la cola de revisión: editar una sola clave marcada (mira "Cola de revisión" más abajo); añade `--allow-spend` y gana también la capacidad de volver a traducir una clave que falla (mira "Volver a traducir una clave que falla" más abajo). Inícialo con:
+Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, las revisiones marcadas, la configuración, la desviación del archivo de bloqueo y el historial. Por defecto nunca llama a un proveedor ni escribe un archivo. Inícialo con `--allow-write` y gana también una acción de escritura en la cola de revisión: editar una sola clave marcada (mira "Cola de revisión" más abajo); añade `--allow-spend` y gana también la capacidad de volver a traducir una clave que falla y de traducir de una vez todos los cambios pendientes en todos los locales desde un toast de actualización en vivo (mira "Volver a traducir una clave que falla" y "Traducir cambios pendientes desde un toast" más abajo). Inícialo con:
 
 ```bash
 verbatra studio
@@ -14,7 +14,7 @@ Verbatra Studio por ahora solo está disponible como prerelease, todavía no hay
 
 ## Solo local, y de solo lectura por defecto
 
-Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. Por defecto no hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves, incluida la cola de revisión, proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff), o de datos que una ejecución previa de `translate`/`watch` ya dejó guardados en disco. Pasa `--allow-write` al iniciar y la cola de revisión gana su acción de edición, descrita en "Cola de revisión" más abajo. Añade también `--allow-spend` y Studio gana además la acción de retraducir descrita en "Volver a traducir una clave que falla" más abajo; deja `--allow-write` sin activar y Studio sigue siendo igual de solo lectura.
+Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. Por defecto no hay ningún endpoint que cambie el estado en Studio: nunca llama a `translate`, nunca ejecuta `watch` y nunca importa ni exporta un workbook. Todo lo que ves, incluida la cola de revisión, proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff), o de datos que una ejecución previa de `translate`/`watch` ya dejó guardados en disco. Pasa `--allow-write` al iniciar y la cola de revisión gana su acción de edición, descrita en "Cola de revisión" más abajo. Añade también `--allow-spend` y Studio gana además la acción de retraducir descrita en "Volver a traducir una clave que falla" más abajo y la acción descrita en "Traducir cambios pendientes desde un toast" más abajo; deja `--allow-write` sin activar y Studio sigue siendo igual de solo lectura.
 
 ## Referencia de comandos
 
@@ -43,6 +43,20 @@ Abre exactamente esa URL. El token en la cadena de consulta arranca una cookie d
 ## Reinicio ante un cambio de configuración
 
 La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la vida de ese proceso, se construye a partir de esa misma configuración resuelta. Si cambias `verbatra.config.ts` (un nuevo locale de destino, un proveedor distinto, un patrón de archivo distinto), detén Studio e inícialo de nuevo para aplicar el cambio. Los archivos del proyecto son distintos: Studio vigila tu archivo de locale de origen, cada archivo de locale de destino y el archivo de bloqueo, y envía una señal de actualización en vivo a tu pestaña del navegador abierta en cuanto uno de ellos cambia en disco (las escrituras sucesivas rápidas se agrupan en una sola señal). La pestaña vuelve a cargar automáticamente la vista que estás mirando en ese momento, sin necesidad de recargar la página. Si una recarga falla, la vista sigue mostrando sus últimos datos válidos con un indicador discreto de datos desactualizados en lugar de quedar en blanco, y lo intenta de nuevo en la siguiente señal. Una conexión caída se reconecta sola con espera creciente; si Studio mismo se apaga, la pestaña muestra un aviso a pantalla completa para reiniciarlo desde la terminal.
+
+Un cambio que añade, modifica o elimina al menos una clave también muestra un toast descartable que resume lo que cambió, por ejemplo "1 added, 3 changed"; un cambio solo del archivo de bloqueo, o un cambio sin efecto neto sobre ninguna clave, no muestra ningún toast. Mira "Traducir cambios pendientes desde un toast" más abajo para la acción que puede llevar un toast de cambio de origen.
+
+## Traducir cambios pendientes desde un toast
+
+Cuando tu archivo de locale de origen cambia en disco, su toast (mira "Reinicio ante un cambio de configuración" arriba) puede llevar una acción "Translate pending changes across all locales", protegida igual que volver a traducir una clave que falla: tanto `--allow-spend` como `--allow-write` (o sus variables de entorno equivalentes). Deja cualquiera de los dos flags sin activar y el toast sigue apareciendo, solo que sin esa acción, no simplemente desactivada.
+
+```bash
+verbatra studio --allow-spend --allow-write
+```
+
+Al hacer clic se realiza exactamente la misma llamada de todo el proyecto que hace [`verbatra translate`](/docs/cli/translate) por sí mismo: cada locale de destino configurado se pone al día frente al origen, al mismo costo de proveedor. Un toast por un cambio de contenido propio de un locale de destino nunca lleva esta acción: el diff de `translate` no puede ver en su mayor parte que el contenido propio de un archivo de destino ha cambiado, así que la acción no haría nada o gastaría en una desviación no relacionada; usa en su lugar la acción Retranslate limitada a una clave para un valor de destino incorrecto.
+
+El toast informa del resultado: "Translated" con éxito total, "Failed for" seguido de los locales que fallaron mientras otros tuvieron éxito, o "Failed: ..." para cualquier otro caso, por ejemplo si la llamada completa en sí falla. Una segunda llamada superpuesta, por ejemplo desde otra pestaña abierta, se rechaza de inmediato en lugar de esperar, así que nunca desencadenas dos ejecuciones de todo el proyecto a la vez.
 
 ## Mensajes de error
 

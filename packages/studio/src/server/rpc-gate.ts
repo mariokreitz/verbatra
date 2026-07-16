@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { RPC_METHOD_NAMES, type RpcMethodName, rpcParamsSchemas } from "../shared/rpc/contract.js";
+import type { RpcInFlightGuard } from "./in-flight-guard.js";
 import type { RpcRateLimiter } from "./rate-limiter.js";
 import { redact } from "./redaction.js";
 import type { HandlersRegistry, RpcHandlerDeps } from "./rpc.js";
@@ -14,6 +15,8 @@ const REQUEST_INVALID_MESSAGE = "The request body must be JSON shaped as { metho
 const METHOD_UNKNOWN_MESSAGE = "The requested method is not recognized.";
 const PARAMS_INVALID_MESSAGE = "The request parameters failed validation.";
 const RATE_LIMITED_MESSAGE = "Too many calls to this method; wait before retrying.";
+const ALREADY_IN_PROGRESS_MESSAGE =
+  "A matching call is already in progress; wait for it to finish.";
 const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred.";
 
 /** One failing zod issue, carrying only its path and code: never a message or a received value (G9). */
@@ -127,6 +130,7 @@ async function invokeHandler(
   deps: RpcHandlerDeps,
   handlers: HandlersRegistry,
   rateLimiter: RpcRateLimiter | undefined,
+  inFlightGuard: RpcInFlightGuard | undefined,
 ): Promise<RpcResult> {
   const schema = rpcParamsSchemas[method];
   const parsedParams = schema.safeParse(params);
@@ -148,6 +152,12 @@ async function invokeHandler(
   if (rateLimiter?.tryAcquire(method) === false) {
     return errorEnvelope(429, "RATE_LIMITED", RATE_LIMITED_MESSAGE);
   }
+  // Same layer as the rate limiter, checked immediately before the handler: a method with no
+  // configured guard (every method but translation.translatePending today) always passes. A
+  // rejected call here never marks anything itself, so it never needs to call leave().
+  if (inFlightGuard?.tryEnter(method) === false) {
+    return errorEnvelope(409, "ALREADY_IN_PROGRESS", ALREADY_IN_PROGRESS_MESSAGE);
+  }
   try {
     // Sound at runtime only: `handler` and `parsedParams.data` are both looked up by the same
     // `method` key, so the params a schema produced always match what its own handler expects.
@@ -157,24 +167,27 @@ async function invokeHandler(
     return okEnvelope(result);
   } catch (error) {
     return mapHandlerError(error);
+  } finally {
+    inFlightGuard?.leave(method);
   }
 }
 
 /**
  * The complete POST /rpc envelope (G8): parses and shape-checks the body, resolves the method
- * against the shared contract, validates its parameters, applies the per-method rate limit,
- * dispatches to the matching handler, and maps every outcome, a success, a domain error, or an
- * unexpected throw, to the fixed response envelope. `handlers` is the capability-gated registry
- * `createRpcHandlers` built at startup (see `rpc.ts`); there is no module-level default, so an
- * absent handler for a disabled write method degrades to `METHOD_UNKNOWN` exactly like any other
- * unregistered method. `rateLimiter` is optional so tests exercising envelope rows other than
- * `RATE_LIMITED` do not need to construct one.
+ * against the shared contract, validates its parameters, applies the per-method rate limit and
+ * in-flight guard, dispatches to the matching handler, and maps every outcome, a success, a
+ * domain error, or an unexpected throw, to the fixed response envelope. `handlers` is the
+ * capability-gated registry `createRpcHandlers` built at startup (see `rpc.ts`); there is no
+ * module-level default, so an absent handler for a disabled write method degrades to
+ * `METHOD_UNKNOWN` exactly like any other unregistered method. `rateLimiter` and `inFlightGuard`
+ * are both optional so tests exercising other envelope rows do not need to construct either.
  */
 export async function dispatchRpc(
   body: Buffer,
   deps: RpcHandlerDeps,
   handlers: HandlersRegistry,
   rateLimiter?: RpcRateLimiter,
+  inFlightGuard?: RpcInFlightGuard,
 ): Promise<RpcResult> {
   const request = parseRequestShape(body);
   if (request === undefined) {
@@ -183,7 +196,7 @@ export async function dispatchRpc(
   if (!isKnownMethod(request.method)) {
     return errorEnvelope(400, "METHOD_UNKNOWN", METHOD_UNKNOWN_MESSAGE);
   }
-  return invokeHandler(request.method, request.params, deps, handlers, rateLimiter);
+  return invokeHandler(request.method, request.params, deps, handlers, rateLimiter, inFlightGuard);
 }
 
 /**
@@ -195,6 +208,7 @@ export function handleRpcBody(
   deps: RpcHandlerDeps,
   handlers: HandlersRegistry,
   rateLimiter?: RpcRateLimiter,
+  inFlightGuard?: RpcInFlightGuard,
 ): Promise<RpcResult> {
-  return dispatchRpc(body, deps, handlers, rateLimiter);
+  return dispatchRpc(body, deps, handlers, rateLimiter, inFlightGuard);
 }

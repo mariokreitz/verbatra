@@ -30,6 +30,11 @@ import {
   type ProjectSnapshotResult,
   projectSnapshotParamsSchema,
 } from "./snapshot.js";
+import {
+  TRANSLATE_PENDING_METHOD,
+  type TranslatePendingResult,
+  translatePendingParamsSchema,
+} from "./translate-pending.js";
 
 /**
  * The single source of truth for the RPC surface: one params schema per method, keyed by its
@@ -53,6 +58,7 @@ export const rpcParamsSchemas = {
   [REVIEW_QUEUE_METHOD]: reviewQueueParamsSchema,
   [EDIT_ENTRY_METHOD]: editEntryParamsSchema,
   [KEY_VALUE_METHOD]: keyValueParamsSchema,
+  [TRANSLATE_PENDING_METHOD]: translatePendingParamsSchema,
 } as const;
 
 /** The exact set of agreed RPC methods, derived from {@link rpcParamsSchemas}. */
@@ -74,6 +80,7 @@ export interface RpcResultMap {
   readonly [REVIEW_QUEUE_METHOD]: ReviewQueueResult;
   readonly [EDIT_ENTRY_METHOD]: EditEntryResult;
   readonly [KEY_VALUE_METHOD]: KeyValueResult;
+  readonly [TRANSLATE_PENDING_METHOD]: TranslatePendingResult;
 }
 
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;

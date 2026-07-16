@@ -339,3 +339,239 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
     );
   });
 });
+
+/**
+ * Direct proof (write-half addendum criterion 1) that a disabled write method is unreachable
+ * through dispatch, and that both capabilities are required together, mirroring
+ * `translation.retranslateEntry`'s own table above.
+ */
+describe("translation.translatePending reachability across the capability table", () => {
+  it("returns METHOD_UNKNOWN with neither capability set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { status, body } = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(status).toBe(400);
+        expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+      },
+      { token: TOKEN, loader: stubLoader() },
+    );
+  });
+
+  it("returns METHOD_UNKNOWN with only spend set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+      },
+      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: false },
+    );
+  });
+
+  it("returns METHOD_UNKNOWN with only writeToDisk set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+      },
+      { token: TOKEN, loader: stubLoader(), spend: false, writeToDisk: true },
+    );
+  });
+
+  it("reaches the real handler (not METHOD_UNKNOWN) with both capabilities set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending");
+        // The stub project has no real source file on disk, so the handler itself fails (a
+        // domain error, not METHOD_UNKNOWN); reaching a different error code is exactly the proof
+        // the handler is now registered and invoked.
+        expect(body.ok).toBe(false);
+        expect(body.error?.code).not.toBe("METHOD_UNKNOWN");
+      },
+      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+    );
+  });
+
+  it("the params schema still rejects an unexpected key regardless of capability state", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending", {
+          locale: "de",
+        });
+        expect(body).toMatchObject({ ok: false, error: { code: "PARAMS_INVALID" } });
+      },
+      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+    );
+  });
+
+  it("the params schema still rejects an unexpected key even with both capabilities off", async () => {
+    // The shared params schema is looked up and validated before the handler registry is ever
+    // consulted (rpc-gate.ts's invokeHandler), so PARAMS_INVALID for a malformed body is not
+    // itself gated on capability state, unlike the handler's own reachability above.
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const { body } = await postRpc(server.url, cookie, "translation.translatePending", {
+          locale: "de",
+        });
+        expect(body).toMatchObject({ ok: false, error: { code: "PARAMS_INVALID" } });
+      },
+      { token: TOKEN, loader: stubLoader() },
+    );
+  });
+});
+
+describe("translation.translatePending completes a real run end to end", () => {
+  it("translates every configured target locale against a real fixture project", async () => {
+    const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
+    try {
+      await withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const result = await postRpc(server.url, cookie, "translation.translatePending");
+          expect(result.status).toBe(200);
+          expect(result.body).toMatchObject({ ok: true, result: { succeeded: ["de"] } });
+        },
+        {
+          token: TOKEN,
+          loader: fixtureLoader(project),
+          cwd: project.root,
+          spend: true,
+          writeToDisk: true,
+          createProvider: () => ({
+            id: "stub",
+            kind: "llm",
+            supportsGlossary: true,
+            translateBatch: async (request) => ({
+              values: new Map(request.entries.map((entry) => [entry.key, "Hallo"])),
+              integrity: new Map(),
+            }),
+          }),
+        },
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+});
+
+describe("translation.translatePending's dispatch-layer rate limit, wired end to end", () => {
+  it("trips after the configured ceiling and a call under the limit is unaffected", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const first = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(first.body.error?.code).not.toBe("RATE_LIMITED");
+
+        const second = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(second.body.error?.code).not.toBe("RATE_LIMITED");
+
+        const third = await postRpc(server.url, cookie, "translation.translatePending");
+        expect(third.status).toBe(429);
+        expect(third.body).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+      },
+      {
+        token: TOKEN,
+        loader: stubLoader(),
+        spend: true,
+        writeToDisk: true,
+        translatePendingRateLimitWindowMs: 60_000,
+        translatePendingRateLimitMax: 2,
+      },
+    );
+  });
+});
+
+/** A promise a test can resolve on its own schedule, plus the resolver itself. */
+function deferred<T>(): { readonly promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Polls `hasArrived` until it reports true, rather than a fixed delay: real, end-to-end HTTP
+ * requests have no fixed latency bound under CI/system load, so waiting for the actual signal the
+ * test cares about (the first call's handler has genuinely reached and is now blocked inside the
+ * provider) is the only way to make "the second call overlaps the first" deterministic instead of
+ * a guess at how long that should take.
+ */
+async function waitUntil(hasArrived: () => boolean): Promise<void> {
+  while (!hasArrived()) {
+    await sleep(5);
+  }
+}
+
+describe("translation.translatePending's process-wide in-flight guard, wired end to end", () => {
+  it("rejects a second overlapping call with ALREADY_IN_PROGRESS before the sdk seam runs, without blocking it on the first call's real lock, and a later call after the first settles proceeds normally", async () => {
+    const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
+    try {
+      const gate = deferred<void>();
+      let providerCalls = 0;
+
+      await withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+
+          // Fired but not awaited: this call's handler blocks inside the provider until the test
+          // resolves `gate`, holding the in-flight marker for the whole window below.
+          const firstCall = postRpc(server.url, cookie, "translation.translatePending");
+
+          // Wait for the real signal that the first call's handler has reached the provider (and
+          // is now blocked on `gate`), not a fixed delay: this is what makes the second call a
+          // genuine overlap regardless of how loaded the machine running this test is.
+          await waitUntil(() => providerCalls > 0);
+
+          const second = await postRpc(server.url, cookie, "translation.translatePending");
+          expect(second.status).toBe(409);
+          expect(second.body).toMatchObject({ ok: false, error: { code: "ALREADY_IN_PROGRESS" } });
+          // The rejection arrived without the provider having been reached a second time: proof
+          // the second call never touched the sdk seam, not merely that it eventually lost a race.
+          expect(providerCalls).toBe(1);
+
+          gate.resolve();
+          const first = await firstCall;
+          expect(first.body.error?.code).not.toBe("ALREADY_IN_PROGRESS");
+
+          // A call issued after the first has fully settled is not permanently blocked by a stuck flag.
+          const third = await postRpc(server.url, cookie, "translation.translatePending");
+          expect(third.body.error?.code).not.toBe("ALREADY_IN_PROGRESS");
+        },
+        {
+          token: TOKEN,
+          loader: fixtureLoader(project),
+          cwd: project.root,
+          spend: true,
+          writeToDisk: true,
+          createProvider: () => ({
+            id: "stub",
+            kind: "llm",
+            supportsGlossary: true,
+            translateBatch: async (request) => {
+              providerCalls += 1;
+              await gate.promise;
+              return {
+                values: new Map(request.entries.map((entry) => [entry.key, "Hallo"])),
+                integrity: new Map(),
+              };
+            },
+          }),
+        },
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+});

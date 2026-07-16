@@ -85,6 +85,10 @@ export interface StudioServerDeps {
   readonly editEntryRateLimitWindowMs?: number;
   /** Maximum `translation.editEntry` calls allowed within the rolling window before `RATE_LIMITED`. */
   readonly editEntryRateLimitMax?: number;
+  /** Rolling window, in milliseconds, `translation.translatePending`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */
+  readonly translatePendingRateLimitWindowMs?: number;
+  /** Maximum `translation.translatePending` calls allowed within the rolling window before `RATE_LIMITED`. */
+  readonly translatePendingRateLimitMax?: number;
 }
 
 /** Options accepted by {@link startStudioServer}: every {@link StudioServerDeps} field, plus the bind port and cwd. */
