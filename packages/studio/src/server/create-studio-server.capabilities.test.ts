@@ -479,6 +479,25 @@ function deferred<T>(): { readonly promise: Promise<T>; resolve: (value: T) => v
   return { promise, resolve };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/**
+ * Polls `hasArrived` until it reports true, rather than a fixed delay: real, end-to-end HTTP
+ * requests have no fixed latency bound under CI/system load, so waiting for the actual signal the
+ * test cares about (the first call's handler has genuinely reached and is now blocked inside the
+ * provider) is the only way to make "the second call overlaps the first" deterministic instead of
+ * a guess at how long that should take.
+ */
+async function waitUntil(hasArrived: () => boolean): Promise<void> {
+  while (!hasArrived()) {
+    await sleep(5);
+  }
+}
+
 describe("translation.translatePending's process-wide in-flight guard, wired end to end", () => {
   it("rejects a second overlapping call with ALREADY_IN_PROGRESS before the sdk seam runs, without blocking it on the first call's real lock, and a later call after the first settles proceeds normally", async () => {
     const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
@@ -494,10 +513,10 @@ describe("translation.translatePending's process-wide in-flight guard, wired end
           // resolves `gate`, holding the in-flight marker for the whole window below.
           const firstCall = postRpc(server.url, cookie, "translation.translatePending");
 
-          // Give the first call's request a real tick to reach and mark the in-flight guard
-          // before the second is dispatched, so this is a genuine overlap, not a race on which
-          // request's socket happens to be handled first.
-          await new Promise((resolve) => setTimeout(resolve, 20));
+          // Wait for the real signal that the first call's handler has reached the provider (and
+          // is now blocked on `gate`), not a fixed delay: this is what makes the second call a
+          // genuine overlap regardless of how loaded the machine running this test is.
+          await waitUntil(() => providerCalls > 0);
 
           const second = await postRpc(server.url, cookie, "translation.translatePending");
           expect(second.status).toBe(409);
