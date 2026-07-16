@@ -66,6 +66,27 @@ function computeBackoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: n
   return Math.min(baseDelayMs * BACKOFF_FACTOR ** attempt, maxDelayMs);
 }
 
+/**
+ * Parses a raw `delta` field into a well-formed `RefreshKeyDelta`, or `undefined` if it is absent
+ * or malformed (missing a field, or a field that is not a number): a malformed `delta` degrades to
+ * absent, consistent with this whole module's "tolerate and degrade, never throw" discipline, and
+ * never drops the surrounding frame on its own.
+ */
+function parseDelta(raw: unknown): RefreshEvent["delta"] {
+  if (typeof raw !== "object" || raw === null) {
+    return undefined;
+  }
+  const { added, changed, removed } = raw as {
+    added?: unknown;
+    changed?: unknown;
+    removed?: unknown;
+  };
+  if (typeof added === "number" && typeof changed === "number" && typeof removed === "number") {
+    return { added, changed, removed };
+  }
+  return undefined;
+}
+
 /** Parses one SSE `refresh` frame's data; malformed data is dropped rather than thrown. */
 function parseRefreshEvent(data: string): RefreshEvent | undefined {
   let parsed: unknown;
@@ -77,12 +98,23 @@ function parseRefreshEvent(data: string): RefreshEvent | undefined {
   if (typeof parsed !== "object" || parsed === null) {
     return undefined;
   }
-  const { reason, at } = parsed as { reason?: unknown; at?: unknown };
+  const { reason, at, locale, delta } = parsed as {
+    reason?: unknown;
+    at?: unknown;
+    locale?: unknown;
+    delta?: unknown;
+  };
   if (
     (reason === "source" || reason === "targets" || reason === "lock") &&
     typeof at === "string"
   ) {
-    return { reason, at };
+    const parsedDelta = parseDelta(delta);
+    return {
+      reason,
+      at,
+      ...(typeof locale === "string" ? { locale } : {}),
+      ...(parsedDelta !== undefined ? { delta: parsedDelta } : {}),
+    };
   }
   return undefined;
 }

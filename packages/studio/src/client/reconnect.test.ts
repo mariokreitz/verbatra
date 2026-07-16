@@ -108,6 +108,65 @@ describe("createReconnectController: refresh delivery", () => {
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
+  it("passes locale and a well-formed delta through intact alongside reason and at", () => {
+    const source = fakeEventSourceFactory();
+    const onRefresh = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: async () => "network-error",
+      session: createSessionStore(),
+      onRefresh,
+    });
+
+    source.fire(
+      0,
+      "refresh",
+      JSON.stringify({
+        reason: "source",
+        at: "2026-01-01T00:00:00.000Z",
+        locale: "de",
+        delta: { added: 1, changed: 2, removed: 0 },
+      }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledWith({
+      reason: "source",
+      at: "2026-01-01T00:00:00.000Z",
+      locale: "de",
+      delta: { added: 1, changed: 2, removed: 0 },
+    });
+  });
+
+  it("parses the frame with delta absent when delta is present but malformed, instead of dropping the whole frame", () => {
+    const source = fakeEventSourceFactory();
+    const onRefresh = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: async () => "network-error",
+      session: createSessionStore(),
+      onRefresh,
+    });
+
+    source.fire(
+      0,
+      "refresh",
+      JSON.stringify({
+        reason: "targets",
+        at: "2026-01-01T00:00:00.000Z",
+        locale: "fr",
+        delta: { added: 1, changed: "two", removed: 0 },
+      }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledWith({
+      reason: "targets",
+      at: "2026-01-01T00:00:00.000Z",
+      locale: "fr",
+    });
+  });
+
   it("drops a refresh payload that parses to a non-object or null instead of throwing", () => {
     const source = fakeEventSourceFactory();
     const onRefresh = vi.fn();
