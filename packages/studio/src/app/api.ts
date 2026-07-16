@@ -12,6 +12,7 @@ import {
 } from "../client/diff-session.js";
 import type { EventSourceLike, MessageEventLike, ProbeOutcome } from "../client/reconnect.js";
 import { createReconnectController } from "../client/reconnect.js";
+import { createReviewOverlayStore, type ReviewOverlayStore } from "../client/review-overlay.js";
 import type { FetchLike, RpcClient } from "../client/rpc-client.js";
 import { createRpcClient } from "../client/rpc-client.js";
 import { createSessionStore, type SessionStore } from "../client/state.js";
@@ -31,6 +32,15 @@ export const diffDataStore: DiffDataStore = createDiffDataStore();
 
 /** A pending "open this key" request from the command palette, read by the Diff panel. */
 export const openKeyStore: OpenKeyStore = createOpenKeyStore();
+
+/**
+ * The needs-review queue's "actioned this session" overlay, held at module scope (like
+ * {@link sessionStore} above) rather than inside the Review panel component: it must survive a tab
+ * switch away from and back to the panel, and reset only on a full page reload, which re-runs this
+ * module and creates a fresh store. A component-local `useState` would incorrectly reset on every
+ * unmount instead.
+ */
+export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore();
 
 const refreshListeners = new Set<(event: RefreshEvent) => void>();
 

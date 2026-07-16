@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import type { LoadedConfig } from "@verbatra/sdk";
+import { EDIT_ENTRY_METHOD } from "../shared/rpc/edit-entry.js";
 import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
 import { buildBanner } from "./banner.js";
 import { cookieName } from "./cookie.js";
@@ -24,12 +25,19 @@ import {
 /** Production default: 20 calls per rolling minute, generous for a human clicking one action repeatedly. */
 const DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_RETRANSLATE_RATE_LIMIT_MAX = 20;
+/** Same production default as retranslate: 20 calls per rolling minute. */
+const DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX = 20;
 
 function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
   return createRpcRateLimiter({
     [RETRANSLATE_ENTRY_METHOD]: {
       windowMs: options.retranslateRateLimitWindowMs ?? DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS,
       maxCalls: options.retranslateRateLimitMax ?? DEFAULT_RETRANSLATE_RATE_LIMIT_MAX,
+    },
+    [EDIT_ENTRY_METHOD]: {
+      windowMs: options.editEntryRateLimitWindowMs ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.editEntryRateLimitMax ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX,
     },
   });
 }

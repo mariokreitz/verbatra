@@ -1,6 +1,6 @@
 ---
-"@verbatra/sdk": minor
-"@verbatra/cli": minor
+"@verbatra/sdk": major
+"@verbatra/cli": major
 ---
 
 Add `retranslateEntry`, a new sdk seam that retranslates exactly one source key into exactly one
@@ -39,6 +39,10 @@ call) can never interleave with it and silently lose a key. A new `LOCK_CONTENDE
 thrown if a locale's lock cannot be acquired within its timeout, naming the lock file's path. This
 also removes the lock-file's previous compare-and-swap retry, which left a residual race window of
 its own; mutual exclusion is now provided entirely by the new lock. A dry run never acquires a
-lock, since it never writes anything. `SdkFs` gains two new required methods, `createExclusive` and
-`deleteFile`, backing the new lock: any custom `SdkFs` implementation passed to `deps.fs` needs
-both.
+lock, since it never writes anything.
+
+Breaking change: the exported `SdkFs` interface gains two new required methods, `createExclusive`
+and `deleteFile`, backing the new lock. Any custom `SdkFs` implementation passed to `translate()`,
+`watch()`, `importWorkbook()`, or any other SDK entry point's `deps.fs` must add both, or it will
+fail to type-check and, since the new lock is now taken unconditionally on every write path, throw
+at runtime the first time a locale is written.
