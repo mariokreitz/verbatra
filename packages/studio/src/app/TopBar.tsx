@@ -1,9 +1,28 @@
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { connectionStore } from "./api.js";
+import { Badge } from "./Badge.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
-import { SearchTrigger } from "./SearchTrigger.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
-import { Tooltip } from "./Tooltip.js";
+
+/**
+ * The live-refresh state, always visible: this dashboard's whole model is "watch the project
+ * and stay current", so whether the stream is up is first-class chrome, not a hidden detail.
+ * Green while the SSE connection streams; amber while it reconnects with backoff. `role=status`
+ * announces the transition to assistive technology.
+ */
+function LiveIndicator(): ReactNode {
+  const [status, setStatus] = useState(connectionStore.getStatus());
+  useEffect(() => connectionStore.subscribe(setStatus), []);
+
+  const live = status === "live";
+  return (
+    <span role="status">
+      <Badge tone={live ? "success" : "warning"}>{live ? "Live" : "Reconnecting"}</Badge>
+    </span>
+  );
+}
 
 export interface TopBarProps {
   /** The active page's label, the bar's orientation text. Not a heading; the h1 belongs to each
@@ -11,24 +30,15 @@ export interface TopBarProps {
   readonly pageLabel: string;
   /** Opens the mobile nav drawer; the trigger only renders below the md breakpoint. */
   readonly onOpenNav: () => void;
-  /** Opens the command palette, from the search pill (or its compact icon form). */
-  readonly onOpenSearch: () => void;
-  /** Opens the keyboard-shortcuts overview ("?" opens the same dialog). */
-  readonly onOpenShortcuts: () => void;
 }
 
 /**
  * The application's fixed header row, always visible while the content column scrolls under it:
  * orientation on the start side (the mobile menu button and the current page's name; the nav is
- * flat, so there is no deeper trail to spell out), global actions on the end side (search,
- * shortcuts, theme).
+ * flat, so there is no deeper trail to spell out), the live-updates indicator and the theme
+ * switcher on the end side.
  */
-export function TopBar({
-  pageLabel,
-  onOpenNav,
-  onOpenSearch,
-  onOpenShortcuts,
-}: TopBarProps): ReactNode {
+export function TopBar({ pageLabel, onOpenNav }: TopBarProps): ReactNode {
   return (
     <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-background px-4 md:px-6">
       <Button
@@ -40,26 +50,8 @@ export function TopBar({
         <Icon name="menu" />
       </Button>
       <span className="text-sm font-semibold text-foreground">{pageLabel}</span>
-      <div className="ms-auto flex items-center gap-1.5">
-        <SearchTrigger onOpenSearch={onOpenSearch} className="hidden sm:flex" />
-        <Button
-          variant="ghost"
-          className="p-1.5 sm:hidden"
-          onClick={onOpenSearch}
-          aria-label="Search"
-        >
-          <Icon name="search" />
-        </Button>
-        <Tooltip label="Keyboard shortcuts" side="bottom">
-          <Button
-            variant="ghost"
-            className="p-1.5"
-            onClick={onOpenShortcuts}
-            aria-label="Keyboard shortcuts"
-          >
-            <Icon name="keyboard" />
-          </Button>
-        </Tooltip>
+      <div className="ms-auto flex items-center gap-2">
+        <LiveIndicator />
         <ThemeSwitcher />
       </div>
     </header>

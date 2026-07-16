@@ -16,23 +16,15 @@ export function MonoValue({ children }: { readonly children: ReactNode }): React
   return <span className="font-mono">{children}</span>;
 }
 
-/** A keyboard-key chip, for shortcut hints (the search pill, the shortcuts dialog). */
-export function Kbd({ children }: { readonly children: ReactNode }): ReactNode {
-  return (
-    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-      {children}
-    </kbd>
-  );
-}
-
 /** The centered, width-capped content column every page renders inside. */
 export function Container({ children }: { readonly children: ReactNode }): ReactNode {
   return <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>;
 }
 
-/** The click-outside-to-dismiss backdrop shared by every overlay (drawer, dialog, palette): a real
- * `<button>` behind the panel in both stacking order and the focus trap, not a click handler on a
- * static element, so dismissing by clicking outside stays a genuine, keyboard-operable control. */
+/** The click-outside-to-dismiss backdrop shared by every overlay (the drawers, the mobile nav):
+ * a real `<button>` behind the panel in both stacking order and the focus trap, not a click
+ * handler on a static element, so dismissing by clicking outside stays a genuine,
+ * keyboard-operable control. */
 export function OverlayBackdrop({
   onClose,
   label,
@@ -50,10 +42,9 @@ export function OverlayBackdrop({
   );
 }
 
-/** The icon-only close button every overlay (`Sheet`, `Modal`, the mobile nav drawer) shows
- * next to its title, previously copy-pasted identically in each of the three. `label` defaults to
- * "Close" (what every existing caller already passed) but stays overridable, since the mobile nav
- * drawer's is more specific ("Close navigation"). */
+/** The icon-only close button every overlay (`Sheet`, the mobile nav drawer) shows next to its
+ * title. `label` defaults to "Close" but stays overridable, since the mobile nav drawer's is
+ * more specific ("Close navigation"). */
 export function DialogCloseButton({
   onClose,
   label = "Close",
@@ -240,10 +231,12 @@ export const tableClasses = {
 };
 
 /**
- * Shared shell for `Badge` and `DiffBadge`: a small tone-colored pill with a glyph and a
- * `border-s` accent, so the signal never rests on color alone. Only the per-tone color classes
- * (owned by each badge's own tone map) differ between the two vocabularies.
+ * Shared shell for `Badge` and `DiffBadge`: a minimal rounded pill, a soft tone tint, and a
+ * small dot in the tone color. The dot is decorative; every badge in this dashboard carries a
+ * distinct text label ("In sync" vs "Out of sync", "Missing" vs "Changed"), so the signal never
+ * rests on color alone. Only the per-tone color classes (owned by each badge's own tone map)
+ * differ between the two vocabularies.
  */
 export const pillClassName =
-  "inline-flex items-center gap-1 whitespace-nowrap rounded-md border-s-[3px] border-transparent px-2 py-1 text-xs font-semibold leading-tight";
-export const pillGlyphClassName = "font-mono font-bold";
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium leading-5";
+export const pillDotClassName = "size-1.5 flex-none rounded-full bg-current";

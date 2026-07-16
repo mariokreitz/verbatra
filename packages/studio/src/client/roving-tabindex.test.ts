@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type GridDimensions, moveGridFocus } from "./roving-tabindex.js";
+import { clampGridPosition, type GridDimensions, moveGridFocus } from "./roving-tabindex.js";
 
 const GRID: GridDimensions = { rowCount: 3, colCount: 4 };
 
@@ -64,5 +64,33 @@ describe("moveGridFocus", () => {
     const empty: GridDimensions = { rowCount: 0, colCount: 0 };
     const position = { row: 0, col: 0 };
     expect(moveGridFocus(position, "ArrowUp", empty)).toBe(position);
+  });
+});
+
+describe("clampGridPosition", () => {
+  it("returns the position unchanged while it fits the grid", () => {
+    const position = { row: 2, col: 1 };
+    expect(clampGridPosition(position, { rowCount: 5, colCount: 3 })).toBe(position);
+  });
+
+  it("clamps a row that a live refresh shrank away", () => {
+    expect(clampGridPosition({ row: 4, col: 1 }, { rowCount: 2, colCount: 3 })).toEqual({
+      row: 1,
+      col: 1,
+    });
+  });
+
+  it("clamps a column that a locale removal shrank away", () => {
+    expect(clampGridPosition({ row: 0, col: 5 }, { rowCount: 2, colCount: 2 })).toEqual({
+      row: 0,
+      col: 1,
+    });
+  });
+
+  it("clamps degenerate dimensions to the origin", () => {
+    expect(clampGridPosition({ row: 3, col: 3 }, { rowCount: 0, colCount: 0 })).toEqual({
+      row: 0,
+      col: 0,
+    });
   });
 });

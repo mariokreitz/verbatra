@@ -8,7 +8,6 @@ import type { ReactNode } from "react";
  * sits in carries the accessible name (visible text or an aria-label).
  */
 export type IconName =
-  | "dashboard"
   | "activity"
   | "diff"
   | "review"
@@ -26,18 +25,10 @@ export type IconName =
   | "check"
   | "copy"
   | "inbox"
-  | "keyboard"
+  | "settings"
   | "alert";
 
 const ICON_PATHS: Readonly<Record<IconName, ReactNode>> = {
-  dashboard: (
-    <>
-      <rect x="3" y="3" width="7" height="9" rx="1" />
-      <rect x="14" y="3" width="7" height="5" rx="1" />
-      <rect x="14" y="12" width="7" height="9" rx="1" />
-      <rect x="3" y="16" width="7" height="5" rx="1" />
-    </>
-  ),
   activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
   diff: (
     <>
@@ -131,14 +122,19 @@ const ICON_PATHS: Readonly<Record<IconName, ReactNode>> = {
       <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
     </>
   ),
-  keyboard: (
+  settings: (
     <>
-      <rect x="2" y="6" width="20" height="12" rx="2" />
-      <path d="M6 10h.01" />
-      <path d="M10 10h.01" />
-      <path d="M14 10h.01" />
-      <path d="M18 10h.01" />
-      <path d="M8 14h8" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3" />
+      <path d="M12 19v3" />
+      <path d="m17 3.34-1.5 2.6" />
+      <path d="m8.5 18.06-1.5 2.6" />
+      <path d="m20.66 7-2.6 1.5" />
+      <path d="m5.94 15.5-2.6 1.5" />
+      <path d="m20.66 17-2.6-1.5" />
+      <path d="m5.94 8.5-2.6-1.5" />
+      <path d="m17 20.66-1.5-2.6" />
+      <path d="m8.5 5.94-1.5-2.6" />
     </>
   ),
   alert: (

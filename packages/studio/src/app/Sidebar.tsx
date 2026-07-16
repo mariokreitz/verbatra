@@ -3,7 +3,6 @@ import type { PageId } from "../client/routes.js";
 import { Button } from "./Button.js";
 import { Icon, type IconName } from "./Icon.js";
 import { cn } from "./lib/cn.js";
-import { SearchTrigger } from "./SearchTrigger.js";
 import { Tooltip } from "./Tooltip.js";
 import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
@@ -215,12 +214,9 @@ export function DesktopSidebar({
  * behind it. */
 export function MobileNavDrawer({
   onClose,
-  onOpenSearch,
   ...navProps
 }: SidebarNavProps & {
   readonly onClose: () => void;
-  /** Opens the command palette; the drawer closes itself first. */
-  readonly onOpenSearch: () => void;
 }): ReactNode {
   const containerRef = useDialogA11y<HTMLDivElement>({ isOpen: true, onClose });
 
@@ -238,13 +234,6 @@ export function MobileNavDrawer({
           <SidebarBrand />
           <DialogCloseButton onClose={onClose} label="Close navigation" />
         </div>
-        <SearchTrigger
-          className="w-full"
-          onOpenSearch={() => {
-            onOpenSearch();
-            onClose();
-          }}
-        />
         <div className="min-h-0 flex-1 overflow-y-auto">
           <NavList
             pages={navProps.workPages}

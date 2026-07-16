@@ -13,11 +13,10 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 /**
- * A bordered-surface container: stat tiles (`OverviewPanel`) and the `Toast` shell `RefreshToast`
- * builds on. `Sheet`/`Modal`'s own panels and the command palette use the same visual tokens
- * (`rounded-lg border border-border bg-card`) directly rather than through this component, since
- * their layout (fixed positioning, `role="dialog"`, a focus-trap ref) doesn't fit `Card`'s plain
- * div/section shape. `padding` covers the two sizes those callers actually need; add a new one
+ * A bordered-surface container: metric tiles, section cards, and the `Toast` shell
+ * `RefreshToast` builds on. `Sheet`'s own panel uses the same visual tokens (`rounded-lg border
+ * border-border bg-card`) directly rather than through this component, since its layout (fixed
+ * positioning, `role="dialog"`, a focus-trap ref) doesn't fit `Card`'s plain div/section shape. `padding` covers the two sizes those callers actually need; add a new one
  * only when a real usage needs it. Forwards the rest of the standard div attributes (`role`,
  * `aria-*`) since `Toast` needs the card itself to carry an ARIA live-region role.
  */

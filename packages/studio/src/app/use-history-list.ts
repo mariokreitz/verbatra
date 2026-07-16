@@ -10,11 +10,12 @@ export type HistoryState =
   | { readonly kind: "loaded"; readonly commits: readonly HistoryCommit[] };
 
 /**
- * Fetches the project's commit history once via `history.list` and exposes it as a
- * {@link HistoryState}, shared by every panel that shows commit history (currently
- * `HistoryPanel` and `KeyDetailDrawer`) so the fetch/state-machine logic exists in one place.
+ * Fetches the project's commit history via `history.list` and exposes it as a
+ * {@link HistoryState}, shared by every surface that shows commit history (the Activity feed
+ * and `KeyDetailDrawer`) so the fetch/state-machine logic exists in one place. Pass the app's
+ * `refreshToken` to re-fetch on every live-refresh event; omit it to fetch once on mount.
  */
-export function useHistoryList(): HistoryState {
+export function useHistoryList(refreshToken?: unknown): HistoryState {
   const [state, setState] = useState<HistoryState>({ kind: "loading" });
 
   useEffect(() => {
@@ -36,7 +37,7 @@ export function useHistoryList(): HistoryState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   return state;
 }

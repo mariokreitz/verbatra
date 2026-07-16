@@ -13,8 +13,9 @@ import { isRtlLocale } from "../../client/locale-direction.js";
 import { buildReviewReportMarkdown } from "../../client/review-report.js";
 import type { RpcCallResult } from "../../client/rpc-client.js";
 import type { RefreshableView, StructuredError } from "../../client/state.js";
+import { toUsageTickerDisplayState } from "../../client/usage-ticker-data.js";
 import { Accordion, AccordionItem } from "../Accordion.js";
-import { diffDataStore, openKeyStore, rpcClient } from "../api.js";
+import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { Button } from "../Button.js";
 import { Card } from "../Card.js";
@@ -43,6 +44,7 @@ import { Tabs } from "../Tabs.js";
 import { Toolbar } from "../Toolbar.js";
 import { PageSection } from "../ui.js";
 import { useStatusData } from "../use-status-data.js";
+import { useUsageTicker } from "../use-usage-ticker.js";
 
 type DiffViewMode = "grid" | "flat";
 
@@ -53,6 +55,9 @@ type DiffState =
       readonly kind: "loaded";
       readonly hasPendingChanges: boolean;
       readonly locales: readonly DiffLocale[];
+      /** Set when the most recent live re-fetch failed: the data shown is the last good read.
+       * Mirrors the keep-last-good contract `status.check` gets from `applyRefreshOutcome`. */
+      readonly staleError?: StructuredError;
     };
 
 type LockStateResponse = RpcCallResult<"lock.state">;
@@ -71,9 +76,9 @@ type LockView =
       readonly locales: readonly LockLocaleState[];
     };
 
-/** Lock-file existence, version, and per-locale drift via `lock.state`, fetched once per mount
- * (unchanged from the standalone Lock page this section absorbed). */
-function useLockState(): LockView {
+/** Lock-file existence, version, and per-locale drift via `lock.state`, re-fetched on every
+ * live-refresh event so the lock column tracks the files as they change on disk. */
+function useLockState(refreshToken: number): LockView {
   const [view, setView] = useState<LockView>({ kind: "loading" });
 
   useEffect(() => {
@@ -99,7 +104,7 @@ function useLockState(): LockView {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   return view;
 }
@@ -156,9 +161,11 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
 function StatusBanner({
   status,
   diff,
+  refreshToken,
 }: {
   readonly status: RefreshableView<StatusData>;
   readonly diff: DiffState;
+  readonly refreshToken: number;
 }): ReactNode {
   const allClear = diff.kind === "loaded" && isFullyInSync(diff.locales);
   const rows = status.kind === "data" ? status.data.rows : null;
@@ -167,6 +174,7 @@ function StatusBanner({
     <Card className={cnBanner(allClear)} {...(allClear ? { role: "status" } : {})}>
       <div className="min-w-0 max-w-xl">
         <BannerHeadline diff={diff} allClear={allClear} rows={rows} />
+        <LastRunLine refreshToken={refreshToken} />
       </div>
       {rows !== null ? (
         <div className="flex w-full flex-none flex-col gap-3 sm:w-56">
@@ -188,6 +196,38 @@ function StatusBanner({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * The last recorded run's token figures, inline in the banner: the one-line answer to "what did
+ * the most recent translation run cost", right where the day starts. Renders nothing until a
+ * run exists; Activity carries the full breakdown and every edge state.
+ */
+function LastRunLine({ refreshToken }: { readonly refreshToken: number }): ReactNode {
+  const view = useUsageTicker(refreshToken);
+  if (view.kind !== "data") {
+    return null;
+  }
+  const state = toUsageTickerDisplayState(view.data);
+  if (state.kind !== "available") {
+    return null;
+  }
+  const usage =
+    state.usage.kind === "reported"
+      ? `${state.usage.inputTokens.toLocaleString()} in / ${state.usage.outputTokens.toLocaleString()} out tokens`
+      : "tokens not reported";
+  const budget =
+    state.budget.kind === "tracked"
+      ? state.budget.exceeded
+        ? " · budget ceiling reached"
+        : " · within budget"
+      : "";
+  return (
+    <p className="mt-3 text-xs text-muted-foreground">
+      Last run: {usage}
+      {budget} · {new Date(state.generatedAt).toLocaleString()}
+    </p>
   );
 }
 
@@ -353,8 +393,7 @@ const VIEW_MODE_ITEMS: ReadonlyArray<{ readonly id: DiffViewMode; readonly label
  * The drift-affected keys, the workspace's primary surface: a key-by-locale grid (default) or
  * per-locale collapsible lists, with a filter in list mode. Rendered only while something is
  * actually pending; the fully-in-sync state is carried by the banner instead of a wall of empty
- * lists. Key selection flows through the shared `openKeyStore`, the same path the command
- * palette uses.
+ * lists. Key selection calls straight back into the page's own drawer state.
  */
 function KeysSection({
   locales,
@@ -363,6 +402,8 @@ function KeysSection({
   onQueryChange,
   viewMode,
   onViewModeChange,
+  onSelectKey,
+  refreshToken,
 }: {
   readonly locales: readonly DiffLocale[];
   readonly hasPendingChanges: boolean;
@@ -370,6 +411,8 @@ function KeysSection({
   readonly onQueryChange: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly viewMode: DiffViewMode;
   readonly onViewModeChange: (mode: DiffViewMode) => void;
+  readonly onSelectKey: (key: string) => void;
+  readonly refreshToken: number;
 }): ReactNode {
   return (
     <PageSection
@@ -397,7 +440,7 @@ function KeysSection({
         ) : null}
       </Toolbar>
       {viewMode === "grid" ? (
-        <StatusGrid locales={locales} onSelectKey={openKeyStore.request} />
+        <StatusGrid locales={locales} refreshToken={refreshToken} onSelectKey={onSelectKey} />
       ) : (
         <Accordion>
           {locales.map((locale) => (
@@ -405,7 +448,7 @@ function KeysSection({
               key={locale.locale}
               locale={locale}
               query={query}
-              onSelectKey={openKeyStore.request}
+              onSelectKey={onSelectKey}
             />
           ))}
         </Accordion>
@@ -573,33 +616,31 @@ function LocalesSection({
 }
 
 /**
- * The daily workspace: everything the old Status, Diff, and Lock pages showed, on one scroll.
- * Three independent reads compose it, keeping each one's original semantics:
+ * The daily workspace: everything the sync question needs, on one scroll, and fully live. All
+ * three reads re-fetch on every live-refresh event, so the page tracks the project as files
+ * change on disk:
  *
- * - `status.check` (coverage) via {@link useStatusData}, re-fetched on every live-refresh event,
- *   with the covered keep-last-good-data reducer and its stale banner.
- * - `status.diff` (the key lists), fetched once per mount and deliberately NOT re-fetched on
- *   live refresh (unchanged scope choice from the standalone Diff page). It feeds the shared
- *   `diffDataStore` for the command palette and drives the banner headline and the key explorer.
- * - `lock.state`, fetched once per mount.
+ * - `status.check` (coverage) via {@link useStatusData}, with the covered keep-last-good-data
+ *   reducer and its stale banner.
+ * - `status.diff` (the key lists), driving the banner headline and the key explorer. A live
+ *   re-fetch keeps the previously loaded data on screen until the fresh response lands, and a
+ *   failed re-fetch keeps it too, marked with a stale banner (the hard error state is only ever
+ *   shown before the first successful read), so the explorer never blinks or blanks.
+ * - `lock.state`, driving the lock column and the lock detail.
  *
- * The selected key and the loaded diff data flow through the module-level stores
- * (`client/diff-session.ts`, wired in `app/api.ts`): the palette, a sibling of this panel, reads
- * the same data and requests the same drawer-open a manual click performs, with no second RPC
- * call. The open-key request clears on unmount and on manual close, so leaving this page never
- * leaves a stale request behind. `refreshToken` passes through to the open drawer, whose
- * `key.integrity` view re-fetches on live refresh.
+ * The selected key is plain component state: clicking a key (grid or list) opens
+ * {@link KeyDetailDrawer} over the already-loaded diff data, and leaving the page drops the
+ * selection with the component. `refreshToken` passes through to the open drawer, whose
+ * `key.integrity` and value views re-fetch on live refresh; a drawer left open across a refresh
+ * that resolves its key simply shows every locale as in sync, which is the truthful reading.
  */
 export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
   const [diff, setDiff] = useState<DiffState>({ kind: "loading" });
   const [query, setQuery] = useState("");
-  const [selectedKey, setSelectedKey] = useState<string | null>(openKeyStore.getState());
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
   const status = useStatusData(refreshToken);
-  const lock = useLockState();
-
-  useEffect(() => openKeyStore.subscribe(setSelectedKey), []);
-  useEffect(() => () => openKeyStore.clear(), []);
+  const lock = useLockState(refreshToken);
 
   useEffect(() => {
     let cancelled = false;
@@ -608,10 +649,16 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
         return;
       }
       if (!response.ok) {
-        setDiff({ kind: "error", error: response.error });
+        // A failure never blanks a view that already has good data (the same rule
+        // applyRefreshOutcome enforces for status.check): keep the last good diff on screen,
+        // marked stale, and only show a hard error before the first successful read.
+        setDiff((previous) =>
+          previous.kind === "loaded"
+            ? { ...previous, staleError: response.error }
+            : { kind: "error", error: response.error },
+        );
         return;
       }
-      diffDataStore.setLocales(response.result.locales);
       setDiff({
         kind: "loaded",
         hasPendingChanges: response.result.hasPendingChanges,
@@ -621,7 +668,7 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshToken]);
 
   const allClear = diff.kind === "loaded" && isFullyInSync(diff.locales);
 
@@ -632,9 +679,12 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
         description="Every pending change across your target locales, and how far along each locale is."
         actions={diff.kind === "loaded" ? <ReviewReportButton locales={diff.locales} /> : undefined}
       />
-      <StatusBanner status={status} diff={diff} />
+      <StatusBanner status={status} diff={diff} refreshToken={refreshToken} />
       {diff.kind === "loading" ? <Loading /> : null}
       {diff.kind === "error" ? <ErrorMessage error={diff.error} /> : null}
+      {diff.kind === "loaded" && diff.staleError !== undefined ? (
+        <ErrorMessage error={diff.staleError} prefix="Showing the last known pending changes." />
+      ) : null}
       {diff.kind === "loaded" && !allClear ? (
         <KeysSection
           locales={diff.locales}
@@ -643,6 +693,8 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
           onQueryChange={(event) => setQuery(event.target.value)}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          onSelectKey={setSelectedKey}
+          refreshToken={refreshToken}
         />
       ) : null}
       <LocalesSection status={status} lock={lock} />
@@ -651,7 +703,7 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
           keyName={selectedKey}
           locales={diff.locales}
           refreshToken={refreshToken}
-          onClose={() => openKeyStore.clear()}
+          onClose={() => setSelectedKey(null)}
         />
       ) : null}
     </>

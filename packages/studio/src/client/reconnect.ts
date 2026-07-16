@@ -37,6 +37,9 @@ export type ProbeOutcome = "unauthorized" | "network-error";
 /** Runs one cheap RPC call solely to distinguish a terminal 401 from a transient network failure. */
 export type ProbeFn = () => Promise<ProbeOutcome>;
 
+/** The live-refresh connection's observable state: streaming, or between attempts. */
+export type ConnectionStatus = "live" | "reconnecting";
+
 /** Options for {@link createReconnectController}. */
 export interface ReconnectControllerOptions {
   /** The `/events` URL to connect to. */
@@ -46,6 +49,10 @@ export interface ReconnectControllerOptions {
   readonly session: SessionStore;
   /** Called once per refresh event received on the current connection. */
   readonly onRefresh: (event: RefreshEvent) => void;
+  /** Called when the connection's observable state changes: "live" once a connection opens,
+   * "reconnecting" the moment one drops. Drives the dashboard's live indicator; optional so
+   * existing callers and tests that do not observe status stay untouched. */
+  readonly onStatusChange?: (status: ConnectionStatus) => void;
   /** Base backoff delay in milliseconds; defaults to 1000 (1 second). */
   readonly baseDelayMs?: number;
   /** Backoff cap in milliseconds; defaults to 30000 (30 seconds). */
@@ -180,7 +187,17 @@ export function createReconnectController(
   }
 
   function handleError(source: EventSourceLike): void {
-    if (stopped || source.readyState !== EVENT_SOURCE_CLOSED) {
+    if (stopped) {
+      return;
+    }
+    // Any error event means the stream is interrupted, including the browser EventSource's own
+    // native retry (readyState CONNECTING, no terminal CLOSED): the status must turn
+    // "reconnecting" for both paths, or a killed server would leave the indicator green for the
+    // whole outage. Only the terminal CLOSED case additionally hands reconnection over to this
+    // controller's probe-and-backoff; the native retry keeps the source alive and a later open
+    // flips the status back to "live" through handleOpen.
+    options.onStatusChange?.("reconnecting");
+    if (source.readyState !== EVENT_SOURCE_CLOSED) {
       return;
     }
     source.close();
@@ -189,6 +206,7 @@ export function createReconnectController(
 
   function handleOpen(): void {
     attempt = 0;
+    options.onStatusChange?.("live");
   }
 
   function connect(): void {

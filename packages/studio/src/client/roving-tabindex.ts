@@ -47,3 +47,19 @@ export function moveGridFocus(
       return { row: position.row, col: wrapIndex(position.col + 1, colCount) };
   }
 }
+
+/**
+ * Clamps a stored roving position into the grid's current dimensions. The grid re-renders live
+ * as keys resolve, so a remembered position can point past the shrunken row list; rendering an
+ * unclamped position would leave no cell with tabIndex 0 and drop the whole grid out of the Tab
+ * order. Degenerate dimensions (an empty grid) clamp to the origin; the caller does not render
+ * a grid at all in that case.
+ */
+export function clampGridPosition(position: GridPosition, grid: GridDimensions): GridPosition {
+  const row = Math.min(position.row, Math.max(0, grid.rowCount - 1));
+  const col = Math.min(position.col, Math.max(0, grid.colCount - 1));
+  if (row === position.row && col === position.col) {
+    return position;
+  }
+  return { row, col };
+}

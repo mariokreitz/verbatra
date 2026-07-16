@@ -6,7 +6,7 @@
  */
 
 /** Every page, in sidebar order: the two work surfaces first, then the two reference pages. */
-export const PAGE_IDS = ["translations", "review", "activity", "project"] as const;
+export const PAGE_IDS = ["translations", "review", "activity", "settings"] as const;
 
 export type PageId = (typeof PAGE_IDS)[number];
 

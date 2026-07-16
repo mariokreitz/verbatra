@@ -1,33 +1,104 @@
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 import type { DiffLocale, KeyLocaleStatusRow } from "../client/diff-view.js";
 import { deriveKeyLocaleStatus } from "../client/diff-view.js";
 import { deriveIntegrityPillView, type KeyIntegrityLocaleEntry } from "../client/integrity-pill.js";
 import { isRtlLocale } from "../client/locale-direction.js";
 import { canRetranslate } from "../client/retranslate-eligibility.js";
 import type { StudioCapabilities } from "../shared/rpc/snapshot.js";
+import { rpcClient } from "./api.js";
 import { Badge } from "./Badge.js";
 import { CommitList } from "./CommitList.js";
 import { DiffBadge } from "./DiffBadge.js";
 import { RetranslateButton } from "./RetranslateButton.js";
-import { DrawerShell, Section, tableClasses } from "./ui.js";
+import { DrawerShell, Section } from "./ui.js";
 import { useCapabilities } from "./use-capabilities.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 import { useHistoryList } from "./use-history-list.js";
 import { useKeyIntegrity } from "./use-key-integrity.js";
 
-/** The drawer's own table treatment: unlike `ui.tsx`'s `tableClasses.table`, it does not floor at
- * 480px, since the drawer's content column (min(420px,100%) minus padding) is narrower than that;
- * its two columns (a short locale code and a badge) never needed the floor anyway. */
-const drawerTableClasses = { ...tableClasses, table: "w-full border-collapse text-sm" };
-
 export interface KeyDetailDrawerProps {
   /** The key this drawer reports on. */
   readonly keyName: string;
-  /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
+  /** The Translations page's already-loaded per-locale diff data; never re-fetched by this component. */
   readonly locales: readonly DiffLocale[];
-  /** Bumped once per live-refresh event; re-fetches this drawer's own integrity view. */
+  /** Bumped once per live-refresh event; re-fetches this drawer's own integrity and value views. */
   readonly refreshToken: number;
   readonly onClose: () => void;
+}
+
+type KeyValuesState =
+  | { readonly kind: "loading" }
+  | {
+      readonly kind: "loaded";
+      readonly source: string | undefined;
+      readonly targets: ReadonlyMap<string, string | undefined>;
+    };
+
+/**
+ * The key's current values, one `key.value` read per locale (each call is one local file read;
+ * no bulk content endpoint exists, see the rpc contract's own scoping note). A locale whose read
+ * fails is simply absent from the map: the drawer's status rows never depend on this fetch, so
+ * a partial result degrades to fewer value lines, never an error wall. Re-fetched on every
+ * live-refresh event, so an edit or retranslate shows its new value here without reopening.
+ */
+function useKeyValues(
+  keyName: string,
+  locales: readonly string[],
+  refreshToken: number,
+): KeyValuesState {
+  const [state, setState] = useState<KeyValuesState>({ kind: "loading" });
+  const localesKey = locales.join(" ");
+
+  useEffect(() => {
+    let cancelled = false;
+    const localeList = localesKey === "" ? [] : localesKey.split(" ");
+    void Promise.all(
+      localeList.map((locale) => rpcClient.call("key.value", { locale, key: keyName })),
+    ).then((responses) => {
+      if (cancelled) {
+        return;
+      }
+      let source: string | undefined;
+      const targets = new Map<string, string | undefined>();
+      responses.forEach((response, index) => {
+        const locale = localeList[index];
+        if (locale === undefined || !response.ok) {
+          return;
+        }
+        source ??= response.result.source;
+        targets.set(locale, response.result.target);
+      });
+      setState({ kind: "loaded", source, targets });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [keyName, localesKey, refreshToken]);
+
+  return state;
+}
+
+/** One locale's current value line, rendered in that locale's own direction. */
+function LocaleValue({
+  values,
+  locale,
+}: {
+  readonly values: KeyValuesState;
+  readonly locale: string;
+}): ReactNode {
+  if (values.kind !== "loaded" || !values.targets.has(locale)) {
+    return null;
+  }
+  const value = values.targets.get(locale);
+  if (value === undefined) {
+    return <p className="m-0 mt-2 text-sm text-muted-foreground">No translation yet.</p>;
+  }
+  return (
+    <p className="m-0 mt-2 break-words font-mono text-sm text-foreground" dir="auto">
+      {value}
+    </p>
+  );
 }
 
 /**
@@ -65,68 +136,65 @@ function IntegrityCell({
   );
 }
 
-function LocaleStatusRow({
+/**
+ * One locale's block: the locale code and its status/integrity signals on the header line, the
+ * current translation value under it. A stacked list rather than a table: the drawer column is
+ * narrow, and real values need the full line width to stay readable.
+ */
+function LocaleBlock({
   row,
   keyName,
   integrity,
   capabilities,
+  values,
 }: {
   readonly row: KeyLocaleStatusRow;
   readonly keyName: string;
   readonly integrity: readonly KeyIntegrityLocaleEntry[];
   readonly capabilities: StudioCapabilities | undefined;
+  readonly values: KeyValuesState;
 }): ReactNode {
   return (
-    <tr dir={isRtlLocale(row.locale) ? "rtl" : undefined}>
-      <td className={`${drawerTableClasses.td} font-mono`}>{row.locale}</td>
-      <td className={drawerTableClasses.td}>
+    <li
+      className="border-b border-border py-3 last:border-b-0"
+      dir={isRtlLocale(row.locale) ? "rtl" : undefined}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-sm font-semibold text-foreground">{row.locale}</span>
         {row.status === "in-sync" ? (
           <Badge tone="success">In sync</Badge>
         ) : (
           <DiffBadge tone={row.status} />
         )}
-      </td>
-      <td className={drawerTableClasses.td}>
         <IntegrityCell
           integrity={integrity}
           locale={row.locale}
           keyName={keyName}
           capabilities={capabilities}
         />
-      </td>
-    </tr>
+      </div>
+      <LocaleValue values={values} locale={row.locale} />
+    </li>
   );
 }
 
 /**
- * Per-key detail drawer: one key's status per locale, derived from the diff data the Diff panel
- * already loaded (never re-fetched here); the key's placeholder or ICU integrity per locale, via
- * `key.integrity`, fetched fresh whenever the drawer opens for a new key; and the project's commit
- * history for the source and target locale files via `history.list`. The history is deliberately
- * not filtered to commits that touched this specific key: `history.list` scopes `git log` to whole
- * locale files, not individual keys (see `server/methods/history.ts`), so this reports the same
- * commit history HistoryPanel shows, offered as project context rather than a false per-key
- * filter. Translation values themselves stay out of scope: they are still not available over the
- * read-only RPC surface, only the boolean integrity result and, on a mismatch, the specific
- * placeholder tokens involved.
+ * Per-key detail drawer: one key's status, integrity, and current value per locale, plus the
+ * project's commit history. The status rows derive from the diff data the Translations page
+ * already loaded (never re-fetched here); the placeholder or ICU integrity comes from
+ * `key.integrity`, and the actual source and per-locale values from one `key.value` read per
+ * locale, both fetched fresh whenever the drawer opens for a new key and on every live-refresh
+ * event (`refreshToken`), so a successful edit or retranslate is visible here without closing
+ * and reopening. The history is deliberately not filtered to this key: `history.list` scopes
+ * `git log` to whole locale files (see `server/methods/history.ts`), so this reports project
+ * context rather than a false per-key filter.
  *
- * Focus trap, Esc-to-close, and focus restoration come from `useDialogA11y`, shared with any
- * future overlay this dashboard adds. The backdrop dismiss is a real `<button>` behind the panel
- * in both stacking order and the focus trap, not a click handler on a static element, so clicking
- * outside the panel to close stays a genuine, keyboard-operable control rather than a mouse-only
- * affordance.
- *
- * Manual RTL verification note: given a config with an RTL target locale (for example "ar"), that
- * locale's row in the status table below renders with `dir="rtl"`, right-aligning that row's cells
- * while every other row stays left-to-right; `isRtlLocale` itself is covered in
- * `client/locale-direction.test.ts`. src/app has no browser-rendered test harness in this package
- * (see vitest.config.ts), so this was verified by reading the rendered attribute logic in
- * isolation rather than in a browser.
- *
- * `refreshToken` threads the app's existing live-refresh signal into this drawer's own
- * `key.integrity` fetch (`useKeyIntegrity`): a successful retranslate writes the target file and
- * the lock, the project watcher observes that change and broadcasts the same `refresh` SSE event
- * any external edit already triggers, and this drawer re-fetches without closing and reopening.
+ * Focus trap, Esc-to-close, and focus restoration come from `useDialogA11y`. The backdrop
+ * dismiss is a real `<button>` behind the panel in both stacking order and the focus trap, not
+ * a click handler on a static element, so clicking outside the panel to close stays a genuine,
+ * keyboard-operable control. RTL locales render their block (header line and value) in their
+ * own direction via `dir`, and values additionally use `dir="auto"` so a value's own first
+ * strong character decides its direction.
  */
 export function KeyDetailDrawer({
   keyName,
@@ -134,12 +202,17 @@ export function KeyDetailDrawer({
   refreshToken,
   onClose,
 }: KeyDetailDrawerProps): ReactNode {
-  const history = useHistoryList();
+  const history = useHistoryList(refreshToken);
   const integrity = useKeyIntegrity(keyName, refreshToken);
   const capabilitiesState = useCapabilities();
   const containerRef = useDialogA11y<HTMLDivElement>({ isOpen: true, onClose });
 
   const rows = deriveKeyLocaleStatus(locales, keyName);
+  const values = useKeyValues(
+    keyName,
+    rows.map((row) => row.locale),
+    refreshToken,
+  );
   const integrityLocales = integrity.kind === "loaded" ? integrity.locales : [];
   const capabilities =
     capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities : undefined;
@@ -152,27 +225,30 @@ export function KeyDetailDrawer({
       onClose={onClose}
       containerRef={containerRef}
     >
-      <Section title="Status by locale">
-        <table className={drawerTableClasses.table}>
-          <thead>
-            <tr>
-              <th className={drawerTableClasses.th}>Locale</th>
-              <th className={drawerTableClasses.th}>Status</th>
-              <th className={drawerTableClasses.th}>Integrity</th>
-            </tr>
-          </thead>
-          <tbody className={drawerTableClasses.tbody}>
-            {rows.map((row) => (
-              <LocaleStatusRow
-                row={row}
-                keyName={keyName}
-                integrity={integrityLocales}
-                capabilities={capabilities}
-                key={row.locale}
-              />
-            ))}
-          </tbody>
-        </table>
+      <Section title="Source">
+        {values.kind === "loaded" && values.source !== undefined ? (
+          <p className="m-0 break-words font-mono text-sm text-foreground" dir="auto">
+            {values.source}
+          </p>
+        ) : (
+          <p className="m-0 text-sm text-muted-foreground">
+            {values.kind === "loading" ? "Loading value…" : "No current source value."}
+          </p>
+        )}
+      </Section>
+      <Section title="Locales">
+        <ul className="m-0 list-none p-0">
+          {rows.map((row) => (
+            <LocaleBlock
+              row={row}
+              keyName={keyName}
+              integrity={integrityLocales}
+              capabilities={capabilities}
+              values={values}
+              key={row.locale}
+            />
+          ))}
+        </ul>
       </Section>
       <Section
         title="History"

@@ -15,9 +15,9 @@ export interface PopoverProps {
 
 /**
  * A small floating panel anchored under a trigger element, for a non-modal disclosure (extra
- * detail, a short menu) that doesn't warrant `Sheet`/`Modal`'s full-page backdrop and focus trap.
+ * detail, a short menu) that doesn't warrant `Sheet`'s full-page backdrop and focus trap.
  * Dismisses on Escape or a click outside the anchor-plus-panel pair; deliberately does not trap
- * focus (unlike `Sheet`/`Modal`, both genuinely modal), since a popover's whole point is staying
+ * focus (unlike the genuinely modal `Sheet`), since a popover's whole point is staying
  * lightweight next to the page it floats over.
  */
 export function Popover({

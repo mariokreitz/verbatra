@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { StructuredError } from "../../client/state.js";
 import type { GlossaryGetResult } from "../../shared/rpc/glossary.js";
 import type { ProjectSnapshotResult } from "../../shared/rpc/snapshot.js";
-import { rpcClient } from "../api.js";
+import { connectionStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
@@ -11,6 +11,58 @@ import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
+import { useCapabilities } from "../use-capabilities.js";
+
+/**
+ * What this Studio session can do right now: local editing (always available; it writes only
+ * your own project files behind the loopback session), whether provider-calling actions were
+ * enabled at startup with --allow-spend, and whether the live-refresh stream is currently up.
+ */
+function SessionSection(): ReactNode {
+  const capabilitiesState = useCapabilities();
+  const [connection, setConnection] = useState(connectionStore.getStatus());
+  useEffect(() => connectionStore.subscribe(setConnection), []);
+
+  const spend =
+    capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities.spend : undefined;
+
+  const items: Array<readonly [string, ReactNode]> = [
+    [
+      "Local editing",
+      <Badge key="editing" tone="success">
+        Available
+      </Badge>,
+    ],
+    [
+      "Provider actions",
+      spend === undefined ? (
+        <span key="spend" className="text-sm text-muted-foreground">
+          Loading…
+        </span>
+      ) : (
+        <Badge key="spend" tone={spend ? "success" : "neutral"}>
+          {spend ? "Enabled" : "Off (start with --allow-spend)"}
+        </Badge>
+      ),
+    ],
+    [
+      "Live updates",
+      <Badge key="live" tone={connection === "live" ? "success" : "warning"}>
+        {connection === "live" ? "Connected" : "Reconnecting"}
+      </Badge>,
+    ],
+  ];
+
+  return (
+    <SectionCard
+      title="Session"
+      intro="What this Studio process can do, resolved once at startup."
+      className="mb-6"
+    >
+      <DetailList items={items} />
+    </SectionCard>
+  );
+}
 
 /** The at-a-glance figure strip: the four facts someone opens this page to confirm. */
 function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
@@ -28,7 +80,7 @@ function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult
   );
 }
 
-type ProjectState =
+type SettingsState =
   | { readonly status: "loading" }
   | { readonly status: "error"; readonly error: StructuredError }
   | {
@@ -132,26 +184,26 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
 }
 
 /**
- * The reference page for how this project is configured: a read-only view of the resolved
- * config snapshot (project.snapshot) and the glossary (glossary.get), both independent,
- * stateless reads made fresh on every mount. Demoted from a primary workspace to the sidebar's
- * reference zone: nothing here changes day to day, and nothing here is actionable inside a
- * read-only dashboard.
+ * The settings overview: what this session can do (capabilities and the live-update stream),
+ * the resolved config snapshot (project.snapshot), and the glossary (glossary.get). The config
+ * and glossary are independent, stateless reads made fresh on every mount; nothing here changes
+ * day to day, which is why this lives in the sidebar's reference zone.
  */
-export function ProjectPanel(): ReactNode {
+export function SettingsPanel(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Project"
-        description="The resolved configuration and glossary this Studio session was started with."
+        title="Settings"
+        description="This session's capabilities, and the resolved configuration and glossary it was started with."
       />
-      <ProjectPanelBody />
+      <SessionSection />
+      <SettingsPanelBody />
     </>
   );
 }
 
-function ProjectPanelBody(): ReactNode {
-  const [state, setState] = useState<ProjectState>({ status: "loading" });
+function SettingsPanelBody(): ReactNode {
+  const [state, setState] = useState<SettingsState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;

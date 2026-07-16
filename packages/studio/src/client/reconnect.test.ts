@@ -405,3 +405,102 @@ describe("createReconnectController: stop()", () => {
     expect(session.getState()).toEqual({ kind: "active" });
   });
 });
+
+describe("createReconnectController: status changes", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reports live on open and reconnecting on a dropped connection", async () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+    });
+
+    source.fire(0, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
+
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    expect(onStatusChange).toHaveBeenLastCalledWith("reconnecting");
+  });
+
+  it("reports live again once a reconnect attempt opens", async () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+      baseDelayMs: 10,
+    });
+
+    source.fire(0, "open");
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    await vi.runAllTimersAsync();
+
+    source.fire(1, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
+    expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+      "live",
+      "reconnecting",
+      "live",
+    ]);
+  });
+
+  it("never reports status without an observer wired", () => {
+    const source = fakeEventSourceFactory();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+    });
+
+    // No observer: opening and dropping must simply not throw.
+    source.fire(0, "open");
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    expect(source.instances[0]?.closed).toBe(true);
+  });
+});
+
+describe("createReconnectController: native-retry status", () => {
+  it("reports reconnecting for an error during the EventSource's own retry, without closing it", () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+    });
+
+    source.fire(0, "open");
+    // readyState CONNECTING: the browser is retrying natively; no terminal CLOSED ever fires.
+    source.setReadyState(0, 0);
+    source.fire(0, "error");
+
+    expect(onStatusChange).toHaveBeenLastCalledWith("reconnecting");
+    expect(source.instances[0]?.closed).toBe(false);
+
+    source.fire(0, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
+  });
+});

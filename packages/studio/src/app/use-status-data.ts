@@ -7,10 +7,10 @@ import { rpcClient } from "./api.js";
 
 /**
  * Fetches per-locale translation drift via `status.check` and exposes it as a
- * {@link RefreshableView}, shared by every panel that needs it (currently `StatusPanel` and
- * `StatusGrid`) so the fetch/state-machine logic exists in one place. Re-fetches whenever
- * `refreshToken` changes; a caller with no live-refresh signal (like `StatusGrid`, which reuses
- * the diff panel's own refresh instead) can omit it to fetch once on mount.
+ * {@link RefreshableView}, shared by every surface that needs it (the Translations banner and
+ * locales table, and `StatusGrid`'s header coverage bars) so the fetch/state-machine logic
+ * exists in one place. Re-fetches whenever `refreshToken` changes; omitting the token fetches
+ * once on mount, for a caller with no live-refresh signal.
  */
 export function useStatusData(refreshToken?: unknown): RefreshableView<StatusData> {
   const [view, setView] = useState<RefreshableView<StatusData>>({ kind: "loading" });

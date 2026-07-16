@@ -3,16 +3,27 @@
 ---
 
 Verbatra Studio is a redesigned application, from the information architecture down. The seven
-tabs are now four pages in two sidebar zones: Translations (the daily workspace: a status banner,
-the key-by-locale explorer, and per-locale coverage with the lock file's state, merging the old
-Status, Diff, and Lock tabs onto one page), Review (the flagged-entry queue with locale and key
-filters), Activity (the commit feed beside the last run's token and budget figures, merging the
-old Usage and History tabs), and Project (the resolved configuration and glossary, demoted from
-a primary tab to a reference page). The current page lives in the URL hash, so a reload lands
-back on the same page and browser back/forward work. The interface is rebuilt on Tailwind CSS
-with a reusable design system and ships a full light theme beside the dark one: a System/Light/
-Dark switcher persists the choice and follows live OS changes on System, and both themes were
-contrast-checked against WCAG AA during development. The shell is a collapsible icon sidebar and
-a fixed top bar with global search, a keyboard-shortcuts overview (also on "?"), and the theme
-switcher; the command palette now jumps across the four pages and still jumps to any pending
-key. Every read-only RPC behavior, capability gate, and data state is unchanged.
+tabs are now four pages in two sidebar zones: Translations (the daily workspace: a status banner
+with the last run's token figures, the key-by-locale explorer, and per-locale coverage with the
+lock file's state), Review (the flagged-entry queue with locale and key filters), Activity (the
+commit feed beside the last run's token and budget breakdown), and Settings (the session's
+capabilities plus the resolved configuration and glossary). The current page lives in the URL
+hash, so a reload lands back on the same page and browser back/forward work.
+
+The dashboard is now fully live: every page re-fetches on the file-watcher's refresh signal
+(coverage, the key diff, the lock state, the review queue, usage, and history), and the top bar
+carries a live indicator that turns amber while the stream reconnects. The key detail drawer is
+richer, showing the key's current source value and each locale's current translation alongside
+status and integrity, all updating live.
+
+Editing no longer requires a flag: the needs-review queue's edit, approve, and reject actions
+are available from the start, still behind the loopback session and the same placeholder and
+ICU integrity gate. Provider-calling actions (retranslate, translate pending) remain opt-in via
+--allow-spend.
+
+The interface is rebuilt on Tailwind CSS with a reusable design system and a restrained, minimal
+look: overhauled dot-style badges, neutral elevation, and no page transitions. It ships a full
+light theme beside the dark one (System/Light/Dark switcher, persisted, following live OS
+changes on System), both contrast-checked against WCAG AA during development. The command
+palette and the keyboard-shortcuts overlay were removed in favor of the flat four-page
+navigation.

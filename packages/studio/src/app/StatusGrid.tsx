@@ -5,7 +5,7 @@ import type { DiffLocale, KeyLocaleStatus } from "../client/diff-view.js";
 import { deriveKeyLocaleStatus, driftKeys } from "../client/diff-view.js";
 import { isRtlLocale } from "../client/locale-direction.js";
 import type { GridArrowKey, GridPosition } from "../client/roving-tabindex.js";
-import { moveGridFocus } from "../client/roving-tabindex.js";
+import { clampGridPosition, moveGridFocus } from "../client/roving-tabindex.js";
 import type { RefreshableView } from "../client/state.js";
 import { Badge } from "./Badge.js";
 import { DiffBadge } from "./DiffBadge.js";
@@ -20,8 +20,11 @@ const gridHeaderClassName =
   "border-b border-border bg-muted/40 px-3 py-2 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
 export interface StatusGridProps {
-  /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
+  /** The Translations page's already-loaded per-locale diff data; never re-fetched by this component. */
   readonly locales: readonly DiffLocale[];
+  /** The app's live-refresh token, so the header coverage bars re-fetch alongside the grid's
+   * own refresh-reactive diff data instead of freezing at their mount-time values. */
+  readonly refreshToken: number;
   readonly onSelectKey: (key: string) => void;
 }
 
@@ -216,10 +219,16 @@ function GridBodyRow({
  * `row`/`gridcell` roles on every cell) is a bigger surface than this ticket's "keyboard-first
  * navigation" call asks for.
  */
-export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode {
+export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridProps): ReactNode {
   const keys = useMemo(() => driftKeys(locales), [locales]);
-  const status = useStatusData();
+  const status = useStatusData(refreshToken);
   const [position, setPosition] = useState<GridPosition>({ row: 0, col: 0 });
+  // The key list changes under a live refresh; a stored position past the new bounds would
+  // leave no cell tabbable (see clampGridPosition's own doc comment).
+  const safePosition = clampGridPosition(position, {
+    rowCount: keys.length,
+    colCount: locales.length,
+  });
   const cellRefs = useRef(new Map<string, HTMLButtonElement>());
 
   function registerCell(row: number, col: number, element: HTMLButtonElement | null): void {
@@ -279,7 +288,7 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
               keyName={keyName}
               row={row}
               locales={locales}
-              position={position}
+              position={safePosition}
               onActivate={onSelectKey}
               onArrow={handleArrow}
               onFocusCell={handleFocusCell}

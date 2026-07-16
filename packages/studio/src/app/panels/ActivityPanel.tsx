@@ -120,7 +120,7 @@ function LastRunRail({ refreshToken }: PanelProps): ReactNode {
  * renders history as unavailable rather than an error.
  */
 export function ActivityPanel({ refreshToken }: PanelProps): ReactNode {
-  const history = useHistoryList();
+  const history = useHistoryList(refreshToken);
 
   return (
     <>

@@ -2,15 +2,15 @@
  * The single rpc client, session store, and live-refresh wiring the whole app shares, wired to
  * the real browser `fetch` and `EventSource`. Kept deliberately thin: the actual client,
  * session-expiry, reconnect, and stale-data logic live in `src/client/` (covered by the coverage
- * gate); this module only supplies the DOM-backed implementations and one shared refresh bus.
+ * gate); this module only supplies the DOM-backed implementations, one shared refresh bus, and
+ * one shared connection-status store for the live indicator.
  */
-import {
-  createDiffDataStore,
-  createOpenKeyStore,
-  type DiffDataStore,
-  type OpenKeyStore,
-} from "../client/diff-session.js";
-import type { EventSourceLike, MessageEventLike, ProbeOutcome } from "../client/reconnect.js";
+import type {
+  ConnectionStatus,
+  EventSourceLike,
+  MessageEventLike,
+  ProbeOutcome,
+} from "../client/reconnect.js";
 import { createReconnectController } from "../client/reconnect.js";
 import { createReviewOverlayStore, type ReviewOverlayStore } from "../client/review-overlay.js";
 import type { FetchLike, RpcClient } from "../client/rpc-client.js";
@@ -27,18 +27,12 @@ export const rpcClient: RpcClient = createRpcClient({
   session: sessionStore,
 });
 
-/** The Diff panel's most recently loaded data, read by the command palette to build key/locale targets. */
-export const diffDataStore: DiffDataStore = createDiffDataStore();
-
-/** A pending "open this key" request from the command palette, read by the Diff panel. */
-export const openKeyStore: OpenKeyStore = createOpenKeyStore();
-
 /**
  * The needs-review queue's "actioned this session" overlay, held at module scope (like
- * {@link sessionStore} above) rather than inside the Review panel component: it must survive a tab
- * switch away from and back to the panel, and reset only on a full page reload, which re-runs this
- * module and creates a fresh store. A component-local `useState` would incorrectly reset on every
- * unmount instead.
+ * {@link sessionStore} above) rather than inside the Review panel component: it must survive a
+ * page switch away from and back to the panel, and reset only on a full page reload, which
+ * re-runs this module and creates a fresh store. A component-local `useState` would incorrectly
+ * reset on every unmount instead.
  */
 export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore();
 
@@ -57,6 +51,36 @@ export const refreshBus = {
 function notifyRefresh(event: RefreshEvent): void {
   for (const listener of refreshListeners) {
     listener(event);
+  }
+}
+
+const connectionListeners = new Set<(status: ConnectionStatus) => void>();
+// "reconnecting" until the first connection opens: the indicator starts amber for the brief
+// moment before the SSE stream is up, then turns live and stays truthful thereafter.
+let connectionStatus: ConnectionStatus = "reconnecting";
+
+/** The live-refresh connection's current state, for the top bar's live indicator. */
+export const connectionStore = {
+  getStatus(): ConnectionStatus {
+    return connectionStatus;
+  },
+  subscribe(listener: (status: ConnectionStatus) => void): () => void {
+    connectionListeners.add(listener);
+    return () => {
+      connectionListeners.delete(listener);
+    };
+  },
+};
+
+function notifyConnectionStatus(status: ConnectionStatus): void {
+  // The controller re-emits "reconnecting" on every error event during a native EventSource
+  // retry loop; deduplicate so subscribers re-render once per actual transition.
+  if (status === connectionStatus) {
+    return;
+  }
+  connectionStatus = status;
+  for (const listener of connectionListeners) {
+    listener(status);
   }
 }
 
@@ -100,4 +124,5 @@ createReconnectController({
   probe: probeSession,
   session: sessionStore,
   onRefresh: notifyRefresh,
+  onStatusChange: notifyConnectionStatus,
 });
