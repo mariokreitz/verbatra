@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { isPaletteShortcut } from "../client/command-palette.js";
+import {
+  handleRefreshEvent,
+  nextToastSlot,
+  type RefreshToastView,
+} from "../client/refresh-toast.js";
 import { refreshBus, sessionStore } from "./api.js";
 import { CommandPalette } from "./CommandPalette.js";
 import type { PanelProps } from "./panel-props.js";
@@ -10,6 +15,7 @@ import { LockPanel } from "./panels/LockPanel.js";
 import { OverviewPanel } from "./panels/OverviewPanel.js";
 import { ReviewPanel } from "./panels/ReviewPanel.js";
 import { StatusPanel } from "./panels/StatusPanel.js";
+import { RefreshToast } from "./RefreshToast.js";
 
 const TABS = ["overview", "status", "diff", "review", "lock", "history"] as const;
 
@@ -29,6 +35,7 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
 // which re-fetches its own key.integrity view on change. ReviewPanel reacts to it the same way
 // StatusPanel does, re-fetching review.queue on every live-refresh event. The remaining panels
 // ignore the prop for now, a deliberate, incremental scope choice rather than an oversight.
+// The refresh toast below is a second, independent reaction to the same live-refresh event.
 const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
   overview: OverviewPanel,
   status: StatusPanel,
@@ -69,13 +76,27 @@ export function App(): ReactNode {
   // panel so it can re-fetch. The event's own reason and timestamp are not needed here: every
   // panel re-fetches its own view wholesale rather than branching on which category changed.
   const [refreshToken, setRefreshToken] = useState(0);
+  // One toast slot (client/refresh-toast.ts's own one-slot rule): a new refresh event always
+  // replaces whatever is shown, including clearing it entirely for an event with nothing to
+  // report; a dismiss always clears it without ever calling the translate-pending action.
+  const [toast, setToast] = useState<RefreshToastView | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(
     () => sessionStore.subscribe((state) => setSessionExpired(state.kind === "session-expired")),
     [],
   );
-  useEffect(() => refreshBus.subscribe(() => setRefreshToken((token) => token + 1)), []);
+  useEffect(
+    () =>
+      refreshBus.subscribe((event) => {
+        const handled = handleRefreshEvent(event);
+        if (handled.bumpToken) {
+          setRefreshToken((token) => token + 1);
+        }
+        setToast(handled.toast);
+      }),
+    [],
+  );
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -100,6 +121,10 @@ export function App(): ReactNode {
   // union (client modules do not depend on app-layer types).
   function handleSelectTab(nextTab: string): void {
     setTab(nextTab as Tab);
+  }
+
+  function handleDismissToast(): void {
+    setToast((current) => nextToastSlot(current, { kind: "dismiss" }));
   }
 
   return (
@@ -133,6 +158,7 @@ export function App(): ReactNode {
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}
+      {toast !== undefined ? <RefreshToast view={toast} onDismiss={handleDismissToast} /> : null}
     </div>
   );
 }

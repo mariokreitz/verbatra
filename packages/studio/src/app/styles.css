@@ -1020,3 +1020,105 @@ input {
   font-size: 0.85rem;
   padding: var(--space-3);
 }
+
+/* Refresh toast: one slot, replaced on every live-refresh event, dismissible without acting. */
+
+.refresh-toast {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - var(--space-5) * 2));
+  background: var(--color-sidebar-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.5);
+}
+
+.refresh-toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.refresh-toast-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.refresh-toast-summary {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.refresh-toast-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.refresh-toast-action {
+  display: inline-block;
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.refresh-toast-action:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.refresh-toast-action:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.refresh-toast-action:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.refresh-toast-status {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.refresh-toast-status-success {
+  color: var(--color-success);
+}
+
+.refresh-toast-status-error {
+  color: var(--color-danger);
+}
+
+.refresh-toast-dismiss {
+  margin-inline-start: auto;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.refresh-toast-dismiss:hover {
+  background: var(--color-row-hover);
+  color: var(--color-text);
+}
+
+.refresh-toast-dismiss:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
