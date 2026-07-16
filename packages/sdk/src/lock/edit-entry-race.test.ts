@@ -108,6 +108,13 @@ describe("withLocaleWriteLock: editEntry versus a concurrent CLI translate run o
     const dir = await project({ greeting: "Hello", farewell: "Goodbye" });
     const stub = makeStubProvider();
 
+    // Seed "greeting" as already up to date (same shape as lock-file-race.test.ts's own seeding
+    // step), so the racing translate() call below sees it as unchanged and only translates
+    // "farewell": this isolates the two racing writers to disjoint keys, so the assertions below
+    // are order-independent instead of depending on which writer happens to acquire the lock
+    // first for a key both would otherwise touch.
+    await editEntry({ config: cfg(), cwd: dir, locale: "de", key: "greeting", value: "seed" });
+
     // editEntry is the slower call here (its target read is artificially delayed): without the
     // lock, its write completes last, and since its own read of the target file happened before
     // translate() wrote "farewell", its merge would carry only "greeting", silently discarding
