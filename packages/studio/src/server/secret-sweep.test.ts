@@ -184,6 +184,49 @@ describe("secret sweep across every registered method and error path", () => {
     expect(result.statusCode).toBe(429);
     assertNoSentinel(result.body);
   });
+
+  it("never leaks a sentinel for translation.editEntry's UNKNOWN_LOCALE error path", async () => {
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "fr", key: "greeting", value: "anything" },
+      }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel for key.value's UNKNOWN_LOCALE error path", async () => {
+    const result = await dispatchRpc(
+      body({ method: "key.value", params: { locale: "fr", key: "greeting" } }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    assertNoSentinel(result.body);
+  });
+
+  it("never leaks a sentinel through a tripped RATE_LIMITED response for translation.editEntry", async () => {
+    const alwaysTripped = createRpcRateLimiter({
+      "translation.editEntry": { windowMs: 60_000, maxCalls: 0 },
+    });
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "greeting", value: "anything" },
+      }),
+      depsWithSentinelConfig(),
+      writeCapableHandlers,
+      alwaysTripped,
+    );
+
+    expect(result.statusCode).toBe(429);
+    assertNoSentinel(result.body);
+  });
 });
 
 describe("secret sweep: translation.retranslateEntry against a real fixture project", () => {
@@ -292,5 +335,119 @@ describe("secret sweep: translation.retranslateEntry against a real fixture proj
     const parsed = JSON.parse(result.body) as { ok: boolean; error?: { code: string } };
     expect(parsed).toMatchObject({ ok: false, error: { code: "UNKNOWN_KEY" } });
     assertNoSentinelValue(result.body);
+  });
+});
+
+describe("secret sweep: translation.editEntry and key.value against a real fixture project", () => {
+  // Planted in a key neither editEntry nor key.value ever touches in these tests, so any
+  // appearance in a response body is a genuine leak, distinct from the fetched/edited key's own
+  // legitimate prose (which key.value's source/target fields and editEntry's value field are
+  // explicitly designed to carry, not a leak by design).
+  const ELSEWHERE_SENTINEL = "sentinel-elsewhere-key-8a21fd";
+  let project: FixtureProject;
+
+  beforeEach(async () => {
+    project = await makeFixtureProject(
+      { targetLocales: ["de"] },
+      { greeting: "Hello {{name}}", secret: ELSEWHERE_SENTINEL },
+    );
+  });
+
+  afterEach(async () => {
+    await project.cleanup();
+  });
+
+  function fixtureDeps(): RpcHandlerDeps {
+    return {
+      config: {
+        config: project.config,
+        source: { kind: "override" },
+        glossary: { source: "none" },
+      },
+      projectRoot: project.root,
+    };
+  }
+
+  function assertNoElsewhereSentinel(responseBody: string): void {
+    expect(responseBody).not.toContain(ELSEWHERE_SENTINEL);
+  }
+
+  it("never leaks the elsewhere sentinel through translation.editEntry's acceptance path", async () => {
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "greeting", value: "Hallo {{name}}" },
+      }),
+      fixtureDeps(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; result?: { accepted: boolean } };
+    expect(parsed).toMatchObject({ ok: true, result: { accepted: true, value: "Hallo {{name}}" } });
+    assertNoElsewhereSentinel(result.body);
+  });
+
+  it("never leaks the elsewhere sentinel through translation.editEntry's rejection path", async () => {
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "greeting", value: "Hallo" }, // drops {{name}}
+      }),
+      fixtureDeps(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as {
+      ok: boolean;
+      result?: { accepted: boolean; reason?: string };
+    };
+    expect(parsed).toMatchObject({ ok: true, result: { accepted: false, reason: "placeholder" } });
+    assertNoElsewhereSentinel(result.body);
+  });
+
+  it("never leaks the elsewhere sentinel through translation.editEntry's UNKNOWN_KEY error path", async () => {
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "missing-key", value: "anything" },
+      }),
+      fixtureDeps(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; error?: { code: string } };
+    expect(parsed).toMatchObject({ ok: false, error: { code: "UNKNOWN_KEY" } });
+    assertNoElsewhereSentinel(result.body);
+  });
+
+  it("key.value's result carries only the requested key's own prose, never the elsewhere sentinel", async () => {
+    const result = await dispatchRpc(
+      body({ method: "key.value", params: { locale: "de", key: "greeting" } }),
+      fixtureDeps(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; result?: { source: string } };
+    // The source value is legitimate, requested content, excluded from this sweep by design; the
+    // elsewhere sentinel from an unrelated key is the actual thing this test proves never appears.
+    expect(parsed).toMatchObject({ ok: true, result: { source: "Hello {{name}}" } });
+    assertNoElsewhereSentinel(result.body);
+  });
+
+  it("key.value's UNKNOWN_KEY error path never leaks the elsewhere sentinel", async () => {
+    const result = await dispatchRpc(
+      body({ method: "key.value", params: { locale: "de", key: "missing-key" } }),
+      fixtureDeps(),
+      writeCapableHandlers,
+    );
+
+    expect(result.statusCode).toBe(200);
+    const parsed = JSON.parse(result.body) as { ok: boolean; error?: { code: string } };
+    expect(parsed).toMatchObject({ ok: false, error: { code: "UNKNOWN_KEY" } });
+    assertNoElsewhereSentinel(result.body);
   });
 });
