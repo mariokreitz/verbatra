@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { authenticatedCookie, stubLoader, withServer } from "./test-support.js";
+import {
+  authenticatedCookie,
+  fixtureLoader,
+  makeFixtureProject,
+  stubLoader,
+  withServer,
+} from "./test-support.js";
 
 interface RpcResponseBody {
   readonly ok: boolean;
@@ -135,6 +141,163 @@ describe("project.snapshot's capabilities projection reflects the resolved flags
         });
       },
       { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+    );
+  });
+});
+
+/**
+ * Direct proof that `translation.editEntry` and `key.value` are gated on `writeToDisk` alone,
+ * independent of `spend`: every row of the two-permission table, not only the read methods' own
+ * unaffected behavior. Mirrors the `translation.retranslateEntry` table above.
+ */
+describe("translation.editEntry and key.value reachability across the capability table", () => {
+  it("returns METHOD_UNKNOWN for both with neither capability set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        const value = await postRpc(server.url, cookie, "key.value", {
+          locale: "de",
+          key: "greeting",
+        });
+        expect(edit.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+        expect(value.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+      },
+      { token: TOKEN, loader: stubLoader() },
+    );
+  });
+
+  it("returns METHOD_UNKNOWN for both with only spend set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        const value = await postRpc(server.url, cookie, "key.value", {
+          locale: "de",
+          key: "greeting",
+        });
+        expect(edit.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+        expect(value.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+      },
+      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: false },
+    );
+  });
+
+  it("reaches the real handlers (not METHOD_UNKNOWN) with only writeToDisk set, no spend needed", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        const value = await postRpc(server.url, cookie, "key.value", {
+          locale: "de",
+          key: "greeting",
+        });
+        // The stub project has no real source file on disk, so both handlers fail with a domain
+        // error, not METHOD_UNKNOWN; reaching a different error code is exactly the proof both
+        // are now registered and invoked.
+        expect(edit.body.ok).toBe(false);
+        expect(edit.body.error?.code).not.toBe("METHOD_UNKNOWN");
+        expect(value.body.ok).toBe(false);
+        expect(value.body.error?.code).not.toBe("METHOD_UNKNOWN");
+      },
+      { token: TOKEN, loader: stubLoader(), spend: false, writeToDisk: true },
+    );
+  });
+
+  it("reaches the real handlers with both capabilities set", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        expect(edit.body.error?.code).not.toBe("METHOD_UNKNOWN");
+      },
+      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+    );
+  });
+});
+
+describe("translation.editEntry is reachable with only --allow-write, no --allow-spend", () => {
+  it("completes a real edit end to end against a fixture project with writeToDisk true and spend false", async () => {
+    const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
+    try {
+      await withServer(
+        async (server) => {
+          const cookie = await authenticatedCookie(server.url, TOKEN);
+          const result = await postRpc(server.url, cookie, "translation.editEntry", {
+            locale: "de",
+            key: "greeting",
+            value: "Hallo",
+          });
+          expect(result.status).toBe(200);
+          expect(result.body).toMatchObject({
+            ok: true,
+            result: { accepted: true, value: "Hallo" },
+          });
+        },
+        {
+          token: TOKEN,
+          loader: fixtureLoader(project),
+          cwd: project.root,
+          spend: false,
+          writeToDisk: true,
+        },
+      );
+    } finally {
+      await project.cleanup();
+    }
+  });
+});
+
+describe("translation.editEntry's dispatch-layer rate limit, wired end to end", () => {
+  it("trips after the configured ceiling and a call under the limit is unaffected", async () => {
+    await withServer(
+      async (server) => {
+        const cookie = await authenticatedCookie(server.url, TOKEN);
+        const first = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        expect(first.body.error?.code).not.toBe("RATE_LIMITED");
+
+        const second = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        expect(second.body.error?.code).not.toBe("RATE_LIMITED");
+
+        const third = await postRpc(server.url, cookie, "translation.editEntry", {
+          locale: "de",
+          key: "greeting",
+          value: "Hallo",
+        });
+        expect(third.status).toBe(429);
+        expect(third.body).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+      },
+      {
+        token: TOKEN,
+        loader: stubLoader(),
+        writeToDisk: true,
+        editEntryRateLimitWindowMs: 60_000,
+        editEntryRateLimitMax: 2,
+      },
     );
   });
 });
