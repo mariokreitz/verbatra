@@ -10,12 +10,15 @@ const EXPECTED_METHOD_NAMES = [
   "history.list",
   "key.integrity",
   "translation.retranslateEntry",
+  "review.queue",
+  "translation.editEntry",
+  "key.value",
 ];
 
 describe("RPC_METHOD_NAMES", () => {
-  it("contains exactly the eight agreed method names, no more, no fewer", () => {
-    // translation.retranslateEntry's schema is declared unconditionally here, independent of
-    // capability flags: contract shape is static and shared; only the handler registry
+  it("contains exactly the eleven agreed method names, no more, no fewer", () => {
+    // Every write method's schema is declared unconditionally here, independent of capability
+    // flags: contract shape is static and shared; only the handler registry
     // (server/rpc.ts's createRpcHandlers) is capability-built.
     expect(new Set(RPC_METHOD_NAMES)).toEqual(new Set(EXPECTED_METHOD_NAMES));
     expect(RPC_METHOD_NAMES).toHaveLength(EXPECTED_METHOD_NAMES.length);
@@ -42,6 +45,13 @@ describe("rpcParamsSchemas", () => {
       { locale: "de", key: "greeting" },
       { locale: "", key: "greeting" },
     ],
+    ["review.queue", {}, { extra: true }],
+    [
+      "translation.editEntry",
+      { locale: "de", key: "greeting", value: "Hallo" },
+      { locale: "de", key: "greeting" },
+    ],
+    ["key.value", { locale: "de", key: "greeting" }, { locale: "", key: "greeting" }],
   ] as const)("%s accepts a valid shape and rejects an invalid shape", (method, valid, invalid) => {
     const schema = rpcParamsSchemas[method];
     expect(schema.safeParse(valid).success).toBe(true);
@@ -65,6 +75,16 @@ describe("rpcParamsSchemas", () => {
       locale: "de",
       key: "greeting",
       spend: true,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a translation.editEntry body that smuggles a writeToDisk field", () => {
+    const result = rpcParamsSchemas["translation.editEntry"].safeParse({
+      locale: "de",
+      key: "greeting",
+      value: "Hallo",
+      writeToDisk: true,
     });
     expect(result.success).toBe(false);
   });

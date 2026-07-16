@@ -5,11 +5,15 @@ import type { StructuredError } from "./state.js";
  * copy. Every code here can actually reach the client:
  *
  * - Transport-level, from `server/rpc-gate.ts` and `client/rpc-client.ts`.
- * - `SdkErrorCode` values reachable via `check()`, `diff()`, and `lockState()`, the only three sdk
- *   calls any Studio RPC handler makes (see `@verbatra/sdk`'s `errors.ts`). `CONFIG_NOT_FOUND`,
- *   `CONFIG_INVALID`, `PROVIDER_CONSTRUCTION_FAILED`, and `LOCALE_FAILED` are real `SdkErrorCode`
- *   values but are thrown only by `loadConfig` or `translate`, neither of which any Studio RPC
- *   handler calls, so they are excluded here.
+ * - `SdkErrorCode` values reachable via `check()`, `diff()`, `lockState()`, `retranslateEntry()`,
+ *   `editEntry()`, and `keyValue()`, the sdk calls Studio's RPC handlers make (see
+ *   `@verbatra/sdk`'s `errors.ts`). `UNKNOWN_KEY` is reachable through `translation.editEntry`,
+ *   `translation.retranslateEntry`, and `key.value`, all three of which re-read the source
+ *   resource on every call. `LOCK_CONTENDED` is reachable through `translation.editEntry` and
+ *   `translation.retranslateEntry`, the two methods that hold a target locale's write lock.
+ *   `CONFIG_NOT_FOUND`, `CONFIG_INVALID`, `PROVIDER_CONSTRUCTION_FAILED`, and `LOCALE_FAILED` are
+ *   real `SdkErrorCode` values but are thrown only by `loadConfig` or `translate`, neither of
+ *   which any Studio RPC handler calls, so they are excluded here.
  * - `AdapterErrorCode` values (see `@verbatra/format-adapters`'s `errors.ts`), reachable only when
  *   a target locale file fails to parse; a source-file failure is always wrapped as the sdk's own
  *   `SOURCE_INVALID` before it can reach the client.
@@ -30,6 +34,9 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   SOURCE_INVALID: "The source locale file could not be read or parsed for the configured format.",
   LOCK_FILE_INVALID: "The lock file is missing, corrupt, or at an unsupported version.",
   UNKNOWN_LOCALE: "The requested locale is not among this project's configured target locales.",
+  UNKNOWN_KEY: "The requested key was not found in the source resource. It may have been removed.",
+  LOCK_CONTENDED:
+    "This locale's write lock is held by another process. Wait a moment and try again.",
   // AdapterErrorCode: reachable only for a target locale file, never the source file.
   INVALID_JSON: "A target locale file is not valid JSON.",
   INVALID_YAML: "A target locale file is not valid YAML.",

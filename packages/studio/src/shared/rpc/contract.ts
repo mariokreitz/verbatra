@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { STATUS_CHECK_METHOD, type StatusCheckResult, statusCheckParamsSchema } from "./check.js";
 import { STATUS_DIFF_METHOD, type StatusDiffResult, statusDiffParamsSchema } from "./diff.js";
+import { EDIT_ENTRY_METHOD, type EditEntryResult, editEntryParamsSchema } from "./edit-entry.js";
 import {
   GLOSSARY_GET_METHOD,
   type GlossaryGetResult,
@@ -12,12 +13,18 @@ import {
   type KeyIntegrityResult,
   keyIntegrityParamsSchema,
 } from "./key-integrity.js";
+import { KEY_VALUE_METHOD, type KeyValueResult, keyValueParamsSchema } from "./key-value.js";
 import { LOCK_STATE_METHOD, type LockStateResult, lockStateParamsSchema } from "./lock.js";
 import {
   RETRANSLATE_ENTRY_METHOD,
   type RetranslateEntryResult,
   retranslateEntryParamsSchema,
 } from "./retranslate-entry.js";
+import {
+  REVIEW_QUEUE_METHOD,
+  type ReviewQueueResult,
+  reviewQueueParamsSchema,
+} from "./review-queue.js";
 import {
   PROJECT_SNAPSHOT_METHOD,
   type ProjectSnapshotResult,
@@ -43,6 +50,9 @@ export const rpcParamsSchemas = {
   [HISTORY_LIST_METHOD]: historyListParamsSchema,
   [KEY_INTEGRITY_METHOD]: keyIntegrityParamsSchema,
   [RETRANSLATE_ENTRY_METHOD]: retranslateEntryParamsSchema,
+  [REVIEW_QUEUE_METHOD]: reviewQueueParamsSchema,
+  [EDIT_ENTRY_METHOD]: editEntryParamsSchema,
+  [KEY_VALUE_METHOD]: keyValueParamsSchema,
 } as const;
 
 /** The exact set of agreed RPC methods, derived from {@link rpcParamsSchemas}. */
@@ -61,6 +71,9 @@ export interface RpcResultMap {
   readonly [HISTORY_LIST_METHOD]: HistoryListResult;
   readonly [KEY_INTEGRITY_METHOD]: KeyIntegrityResult;
   readonly [RETRANSLATE_ENTRY_METHOD]: RetranslateEntryResult;
+  readonly [REVIEW_QUEUE_METHOD]: ReviewQueueResult;
+  readonly [EDIT_ENTRY_METHOD]: EditEntryResult;
+  readonly [KEY_VALUE_METHOD]: KeyValueResult;
 }
 
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;
