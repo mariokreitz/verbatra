@@ -20,7 +20,13 @@ import { useCapabilities } from "../use-capabilities.js";
 function SessionSection(): ReactNode {
   const capabilitiesState = useCapabilities();
   const [connection, setConnection] = useState(connectionStore.getStatus());
-  useEffect(() => connectionStore.subscribe(setConnection), []);
+  useEffect(() => {
+    const unsubscribe = connectionStore.subscribe(setConnection);
+    // Same race as the top bar's LiveIndicator: the stream opens from module scope, so a
+    // transition can land between the first render and this subscription; re-read once.
+    setConnection(connectionStore.getStatus());
+    return unsubscribe;
+  }, []);
 
   const spend =
     capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities.spend : undefined;

@@ -23,8 +23,11 @@
  * surface responds to the theme switch.
  *
  * Status colors (is a value correct or not) and the diff vocabulary (new/changed/orphaned) are
- * tuned per theme. Every text-carrying pair was checked against WCAG AA over both its page and
- * card surfaces: 4.5:1 for text and badge text, 3:1 for the non-text focus ring.
+ * tuned per theme. Every text-carrying pair below was computed against WCAG AA during this
+ * redesign with a contrast script that composites the alpha "soft" tints over their card
+ * surface: 4.5:1 for text and badge text (all pairs measure 5.5:1 or better), and 3:1 for the
+ * non-text focus ring, including the rail's own focus outline (--v-sidebar-active against
+ * --v-sidebar).
  */
 
 @import "tailwindcss";
@@ -53,7 +56,7 @@
   --v-sidebar-muted: hsl(242 20% 66%);
   --v-sidebar-border: hsl(244 32% 22%);
   --v-sidebar-accent: hsl(244 40% 20%);
-  --v-sidebar-active: hsl(243 75% 59%);
+  --v-sidebar-active: hsl(243 80% 62%);
 
   /* Status */
   --v-success: hsl(150 85% 22%);

@@ -15,7 +15,14 @@ import { microLabelClassName } from "./ui.js";
  */
 function LiveIndicator(): ReactNode {
   const [status, setStatus] = useState(connectionStore.getStatus());
-  useEffect(() => connectionStore.subscribe(setStatus), []);
+  useEffect(() => {
+    const unsubscribe = connectionStore.subscribe(setStatus);
+    // The stream opens from module scope (api.ts), so the live transition can land between
+    // this component's first render and this subscription; re-read once after subscribing or
+    // that transition is missed and the badge sits on "Reconnecting" for the whole session.
+    setStatus(connectionStore.getStatus());
+    return unsubscribe;
+  }, []);
 
   const live = status === "live";
   return (
