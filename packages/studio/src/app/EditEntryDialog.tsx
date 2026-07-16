@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { deriveEditEntryOutcome, type EditEntryOutcome } from "../client/edit-entry-outcome.js";
+import { deriveKeyValueContext, type KeyValueContext } from "../client/key-value-context.js";
 import { rpcClient } from "./api.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
@@ -8,11 +9,6 @@ const REJECTION_LABEL: Readonly<Record<"placeholder" | "icu", string>> = {
   placeholder: "Rejected: placeholder mismatch",
   icu: "Rejected: invalid message syntax",
 };
-
-type ContextState =
-  | { readonly kind: "loading" }
-  | { readonly kind: "error"; readonly message: string }
-  | { readonly kind: "loaded"; readonly source: string; readonly target: string | undefined };
 
 type SubmitState =
   | { readonly kind: "idle" }
@@ -27,26 +23,21 @@ export interface EditEntryDialogProps {
   readonly onAccepted: (locale: string, keyName: string) => void;
 }
 
-/** Fetches `key.value`'s current source and target once per (locale, keyName) pair, feeding the editor's pre-population. */
-function useKeyValueContext(locale: string, keyName: string): ContextState {
-  const [state, setState] = useState<ContextState>({ kind: "loading" });
+/**
+ * Fetches `key.value`'s current source and target once per (locale, keyName) pair, feeding the
+ * editor's pre-population. The response-to-state mapping itself lives in the covered, pure
+ * `deriveKeyValueContext` (`client/key-value-context.ts`); this hook only owns the fetch effect.
+ */
+function useKeyValueContext(locale: string, keyName: string): KeyValueContext {
+  const [state, setState] = useState<KeyValueContext>({ kind: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     setState({ kind: "loading" });
     void rpcClient.call("key.value", { locale, key: keyName }).then((response) => {
-      if (cancelled) {
-        return;
+      if (!cancelled) {
+        setState(deriveKeyValueContext(response));
       }
-      if (!response.ok) {
-        setState({ kind: "error", message: response.error.message });
-        return;
-      }
-      setState({
-        kind: "loaded",
-        source: response.result.source,
-        target: response.result.target,
-      });
     });
     return () => {
       cancelled = true;
@@ -89,7 +80,7 @@ function EditorFields({
   onChangeValue,
   disabled,
 }: {
-  readonly context: Extract<ContextState, { kind: "loaded" }>;
+  readonly context: Extract<KeyValueContext, { kind: "loaded" }>;
   readonly value: string;
   readonly onChangeValue: (next: string) => void;
   readonly disabled: boolean;
