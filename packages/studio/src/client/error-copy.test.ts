@@ -5,6 +5,7 @@ const REACHABLE_TODAY_CODES = [
   "REQUEST_INVALID",
   "METHOD_UNKNOWN",
   "PARAMS_INVALID",
+  "METHOD_RATE_LIMITED",
   "INTERNAL",
   "SESSION_EXPIRED",
   "UNKNOWN_FORMAT",
@@ -23,7 +24,7 @@ const REACHABLE_TODAY_CODES = [
   "MIXED_STRUCTURE",
 ];
 
-const FORWARD_LOOKING_CODES = ["RATE_LIMITED", "AUTH_FAILED", "TIMEOUT"];
+const PROVIDER_CODES = ["RATE_LIMITED", "AUTH_FAILED", "TIMEOUT"];
 
 const GENERIC_MESSAGE = "Something went wrong on the server.";
 
@@ -38,13 +39,24 @@ describe("copyForErrorCode", () => {
     expect(copy?.length).toBeGreaterThan(0);
   });
 
-  it.each(
-    FORWARD_LOOKING_CODES,
-  )("has distinct, specific copy for the forward-looking code %s", (code) => {
+  it.each(PROVIDER_CODES)("has distinct, specific copy for the provider code %s", (code) => {
     const copy = copyForErrorCode(code);
 
     expect(copy).toBeDefined();
     expect(copy).not.toBe(GENERIC_MESSAGE);
+  });
+
+  it("maps METHOD_RATE_LIMITED to copy naming Studio's own throttle, never the provider", () => {
+    expect(copyForErrorCode("METHOD_RATE_LIMITED")).toBe(
+      "Studio is limiting how often this action can run. Wait a moment and try again.",
+    );
+  });
+
+  it("maps RATE_LIMITED to the provider copy, distinct from the Studio throttle copy", () => {
+    expect(copyForErrorCode("RATE_LIMITED")).toBe(
+      "The translation provider is rate-limiting requests. Wait a moment and try again.",
+    );
+    expect(copyForErrorCode("RATE_LIMITED")).not.toBe(copyForErrorCode("METHOD_RATE_LIMITED"));
   });
 
   it("returns undefined for a code not in the table", () => {
@@ -81,5 +93,27 @@ describe("resolveErrorCopy", () => {
     const resolved = resolveErrorCopy({ code: "SOMETHING_UNKNOWN", message: GENERIC_MESSAGE });
 
     expect(resolved).toBe(GENERIC_MESSAGE);
+  });
+
+  it("renders the server's METHOD_RATE_LIMITED envelope with the Studio throttle copy", () => {
+    const resolved = resolveErrorCopy({
+      code: "METHOD_RATE_LIMITED",
+      message: "Too many calls to this method; wait before retrying.",
+    });
+
+    expect(resolved).toBe(
+      "Studio is limiting how often this action can run. Wait a moment and try again.",
+    );
+  });
+
+  it("renders a forwarded provider RATE_LIMITED error with the provider copy", () => {
+    const resolved = resolveErrorCopy({
+      code: "RATE_LIMITED",
+      message: "provider answered 429",
+    });
+
+    expect(resolved).toBe(
+      "The translation provider is rate-limiting requests. Wait a moment and try again.",
+    );
   });
 });

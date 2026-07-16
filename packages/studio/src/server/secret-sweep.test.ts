@@ -170,7 +170,7 @@ describe("secret sweep across every registered method and error path", () => {
     assertNoSentinel(result.body);
   });
 
-  it("never leaks a sentinel through a tripped RATE_LIMITED response", async () => {
+  it("never leaks a sentinel through a tripped METHOD_RATE_LIMITED response", async () => {
     const alwaysTripped = createRpcRateLimiter({
       "translation.retranslateEntry": { windowMs: 60_000, maxCalls: 0 },
     });
@@ -199,7 +199,7 @@ describe("secret sweep across every registered method and error path", () => {
     assertNoSentinel(result.body);
   });
 
-  it("never leaks a sentinel through a tripped RATE_LIMITED response for translation.translatePending", async () => {
+  it("never leaks a sentinel through a tripped METHOD_RATE_LIMITED response for translation.translatePending", async () => {
     const alwaysTripped = createRpcRateLimiter({
       "translation.translatePending": { windowMs: 60_000, maxCalls: 0 },
     });
@@ -239,7 +239,7 @@ describe("secret sweep across every registered method and error path", () => {
     assertNoSentinel(result.body);
   });
 
-  it("never leaks a sentinel through a tripped RATE_LIMITED response for translation.editEntry", async () => {
+  it("never leaks a sentinel through a tripped METHOD_RATE_LIMITED response for translation.editEntry", async () => {
     const alwaysTripped = createRpcRateLimiter({
       "translation.editEntry": { windowMs: 60_000, maxCalls: 0 },
     });

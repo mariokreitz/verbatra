@@ -15,7 +15,8 @@ export type TranslatePendingOutcome =
 
 /**
  * Derives the render-ready outcome from a `translation.translatePending` RPC response. An RPC-layer
- * error (`ok: false`, transport or domain, including `ALREADY_IN_PROGRESS` and `RATE_LIMITED`) maps
+ * error (`ok: false`, transport or domain, including `ALREADY_IN_PROGRESS` and
+ * `METHOD_RATE_LIMITED`) maps
  * to `error`; a successful response (`ok: true`) whose `RunSummary.failed` names one or more
  * locales maps to `partial-failure`, naming them; every other successful response maps to
  * `success`.

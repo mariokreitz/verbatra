@@ -24,6 +24,8 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   METHOD_UNKNOWN:
     "This action is not recognized by the running Studio server. Make sure the CLI and Studio versions match.",
   PARAMS_INVALID: "The request parameters failed validation. Reload the page and try again.",
+  METHOD_RATE_LIMITED:
+    "Studio is limiting how often this action can run. Wait a moment and try again.",
   INTERNAL: "An unexpected server error occurred. Check the terminal running Studio for details.",
   SESSION_EXPIRED: "The session has expired. Reload the page to start a new one.",
   UNKNOWN_FORMAT:
@@ -53,11 +55,8 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
  * `server/rpc-gate.ts`'s `mapHandlerError` forwards a thrown `ProviderError`'s own code and
  * redacted message. The remaining provider codes have no entry and fall back to the server's
  * message.
- *
- * Note: the server's per-method rate limiter answers HTTP 429 with the same `RATE_LIMITED` code
- * string, so that transport-level rejection also resolves to this provider-worded copy.
  */
-const FORWARD_LOOKING_CODE_COPY: Readonly<Record<string, string>> = {
+const PROVIDER_CODE_COPY: Readonly<Record<string, string>> = {
   RATE_LIMITED: "The translation provider is rate-limiting requests. Wait a moment and try again.",
   AUTH_FAILED: "The translation provider rejected the configured API key.",
   TIMEOUT: "The translation provider did not respond in time. Try again.",
@@ -66,7 +65,7 @@ const FORWARD_LOOKING_CODE_COPY: Readonly<Record<string, string>> = {
 /** The complete code-to-copy lookup table: the transport, sdk, and adapter codes plus the three provider codes. */
 export const ERROR_CODE_COPY: Readonly<Record<string, string>> = {
   ...REACHABLE_CODE_COPY,
-  ...FORWARD_LOOKING_CODE_COPY,
+  ...PROVIDER_CODE_COPY,
 };
 
 /**

@@ -211,14 +211,14 @@ describe("translation.editEntry's dispatch-layer rate limit, wired end to end", 
           key: "greeting",
           value: "Hallo",
         });
-        expect(first.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(first.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const second = await postRpc(server.url, cookie, "translation.editEntry", {
           locale: "de",
           key: "greeting",
           value: "Hallo",
         });
-        expect(second.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(second.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const third = await postRpc(server.url, cookie, "translation.editEntry", {
           locale: "de",
@@ -226,7 +226,7 @@ describe("translation.editEntry's dispatch-layer rate limit, wired end to end", 
           value: "Hallo",
         });
         expect(third.status).toBe(429);
-        expect(third.body).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+        expect(third.body).toMatchObject({ ok: false, error: { code: "METHOD_RATE_LIMITED" } });
       },
       {
         token: TOKEN,
@@ -247,20 +247,20 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
           locale: "de",
           key: "greeting",
         });
-        expect(first.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(first.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const second = await postRpc(server.url, cookie, "translation.retranslateEntry", {
           locale: "de",
           key: "greeting",
         });
-        expect(second.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(second.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const third = await postRpc(server.url, cookie, "translation.retranslateEntry", {
           locale: "de",
           key: "greeting",
         });
         expect(third.status).toBe(429);
-        expect(third.body).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+        expect(third.body).toMatchObject({ ok: false, error: { code: "METHOD_RATE_LIMITED" } });
       },
       {
         token: TOKEN,
@@ -379,14 +379,14 @@ describe("translation.translatePending's dispatch-layer rate limit, wired end to
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
         const first = await postRpc(server.url, cookie, "translation.translatePending");
-        expect(first.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(first.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const second = await postRpc(server.url, cookie, "translation.translatePending");
-        expect(second.body.error?.code).not.toBe("RATE_LIMITED");
+        expect(second.body.error?.code).not.toBe("METHOD_RATE_LIMITED");
 
         const third = await postRpc(server.url, cookie, "translation.translatePending");
         expect(third.status).toBe(429);
-        expect(third.body).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+        expect(third.body).toMatchObject({ ok: false, error: { code: "METHOD_RATE_LIMITED" } });
       },
       {
         token: TOKEN,

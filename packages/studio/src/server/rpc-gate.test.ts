@@ -209,7 +209,7 @@ describe("dispatchRpc envelope", () => {
     expect(parsed).toMatchObject({ ok: true });
   });
 
-  it("answers 429 RATE_LIMITED once the limiter trips, without ever invoking the handler", async () => {
+  it("answers 429 METHOD_RATE_LIMITED once the limiter trips, without ever invoking the handler", async () => {
     let calls = 0;
     const limiter: { tryAcquire: (method: string) => boolean } = {
       tryAcquire: () => false,
@@ -229,11 +229,17 @@ describe("dispatchRpc envelope", () => {
 
     expect(result.statusCode).toBe(429);
     const parsed = await parseBody(result);
-    expect(parsed).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+    expect(parsed).toMatchObject({
+      ok: false,
+      error: {
+        code: "METHOD_RATE_LIMITED",
+        message: "Too many calls to this method; wait before retrying.",
+      },
+    });
     expect(calls).toBe(0);
   });
 
-  it("answers 429 RATE_LIMITED for translation.editEntry specifically, without ever invoking its handler or reaching the sdk seam or disk", async () => {
+  it("answers 429 METHOD_RATE_LIMITED for translation.editEntry specifically, without ever invoking its handler or reaching the sdk seam or disk", async () => {
     let calls = 0;
     const limiter: { tryAcquire: (method: string) => boolean } = {
       tryAcquire: () => false,
@@ -256,7 +262,7 @@ describe("dispatchRpc envelope", () => {
 
     expect(result.statusCode).toBe(429);
     const parsed = await parseBody(result);
-    expect(parsed).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+    expect(parsed).toMatchObject({ ok: false, error: { code: "METHOD_RATE_LIMITED" } });
     expect(calls).toBe(0);
   });
 

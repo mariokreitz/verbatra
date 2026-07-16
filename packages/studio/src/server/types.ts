@@ -69,15 +69,15 @@ export interface StudioServerDeps {
   readonly createProvider?: CreateProvider;
   /** Rolling window, in milliseconds, for `translation.retranslateEntry`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly retranslateRateLimitWindowMs?: number;
-  /** Maximum `translation.retranslateEntry` calls allowed within the rolling window before RATE_LIMITED. */
+  /** Maximum `translation.retranslateEntry` calls allowed within the rolling window before METHOD_RATE_LIMITED. */
   readonly retranslateRateLimitMax?: number;
   /** Rolling window, in milliseconds, for `translation.editEntry`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly editEntryRateLimitWindowMs?: number;
-  /** Maximum `translation.editEntry` calls allowed within the rolling window before RATE_LIMITED. */
+  /** Maximum `translation.editEntry` calls allowed within the rolling window before METHOD_RATE_LIMITED. */
   readonly editEntryRateLimitMax?: number;
   /** Rolling window, in milliseconds, for `translation.translatePending`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly translatePendingRateLimitWindowMs?: number;
-  /** Maximum `translation.translatePending` calls allowed within the rolling window before RATE_LIMITED. */
+  /** Maximum `translation.translatePending` calls allowed within the rolling window before METHOD_RATE_LIMITED. */
   readonly translatePendingRateLimitMax?: number;
 }
 

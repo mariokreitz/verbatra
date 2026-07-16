@@ -14,7 +14,7 @@ export interface RpcResult {
 const REQUEST_INVALID_MESSAGE = "The request body must be JSON shaped as { method, params }.";
 const METHOD_UNKNOWN_MESSAGE = "The requested method is not recognized.";
 const PARAMS_INVALID_MESSAGE = "The request parameters failed validation.";
-const RATE_LIMITED_MESSAGE = "Too many calls to this method; wait before retrying.";
+const METHOD_RATE_LIMITED_MESSAGE = "Too many calls to this method; wait before retrying.";
 const ALREADY_IN_PROGRESS_MESSAGE =
   "A matching call is already in progress; wait for it to finish.";
 const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred.";
@@ -150,7 +150,7 @@ async function invokeHandler(
     return errorEnvelope(400, "METHOD_UNKNOWN", METHOD_UNKNOWN_MESSAGE);
   }
   if (rateLimiter?.tryAcquire(method) === false) {
-    return errorEnvelope(429, "RATE_LIMITED", RATE_LIMITED_MESSAGE);
+    return errorEnvelope(429, "METHOD_RATE_LIMITED", METHOD_RATE_LIMITED_MESSAGE);
   }
   if (inFlightGuard?.tryEnter(method) === false) {
     return errorEnvelope(409, "ALREADY_IN_PROGRESS", ALREADY_IN_PROGRESS_MESSAGE);

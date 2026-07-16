@@ -31,7 +31,7 @@ describe("deriveTranslatePendingOutcome", () => {
   it("maps a transport/domain RPC error to the error kind, carrying its message", () => {
     const response: RpcCallResult<"translation.translatePending"> = {
       ok: false,
-      error: { code: "RATE_LIMITED", message: "Too many calls to this method." },
+      error: { code: "METHOD_RATE_LIMITED", message: "Too many calls to this method." },
     };
     expect(deriveTranslatePendingOutcome(response)).toEqual({
       kind: "error",
