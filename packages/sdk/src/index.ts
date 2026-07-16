@@ -66,6 +66,12 @@ export {
   type LocaleKeyIntegrity,
 } from "./flow/key-integrity.js";
 export {
+  type KeyValueDeps,
+  type KeyValueInput,
+  type KeyValueResult,
+  keyValue,
+} from "./flow/key-value.js";
+export {
   diffLocaleSnapshots,
   type LocaleFileSnapshot,
   type LocaleSnapshotDelta,
