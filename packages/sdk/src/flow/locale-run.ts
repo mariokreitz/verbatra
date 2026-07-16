@@ -103,6 +103,8 @@ function buildRequest(
 /**
  * Runs one target locale: read, diff, translate, integrity-check, write, and compute the lock
  * entries. A dry-run (provider undefined) stops after the diff and reports what would change.
+ * Accepted translations are applied in source-document order, not diff order, so a key already in
+ * the target keeps its position (Map.set semantics) and a new key appends where the source puts it.
  * When generation is on, source-absent keys that look like generated plural forms are kept out of
  * the orphaned and pruned lists. May throw; the orchestrator isolates that as a per-locale failure.
  */
@@ -180,8 +182,11 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   for (const key of pruned) {
     merged.delete(key);
   }
-  for (const [key, { value, source }] of accepted) {
-    merged.set(key, { ...source, value, namespace: target.namespace });
+  for (const key of params.source.entries.keys()) {
+    const hit = accepted.get(key);
+    if (hit !== undefined) {
+      merged.set(key, { ...hit.source, value: hit.value, namespace: target.namespace });
+    }
   }
 
   const generation = await runGeneration(params, provider);

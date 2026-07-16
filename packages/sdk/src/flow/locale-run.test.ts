@@ -150,6 +150,24 @@ describe("runLocale: translate and write", () => {
   });
 });
 
+describe("runLocale: new-key append order", () => {
+  it("appends new keys after the target's existing keys in source-document order, not alphabetically", async () => {
+    const { dir, sourceResource } = await setup(
+      { zebra: "Z", alpha: "A", mango: "M" },
+      { mango: "[de] M" },
+    );
+    expect([...sourceResource.entries.keys()]).toEqual(["zebra", "alpha", "mango"]);
+    const stub = makeStubProvider();
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
+
+    await runLocale(params);
+
+    const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect(Object.keys(de)).toEqual(["mango", "zebra", "alpha"]);
+    expect(de.mango).toBe("[de] M");
+  });
+});
+
 describe("runLocale: withholding", () => {
   it("reports a thrown provider call under providerFailures, not integrityMismatches", async () => {
     const { dir, sourceResource } = await setup({ a: "A" });

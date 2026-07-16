@@ -2,6 +2,7 @@ import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
 import { readFileContent } from "../json/bounded-read.js";
 import { decodeKeyToSegments, encodeSegment } from "../json/key-encoding.js";
+import { type OrderedRecord, type OrderedValue, parseOrderedJson } from "../json/ordered-json.js";
 
 /** Both per-message (`@id`) and global (`@@locale`) ARB metadata keys start with `@`. */
 function isMetadataKey(key: string): boolean {
@@ -9,27 +10,24 @@ function isMetadataKey(key: string): boolean {
 }
 
 /**
- * Parse raw ARB content into its top-level object, before any message-tree validation, so metadata
- * can be stripped first. Malformed syntax is `INVALID_JSON`; a non-object root is `INVALID_STRUCTURE`.
+ * Parse raw ARB content into its ordered top-level Map, before any message-tree validation, so
+ * metadata can be stripped first. Document key order is preserved everywhere, including metadata
+ * subtrees such as integer-named `placeholders` blocks. Malformed syntax is `INVALID_JSON`; a
+ * non-object root is `INVALID_STRUCTURE`.
  *
  * @param content - The untrusted ARB file content.
- * @returns The parsed top-level object with raw (unvalidated) values.
- * @throws {@link AdapterError} `INVALID_JSON` or `INVALID_STRUCTURE`.
+ * @returns The parsed ordered top-level Map with raw (unvalidated) values.
+ * @throws {@link AdapterError} `INVALID_JSON`, `INVALID_STRUCTURE`, or `MAX_DEPTH_EXCEEDED`.
  */
-export function parseArbObject(content: string): Record<string, unknown> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new AdapterError("INVALID_JSON", "The file is not valid JSON.");
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+export function parseArbObject(content: string): OrderedRecord {
+  const parsed = parseOrderedJson(content);
+  if (!(parsed instanceof Map)) {
     throw new AdapterError(
       "INVALID_STRUCTURE",
       "The file is not a valid object (expected nested objects of string values).",
     );
   }
-  return parsed as Record<string, unknown>;
+  return parsed;
 }
 
 /**
@@ -37,13 +35,13 @@ export function parseArbObject(content: string): Record<string, unknown> {
  * messages.
  *
  * @param tree - The raw parsed ARB object.
- * @returns A null-prototype object of the message keys only, still carrying raw values.
+ * @returns An ordered Map of the message keys only, still carrying raw values.
  */
-export function stripArbMetadata(tree: Record<string, unknown>): Record<string, unknown> {
-  const out = Object.create(null) as Record<string, unknown>;
-  for (const [key, value] of Object.entries(tree)) {
+export function stripArbMetadata(tree: OrderedRecord): OrderedRecord {
+  const out = new Map<string, OrderedValue>();
+  for (const [key, value] of tree) {
     if (!isMetadataKey(key)) {
-      out[key] = value;
+      out.set(key, value);
     }
   }
   return out;
@@ -59,11 +57,11 @@ function messageKeyForMetadata(key: string): string | null {
 }
 
 /** The `description` field of a metadata value, or undefined when absent or not a string. */
-function descriptionOf(value: unknown): string | undefined {
-  if (typeof value !== "object" || value === null) {
+function descriptionOf(value: OrderedValue): string | undefined {
+  if (!(value instanceof Map)) {
     return undefined;
   }
-  const description = (value as Record<string, unknown>).description;
+  const description = value.get("description");
   return typeof description === "string" ? description : undefined;
 }
 
@@ -80,7 +78,7 @@ function descriptionOf(value: unknown): string | undefined {
 export function extractArbDescriptions(content: string): ReadonlyMap<string, string> {
   const tree = parseArbObject(content);
   const out = new Map<string, string>();
-  for (const [key, value] of Object.entries(tree)) {
+  for (const [key, value] of tree) {
     const messageKey = messageKeyForMetadata(key);
     if (messageKey === null) {
       continue;
@@ -118,11 +116,14 @@ function isEnoent(error: unknown): boolean {
  * since discarding it would erase every `@`-prefixed metadata block with no error.
  *
  * @param filePath - The destination ARB file path.
- * @returns The destination's top-level entries, or `null` when the destination does not exist.
+ * @returns The destination's top-level entries in document order, or `null` when the destination
+ *   does not exist.
  * @throws {@link AdapterError} `INVALID_JSON`, `INVALID_STRUCTURE`, or `INPUT_TOO_LARGE` when the
  *   destination exists but is not a usable ARB object.
  */
-async function readDestinationPairs(filePath: string): Promise<Array<[string, unknown]> | null> {
+async function readDestinationPairs(
+  filePath: string,
+): Promise<Array<[string, OrderedValue]> | null> {
   let content: string;
   try {
     content = await readFileContent(filePath);
@@ -132,14 +133,14 @@ async function readDestinationPairs(filePath: string): Promise<Array<[string, un
     }
     throw error;
   }
-  return Object.entries(parseArbObject(content));
+  return [...parseArbObject(content)];
 }
 
 /**
- * Build the object to write for ARB, preserving the destination's `@`-prefixed metadata and document
- * order: overwrite each message key with its translation, keep untranslated string values, and append
- * new keys in entry order. A missing destination (first write) yields the messages only, in entry
- * order. A destination that exists but is not a usable ARB object throws instead of silently
+ * Build the ordered tree to write for ARB, preserving the destination's `@`-prefixed metadata and
+ * document order: overwrite each message key with its translation, keep untranslated string values,
+ * and append new keys in entry order. A missing destination (first write) yields the messages only,
+ * in entry order. A destination that exists but is not a usable ARB object throws instead of silently
  * discarding its metadata; see {@link readDestinationPairs}.
  *
  * A destination pair that is neither `@`-prefixed metadata nor a translated or untranslated string
@@ -149,30 +150,30 @@ async function readDestinationPairs(filePath: string): Promise<Array<[string, un
  *
  * @param entries - The translated entries to persist.
  * @param filePath - The destination ARB file path.
- * @returns The merged object ready to serialize.
+ * @returns The merged ordered Map ready to serialize.
  * @throws {@link AdapterError} `INVALID_JSON`, `INVALID_STRUCTURE`, or `INPUT_TOO_LARGE` when the
  *   destination exists but is corrupt, malformed, or too large.
  */
 export async function buildArbWriteTree(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
-): Promise<unknown> {
+): Promise<OrderedRecord> {
   const messages = messagesFromEntries(entries);
   const pairs = await readDestinationPairs(filePath);
-  const out = Object.create(null) as Record<string, unknown>;
+  const out = new Map<string, OrderedValue>();
   const consumed = new Set<string>();
   for (const [key, value] of pairs ?? []) {
     const translated = isMetadataKey(key) ? undefined : messages.get(key);
     if (translated !== undefined) {
       consumed.add(key);
-      out[key] = translated;
+      out.set(key, translated);
     } else if (isMetadataKey(key) || typeof value === "string") {
-      out[key] = value;
+      out.set(key, value);
     }
   }
   for (const [key, value] of messages) {
     if (!consumed.has(key)) {
-      out[key] = value;
+      out.set(key, value);
     }
   }
   return out;

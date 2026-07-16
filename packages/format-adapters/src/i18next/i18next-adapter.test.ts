@@ -123,6 +123,26 @@ describe("i18next JSON adapter: round-trip", () => {
     expect(written).toBe(original);
   });
 
+  it("round-trips mixed integer-like and named keys byte-identically in document order", async () => {
+    const mixed = [
+      "{",
+      '  "b": "B",',
+      '  "10": "ten",',
+      '  "2": "two",',
+      '  "a": "A",',
+      '  "404": "nf",',
+      '  "200": "ok"',
+      "}",
+      "",
+    ].join("\n");
+    const inPath = await tempFile("mixed.json", mixed);
+    const { resource } = await adapter.read(inPath, "en");
+    expect([...resource.entries.keys()]).toEqual(["b", "10", "2", "a", "404", "200"]);
+    const outPath = await tempFile("out.json", "");
+    await adapter.write(resource, outPath);
+    expect(await readFile(outPath, "utf8")).toBe(mixed);
+  });
+
   it("write produces JSON the adapter can read back", async () => {
     const inPath = await tempFile("common.json", original);
     const { resource } = await adapter.read(inPath, "en");
