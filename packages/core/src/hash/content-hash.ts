@@ -19,7 +19,7 @@ function normalizeText(text: string): string {
   return text.normalize("NFC").replace(/\r\n?/g, "\n");
 }
 
-/** Order-independent encoding of an entry's translatable fields; identity (key, namespace) is excluded so a renamed key is a missing/orphaned event, not a content change. */
+/** Canonical encoding of an entry's translatable fields; placeholders are sorted so their order cannot affect the hash, and identity (key, namespace) is excluded so a renamed key is a missing/orphaned event, not a content change. */
 function canonicalize(entry: TranslationEntry): string {
   return JSON.stringify([
     normalizeText(entry.value),

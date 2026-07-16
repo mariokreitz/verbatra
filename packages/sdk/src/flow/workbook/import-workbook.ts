@@ -20,7 +20,7 @@ import { readSource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
 import { type ImportLocaleResult, importLocale } from "./import-locale.js";
 
-// On-disk cap enforced before the untrusted workbook bytes reach @verbatra/exchange.
+/** On-disk size cap enforced before the untrusted workbook bytes reach `@verbatra/exchange`. */
 const MAX_WORKBOOK_FILE_BYTES = 64 * 1024 * 1024;
 
 /** Input for {@link importWorkbook}: the validated config, the workbook path, and run options. */
@@ -120,6 +120,12 @@ interface SheetContext {
   readonly dryRun: boolean;
 }
 
+/**
+ * Run one data sheet: judge its rows with {@link importLocale}, and on a non-dry-run write the merged
+ * target file when anything was accepted. The file write is skipped when nothing was accepted, but the
+ * lock entries are still recomputed so the locale's existing baseline is never wiped just because this
+ * run wrote nothing. Throws `CONFIG_INVALID` for a sheet whose locale is not a configured target.
+ */
 async function runSheet(
   ctx: SheetContext,
   sheet: WorkbookSheet,
@@ -147,8 +153,6 @@ async function runSheet(
   }
 
   const merged = mergeAccepted(target, accepted);
-  // Skip the file write when nothing was accepted, but still recompute the lock so the locale's
-  // existing baseline is never wiped just because this run wrote nothing.
   if (accepted.size > 0) {
     const path = localeFilePath(ctx.cwd, ctx.config.files.pattern, sheet.locale);
     await ctx.adapter.write(
@@ -174,7 +178,11 @@ async function runSheet(
  * structured {@link SdkError}. A per-sheet failure (a locale not in config, a broken-round-trip key,
  * a write failure) is isolated as that locale's `status: "failed"`, not a throw; per-row rejections
  * are withheld and reported on the locale. Dry-run validates and reports without writing any locale or
- * lock file.
+ * lock file, and skips lock acquisition (there is nothing to protect).
+ *
+ * The lock-file is read once, up front, for every sheet's diff baseline. On a non-dry-run, each
+ * sheet's write-and-lock-update step then holds that locale's `withLocaleWriteLock` for its whole
+ * critical section, so a concurrent writer touching the same locale can never interleave with it.
  *
  * @param input - The validated config, the workbook path, and run options.
  * @param deps - Optional composition seams (registry, file system) for tests.
@@ -202,9 +210,6 @@ export async function importWorkbook(
     throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
   }
 
-  // Read once for each sheet's diff baseline. Each sheet's own run-and-lock-update step below
-  // holds that locale's withLocaleWriteLock for its whole critical section, so a concurrent writer
-  // touching the same locale can never interleave with it.
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const ctx: SheetContext = {
@@ -222,8 +227,6 @@ export async function importWorkbook(
     try {
       let summary: LocaleSummary;
       if (dryRun) {
-        // A dry run never calls adapter.write or updateLockFileLocale, so there is nothing to
-        // protect and no reason to pay lock-acquire latency.
         summary = (await runSheet(ctx, sheet, lock)).summary;
       } else {
         summary = await withLocaleWriteLock(cwd, sheet.locale, fs, async () => {

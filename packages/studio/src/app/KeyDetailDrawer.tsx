@@ -18,19 +18,20 @@ import { useDialogA11y } from "./use-dialog-a11y.js";
 import { useHistoryList } from "./use-history-list.js";
 import { useKeyIntegrity } from "./use-key-integrity.js";
 
+/** Props for {@link KeyDetailDrawer}. */
 export interface KeyDetailDrawerProps {
   /** The key this drawer reports on. */
   readonly keyName: string;
-  /** The Translations page's already-loaded per-locale diff data; never re-fetched by this component. */
+  /** The caller's already-loaded per-locale diff data; never re-fetched here. */
   readonly locales: readonly DiffLocale[];
-  /** Bumped once per live-refresh event; re-fetches this drawer's own integrity and value views. */
+  /** Bumped once per live-refresh event; re-fetches the drawer's integrity and value views. */
   readonly refreshToken: number;
   readonly onClose: () => void;
   /**
-   * Opens the edit dialog for one of this key's locales. Rendered as a per-locale action only
-   * when the session can write to disk and the caller passes this; the caller owns swapping this
-   * drawer for the editor (never stacking them: both are focus-trapping dialogs whose Esc
-   * listeners are document-level, so two open at once would both close on one keypress).
+   * Opens the edit dialog for one of this key's locales. The Edit action
+   * renders only when the session can write to disk and the caller passes
+   * this. The caller owns swapping this drawer for the editor rather than
+   * stacking two focus-trapping dialogs.
    */
   readonly onEditLocale?: (locale: string) => void;
 }
@@ -44,11 +45,10 @@ type KeyValuesState =
     };
 
 /**
- * The key's current values, one `key.value` read per locale (each call is one local file read;
- * no bulk content endpoint exists, see the rpc contract's own scoping note). A locale whose read
- * fails is simply absent from the map: the drawer's status rows never depend on this fetch, so
- * a partial result degrades to fewer value lines, never an error wall. Re-fetched on every
- * live-refresh event, so an edit or retranslate shows its new value here without reopening.
+ * The key's current values, one `key.value` call per locale. A locale whose
+ * read fails is simply absent from the map, so a partial result degrades to
+ * fewer value lines rather than an error. Re-fetched whenever `refreshToken`
+ * changes.
  */
 function useKeyValues(
   keyName: string,
@@ -110,11 +110,10 @@ function LocaleValue({
 }
 
 /**
- * The placeholder or ICU integrity pill for one locale row, or nothing when the key is not
- * "changed" in that locale (no integrity check applies) or the result has not loaded yet. Renders
- * the Retranslate action alongside the pill only when `canRetranslate` says both write
- * capabilities are granted and this row currently fails integrity; otherwise the action is absent
- * entirely, not merely disabled.
+ * The integrity pill for one locale row, or nothing when
+ * `deriveIntegrityPillView` yields no pill for that locale. Renders the
+ * Retranslate action alongside the pill only when `canRetranslate` allows it;
+ * otherwise the action is absent entirely, not merely disabled.
  */
 function IntegrityCell({
   integrity,
@@ -145,9 +144,9 @@ function IntegrityCell({
 }
 
 /**
- * One locale's block: the locale code and its status/integrity signals on the header line, the
- * current translation value under it. A stacked list rather than a table: the drawer column is
- * narrow, and real values need the full line width to stay readable.
+ * One locale's block: the locale code and its status and integrity signals on
+ * the header line, the current translation value under it. RTL locales render
+ * the whole block in their own direction.
  */
 function LocaleBlock({
   row,
@@ -195,22 +194,13 @@ function LocaleBlock({
 }
 
 /**
- * Per-key detail drawer: one key's status, integrity, and current value per locale, plus the
- * project's commit history. The status rows derive from the diff data the Translations page
- * already loaded (never re-fetched here); the placeholder or ICU integrity comes from
- * `key.integrity`, and the actual source and per-locale values from one `key.value` read per
- * locale, both fetched fresh whenever the drawer opens for a new key and on every live-refresh
- * event (`refreshToken`), so a successful edit or retranslate is visible here without closing
- * and reopening. The history is deliberately not filtered to this key: `history.list` scopes
- * `git log` to whole locale files (see `server/methods/history.ts`), so this reports project
- * context rather than a false per-key filter.
- *
- * Focus trap, Esc-to-close, and focus restoration come from `useDialogA11y`. The backdrop
- * dismiss is a real `<button>` behind the panel in both stacking order and the focus trap, not
- * a click handler on a static element, so clicking outside the panel to close stays a genuine,
- * keyboard-operable control. RTL locales render their block (header line and value) in their
- * own direction via `dir`, and values additionally use `dir="auto"` so a value's own first
- * strong character decides its direction.
+ * Per-key detail drawer: one key's status, integrity, and current value per
+ * locale, plus the project's commit history. The status rows derive from the
+ * diff data the caller already loaded; integrity comes from `key.integrity`
+ * and values from one `key.value` call per locale, both re-fetched when the
+ * key or `refreshToken` changes. The history section is project-wide, not
+ * filtered to this key. Focus trap, Esc-to-close, and focus restoration come
+ * from `useDialogA11y`.
  */
 export function KeyDetailDrawer({
   keyName,

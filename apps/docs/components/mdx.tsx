@@ -13,7 +13,7 @@ import Card from "@/components/ui/card";
 import CommandLine from "@/components/ui/command-line";
 import Tabs from "@/components/ui/tabs";
 
-// Merges Fumadocs UI defaults with verbatra's custom MDX components; the DS Tabs registers as <VTabs/> so it never shadows Fumadocs' built-in <Tabs/>.
+/** Merges the Fumadocs UI defaults with verbatra's custom MDX components; the design-system Tabs registers as VTabs so it never shadows Fumadocs' built-in Tabs. */
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
     ...defaultMdxComponents,

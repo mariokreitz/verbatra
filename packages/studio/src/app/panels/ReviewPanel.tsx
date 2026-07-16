@@ -117,9 +117,9 @@ function ReviewTable({
   );
 }
 
-/** The queue's filter row: pin a locale, narrow by key substring. Client-side view narrowing
- * only (see `client/review-filter.ts`); the session overlay has already removed actioned rows
- * before these filters ever see them. */
+/** The queue's filter row: pin a locale, narrow by key substring. Client-side
+ * view narrowing only; the session overlay has already removed actioned rows
+ * before these filters see them. */
 function ReviewFilterBar({
   locales,
   locale,
@@ -159,15 +159,14 @@ function ReviewFilterBar({
 }
 
 /**
- * The live needs-review queue: every flagged `(locale, key)` pair from the most recent CLI run's
- * persisted snapshot, with a distinct label per `ReviewReasonCode` and, when
- * `capabilities.writeToDisk` is true, an approve/edit/reject action row. The view half is
- * unconditionally available (blocked only on the persisted run-status data existing, not on any
- * capability flag); an `{ available: false }` response renders an informational empty state, never
- * an error. Approve and reject are purely client-side (see `client/review-overlay.ts`); a
- * successfully accepted edit is marked actioned the same way, so all three keep a row from
- * reappearing within the same page session, including across the live-refresh re-fetch this panel
- * already reacts to via `refreshToken`.
+ * The Review page: every flagged (locale, key) pair from the most recent
+ * run's persisted snapshot, with a labeled reason chip per `ReviewReasonCode`
+ * and, when `capabilities.writeToDisk` is true, an edit/approve/reject action
+ * row. An `{ available: false }` response renders an informational empty
+ * state, never an error. Approve and reject only mark the row actioned in the
+ * session overlay; an accepted edit is marked the same way, so all three keep
+ * a row hidden for the rest of the page session, including across
+ * live-refresh re-fetches.
  */
 export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
   return (

@@ -103,16 +103,12 @@ describe("malformed request handling", () => {
     const cookie = setCookie?.split(";")[0];
     expect(cookie).toBeDefined();
 
-    // With a valid cookie and a correct content type, this request passes every gate ahead of the
-    // body read (Origin, path, auth, content type) and only fails once the body itself is read,
-    // which is the code path this test exercises.
     await new Promise<void>((resolve, reject) => {
       const socket = connect(port, "127.0.0.1", () => {
         socket.write(
           `POST /rpc HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nCookie: ${cookie}\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n`,
         );
         socket.write("{");
-        // Aborts the connection mid-body instead of sending the declared 1000 bytes.
         socket.destroy();
       });
       socket.on("close", () => resolve());

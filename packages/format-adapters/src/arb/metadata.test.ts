@@ -78,8 +78,6 @@ describe("extractArbDescriptions", () => {
   });
 
   it("encodes a literal dotted message key the same way flattenTree's literal-leaf mode does", () => {
-    // flattenTree encodes a dotted leaf key so its map key stays distinct from a nested path; the
-    // description map must key by the same encoding or a dotted key's description would never merge.
     const descriptions = extractArbDescriptions(
       JSON.stringify({
         "page.title": "Welcome",

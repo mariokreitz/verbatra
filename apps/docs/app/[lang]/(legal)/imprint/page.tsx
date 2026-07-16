@@ -4,6 +4,7 @@ import { LEGAL_LAST_UPDATED } from "@/lib/site";
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
 
+/** Localized title and description for the imprint page; indexing stays enabled. */
 export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
@@ -16,15 +17,17 @@ export async function generateMetadata(props: {
   };
 }
 
+/**
+ * The imprint (Impressum) page. The German statutory body is kept verbatim in
+ * every locale; only the intro and the last-updated label are localized.
+ */
 export default async function ImprintPage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
   const t = await getTranslations({ locale: lang, namespace: "legal.imprint" });
 
   return (
     <main className="container mx-auto max-w-3xl px-6 py-16 prose">
-      {/* "Impressum" is the statutory term, kept literal in every locale. */}
       <h1>Impressum</h1>
-      {/* The German legal body below is statutory and kept verbatim across all locales; only the intro and label are localized. */}
       <p>{t("intro")}</p>
       <p>
         <em>

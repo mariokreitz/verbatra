@@ -200,7 +200,7 @@ describe("createReconnectController: shutdown", () => {
 
     expect(session.getState()).toEqual({ kind: "session-expired" });
     expect(source.instances[0]?.closed).toBe(true);
-    expect(source.instances).toHaveLength(1); // no reconnect attempt after shutdown
+    expect(source.instances).toHaveLength(1);
   });
 });
 
@@ -263,26 +263,23 @@ describe("createReconnectController: backoff schedule", () => {
     async function disconnectAndCapture(index: number): Promise<number> {
       source.setReadyState(index, EVENT_SOURCE_CLOSED);
       source.fire(index, "error");
-      await vi.advanceTimersByTimeAsync(0); // let the probe promise settle
+      await vi.advanceTimersByTimeAsync(0);
       const before = source.instances.length;
       return before;
     }
 
-    // 1st disconnect: expect a reconnect after 1000ms.
     await disconnectAndCapture(0);
     await vi.advanceTimersByTimeAsync(999);
     expect(source.instances).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(source.instances).toHaveLength(2);
 
-    // 2nd disconnect: expect a reconnect after 2000ms.
     await disconnectAndCapture(1);
     await vi.advanceTimersByTimeAsync(1999);
     expect(source.instances).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(1);
     expect(source.instances).toHaveLength(3);
 
-    // 3rd disconnect: expect a reconnect after 4000ms.
     await disconnectAndCapture(2);
     await vi.advanceTimersByTimeAsync(3999);
     expect(source.instances).toHaveLength(3);
@@ -301,7 +298,6 @@ describe("createReconnectController: backoff schedule", () => {
       onRefresh: () => {},
     });
 
-    // Drive enough disconnects that the exponential formula would exceed the cap (1,2,4,8,16,32->30).
     for (let i = 0; i < 5; i += 1) {
       const index = source.instances.length - 1;
       source.setReadyState(index, EVENT_SOURCE_CLOSED);
@@ -334,17 +330,17 @@ describe("createReconnectController: backoff schedule", () => {
 
     source.setReadyState(0, EVENT_SOURCE_CLOSED);
     source.fire(0, "error");
-    await vi.advanceTimersByTimeAsync(1000); // reconnect #2 created after the 1s base delay
+    await vi.advanceTimersByTimeAsync(1000);
     expect(source.instances).toHaveLength(2);
 
-    source.fire(1, "open"); // the reconnect succeeds; backoff resets
+    source.fire(1, "open");
 
     source.setReadyState(1, EVENT_SOURCE_CLOSED);
     source.fire(1, "error");
     await vi.advanceTimersByTimeAsync(999);
     expect(source.instances).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(1);
-    expect(source.instances).toHaveLength(3); // base delay again, not 2s
+    expect(source.instances).toHaveLength(3);
   });
 });
 
@@ -369,7 +365,7 @@ describe("createReconnectController: stop()", () => {
       controller.stop();
       await vi.advanceTimersByTimeAsync(5000);
 
-      expect(source.instances).toHaveLength(1); // the pending reconnect never fired
+      expect(source.instances).toHaveLength(1);
       expect(source.instances[0]?.closed).toBe(true);
       expect(session.getState()).toEqual({ kind: "active" });
     } finally {
@@ -394,7 +390,7 @@ describe("createReconnectController: stop()", () => {
     });
 
     source.setReadyState(0, EVENT_SOURCE_CLOSED);
-    source.fire(0, "error"); // the probe is now in flight
+    source.fire(0, "error");
 
     controller.stop();
     resolveProbe?.("unauthorized");
@@ -471,7 +467,6 @@ describe("createReconnectController: status changes", () => {
       onRefresh: () => {},
     });
 
-    // No observer: opening and dropping must simply not throw.
     source.fire(0, "open");
     source.setReadyState(0, EVENT_SOURCE_CLOSED);
     source.fire(0, "error");
@@ -493,7 +488,6 @@ describe("createReconnectController: native-retry status", () => {
     });
 
     source.fire(0, "open");
-    // readyState CONNECTING: the browser is retrying natively; no terminal CLOSED ever fires.
     source.setReadyState(0, 0);
     source.fire(0, "error");
 

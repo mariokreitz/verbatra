@@ -83,9 +83,22 @@ function buildSingleEntryRequest(
  * (`selectProvider`/`provider.translateBatch`) and nothing else: no bespoke per-provider plumbing.
  *
  * `locale` and `key` are resolved fresh on every call, never cached: `locale` against
- * `config.targetLocales` (the existing `UNKNOWN_LOCALE`), `key` against the source resource's own
- * keys, read fresh from disk (the new `UNKNOWN_KEY`), via a `Map`-backed lookup, never `key in obj`
- * or `obj[key] !== undefined` against a plain object.
+ * `config.targetLocales` (`UNKNOWN_LOCALE`), `key` against the source resource's own keys, read
+ * fresh from disk (`UNKNOWN_KEY`), via a `Map`-backed lookup, never `key in obj` or
+ * `obj[key] !== undefined` against a plain object.
+ *
+ * The target-file write and the lock-file update run inside the same held
+ * `withLocaleWriteLock(cwd, locale, fs, ...)` critical section as the provider call itself, so no
+ * second writer for this locale can ever observe the target file updated but the lock entry not
+ * yet, or vice versa. The same locking also covers `translate()`/`watch()` and `importWorkbook()`.
+ *
+ * Not atomic across the two writes for a single caller's own run: the target locale file is
+ * written before the lock entry is updated. If `updateLockFileLocale` then throws
+ * (`LOCK_FILE_INVALID` for a corrupt lock-file, or `LOCK_CONTENDED` if its own internal lock-file
+ * guard cannot be acquired before its timeout), the target file already carries the new value
+ * while the lock still records the old hash, and the thrown error does not imply nothing was
+ * saved. The same ordering, and the same partial-write shape on that rare path, also exists in
+ * `translate()` and `importWorkbook()`.
  *
  * @param input - The validated config, the target locale, and the source key to retranslate.
  * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
@@ -103,20 +116,6 @@ function buildSingleEntryRequest(
  *   unsupported version.
  * @throws {@link SdkError} `LOCK_CONTENDED`: this locale's write lock could not be acquired before
  *   its timeout, because another process (another CLI run, or a second Studio write) is holding it.
- *
- * The target-file write and the lock-file update run inside the same held
- * `withLocaleWriteLock(cwd, locale, fs, ...)` critical section as the provider call itself, so no
- * second writer for this locale can ever observe the target file updated but the lock entry not
- * yet, or vice versa: the ordering between the two writes is safe by construction, not merely
- * disclosed. The same locking now also covers `translate()`/`watch()` and `importWorkbook()`.
- *
- * Not atomic across the two writes for a single caller's own run: the target locale file is
- * written before the lock entry is updated. If `updateLockFileLocale` then throws (`LOCK_FILE_INVALID`
- * for a corrupt lock-file, or `LOCK_CONTENDED` if its own internal lock-file guard cannot be
- * acquired before its timeout), the target file already carries the new value while the lock still
- * records the old hash, and the thrown error does not imply nothing was saved. The same ordering,
- * and the same partial-write shape on that rare path, also exists in `translate()` and
- * `importWorkbook()` since their shared refactor onto `updateLockFileLocale`.
  */
 export async function retranslateEntry(
   input: RetranslateEntryInput,

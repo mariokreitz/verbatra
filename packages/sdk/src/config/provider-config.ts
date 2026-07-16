@@ -30,10 +30,16 @@ export const providerConfigSchema = z.discriminatedUnion("id", [
   }),
 ]);
 
+/** One validated provider section: the provider id plus that provider's own options. */
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
+
+/** The closed set of configurable provider ids. */
 export type ProviderId = ProviderConfig["id"];
 
-// Keyed to the union's id set by the mapped type, so a provider in one but not the other fails to compile.
+/**
+ * Provider id to factory table, keyed to the union's id set by the mapped type, so a provider in
+ * one but not the other fails to compile.
+ */
 type ProviderFactories = {
   [K in ProviderId]: (
     options: Extract<ProviderConfig, { id: K }>["options"],
@@ -48,7 +54,10 @@ const providerFactories: ProviderFactories = {
   "openai-compatible": (options) => createOpenAiCompatibleProvider(options),
 };
 
-// The factory reads the API key from the environment; this function never sees or passes a key.
+/**
+ * Construct the provider named by the config through its registered factory. The factory reads the
+ * API key from the environment; this function never sees or passes a key.
+ */
 export function buildProvider(config: ProviderConfig): TranslationProvider {
   const create = providerFactories[config.id] as (
     options: ProviderConfig["options"],

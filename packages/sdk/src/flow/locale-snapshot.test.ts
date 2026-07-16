@@ -107,8 +107,6 @@ describe("diffLocaleSnapshots", () => {
   });
 
   it("counts a key present in both with a different hash as changed (the value-only edit case)", () => {
-    // Same key, "a", in both snapshots, but its hash differs: this is what a translator hand-editing
-    // an existing translation's wording produces, with the key itself untouched.
     const previous = snapshot("de", { a: "h1" });
     const current = snapshot("de", { a: "h1-edited" });
 

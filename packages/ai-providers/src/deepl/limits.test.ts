@@ -43,8 +43,6 @@ describe("chunkTextsForDeepL: byte-size cap", () => {
   });
 
   it("budgets non-ASCII text by its inflated form-encoded size, not its raw UTF-8 byte count", () => {
-    // Each "字" is 3 raw UTF-8 bytes but percent-encodes to 9 wire bytes ("%E5%AD%97").
-    // A count that fits the raw-byte budget must still split once the encoded size does not.
     const charsPerChunk = Math.floor(DEEPL_MAX_TEXT_PAYLOAD_BYTES / 9);
     const rawBytesIfUnderestimated = charsPerChunk * 2 * 3;
     expect(rawBytesIfUnderestimated).toBeLessThan(DEEPL_MAX_TEXT_PAYLOAD_BYTES);

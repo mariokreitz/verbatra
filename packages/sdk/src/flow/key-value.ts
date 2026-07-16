@@ -27,8 +27,8 @@ export interface KeyValueDeps {
 
 /**
  * The current source and target values for one key/locale pair. `target` is absent exactly when
- * the key does not yet exist in that target locale, mirroring the existing sparse-locale
- * convention (contrast a present-but-empty-string target, which is a real, if unusual, value).
+ * the key does not yet exist in that target locale; a present-but-empty-string target is a real
+ * value and is returned as such.
  */
 export interface KeyValueResult {
   readonly source: string;
@@ -36,16 +36,13 @@ export interface KeyValueResult {
 }
 
 /**
- * Read a key's current source and target values, live, for exactly one target locale: read-only,
- * calling no provider, writing no file, and mutating nothing. Exposes only the *current* values,
- * never a previous one (that is a separate, still-deferred decision; see
- * `.verbatra/adr/studio-key-integrity-and-word-diff-exposure.md`), so the result is exact by
- * construction, nothing approximated.
+ * Reads a key's current source and target values for exactly one target locale. Read-only: it
+ * calls no provider, writes no file, and mutates nothing. Exposes only the current values on disk,
+ * never a previous one.
  *
- * `locale` and `key` are resolved fresh on every call, via the same `UNKNOWN_LOCALE`/`UNKNOWN_KEY`
- * mechanism {@link editEntry} and {@link retranslateEntry} already use, so a caller feeding an edit
- * dialog with this result and then submitting through `editEntry` is always working from live data,
- * never a cached snapshot.
+ * `locale` and `key` are resolved fresh on every call, so a caller feeding an edit dialog with
+ * this result and then submitting through `editEntry` is always working from live data, never a
+ * cached snapshot.
  *
  * @param input - The validated config, the target locale, and the source key to read.
  * @param deps - Optional composition seams (registry, file system) for tests.

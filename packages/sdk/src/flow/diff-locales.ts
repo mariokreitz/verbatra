@@ -14,6 +14,7 @@ export interface LocaleDiffResult {
   readonly diff: DiffResult;
 }
 
+/** Input for {@link diffLocales}: the validated config and which locales to diff. */
 export interface DiffLocalesInput {
   readonly config: VerbatraConfig;
   /** Directory the pattern and lock-file resolve against; defaults to cwd. */
@@ -22,12 +23,13 @@ export interface DiffLocalesInput {
   readonly locales?: readonly string[];
 }
 
+/** Composition seam for {@link diffLocales}: inject a registry and a file system for tests. */
 export interface DiffLocalesDeps {
   readonly adapterRegistry?: AdapterRegistry;
   readonly fs?: SdkFs;
 }
 
-/** Read a locale's existing target resource, or an empty resource when the file does not exist. */
+/** Reads a locale's existing target resource, or an empty resource when the file does not exist. */
 export async function readTarget(
   cwd: string,
   config: VerbatraConfig,
@@ -43,8 +45,9 @@ export async function readTarget(
 }
 
 /**
- * Read the source, the lock baseline, and each selected target locale, then run core's `diffResources`
- * per locale. Reads only: it calls no provider, writes no file, and never mutates the lock.
+ * Reads the source, the lock baseline, and each selected target locale, then runs core's
+ * `diffResources` per locale. Reads only: it calls no provider, writes no file, and never mutates
+ * the lock. The shared read half of {@link check}, {@link diff}, and their siblings.
  */
 export async function diffLocales(
   input: DiffLocalesInput,

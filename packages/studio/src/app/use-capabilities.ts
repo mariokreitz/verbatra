@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { rpcClient } from "./api.js";
 
+/** The loading, error, or loaded state of the capabilities read. */
 export type CapabilitiesState =
   | { readonly kind: "loading" }
   | { readonly kind: "error" }
   | { readonly kind: "loaded"; readonly capabilities: StudioCapabilities };
 
 /**
- * Fetches the server's resolved write capabilities via `project.snapshot`'s `capabilities` field,
- * an independent, stateless read made fresh on every mount, mirroring how `OverviewPanel` already
- * reads the same snapshot. This is a defense-in-depth projection only, used to hide a write
- * affordance the server would refuse anyway (an absent handler answers `METHOD_UNKNOWN`); it is
- * never treated as an authorization check on its own.
+ * Fetches the server's resolved capabilities via `project.snapshot`'s
+ * `capabilities` field, once per mount. Used to hide write affordances the
+ * server would refuse anyway; never treated as an authorization check on its
+ * own.
  */
 export function useCapabilities(): CapabilitiesState {
   const [state, setState] = useState<CapabilitiesState>({ kind: "loading" });

@@ -1,37 +1,30 @@
-/**
- * Redaction backstop for everything the server sends to the client: every projected config string
- * and every mapped domain-error message passes through {@link redact} before leaving the process.
- * studio must never import from @verbatra/ai-providers (dependency direction), so the three key-shaped
- * patterns below are duplicated, not imported, from packages/ai-providers/src/redaction.ts; the
- * scrubbed environment variable names mirror packages/ai-providers/src/env.ts (PROVIDER_ENV plus the
- * openai-compatible convention variable, which lives outside PROVIDER_ENV; see that file's comment).
- * Keep both redaction files in sync when a provider's key shape or environment variable changes.
- */
-
 const REDACTED = "[REDACTED]";
 
-// Mirrors packages/ai-providers/src/redaction.ts KEY_PATTERNS exactly; each quantifier is over one
-// character class to stay ReDoS-safe.
-//
-// Known gap: these three patterns match the four hosted providers' key shapes (OpenAI-style sk-,
-// Gemini-style AIza, and DeepL's UUID-with-:fx form) plus Anthropic's key, which also matches sk-. They
-// do not match an arbitrary local or self-hosted server token configured for openai-compatible (LM
-// Studio, Ollama, and vLLM tokens have no fixed shape), so a real key set via OPENAI_COMPATIBLE_API_KEY
-// or a custom apiKeyEnvVar is caught only by the exact-value scrub below, never by pattern. A fully
-// general fix (redacting by an arbitrary configured apiKeyEnvVar name, not just the fixed list) is out
-// of scope here; this comment exists so the gap is not silently missed.
+/**
+ * Key-shaped patterns, mirroring packages/ai-providers/src/redaction.ts KEY_PATTERNS exactly.
+ * studio must never import from @verbatra/ai-providers (dependency direction), so the patterns
+ * are duplicated, not imported; keep both files in sync when a provider's key shape changes.
+ * Each quantifier runs over a single character class to stay ReDoS-safe, and the `\b` anchors
+ * `sk-` to a word start so hyphenated words like "risk-" pass through.
+ *
+ * Known gap: these patterns cover the hosted providers' key shapes (OpenAI-style `sk-`, which
+ * also matches Anthropic keys, Gemini-style `AIza`, and DeepL's UUID-with-`:fx` form). An
+ * arbitrary local or self-hosted token configured for openai-compatible has no fixed shape, so a
+ * real key set via OPENAI_COMPATIBLE_API_KEY or a custom apiKeyEnvVar is caught only by the
+ * exact-value scrub below, never by pattern.
+ */
 const KEY_PATTERNS: readonly RegExp[] = [
-  // The `\b` anchors `sk-` to a word start so hyphenated words like "risk-" or "task-" pass through.
   /\bsk-[A-Za-z0-9_-]{8,}/g,
   /AIza[0-9A-Za-z_-]{35}/g,
   /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?::fx)?/g,
 ];
 
-// Mirrors packages/ai-providers/src/env.ts: the four hosted PROVIDER_ENV variables plus the
-// openai-compatible convention variable OPENAI_COMPATIBLE_API_KEY (added alongside them here even
-// though it is not part of PROVIDER_ENV itself, since it is exactly as real a key-bearing variable).
-// studio never reads a key itself; this is a defense-in-depth exact-value scrub in case one leaked into
-// a config string or an error message.
+/**
+ * The key-bearing environment variable names whose exact values are scrubbed: the four hosted
+ * provider variables from packages/ai-providers/src/env.ts plus the openai-compatible convention
+ * variable. studio never reads a key for its own use; this is a defense-in-depth scrub in case a
+ * key value leaked into a config string or an error message. Keep in sync with that env module.
+ */
 const PROVIDER_ENV_VAR_NAMES = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
@@ -56,9 +49,11 @@ function scrubConfiguredEnvValues(text: string): string {
 }
 
 /**
- * Replaces anything that looks like a provider secret with `[REDACTED]`: the three key-shaped
- * patterns above, plus the exact value of any of the four provider API key environment variables
- * that happen to be set. Returns the input unchanged when nothing matches.
+ * Replaces anything that looks like a provider secret with `[REDACTED]`: the key-shaped patterns
+ * above, plus the exact value of any of the five provider API key environment variables that
+ * happen to be set. Returns the input unchanged when nothing matches. This is the redaction
+ * backstop for everything the server sends to a client; every projected config string and every
+ * mapped domain-error message passes through it before leaving the process.
  */
 export function redact(text: string): string {
   let out = text;

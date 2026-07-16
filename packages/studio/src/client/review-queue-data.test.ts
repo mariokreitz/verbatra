@@ -72,9 +72,6 @@ describe("visibleReviewQueueRows", () => {
     const overlay = createReviewOverlayStore();
     overlay.markActioned({ locale: "de", key: "greeting" });
 
-    // Two independent calls, exactly as two separate `review.queue` reads (the initial load and a
-    // later SSE-triggered re-fetch) would each independently flatten the response and filter it
-    // through the same overlay instance.
     const first = visibleReviewQueueRows(AVAILABLE, overlay);
     const second = visibleReviewQueueRows(AVAILABLE, overlay);
 

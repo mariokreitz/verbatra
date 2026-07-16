@@ -127,9 +127,6 @@ describe("translate: concurrent whole-project calls never duplicate a provider c
     const seed = makeStubProvider();
     await translate({ config: cfg(), cwd: dir }, { createProvider: () => seed.provider });
 
-    // Edit the source after seeding: every target locale's lock-recorded hash is now stale
-    // against this new content, so both concurrent calls below genuinely see key "a" as
-    // "changed", not "missing".
     await writeJsonFile(sourcePath(dir), { a: "A2" });
 
     const { provider, calls } = makeDelayedCountingProvider(50);

@@ -75,8 +75,6 @@ describe("readBodyWithCap", () => {
         socket.write(
           "POST / HTTP/1.1\r\nHost: 127.0.0.1\r\nTransfer-Encoding: chunked\r\nConnection: keep-alive\r\n\r\n",
         );
-        // Sends chunks well past the cap using chunked transfer encoding, so no Content-Length
-        // header is present for the server to reject up front; the streaming counter must catch it.
         const chunk = "a".repeat(4);
         for (let index = 0; index < SMALL_CAP; index += 1) {
           socket.write(`${chunk.length.toString(16)}\r\n${chunk}\r\n`);

@@ -41,12 +41,14 @@ export class ProviderError extends Error {
   readonly code: ProviderErrorCode;
 
   /**
+   * Redacts the message as a defense-in-depth backstop before storing it. The redaction runs with an
+   * empty secret argument so the ANTHROPIC_API_KEY environment default is not re-applied, keeping
+   * this generic error decoupled from any one provider's environment variable.
+   *
    * @param code - The stable failure code.
    * @param message - A fixed, safe message; callers must never pass key, SDK, or request-derived text.
    */
   constructor(code: ProviderErrorCode, message: string) {
-    // redact(message, "") passes an empty string so the ANTHROPIC_API_KEY default is not re-applied,
-    // keeping this generic error decoupled from one provider's environment variable.
     super(redact(message, ""));
     this.name = "ProviderError";
     this.code = code;

@@ -90,7 +90,10 @@ export interface RpcResultMap {
   readonly [USAGE_SUMMARY_METHOD]: UsageSummaryResult;
 }
 
+/** The parsed params type for one method, inferred from its schema in {@link rpcParamsSchemas}. */
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;
+
+/** The result type for one method, looked up in {@link RpcResultMap}. */
 export type RpcResultFor<M extends RpcMethodName> = RpcResultMap[M];
 
 /** The discriminated union of every valid `{ method, params }` request shape. */

@@ -12,7 +12,6 @@ class ApiError extends Error {
   }
 }
 
-// Keep test runtime negligible: real timers with a tiny base delay, no fake-timer bookkeeping.
 const FAST = { attempts: 3, baseDelayMs: 1 };
 
 describe("withGeminiRetry: success paths", () => {
@@ -101,7 +100,6 @@ describe("withGeminiRetry: cancellation", () => {
     const sentinel = new ApiError(429);
     const call = vi.fn<() => Promise<string>>().mockRejectedValueOnce(sentinel);
     const promise = withGeminiRetry(call, controller.signal, { attempts: 3, baseDelayMs: 60_000 });
-    // Abort during the backoff wait; the delay must resolve immediately instead of after 60s.
     queueMicrotask(() => controller.abort());
     const rejection = await promise.catch((error: unknown) => error);
     expect(rejection).not.toBe(sentinel);

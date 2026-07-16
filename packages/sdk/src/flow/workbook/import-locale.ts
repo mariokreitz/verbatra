@@ -110,7 +110,6 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
     }
     const sourceEntry = params.source.entries.get(row.key);
     if (sourceEntry === undefined) {
-      // Source deleted since export: surfaced via the orphaned diff bucket, never written.
       continue;
     }
     const reason = judge(row, sourceEntry, params.adapter);
@@ -137,6 +136,13 @@ function blankRowBaselineNotice(count: number): SdkNotice {
  * Judge one locale's filled rows with the core checks (drift, placeholder, ICU) and partition its keys
  * into the summary buckets. Writes nothing and updates no lock; throws {@link UnknownKeyError} on a
  * broken round trip.
+ *
+ * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
+ * in this sheet (source-side only; a filled value's own ICU failure is reported under
+ * `integrityMismatches`). `pruned`, `providerFailures`, `budgetWithheld`, `generated`, and
+ * `needsReview` are always empty: an import never prunes, never calls a provider, never generates
+ * plural forms, and never recomputes review flags (the workbook's Review columns are informational
+ * only; see export-workbook.ts).
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
@@ -148,8 +154,6 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   };
   classifyRows(params, buckets);
 
-  // Surface source keys that are invalid-ICU and appear as a row in this sheet (source-side, not the
-  // filled value's ICU validity, which is reported under integrityMismatches).
   const rowKeys = new Set(params.sheet.rows.map((row) => row.key));
   const invalidIcuSource = [...new Set(params.sourceInvalidIcuKeys)]
     .filter((key) => rowKeys.has(key))
@@ -161,20 +165,14 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     translated: [...buckets.accepted.keys()].sort(),
     unchanged: diff.unchanged,
     orphaned: diff.orphaned,
-    // Import never prunes: orphans are reported but never removed here (pruning is a translate-flow concern).
     pruned: [],
     invalidIcuSource,
     integrityMismatches: [...buckets.mismatches].sort(),
-    // A workbook import never calls a provider, so a provider-call failure cannot occur here.
     providerFailures: [],
-    // A workbook import never calls a provider, so the budget guardrail never withholds anything here.
     budgetWithheld: [],
-    // Plural generation is a translate-flow concern; the manual workbook import never generates forms.
     generated: [],
     notices:
       buckets.blankDrifted.size > 0 ? [blankRowBaselineNotice(buckets.blankDrifted.size)] : [],
-    // A workbook import never calls a provider and never recomputes review flags on its own path; the
-    // Excel workbook's Review status/reasons columns are informational only (see export-workbook.ts).
     needsReview: [],
   };
   return { summary, accepted: buckets.accepted, withheld: buckets.withheld };

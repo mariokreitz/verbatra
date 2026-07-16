@@ -12,6 +12,10 @@ const HOME_ALTERNATES = {
   },
 } as const;
 
+/**
+ * The sitemap: the four locale homes plus every docs page per locale, each
+ * entry carrying hreflang alternates for its translations.
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
   const homePaths: ReadonlyArray<{ path: string; priority: number }> = [
     { path: "/", priority: 1 },
@@ -26,7 +30,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     alternates: HOME_ALTERNATES,
   }));
 
-  // Alternates rely on the i18n fallbackLanguage copy so every locale resolves and does not 404.
   const docs: MetadataRoute.Sitemap = i18n.languages.flatMap((locale) =>
     source.getPages(locale).map((page) => {
       const languages: Record<string, string> = {};

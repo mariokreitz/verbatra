@@ -2,11 +2,13 @@
 
 import type { ReactNode } from "react";
 
-// Faint grid plus a few vertical light beams traveling down it. Decorative only, loaded
-// via next/dynamic ssr:false (it adds nothing to the server HTML), so it lives on the
-// client. The beams animate through the .vk-beam class, disabled under reduced motion.
 const BEAMS = [0, 1, 2] as const;
 
+/**
+ * A faint fading grid with optional vertical light beams traveling down it.
+ * Decorative only; the beams animate through the .vk-beam CSS class, which is
+ * disabled under reduced motion.
+ */
 export function GridBeams({
   fade = "radial-gradient(ellipse 70% 60% at 50% 0%, #000 35%, transparent 78%)",
   beams = true,

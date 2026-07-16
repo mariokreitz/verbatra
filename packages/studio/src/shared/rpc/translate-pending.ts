@@ -15,6 +15,7 @@ export const TRANSLATE_PENDING_METHOD = "translation.translatePending";
  */
 export const translatePendingParamsSchema = z.strictObject({});
 
+/** Parsed `translation.translatePending` params. */
 export type TranslatePendingParams = z.infer<typeof translatePendingParamsSchema>;
 
 /**

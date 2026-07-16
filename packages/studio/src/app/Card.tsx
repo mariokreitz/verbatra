@@ -1,24 +1,20 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
+/** Props for {@link Card}. Extends the standard div attributes. */
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  /** "none" is for flush content that brings its own spacing, most notably `TableCard`'s
-   * edge-to-edge tables. */
+  /** Inner padding. "none" is for flush content that brings its own spacing,
+   * such as edge-to-edge tables. */
   readonly padding?: "none" | "sm" | "md";
-  /** The element `Card` renders as. Defaults to a plain `div`; `section` is for a caller that is
-   * itself a landmark with its own heading, not a general-purpose polymorphism escape hatch. No
-   * current caller needs it (the Diff panel's per-locale groups, the original reason this existed,
-   * moved onto `AccordionItem`); kept for the next `Card`-shaped landmark rather than removed. */
+  /** The element the card renders as. Defaults to a plain `div`; use `section`
+   * when the card is itself a landmark with its own heading. */
   readonly as?: "div" | "section";
 }
 
 /**
- * A bordered-surface container: metric tiles, section cards, and the `Toast` shell
- * `RefreshToast` builds on. `Sheet`'s own panel uses the same visual tokens (`rounded-lg border
- * border-border bg-card`) directly rather than through this component, since its layout (fixed
- * positioning, `role="dialog"`, a focus-trap ref) doesn't fit `Card`'s plain div/section shape. `padding` covers the two sizes those callers actually need; add a new one
- * only when a real usage needs it. Forwards the rest of the standard div attributes (`role`,
- * `aria-*`) since `Toast` needs the card itself to carry an ARIA live-region role.
+ * A bordered-surface container for metric tiles, section cards, and toast
+ * shells. Forwards the remaining div attributes (`role`, `aria-*`) so a caller
+ * can make the card itself an ARIA live region.
  */
 export function Card({
   padding = "md",

@@ -2,11 +2,9 @@ import type { ReactNode } from "react";
 import { microLabelClassName } from "./ui.js";
 
 /**
- * The one page-title block every panel opens with: a monospace kicker naming the product area
- * (the design reference's "PROJECT CONFIGURATION" eyebrow), an h1 (the document's only h1), an
- * optional one-line description of what the view shows, and an optional inline-end slot for the
- * page's contextual actions (for example the Translations panel's copy-as-report button).
- * Rendered by the panels rather than the app shell so each panel owns its own copy and actions.
+ * The page-title block a panel opens with: a kicker eyebrow line, an h1, an
+ * optional one-line description, and an optional inline-end slot for the
+ * page's contextual actions.
  */
 export function PageHeader({
   kicker = "Verbatra Studio",

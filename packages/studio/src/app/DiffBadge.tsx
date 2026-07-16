@@ -3,10 +3,9 @@ import { cn } from "./lib/cn.js";
 import { pillClassName, pillDotClassName } from "./ui.js";
 
 /**
- * The three kinds of pending change a key can carry for one locale. Deliberately a separate
- * vocabulary from Badge's `BadgeTone`: those tones answer "is this correct", these answer "what
- * kind of change is this". Reusing one token set for both would make a missing key and a broken
- * lock-file drift look like the same signal.
+ * The three kinds of pending change a key can carry for one locale. A separate
+ * vocabulary from `BadgeTone`: those tones signal status, these signal what
+ * kind of change is pending.
  */
 export type DiffTone = "missing" | "changed" | "orphaned";
 
@@ -23,9 +22,9 @@ const DIFF_TONE_CLASSES: Readonly<Record<DiffTone, string>> = {
 };
 
 /**
- * A small pill for one diff-specific signal, styled from its own diff-* token family (see
- * styles.css), never Badge's status tokens. The three labels are distinct words, so the signal
- * never rests on the tint alone.
+ * A small pill labeling one kind of pending change, styled from the diff-*
+ * token family rather than Badge's status tokens. Each tone carries a distinct
+ * word, so the signal never rests on color alone.
  */
 export function DiffBadge({ tone }: { readonly tone: DiffTone }): ReactNode {
   return (

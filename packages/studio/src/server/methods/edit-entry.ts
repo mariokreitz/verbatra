@@ -2,14 +2,11 @@ import { editEntry } from "@verbatra/sdk";
 import type { RpcHandler } from "../rpc.js";
 
 /**
- * Wraps the sdk's `editEntry`: a locked, human-typed correction gated through the shared integrity
- * check before anything reaches disk, scoped to exactly the requested `(locale, key)` pair.
- * Always registered by `createRpcHandlers` (local editing needs no capability flag, and this seam
- * never calls a provider, so `spend` is irrelevant). Reads the config resolved once at startup, but
- * re-reads the source, target, and lock file fresh from disk on every call, exactly like the
- * read-only views and `translation.retranslateEntry`. Never reads the process environment or any
- * provider-specific variable; unlike `retranslateEntryHandler`, it does not even forward a
- * `createProvider` seam, since `editEntry`'s own deps have no such field.
+ * Handles `translation.editEntry`: forwards a human-typed correction for exactly one
+ * (locale, key) pair to the sdk's `editEntry`, with the config resolved once at startup and the
+ * server's project root as cwd. The optional `fs` and `adapterRegistry` seams are forwarded when
+ * set. Never calls a provider and forwards no `createProvider` seam; the sdk's `editEntry` deps
+ * have no such field.
  */
 export const editEntryHandler: RpcHandler<"translation.editEntry"> = async (params, deps) =>
   editEntry(

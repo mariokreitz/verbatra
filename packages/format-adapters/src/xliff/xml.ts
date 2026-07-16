@@ -293,10 +293,11 @@ function allDescendantNodes(node: Node): Node[] {
 }
 
 /**
- * True when the fragment contains anything other than plain text and allow-listed, unnamespaced
- * inline elements: an unexpected or namespaced element, a CDATA section, a comment, or a processing
- * instruction. Any of these degrades the whole value to a single escaped text node in
- * {@link fragmentNodes}, so none of them reach the written `<target>` as live markup.
+ * True when the fragment contains anything other than plain text and allow-listed inline elements
+ * (with no namespace or a genuine XLIFF one): an unexpected or foreign-namespaced element, a CDATA
+ * section, a comment, or a processing instruction. Any of these degrades the whole value to a
+ * single escaped text node in {@link fragmentNodes}, so none of them reach the written `<target>`
+ * as live markup.
  */
 function hasDisallowedNode(root: Element): boolean {
   return allDescendantNodes(root).some((node) => !isAllowedFragmentNode(node));

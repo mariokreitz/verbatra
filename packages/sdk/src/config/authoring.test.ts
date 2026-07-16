@@ -5,11 +5,9 @@ import type { AuthoringConfig, AuthoringConfigFor } from "./authoring.js";
 import { defineConfig } from "./define-config.js";
 import { loadConfig } from "./load-config.js";
 
-// Compile-time assertion helpers; a failing assertion is a typecheck build failure.
 type Extends<A, B> = A extends B ? true : false;
 type Expect<T extends true> = T;
 
-// Isolate the named literal members of an open model union `M | (string & {})`, dropping the widened `string` arm.
 type LiteralMembers<T> = T extends string ? (string extends T ? never : T) : never;
 
 type ModelOf<Id extends AuthoringConfig["provider"]["id"]> =
@@ -21,7 +19,6 @@ type AnthropicModelField = ModelOf<"anthropic">;
 type OpenAiModelField = ModelOf<"openai">;
 type GeminiModelField = ModelOf<"gemini">;
 
-// Collapsing to one concrete variant lets editors with weaker discriminated-union narrowing offer only the selected provider's models.
 type CollapsedModelOf<Id extends "anthropic" | "openai" | "gemini"> =
   AuthoringConfigFor<Id>["provider"] extends { options: { model: infer M } } ? M : never;
 

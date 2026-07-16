@@ -47,8 +47,6 @@ export function checkPlaceholders(
 
   const missing = multisetExcess(sourceCounts, translatedCounts);
   const extra = multisetExcess(translatedCounts, sourceCounts);
-  // Supported formats use named or index-addressed placeholders, so a same-multiset reorder is a
-  // valid translation. Report it as informational only; it never affects `matches`.
   const reordered = missing.length === 0 && extra.length === 0 && !sameOrder(source, translated);
 
   return {

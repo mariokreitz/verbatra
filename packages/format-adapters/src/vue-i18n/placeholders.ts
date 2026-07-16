@@ -1,7 +1,9 @@
-// vue-i18n named ({name}) and list ({0}) interpolation tokens, normalized to "{key}" since the
-// compiler skips inner whitespace. The lookbehind/lookahead reject a brace from a "{{...}}" pair
-// (vue-i18n has no double-brace syntax). The key classes are disjoint from whitespace, so matching
-// stays linear (no backtracking) on adversarial input.
+/**
+ * vue-i18n named (`{name}`) and list (`{0}`) interpolation tokens, captured for normalization to
+ * `{key}` since the compiler skips inner whitespace. The lookbehind/lookahead reject a brace from a
+ * `{{...}}` pair (vue-i18n has no double-brace syntax). The key classes are disjoint from
+ * whitespace, so matching stays linear (no backtracking) on adversarial input.
+ */
 const PLACEHOLDER_PATTERN = /(?<!\{)\{\s*([A-Za-z_][\w$-]*|\d+)\s*\}(?!\})/g;
 
 /**

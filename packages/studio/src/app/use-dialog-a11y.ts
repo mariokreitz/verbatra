@@ -9,6 +9,7 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
 
+/** Options for {@link useDialogA11y}. */
 export interface DialogA11yOptions {
   /** Whether the dialog is currently open; the trap and its listeners are only live while true. */
   readonly isOpen: boolean;
@@ -37,30 +38,21 @@ function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
 }
 
 /**
- * Shared accessibility behavior for interactive chrome that opens as an overlay: Esc closes it, Tab
- * and Shift+Tab cycle within the container instead of escaping to the rest of the page (a focus
- * trap), and focus returns to whatever was focused before the container opened, once it closes.
- * The key detail drawer is the first consumer; a future keyboard-navigable grid is expected to
- * reuse this alongside the pure roving-tabindex math in `client/roving-tabindex.ts` (that helper
- * covers moving focus within a list of items, which this hook does not do on its own).
+ * Shared accessibility behavior for overlay dialogs: on open, focus moves to
+ * the first focusable element inside the returned container ref; Tab and
+ * Shift+Tab cycle within the container (a focus trap); Escape calls
+ * `onClose`; and on close or unmount, focus returns to the element focused
+ * beforehand. The latest `onClose` is tracked through a ref rather than an
+ * effect dependency, so a caller may pass a new callback identity on every
+ * render without tearing down and rebuilding the trap.
  *
- * Not covered by the coverage gate: `src/app` is excluded (see `vitest.config.ts`), and this
- * module is DOM-interaction logic (real focus, real keydown listeners) with no jsdom or
- * browser-rendering harness in this package's current toolchain. Manually verified by tracing the
- * effect: on open, focus moves to the first focusable element inside the container; Tab from the
- * last focusable element wraps to the first and Shift+Tab from the first wraps to the last; Escape
- * invokes `onClose`; on close (or unmount), focus returns to the element that was focused
- * beforehand.
+ * @returns The ref to attach to the dialog's container element.
  */
 export function useDialogA11y<T extends HTMLElement>({
   isOpen,
   onClose,
 }: DialogA11yOptions): RefObject<T | null> {
   const containerRef = useRef<T | null>(null);
-  // Tracks the latest onClose without being a setup-effect dependency: a caller like the Diff
-  // panel passes a new onClose identity on every render (live refresh included), and reacting to
-  // that identity change would tear down and rebuild the trap on every re-render instead of only
-  // when the dialog actually opens or closes.
   const onCloseRef = useRef(onClose);
 
   useLayoutEffect(() => {

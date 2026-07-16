@@ -2,12 +2,11 @@ import { buildProjectSnapshot } from "../projection.js";
 import type { RpcHandler } from "../rpc.js";
 
 /**
- * Reads only the config resolved once at startup, so (like glossary.get, but unlike status.check,
- * status.diff, lock.state, and history.list) it never touches disk on a call. The projected
- * `capabilities` field reflects the same `spend` boolean `createRpcHandlers` used to build the
- * registry, defaulting to `false` when a caller's deps omit it (matching "off unless explicitly
- * granted"); `writeToDisk` is always `true`, since local editing needs no flag. The projection is
- * a defense-in-depth hint for the client, never the authoritative gate.
+ * Handles `project.snapshot` by projecting the config resolved once at startup; it never touches
+ * disk on a call. The projected `capabilities` field mirrors the server's own `spend` flag,
+ * defaulting to `false` when deps omit it; `writeToDisk` is always `true`, since local editing
+ * needs no capability flag. The projection is a display hint for the client, never the
+ * authoritative gate.
  */
 export const snapshotHandler: RpcHandler<"project.snapshot"> = async (_params, deps) =>
   buildProjectSnapshot(deps.config, deps.projectRoot, {

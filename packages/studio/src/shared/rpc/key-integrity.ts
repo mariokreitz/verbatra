@@ -9,6 +9,7 @@ export const keyIntegrityParamsSchema = z.strictObject({
   locales: z.array(z.string().min(1)).min(1).optional(),
 });
 
+/** Parsed `key.integrity` params. */
 export type KeyIntegrityParams = z.infer<typeof keyIntegrityParamsSchema>;
 
 /**

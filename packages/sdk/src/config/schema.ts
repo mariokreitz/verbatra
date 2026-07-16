@@ -3,13 +3,17 @@ import { z } from "zod";
 import { LOCALE_TOKEN } from "../paths.js";
 import { providerConfigSchema } from "./provider-config.js";
 
-// Default sub-batch size when maxBatchSize is absent: small enough that a big locale splits into
-// requests that stay inside provider context windows, large enough that a small project sends one.
+/**
+ * The sub-batch size applied when `maxBatchSize` is absent: small enough that a large locale splits
+ * into requests that stay inside provider context windows, large enough that a small project sends
+ * a single request.
+ */
 export const DEFAULT_MAX_BATCH_SIZE = 50;
 
-// Default budget behavior when maxTokens is set but budgetBehavior is absent: flag the overrun without
-// interrupting the run, matching how every other withholding path in this SDK degrades gracefully by
-// default rather than stopping.
+/**
+ * The budget behavior applied when `maxTokens` is set but `budgetBehavior` is absent: flag the
+ * overrun and let the run continue.
+ */
 export const DEFAULT_BUDGET_BEHAVIOR = "warn" as const;
 
 /**

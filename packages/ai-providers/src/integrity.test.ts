@@ -72,7 +72,6 @@ describe("checkBatchIntegrity: with a comparator", () => {
       compare,
     );
 
-    // The comparator's own (fabricated) result wins, proving extract/checkPlaceholders never ran.
     expect(result.get("a")).toEqual(FAKE_MISMATCH);
     expect(calls).toEqual([{ source: "Hi {{name}}", translated: "Hallo {{name}}" }]);
   });

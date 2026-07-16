@@ -12,6 +12,7 @@ export const statusDiffParamsSchema = z.strictObject({
   locales: z.array(z.string().min(1)).min(1).optional(),
 });
 
+/** Parsed `status.diff` params. */
 export type StatusDiffParams = z.infer<typeof statusDiffParamsSchema>;
 
 /** The result is the sdk's own {@link DiffSummary}, unchanged: the three key lists per locale. */

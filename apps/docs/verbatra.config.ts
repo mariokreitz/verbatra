@@ -1,5 +1,6 @@
 import { defineConfig } from "@verbatra/sdk";
 
+/** The verbatra config that translates the site's own UI catalogs in messages/ from English to de/es/fr via Gemini. */
 export default defineConfig({
   sourceLocale: "en",
   targetLocales: ["de", "es", "fr"],

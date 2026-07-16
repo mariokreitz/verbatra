@@ -53,10 +53,11 @@ function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
 }
 
 /**
- * Report which keys are missing or stale per target locale, without calling a provider, writing any
- * file, or touching the lock. Each locale is reported as counts only (missing, stale, up-to-date);
- * a locale is `inSync` when nothing is missing or stale, and the top-level `inSync` is true only when
- * every checked locale is. Orphaned keys and integrity are not reported, since they concern a write.
+ * Reports how many keys are missing or stale per target locale, without calling a provider, writing
+ * any file, or touching the lock. Each locale is reported as counts only (missing, stale,
+ * up-to-date); a locale is `inSync` when nothing is missing or stale, and the top-level `inSync` is
+ * true only when every checked locale is. Orphaned keys and integrity are not reported, since they
+ * concern a write; use {@link diff} for the key lists.
  *
  * @param input - The validated config and which locales to check.
  * @param deps - Optional composition seams (registry, file system) for tests.

@@ -2,11 +2,10 @@ import { keyValue } from "@verbatra/sdk";
 import type { RpcHandler } from "../rpc.js";
 
 /**
- * Wraps the sdk's read-only `keyValue`: the current source and target string values for exactly
- * one key/locale pair, read live, feeding an edit dialog's pre-population. Always registered by
- * `createRpcHandlers`, alongside `translation.editEntry`, the edit seam it exists to supply
- * context for (this method itself never writes). Reads the config resolved once at startup, but re-reads
- * the source and target files fresh from disk on every call, never caching them.
+ * Handles `key.value`: forwards to the sdk's read-only `keyValue` for exactly one key/locale
+ * pair, with the config resolved once at startup and the server's project root as cwd. The
+ * optional `fs` and `adapterRegistry` seams are forwarded when set. This method itself never
+ * writes; it supplies the current values an edit dialog pre-populates from.
  */
 export const keyValueHandler: RpcHandler<"key.value"> = async (params, deps) =>
   keyValue(

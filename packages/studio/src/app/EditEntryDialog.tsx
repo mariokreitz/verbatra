@@ -15,18 +15,19 @@ type SubmitState =
   | { readonly kind: "submitting" }
   | { readonly kind: "settled"; readonly outcome: EditEntryOutcome };
 
+/** Props for {@link EditEntryDialog}. */
 export interface EditEntryDialogProps {
   readonly locale: string;
   readonly keyName: string;
   readonly onClose: () => void;
-  /** Called once, only on a genuine acceptance; the caller marks the row actioned and may close the dialog. */
+  /** Called only when the server accepts the edit; the caller marks the row actioned and may close the dialog. */
   readonly onAccepted: (locale: string, keyName: string) => void;
 }
 
 /**
- * Fetches `key.value`'s current source and target once per (locale, keyName) pair, feeding the
- * editor's pre-population. The response-to-state mapping itself lives in the covered, pure
- * `deriveKeyValueContext` (`client/key-value-context.ts`); this hook only owns the fetch effect.
+ * Fetches the key's current source and target via `key.value`, once per
+ * (locale, keyName) pair. The response-to-state mapping lives in the pure
+ * `deriveKeyValueContext`; this hook only owns the fetch effect.
  */
 function useKeyValueContext(locale: string, keyName: string): KeyValueContext {
   const [state, setState] = useState<KeyValueContext>({ kind: "loading" });
@@ -99,13 +100,11 @@ function EditorFields({
 }
 
 /**
- * Inline or modal editor for one needs-review row: opens by calling `key.value` to pre-populate
- * the editor with the key's current source and target before the translator types anything
- * (acceptance criterion 6), submits through `translation.editEntry`. On acceptance, calls
- * `onAccepted`; the caller (the Review panel) marks the row actioned in the session overlay. On
- * rejection, reuses the same rejection-label UX pattern `RetranslateButton` already established,
- * not a new one. Reuses `useDialogA11y` for the focus trap and Esc-to-close, matching
- * `KeyDetailDrawer`'s own precedent.
+ * Drawer-style editor for one translation entry. Pre-populates the text area
+ * from `key.value`, submits through `translation.editEntry`, and shows a
+ * status label while saving and after the call settles. Calls `onAccepted`
+ * only when the server accepts the edit. Uses `useDialogA11y` for the focus
+ * trap and Esc-to-close.
  */
 export function EditEntryDialog({
   locale,

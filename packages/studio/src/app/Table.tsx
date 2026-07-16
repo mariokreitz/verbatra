@@ -4,21 +4,20 @@ import { cn } from "./lib/cn.js";
 import { tableClasses } from "./ui.js";
 
 /**
- * Thin components over `ui.tsx`'s `tableClasses` strings: `StatusPanel`/`LockPanel`/
- * `ReviewPanel`/`OverviewPanel`'s glossary table all render a `<table className={tableClasses...}>`
- * shape identically, so this gives that shape names instead of every caller re-spelling the same
- * four classNames. `tableClasses` itself stays exported and in use directly wherever a table's
- * header/body doesn't fit this exact shape (for example `StatusGrid`'s own roving-tabindex grid,
- * and `KeyDetailDrawer`'s narrower table), which is why this doesn't replace it.
+ * A `<table>` carrying the shared `tableClasses.table` styling. Together with
+ * the sibling components below, this names the dashboard's one standard table
+ * shape instead of every caller re-spelling the same class strings.
  */
 export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>): ReactNode {
   return <table className={cn(tableClasses.table, className)} {...props} />;
 }
 
+/** A plain `<thead>`, kept for symmetry with the other table components. */
 export function TableHead(props: HTMLAttributes<HTMLTableSectionElement>): ReactNode {
   return <thead {...props} />;
 }
 
+/** A `<tbody>` carrying the shared `tableClasses.tbody` styling. */
 export function TableBody({
   className,
   ...props
@@ -26,6 +25,7 @@ export function TableBody({
   return <tbody className={cn(tableClasses.tbody, className)} {...props} />;
 }
 
+/** A `<tr>` with the shared hover tint, disabled via `hover={false}`. */
 export function TableRow({
   className,
   hover = true,
@@ -34,6 +34,7 @@ export function TableRow({
   return <tr className={cn(hover && tableClasses.rowHover, className)} {...props} />;
 }
 
+/** A `<th>` with the shared header styling; `numeric` end-aligns the cell. */
 export function TableHeaderCell({
   className,
   numeric = false,
@@ -44,6 +45,7 @@ export function TableHeaderCell({
   );
 }
 
+/** A `<td>` with the shared cell styling; `mono` uses the monospace face and `numeric` end-aligns. */
 export function TableCell({
   className,
   mono = false,
@@ -67,9 +69,8 @@ export function TableCell({
 }
 
 /**
- * The edge-to-edge card a page-level table sits in: rounded, bordered, horizontally scrollable
- * when the table's minimum width exceeds the viewport, with the table's own tinted header row
- * meeting the card's edges flush.
+ * The edge-to-edge card a page-level table sits in: an unpadded `Card` that
+ * scrolls horizontally when the table's minimum width exceeds the viewport.
  */
 export function TableCard({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {
   return <Card padding="none" className={cn("overflow-x-auto", className)} {...props} />;

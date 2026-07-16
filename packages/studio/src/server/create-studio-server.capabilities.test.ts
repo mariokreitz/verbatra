@@ -34,7 +34,7 @@ async function postRpc(
 const TOKEN = "capabilities-test-token-0123456789abcdef";
 
 /**
- * Direct proof (B6) that a spend-gated method is unreachable through dispatch on a default server:
+ * Direct proof that a spend-gated method is unreachable through dispatch on a default server:
  * both rows of the spend table for `translation.retranslateEntry` specifically, not only the read
  * methods' own unaffected behavior.
  */
@@ -76,9 +76,6 @@ describe("translation.retranslateEntry reachability across the spend table", () 
           locale: "de",
           key: "greeting",
         });
-        // The stub project has no real source file on disk, so the handler itself fails (a
-        // domain error, not METHOD_UNKNOWN); reaching a different error code is exactly the proof
-        // the handler is now registered and invoked.
         expect(body.ok).toBe(false);
         expect(body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
@@ -149,9 +146,6 @@ describe("translation.editEntry and key.value reachability on a default server",
           locale: "de",
           key: "greeting",
         });
-        // The stub project has no real source file on disk, so both handlers fail with a domain
-        // error, not METHOD_UNKNOWN; reaching a different error code is exactly the proof both
-        // are registered and invoked.
         expect(edit.body.ok).toBe(false);
         expect(edit.body.error?.code).not.toBe("METHOD_UNKNOWN");
         expect(value.body.ok).toBe(false);
@@ -253,8 +247,6 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
           locale: "de",
           key: "greeting",
         });
-        // Under the limit (the first of two allowed calls): reaches the handler, so it is not
-        // rate-limited, whatever else it fails on (no real source file on disk here).
         expect(first.body.error?.code).not.toBe("RATE_LIMITED");
 
         const second = await postRpc(server.url, cookie, "translation.retranslateEntry", {
@@ -282,9 +274,8 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
 });
 
 /**
- * Direct proof (write-half addendum criterion 1) that a spend-gated method is unreachable through
- * dispatch without the spend capability, mirroring `translation.retranslateEntry`'s own table
- * above.
+ * Direct proof that a spend-gated method is unreachable through dispatch without the spend
+ * capability, mirroring `translation.retranslateEntry`'s own table above.
  */
 describe("translation.translatePending reachability across the spend table", () => {
   it("returns METHOD_UNKNOWN on a default server (no spend)", async () => {
@@ -315,9 +306,6 @@ describe("translation.translatePending reachability across the spend table", () 
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
         const { body } = await postRpc(server.url, cookie, "translation.translatePending");
-        // The stub project has no real source file on disk, so the handler itself fails (a
-        // domain error, not METHOD_UNKNOWN); reaching a different error code is exactly the proof
-        // the handler is now registered and invoked.
         expect(body.ok).toBe(false);
         expect(body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
@@ -339,9 +327,6 @@ describe("translation.translatePending reachability across the spend table", () 
   });
 
   it("the params schema still rejects an unexpected key even without the spend capability", async () => {
-    // The shared params schema is looked up and validated before the handler registry is ever
-    // consulted (rpc-gate.ts's invokeHandler), so PARAMS_INVALID for a malformed body is not
-    // itself gated on capability state, unlike the handler's own reachability above.
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -453,27 +438,19 @@ describe("translation.translatePending's process-wide in-flight guard, wired end
         async (server) => {
           const cookie = await authenticatedCookie(server.url, TOKEN);
 
-          // Fired but not awaited: this call's handler blocks inside the provider until the test
-          // resolves `gate`, holding the in-flight marker for the whole window below.
           const firstCall = postRpc(server.url, cookie, "translation.translatePending");
 
-          // Wait for the real signal that the first call's handler has reached the provider (and
-          // is now blocked on `gate`), not a fixed delay: this is what makes the second call a
-          // genuine overlap regardless of how loaded the machine running this test is.
           await waitUntil(() => providerCalls > 0);
 
           const second = await postRpc(server.url, cookie, "translation.translatePending");
           expect(second.status).toBe(409);
           expect(second.body).toMatchObject({ ok: false, error: { code: "ALREADY_IN_PROGRESS" } });
-          // The rejection arrived without the provider having been reached a second time: proof
-          // the second call never touched the sdk seam, not merely that it eventually lost a race.
           expect(providerCalls).toBe(1);
 
           gate.resolve();
           const first = await firstCall;
           expect(first.body.error?.code).not.toBe("ALREADY_IN_PROGRESS");
 
-          // A call issued after the first has fully settled is not permanently blocked by a stuck flag.
           const third = await postRpc(server.url, cookie, "translation.translatePending");
           expect(third.body.error?.code).not.toBe("ALREADY_IN_PROGRESS");
         },

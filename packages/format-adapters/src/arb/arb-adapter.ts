@@ -25,7 +25,7 @@ function parseArb(content: string): JsonRecord {
  *
  * @returns A `FormatAdapter` for `arb`. Its `read`/`write` throw the shared structured conditions
  *   documented on {@link createTreeFileAdapter} (INVALID_JSON, MAX_DEPTH_EXCEEDED, INVALID_STRUCTURE,
- *   INPUT_TOO_LARGE). Invalid ICU is RECORDED in `invalidIcuKeys`, not thrown.
+ *   INPUT_TOO_LARGE). Invalid ICU is recorded in `invalidIcuKeys`, never thrown.
  * @example
  * ```ts
  * const adapter = createArbAdapter();

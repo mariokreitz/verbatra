@@ -186,16 +186,17 @@ export function createReconnectController(
     scheduleReconnect();
   }
 
+  /**
+   * Any error event means the stream is interrupted, including the browser EventSource's own
+   * native retry (readyState `CONNECTING`, no terminal `CLOSED`), so the status turns
+   * "reconnecting" for both paths. Only the terminal `CLOSED` case additionally hands
+   * reconnection over to this controller's probe-and-backoff; the native retry keeps the source
+   * alive and a later open flips the status back to "live" through `handleOpen`.
+   */
   function handleError(source: EventSourceLike): void {
     if (stopped) {
       return;
     }
-    // Any error event means the stream is interrupted, including the browser EventSource's own
-    // native retry (readyState CONNECTING, no terminal CLOSED): the status must turn
-    // "reconnecting" for both paths, or a killed server would leave the indicator green for the
-    // whole outage. Only the terminal CLOSED case additionally hands reconnection over to this
-    // controller's probe-and-backoff; the native retry keeps the source alive and a later open
-    // flips the status back to "live" through handleOpen.
     options.onStatusChange?.("reconnecting");
     if (source.readyState !== EVENT_SOURCE_CLOSED) {
       return;

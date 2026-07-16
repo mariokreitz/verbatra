@@ -51,10 +51,7 @@ function applyColumnGeometry(sheet: ExcelJS.Worksheet): void {
   for (const [column, width] of Object.entries(COLUMN_WIDTHS)) {
     sheet.getColumn(Number(column)).width = width;
   }
-  // The source-hash column is provenance, not for the translator.
   sheet.getColumn(COLUMN.sourceHash).hidden = true;
-  // Defense in depth alongside the per-cell numFmt in writeRow: any cell a translator reaches in this
-  // column, including beyond the written rows, stays formatted as text.
   sheet.getColumn(COLUMN.translation).numFmt = TEXT_NUMBER_FORMAT;
   sheet.views = [{ state: "frozen", ySplit: HEADER_ROW }];
 }
@@ -73,8 +70,6 @@ function writeRow(sheet: ExcelJS.Worksheet, sheetRow: WorkbookSheet["rows"][numb
   row.getCell(COLUMN.reviewStatus).value = sheetRow.reviewStatus;
   row.getCell(COLUMN.reviewReasons).value = sheetRow.reviewReasons;
 
-  // COLUMN holds literal indexes, so without widening the loop variable to `number` control flow
-  // narrows it and TS reports the `!== COLUMN.translation` comparison as having no overlap (TS2367).
   for (let column: number = COLUMN.key; column <= COLUMN.reviewReasons; column += 1) {
     const cell = row.getCell(column);
     cell.protection = { locked: column !== COLUMN.translation };
@@ -158,8 +153,6 @@ async function buildDataSheet(workbook: ExcelJS.Workbook, sheet: WorkbookSheet):
     writeRow(worksheet, row);
   }
   applyColumnGeometry(worksheet);
-  // Empty password and spinCount 0: this is a soft guard, not access control, so skip the expensive
-  // password hashing.
   await worksheet.protect("", {
     spinCount: 0,
     selectLockedCells: true,
@@ -199,8 +192,6 @@ export async function buildWorkbook(model: WorkbookModel): Promise<Uint8Array> {
     await buildDataSheet(workbook, sheet);
   }
   try {
-    // Copy the returned Node Buffer into a plain Uint8Array so no exceljs type leaks across the
-    // package boundary.
     const buffer = await workbook.xlsx.writeBuffer();
     const view = buffer as unknown as Uint8Array;
     return Uint8Array.prototype.slice.call(view);

@@ -7,9 +7,8 @@ import { EmptyState } from "./ui.js";
 import type { HistoryState } from "./use-history-list.js";
 
 /**
- * The files a commit touched, from `history.list`'s `touchedPaths`. Rendered as a wrapping row of
- * monospace path chips rather than appended to the summary line, since a commit can touch several
- * locale files at once and the subject line already carries the message.
+ * The files a commit touched, rendered as a wrapping row of monospace path
+ * chips. Renders nothing when the list is empty.
  */
 function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNode {
   if (paths.length === 0) {
@@ -30,12 +29,9 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
 }
 
 /**
- * One commit as a feed row: the subject first (the line someone scans for), then a compact meta
- * row of short-hash chip and calendar date. Every git-sourced string is written through
- * `renderText` (`src/client/`, covered) via a ref callback into `textContent`, so the anti-markup
- * guarantee stays unit-tested outside a browser (`src/app` has no browser test harness, see
- * `vitest.config.ts`); `touchedPaths` renders as ordinary JSX children, which already writes
- * strings to DOM text nodes with the same guarantee.
+ * One commit as a feed row: the subject line, then a short-hash chip and a
+ * date label. Git-sourced strings are written through `renderText` via ref
+ * callbacks into `textContent`, never as markup.
  */
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   const parts = commitSummaryParts(commit);
@@ -77,10 +73,11 @@ function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   );
 }
 
+/** Props for {@link CommitList}. */
 export interface CommitListProps {
   readonly state: HistoryState;
-  /** Compact, inside-drawer presentation: plain muted paragraphs for the unavailable and
-   * no-commits states instead of the full-page `EmptyState` blocks. */
+  /** Compact presentation: plain muted paragraphs for the unavailable and
+   * no-commits states instead of the full `EmptyState` blocks. */
   readonly compact?: boolean;
   /** Message shown once history is loaded but has no commits. */
   readonly emptyMessage: string;

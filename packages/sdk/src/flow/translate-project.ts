@@ -64,57 +64,6 @@ export interface TranslateDeps {
 }
 
 /**
- * The one-shot end-to-end translate flow. Whole-run failures (config already validated
- * by the caller, unknown format, provider construction, unreadable/invalid source,
- * corrupt lock-file) throw a structured SdkError. Per-locale failures are isolated: a
- * failing locale is reported and the run continues; the lock-file reflects exactly the
- * locales that succeeded. Dry-run reads + diffs + reports without constructing/calling
- * the provider and without writing any file or the lock-file.
- *
- * A per-locale failure does NOT throw: it is recorded on that locale's {@link LocaleSummary} as
- * `status: "failed"` with a secret-free `{ code, message }`, where `code` is a preserved string (the
- * underlying provider/adapter code, or `"LOCALE_FAILED"` as a fallback), not necessarily an
- * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
- * surface on each `LocaleSummary`, never as throws.
- *
- * On a non-dry-run that reaches the end of the loop, the run's review-flag and token/usage data is
- * also written to `.verbatra-local/run-status.json` (readable back through {@link runStatus}). This
- * write is best-effort: any failure is caught and swallowed, never re-thrown and never reflected on
- * the returned {@link RunSummary}.
- *
- * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
- * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
- * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
- * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
- * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw (this wraps the
- *   provider's own error, including a missing `*_API_KEY` reported as `MISSING_API_KEY`); only on a
- *   non-dry-run, since dry-run never constructs the provider.
- * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
- * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
- *   adapter read error).
- * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
- * @example
- * ```ts
- * import { loadConfig, translate } from "@verbatra/sdk";
- *
- * // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY); no key is passed here.
- * const config = await loadConfig();
- * const summary = await translate({ config });
- *
- * for (const locale of summary.locales) {
- *   if (locale.status === "failed") {
- *     // Surfaced, not thrown: code is a preserved string (LOCALE_FAILED is only the fallback).
- *     console.error(`${locale.locale}: ${locale.error?.code} ${locale.error?.message}`);
- *   } else {
- *     console.log(`${locale.locale}: ${locale.translated.length} translated, ${locale.notices.length} notices`);
- *   }
- * }
- *
- * // Preview only: no provider call, no writes.
- * const preview = await translate({ config, dryRun: true });
- * ```
- */
-/**
  * Persist the run's review-flag and token/usage snapshot to `.verbatra-local/run-status.json`, skipped
  * on dry-run for the same reason the lock-file write is skipped (dry-run never populates `needsReview`
  * or `usage`, so writing would clobber a real prior run's snapshot with an empty one). Best-effort by
@@ -133,9 +82,7 @@ async function recordRunStatus(
   }
   try {
     await writeRunStatusFile(runStatusFilePath(cwd), buildRunStatusFile(summary), fs);
-  } catch {
-    // Swallowed on purpose; see the doc comment above.
-  }
+  } catch {}
 }
 
 /** Everything one locale's run needs that does not vary by locale or by baseline. */
@@ -267,6 +214,63 @@ async function runAllLocalesLive(
   return summaries;
 }
 
+/**
+ * The one-shot end-to-end translate flow. Whole-run failures (config already validated
+ * by the caller, unknown format, provider construction, unreadable/invalid source,
+ * corrupt lock-file) throw a structured SdkError. Per-locale failures are isolated: a
+ * failing locale is reported and the run continues; the lock-file reflects exactly the
+ * locales that succeeded. Dry-run reads + diffs + reports without constructing/calling
+ * the provider and without writing any file or the lock-file.
+ *
+ * A per-locale failure does not throw: it is recorded on that locale's {@link LocaleSummary} as
+ * `status: "failed"` with a secret-free `{ code, message }`, where `code` is a preserved string (the
+ * underlying provider/adapter code, or `"LOCALE_FAILED"` as a fallback), not necessarily an
+ * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
+ * surface on each `LocaleSummary`, never as throws.
+ *
+ * A dry-run reads the lock once, outside any lock, and reuses that one snapshot for every locale:
+ * it never writes, so there is nothing to serialize against. A live run instead re-reads the lock
+ * fresh inside each locale's own write lock (see `runLiveLocale`), so two concurrent live calls
+ * never both diff against the same stale pre-loop snapshot. The token-budget tracker is fresh per
+ * invocation: the `maxTokens` ceiling is per-run, not cumulative across watch cycles.
+ *
+ * On a non-dry-run that reaches the end of the loop, the run's review-flag and token/usage data is
+ * also written to `.verbatra-local/run-status.json` (readable back through {@link runStatus}). This
+ * write is best-effort: any failure is caught and swallowed, never re-thrown and never reflected on
+ * the returned {@link RunSummary}.
+ *
+ * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
+ * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
+ * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw (this wraps the
+ *   provider's own error, including a missing `*_API_KEY` reported as `MISSING_API_KEY`); only on a
+ *   non-dry-run, since dry-run never constructs the provider.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
+ *   adapter read error).
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
+ * @example
+ * ```ts
+ * import { loadConfig, translate } from "@verbatra/sdk";
+ *
+ * // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY); no key is passed here.
+ * const config = await loadConfig();
+ * const summary = await translate({ config });
+ *
+ * for (const locale of summary.locales) {
+ *   if (locale.status === "failed") {
+ *     // Surfaced, not thrown: code is a preserved string (LOCALE_FAILED is only the fallback).
+ *     console.error(`${locale.locale}: ${locale.error?.code} ${locale.error?.message}`);
+ *   } else {
+ *     console.log(`${locale.locale}: ${locale.translated.length} translated, ${locale.notices.length} notices`);
+ *   }
+ * }
+ *
+ * // Preview only: no provider call, no writes.
+ * const preview = await translate({ config, dryRun: true });
+ * ```
+ */
 export async function translate(
   input: TranslateInput,
   deps: TranslateDeps = {},
@@ -278,7 +282,6 @@ export async function translate(
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
   const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
   const fs = deps.fs ?? defaultFs;
-  // A fresh tracker per translate() invocation: the ceiling is per-run, not cumulative across watch cycles.
   const budget = createBudgetTracker(
     config.maxTokens,
     config.budgetBehavior ?? DEFAULT_BUDGET_BEHAVIOR,
@@ -301,11 +304,6 @@ export async function translate(
     budget,
   };
 
-  // Dry-run reads the lock once, outside any lock, and reuses that one snapshot for every
-  // locale: a dry run never writes, so there is nothing to serialize against and no
-  // staleness-vs-a-write to protect. A live run instead re-reads the lock fresh inside each
-  // locale's own write lock (see runLiveLocale), so two concurrent live calls never both diff
-  // against the same stale pre-loop snapshot; see runLiveLocale's own doc comment for why.
   const summaries = dryRun
     ? await runAllLocalesDry(context, config.targetLocales)
     : await runAllLocalesLive(context, config.targetLocales);

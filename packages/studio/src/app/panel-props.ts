@@ -1,4 +1,4 @@
-/** Every panel receives `refreshToken`; it changes once per live-refresh event and most panels ignore it. */
+/** The props every page panel receives. `refreshToken` changes once per live-refresh event. */
 export interface PanelProps {
   readonly refreshToken: number;
 }

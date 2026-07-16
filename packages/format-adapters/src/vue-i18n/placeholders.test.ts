@@ -11,7 +11,6 @@ describe("extractVueI18nPlaceholders", () => {
   });
 
   it("preserves every occurrence of a repeated placeholder in document order", () => {
-    // Multiplicity matters: integrity is a multiset check, so a dropped occurrence must be detectable.
     expect(extractVueI18nPlaceholders("{count} of {count}")).toEqual(["{count}", "{count}"]);
   });
 
@@ -24,18 +23,15 @@ describe("extractVueI18nPlaceholders", () => {
   });
 
   it("does not extract a phantom token from double-brace text", () => {
-    // vue-i18n has no {{...}} syntax, so the inner {name} must not be captured.
     expect(extractVueI18nPlaceholders("Hello {{name}}")).toEqual([]);
   });
 
   it("normalizes whitespace inside braces to a canonical token", () => {
-    // vue-i18n's compiler skips inner whitespace, so "{ name }" === "{name}".
     expect(extractVueI18nPlaceholders("hi { name }")).toEqual(["{name}"]);
     expect(extractVueI18nPlaceholders("{  count\t}")).toEqual(["{count}"]);
   });
 
   it("does not treat literal interpolation as a placeholder", () => {
-    // {'...'} is a string literal (used to escape @, {, }), not a variable.
     expect(extractVueI18nPlaceholders("{account}{'@'}{domain}")).toEqual(["{account}", "{domain}"]);
   });
 

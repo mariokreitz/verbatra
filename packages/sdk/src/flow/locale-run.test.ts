@@ -127,7 +127,7 @@ describe("runLocale: dry-run", () => {
 
     const { summary, lockEntries } = await runLocale(params);
 
-    expect(summary.translated).toEqual(["b"]); // missing key that WOULD be translated
+    expect(summary.translated).toEqual(["b"]);
     expect(summary.unchanged).toEqual(["a"]);
     expect(lockEntries).toEqual({});
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
@@ -163,9 +163,9 @@ describe("runLocale: withholding", () => {
 
     expect(summary.translated).toEqual([]);
     expect(summary.providerFailures).toEqual(["a"]);
-    expect(summary.integrityMismatches).toEqual([]); // nothing was translated, so it is not an integrity mismatch
+    expect(summary.integrityMismatches).toEqual([]);
     expect(summary.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
-    expect(lockEntries).toEqual({}); // nothing locked, so it retries next run
+    expect(lockEntries).toEqual({});
   });
 
   it("carries a thrown ProviderError's secret-free code and message onto the notice", async () => {
@@ -209,9 +209,6 @@ describe("runLocale: withholding", () => {
 
   it("withholds a key still missing from the response under providerFailures, not integrityMismatches", async () => {
     const { dir, sourceResource } = await setup({ a: "A", b: "B" });
-    // The provider call succeeds but returns no value at all for "a" (the shared LLM layer's bounded
-    // reconcile repair round already retried it once and it stayed missing), distinct from a value
-    // that came back and failed the placeholder-integrity check.
     const stub = makeStubProvider({ missingValues: new Set(["a"]) });
     const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
 
@@ -220,14 +217,13 @@ describe("runLocale: withholding", () => {
     expect(summary.translated).toEqual(["b"]);
     expect(summary.providerFailures).toEqual(["a"]);
     expect(summary.integrityMismatches).toEqual([]);
-    expect(lockEntries.a).toBeUndefined(); // withheld, no prior baseline to carry
+    expect(lockEntries.a).toBeUndefined();
     expect(lockEntries.b).toBeDefined();
   });
 
   it("carries the prior baseline hash for a key still missing from the response (withheld-carry)", async () => {
     const { dir, sourceResource } = await setup({ a: "A", b: "B" }, { a: "[de] old", b: "[de] B" });
     const stub = makeStubProvider({ missingValues: new Set(["a"]) });
-    // Baseline marks `a` as changed (stale hash) and `b` as up to date so only `a` is a candidate.
     const baseline = new Map([
       ["a", "stale-hash"],
       ["b", "matches-but-unused"],
@@ -240,8 +236,7 @@ describe("runLocale: withholding", () => {
     const { summary, lockEntries } = await runLocale(params);
 
     expect(summary.providerFailures).toEqual(["a"]);
-    // The lock baseline never advances for a key that was not actually translated this run.
-    expect(lockEntries.a).toBe("stale-hash"); // prior hash carried so it retries next run
+    expect(lockEntries.a).toBe("stale-hash");
   });
 
   it("withholds a key whose translation fails the integrity check", async () => {
@@ -253,14 +248,13 @@ describe("runLocale: withholding", () => {
 
     expect(summary.translated).toEqual(["b"]);
     expect(summary.integrityMismatches).toEqual(["a"]);
-    expect(lockEntries.a).toBeUndefined(); // withheld, no prior baseline to carry
+    expect(lockEntries.a).toBeUndefined();
     expect(lockEntries.b).toBeDefined();
   });
 
   it("carries the prior baseline hash for a withheld changed key (withheld-carry)", async () => {
     const { dir, sourceResource } = await setup({ a: "A", b: "B" }, { a: "[de] old", b: "[de] B" });
     const stub = makeStubProvider({ failIntegrity: new Set(["a"]) });
-    // Baseline marks `a` as changed (stale hash) and `b` as up to date so only `a` is a candidate.
     const baseline = new Map([
       ["a", "stale-hash"],
       ["b", "matches-but-unused"],
@@ -273,14 +267,13 @@ describe("runLocale: withholding", () => {
     const { summary, lockEntries } = await runLocale(params);
 
     expect(summary.integrityMismatches).toEqual(["a"]);
-    expect(lockEntries.a).toBe("stale-hash"); // prior hash carried so it retries next run
+    expect(lockEntries.a).toBe("stale-hash");
   });
 });
 
 describe("runLocale: reordered placeholders", () => {
   it("accepts and writes a translation that reorders the same placeholder multiset", async () => {
     const { dir, sourceResource } = await setup({ pair: "{{a}} {{b}}" });
-    // The provider renders the source with the placeholders swapped: a valid same-multiset reorder.
     const provider = makeIntegrityProvider((value) =>
       value.replace("{{a}} {{b}}", "{{b}} und {{a}}"),
     );
@@ -343,7 +336,7 @@ describe("runLocale: pruning and orphans", () => {
     expect(summary.orphaned).toEqual(["orphan"]);
     expect(summary.pruned).toEqual([]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de.orphan).toBe("x"); // source-absent key left in place (orphaned-no-entry)
+    expect(de.orphan).toBe("x");
     expect(lockEntries.orphan).toBeUndefined();
   });
 });
@@ -362,7 +355,6 @@ describe("runLocale: plural generation", () => {
 
     const { summary, lockEntries } = await runLocale(params);
 
-    // Polish needs one/few/many/other; the source supplies one/other, so few and many are generated.
     expect(summary.generated).toEqual(["items_few", "items_many"]);
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeDefined();
@@ -372,12 +364,10 @@ describe("runLocale: plural generation", () => {
   });
 
   it("keeps an orphaned generated-plural-shaped target key out of orphaned and pruned", async () => {
-    // With generation on, a source-absent plural-shaped key (items_few) is a generated form, not a true orphan, so only the genuine orphan is reported.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
     });
-    // The shared setup writes the target as de.json; this case targets pl, so write the pl target here.
     await writeJsonFile(targetPath(dir, "pl"), { items_few: "x", orphan: "y" });
     const stub = makeStubProvider();
     const params = makeParams(
@@ -387,17 +377,13 @@ describe("runLocale: plural generation", () => {
 
     const { summary, lockEntries } = await runLocale(params);
 
-    // items_few is filtered out of orphaned (it is a generated form); only the genuine orphan remains.
     expect(summary.orphaned).toEqual(["orphan"]);
     expect(summary.pruned).toEqual([]);
-    // The genuine orphan is source-absent and not plural-shaped, so it never gets a lock entry.
     expect(lockEntries.orphan).toBeUndefined();
-    // items_few is regenerated this run, so it does get a fresh lock entry.
     expect(lockEntries.items_few).toBeDefined();
   });
 
   it("carries the prior baseline lock hash for a previously generated plural key not regenerated", async () => {
-    // A second run with the prior lock as baseline skips regeneration yet carries the prior lock hash forward.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -417,14 +403,12 @@ describe("runLocale: plural generation", () => {
     );
     const second = await runLocale(secondParams);
 
-    // Nothing is regenerated, but the prior lock hashes are carried forward unchanged.
     expect(second.summary.generated).toEqual([]);
     expect(second.lockEntries.items_few).toBe(first.lockEntries.items_few);
     expect(second.lockEntries.items_many).toBe(first.lockEntries.items_many);
   });
 
   it("re-emits the incomplete warning when generation cannot complete the plural set", async () => {
-    // Generation withholds items_many (integrity failure), so the set stays incomplete and the warning is re-emitted.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -443,7 +427,6 @@ describe("runLocale: plural generation", () => {
   });
 
   it("emits no plural warning for a non-i18next format when generation is on", async () => {
-    // The post-generation plural-warning recompute is i18next-only, so a non-i18next format produces no plural notice.
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
       items_other: "{{count}} items",
@@ -477,8 +460,6 @@ describe("runLocale: ICU branch-aware comparePlaceholders wiring (real ai-provid
 
     const { summary, lockEntries } = await runLocale(params);
 
-    // A flat, non-branch-aware comparison would flatten this to a match; the real ai-providers
-    // integrity path must reject it via the adapter's comparePlaceholders.
     expect(summary.translated).toEqual([]);
     expect(summary.integrityMismatches).toEqual(["items"]);
     expect(lockEntries.items).toBeUndefined();
@@ -530,10 +511,6 @@ describe("runLocale: gateCandidateValue's validateMessage delta", () => {
   const nextIntl = createNextIntlJsonAdapter();
 
   it("withholds a candidate that passes placeholder comparison but fails ICU syntax validation", async () => {
-    // Plain-text source (no ICU syntax at all): the placeholder-comparison fallback trivially
-    // matches on both sides being empty. Before this refactor, ai-providers' checkBatchIntegrity
-    // only ran comparePlaceholders, so this candidate was accepted despite its unbalanced brace;
-    // gateCandidateValue's added validateMessage call now withholds it.
     const { dir, sourceResource } = await setupWithAdapter(nextIntl, { greeting: "Hello world" });
     const provider = anthropicStubProvider([{ key: "greeting", value: "Hallo {name" }]);
     const params = makeParams(
@@ -545,7 +522,7 @@ describe("runLocale: gateCandidateValue's validateMessage delta", () => {
 
     expect(summary.translated).toEqual([]);
     expect(summary.integrityMismatches).toEqual(["greeting"]);
-    expect(lockEntries.greeting).toBeUndefined(); // withheld, keeps its prior baseline and retries
+    expect(lockEntries.greeting).toBeUndefined();
   });
 
   it("keeps the placeholder dimension unchanged: a well-formed ICU candidate is still accepted or withheld purely on its placeholders", async () => {
@@ -554,9 +531,7 @@ describe("runLocale: gateCandidateValue's validateMessage delta", () => {
       matching: "{count, plural, one {One} other {# items}}",
     });
     const provider = anthropicStubProvider([
-      // Well-formed ICU, but drops a placeholder from one branch: still a placeholder rejection.
       { key: "dropped", value: "{count, plural, one {# by {author}} other {#}}" },
-      // Well-formed ICU with matching placeholders: still accepted.
       { key: "matching", value: "{count, plural, one {Eins} other {# Elemente}}" },
     ]);
     const params = makeParams(
@@ -603,8 +578,6 @@ describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () 
     const { dir, sourceResource } = await setup({
       long: "This is a fairly long source with {{ph}} inside",
     });
-    // Drops the placeholder (integrity mismatch, withheld) and is far shorter than the source
-    // (independently trips LENGTH_RATIO_OUTLIER), so the key gets a review flag despite being withheld.
     const provider = anthropicStubProvider([{ key: "long", value: "hi" }]);
     const params = makeParams({ source: sourceResource, cwd: dir }, { provider });
 
@@ -628,8 +601,6 @@ describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () 
 
   it("merges reviewFlags across multiple sub-batches, each with its own TranslateResult", async () => {
     const { dir, sourceResource } = await setup({ b: "Hello there", a: "Good day" });
-    // A hand-rolled provider (not the real ai-providers heuristic) that sets a distinct reviewFlags
-    // entry per call, so a batch size of 1 exercises two independent TranslateResults to fold.
     const provider: TranslationProvider = {
       id: "stub",
       kind: "llm",

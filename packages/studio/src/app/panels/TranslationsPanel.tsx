@@ -57,8 +57,7 @@ type DiffState =
       readonly kind: "loaded";
       readonly hasPendingChanges: boolean;
       readonly locales: readonly DiffLocale[];
-      /** Set when the most recent live re-fetch failed: the data shown is the last good read.
-       * Mirrors the keep-last-good contract `status.check` gets from `applyRefreshOutcome`. */
+      /** Set when the most recent live re-fetch failed: the data shown is the last good read. */
       readonly staleError?: StructuredError;
     };
 
@@ -78,8 +77,8 @@ type LockView =
       readonly locales: readonly LockLocaleState[];
     };
 
-/** Lock-file existence, version, and per-locale drift via `lock.state`, re-fetched on every
- * live-refresh event so the lock column tracks the files as they change on disk. */
+/** Lock-file existence, version, and per-locale drift via `lock.state`,
+ * re-fetched whenever `refreshToken` changes. */
 function useLockState(refreshToken: number): LockView {
   const [view, setView] = useState<LockView>({ kind: "loading" });
 
@@ -115,12 +114,10 @@ function useLockState(refreshToken: number): LockView {
 const COPY_CONFIRMATION_MS = 2000;
 
 /**
- * The page's contextual action, rendered in the `PageHeader`: it renders the panel's full,
- * currently loaded diff data (never the on-screen filtered or capped view) as a Markdown review
- * report and copies it to the clipboard. The confirmation is a transient label swap, not a new
- * toast system, matching this codebase's existing preference for small, direct feedback.
- * Clipboard access can fail (an insecure context, or a browser permission denial); there is
- * nothing actionable to surface beyond the button simply not confirming.
+ * The page's contextual action: renders the full, currently loaded diff data
+ * (never the on-screen filtered or capped view) as a Markdown review report
+ * and copies it to the clipboard. Confirmation is a transient label swap. A
+ * failed clipboard write is swallowed; the button simply does not confirm.
  */
 function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale[] }): ReactNode {
   const [copied, setCopied] = useState(false);
@@ -140,9 +137,7 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
       await navigator.clipboard.writeText(buildReviewReportMarkdown(locales));
       setCopied(true);
       timeoutRef.current = window.setTimeout(() => setCopied(false), COPY_CONFIRMATION_MS);
-    } catch {
-      // No actionable detail to show; the button simply does not confirm.
-    }
+    } catch {}
   }
 
   return (
@@ -153,8 +148,8 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
   );
 }
 
-/** The attention tile's figure and copy for each diff state, so the strip never fabricates a
- * zero while the diff is still loading or failed. */
+/** The attention tile's figure and copy for each diff state, so the strip
+ * never fabricates a zero while the diff is still loading or failed. */
 function attentionTile(
   diff: DiffState,
   rows: readonly StatusRow[] | null,
@@ -184,8 +179,8 @@ function attentionTile(
   return { value: String(pending), hint: across, tone: "danger" };
 }
 
-/** The last-run tile's figure and copy: the one-line answer to "what did the most recent
- * translation run cost". Activity carries the full breakdown and every edge state. */
+/** The last-run tile's figure and copy: a one-line summary of the most
+ * recent run's token usage; the Activity page carries the full breakdown. */
 function lastRunTile(view: ReturnType<typeof useUsageTicker>): {
   readonly value: string;
   readonly hint: string;
@@ -215,11 +210,10 @@ function lastRunTile(view: ReturnType<typeof useUsageTicker>): {
 }
 
 /**
- * The workspace's opening statement, the design reference's dashboard strip: four stat tiles
- * (keys needing attention, average coverage, locales in sync, the last run's cost) over an
- * all-clear line when nothing is pending. The headline count comes from the key diff; the
- * coverage figures come from the refresh-reactive `status.check` read, and the run figures from
- * the usage ticker, so the tiles resolve independently rather than blocking on each other.
+ * The page's stat strip: four tiles (keys needing attention, average
+ * coverage, locales in sync, the last run's usage) plus an all-clear banner
+ * when nothing is pending. The tiles resolve independently from the diff,
+ * the status data, and the usage ticker rather than blocking on each other.
  */
 function StatStrip({
   status,
@@ -296,6 +290,7 @@ function StatStrip({
   );
 }
 
+/** One drift tone's key list, filtered by `query` and capped at `MAX_RENDERED_KEYS`. */
 function KeyList({
   tone,
   keys,
@@ -350,11 +345,10 @@ function LocaleSectionCounts({ locale }: { readonly locale: DiffLocale }): React
 }
 
 /**
- * One locale's missing/changed/orphaned key lists, collapsed by default when that locale is
- * already up to date and expanded by default when it has pending changes: a project with many
- * target locales does not present as a wall of open sections, only the ones that need attention
- * do. Built on `AccordionItem` (native `<details>`/`<summary>`), so a reader can still expand a
- * synced locale manually; nothing here is ever hidden outright.
+ * One locale's missing, changed, and orphaned key lists in an
+ * `AccordionItem`: expanded by default when the locale has pending changes,
+ * collapsed when it is up to date. A reader can still expand a synced locale
+ * manually.
  */
 function LocaleSection({
   locale,
@@ -394,10 +388,10 @@ const VIEW_MODE_ITEMS: ReadonlyArray<{ readonly id: DiffViewMode; readonly label
 ];
 
 /**
- * The drift-affected keys, the workspace's primary surface: a key-by-locale grid (default) or
- * per-locale collapsible lists, with a filter in list mode. Rendered only while something is
- * actually pending; the fully-in-sync state is carried by the banner instead of a wall of empty
- * lists. Key selection calls straight back into the page's own drawer state.
+ * The drift-affected keys: a key-by-locale grid (default) or per-locale
+ * collapsible lists, with a key filter in list mode. The caller renders this
+ * only while something is pending; the all-clear state is carried by the
+ * stat strip.
  */
 function KeysSection({
   locales,
@@ -416,8 +410,6 @@ function KeysSection({
   readonly onSelectKey: (key: string) => void;
   readonly refreshToken: number;
 }): ReactNode {
-  // No "Pending changes" meta badge here: this section only renders while drift exists (the
-  // all-clear state is carried by the stat strip), so the badge could only ever say one thing.
   return (
     <PageSection title="Keys">
       <Toolbar className="mb-4">
@@ -488,18 +480,15 @@ function LocaleRow({ row, lock }: { readonly row: StatusRow; readonly lock: Lock
       <TableCell numeric>{row.missing}</TableCell>
       <TableCell numeric>{row.stale}</TableCell>
       <TableCell numeric>{row.upToDate}</TableCell>
-      {/* No in-sync/out-of-sync badge column: it would restate the counts sitting right next to
-          it (out of sync is exactly missing + stale > 0), and the stat strip already carries the
-          project-level verdict. The lock column stays: lock-vs-files drift is not derivable from
-          this row's own figures. */}
       {lock.kind === "loaded" ? <TableCell>{lockCell(lock, row.locale)}</TableCell> : null}
     </TableRow>
   );
 }
 
-/** The lock file's own record, behind a collapsed disclosure: keys per recorded locale and
- * drift measured against the current files (its counts are lock-vs-files, deliberately not
- * conflated with the source-vs-targets counts in the coverage table above). */
+/** The lock file's own record, behind a collapsed disclosure: keys per
+ * recorded locale and drift measured against the current files. Its counts
+ * are lock-vs-files, distinct from the coverage table's source-vs-targets
+ * counts. */
 function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] }): ReactNode {
   return (
     <AccordionItem
@@ -527,9 +516,6 @@ function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] 
             </tr>
           </TableHead>
           <TableBody>
-            {/* No drift badge column: drift is exactly missing + stale > 0, both printed in the
-                same row, and the coverage table's lock column already badges the per-locale
-                verdict. */}
             {locales.map((locale) => (
               <TableRow key={locale.locale}>
                 <TableCell mono>{locale.locale}</TableCell>
@@ -547,10 +533,9 @@ function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] 
 }
 
 /**
- * Per-locale coverage (the refresh-reactive `status.check` read, with its keep-last-good-data
- * behavior via `client/state.ts`) merged with the lock file's presence: one table answers "how
- * far along is each locale, and does its lock entry agree", where these used to be two separate
- * pages showing near-identical rows.
+ * Per-locale coverage merged with the lock file's state: one table answers
+ * how far along each locale is and whether its lock entry agrees. The lock
+ * column and the lock detail render only when a lock file exists.
  */
 function LocalesSection({
   status,
@@ -613,32 +598,20 @@ function LocalesSection({
 }
 
 /**
- * The daily workspace: everything the sync question needs, on one scroll, and fully live. All
- * three reads re-fetch on every live-refresh event, so the page tracks the project as files
- * change on disk:
- *
- * - `status.check` (coverage) via {@link useStatusData}, with the covered keep-last-good-data
- *   reducer and its stale banner.
- * - `status.diff` (the key lists), driving the banner headline and the key explorer. A live
- *   re-fetch keeps the previously loaded data on screen until the fresh response lands, and a
- *   failed re-fetch keeps it too, marked with a stale banner (the hard error state is only ever
- *   shown before the first successful read), so the explorer never blinks or blanks.
- * - `lock.state`, driving the lock column and the lock detail.
- *
- * The selected key is plain component state: clicking a key (grid or list) opens
- * {@link KeyDetailDrawer} over the already-loaded diff data, and leaving the page drops the
- * selection with the component. `refreshToken` passes through to the open drawer, whose
- * `key.integrity` and value views re-fetch on live refresh; a drawer left open across a refresh
- * that resolves its key simply shows every locale as in sync, which is the truthful reading.
+ * The Translations page. Three reads re-fetch on every live-refresh event:
+ * `status.check` (coverage) via {@link useStatusData}, `status.diff` (the key
+ * lists) driving the stat strip and the key explorer, and `lock.state`
+ * driving the lock column and detail. A failed diff re-fetch keeps the last
+ * good data on screen with a stale banner; the hard error state only shows
+ * before the first successful read. Clicking a key opens
+ * {@link KeyDetailDrawer} over the already-loaded diff data; choosing Edit
+ * there swaps the drawer for {@link EditEntryDialog} (never stacking two
+ * focus-trapping dialogs), and closing the editor returns to the drawer.
  */
 export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
   const [diff, setDiff] = useState<DiffState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  // The locale being edited for the selected key. The editor replaces the detail drawer while
-  // set (never stacked over it: both are focus-trapping dialogs with document-level Esc
-  // listeners, so two open at once would both close on one keypress); closing the editor
-  // returns to the drawer, whose selection is still held here.
   const [editingLocale, setEditingLocale] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
   const status = useStatusData(refreshToken);
@@ -651,9 +624,6 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
         return;
       }
       if (!response.ok) {
-        // A failure never blanks a view that already has good data (the same rule
-        // applyRefreshOutcome enforces for status.check): keep the last good diff on screen,
-        // marked stale, and only show a hard error before the first successful read.
         setDiff((previous) =>
           previous.kind === "loaded"
             ? { ...previous, staleError: response.error }
@@ -718,8 +688,6 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
           keyName={selectedKey}
           onClose={() => setEditingLocale(null)}
           onAccepted={(acceptedLocale, key) => {
-            // Keep the review queue's session overlay consistent with the Review panel's own
-            // accepted-edit behavior: an entry edited from here never resurfaces there either.
             reviewOverlayStore.markActioned({ locale: acceptedLocale, key });
             setEditingLocale(null);
           }}

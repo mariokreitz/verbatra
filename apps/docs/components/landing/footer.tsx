@@ -5,11 +5,10 @@ import { VMark } from "@/components/landing";
 import { GithubIcon } from "./github-icon";
 import { CODE_OF_CONDUCT_URL, GITHUB_URL, NPM_CLI, NPM_SDK, SECURITY_URL } from "./links";
 
-// A footer link's text is either a translated catalog key (`labelKey`) or a verbatim proper noun (`literal`).
+/** A footer link's text is either a translated catalog key (`labelKey`) or a verbatim proper noun (`literal`). */
 type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
 type FooterCol = { col: string; titleKey: string; links: ReadonlyArray<FooterLink> };
 
-// Internal hrefs stay unprefixed English routes because docs and legal pages are English-only for now; locale-prefix them once docs content is localized.
 const FOOTER_COLS: ReadonlyArray<FooterCol> = [
   {
     col: "product",
@@ -56,8 +55,6 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
   },
 ];
 
-// A hairline underline that stays transparent until hover, then fades in the glow accent: a
-// calm, on-brand affordance rather than a hard underline.
 const LINK_CLASS =
   "underline decoration-transparent underline-offset-4 transition-colors hover:text-fd-foreground hover:decoration-[color:color-mix(in_srgb,var(--v-glow)_45%,transparent)]";
 
@@ -76,9 +73,11 @@ function FooterLinkItem({ link, label }: { link: FooterLink; label: string }): R
   );
 }
 
-// Fully static footer, so it stays a server component. The closing note of the page: a deep
-// void gradient tied to the landing with a faint top-masked grid, a glow seam divider, and a
-// large decorative wordmark signature echoing the hero headline.
+/**
+ * The full landing footer: brand column, four localized link columns, and the
+ * legal line, over a void gradient with a glow seam and a large decorative
+ * wordmark. Fully static, so it stays a server component.
+ */
 export async function FullFooter(): Promise<ReactNode> {
   const t = await getTranslations("landing.footer");
   return (
@@ -89,7 +88,6 @@ export async function FullFooter(): Promise<ReactNode> {
           "linear-gradient(to bottom, color-mix(in srgb, var(--v-void) 55%, var(--surface-card)), color-mix(in srgb, var(--v-void) 78%, var(--surface-card)))",
       }}
     >
-      {/* Glow seam: a hairline that fades in from the accent, so the footer reads as a deliberate edge. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
@@ -98,7 +96,6 @@ export async function FullFooter(): Promise<ReactNode> {
             "linear-gradient(90deg, transparent, color-mix(in srgb, var(--v-glow) 55%, transparent) 50%, transparent)",
         }}
       />
-      {/* Faint static grid echoing the hero backdrop, masked so it fades below the seam. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -111,7 +108,6 @@ export async function FullFooter(): Promise<ReactNode> {
           maskImage: "linear-gradient(to bottom, #000, transparent 55%)",
         }}
       />
-      {/* Large decorative wordmark signature, gradient-clipped and faded up from the base. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 bottom-0 overflow-hidden"

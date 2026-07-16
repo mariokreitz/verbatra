@@ -4,16 +4,18 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// Aceternity-style "logo cloud with swap animation": a grid of logo slots fed from a larger
-// pool. Every `intervalMs` the visible logos swap to others from the pool, entering from the
-// right and exiting to the left with a blur that clears, staggered per slot for a wave. When
-// the pool is not larger than the visible slots (or reduced motion is requested) it renders a
-// static set with a single reveal and no swapping. The animated grid is aria-hidden; an
-// sr-only list names every logo in the pool.
+/** One entry in a swap logo cloud pool. */
 export type SwapLogo = { key: string; name: string; icon: ReactNode };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+/**
+ * A grid of logo slots fed from a larger pool. Every `intervalMs` the visible
+ * logos swap to the next ones in the pool with a staggered slide-and-blur.
+ * When the pool is not larger than the visible slots, or reduced motion is
+ * requested, it renders a static set with no swapping. The animated grid is
+ * aria-hidden; an sr-only list names every logo in the pool.
+ */
 export function SwapLogoCloud({
   logos,
   visibleCount,
@@ -49,7 +51,6 @@ export function SwapLogoCloud({
 
   return (
     <div>
-      {/* The full supported set for assistive tech, regardless of what is visually rotating. */}
       <ul className="sr-only">
         <li>{label}:</li>
         {logos.map((logo) => (

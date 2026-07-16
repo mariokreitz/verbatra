@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Live diff demonstrating "translate only what changed"; renders the final state on the server and honors prefers-reduced-motion.
 type Row = {
   key: string;
   source: string;
@@ -16,6 +15,11 @@ const DEFAULT_ROWS: ReadonlyArray<Row> = [
   { key: "cart.total", source: "Total", target: "Gesamt" },
 ];
 
+/**
+ * Animated diff figure demonstrating "translate only what changed": the one
+ * changed row types out its new translation when scrolled into view. The
+ * server render and reduced-motion users get the final, settled state.
+ */
 export function DiffPanel({
   rows = DEFAULT_ROWS,
   sourceFile = "en.json",
@@ -30,7 +34,6 @@ export function DiffPanel({
   const changed = rows.find((r) => r.changed);
   const full = changed?.target ?? "";
 
-  // Start fully shown so the server render and no-JS users see the final, correct state.
   const [count, setCount] = useState(full.length);
   const [settled, setSettled] = useState(true);
   const ref = useRef<HTMLElement>(null);

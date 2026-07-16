@@ -55,6 +55,7 @@ const runStatusFileSchema = z.object({
   locales: z.array(runStatusLocaleSchema),
 });
 
+/** Resolve the run-status file's absolute path: `<cwd>/.verbatra-local/run-status.json`. */
 export function runStatusFilePath(cwd: string): string {
   return resolve(cwd, RUN_STATUS_DIR_NAME, RUN_STATUS_FILE_NAME);
 }

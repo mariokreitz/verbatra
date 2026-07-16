@@ -121,7 +121,6 @@ describe("loadConfig configPath: failure modes (structured, secret-free)", () =>
 describe("loadConfig configPath: precedence (configOverride > configPath > search)", () => {
   it("configOverride wins over configPath: the file is not even consulted", async () => {
     const dir = await makeTempDir();
-    // A non-existent configPath would throw CONFIG_NOT_FOUND if it were consulted.
     const wouldThrow = join(dir, "never-read.json");
 
     const config = await loadConfig({

@@ -19,8 +19,10 @@ import { runStudio } from "./studio-command.js";
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-// The "../package.json" offset must resolve from both src/run.ts and the bundled dist/index.js;
-// preserve it if the tsup output depth changes.
+/**
+ * Reads this package's version for `--version`. The "../package.json" offset must resolve from both
+ * src/run.ts and the bundled dist/index.js; preserve it if the tsup output depth changes.
+ */
 function readPackageVersion(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);
   const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
@@ -34,7 +36,7 @@ interface SharedOpts {
   readonly config?: string;
 }
 
-// A comma-separated locale list normalized to a trimmed non-empty array (or omitted).
+/** A comma-separated locale list normalized to an array of trimmed non-empty entries (or left omitted). */
 const localeListSchema = z
   .string()
   .optional()
@@ -105,14 +107,14 @@ class UsageError extends Error {
   }
 }
 
-/** Render a caught error to stderr as one structured line and return exit `2`. */
+/** Renders a caught error to stderr as one structured line and returns exit `2`. */
 function renderFailureExit2(streams: Streams, error: unknown): number {
   streams.err(`${renderError(toRenderableError(error))}\n`);
   return 2;
 }
 
 /**
- * Run a synchronous option-parsing step inside a try that renders any parse or usage failure to
+ * Runs a synchronous option-parsing step inside a try that renders any parse or usage failure to
  * stderr and returns exit `2`, keeping stdout clean for `--json`. On success the parsed options are
  * handed to `body`. This is the single copy of the parse/render/return-2 wiring shared by every
  * command's option parsing.
@@ -132,7 +134,7 @@ async function withParsedOpts<T>(
 }
 
 /**
- * Parse a locale command's options and reject a provided-but-empty `--locales` list. `localeListSchema`
+ * Parses a locale command's options and rejects a provided-but-empty `--locales` list. `localeListSchema`
  * normalizes `""` and `","` to an empty array (defined, not undefined), which would otherwise select no
  * locales and let a CI drift gate exit 0. An omitted flag stays `undefined` and is allowed.
  *
@@ -154,7 +156,7 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
 }
 
 /**
- * Parse a locale command's options inside the shared parse/render/return-2 scaffold. On success the
+ * Parses a locale command's options inside the shared parse/render/return-2 scaffold. On success the
  * parsed options are handed to `body`. Used by `check`, `diff`, and `export`.
  */
 async function withLocaleOpts<T extends { readonly locales?: readonly string[] | undefined }>(
@@ -200,7 +202,7 @@ async function withWholeRunErrors(
 }
 
 /**
- * Parse `--debounce` into milliseconds. An omitted flag stays `undefined` (watch applies its own
+ * Parses `--debounce` into milliseconds. An omitted flag stays `undefined` (watch applies its own
  * 300ms default). A given value must be a bare positive integer string; anything else (non-numeric,
  * zero, negative, or a unit suffix like "250ms") is a usage error, never a silent fallback to the
  * default.
@@ -221,7 +223,7 @@ function parseDebounce(value: string | undefined): number | undefined {
 }
 
 /**
- * Run the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
+ * Runs the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
  * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
  * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
  */
@@ -263,8 +265,8 @@ interface ParsedWatchOpts extends WatchOpts {
 }
 
 /**
- * Parse and validate the `watch` command's options: the zod schema shape, then `--debounce` on top.
- * Both run here so a single {@link withParsedOpts} call covers either failure.
+ * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce` on
+ * top. Both run here so a single {@link withParsedOpts} call covers either failure.
  */
 function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
   const opts = watchOptsSchema.parse(rawOpts);
@@ -309,7 +311,7 @@ async function runWatchCommand(
 }
 
 /**
- * Run the `studio` command: start Verbatra Studio. `runStudio` resolves once startup either succeeds
+ * Runs the `studio` command: starts Verbatra Studio. `runStudio` resolves once startup either succeeds
  * (the server is bound and the banner printed) or fails (a rendered error and exit `2`); either way
  * the hook is wired to the returned session so a later SIGINT/SIGTERM can request a clean shutdown.
  */
@@ -325,7 +327,7 @@ async function runStudioCommand(
 }
 
 /**
- * Run the `export` command. Returns `0` on success and `2` when the run could not start. Export has
+ * Runs the `export` command. Returns `0` on success and `2` when the run could not start. Export has
  * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
@@ -353,7 +355,7 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
 }
 
 /**
- * Run the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
+ * Runs the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
  * failed, `2` the run could not start. Exported for the same reason as {@link runTranslate}: every
  * field on `importOptsSchema` is an optional string or boolean, so no CLI flag can organically trigger
  * a `ZodError`; a test calls this directly with a malformed `rawOpts` instead.
@@ -391,7 +393,7 @@ export async function runImport(
 }
 
 /**
- * Run the read-only `check` command. Exit codes: `0` every locale in sync, `1` at least one locale
+ * Runs the read-only `check` command. Exit codes: `0` every locale in sync, `1` at least one locale
  * has a missing or stale key, `2` the run could not start.
  */
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
@@ -417,7 +419,7 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
 }
 
 /**
- * Run the read-only `diff` command. Exit codes: `0` no pending changes, `1` at least one locale has a
+ * Runs the read-only `diff` command. Exit codes: `0` no pending changes, `1` at least one locale has a
  * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
  */
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
@@ -442,6 +444,7 @@ async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promi
   });
 }
 
+/** Builds the commander program: every subcommand with its flags, help text, and action wiring. */
 function buildProgram(
   deps: CliDeps,
   streams: Streams,

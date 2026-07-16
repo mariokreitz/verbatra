@@ -53,11 +53,11 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
 }
 
 /**
- * Report the exact pending change per target locale as three key lists (missing, changed, orphaned),
- * without calling a provider, writing any file, or touching the lock. This is the detailed sibling of
- * {@link check}. A locale's `hasPendingChanges` is driven by missing or changed only; orphaned keys are
- * reported but do not flip it, since a default `translate` run does not prune. The top-level
- * `hasPendingChanges` is true when any checked locale has pending changes.
+ * Reports the exact pending change per target locale as three key lists (missing, changed,
+ * orphaned), without calling a provider, writing any file, or touching the lock. The detailed
+ * sibling of {@link check}. A locale's `hasPendingChanges` is driven by missing or changed only;
+ * orphaned keys are reported but do not flip it, since a default `translate` run does not prune.
+ * The top-level `hasPendingChanges` is true when any checked locale has pending changes.
  *
  * @param input - The validated config and which locales to diff.
  * @param deps - Optional composition seams (registry, file system) for tests.

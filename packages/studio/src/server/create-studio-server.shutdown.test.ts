@@ -12,7 +12,6 @@ describe("shutdown", () => {
       socket.once("connect", () => resolve());
       socket.once("error", reject);
     });
-    // Send a request but leave the keep-alive connection open, as a browser tab would.
     socket.write(`GET / HTTP/1.1\r\nHost: 127.0.0.1:${server.port}\r\n\r\n`);
     await new Promise((resolve) => socket.once("data", resolve));
 

@@ -169,9 +169,6 @@ describe("createDeepLProvider: glossary", () => {
 });
 
 describe("createDeepLProvider: description/meaning are context-only, never DeepL input", () => {
-  // DeepL is a machine-translation API with no context parameter: unlike the LLM providers, it never
-  // reads entry.description/meaning at all. An entry carrying one translates exactly like one without,
-  // and the value sent to DeepL, and the value returned, both stay free of the description text.
   it("sends only the entry value to DeepL, never the description, and never echoes it back", async () => {
     const { client, calls } = deeplStubClient(deeplResult(["Hallo"]));
     const result = await createDeepLProvider(config, { client }).translateBatch(
@@ -185,8 +182,6 @@ describe("createDeepLProvider: description/meaning are context-only, never DeepL
 });
 
 describe("createDeepLProvider: per-key integrity (load-bearing for DeepL)", () => {
-  // Only placeholder-free entries are sent to DeepL, so integrity runs on those and still catches
-  // DeepL introducing a placeholder-like token into a source that had none.
   it("passes when a placeholder-free entry stays placeholder-free", async () => {
     const { client } = deeplStubClient(deeplResult(["Hallo"]));
     const result = await createDeepLProvider(config, { client }).translateBatch(
@@ -214,15 +209,11 @@ describe("createDeepLProvider: placeholder-bearing entries are withheld", () => 
       }),
     )) as DeepLTranslateResult;
 
-    // Only the placeholder-free text reaches DeepL.
     expect(firstDeeplCall(calls).texts).toEqual(["Free"]);
-    // The placeholder-free entry is present and passes integrity.
     expect(result.values.get("free")).toBe("Frei");
     expect(result.integrity.get("free")?.matches).toBe(true);
-    // The placeholder-bearing entry is absent from both maps (withheld).
     expect(result.values.has("bearing")).toBe(false);
     expect(result.integrity.has("bearing")).toBe(false);
-    // Exactly one PLACEHOLDER_UNSUPPORTED notice is emitted.
     expect(noticeCodes(result).filter((c) => c === "PLACEHOLDER_UNSUPPORTED")).toHaveLength(1);
   });
 
@@ -379,7 +370,6 @@ describe("createDeepLProvider: errors and secrets", () => {
     let caught: unknown;
     try {
       await createDeepLProvider(config, { client }).translateBatch(
-        // glossary supplied so a notice would be computed, but the failing call discards it
         request({ glossary: { Hello: "Hallo" }, entries: [entry("a", "A?"), entry("b", "B?")] }),
       );
     } catch (error) {
@@ -466,16 +456,12 @@ describe("createDeepLProvider: comparePlaceholders wiring", () => {
       request({ entries: [entry("k", "Free")], comparePlaceholders }),
     );
 
-    // "Free" carries no placeholders, so it is protectable and reaches DeepL; the comparator, not
-    // extractPlaceholders plus checkPlaceholders, is the one invoked for its integrity check.
     expect(calls).toEqual([{ source: "Free", translated: "Frei" }]);
   });
 });
 
 describe("createDeepLProvider: locale validation (pre-flight, before any network call)", () => {
   it("rejects a regional source locale code (de-DE) as INVALID_REQUEST before calling translateText", async () => {
-    // "de-DE" appears nowhere in the static message text, so this proves the code is interpolated,
-    // not merely that a fixed example string happens to match.
     const translateText = vi.fn();
     const client: DeepLTranslateClient = { translateText };
     await expect(
@@ -490,8 +476,6 @@ describe("createDeepLProvider: locale validation (pre-flight, before any network
   });
 
   it("rejects a deprecated bare target locale code (en) as INVALID_REQUEST before calling translateText", async () => {
-    // The quoted form `"en"` only occurs at the interpolation site; the message's hardcoded examples
-    // are "en-GB"/"en-US", neither of which contains the exact substring `"en"`.
     const translateText = vi.fn();
     const client: DeepLTranslateClient = { translateText };
     await expect(
@@ -559,8 +543,6 @@ describe("createDeepLProvider: internal per-request chunking (independent of max
     }
     expect(calls.flatMap((call) => call.texts)).toEqual(entries.map((e) => e.value));
 
-    // Every entry still ends up correctly translated and zipped back to its own key, transparent to
-    // the caller, regardless of how many underlying requests it took.
     for (const e of entries) {
       expect(result.values.get(e.key)).toBe(`${e.value}!`);
     }

@@ -12,12 +12,9 @@ const VALUE_TONE_CLASSNAME = {
 } as const;
 
 /**
- * The dashboard's at-a-glance stat tile, the design reference's signature card: an uppercase
- * monospace micro-label with an optional glyph on the same line, a prominent figure under it,
- * and optionally a one-line hint and a progress meter. The value renders in monospace with
- * tabular numerals so a row of these scans as a fixed-rhythm figure strip. `tone` tints only the
- * figure, never the label, and every toned value sits next to explanatory text, so color is
- * never the sole carrier. Purely presentational.
+ * An at-a-glance stat tile: a micro-label with an optional glyph, a prominent
+ * figure under it, and optionally a one-line hint and a progress meter.
+ * `tone` tints only the figure, never the label. Purely presentational.
  */
 export function MetricCard({
   label,
@@ -29,14 +26,13 @@ export function MetricCard({
   progressTone = "primary",
 }: {
   readonly label: string;
-  /** The headline figure. A string truncates with a title attribute; any ReactNode (for example
-   * a Badge for a stateful reading) renders as-is. */
+  /** The headline figure. A string truncates with a title attribute; any other ReactNode renders as-is. */
   readonly value: ReactNode;
   readonly hint?: string;
   readonly icon?: IconName;
   /** Tints the figure: "danger" for an alarming count, "success" for an all-clear reading. */
   readonly tone?: "default" | "success" | "danger";
-  /** When set, a 0-100 meter under the value (for example a locale's coverage percentage). */
+  /** When set, renders a 0-100 meter under the value. */
   readonly progress?: number;
   /** The meter's tone; "danger" for an exceeded budget or similar alarm reading. */
   readonly progressTone?: "primary" | "danger";

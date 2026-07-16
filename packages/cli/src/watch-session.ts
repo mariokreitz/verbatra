@@ -20,8 +20,9 @@ export interface WatchOptions {
 }
 
 /**
- * Start a watch session over the SDK's watch(). Per-run results are rendered to stdout; the startup
- * line, "stopping" notice, and any startup or stop error go to stderr.
+ * Starts a watch session over the SDK's watch(). Per-run results are rendered to stdout; the startup
+ * line, "stopping" notice, and any startup or stop error go to stderr. A stop requested before the
+ * watcher is ready is honored as soon as it is; a stop requested after a startup failure is a no-op.
  *
  * @param options - The config, cwd/debounce, and output mode.
  * @param deps - The SDK entry points (its `watch` is used here).
@@ -39,8 +40,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
   let stopping = false;
   let startupFailed = false;
 
-  // A clean stop resolves 0; a rejected stop renders the error and resolves 2. resolveDone is
-  // idempotent, so a failed stop only wins if a clean 0 has not already resolved.
+  /** A clean stop resolves 0; a rejected stop renders the error and resolves 2. */
   const stopController = (c: { stop(): Promise<void> }): void => {
     void c
       .stop()
@@ -72,7 +72,6 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     .watch(watchInput)
     .then((c) => {
       controller = c;
-      // A stop requested during startup is honored as soon as the controller exists.
       if (stopping) {
         stopController(c);
       }
@@ -95,8 +94,6 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
       }
       return;
     }
-    // A second stop while the first is in flight forces an immediate exit. resolveDone is idempotent,
-    // so this wins only if 0 has not resolved yet.
     resolveDone(130);
   };
 

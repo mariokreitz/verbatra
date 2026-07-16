@@ -69,8 +69,6 @@ describe("runInit", () => {
   });
 
   it("pins each scaffold default model as valid for its provider (compile-time)", () => {
-    // Routing DEFAULT_MODEL through defineConfig fails the type-check if a provider drops or renames a
-    // model literal; the runtime assertion just keeps the calls live.
     const anthropic = defineConfig({
       sourceLocale: "en",
       targetLocales: ["de"],
@@ -139,7 +137,6 @@ describe("runInit", () => {
 
   it("returns 2 when the inputs would produce an invalid config", async () => {
     const cap = captureStreams();
-    // A target locale equal to the source violates a schema refinement.
     const code = await runInit(
       { cwd: dir, yes: true, provider: "deepl", source: "en", targets: "en" },
       cap.streams,

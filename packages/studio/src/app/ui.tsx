@@ -6,12 +6,12 @@ import { cn } from "./lib/cn.js";
 import { Sheet } from "./Sheet.js";
 
 /**
- * Shared presentational primitives every panel builds on, so the visual language (spacing, type
- * scale, table treatment) stays consistent across the dashboard instead of each panel inventing
- * its own. Purely presentational: none of these hold state or make an rpc call.
+ * Shared presentational primitives the panels build on, keeping spacing, type
+ * scale, and table treatment consistent across the dashboard. Purely
+ * presentational: none of these hold state or make an rpc call.
  */
 
-/** A monospace value cell, for anything that reads as code: locale codes, formats, token counts. */
+/** A monospace value span, for anything that reads as code: locale codes, formats, counts. */
 export function MonoValue({ children }: { readonly children: ReactNode }): ReactNode {
   return <span className="font-mono">{children}</span>;
 }
@@ -21,10 +21,9 @@ export function Container({ children }: { readonly children: ReactNode }): React
   return <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>;
 }
 
-/** The click-outside-to-dismiss backdrop shared by every overlay (the drawers, the mobile nav):
- * a real `<button>` behind the panel in both stacking order and the focus trap, not a click
- * handler on a static element, so dismissing by clicking outside stays a genuine,
- * keyboard-operable control. */
+/** The click-outside-to-dismiss backdrop shared by the overlays: a real
+ * `<button>` behind the panel, not a click handler on a static element, so
+ * dismissing by clicking outside stays a genuine, keyboard-operable control. */
 export function OverlayBackdrop({
   onClose,
   label,
@@ -42,9 +41,8 @@ export function OverlayBackdrop({
   );
 }
 
-/** The icon-only close button every overlay (`Sheet`, the mobile nav drawer) shows next to its
- * title. `label` defaults to "Close" but stays overridable, since the mobile nav drawer's is
- * more specific ("Close navigation"). */
+/** The icon-only close button an overlay shows next to its title. `label`
+ * defaults to "Close" and stays overridable for a more specific name. */
 export function DialogCloseButton({
   onClose,
   label = "Close",
@@ -67,14 +65,11 @@ export function DialogCloseButton({
 }
 
 /**
- * The side-drawer shell shared by `KeyDetailDrawer` and `EditEntryDialog`: a full-height panel
- * anchored to the end edge. A thin `side="end"` preset over the general-purpose `Sheet` (see
- * `Sheet.tsx`), kept as its own named export since "drawer" is the vocabulary the rest of this
- * dashboard's doc comments and both existing callers already use; the props and rendered output
- * are unchanged from before `Sheet` existed.
+ * The side-drawer shell: a thin `side="end"` preset over {@link Sheet},
+ * shared by the key-detail and edit-entry overlays.
  */
 export function DrawerShell(props: {
-  /** The monospace micro-label above the title (see `Sheet`'s `kicker`). */
+  /** The micro-label above the title (see `Sheet`'s `kicker`). */
   readonly kicker?: string;
   readonly title: ReactNode;
   readonly ariaLabel: string;
@@ -86,7 +81,7 @@ export function DrawerShell(props: {
   return <Sheet side="end" {...props} />;
 }
 
-/** A titled block of panel content, replacing the old .panel-section/.panel-intro pairing. */
+/** A titled block of drawer or panel content, with an optional intro line. */
 export function Section({
   title,
   intro,
@@ -106,11 +101,9 @@ export function Section({
 }
 
 /**
- * The designed "nothing here" placeholder: a dashed, centered block with a muted glyph, an
- * optional short title, and the explanatory copy as children. Used for every empty table, list,
- * and not-yet-recorded state, so "empty" always reads as a deliberate state of the page rather
- * than a rendering gap. `action` is a slot for a follow-up control if a caller ever has one;
- * most of this read-only dashboard's empty states are purely informational.
+ * The "nothing here" placeholder: a dashed, centered block with a muted
+ * glyph, an optional short title, and the explanatory copy as children.
+ * `action` is a slot for an optional follow-up control.
  */
 export function EmptyState({
   icon = "inbox",
@@ -134,10 +127,10 @@ export function EmptyState({
 }
 
 /**
- * An uncarded page section: a heading row (an h2 with an optional inline-end meta slot) over
- * free-form content. For a page's primary surfaces (a key grid, a table, a feed), where wrapping
- * the whole block in a card would just nest borders; `SectionCard` below stays the treatment for
- * secondary, self-contained blocks.
+ * An uncarded page section: a heading row (an h2 with an optional inline-end
+ * meta slot) over free-form content. For a page's primary surfaces, where
+ * wrapping the block in a card would just nest borders; {@link SectionCard}
+ * is the treatment for secondary, self-contained blocks.
  */
 export function PageSection({
   title,
@@ -162,10 +155,9 @@ export function PageSection({
 }
 
 /**
- * A page section rendered as a card with its own heading row: a title (an h2; the page's h1
- * belongs to `PageHeader`), an optional intro line under it, and an optional inline-end `meta`
- * slot for a badge or count. The card-per-section rhythm is what separates a screen into
- * scannable blocks; the plain `Section` above stays for lighter contexts (drawer content).
+ * A page section rendered as a card with its own heading row: an h2 title,
+ * an optional intro line, and an optional inline-end `meta` slot for a badge
+ * or count.
  */
 export function SectionCard({
   title,
@@ -198,7 +190,7 @@ export function SectionCard({
   );
 }
 
-/** A compact key/value grid for read-only config-style fields, replacing .detail-list. */
+/** A compact key/value grid (`<dl>`) for read-only config-style fields. */
 export function DetailList({
   items,
 }: {
@@ -217,10 +209,9 @@ export function DetailList({
 }
 
 /**
- * Shared table classes (not a component, since header/body shapes vary too much across panels to
- * usefully wrap): `divide-y` on tbody draws a rule between rows without one trailing the last row,
- * so no last-child override is needed the way the old .data-table CSS required. The tinted header
- * row and full-width tables assume the `TableCard` (edge-to-edge card) or an in-card context.
+ * Shared table class strings, for tables whose header or body shape does not
+ * fit the `Table` components. The tinted header row and full-width table
+ * assume a `TableCard` or in-card context.
  */
 export const tableClasses = {
   table: "w-full min-w-[480px] border-collapse text-sm",
@@ -233,20 +224,18 @@ export const tableClasses = {
 };
 
 /**
- * Shared shell for `Badge` and `DiffBadge`: a minimal rounded pill, a soft tone tint, and a
- * small dot in the tone color. The dot is decorative; every badge in this dashboard carries a
- * distinct text label ("In sync" vs "Out of sync", "Missing" vs "Changed"), so the signal never
- * rests on color alone. Only the per-tone color classes (owned by each badge's own tone map)
- * differ between the two vocabularies.
+ * The shared pill shell for `Badge` and `DiffBadge`: a rounded pill whose
+ * per-tone color classes come from each badge's own tone map.
  */
 export const pillClassName =
   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium leading-5";
+
+/** The decorative leading dot inside a pill, colored by the pill's current text color. */
 export const pillDotClassName = "size-1.5 flex-none rounded-full bg-current";
 
 /**
- * The uppercase monospace micro-label this design uses as its signature eyebrow: stat card
- * labels, section kickers, and the page header's context line all share it, so "this is a data
- * label" reads the same everywhere.
+ * The uppercase monospace micro-label used as the eyebrow across stat card
+ * labels, section kickers, and the page header's context line.
  */
 export const microLabelClassName =
   "font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";

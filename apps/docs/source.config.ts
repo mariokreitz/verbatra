@@ -1,9 +1,12 @@
 import { defineConfig, defineDocs } from "fumadocs-mdx/config";
 
+/**
+ * The docs content collection. includeProcessedMarkdown exposes
+ * page.data.getText("processed"), the clean rendered Markdown the
+ * /llms-full.txt route serves to AI agents.
+ */
 export const docs = defineDocs({
   dir: "content/docs",
-  // includeProcessedMarkdown exposes page.data.getText("processed"), the clean rendered
-  // Markdown used by the /llms-full.txt route to serve the full corpus to AI agents.
   docs: {
     postprocess: { includeProcessedMarkdown: true },
   },

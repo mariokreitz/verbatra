@@ -21,20 +21,29 @@ const AUTH_FAILED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
  * `error.constructor.name` rather than an `instanceof` import. This keeps the shared
  * classifier decoupled from the four SDKs (openai, @anthropic-ai/sdk, @google/genai,
  * deepl-node) while still classifying by class identity, never by message text.
+ *
+ * `RateLimitError` comes from openai and @anthropic-ai/sdk; `TooManyRequestsError` from deepl-node.
  */
 const RATE_LIMITED_CLASS_NAMES: ReadonlySet<string> = new Set([
-  "RateLimitError", // openai, @anthropic-ai/sdk
-  "TooManyRequestsError", // deepl-node
+  "RateLimitError",
+  "TooManyRequestsError",
 ]);
+/**
+ * Auth-failure class names: `AuthenticationError` (openai, @anthropic-ai/sdk, 401),
+ * `PermissionDeniedError` (openai, @anthropic-ai/sdk, 403), and `AuthorizationError` (deepl-node).
+ */
 const AUTH_FAILED_CLASS_NAMES: ReadonlySet<string> = new Set([
-  "AuthenticationError", // openai, @anthropic-ai/sdk (401)
-  "PermissionDeniedError", // openai, @anthropic-ai/sdk (403)
-  "AuthorizationError", // deepl-node
+  "AuthenticationError",
+  "PermissionDeniedError",
+  "AuthorizationError",
 ]);
+/**
+ * Timeout class names: `APIConnectionTimeoutError` (openai, @anthropic-ai/sdk) and `ConnectionError`
+ * (deepl-node). deepl-node has no distinct timeout class; `ConnectionError` is its only
+ * network-failure class, so it is folded into TIMEOUT rather than the PROVIDER_ERROR fallback.
+ */
 const TIMEOUT_CLASS_NAMES: ReadonlySet<string> = new Set([
-  "APIConnectionTimeoutError", // openai, @anthropic-ai/sdk
-  // deepl-node has no distinct timeout class; ConnectionError is its only network-failure
-  // class, so it is folded into TIMEOUT rather than the PROVIDER_ERROR fallback.
+  "APIConnectionTimeoutError",
   "ConnectionError",
 ]);
 
@@ -51,9 +60,7 @@ const TIMEOUT_CLASS_NAMES: ReadonlySet<string> = new Set([
  * `"AbortError"` name, and always falls through to classification, even while a shared signal happens
  * to be aborted concurrently.
  */
-const ABORT_ERROR_CLASS_NAMES: ReadonlySet<string> = new Set([
-  "APIUserAbortError", // openai, @anthropic-ai/sdk
-]);
+const ABORT_ERROR_CLASS_NAMES: ReadonlySet<string> = new Set(["APIUserAbortError"]);
 
 /**
  * Read a numeric `status` property off an unknown thrown value, or undefined if absent. Exported

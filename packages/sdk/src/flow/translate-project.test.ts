@@ -73,7 +73,6 @@ describe("translate: orchestration success", () => {
 describe("translate: dry-run", () => {
   it("never constructs the provider and writes neither the target nor the lock", async () => {
     const dir = await project({ a: "A", b: "B" }, { de: { a: "da" } });
-    // A provider factory that throws if invoked proves dry-run never constructs the provider.
     const summary = await translate(
       { config: cfg(), cwd: dir, dryRun: true },
       {
@@ -84,7 +83,7 @@ describe("translate: dry-run", () => {
     );
 
     expect(summary.dryRun).toBe(true);
-    expect(summary.locales[0]?.translated).toEqual(["b"]); // what would be translated
+    expect(summary.locales[0]?.translated).toEqual(["b"]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de).toEqual({ a: "da" });
     expect(await exists(join(dir, "verbatra.lock.json"))).toBe(false);
@@ -95,7 +94,6 @@ describe("translate: per-locale isolation", () => {
   it("records a per-locale failure as a failed summary and continues the run", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
     const stub = makeStubProvider();
-    // The lock write throws only for fr, isolating it as a failed locale while de still succeeds.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -150,8 +148,6 @@ describe("translate: run-status persistence", () => {
   it("records a failed locale's status even though its needsReview is empty", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
     const stub = makeStubProvider();
-    // The lock write throws only for fr, so it never completes runLocale and is recorded failed,
-    // exactly like the "per-locale isolation" test above.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -174,10 +170,6 @@ describe("translate: run-status persistence", () => {
     const fr = runStatus.locales.find((locale) => locale.locale === "fr");
     expect(fr?.status).toBe("failed");
     expect(fr?.needsReview).toEqual([]);
-    // fr carries a real error ("lock write failed") in the in-memory summary; the persisted entry
-    // must never widen to include it. An exact key-set check (not a spot-check on `error`, which
-    // is not even a field on RunStatusLocale) catches a future `toRunStatusLocale` regression such
-    // as returning the whole LocaleSummary, which would type-check as a width subtype but leak.
     expect(Object.keys(fr as object).sort()).toEqual(["locale", "needsReview", "status"]);
   });
 

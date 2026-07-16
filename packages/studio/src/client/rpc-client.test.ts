@@ -49,8 +49,6 @@ describe("createRpcClient", () => {
     expect(first).toMatchObject({ error: { code: "SESSION_EXPIRED" } });
     expect(second).toMatchObject({ error: { code: "SESSION_EXPIRED" } });
     expect(session.getState()).toEqual({ kind: "session-expired" });
-    // The 401 response body is never even read as JSON, and the second call short-circuits before
-    // fetchImpl is invoked again.
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 

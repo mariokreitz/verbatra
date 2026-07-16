@@ -2,8 +2,7 @@ import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-// Docs content is English-only, so export the default-locale pages; the i18n-aware loader
-// would otherwise repeat each page per locale.
+/** Rendered at build time; the content only changes with a rebuild. */
 export const dynamic = "force-static";
 
 async function renderPage(page: ReturnType<typeof source.getPages>[number]): Promise<string> {
@@ -12,6 +11,11 @@ async function renderPage(page: ReturnType<typeof source.getPages>[number]): Pro
   return `# ${page.data.title} (${url})\n\n${markdown}`;
 }
 
+/**
+ * Serves the full docs corpus as one plain-text file for AI agents. Only the
+ * default-locale pages are exported; the i18n-aware loader would otherwise
+ * repeat each page per locale.
+ */
 export async function GET(): Promise<Response> {
   const pages = source.getPages(i18n.defaultLanguage);
   const sections = await Promise.all(pages.map(renderPage));

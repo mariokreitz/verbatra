@@ -1,9 +1,11 @@
 import type { AddressInfo } from "node:net";
 
 /**
- * Extracts the actual bound TCP address from `server.address()`. A `net.Server` reports `null`
- * before listening and a string for a Unix socket or named pipe; neither applies here since the
- * server always binds a TCP port, so either case is an unexpected failure to bind.
+ * Extracts the bound TCP address from a `server.address()` result. A `net.Server` reports `null`
+ * before listening and a string for a Unix socket or named pipe; the studio server always binds
+ * a TCP port, so either case is an unexpected failure to bind.
+ *
+ * @throws An `Error` when the address is `null` or a string.
  */
 export function resolveBoundAddress(address: AddressInfo | string | null): AddressInfo {
   if (address === null || typeof address === "string") {

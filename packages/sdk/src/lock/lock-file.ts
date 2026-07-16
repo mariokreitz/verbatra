@@ -19,6 +19,7 @@ const lockFileSchema = z.object({
   locales: z.record(z.string(), z.record(z.string(), z.string())),
 });
 
+/** Resolve the lock-file's absolute path under `cwd`. */
 export function lockFilePath(cwd: string): string {
   return resolve(cwd, LOCK_FILE_NAME);
 }
@@ -27,8 +28,11 @@ export function lockFilePath(cwd: string): string {
  * Parse a bounded read of the lock-file's raw content into a {@link LockFile}. A missing file
  * degrades to an empty lock (first-run); an oversized, unparseable, structurally invalid, or
  * wrong-version file is a structured `LOCK_FILE_INVALID` error so it is never silently
- * overwritten or misinterpreted under the wrong version's semantics. Shared by {@link readLockFile}
- * and {@link updateLockFileLocale}'s own re-reads, so both apply exactly the same validation.
+ * overwritten or misinterpreted under the wrong version's semantics. The version check is a
+ * deliberate inequality, not "greater than": there is no migration path for an older format, so
+ * once {@link CURRENT_VERSION} moves past 1, an old file must keep failing loudly here too.
+ * Shared by {@link readLockFile} and {@link updateLockFileLocale}'s own re-reads, so both apply
+ * exactly the same validation.
  */
 function parseLockFileRead(read: BoundedFileRead, path: string): LockFile {
   if (read.kind === "missing") {
@@ -50,12 +54,6 @@ function parseLockFileRead(read: BoundedFileRead, path: string): LockFile {
   if (!result.success) {
     throw new SdkError("LOCK_FILE_INVALID", `The lock-file at ${path} has an unexpected shape.`);
   }
-  // Only CURRENT_VERSION is understood, so this checks inequality rather than just "greater
-  // than". Today the schema's positive-integer constraint makes version < CURRENT_VERSION
-  // unreachable (1 is the floor), so in practice this only ever catches version >
-  // CURRENT_VERSION. But there is no migration path for an older format either, so the
-  // inequality is deliberate: once CURRENT_VERSION is bumped past 1, an old file stamped with
-  // the previous version must keep failing loudly here rather than silently passing.
   if (result.data.version !== CURRENT_VERSION) {
     throw new SdkError(
       "LOCK_FILE_INVALID",

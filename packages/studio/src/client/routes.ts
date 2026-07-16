@@ -8,6 +8,7 @@
 /** Every page, in sidebar order: the two work surfaces first, then the two reference pages. */
 export const PAGE_IDS = ["translations", "review", "activity", "settings"] as const;
 
+/** One page's identifier, drawn from {@link PAGE_IDS}. */
 export type PageId = (typeof PAGE_IDS)[number];
 
 /** Where a fresh session lands: the daily workspace. */

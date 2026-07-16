@@ -76,7 +76,7 @@ describe("retranslateEntry: locale and key resolution", () => {
 
     expect(error).toBeInstanceOf(SdkError);
     expect((error as SdkError).code).toBe("UNKNOWN_KEY");
-    expect(stub.calls).toHaveLength(0); // never reaches the provider
+    expect(stub.calls).toHaveLength(0);
   });
 });
 
@@ -95,7 +95,7 @@ describe("retranslateEntry: acceptance", () => {
 
     expect(result).toEqual({ accepted: true, value: "[de] Hello", reviewReasons: [] });
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    expect(de).toEqual({ greeting: "[de] Hello", farewell: "Tschuess" }); // farewell untouched
+    expect(de).toEqual({ greeting: "[de] Hello", farewell: "Tschuess" });
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
@@ -175,7 +175,7 @@ describe("retranslateEntry: rejection", () => {
     expect(result.accepted).toBe(false);
     expect(result).toMatchObject({ accepted: false, reason: "placeholder" });
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    expect(de).toEqual({ greeting: "old" }); // unchanged
+    expect(de).toEqual({ greeting: "old" });
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json")).catch(() => undefined)) as
       | { locales: Record<string, Record<string, string>> }
       | undefined;

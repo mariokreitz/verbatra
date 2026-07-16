@@ -21,22 +21,23 @@ import {
 
 const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
 
+/**
+ * The localized marketing landing page. Feeds the same FAQ and how-to copy to
+ * the visible sections and their JSON-LD blocks so the two cannot drift.
+ */
 export default async function HomePage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
   const locale = lang as Locale;
   const t = await getTranslations({ locale, namespace: "landing" });
 
-  // Shared with the FAQPage JSON-LD so the visible accordion and structured data cannot drift.
   const faqItems = Object.values(t.raw("faq.items") as Record<string, FaqItem>);
 
-  // Shared with the HowTo JSON-LD so it stays coupled to the same copy <HowItWorks> renders.
   const howStepCopy = t.raw("how.steps") as Record<string, { title: string; body: string }>;
   const howSteps: ReadonlyArray<HowToStepItem> = HOW_STEP_KEYS.map((key) => {
     const step = howStepCopy[key];
     return { name: step?.title ?? "", text: step?.body ?? "" };
   });
 
-  // The displayed status badges are live external images; the build-time version only feeds the JSON-LD.
   const version = PACKAGE_VERSION;
 
   return (

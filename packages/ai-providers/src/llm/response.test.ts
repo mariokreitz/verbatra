@@ -65,7 +65,6 @@ describe("reconcileResult: bounded partial accept", () => {
       ["a", "b"],
     );
     expect(result.accepted.get("a")).toBe("A");
-    // Ambiguous which duplicate is correct, so neither copy is accepted.
     expect(result.accepted.has("b")).toBe(false);
     expect(result.missingKeys).toEqual(["b"]);
   });

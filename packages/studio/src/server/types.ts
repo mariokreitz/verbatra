@@ -1,15 +1,15 @@
 import type { CheckDeps, CreateProvider, LoadedConfig, SdkFs } from "@verbatra/sdk";
 
-/** The result of one `execFileImpl` call: captured stdout and stderr, never a raw child_process error. */
+/** The result of one {@link ExecFileImpl} call: captured stdout and stderr. */
 export interface ExecFileResult {
   readonly stdout: string;
   readonly stderr: string;
 }
 
 /**
- * A bounded, argument-array process runner: `execFile(file, args, options)`, never a shell string.
- * Mirrors `util.promisify(child_process.execFile)`. Consumed by the git-log history view, which
- * runs `git` with an explicit `cwd` and never a `--follow` or other unbounded argument.
+ * An argument-array process runner, never a shell string. Mirrors the shape of
+ * `util.promisify(child_process.execFile)`. Consumed by the git-log history view, which runs
+ * `git` with an explicit `cwd`.
  */
 export type ExecFileImpl = (
   file: string,
@@ -18,38 +18,35 @@ export type ExecFileImpl = (
 ) => Promise<ExecFileResult>;
 
 /**
- * A minimal change-event source for the live-refresh stream. Mirrors the shape of the sdk's own
- * `Watcher` (see `@verbatra/sdk`'s `watch.ts`) but is studio-owned: production wraps chokidar directly
- * (a studio dependency in its own right), tests inject a stub.
+ * A minimal change-event source for the live-refresh stream. Studio-owned: production wraps
+ * chokidar directly, tests inject a stub.
  */
 export interface StudioWatcher {
-  /** Register a listener invoked once per coalesced, debounced change event. */
+  /** Registers a listener invoked on each raw change event from the underlying watcher. */
   onChange(listener: () => void): void;
-  /** Stop watching and release the underlying resources. */
+  /** Stops watching and releases the underlying resources. */
   close(): Promise<void>;
 }
 
-/** Builds a {@link StudioWatcher} over the given paths (the source file, target files, and the lock-file). */
+/** Builds a {@link StudioWatcher} over the given absolute paths. */
 export type CreateStudioWatcher = (paths: readonly string[]) => StudioWatcher;
 
 /**
- * Every dependency an RPC handler or the server itself may need, across the whole dashboard, fully
- * pre-declared up front so later handlers never widen this type. Most fields are unused until a
- * later view lands; each doc comment names what consumes it.
+ * Every dependency the server or an RPC handler may need. All fields except `loader` are
+ * optional injection seams with production defaults.
  */
 export interface StudioServerDeps {
   /**
    * Resolves the project configuration exactly once, at server startup, before the server starts
-   * listening. Every RPC handler receives that same resolved value for the life of the process; it
-   * is never re-invoked per request, and the server holds no other project-derived cache. Consumed
-   * by every RPC handler, starting with the project configuration snapshot.
+   * listening. Every RPC handler receives that same resolved value for the life of the process;
+   * it is never re-invoked per request.
    */
   readonly loader: () => Promise<LoadedConfig>;
-  /** Bounded file-system seam for the status and diff drift views. */
+  /** Bounded file-system seam threaded into the sdk calls; defaults to the sdk's real file system. */
   readonly fs?: SdkFs;
-  /** Format-adapter registry override for the status and diff drift views; defaults to the sdk's own registry. */
+  /** Format-adapter registry override threaded into the sdk calls; defaults to the sdk's own registry. */
   readonly adapterRegistry?: NonNullable<CheckDeps["adapterRegistry"]>;
-  /** Bounded, argument-array process runner for the git-log history view. */
+  /** Argument-array process runner for the git-log history view; defaults to a real execFile. */
   readonly execFileImpl?: ExecFileImpl;
   /** Factory for the file watcher backing the live-refresh event stream. */
   readonly createWatcher?: CreateStudioWatcher;
@@ -62,38 +59,35 @@ export interface StudioServerDeps {
   /** Overrides where static assets are served from; defaults to the built SPA next to this module. */
   readonly assetsRoot?: URL;
   /**
-   * Authorizes a provider invocation (network egress, an API key read from its environment
-   * variable, a billable call). Resolved once at process start (CLI flag or environment variable
-   * fallback) and read exactly once here, before `listen()`; never re-derived and never an RPC
-   * parameter. Off (`false`) by default. This is the only capability option: writing a local
-   * locale file and its lock entry needs no flag and is always allowed.
+   * Authorizes provider invocations (network egress, an API key read from its environment
+   * variable, a billable call). Read once at startup to build the handlers registry; never an
+   * RPC parameter. Off (`false`) by default. This is the only capability option: writing a local
+   * locale file needs no flag and is always allowed.
    */
   readonly spend?: boolean;
-  /** Provider builder for the write-capable RPC handlers; defaults to constructing the configured provider (which reads its key from env). Test-only injection seam, mirroring the sdk's own `TranslateDeps.createProvider`. */
+  /** Provider builder for the spend-gated handlers; defaults to the sdk constructing the configured provider. */
   readonly createProvider?: CreateProvider;
-  /** Rolling window, in milliseconds, `translation.retranslateEntry`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */
+  /** Rolling window, in milliseconds, for `translation.retranslateEntry`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly retranslateRateLimitWindowMs?: number;
-  /** Maximum `translation.retranslateEntry` calls allowed within the rolling window before `RATE_LIMITED`. */
+  /** Maximum `translation.retranslateEntry` calls allowed within the rolling window before RATE_LIMITED. */
   readonly retranslateRateLimitMax?: number;
-  /** Rolling window, in milliseconds, `translation.editEntry`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */
+  /** Rolling window, in milliseconds, for `translation.editEntry`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly editEntryRateLimitWindowMs?: number;
-  /** Maximum `translation.editEntry` calls allowed within the rolling window before `RATE_LIMITED`. */
+  /** Maximum `translation.editEntry` calls allowed within the rolling window before RATE_LIMITED. */
   readonly editEntryRateLimitMax?: number;
-  /** Rolling window, in milliseconds, `translation.translatePending`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */
+  /** Rolling window, in milliseconds, for `translation.translatePending`'s rate limit; tests shrink it to trip the limit deterministically. */
   readonly translatePendingRateLimitWindowMs?: number;
-  /** Maximum `translation.translatePending` calls allowed within the rolling window before `RATE_LIMITED`. */
+  /** Maximum `translation.translatePending` calls allowed within the rolling window before RATE_LIMITED. */
   readonly translatePendingRateLimitMax?: number;
 }
 
-/** Options accepted by {@link startStudioServer}: every {@link StudioServerDeps} field, plus the bind port and cwd. */
+/** Options for starting the studio server: every {@link StudioServerDeps} field, plus the bind port and cwd. */
 export interface StudioServerOptions extends StudioServerDeps {
-  /** TCP port to bind. Omit for the default Studio port, or pass 0 to let the OS assign an ephemeral port (tests only). */
+  /** TCP port to bind. Omit for the default Studio port, or pass 0 to let the OS assign an ephemeral port. */
   readonly port?: number;
   /**
-   * The project root every RPC handler resolves relative paths against: the source locale file,
-   * each target locale file, the lock file, and the git repository root for the history view.
-   * Omit to use `process.cwd()`, which is also the behavior of any existing caller that does not
-   * pass this.
+   * The project root every RPC handler resolves relative paths against: the locale files, the
+   * lock file, and the git repository for the history view. Omit to use `process.cwd()`.
    */
   readonly cwd?: string;
 }

@@ -110,7 +110,6 @@ describe("flattenTree path-notation mode (ngx-translate)", () => {
   });
 
   it("throws INVALID_STRUCTURE when a dotted leaf's path is a strict ancestor of a deeper nested leaf", () => {
-    // "a.b" resolves to "x.a.b", the same path that "a" -> "b" -> "c" uses as an intermediate node.
     const tree: JsonRecord = { x: { "a.b": "FLAT-VALUE", a: { b: { c: "NESTED-VALUE" } } } };
     const error = (() => {
       try {

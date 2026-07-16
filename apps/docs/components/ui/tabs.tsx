@@ -2,6 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 
+/** Props for the docs Tabs; pass `value` for controlled use or `defaultValue` for uncontrolled. */
 export type TabsProps = {
   tabs: ReadonlyArray<{ id: string; label: string }>;
   value?: string;
@@ -10,6 +11,7 @@ export type TabsProps = {
   children?: ReactNode;
 };
 
+/** The design-system tab strip, controlled or uncontrolled; renders `children` unconditionally below the tablist. */
 export default function Tabs({
   tabs,
   value,
@@ -44,7 +46,6 @@ export default function Tabs({
                   ? "text-fd-foreground"
                   : "text-fd-muted-foreground hover:text-fd-foreground"
               }`}
-              // Inset shadow draws the 2px glow underline without layout shift.
               style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
             >
               {tab.label}

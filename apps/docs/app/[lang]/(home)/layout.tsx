@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Locale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 
+/** Wraps home-route pages in the shared Fumadocs home chrome for the active locale. */
 export default async function Layout({
   params,
   children,

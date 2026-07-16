@@ -87,7 +87,6 @@ describe("translate: usage aggregation", () => {
       { createProvider: () => stub.provider },
     );
 
-    // 4 entries / 2 per batch -> 2 calls, 100 tokens each.
     expect(summary.locales[0]?.usage).toEqual({ inputTokens: 120, outputTokens: 80 });
     expect(summary.usage).toEqual({ inputTokens: 120, outputTokens: 80 });
   });
@@ -135,7 +134,6 @@ describe("translate: usage aggregation", () => {
       { createProvider: () => provider },
     );
 
-    // Only the first (successful) sub-batch's usage counts; the thrown second sub-batch contributes nothing.
     expect(summary.locales[0]?.usage).toEqual({ inputTokens: 60, outputTokens: 40 });
   });
 });
@@ -198,8 +196,6 @@ describe("translate: budget crossed, warn behavior", () => {
 
 describe("translate: budget crossed, stop behavior", () => {
   it("accepts the crossing sub-batch, withholds later sub-batches in-locale, and skips later locales entirely", async () => {
-    // maxBatchSize 2 over 6 entries -> 3 sub-batches of 2, 100 tokens each. maxTokens 150 trips after
-    // the second sub-batch (200 >= 150); the third sub-batch's keys are withheld.
     const dir = await project(keyedSource(6), { de: undefined, fr: undefined });
     const stub = makeStubProvider({ usage: USAGE_100 });
 
@@ -229,11 +225,8 @@ describe("translate: budget crossed, stop behavior", () => {
     expect([...(fr?.budgetWithheld ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3", "k4", "k5"]);
     expect(fr?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
 
-    // The exit-code-relevant field is unaffected: no locale ever failed because of a budget trip.
     expect(summary.failed).toEqual([]);
 
-    // The crossing sub-batch's tokens are retained and counted, so tokensUsed (200) may exceed
-    // maxTokens (150); the ceiling is a post-hoc soft cap, never retroactively undone.
     expect(summary.budget).toEqual({
       maxTokens: 150,
       behavior: "stop",
@@ -252,7 +245,6 @@ describe("translate: budget-withheld keys retry next run", () => {
   it("keeps a withheld changed key's prior lock hash, then translates it once the budget allows", async () => {
     const dir = await project(keyedSource(1), { de: undefined, fr: { k0: "[fr] v0" } });
 
-    // Run 0: establish fr's baseline lock entry for k0 with no budget configured.
     const stub0 = makeStubProvider();
     await translate(
       { config: cfg({ targetLocales: ["fr"] }), cwd: dir },
@@ -261,15 +253,12 @@ describe("translate: budget-withheld keys retry next run", () => {
     const baselineHash = (await readLock(dir)).fr?.k0;
     expect(baselineHash).toBeDefined();
 
-    // Drift the source so fr's k0 becomes "changed" against that baseline.
     await writeFile(
       join(dir, "locales", "en.json"),
       `${JSON.stringify({ k0: "v0-changed" }, null, 2)}\n`,
       "utf8",
     );
 
-    // Run 1: "de" trips the budget on its only sub-batch; "fr" starts already stopped, so its changed
-    // key k0 is never sent and must keep the baseline hash, not advance to the new source hash.
     const stub1 = makeStubProvider({ usage: USAGE_100 });
     const run1 = await translate(
       {
@@ -285,7 +274,6 @@ describe("translate: budget-withheld keys retry next run", () => {
     const frFileAfterRun1 = (await readJsonFile(targetPath(dir, "fr"))) as Record<string, string>;
     expect(frFileAfterRun1.k0).toBe("[fr] v0");
 
-    // Run 2: no budget configured, so fr's k0 is picked up as changed and translated.
     const stub2 = makeStubProvider();
     const run2 = await translate(
       { config: cfg({ targetLocales: ["de", "fr"] }), cwd: dir },

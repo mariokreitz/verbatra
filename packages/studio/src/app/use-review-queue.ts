@@ -6,10 +6,9 @@ import { applyRefreshOutcome } from "../client/state.js";
 import { rpcClient } from "./api.js";
 
 /**
- * Fetches the needs-review queue's view half via `review.queue` and exposes it as a
- * {@link RefreshableView}, mirroring `useStatusData` exactly. Re-fetches whenever `refreshToken`
- * changes, including the existing SSE `refresh` event `App` already threads into every panel: an
- * edit, a retranslate, or an external file change all reach this the same way.
+ * Fetches the needs-review queue via `review.queue` and exposes it as a
+ * {@link RefreshableView}, keeping the last good data with a stale marker
+ * when a re-fetch fails. Re-fetches whenever `refreshToken` changes.
  */
 export function useReviewQueue(refreshToken?: unknown): RefreshableView<ReviewQueueData> {
   const [view, setView] = useState<RefreshableView<ReviewQueueData>>({ kind: "loading" });

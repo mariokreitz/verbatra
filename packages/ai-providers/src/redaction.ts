@@ -1,8 +1,10 @@
 const REDACTED = "[REDACTED]";
 
-/** Matchers for the four v1 provider key shapes; each quantifier is over one class to stay ReDoS-safe. */
+/**
+ * Matchers for the four v1 provider key shapes; each quantifier is over one class to stay ReDoS-safe.
+ * The `\b` anchors `sk-` to a word start so hyphenated words like "risk-" or "task-" pass through.
+ */
 const KEY_PATTERNS: readonly RegExp[] = [
-  // The `\b` anchors `sk-` to a word start so hyphenated words like "risk-" or "task-" pass through.
   /\bsk-[A-Za-z0-9_-]{8,}/g,
   /AIza[0-9A-Za-z_-]{35}/g,
   /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?::fx)?/g,

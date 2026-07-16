@@ -117,7 +117,6 @@ describe("loadConfig", () => {
   });
 
   it("defineConfig returns its argument unchanged", () => {
-    // The cast feeds a runtime-shaped value through an identity helper whose parameter restricts model to a provider's known literals.
     const cfg = baseConfig();
     expect(defineConfig(cfg as AuthoringConfig)).toBe(cfg);
   });

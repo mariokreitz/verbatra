@@ -63,6 +63,7 @@ export function softwareApplicationLd(args: {
   };
 }
 
+/** One question/answer pair shared by the visible FAQ and its JSON-LD. */
 export type FaqItem = { question: string; answer: string };
 
 /** FAQPage facts mirroring the on-page FAQ; `inLanguage` follows the active locale. */
@@ -82,6 +83,7 @@ export function faqPageLd(args: {
   };
 }
 
+/** One step shared by the visible how-it-works list and its JSON-LD. */
 export type HowToStepItem = { name: string; text: string };
 
 /** HowTo facts mirroring the on-page "How it works" pipeline; `inLanguage` follows the active locale. */

@@ -48,6 +48,7 @@ type BuildWriteTree = (
  */
 type DeriveDescriptions = (content: string) => ReadonlyMap<string, string>;
 
+/** The format-specific behavior {@link createTreeFileAdapter} builds an adapter from. */
 export interface TreeFileAdapterOptions {
   readonly format: SupportedFormat;
   /** Accepted file extensions, lower-cased and dot-prefixed (for example `[".yaml", ".yml"]`). */

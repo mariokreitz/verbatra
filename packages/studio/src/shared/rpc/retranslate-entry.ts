@@ -15,6 +15,7 @@ export const retranslateEntryParamsSchema = z.strictObject({
   key: z.string().min(1),
 });
 
+/** Parsed `translation.retranslateEntry` params. */
 export type RetranslateEntryParams = z.infer<typeof retranslateEntryParamsSchema>;
 
 /**

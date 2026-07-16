@@ -24,9 +24,9 @@ import { importLocale } from "./workbook/import-locale.js";
 
 /**
  * Proves the three write paths that consume {@link gateCandidateValue} (the provider-translation
- * path in `locale-run.ts`, workbook import's `judge()`, and the `retranslateEntry` seam) agree with
- * it, and with each other, on the same accept/reject decision for the same
- * (sourceEntry, candidateValue, adapter) input. Criterion 6 of the gated-write infrastructure ticket.
+ * path in `locale-run.ts`, workbook import, and the `retranslateEntry` seam) agree with it, and
+ * with each other, on the same accept/reject decision for the same
+ * (sourceEntry, candidateValue, adapter) input.
  */
 interface Case {
   readonly name: string;
@@ -192,7 +192,7 @@ describe.each(cases)("gateCandidateValue agreement: $name", (testCase) => {
     if (!testCase.expected.accepted) {
       expect(result).toMatchObject({ reason: testCase.expected.reason });
       const de = await readJsonFile(join(dir, "locales", "de.json")).catch(() => undefined);
-      expect(de).toBeUndefined(); // rejection writes nothing
+      expect(de).toBeUndefined();
     }
   });
 });

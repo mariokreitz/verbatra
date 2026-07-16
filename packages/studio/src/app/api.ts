@@ -1,9 +1,9 @@
 /**
- * The single rpc client, session store, and live-refresh wiring the whole app shares, wired to
- * the real browser `fetch` and `EventSource`. Kept deliberately thin: the actual client,
- * session-expiry, reconnect, and stale-data logic live in `src/client/` (covered by the coverage
- * gate); this module only supplies the DOM-backed implementations, one shared refresh bus, and
- * one shared connection-status store for the live indicator.
+ * The single rpc client, session store, and live-refresh wiring the whole app
+ * shares, bound to the real browser `fetch` and `EventSource`. The client,
+ * session-expiry, reconnect, and overlay logic live in `src/client/`; this
+ * module supplies the DOM-backed implementations, one shared refresh bus, and
+ * one shared connection-status store.
  */
 import type {
   ConnectionStatus,
@@ -20,19 +20,19 @@ import type { RefreshEvent } from "../shared/sse-events.js";
 
 const browserFetch: FetchLike = (url, init) => fetch(url, init);
 
+/** The app's single session store, shared by the rpc client and the reconnect controller. */
 export const sessionStore: SessionStore = createSessionStore();
 
+/** The app's single rpc client, bound to the browser `fetch` and {@link sessionStore}. */
 export const rpcClient: RpcClient = createRpcClient({
   fetchImpl: browserFetch,
   session: sessionStore,
 });
 
 /**
- * The needs-review queue's "actioned this session" overlay, held at module scope (like
- * {@link sessionStore} above) rather than inside the Review panel component: it must survive a
- * page switch away from and back to the panel, and reset only on a full page reload, which
- * re-runs this module and creates a fresh store. A component-local `useState` would incorrectly
- * reset on every unmount instead.
+ * The review queue's "actioned this session" overlay, held at module scope so
+ * it survives a page switch away from and back to the Review panel and resets
+ * only on a full page reload.
  */
 export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore();
 
@@ -55,8 +55,8 @@ function notifyRefresh(event: RefreshEvent): void {
 }
 
 const connectionListeners = new Set<(status: ConnectionStatus) => void>();
-// "reconnecting" until the first connection opens: the indicator starts amber for the brief
-// moment before the SSE stream is up, then turns live and stays truthful thereafter.
+
+/** Starts as "reconnecting" until the first SSE connection opens. */
 let connectionStatus: ConnectionStatus = "reconnecting";
 
 /** The live-refresh connection's current state, for the top bar's live indicator. */
@@ -72,9 +72,8 @@ export const connectionStore = {
   },
 };
 
+/** Deduplicates repeated statuses so subscribers re-render once per actual transition. */
 function notifyConnectionStatus(status: ConnectionStatus): void {
-  // The controller re-emits "reconnecting" on every error event during a native EventSource
-  // retry loop; deduplicate so subscribers re-render once per actual transition.
   if (status === connectionStatus) {
     return;
   }
@@ -101,10 +100,9 @@ function browserCreateEventSource(url: string): EventSourceLike {
 }
 
 /**
- * A cheap RPC probe used only to distinguish a terminal 401 from a transient network failure
- * (see `client/reconnect.ts`). Any reachable response that is not that specific session-expired
- * error is treated the same as a network error: both simply mean "retry with backoff", and the
- * distinction only matters for the terminal case.
+ * A cheap rpc probe that distinguishes a terminal session expiry from a
+ * transient network failure. Any outcome other than the specific
+ * session-expired error means "retry with backoff".
  */
 async function probeSession(): Promise<ProbeOutcome> {
   try {

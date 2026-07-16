@@ -8,18 +8,21 @@ import type { CliDeps, Streams, StudioSession } from "./types.js";
 const TOKEN_BYTES = 32;
 
 /**
- * The exact, ruled install hint: printed only when `@verbatra/studio` itself, not one of its own
- * dependencies, fails to resolve.
+ * The install hint, printed only when `@verbatra/studio` itself, not one of its own dependencies,
+ * fails to resolve.
  */
 const NOT_INSTALLED_HINT =
   "Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio";
 
-// Matches the bare specifier "@verbatra/studio" quoted (Node quotes it with single quotes in
-// practice; either quote character is accepted). Deliberately anchored on the quote characters so a
-// message naming a transitive dependency of @verbatra/studio (which appears unquoted, as part of a
-// file path like ".../node_modules/@verbatra/studio/dist/index.js") never matches.
+/**
+ * Matches the bare specifier "@verbatra/studio" quoted (Node quotes it with single quotes in
+ * practice; either quote character is accepted). Deliberately anchored on the quote characters so a
+ * message naming a transitive dependency of @verbatra/studio (which appears unquoted, as part of a
+ * file path like ".../node_modules/@verbatra/studio/dist/index.js") never matches.
+ */
 const STUDIO_SPECIFIER_PATTERN = /['"]@verbatra\/studio['"]/;
 
+/** Whether the error means @verbatra/studio itself (not one of its own dependencies) failed to resolve. */
 function isStudioPackageMissing(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -73,6 +76,10 @@ class InvalidPortError extends Error {
   }
 }
 
+/**
+ * Parses the `studio` options. Any schema failure maps to {@link InvalidPortError}: `--port` is the
+ * only field real commander argv can fail on (the rest are optional strings and booleans).
+ */
 function parseStudioOpts(rawOpts: unknown): StudioOpts {
   const result = studioOptsSchema.safeParse(rawOpts);
   if (!result.success) {
@@ -134,11 +141,13 @@ function watchForStop(
 }
 
 /**
- * Run the `studio` command: start Verbatra Studio, a local translation dashboard that can always
+ * Runs the `studio` command: starts Verbatra Studio, a local translation dashboard that can always
  * edit the project's own locale files but never calls a provider without `--allow-spend`. A thin
  * sequence with no server or view logic of its own: load env, resolve the spend capability, load
- * the config, dynamically import `@verbatra/studio`, start the server, print the ruled banner,
- * then wire shutdown to `requestStop`.
+ * the config, dynamically import `@verbatra/studio`, start the server, print the banner, then wire
+ * shutdown to `requestStop`. The command prints the one banner itself and silences the studio
+ * server's own output sink, so the server never prints a second, differently worded banner or
+ * per-request log lines.
  *
  * Ordering: env loads, then the spend flag is resolved, before the config ever loads and before
  * `@verbatra/studio` is ever imported. `spend` is therefore fixed before `loadConfigWithMeta`
@@ -198,9 +207,6 @@ export async function runStudio(
         loader: () => Promise.resolve(config),
         token,
         cwd,
-        // The command owns the one printed banner (the ruled string below); the studio server's own
-        // default output sink would otherwise also print its own differently-worded banner, and
-        // per-request log lines are not needed by this thin wrapper.
         output: () => {},
         spend,
         ...(opts.port !== undefined ? { port: opts.port } : {}),

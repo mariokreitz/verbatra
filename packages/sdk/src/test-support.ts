@@ -12,10 +12,12 @@ import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/co
 import type { VerbatraConfig } from "./config/schema.js";
 import type { BoundedBytesRead, BoundedFileRead, SdkFs } from "./fs.js";
 
+/** One recorded provider call: the request `translateBatch` received. */
 export interface StubCall {
   readonly request: TranslateRequest;
 }
 
+/** Behavior knobs for {@link makeStubProvider}; every field is optional. */
 export interface StubOptions {
   readonly id?: string;
   readonly kind?: "llm" | "machine-translation";
@@ -38,6 +40,7 @@ export interface StubOptions {
   readonly usage?: Usage;
 }
 
+/** The stub provider plus the mutable list of calls it records. */
 export interface StubProvider {
   readonly provider: TranslationProvider;
   readonly calls: StubCall[];
@@ -159,25 +162,31 @@ export function baseConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraCon
   };
 }
 
+/** Create a fresh temp directory for a test project. */
 export async function makeTempDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "verbatra-sdk-"));
 }
 
+/** Write a value as pretty-printed JSON with a trailing newline. */
 export async function writeJsonFile(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
+/** Read and parse a JSON file. */
 export async function readJsonFile(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
+/** Read a file as UTF-8 text. */
 export async function readTextFile(path: string): Promise<string> {
   return readFile(path, "utf8");
 }
 
 /**
- * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op ("missing" reads,
- * accepted writes), and any subset can be overridden.
+ * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op ("missing"
+ * reads, accepted writes), and any subset can be overridden. `createExclusive` defaults to an
+ * always-succeeding lock acquire, so a test that does not care about locking never has
+ * `withLocaleWriteLock` poll to its timeout.
  */
 export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
   return {
@@ -186,8 +195,6 @@ export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
     readBytesBounded: async (): Promise<BoundedBytesRead> => ({ kind: "missing" }),
     writeFile: async (): Promise<void> => {},
     writeBytes: async (): Promise<void> => {},
-    // Defaults to an always-succeeding lock acquire, so a test that does not care about locking
-    // (most tests using this fake) never has withLocaleWriteLock poll to its timeout.
     createExclusive: async (): Promise<boolean> => true,
     deleteFile: async (): Promise<void> => {},
     ...overrides,

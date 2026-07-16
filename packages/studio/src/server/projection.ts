@@ -12,10 +12,10 @@ function projectConfigSource(source: LoadedConfig["source"], projectRoot: string
 }
 
 /**
- * Derives the glossary indicator from the loader's own {@link LoadedConfig.glossary} provenance
- * (never inferred from the config's shape), relativizing a file path against the project root the
- * same way {@link projectConfigSource} does. Shared by {@link buildProjectSnapshot} and the
- * `glossary.get` handler so the relativization logic exists in exactly one place.
+ * Projects the glossary indicator from the loader's {@link LoadedConfig.glossary} provenance. A
+ * file-sourced glossary gets its path relativized against the project root and redacted; every
+ * other source is passed through as its bare `source` tag. Shared by {@link buildProjectSnapshot}
+ * and the `glossary.get` handler so the relativization exists in one place.
  */
 export function projectGlossaryIndicator(
   glossary: LoadedConfig["glossary"],
@@ -28,15 +28,14 @@ export function projectGlossaryIndicator(
 }
 
 /**
- * Builds the allowlisted, read-only view of the loaded config a client is allowed to see (the
- * config projection allowlist rule): never the raw config object, never provider options or
- * secrets, and only fields the config actually sets (no synthesized defaults, for example a
- * default batch size). `format`, `provider.id`, and `tone` are closed enums fixed by the config
- * schema and are passed through as-is; they have no free-form capacity to carry a secret. Every
- * other projected string passes through the redaction backstop.
+ * Builds the allowlisted, read-only view of the loaded config a client may see: never the raw
+ * config object, never provider options, and only optional fields the config actually sets (no
+ * synthesized defaults). `format`, `provider.id`, and `tone` are closed enums fixed by the config
+ * schema and pass through as-is; every other projected string passes through the redaction
+ * backstop.
  *
- * @param capabilities - The server's own resolved write capabilities, projected verbatim as
- *   defense-in-depth only; never the authoritative gate (see {@link ProjectSnapshotResult}).
+ * @param capabilities - The server's resolved capabilities, projected verbatim as a client hint;
+ *   never the authoritative gate.
  */
 export function buildProjectSnapshot(
   loaded: LoadedConfig,

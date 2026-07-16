@@ -1,6 +1,6 @@
 /**
- * The verbatra command-line interface: a thin wrapper over @verbatra/sdk. Each subcommand validates
- * its argv, calls one SDK entry point, and renders the result.
+ * The verbatra CLI bin shim: a thin wrapper over @verbatra/sdk. It wires the real SDK entry points,
+ * process streams, and signal handlers into `run()`, then exits with the code `run()` returns.
  *
  * Subcommands: `translate`, `watch`, `export`, `import`, `check`, `diff`, `studio`, and `init`.
  *
@@ -9,8 +9,8 @@
  * usage error); `130` `watch` or `studio` force-stopped by a second interrupt.
  *
  * API keys are read only from the environment by the SDK's providers; the CLI never takes a key.
- * `studio` reaches @verbatra/studio only through a dynamic import, so it never fails to load merely
- * because that package is not installed.
+ * `studio` reaches @verbatra/studio only through a dynamic import, so the CLI itself loads even when
+ * that package is not installed.
  *
  * @packageDocumentation
  */
@@ -28,7 +28,6 @@ import {
 } from "@verbatra/sdk";
 import { run } from "./run.js";
 
-// The bin shim is the only part touching process global state; it is kept tiny and coverage-excluded.
 const code = await run(
   process.argv.slice(2),
   {

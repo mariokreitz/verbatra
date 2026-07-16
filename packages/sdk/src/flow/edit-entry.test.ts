@@ -89,7 +89,7 @@ describe("editEntry: acceptance", () => {
 
     expect(result).toEqual({ accepted: true, value: "Hallo" });
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    expect(de).toEqual({ greeting: "Hallo", farewell: "Tschuess" }); // farewell untouched
+    expect(de).toEqual({ greeting: "Hallo", farewell: "Tschuess" });
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
@@ -150,13 +150,13 @@ describe("editEntry: rejection", () => {
       cwd: dir,
       locale: "de",
       key: "greeting",
-      value: "Hallo", // drops {{name}}
+      value: "Hallo",
     });
 
     expect(result.accepted).toBe(false);
     expect(result).toMatchObject({ accepted: false, reason: "placeholder", value: "Hallo" });
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    expect(de).toEqual({ greeting: "old" }); // unchanged
+    expect(de).toEqual({ greeting: "old" });
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json")).catch(() => undefined)) as
       | { locales: Record<string, Record<string, string>> }
       | undefined;
@@ -164,9 +164,6 @@ describe("editEntry: rejection", () => {
   });
 
   it("returns accepted: false on invalid ICU message syntax for an ICU-capable format", async () => {
-    // Plain-text source (zero placeholders on both sides) trivially passes the placeholder check;
-    // the candidate's unbalanced brace only ever trips the second, ICU-syntax check, matching
-    // integrity-gate.test.ts's own precedent for isolating this branch.
     const dir = await project({ greeting: "Hello world" }, { de: { greeting: "old" } });
 
     const result = await editEntry({
@@ -174,7 +171,7 @@ describe("editEntry: rejection", () => {
       cwd: dir,
       locale: "de",
       key: "greeting",
-      value: "Hallo {name", // malformed ICU
+      value: "Hallo {name",
     });
 
     expect(result).toMatchObject({ accepted: false, reason: "icu" });
@@ -187,9 +184,6 @@ describe("editEntry: stale-key regression", () => {
   it("throws UNKNOWN_KEY, never writing anything, when the key was removed from the source between fetch and submit", async () => {
     const dir = await project({ greeting: "Hello", farewell: "Bye" }, { de: { greeting: "old" } });
 
-    // Simulates the key being removed from the source after a caller fetched the queue but before
-    // submitting the edit: the source file on disk no longer carries the key by the time editEntry
-    // re-reads it, so this is not a cached staleness bug but a fresh read observing a real change.
     await writeJsonFile(join(dir, "locales", "en.json"), { farewell: "Bye" });
 
     const error = await editEntry({
@@ -203,7 +197,7 @@ describe("editEntry: stale-key regression", () => {
     expect(error).toBeInstanceOf(SdkError);
     expect((error as SdkError).code).toBe("UNKNOWN_KEY");
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    expect(de).toEqual({ greeting: "old" }); // unchanged
+    expect(de).toEqual({ greeting: "old" });
   });
 });
 

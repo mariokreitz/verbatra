@@ -31,8 +31,8 @@ import type { StudioServerDeps } from "./types.js";
 export type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 
 /**
- * Everything an RPC handler may read: the config resolved once at startup (G11, never re-loaded
- * per request), the project root it resolves relative paths against, and the remaining
+ * Everything an RPC handler may read: the config resolved once at startup (never re-loaded per
+ * request), the project root it resolves relative paths against, and the remaining
  * {@link StudioServerDeps} forwarded unchanged for handlers that need them.
  */
 export interface RpcHandlerDeps
@@ -41,6 +41,7 @@ export interface RpcHandlerDeps
   readonly projectRoot: string;
 }
 
+/** The handler function for one RPC method: contract-typed params and deps in, contract-typed result out. */
 export type RpcHandler<M extends RpcMethodName> = (
   params: RpcParamsFor<M>,
   deps: RpcHandlerDeps,
@@ -50,12 +51,9 @@ export type RpcHandler<M extends RpcMethodName> = (
 export type HandlersRegistry = { readonly [M in RpcMethodName]?: RpcHandler<M> };
 
 /**
- * The nine handlers present in every registry regardless of capability: `project.snapshot`,
- * `status.check`, `status.diff`, `glossary.get`, `lock.state`, `history.list`, `key.integrity`,
- * `review.queue`, and `usage.summary`. None of these ever calls a provider or writes to disk.
- * `review.queue` and `usage.summary` are both unconditional (like every other read view here)
- * even though they feed action rows or ceiling awareness elsewhere: each view half is gated only
- * on the persisted run-status data existing, never on a capability flag.
+ * The nine read handlers present in every registry regardless of capability. None of these ever
+ * calls a provider or writes to disk; each is gated only on its underlying data existing, never
+ * on a capability flag.
  */
 const readOnlyHandlers: HandlersRegistry = {
   [PROJECT_SNAPSHOT_METHOD]: snapshotHandler,
@@ -70,21 +68,17 @@ const readOnlyHandlers: HandlersRegistry = {
 };
 
 /**
- * Builds the capability-gated handlers registry: always the nine read handlers above, always
+ * Builds the capability-gated handlers registry: always the nine read handlers, always
  * `translation.editEntry` and `key.value` (writing a local locale file needs no capability flag,
  * and neither method ever calls a provider), plus `translation.retranslateEntry` and
- * `translation.translatePending` only when `capabilities.spend` is true. Called exactly once by
- * `createStudioServer`, before `listen()`; the built registry is threaded into `DispatchContext`
- * alongside `rpcDeps` and never rebuilt afterward. A spend-gated method a server was not granted
- * is simply absent from the returned record; `handleRpcBody` already falls back to
- * `METHOD_UNKNOWN` when `handlers[method]` is `undefined`, so no new gate mechanism is introduced
- * here, only a capability-dependent registry.
+ * `translation.translatePending` only when `capabilities.spend` is true. Called once by
+ * `createStudioServer` before it starts listening; the registry is never rebuilt afterward. A
+ * spend-gated method the server was not granted is simply absent from the returned record, and
+ * dispatch answers METHOD_UNKNOWN for an absent handler, so absence is the whole gate.
  *
- * The server caches no project data between requests: `project.snapshot` only reads the config
- * resolved once at startup (see {@link RpcHandlerDeps.config}), which is the one value this whole
- * dashboard intentionally holds in memory. A handler that reads anything else from disk (the
- * status, diff, lock, history, key-integrity, review-queue, usage-summary, retranslate,
- * translate-pending, edit, or key-value views) must read it fresh on every call, never caching it.
+ * The server caches no project data between requests: the config resolved once at startup (see
+ * {@link RpcHandlerDeps.config}) is the one value the dashboard holds in memory. Every handler
+ * that reads anything else from disk must read it fresh on every call.
  */
 export function createRpcHandlers(capabilities: StudioCapabilities): HandlersRegistry {
   return {

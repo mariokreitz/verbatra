@@ -10,8 +10,8 @@ import { createJsonFileAdapter } from "../json/json-file-adapter.js";
  *
  * @returns A `FormatAdapter` for `next-intl-json`. Its `read`/`write` throw the shared structured
  *   conditions documented on {@link createJsonFileAdapter} (INVALID_JSON, MAX_DEPTH_EXCEEDED,
- *   INVALID_STRUCTURE, INPUT_TOO_LARGE; never MIXED_STRUCTURE). Invalid ICU is RECORDED in
- *   `invalidIcuKeys`, not thrown. The ICU analysis is total.
+ *   INVALID_STRUCTURE, INPUT_TOO_LARGE; never MIXED_STRUCTURE). Invalid ICU is recorded in
+ *   `invalidIcuKeys`, never thrown: the ICU analysis reports a parse failure instead of raising it.
  * @example
  * ```ts
  * const adapter = createNextIntlJsonAdapter();

@@ -9,12 +9,9 @@ type StatusBadge = {
   altKey: string;
 };
 
-// Shields query params that fit the dark theme: a dark label slot and the brand purple value.
 const SHIELDS_BASE = "style=flat&labelColor=1b1b2b";
 const SHIELDS_NPM = `${SHIELDS_BASE}&logo=npm&logoColor=white&color=9c27b0`;
 
-// The GitHub Actions and Codecov endpoints ship their own SVG and ignore shields params; the
-// other four are shields badges styled through query params. All values are sourced live.
 const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
   {
     key: "cli",
@@ -54,10 +51,11 @@ const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
   },
 ];
 
-// Six linked, live-sourced trust badges. The "band" variant is a full-width ribbon; the
-// "inline" variant is the centered trust row that sits inside the hero, below the CTAs.
-// Static and presentational, so it stays a server component (the badges are live external
-// images, not a runtime fetch).
+/**
+ * Six linked trust badges sourced as live external images. The "band" variant
+ * is a full-width ribbon; the "inline" variant is the centered row inside the
+ * hero. Static server component; no runtime fetch happens here.
+ */
 export async function StatusBand({
   variant = "band",
 }: {
@@ -85,7 +83,6 @@ export async function StatusBand({
               rel="noreferrer noopener"
               className="inline-flex rounded transition-[filter] hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-fd-background"
             >
-              {/* A fixed 20px height slot reserves vertical space so the band does not shift as badges load. */}
               {/* biome-ignore lint/performance/noImgElement: external SVG badge endpoints are not optimizable by next/image. */}
               <img
                 src={badge.src}

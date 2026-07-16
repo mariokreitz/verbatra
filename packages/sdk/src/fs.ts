@@ -63,7 +63,6 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   try {
     handle = await open(path, "r");
   } catch {
-    // Missing or unreadable: treated as first-run.
     return { kind: "missing" };
   }
   try {
@@ -80,8 +79,11 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   }
 }
 
+/**
+ * Read `size` bytes from the handle into a non-pooled buffer, so the returned view owns its memory
+ * and is never aliased by a later allocation.
+ */
 async function readBoundedBytesInto(handle: FileHandle, size: number): Promise<Uint8Array> {
-  // A non-pooled buffer so the returned view owns its memory and is never aliased by a later allocation.
   const buffer = Buffer.allocUnsafeSlow(size);
   let offset = 0;
   while (offset < size) {

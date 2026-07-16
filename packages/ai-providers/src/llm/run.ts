@@ -91,6 +91,8 @@ export interface LlmMechanism {
  * gate fires here, before any mechanism call), builds the structured data channel, delegates schema-bound
  * output to the mechanism, then reconciles and runs placeholder-integrity checks on our side. An LLM
  * provider's `translateBatch` is a one-line delegation to this; only the {@link LlmMechanism} differs.
+ * Because every LLM provider delegates here, the result's `notices` is populated for all of them: an
+ * always-present empty array, since LLM providers have no graceful degradation to report.
  *
  * @param request - The provider-neutral batch request.
  * @param mechanism - The per-provider SDK body (see {@link LlmMechanism}).
@@ -141,8 +143,6 @@ export async function runLlmTranslation(
     request.extractPlaceholders,
     request.comparePlaceholders,
   );
-  // Every LLM provider delegates translateBatch to this function, so populating notices here (an
-  // always-present empty array; LLM providers never have a degradation to report) covers all four.
   const notices: readonly ProviderNotice[] = [];
   const reviewFlags = applyProviderDegraded(buildReviewFlags(data, values, integrity), notices, [
     ...values.keys(),

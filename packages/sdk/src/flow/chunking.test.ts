@@ -69,7 +69,6 @@ describe("translate: sub-batch chunking, success path", () => {
       { createProvider: () => stub.provider },
     );
 
-    // 7 entries / 3 -> calls of 3, 3, 1.
     expect(stub.calls.map((c) => c.request.entries.length)).toEqual([3, 3, 1]);
     for (const call of stub.calls) {
       expect(call.request.entries.length).toBeLessThanOrEqual(3);
@@ -181,7 +180,6 @@ function throwingBatchProvider(throwKey: string): {
 
 describe("translate: sub-batch chunking, failure isolation", () => {
   it("keeps the locale succeeded when one sub-batch throws; others are written, only the failed keys withheld", async () => {
-    // 4 entries, batch of 2 -> [k0,k1] then [k2,k3]; the second batch throws.
     const dir = await project(keyedSource(4), { de: undefined });
     const { provider } = throwingBatchProvider("k2");
 
@@ -226,12 +224,10 @@ describe("translate: sub-batch chunking, failure isolation", () => {
 
     const notices = summary.locales[0]?.notices ?? [];
     expect(notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
-    // The raw provider error text never reaches the notice.
     expect(notices.map((n) => n.message).join(" ")).not.toContain("sub-batch blew up");
   });
 
   it("withholds only the integrity-failing sub-batch's keys; passing sub-batches are accepted and locked", async () => {
-    // 4 entries, batch of 2 -> [k0,k1] then [k2,k3]; k3 fails integrity within the second batch.
     const dir = await project(keyedSource(4), { de: undefined });
     const stub = makeStubProvider({ failIntegrity: new Set(["k3"]) });
 
@@ -251,14 +247,12 @@ describe("translate: sub-batch chunking, forward progress", () => {
   it("re-requests only the previously-failed keys after a partial failure", async () => {
     const dir = await project(keyedSource(4), { de: undefined });
 
-    // Run 1: second batch (k2,k3) throws; k0,k1 accepted and locked, k2,k3 withheld.
     const first = throwingBatchProvider("k2");
     await translate(
       { config: cfg({ maxBatchSize: 2 }), cwd: dir },
       { createProvider: () => first.provider },
     );
 
-    // Run 2: everything succeeds. Only the still-unlocked k2,k3 should be requested.
     const second = makeStubProvider();
     const run2 = await translate(
       { config: cfg({ maxBatchSize: 2 }), cwd: dir },
@@ -282,7 +276,6 @@ describe("translate: sub-batch chunking default", () => {
 
     await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
 
-    // 10 entries is well under the default (50), so the common case stays a single request.
     expect(stub.calls).toHaveLength(1);
     expect(stub.calls[0]?.request.entries.length).toBe(10);
   });

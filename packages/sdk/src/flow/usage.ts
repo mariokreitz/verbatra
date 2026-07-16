@@ -10,6 +10,7 @@ export interface UsageAccumulator {
   total: UsageSummary | undefined;
 }
 
+/** Create an empty accumulator whose total starts absent. */
 export function createUsageAccumulator(): UsageAccumulator {
   return { total: undefined };
 }

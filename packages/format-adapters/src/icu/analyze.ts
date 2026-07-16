@@ -1,10 +1,11 @@
 import { type MessageFormatElement, parse, TYPE } from "@formatjs/icu-messageformat-parser";
 import type { TranslationEntry } from "@verbatra/core";
 
+/** The result of analyzing one ICU MessageFormat value without resolving it. */
 export interface IcuAnalysis {
   /**
    * Argument names ({name}/{count}) and tag names (<link>) with every occurrence preserved
-   * (not deduplicated) so integrity's multiset check sees true counts, EXCEPT across the sibling
+   * (not deduplicated) so integrity's multiset check sees true counts, except across the sibling
    * branches of the same plural/select node: a placeholder used consistently across every branch
    * is one occurrence, not one per branch, so translating into a language with more CLDR plural
    * categories than the source (for example Polish one/few/many/other versus English one/other)

@@ -3,16 +3,12 @@ import type { KeyIntegrityLocaleResult } from "../../shared/rpc/key-integrity.js
 import type { RpcHandler } from "../rpc.js";
 
 /**
- * Wraps the sdk's read-only `keyIntegrity`, scoped to exactly the one key the caller specifies:
- * for each requested (or, by default, every configured) target locale where that key is
- * currently "changed", it runs the format's placeholder or ICU integrity check and reports the
- * result. Reads the config resolved once at startup, but re-reads the source, target, and lock
- * file from disk on every call, matching `status.diff`.
- *
- * A locale where the key is not "changed" (missing, orphaned, already in sync, or simply unknown)
- * is absent from the result rather than reported as a false pass or fail. The result never carries
- * a full source or target string value, only the boolean match result and, on a mismatch, the
- * specific placeholder tokens involved.
+ * Handles `key.integrity`: runs the sdk's read-only `keyIntegrity` for exactly the one key the
+ * caller specifies, across the requested (or by default every configured) target locale, and
+ * maps each per-locale result to the RPC shape. A locale whose result carries no entry for the
+ * key is absent from the response rather than reported as a false pass or fail. The response
+ * never carries a full source or target string value, only the boolean outcomes and the
+ * placeholder tokens involved.
  */
 export const keyIntegrityHandler: RpcHandler<"key.integrity"> = async (params, deps) => {
   const results = await keyIntegrity({

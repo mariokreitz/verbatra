@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import { Card } from "./Card.js";
 
 /**
- * The fixed-position, `role="status"` toast shell `RefreshToast` renders its live-refresh content
- * into. Extracted so a future second toast use case (this dashboard has one live slot today, see
- * `client/refresh-toast.ts`'s one-slot rule) reuses the same positioning and card treatment
- * instead of re-deriving it.
+ * A fixed-position, `role="status"` toast shell in the viewport's
+ * bottom-right corner. Purely positioning and card treatment; the caller
+ * brings the content.
  */
 export function Toast({ children }: { readonly children: ReactNode }): ReactNode {
   return (

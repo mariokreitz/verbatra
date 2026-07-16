@@ -111,6 +111,11 @@ function computeRowReview(
   return reviewColumns(flag);
 }
 
+/**
+ * Build one locale sheet's rows: missing and changed keys from the lock-baseline diff, plus
+ * unchanged keys on opt-in. Rows are re-sorted by key across the status buckets so the whole sheet
+ * has a deterministic total order.
+ */
 function buildRows(
   source: LocaleResource,
   target: LocaleResource,
@@ -152,7 +157,6 @@ function buildRows(
   if (includeUnchanged) {
     add(diff.unchanged, "unchanged");
   }
-  // Re-sort across buckets so the whole sheet has a deterministic total order by key.
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 

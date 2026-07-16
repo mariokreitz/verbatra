@@ -67,8 +67,6 @@ describe("deriveIntegrityPillView", () => {
   });
 
   it("renders danger, not neutral, when a placeholder-free source received an invented target placeholder", () => {
-    // hasPlaceholders is false (the source carries none), but matches is also false: a real
-    // mismatch must never be swallowed by the "nothing to check" neutral state.
     expect(
       deriveIntegrityPillView(
         [entry({ hasPlaceholders: false, matches: false, missing: [], extra: ["{{name}}"] })],
@@ -90,8 +88,6 @@ describe("deriveIntegrityPillView", () => {
   });
 
   it("renders danger, not neutral, when a placeholder-free source received an ICU-invalid target", () => {
-    // hasPlaceholders is false and matches is true (nothing to compare on placeholders), but the
-    // ICU check still fails: the ICU-invalid branch must be reached before the neutral one.
     expect(
       deriveIntegrityPillView(
         [entry({ hasPlaceholders: false, matches: true, icuValid: false })],

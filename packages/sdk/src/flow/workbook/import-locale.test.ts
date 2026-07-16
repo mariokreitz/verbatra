@@ -52,7 +52,6 @@ function params(over: Partial<ImportLocaleParams> & { sheet: WorkbookSheet }): I
 
 describe("importLocale", () => {
   it("skips a filled row whose source key was deleted since export (orphaned source)", () => {
-    // "gone" exists in the target but no longer in the source: a stale row from an earlier export must not be accepted, judged, or treated as unknown.
     const sheet: WorkbookSheet = { locale: "de", rows: [row("gone", "Weg", "stale-hash")] };
     const result = importLocale(
       params({
@@ -66,7 +65,6 @@ describe("importLocale", () => {
     expect(result.withheld.size).toBe(0);
     expect(result.summary.translated).toEqual([]);
     expect(result.summary.integrityMismatches).toEqual([]);
-    // The deleted source surfaces through the orphaned diff bucket, not as an error.
     expect(result.summary.orphaned).toEqual(["gone"]);
   });
 
@@ -81,7 +79,6 @@ describe("importLocale", () => {
         sheet,
         source: resource("en", [src]),
         target: resource("de", []),
-        // "greet" is a row (kept, deduped); "absent" is not a row (filtered out).
         sourceInvalidIcuKeys: ["greet", "greet", "absent"],
       }),
     );
@@ -93,7 +90,7 @@ describe("importLocale", () => {
     const src = entry("items", "{n, plural, one {# item} other {# items}}");
     const sheet: WorkbookSheet = {
       locale: "de",
-      rows: [row("items", "{n, plural, one {x", contentHash(src))], // malformed ICU
+      rows: [row("items", "{n, plural, one {x", contentHash(src))],
     };
     const adapter: FormatAdapter = createNextIntlJsonAdapter();
     const result = importLocale(
@@ -111,7 +108,6 @@ describe("importLocale", () => {
   });
 
   it("accepts a filled row that reorders the same placeholder multiset", () => {
-    // A German rendering swaps the two placeholders; the multiset is unchanged, so the row is accepted.
     const src = entry("pair", "{{a}} {{b}}", ["{{a}}", "{{b}}"]);
     const sheet: WorkbookSheet = {
       locale: "de",
@@ -178,8 +174,6 @@ describe("importLocale", () => {
   });
 
   it("flags a placeholder invented in a single target branch via the adapter's comparePlaceholders", () => {
-    // Without branch-aware comparison this would flatten to a match: {author} is confined to the
-    // "other" branch of the row's translation and absent everywhere in the source.
     const src = entry("items", "{count, plural, one {# item} other {# items}}");
     const sheet: WorkbookSheet = {
       locale: "de",
@@ -268,8 +262,6 @@ describe("importLocale", () => {
   });
 
   it('accepts a filled row with reviewStatus "review" exactly like an equivalent "ok" row', () => {
-    // reviewStatus is advisory metadata from the exchange workbook, never a gate: a needs-review row
-    // must go through the same drift/placeholder/ICU rules as an "ok" row and be accepted identically.
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = {
       locale: "de",
@@ -286,9 +278,6 @@ describe("importLocale", () => {
   });
 
   it("never treats the row's context as a translation source, even a hostile one that matches nothing else", () => {
-    // Regression: the Context column carries read-only developer context, not translator input. A
-    // row whose context looks like an accepted value, an instruction, or markup must have no effect
-    // on what gets accepted; only `translation` is ever written into the accepted value.
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = {
       locale: "de",

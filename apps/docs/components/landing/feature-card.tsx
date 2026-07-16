@@ -3,14 +3,6 @@
 import { motion, useReducedMotion } from "motion/react";
 import type { ReactNode } from "react";
 
-// Aceternity "feature-block-animated-card": a dark, semi-transparent card with a subtle inset
-// highlight; a dedicated visual area at the top whose edges are faded with a radial mask,
-// containing a faint vertical glowing beam that travels down the center (the shared .vk-beam
-// keyframe, disabled under reduced motion) and a few drifting sparkle particles (motion). The
-// visual holds the pillar's skeleton; the title and body sit below. The visual is decorative
-// (aria-hidden); the title/body carry the meaning. This is the animated showcase, so it is
-// lively; under prefers-reduced-motion the beam and sparkles settle to a static frame.
-
 const SPARKLES = [
   { left: "22%", top: "28%", delay: 0, duration: 3.8 },
   { left: "68%", top: "22%", delay: 0.9, duration: 4.4 },
@@ -19,6 +11,12 @@ const SPARKLES = [
   { left: "13%", top: "64%", delay: 1.2, duration: 4.2 },
 ] as const;
 
+/**
+ * An animated feature card: a masked visual area at the top with a traveling
+ * glow beam and drifting sparkles, holding the given visual, with title and
+ * body below. The visual area is decorative (aria-hidden); title and body
+ * carry the meaning. Reduced motion settles the animation to a static frame.
+ */
 export function FeatureCard({
   title,
   body,
@@ -48,7 +46,6 @@ export function FeatureCard({
           maskImage: "radial-gradient(125% 92% at 50% 45%, #000 55%, transparent 100%)",
         }}
       >
-        {/* Vertical glowing beam down the center (CSS keyframe; reduced motion hides it). */}
         <span
           className="vk-beam pointer-events-none absolute"
           style={{
@@ -62,7 +59,6 @@ export function FeatureCard({
             animationDuration: "4.5s",
           }}
         />
-        {/* Drifting sparkle particles. */}
         {SPARKLES.map((sparkle) => (
           <motion.span
             key={`${sparkle.left}-${sparkle.top}`}

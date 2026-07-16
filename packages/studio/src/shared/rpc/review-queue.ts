@@ -7,6 +7,7 @@ export const REVIEW_QUEUE_METHOD = "review.queue";
 /** Takes no parameters: the queue always reflects the single loaded project's persisted run-status snapshot. */
 export const reviewQueueParamsSchema = z.strictObject({});
 
+/** Parsed `review.queue` params. */
 export type ReviewQueueParams = z.infer<typeof reviewQueueParamsSchema>;
 
 /**

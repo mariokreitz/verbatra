@@ -6,6 +6,7 @@ export const LOCK_STATE_METHOD = "lock.state";
 /** Takes no parameters: the lock state always reflects the single loaded project's lock-file. */
 export const lockStateParamsSchema = z.strictObject({});
 
+/** Parsed `lock.state` params. */
 export type LockStateParams = z.infer<typeof lockStateParamsSchema>;
 
 /** Per-locale key count and drift against the source and target files, from the recorded lock baseline. */

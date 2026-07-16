@@ -1,8 +1,8 @@
 /**
- * The browser half of the theme switcher: localStorage, matchMedia, and the root data-theme
- * attribute. Every decision (parsing, resolution, the option list) lives in the covered
- * `client/theme.ts`; this module only executes those decisions against real browser APIs, which
- * is why it lives in the untested app layer.
+ * The browser half of the theme switcher: localStorage, matchMedia, and the
+ * root data-theme attribute. Parsing and resolution live in
+ * `client/theme.ts`; this module executes those decisions against real
+ * browser APIs.
  */
 import {
   parseThemePreference,
@@ -14,8 +14,7 @@ import {
 
 const LIGHT_QUERY = "(prefers-color-scheme: light)";
 
-/** The stored preference, or "system" when nothing (or garbage) is stored, or storage throws
- * (Safari private windows historically did; a theme preference is never worth an error). */
+/** The stored preference, or "system" when nothing valid is stored or storage throws. */
 export function readStoredThemePreference(): ThemePreference {
   try {
     return parseThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
@@ -24,13 +23,11 @@ export function readStoredThemePreference(): ThemePreference {
   }
 }
 
-/** Persists a preference; swallows storage errors for the same reason reads do. */
+/** Persists a preference; swallows storage errors, so the choice may not survive a reload. */
 export function storeThemePreference(preference: ThemePreference): void {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, preference);
-  } catch {
-    // The switcher still applies the theme for this page load; it just won't survive a reload.
-  }
+  } catch {}
 }
 
 function systemPrefersLight(): boolean {
@@ -38,31 +35,29 @@ function systemPrefersLight(): boolean {
 }
 
 /**
- * The last preference this module applied, so the OS-change listener can honor an explicit
- * in-session choice even when persisting it failed (a full quota, a storage-less context):
- * re-reading only storage there would silently fall back to "system" and override the user's
- * explicit pick. Module-level state is safe here: the module is a singleton per page, exactly
- * like the theme it mirrors.
+ * The last preference this module applied, so the OS-change listener honors
+ * an explicit in-session choice even when persisting it failed; re-reading
+ * only storage there would fall back to "system" and override the user's
+ * pick.
  */
 let appliedPreference: ThemePreference | null = null;
 
-/** Writes the resolved theme onto the root element; styles.css keys every token off this. */
+/** Writes the resolved theme onto the root element's data-theme attribute. */
 function applyResolvedTheme(theme: ResolvedTheme): void {
   document.documentElement.dataset.theme = theme;
 }
 
-/** Resolves and applies a preference in one step: what the switcher and startup both do. */
+/** Resolves a preference against the current OS scheme and applies it to the document root. */
 export function applyThemePreference(preference: ThemePreference): void {
   appliedPreference = preference;
   applyResolvedTheme(resolveTheme(preference, systemPrefersLight()));
 }
 
 /**
- * Applies the stored preference (called once in main.tsx before the first render, so the first
- * painted frame already has the right theme) and keeps a "system" preference tracking live OS
- * changes for the lifetime of the page. The listener consults the in-memory applied preference,
- * not storage: an explicit light/dark choice made after startup must never be overridden by a
- * later OS flip, including when persisting that choice failed.
+ * Applies the stored preference once at startup and keeps a "system"
+ * preference tracking live OS changes for the lifetime of the page. The
+ * listener consults the in-memory applied preference, not storage, so an
+ * explicit in-session choice is never overridden by a later OS flip.
  */
 export function initTheme(): void {
   applyThemePreference(readStoredThemePreference());

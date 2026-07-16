@@ -2,11 +2,13 @@
 
 import { type ReactNode, useState } from "react";
 
+/** Props for CommandLine; `link` turns one token of the command into an external link. */
 export type CommandLineProps = {
   command: string;
   link?: { token: string; href: string };
 };
 
+/** A single shell command in a prompt-styled row with a copy button. */
 export default function CommandLine({ command, link }: CommandLineProps): ReactNode {
   const [copied, setCopied] = useState(false);
 
@@ -15,9 +17,7 @@ export default function CommandLine({ command, link }: CommandLineProps): ReactN
       await navigator.clipboard.writeText(command);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context); the command is still visible.
-    }
+    } catch {}
   }
 
   const tokenAt = link ? command.indexOf(link.token) : -1;

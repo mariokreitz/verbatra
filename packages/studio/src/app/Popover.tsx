@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "./lib/cn.js";
 
+/** Props for {@link Popover}. */
 export interface PopoverProps {
   readonly open: boolean;
   readonly onClose: () => void;
@@ -14,11 +15,9 @@ export interface PopoverProps {
 }
 
 /**
- * A small floating panel anchored under a trigger element, for a non-modal disclosure (extra
- * detail, a short menu) that doesn't warrant `Sheet`'s full-page backdrop and focus trap.
- * Dismisses on Escape or a click outside the anchor-plus-panel pair; deliberately does not trap
- * focus (unlike the genuinely modal `Sheet`), since a popover's whole point is staying
- * lightweight next to the page it floats over.
+ * A small floating panel anchored under a trigger element, for non-modal
+ * disclosures. Dismisses on Escape or a pointer-down outside the
+ * anchor-plus-panel pair. Deliberately does not trap focus.
  */
 export function Popover({
   open,

@@ -25,13 +25,10 @@ function statusLabel(state: ButtonState): string {
 }
 
 /**
- * Per-(key, locale) retranslate action for one failing row in {@link KeyDetailDrawer}'s status
- * table. Calls `translation.retranslateEntry` for exactly this row's pair; only ever rendered by
- * the caller when both write capabilities are granted and this row currently fails integrity (see
- * `client/retranslate-eligibility.ts`). A successful call writes the target file and the lock; the
- * resulting file change reaches this drawer through the existing SSE refresh loop
- * (`useKeyIntegrity`'s own `refreshToken` dependency), not through this component re-fetching
- * anything itself.
+ * A retranslate action for one (locale, key) pair. Calls
+ * `translation.retranslateEntry` and shows a loading or settled status label
+ * next to the button; it never re-fetches anything itself, so the resulting
+ * change reaches the UI through the live-refresh loop.
  */
 export function RetranslateButton({
   locale,

@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
+/** Props for the docs Input; `prefix` renders a mono label ahead of the field. */
 export type InputProps = {
   prefix?: string;
 } & ComponentPropsWithoutRef<"input">;
@@ -7,6 +8,7 @@ export type InputProps = {
 const WRAPPER =
   "not-prose flex items-center gap-2 rounded-[10px] border border-fd-border bg-fd-card px-3 py-2 transition-[border-color,box-shadow] focus-within:border-[var(--focus-ring)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--v-purple)_22%,transparent)]";
 
+/** The design-system text input with an optional mono prefix and a focus ring on the wrapper. */
 export default function Input({ prefix, className, ...rest }: InputProps): ReactNode {
   return (
     <div className={`${WRAPPER}${className ? ` ${className}` : ""}`}>

@@ -204,7 +204,6 @@ describe("run: shared whole-run error helper (withWholeRunErrors)", () => {
   });
 
   it("passes a data-driven 1 from a non-throwing body through without turning it into 2", async () => {
-    // A non-throwing body that returns 1 must not be remapped to the catch-to-2 path.
     const { deps } = recordingDeps({ check: async () => makeCheckSummary({ inSync: false }) });
     const cap = captureStreams();
 
@@ -371,10 +370,6 @@ describe("run: .env loading is wired before the SDK flow", () => {
 });
 
 describe("run translate: rawOpts is zod-validated inside the error scaffold", () => {
-  // translateOptsSchema's fields are all optional strings/booleans, which real commander argv always
-  // produces correctly, so no CLI flag can organically trigger a ZodError here. runTranslate is
-  // exported so this test can call it directly with a malformed rawOpts instead, proving the parse
-  // failure is caught by the scaffold rather than escaping as an unhandled rejection.
   it("a malformed rawOpts renders a structured error and exits 2, never throws", async () => {
     const { deps, calls } = recordingDeps();
     const cap = captureStreams();

@@ -64,11 +64,6 @@ describe("lock-file", () => {
   });
 
   it("a lock-file with version 0 is LOCK_FILE_INVALID (schema floor, not reachable version-check)", async () => {
-    // CURRENT_VERSION = 1 and the schema requires a positive integer, so 1 is the lowest value
-    // that can ever pass shape validation: a "version below CURRENT_VERSION" case is unreachable
-    // today. This confirms version 0 is still rejected, via the pre-existing shape check; the
-    // version-equality check below it is deliberately `!==`, not `>`, so it would also reject an
-    // older version once CURRENT_VERSION is ever raised above 1.
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
     await writeFile(path, JSON.stringify({ version: 0, locales: {} }), "utf8");
@@ -86,7 +81,7 @@ describe("lock-file", () => {
   it("readFileBounded reports too-large above the cap, ok below it, missing when absent", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
-    await writeFile(path, "hello world", "utf8"); // 11 bytes
+    await writeFile(path, "hello world", "utf8");
     expect(await defaultFs.readFileBounded(path, 5)).toEqual({ kind: "too-large" });
     expect(await defaultFs.readFileBounded(path, 100)).toEqual({
       kind: "ok",
@@ -110,10 +105,6 @@ describe("lock-file", () => {
   it("writes atomically: overwrite leaves valid content and no leftover temp file", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
-    // Writes the raw lock content directly through defaultFs, bypassing updateLockFileLocale's own
-    // lock guard: this test is about defaultFs.writeFile's own atomic-overwrite property, not the
-    // lock-file update semantics, and the guard would leave a `.verbatra-local/` directory behind
-    // that would break the exact-one-entry assertion below.
     await defaultFs.writeFile(
       path,
       `${JSON.stringify({ version: 1, locales: { de: { a: "1" } } })}\n`,
@@ -182,9 +173,6 @@ describe("updateLockFileLocale: merge mode", () => {
   });
 
   it("performs exactly one read and one write, no internal retry loop", async () => {
-    // updateLockFileLocale no longer guards its own concurrency (that is withLocaleWriteLock's
-    // job): it is a plain read-modify-write, so it must touch the file system exactly once each way
-    // regardless of what it reads.
     let reads = 0;
     const writes: string[] = [];
     const fs = makeFakeFs({
@@ -210,12 +198,6 @@ describe("updateLockFileLocale: merge mode", () => {
 
 describe("updateLockFileLocale: the internal lock-file guard serializes concurrent different-locale writers", () => {
   it("never overlaps two read-modify-write steps, even across two different locales (regression guard for the shared lock-file race)", async () => {
-    // withLocaleWriteLock only serializes writers for the SAME locale; two different locales are
-    // allowed to run their own critical sections fully concurrently by design. Both still
-    // read-modify-write the one shared lock-file, so without updateLockFileLocale's own internal
-    // withLockFileGuard, this scenario loses one locale's update exactly like the old,
-    // now-removed compare-and-swap was built to prevent (see lock-file-race.test.ts for the same
-    // proof through real disk I/O and real timing).
     let content = `${JSON.stringify({ version: 1, locales: {} })}\n`;
     const held = new Set<string>();
     let insideCount = 0;
@@ -226,8 +208,6 @@ describe("updateLockFileLocale: the internal lock-file guard serializes concurre
       readFileBounded: async (): Promise<BoundedFileRead> => {
         insideCount += 1;
         maxInsideCount = Math.max(maxInsideCount, insideCount);
-        // Forces the read-to-write span to be wide enough that, absent the guard, a concurrent
-        // caller's own read would start while this one is still in flight.
         await new Promise((res) => setTimeout(res, 10));
         return { kind: "ok", content };
       },

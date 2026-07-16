@@ -25,6 +25,7 @@ type BuildWriteTree = (
   filePath: string,
 ) => unknown | Promise<unknown>;
 
+/** The format-specific behavior {@link createJsonFileAdapter} builds an adapter from. */
 export interface JsonFileAdapterOptions {
   readonly format: SupportedFormat;
   readonly deriveEntry: DeriveEntry;

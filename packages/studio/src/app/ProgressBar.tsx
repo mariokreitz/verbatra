@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
 /**
- * A thin horizontal meter for a 0-100 percentage: locale coverage, budget consumption. Decorative
- * by default (`aria-hidden`), for the common case where the number it visualizes is already
- * printed right next to it; pass `ariaLabel` only when the bar is the sole carrier of the value,
- * which also switches it to a real `role="progressbar"` with the value wired up.
+ * A thin horizontal meter for a 0-100 percentage. Decorative by default
+ * (`aria-hidden`); pass `ariaLabel` when the bar is the sole carrier of the
+ * value, which switches it to `role="progressbar"` with the value wired up.
  */
 export function ProgressBar({
   percent,
@@ -13,7 +12,7 @@ export function ProgressBar({
   ariaLabel,
   className,
 }: {
-  /** Clamped to 0-100 before rendering; callers pass whatever their data source reports. */
+  /** Clamped to 0-100 before rendering. */
   readonly percent: number;
   /** "danger" for an exhausted budget or an alarming level; "primary" otherwise. */
   readonly tone?: "primary" | "danger";

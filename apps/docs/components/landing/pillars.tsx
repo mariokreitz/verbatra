@@ -9,10 +9,6 @@ import {
 import { Section } from "./section";
 import { SectionHead } from "./section-head";
 
-// verbatra's three core capabilities, reframing it as the whole translation loop rather than
-// only AI translation. A single row of three animated feature-block cards (stacks on mobile).
-// Server shell: the copy renders on the server; each FeatureCard (beam + sparkles) and its
-// skeleton visual is a client leaf. The visuals are decorative; title and body carry meaning.
 type Pillar = { key: string; visual: ReactNode };
 
 const PILLARS: ReadonlyArray<Pillar> = [
@@ -21,6 +17,11 @@ const PILLARS: ReadonlyArray<Pillar> = [
   { key: "automation", visual: <AutomationSkeleton /> },
 ];
 
+/**
+ * The three-pillar section (AI translation, Excel handoff, automation) as a
+ * row of animated feature cards. Server shell; each FeatureCard and its
+ * skeleton visual is a client leaf.
+ */
 export async function Pillars(): Promise<ReactNode> {
   const t = await getTranslations("landing.pillars");
   return (

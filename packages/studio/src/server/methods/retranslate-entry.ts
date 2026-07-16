@@ -2,13 +2,13 @@ import { retranslateEntry } from "@verbatra/sdk";
 import type { RpcHandler } from "../rpc.js";
 
 /**
- * Wraps the sdk's `retranslateEntry`: a single-entry provider call gated through the shared
- * integrity check before anything reaches disk, scoped to exactly the requested `(locale, key)`
- * pair. Only reachable when `createRpcHandlers` registered it, which requires the `spend`
- * capability. Reads the config resolved once at startup, but re-reads the source,
- * target, and lock file fresh from disk on every call, exactly like the read-only views. Reaches a
- * provider only through the sdk's own `selectProvider`, the same seam the one-shot translate flow
- * uses; this handler never reads the process environment or any provider-specific variable itself.
+ * Handles `translation.retranslateEntry` by delegating to the sdk's `retranslateEntry`: one
+ * provider call for exactly the requested locale and key, with the sdk's integrity check applied
+ * before anything reaches disk. Registered only when the `spend` capability is granted. It uses
+ * the config resolved once at startup but reads the locale and lock files fresh on every call.
+ * The handler never reads the process environment or constructs a provider itself; it forwards
+ * the optional `fs`, `adapterRegistry`, and `createProvider` seams to the sdk and lets the sdk
+ * resolve its own defaults for any that are absent.
  */
 export const retranslateEntryHandler: RpcHandler<"translation.retranslateEntry"> = async (
   params,

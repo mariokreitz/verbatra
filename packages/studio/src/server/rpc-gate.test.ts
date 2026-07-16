@@ -261,8 +261,6 @@ describe("dispatchRpc envelope", () => {
   });
 
   it("does not rate-limit a method the limiter has no rule for", async () => {
-    // A real limiter with a rule only for translation.retranslateEntry: project.snapshot is
-    // untouched by any rule, so it must succeed regardless of how tight that other rule is.
     const limiter = createRpcRateLimiter({
       "translation.retranslateEntry": { windowMs: 1000, maxCalls: 0 },
     });
@@ -337,8 +335,6 @@ describe("dispatchRpc envelope", () => {
   });
 
   it("does not guard a method the in-flight guard has no rule for", async () => {
-    // A real guard whose only guarded method is translation.translatePending: project.snapshot is
-    // untouched by it, so it must succeed regardless of that other method's own state.
     const guard = createRpcInFlightGuard(new Set(["translation.translatePending"]));
     guard.tryEnter("translation.translatePending");
 

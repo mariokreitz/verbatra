@@ -430,8 +430,6 @@ describe("runGitLog against a real temporary git repository", () => {
       await commitFile(source.root, "locales/de.json", '{"a":"2"}\n');
       await commitFile(source.root, "locales/de.json", '{"a":"3"}\n');
 
-      // "file://" forces a real shallow clone: a plain local path clone ignores --depth entirely
-      // and copies the full history instead (git prints a warning to that effect).
       await execFileAsync("git", ["clone", "--depth", "1", `file://${source.root}`, cloneRoot]);
 
       const result = await runGitLog({

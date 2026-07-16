@@ -1,12 +1,12 @@
 import { createTsupConfig } from "@verbatra/config/tsup";
 
-// The bin entry (index.ts) ships no d.ts; per-entry dts emits declarations only for the library entry
-// (lib.ts). The shebang banner is inert on lib.js (Node strips a leading hashbang) and absent from lib.d.ts.
-//
-// external: ["@verbatra/studio"] keeps the studio command's `await import("@verbatra/studio")` a
-// genuine runtime import in the built dist/index.js instead of tsup inlining it. @verbatra/studio is
-// a devDependency only, never a dependency or peerDependency, so tsup would not externalize it by
-// default.
+/**
+ * Bundles the bin entry (index.ts) and the library entry (lib.ts) as ESM. Only lib.ts gets a d.ts;
+ * the shebang banner is inert on lib.js (Node strips a leading hashbang) and absent from lib.d.ts.
+ * `external: ["@verbatra/studio"]` keeps the studio command's `await import("@verbatra/studio")` a
+ * genuine runtime import in dist/index.js instead of tsup inlining it; @verbatra/studio is a
+ * devDependency only, so tsup would not externalize it by default.
+ */
 export default createTsupConfig({
   entry: ["src/index.ts", "src/lib.ts"],
   format: ["esm"],

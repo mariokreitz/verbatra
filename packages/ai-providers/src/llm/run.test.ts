@@ -129,7 +129,6 @@ describe("runLlmTranslation: untrusted-input boundary", () => {
       glossary?: Record<string, string>;
       items: Array<{ key: string; value: string }>;
     };
-    // The hostile value travels only inside the serialized data payload, never as a separate channel.
     expect(payload.items[0]?.value).toBe(hostile);
     expect(payload.tone).toBe("formal");
     expect(payload.glossary).toEqual({ Hello: "Hi" });
@@ -158,8 +157,6 @@ describe("runLlmTranslation: comparePlaceholders wiring", () => {
 
     const result = await runLlmTranslation(request({ comparePlaceholders }), mechanism);
 
-    // The comparator's own result is used verbatim, proving it ran instead of extractPlaceholders
-    // plus checkPlaceholders (which would have reported a match for this pair).
     expect(result.integrity.get("greeting")).toEqual({
       matches: false,
       missing: [],
@@ -242,7 +239,6 @@ describe("runLlmTranslation: bounded reconcile repair", () => {
   it("runs placeholder-integrity on a value recovered in the repair round, catching an adversarial mismatch", async () => {
     const { mechanism } = sequencedMechanism([
       { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
-      // The repair-round value drops the placeholder: integrity must still catch it, not skip it.
       { raw: rawResult([{ key: "b", value: "Tschuess, no placeholder here" }]) },
     ]);
     const result = await runLlmTranslation(twoEntryRequest(), mechanism);
@@ -255,7 +251,6 @@ describe("runLlmTranslation: bounded reconcile repair", () => {
   it("withholds a key still missing after the repair cap without an infinite loop", async () => {
     const { mechanism, inputs } = sequencedMechanism([
       { raw: rawResult([{ key: "a", value: "Hallo {{name}}" }]) },
-      // The repair round still omits "b": the cap is exhausted, so no third call is made.
       { raw: rawResult([]) },
     ]);
     const result = await runLlmTranslation(twoEntryRequest(), mechanism);

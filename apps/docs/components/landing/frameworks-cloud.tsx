@@ -16,9 +16,6 @@ import { type SwapLogo, SwapLogoCloud } from "./swap-logo-cloud";
 
 const ICON_SIZE = 28;
 
-// The pool: frameworks that genuinely use a JSON locale format verbatra reads (next-intl,
-// i18next, vue-i18n, ngx-translate) or Flutter ARB. React and React Native both use i18next,
-// so they share the React mark.
 const FRAMEWORKS: ReadonlyArray<SwapLogo> = [
   {
     key: "react",
@@ -72,7 +69,11 @@ const FRAMEWORKS: ReadonlyArray<SwapLogo> = [
   },
 ];
 
-// Server shell: the centered heading renders on the server; the swap cloud is the client leaf.
+/**
+ * The frameworks compatibility section: a rotating logo cloud of frameworks
+ * whose locale formats verbatra reads. Server shell; the swap cloud is the
+ * client leaf.
+ */
 export async function FrameworksCloud(): Promise<ReactNode> {
   const t = await getTranslations("landing.compat");
   return (

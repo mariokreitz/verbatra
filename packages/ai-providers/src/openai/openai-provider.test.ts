@@ -170,8 +170,6 @@ describe("createOpenAiProvider: mapping and integrity", () => {
   });
 
   it("retries a missing key once, then withholds it rather than throwing when it stays missing", async () => {
-    // The stub always answers with the same fixed response, so the bounded repair round finds the
-    // key missing again: it is withheld from the result instead of failing the whole call.
     const missing = openAiStubClient(openAiResult([]));
     const result = await createOpenAiProvider(config, { client: missing.client }).translateBatch(
       request(),
@@ -273,7 +271,6 @@ describe("createOpenAiProvider: output truncation", () => {
   });
 
   it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
-    // Truncation must win over reconciliation because it is detected first.
     const { client } = openAiStubClient(
       truncatedOpenAiCompletion([
         { key: "greeting", value: "Hallo {{name}}" },

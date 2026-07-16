@@ -56,8 +56,11 @@ export function assertNotMixed(tree: JsonRecord): void {
   assertNoDottedNestedKey(tree);
 }
 
-// A missing, unreadable, or over-size destination is not read and defaults to nested, so the write
-// path stays bounded by the same limit as the read path.
+/**
+ * Detect the destination file's structure style. A missing, unreadable, or over-size destination is
+ * not read and defaults to nested, so the write path stays bounded by the same limit as the read
+ * path.
+ */
 async function detectStyle(filePath: string): Promise<Style> {
   let parsed: unknown;
   try {

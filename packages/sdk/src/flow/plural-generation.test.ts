@@ -67,7 +67,6 @@ describe("translate: plural-category generation (supported case)", () => {
     );
 
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
-    // pl requires one, few, many, other. one/other are translated; few/many are generated.
     expect(pl.items_one).toBeDefined();
     expect(pl.items_other).toBeDefined();
     expect(pl.items_few).toBeDefined();
@@ -82,7 +81,6 @@ describe("translate: plural-category generation (supported case)", () => {
   it("generated forms carry the source placeholder set; a mismatch is withheld and the warning remains", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: {} });
 
-    // items_few fails integrity; the set stays incomplete so the warning remains.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       {
@@ -103,8 +101,6 @@ describe("translate: plural-category generation (supported case)", () => {
   it("withholds a generated key still missing from the response under providerFailures, not integrityMismatches", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: {} });
 
-    // The provider call succeeds but returns no value for items_few at all (nothing translated for
-    // it), distinct from a value that came back and failed the placeholder-integrity check.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       {
@@ -122,25 +118,20 @@ describe("translate: plural-category generation (supported case)", () => {
 });
 
 describe("translate: divergent source placeholders across plural categories", () => {
-  // items_one carries an extra {{unit}} that items_other omits; items_other is the preferred representative, so generated forms are integrity-checked against its {{count}}-only set.
   const DIVERGENT = { items_one: "{{count}} {{unit}}", items_other: "{{count}} items" };
-  // Seeded source forms are unchanged with no lock baseline, so they are not re-translated; only the generated few/many forms flow through the integrity provider.
   const SEEDED_TARGET = { items_one: "{{count}} sztuka", items_other: "{{count}} sztuk" };
 
   it("validates a generated form against the _other representative set and writes a matching form", async () => {
     const dir = await project(DIVERGENT, { pl: SEEDED_TARGET });
 
-    // Produce a value carrying exactly the representative ({{count}}) set: matches, so it is written.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       { createProvider: () => makeIntegrityProvider((value) => `[pl] ${value}`) },
     );
 
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
-    // The representative is items_other ("{{count}} items"): the generated forms carry only {{count}}.
     expect(pl.items_few).toContain("{{count}}");
     expect(pl.items_few).not.toContain("{{unit}}");
-    // The seeded source forms are untouched (unchanged), so only few/many are generated.
     expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
     expect(summary.locales[0]?.translated).toEqual([]);
     expect(summary.locales[0]?.integrityMismatches).toEqual([]);
@@ -149,7 +140,6 @@ describe("translate: divergent source placeholders across plural categories", ()
   it("withholds a generated form whose placeholders match items_one but not the items_other representative", async () => {
     const dir = await project(DIVERGENT, { pl: SEEDED_TARGET });
 
-    // The produced value adds {{unit}} (the non-representative items_one set), an extra placeholder against the items_other representative, so the generated forms are withheld.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       { createProvider: () => makeIntegrityProvider((value) => `[pl] ${value} {{unit}}`) },
@@ -158,21 +148,17 @@ describe("translate: divergent source placeholders across plural categories", ()
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeUndefined();
     expect(pl.items_many).toBeUndefined();
-    // The seeded source forms survive untouched (unchanged, not re-translated).
     expect(pl.items_one).toBe("{{count}} sztuka");
     expect(pl.items_other).toBe("{{count}} sztuk");
     expect(summary.locales[0]?.generated).toEqual([]);
     expect(summary.locales[0]?.translated).toEqual([]);
     expect(summary.locales[0]?.integrityMismatches).toEqual(["items_few", "items_many"]);
-    // Set still incomplete, so the warning remains.
     expect(hasNotice(summary.locales[0]?.notices ?? [])).toBe(true);
   });
 });
 
 describe("translate: reordered placeholders in a generated plural form", () => {
-  // The representative items_other form carries two placeholders; a generated form that reorders them is a valid same-multiset translation.
   const REORDER_SOURCE = { items_one: "{{count}} {{unit}}", items_other: "{{count}} {{unit}}" };
-  // Seeded target forms are unchanged with no lock baseline, so only the generated few/many forms flow through the integrity provider.
   const REORDER_SEEDED = {
     items_one: "{{count}} {{unit}} eins",
     items_other: "{{count}} {{unit}} andere",
@@ -202,7 +188,6 @@ describe("translate: reordered placeholders in a generated plural form", () => {
 
 describe("translate: multiple plural base keys, mixed completeness", () => {
   it("warns and generates only for the incomplete base key, leaving the complete one untouched", async () => {
-    // `done` is already complete for pl (one/few/many/other); `items` is missing few/many.
     const source = {
       done_one: "{{count}} done",
       done_few: "{{count}} done (few)",
@@ -218,12 +203,10 @@ describe("translate: multiple plural base keys, mixed completeness", () => {
       { createProvider: () => makeStubProvider().provider },
     );
 
-    // Generation touches only the incomplete base: items_few / items_many, never any done_* key.
     expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
-    expect(pl.done_few).toBeDefined(); // translated from source, not generated
+    expect(pl.done_few).toBeDefined();
     expect(pl.items_few).toBeDefined();
-    // items is now complete too, so the per-base check clears the warning for the locale.
     expect(hasNotice(summary.locales[0]?.notices ?? [])).toBe(false);
   });
 
@@ -238,7 +221,6 @@ describe("translate: multiple plural base keys, mixed completeness", () => {
     };
     const dir = await project(source, { pl: {} });
 
-    // items_few is withheld, so the items base stays incomplete and the warning must remain.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       {
@@ -254,10 +236,8 @@ describe("translate: multiple plural base keys, mixed completeness", () => {
 
 describe("translate: a language needing more than two missing categories (Arabic)", () => {
   it("generates each missing category with a mix of pass and withhold", async () => {
-    // ar requires zero/one/two/few/many/other; source supplies one/other, so four are missing.
     const dir = await project(PLURAL_SOURCE, { ar: {} });
 
-    // two and many are withheld for integrity; zero and few pass, exercising the per-item loop beyond two categories.
     const summary = await translate(
       { config: cfg({ targetLocales: ["ar"] }), cwd: dir, generatePlurals: true },
       {
@@ -275,7 +255,6 @@ describe("translate: a language needing more than two missing categories (Arabic
     const locale = summary.locales[0];
     expect(locale?.generated).toEqual(["items_few", "items_zero"]);
     expect(locale?.integrityMismatches).toEqual(["items_many", "items_two"]);
-    // Two required categories are still missing, so the warning remains.
     expect(hasNotice(locale?.notices ?? [])).toBe(true);
   });
 
@@ -440,7 +419,6 @@ describe("translate: plural generation lock and re-run", () => {
       { createProvider: () => makeStubProvider().provider },
     );
 
-    // Change the source other-form: the generated few/many are derived from it, so they must be reconsidered.
     await writeJsonFile(join(dir, "locales", "en.json"), {
       items_one: "{{count}} item",
       items_other: "{{count}} ITEMS CHANGED",
@@ -462,7 +440,6 @@ describe("translate: plural generation lock and re-run", () => {
         createProvider: () => makeStubProvider({ failIntegrity: new Set(["items_few"]) }).provider,
       },
     );
-    // Next run, integrity passes: items_few must be retried (it was never locked as complete).
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true },
       { createProvider: () => makeStubProvider().provider },
@@ -480,7 +457,6 @@ describe("translate: plural generation lock and re-run", () => {
       { config: cfg(), cwd: dir, generatePlurals: true },
       { createProvider: () => makeStubProvider().provider },
     );
-    // Second run with prune on: generated few/many are not source keys, but must not be removed.
     const summary = await translate(
       { config: cfg(), cwd: dir, generatePlurals: true, prune: true },
       { createProvider: () => makeStubProvider().provider },
@@ -515,7 +491,6 @@ describe("translate: plural generation determinism", () => {
 });
 
 describe("translate: generation off does not protect a source-absent plural-shaped key from pruning", () => {
-  // The target carries a stale items_few with no corresponding source form; with generation off it is a true orphan, reported and (with prune on) removed.
   const STALE_TARGET = {
     items_one: "{{count}} sztuka",
     items_other: "{{count}} sztuk",
@@ -540,7 +515,6 @@ describe("translate: generation off does not protect a source-absent plural-shap
 
   it("a prior lock entry for the pruned items_few does not survive when generation is off", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: STALE_TARGET });
-    // Seed a lock that wrongly carries an entry for the soon-to-be-pruned items_few key.
     await writeFile(
       lockPath(dir),
       `${JSON.stringify({ version: 1, locales: { pl: { items_few: "leftover" } } }, null, 2)}\n`,
@@ -568,7 +542,6 @@ describe("translate: generation off does not protect a source-absent plural-shap
 
     expect(summary.locales[0]?.orphaned).toEqual([]);
     expect(summary.locales[0]?.pruned).toEqual([]);
-    // The key is protected from pruning because its base has source plural forms; it is regenerated this run, but the point is it is never reported or pruned.
     const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
     expect(pl.items_few).toBeDefined();
   });
@@ -610,9 +583,6 @@ function throwingKeyProvider(throwKey: string): {
 
 describe("translate: plural generation respects maxBatchSize", () => {
   it("splits a large stale generation set into multiple bounded provider requests", async () => {
-    // ar requires zero/one/two/few/many/other; the target already carries one/other (unchanged, no
-    // baseline), so only the four missing forms (zero, two, few, many) are stale. maxBatchSize of 2
-    // must split them into two requests of at most 2 entries each, never one oversized call.
     const dir = await project(PLURAL_SOURCE, {
       ar: { items_one: "seeded one", items_other: "seeded other" },
     });
@@ -647,8 +617,6 @@ describe("translate: plural generation respects maxBatchSize", () => {
       { createProvider: () => stub.provider },
     );
 
-    // pl needs only few/many beyond one/other, and those two are also translated in one call, so the
-    // stale generation set (2 items) fits in a single request under the default-sized batch.
     const generationCalls = stub.calls.filter((c) =>
       c.request.entries.every((e) => e.key === "items_few" || e.key === "items_many"),
     );
@@ -695,8 +663,6 @@ describe("translate: plural generation and the token budget", () => {
     );
 
     const locale = summary.locales[0];
-    // Main translation (items_one, items_other) trips the budget on its only sub-batch and is accepted;
-    // generation's stale items (items_few, items_many) are never sent to the provider.
     expect([...(locale?.translated ?? [])].sort()).toEqual(["items_one", "items_other"]);
     expect(locale?.generated).toEqual([]);
     expect([...(locale?.budgetWithheld ?? [])].sort()).toEqual(["items_few", "items_many"]);
@@ -708,9 +674,6 @@ describe("translate: plural generation and the token budget", () => {
   });
 
   it("trips the budget during generation's own sub-batches, withholding the remaining generation batch", async () => {
-    // Main translation has nothing new to send (items_one/items_other are already unchanged), so the
-    // trip must happen inside generation's own sub-batches: [items_zero, items_two] then [items_few,
-    // items_many], chunked at size 2.
     const dir = await project(PLURAL_SOURCE, {
       ar: { items_one: "seeded one", items_other: "seeded other" },
     });
@@ -740,9 +703,6 @@ describe("translate: plural generation and the token budget", () => {
 
 describe("translate: a failed plural-generation sub-batch does not discard accepted work", () => {
   it("withholds only the thrown sub-batch's forms; main translations and the other sub-batch survive", async () => {
-    // ar: four stale forms (zero, two, few, many) chunked at size 2 -> [zero, two] then [few, many].
-    // The first sub-batch throws; main translations (items_one, items_other, newly missing) must still
-    // be accepted and written, and the second generation sub-batch must still succeed.
     const dir = await project(PLURAL_SOURCE, { ar: {} });
     const { provider, calls } = throwingKeyProvider("items_two");
 
@@ -752,14 +712,11 @@ describe("translate: a failed plural-generation sub-batch does not discard accep
     );
 
     expect(summary.locales[0]?.status).toBe("succeeded");
-    // Main translations, paid for before generation ever runs, are not discarded by the later failure.
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual([
       "items_one",
       "items_other",
     ]);
-    // Only the thrown sub-batch's forms are withheld; the other sub-batch is accepted.
     expect(summary.locales[0]?.generated).toEqual(["items_few", "items_many"]);
-    // A thrown provider call is a provider failure, never an integrity mismatch: nothing was translated.
     expect(summary.locales[0]?.integrityMismatches).toEqual([]);
     expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual([
       "items_two",
@@ -775,7 +732,6 @@ describe("translate: a failed plural-generation sub-batch does not discard accep
     expect(ar.items_zero).toBeUndefined();
     expect(ar.items_two).toBeUndefined();
 
-    // The file was written even though a generation sub-batch threw: the run never aborted.
     expect(calls.length).toBeGreaterThan(1);
   });
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// Landing pieces for the /docs index hero. The deep brand purple is only used as a filled surface, never as text on the dark background, where it would fall below AA contrast.
+/** The glowing verbatra V mark as an inline SVG. */
 export function VMark({ size = 44 }: { size?: number }) {
   return (
     <svg
@@ -38,6 +38,7 @@ const LANES: ReadonlyArray<Lane> = [
   { href: "/docs/ci-and-exit-codes", tag: "Going to prod", label: "Wire up CI" },
 ];
 
+/** Three fixed entry-lane cards for the docs index; the primary lane renders filled, the others outlined. */
 export function LaneCards() {
   return (
     <div className="not-prose my-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -93,6 +94,7 @@ const REFERENCES: ReadonlyArray<[label: string, href: string]> = [
   ["action", "/docs/github-action"],
 ];
 
+/** A dot-separated row of quick links to the reference docs pages. */
 export function ReferenceRow() {
   return (
     <div className="not-prose flex flex-wrap items-center gap-y-2 font-mono text-sm text-fd-muted-foreground">

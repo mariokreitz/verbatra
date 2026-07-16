@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { Locale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 
-// Legal pages reuse the home chrome so nav and footer match the marketing site.
+/** Wraps the legal pages in the home chrome so nav and footer match the marketing site. */
 export default async function Layout({
   params,
   children,

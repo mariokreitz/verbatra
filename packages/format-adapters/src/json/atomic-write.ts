@@ -20,15 +20,15 @@ async function fsyncPath(path: string): Promise<void> {
   }
 }
 
-// Best-effort by design: a directory cannot be opened for fsync at all on some platforms
-// (Windows), and the visible part of the write (the rename) has already durably completed by
-// the time this runs, so a failure here must never fail the call.
+/**
+ * Fsync a directory, swallowing any failure. Best-effort by design: a directory cannot be opened
+ * for fsync at all on some platforms (Windows), and the visible part of the write (the rename) has
+ * already durably completed by the time this runs, so a failure here must never fail the call.
+ */
 async function fsyncDirBestEffort(path: string): Promise<void> {
   try {
     await fsyncPath(path);
-  } catch {
-    // Swallowed on purpose; see the comment above.
-  }
+  } catch {}
 }
 
 const nodeOps: AtomicWriteOps = {
@@ -39,12 +39,11 @@ const nodeOps: AtomicWriteOps = {
   rm: (path) => rm(path, { force: true }),
 };
 
+/** Remove the temp file, swallowing any failure so it never shadows the original fs error. */
 async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
   try {
     await ops.rm(tmp);
-  } catch {
-    // Swallowed on purpose: a cleanup failure must not shadow the original fs error.
-  }
+  } catch {}
 }
 
 /**
@@ -84,7 +83,5 @@ export async function atomicWriteFile(
   }
   try {
     await ops.fsyncDir(dirname(path));
-  } catch {
-    // Swallowed on purpose; see the docstring.
-  }
+  } catch {}
 }

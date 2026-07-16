@@ -16,6 +16,13 @@ import { i18n, type Locale } from "@/lib/i18n";
 import { source } from "@/lib/source";
 import { techArticleLd } from "@/lib/structured-data";
 
+/**
+ * Renders a docs page from the Fumadocs source. The docs home ships its own
+ * full-bleed hero, so title, description, table of contents, footer, and page
+ * padding are suppressed there; every other page keeps the standard chrome.
+ * Non-English pages get a translation notice linking to the English original,
+ * and "Edit this page" points at the page's own locale-suffixed source file.
+ */
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
   const lang = params.lang as Locale;
@@ -24,18 +31,8 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
 
   const MDX = page.data.body;
 
-  // The docs home renders its own full-bleed hero (with its own h1), so the default title,
-  // description, table of contents, breadcrumb, and prev/next footer are suppressed there. The
-  // article also drops its max-width and padding for the home so the hero can span the full
-  // content area edge to edge; the home MDX re-contains the below-hero content in <DocsHomeBody>.
-  // The footer is dropped because its single "next" card renders full width (there is no prev)
-  // and duplicates the home's entry cards, which are the real, uniform-size navigation. Every
-  // other page keeps the standard docs chrome.
   const isHome = !params.slug || params.slug.length === 0;
 
-  // Non-English docs pages are machine-translated (UI strings by verbatra, content by hand),
-  // so a transparency notice links back to the authoritative English original. The home is
-  // excluded so the notice never sits above the full-bleed hero.
   const isTranslated = lang !== i18n.defaultLanguage;
   const englishHref = `/docs${params.slug && params.slug.length > 0 ? `/${params.slug.join("/")}` : ""}`;
   const translationNote =
@@ -43,15 +40,6 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
       ? await getTranslations({ locale: lang, namespace: "docs.machineTranslated" })
       : null;
 
-  // The right-hand table of contents (rendered by DocsPage's default `toc` slot) already
-  // gives page-level wayfinding, so the breadcrumb trail is redundant chrome and stays off
-  // for every page, not just the home.
-  //
-  // "Edit this page" points at this exact page's own source file (`page.path`, relative to
-  // `content/docs`), including its locale suffix where one applies, so a reader editing the
-  // German page lands on `page.de.mdx`, the file that actually produced what they are
-  // reading, not the English source they cannot use to fix it. The home is excluded, same as
-  // the breadcrumb and footer, since it has no matching content file to edit.
   const editHref = isHome
     ? null
     : `https://github.com/mariokreitz/verbatra/blob/main/apps/docs/content/docs/${page.path}`;
@@ -92,10 +80,16 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   );
 }
 
+/** Static params for every docs page in every locale. */
 export function generateStaticParams() {
   return source.generateParams();
 }
 
+/**
+ * Per-page metadata with hreflang alternates pairing each translation of the
+ * page, plus OpenGraph and Twitter cards carrying this page's own title and
+ * description instead of the layout defaults.
+ */
 export async function generateMetadata(props: {
   params: Promise<{ slug?: string[]; lang: string }>;
 }): Promise<Metadata> {
@@ -103,8 +97,6 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug, params.lang as Locale);
   if (!page) notFound();
 
-  // Per-page hreflang alternates: pair each translation of this page so search engines serve
-  // the right locale. The sitemap carries the same signal; page-level link tags reinforce it.
   const languages: Record<string, string> = {};
   for (const altLocale of i18n.languages) {
     const altPage = source.getPage(params.slug, altLocale);
@@ -123,8 +115,6 @@ export async function generateMetadata(props: {
       url: page.url,
       images: [{ url: "/og-image.png", width: 1200, height: 630 }],
     },
-    // Set the Twitter card explicitly so shared docs pages show this page's title and
-    // description, not the site-wide defaults inherited from the layout.
     twitter: {
       card: "summary_large_image",
       title: page.data.title,

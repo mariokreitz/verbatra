@@ -3,13 +3,9 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// A macOS-style terminal window that types each command, prints its output, then moves on
-// and loops, starting when scrolled into view. Under prefers-reduced-motion it renders the
-// settled state (every command and its output shown at once, no typing). The animated body
-// is decorative (aria-hidden); an sr-only transcript is its accessible equivalent.
-
 type Line = { kind: "command" | "output"; text: string };
 
+/** Props for the animated Terminal; `outputs` maps a command index to its output lines. */
 export type TerminalProps = {
   commands: ReadonlyArray<string>;
   outputs?: Readonly<Record<number, ReadonlyArray<string>>>;
@@ -17,7 +13,7 @@ export type TerminalProps = {
   typingSpeed?: number;
   delayBetweenCommands?: number;
   initialDelay?: number;
-  // When false, the sequence types once and then holds the settled state (no replay).
+  /** When false, the sequence types once and then holds the settled state. */
   loop?: boolean;
   className?: string;
 };
@@ -27,8 +23,7 @@ const HOLD_PAUSE_MS = 2600;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// The player context lets the module-scope animation helpers drive component state without
-// being redefined on every render or inflating the effect's cognitive complexity.
+/** Lets the module-scope animation helpers drive component state without being redefined per render. */
 type PlayerContext = {
   isCancelled: () => boolean;
   setTyping: (value: string | null) => void;
@@ -87,7 +82,6 @@ async function playLoop(ctx: PlayerContext): Promise<void> {
       if (cmd === undefined) continue;
       if (!(await runCommand(ctx, cmd, ctx.outputs?.[i] ?? []))) return;
     }
-    // One pass done: hold the settled transcript unless a subtle loop was requested.
     if (!ctx.loop) return;
     await delay(HOLD_PAUSE_MS);
   }
@@ -105,8 +99,7 @@ function buildSettled(
   return settled;
 }
 
-// Light bash highlighting: the prompt, flags, quoted strings, numbers, and the check glyph
-// get brand-token colors; everything else takes the line's base color.
+/** Brand-token color for a shell token (check glyph, flags, quoted strings, numbers), or undefined for the base color. */
 function tokenColor(token: string): string | undefined {
   if (token === "✓") return "var(--v-glow)";
   if (token.startsWith("-")) return "var(--v-glow-soft)";
@@ -146,6 +139,12 @@ function LineRow({ line }: { line: Line }): ReactNode {
   );
 }
 
+/**
+ * A macOS-style terminal window that types each command and prints its output
+ * once scrolled into view, looping when `loop` is true. Under reduced motion
+ * it renders the settled transcript at once. The animated body is decorative
+ * (aria-hidden); an sr-only transcript is its accessible equivalent.
+ */
 export function Terminal({
   commands,
   outputs,
@@ -230,7 +229,6 @@ export function Terminal({
         ) : null}
       </div>
 
-      {/* Accessible, static equivalent of the animated transcript. */}
       <div className="sr-only">
         <p>An example verbatra command-line session.</p>
         <ol>
@@ -247,7 +245,6 @@ export function Terminal({
         </ol>
       </div>
 
-      {/* The animated transcript is decorative; the sr-only block above is the accessible equivalent. */}
       <div
         ref={scrollRef}
         aria-hidden="true"

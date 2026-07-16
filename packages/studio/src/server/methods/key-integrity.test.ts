@@ -165,8 +165,6 @@ describe("keyIntegrityHandler", () => {
       { count: "{count, plural, one {# item} other {# items}}" },
     );
     try {
-      // Unbalanced braces: placeholder-comparable text still lines up, but this does not parse as
-      // valid ICU MessageFormat.
       await writeTargetFile(project, "de", { count: "{count, plural, one {# Artikel" });
       await writeLockFile(project, "de", { count: "old-hash-forces-changed" });
 
@@ -185,7 +183,6 @@ describe("keyIntegrityHandler", () => {
       { greeting: "hello", farewell: "bye" },
     );
     try {
-      // greeting: no target file at all, so it is "missing", never "changed".
       await writeTargetFile(project, "de", { farewell: "bye" });
 
       const result = await keyIntegrityHandler({ key: "greeting" }, deps(project));

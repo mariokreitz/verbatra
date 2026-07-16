@@ -13,6 +13,7 @@ export const keyValueParamsSchema = z.strictObject({
   key: z.string().min(1),
 });
 
+/** Parsed `key.value` params. */
 export type KeyValueParams = z.infer<typeof keyValueParamsSchema>;
 
 /**

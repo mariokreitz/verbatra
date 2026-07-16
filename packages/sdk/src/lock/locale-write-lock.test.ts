@@ -97,8 +97,6 @@ describe("withLocaleWriteLock: mutual exclusion", () => {
     await Promise.all([a, b]);
 
     expect(maxInsideCount).toBe(1);
-    // A claims the lock first (its synchronous createExclusive call runs before B's, in the same
-    // tick), so it must fully finish (start and end) before B ever starts.
     expect(order).toEqual(["A-start", "A-end", "B-start", "B-end"]);
   });
 
@@ -118,7 +116,6 @@ describe("withLocaleWriteLock: mutual exclusion", () => {
       withLocaleWriteLock("/proj", "fr", fs, () => section("fr"), options),
     ]);
 
-    // Both start before either ends: they ran concurrently, unlike the same-locale case above.
     expect(order.indexOf("de-end")).toBeGreaterThan(order.indexOf("fr-start"));
     expect(order.indexOf("fr-end")).toBeGreaterThan(order.indexOf("de-start"));
   });
@@ -139,7 +136,6 @@ describe("withLocaleWriteLock: mutual exclusion", () => {
       ),
     ).rejects.toThrow("boom");
 
-    // The lock was released: a second acquire on the same locale succeeds immediately.
     let ran = false;
     await withLocaleWriteLock(
       "/proj",

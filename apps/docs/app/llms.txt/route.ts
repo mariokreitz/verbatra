@@ -2,9 +2,14 @@ import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-// Docs content is English-only, so index the default-locale pages; the i18n-aware loader would otherwise repeat each page per locale.
+/** Rendered at build time; the content only changes with a rebuild. */
 export const dynamic = "force-static";
 
+/**
+ * Serves the llms.txt index: a project summary plus a link list of every
+ * default-locale docs page. The i18n-aware loader would otherwise repeat each
+ * page per locale.
+ */
 export function GET(): Response {
   const docs = source
     .getPages(i18n.defaultLanguage)

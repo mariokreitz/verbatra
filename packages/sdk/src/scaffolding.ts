@@ -13,7 +13,7 @@ import type { ProviderId } from "./config/provider-config.js";
  */
 export type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
 
-// Compile-time guard: a provider id added to the config union without an env var entry fails here.
+/** Compile-time guard: a provider id added to the config union without an env var entry fails here. */
 const _envCoversAllProviders: Record<ScaffoldableProviderId, string> = PROVIDER_ENV;
 void _envCoversAllProviders;
 

@@ -88,7 +88,6 @@ describe("keyValue: reads", () => {
 
     await keyValue({ config: cfg(), cwd: dir, locale: "de", key: "greeting" });
 
-    // No lock-file is created by a pure read.
     await expect(
       import("node:fs/promises").then((fsp) => fsp.access(join(dir, "verbatra.lock.json"))),
     ).rejects.toThrow();

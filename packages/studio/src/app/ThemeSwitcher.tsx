@@ -16,11 +16,10 @@ const PREFERENCE_ICON: Readonly<Record<ThemePreference, IconName>> = {
 };
 
 /**
- * The System/Light/Dark theme picker, an icon-triggered `Dropdown` in the top bar. Selecting a
- * preference persists it (localStorage), applies it to the root immediately (see
- * `lib/theme-dom.ts`), and keeps this component's own state in sync so the trigger icon and the
- * checked item track the choice. A "system" choice keeps following live OS changes through the
- * matchMedia listener `initTheme` registered at startup; nothing here needs to re-listen.
+ * The System/Light/Dark theme picker, an icon-triggered `Dropdown`. Selecting
+ * a preference stores it, applies it to the document root immediately, and
+ * updates local state so the trigger icon and the checked item track the
+ * choice.
  */
 export function ThemeSwitcher(): ReactNode {
   const [preference, setPreference] = useState<ThemePreference>(readStoredThemePreference);

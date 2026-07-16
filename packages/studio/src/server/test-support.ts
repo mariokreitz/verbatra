@@ -5,7 +5,7 @@ import type { LoadedConfig, VerbatraConfig } from "@verbatra/sdk";
 import { startStudioServer } from "./create-studio-server.js";
 import type { StudioServer, StudioServerOptions } from "./types.js";
 
-/** A valid base config for tests; mirrors the sdk's own `baseConfig` test fixture, override fields as needed. */
+/** A valid base config for tests; override individual fields as needed. */
 export function baseStudioConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   return {
     sourceLocale: "en",
@@ -17,7 +17,7 @@ export function baseStudioConfig(overrides: Partial<VerbatraConfig> = {}): Verba
   };
 }
 
-/** A real on-disk fixture project: a temp directory with a source locale file, ready to be loaded. */
+/** A real on-disk fixture project: a temp directory with a source locale file, plus its cleanup. */
 export interface FixtureProject {
   readonly root: string;
   readonly config: VerbatraConfig;
@@ -25,10 +25,11 @@ export interface FixtureProject {
 }
 
 /**
- * Builds a real, on-disk fixture project (mirrors the sdk's own `makeTempDir` test fixture
- * pattern): a temp directory with a source locale file under `locales/`, ready to load through a
- * loader or the sdk's own `check`/`diff`. Always call `cleanup()`, typically in a `finally` or
- * `afterEach`.
+ * Builds a real, on-disk fixture project: a temp directory with the source locale file written
+ * under `locales/`. Always call `cleanup()`, typically in a `finally` or `afterEach`.
+ *
+ * @param overrides - Config fields to override on top of {@link baseStudioConfig}.
+ * @param sourceEntries - Key-value entries written to the source locale file.
  */
 export async function makeFixtureProject(
   overrides: Partial<VerbatraConfig> = {},
@@ -49,7 +50,7 @@ export async function makeFixtureProject(
   };
 }
 
-/** A loader over a {@link FixtureProject}, with "override" provenance and no glossary, for injecting into {@link startStudioServer}. */
+/** A loader over a {@link FixtureProject}'s config, with "override" provenance and no glossary. */
 export function fixtureLoader(project: FixtureProject): () => Promise<LoadedConfig> {
   return async () => ({
     config: project.config,
@@ -59,9 +60,8 @@ export function fixtureLoader(project: FixtureProject): () => Promise<LoadedConf
 }
 
 /**
- * A trivial in-memory loader for tests that start a server but never call an RPC method needing a
- * real project on disk (transport, security-header, and auth tests). Resolves the same config
- * every time; touches no file system.
+ * An in-memory loader for tests that start a server but never need a real project on disk.
+ * Resolves the same base config every time; touches no file system.
  */
 export function stubLoader(): () => Promise<LoadedConfig> {
   return async () => ({
@@ -71,7 +71,11 @@ export function stubLoader(): () => Promise<LoadedConfig> {
   });
 }
 
-/** Extracts the session cookie from a successful bootstrap redirect (a GET to `?token=...`). */
+/**
+ * Extracts the session cookie from a successful bootstrap redirect (a GET to `?token=...`).
+ *
+ * @throws An `Error` when the response carries no Set-Cookie header.
+ */
 export async function authenticatedCookie(url: string, token: string): Promise<string> {
   const response = await fetch(`${url}?token=${token}`, { redirect: "manual" });
   const setCookie = response.headers.get("set-cookie");
@@ -81,13 +85,13 @@ export async function authenticatedCookie(url: string, token: string): Promise<s
   return setCookie.split(";")[0] ?? "";
 }
 
+/** Overrides for {@link withServer}; any {@link StudioServerOptions} field may be set. */
 export type WithServerOptions = Partial<StudioServerOptions>;
 
 /**
- * Starts a real server on an OS-assigned loopback port (`port: 0`) with an injected output sink
- * (silent by default) and an injectable `heartbeatIntervalMs`, runs `fn` with the server, and
- * always closes it afterward, even if `fn` throws. Every server test acquires its server this way;
- * no raw `createServer`/`listen` call belongs in a test file.
+ * Starts a real server on an OS-assigned loopback port (`port: 0`) with a silent output sink and
+ * the stub loader by default, runs `fn` with the server, and always closes it afterward, even
+ * when `fn` throws.
  */
 export async function withServer<T>(
   fn: (server: StudioServer) => Promise<T>,

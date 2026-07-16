@@ -164,10 +164,6 @@ describe("run import: SDK delegation and rendering", () => {
     expect(cap.err()).toContain("[SOURCE_INVALID]");
   });
 
-  // importOptsSchema's fields are all optional strings/booleans, which real commander argv always
-  // produces correctly, so no CLI flag can organically trigger a ZodError here. runImport is exported
-  // so this test can call it directly with a malformed rawOpts, proving importOptsSchema.parse now
-  // runs inside the error scaffold (it used to sit outside any try, risking an unhandled rethrow).
   it("a malformed rawOpts renders a structured error and exits 2, never throws", async () => {
     const { deps, calls } = recordingDeps();
     const cap = captureStreams();

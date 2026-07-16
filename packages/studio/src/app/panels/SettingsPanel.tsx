@@ -11,7 +11,7 @@ import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
 
-/** The at-a-glance figure strip: the four facts someone opens this page to confirm. */
+/** The at-a-glance strip: source locale, target-locale count, format, and provider. */
 function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -37,12 +37,9 @@ type SettingsState =
     };
 
 /**
- * The configuration facts the metric strip does not already carry: the full target-locale list
- * (the strip only shows the count), the file pattern, whether provider-calling actions were
- * enabled at startup, and whichever optional settings are configured. Source locale, format,
- * and provider are deliberately not repeated here. Session-health chrome (a live-updates row,
- * a local-editing row) is deliberately absent: a page you can read at all is being served by a
- * live process with editing built in, so those rows would never carry information.
+ * The configuration facts the metric strip does not already carry: the full
+ * target-locale list, the file pattern, whether provider actions were enabled
+ * at startup, and whichever optional settings are configured.
  */
 function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   const items: Array<readonly [string, ReactNode]> = [
@@ -86,6 +83,12 @@ function glossaryIndicatorLabel(glossary: GlossaryGetResult): string {
   return glossary.indicator.source;
 }
 
+/**
+ * The glossary's term list, or an empty state when no glossary is configured.
+ * Translations render with `dir="auto"`: the glossary is one project-wide
+ * term map with no per-entry locale, so the browser infers direction from
+ * each value's own first strong character.
+ */
 function GlossaryEntries({
   entries,
 }: {
@@ -104,10 +107,6 @@ function GlossaryEntries({
       {terms.map(([term, translation]) => (
         <li key={term} className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
           <span className="font-mono text-sm font-semibold text-accent-foreground">{term}</span>
-          {/* The glossary has no per-entry locale (it is one project-wide term map, see
-              sdk's VerbatraConfig.glossary), so which locale's script a preferred term is
-              written in cannot be known here. dir="auto" lets the browser infer direction
-              from the value's own first strong character instead of guessing a locale. */}
           <p className="m-0 mt-0.5 text-sm text-foreground" dir="auto">
             {translation}
           </p>
@@ -138,10 +137,9 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
 }
 
 /**
- * The settings overview: the resolved config snapshot (project.snapshot, including whether
- * provider actions were enabled at startup) and the glossary (glossary.get). Independent,
- * stateless reads made fresh on every mount; nothing here changes day to day, which is why this
- * lives in the sidebar's reference zone.
+ * The Settings page: the resolved config snapshot (`project.snapshot`) and
+ * the glossary (`glossary.get`), both fetched once per mount. This panel does
+ * not react to the live-refresh token.
  */
 export function SettingsPanel(): ReactNode {
   return (

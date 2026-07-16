@@ -50,8 +50,6 @@ describe("run studio: ordering", () => {
     expect(code).toBe(2);
     expect(cap.err()).toContain("CONFIG_NOT_FOUND");
     expect(calls.importStudio).toHaveLength(0);
-    // A hook wired to an already-failed session has nothing to close; calling requestStop on it
-    // is a harmless no-op.
     expect(() => captured.session()?.requestStop()).not.toThrow();
   });
 
@@ -129,11 +127,6 @@ describe("run studio: @verbatra/studio not installed", () => {
   });
 
   it("never masks a resolution failure inside @verbatra/studio's own dependency graph as not-installed", async () => {
-    // Realistic shape: studio itself resolved fine, but one of its own dependencies did not. The failed
-    // specifier is "chokidar", quoted; "@verbatra/studio" appears too, but only unquoted, as part of the
-    // importer's file path (its own installed location under node_modules). A pattern that matched
-    // "@verbatra/studio" as a bare substring (rather than quote-anchored) would wrongly treat this as
-    // studio itself missing, so this message is deliberately built to contain that unquoted occurrence.
     const importedFrom = "/proj/node_modules/@verbatra/studio/dist/server/create-studio-server.js";
     const { deps } = recordingDeps({
       importStudio: async () => {
@@ -317,7 +310,7 @@ describe("run studio: success path and shutdown", () => {
           startStudioServer: async () => ({
             url: "http://127.0.0.1:5849/",
             port: 5849,
-            close: () => new Promise(() => {}), // never resolves within this test
+            close: () => new Promise(() => {}),
           }),
         }),
     });
@@ -361,8 +354,6 @@ describe("run studio: success path and shutdown", () => {
 });
 
 describe("run studio: --allow-spend capability resolution", () => {
-  // VERBATRA_STUDIO_ALLOW_WRITE is no longer read by anything; it is saved, cleared, and restored
-  // here only so the "ignored entirely" test below can set it without leaking into other tests.
   const ENV_VARS = ["VERBATRA_STUDIO_ALLOW_SPEND", "VERBATRA_STUDIO_ALLOW_WRITE"] as const;
   const originalValues: Record<string, string | undefined> = {};
 
@@ -466,9 +457,6 @@ describe("run studio: --allow-spend capability resolution", () => {
   it("resolves capabilities before loadConfigWithMeta ever runs, and never re-derives them afterward", async () => {
     process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
     const { deps } = recordingDeps({
-      // Simulates a hostile or merely buggy project config module: it mutates the very
-      // environment variable capability resolution reads, after that resolution has already
-      // happened. If the flag were re-read anywhere after this point, it would flip to false.
       loadConfigWithMeta: async () => {
         process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
         throw new SdkError("CONFIG_NOT_FOUND", "irrelevant for this test");
@@ -478,8 +466,6 @@ describe("run studio: --allow-spend capability resolution", () => {
 
     await run(["studio"], deps, cap.streams);
 
-    // The command exits 2 (config load failed) before ever reaching startStudioServer, so this
-    // proves the mutation happened; the capability-resolution test below proves it had no effect.
     expect(process.env.VERBATRA_STUDIO_ALLOW_SPEND).toBe("false");
   });
 

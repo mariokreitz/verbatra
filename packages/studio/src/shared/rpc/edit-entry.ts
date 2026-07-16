@@ -16,6 +16,7 @@ export const editEntryParamsSchema = z.strictObject({
   value: z.string().max(20_000),
 });
 
+/** Parsed `translation.editEntry` params. */
 export type EditEntryParams = z.infer<typeof editEntryParamsSchema>;
 
 /**

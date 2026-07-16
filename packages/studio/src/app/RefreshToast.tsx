@@ -40,20 +40,19 @@ function actionStatusClassName(state: ActionState): string {
   return actionStatusTextClassName(state.outcome.kind === "success" ? "success" : "failure");
 }
 
+/** Props for {@link RefreshToast}. */
 export interface RefreshToastProps {
   readonly view: RefreshToastView;
   readonly onDismiss: () => void;
 }
 
 /**
- * Renders one toast slot for a live-refresh event: a category label and a nonzero-delta summary,
- * always; a "translate pending changes across all locales" action only when
- * `client/refresh-toast.ts`'s `canTranslatePending` says both the toast (source-reason, nonzero
- * delta) and the write capabilities allow it; and a dismiss control that clears the slot without
- * ever calling the action. Follows the same idle/loading/settled state machine
- * `RetranslateButton.tsx` already uses, adapted for `TranslatePendingOutcome`'s three-armed shape
- * (success, a partial failure naming which locales, or a transport/domain error) instead of that
- * component's two-armed accepted/rejected one.
+ * Renders one toast slot for a live-refresh event: the view's label and
+ * summary, a "translate pending changes across all locales" action only when
+ * `canTranslatePending` allows it for this view and the loaded capabilities,
+ * and a dismiss control that clears the slot without calling the action. The
+ * action runs `translation.translatePending` and shows a loading or settled
+ * status label next to the button; nothing renders while idle.
  */
 export function RefreshToast({ view, onDismiss }: RefreshToastProps): ReactNode {
   const [state, setState] = useState<ActionState>({ kind: "idle" });

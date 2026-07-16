@@ -83,7 +83,7 @@ describe("editEntryHandler", () => {
     );
     try {
       const result = await editEntryHandler(
-        { locale: "de", key: "greeting", value: "Hallo" }, // drops {{name}}
+        { locale: "de", key: "greeting", value: "Hallo" },
         deps(project),
       );
 
@@ -154,9 +154,6 @@ describe("editEntryHandler", () => {
       { greeting: "hello", farewell: "bye" },
     );
     try {
-      // Simulate the stale-queue scenario: the caller fetched review.queue data referencing
-      // "greeting", but the source file no longer carries that key by the time the edit is
-      // submitted (re-read fresh from disk on every call, never cached).
       await writeFile(
         join(project.root, "locales", "en.json"),
         `${JSON.stringify({ farewell: "bye" }, null, 2)}\n`,

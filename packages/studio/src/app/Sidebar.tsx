@@ -6,36 +6,38 @@ import { Tooltip } from "./Tooltip.js";
 import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
+/** The nav data shared by {@link DesktopSidebar} and {@link MobileNavDrawer}. */
 export interface SidebarNavProps {
-  /** The daily work surfaces, at the top of the rail. */
+  /** The daily work surfaces, rendered in the top zone. */
   readonly workPages: readonly PageId[];
-  /** The occasional-lookup pages, in the bottom zone next to the collapse toggle. */
+  /** The occasional-lookup pages, rendered in the bottom zone. */
   readonly referencePages: readonly PageId[];
   readonly pageLabels: Readonly<Record<PageId, string>>;
-  /** One glyph per page; `Readonly<Record<...>>` makes a page without an icon a compile error. */
+  /** One glyph per page; the Record type makes a page without an icon a compile error. */
   readonly pageIcons: Readonly<Record<PageId, IconName>>;
-  /** Per-page attention counts (today: the review queue's visible size). A page with a positive
-   * count renders a count chip on its nav entry; zero or absent renders nothing, so the rail
-   * only speaks up when there is actually something waiting. */
+  /** Per-page attention counts. A page with a positive count renders a count
+   * chip on its nav entry; zero or absent renders nothing. */
   readonly pageBadges?: Readonly<Partial<Record<PageId, number>>>;
   readonly activePage: PageId;
   readonly onSelectPage: (page: PageId) => void;
 }
 
-/** Caps the rendered count so an enormous queue cannot stretch the rail. */
+/** Caps the rendered count at "99+" so an enormous queue cannot stretch the rail. */
 function formatBadgeCount(count: number): string {
   return count > 99 ? "99+" : String(count);
 }
 
+/** Props for {@link DesktopSidebar}. */
 export interface DesktopSidebarProps extends SidebarNavProps {
-  /** Collapsed to the icon rail. Persisted by the caller (see `lib/sidebar-dom.ts`). */
+  /** Whether the rail is collapsed to icons only. Persisted by the caller. */
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
 }
 
 /**
- * The rail is a constant dark-indigo surface in both themes (see styles.css's sidebar tokens),
- * so its item classes speak the sidebar-* vocabulary rather than the theme-responsive one.
+ * Classes for one rail item. The rail is a constant dark surface in both
+ * themes, so these speak the sidebar-* token vocabulary rather than the
+ * theme-responsive one.
  */
 function navItemClassName(isActive: boolean, collapsed: boolean): string {
   return cn(
@@ -50,13 +52,11 @@ function navItemClassName(isActive: boolean, collapsed: boolean): string {
   );
 }
 
-/** The "V" mark plus the two-line wordmark (product name over the product-area line), shared by
- * the desktop sidebar (mark only while collapsed) and the mobile nav drawer. */
+/** The "V" mark plus the two-line wordmark, shared by the desktop sidebar
+ * (mark only while collapsed) and the mobile nav drawer. */
 function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): ReactNode {
   return (
     <div className={cn("flex items-center gap-2.5 py-2", collapsed ? "justify-center" : "px-2.5")}>
-      {/* primary-foreground, not white: sidebar-active tracks each theme's primary (dark indigo
-          fill in light mode, light indigo in dark mode), so the mark's ink must flip with it. */}
       <span
         className="grid size-7 flex-none place-items-center rounded-md bg-sidebar-active text-xs font-bold text-primary-foreground"
         aria-hidden="true"
@@ -75,8 +75,7 @@ function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): 
   );
 }
 
-/** A zone's uppercase monospace group label; hidden on the collapsed rail, where the two-zone
- * layout alone carries the taxonomy. */
+/** A zone's uppercase group label; hidden on the collapsed rail. */
 function ZoneLabel({
   children,
   collapsed,
@@ -94,10 +93,10 @@ function ZoneLabel({
   );
 }
 
-/** One nav entry: icon plus label expanded, a tooltip-labeled icon on the collapsed rail. The
- * button always carries the label as its accessible name; the tooltip is a sighted-user aid. A
- * positive `badge` renders a count chip (inline-end expanded, overlaid on the icon collapsed);
- * the count reaches assistive technology through the accessible name, never the chip itself. */
+/** One nav entry: icon plus label when expanded, a tooltip-labeled icon on
+ * the collapsed rail. A positive `badge` renders a count chip (inline-end
+ * expanded, overlaid on the icon collapsed); the count reaches assistive
+ * technology through the accessible name, never the chip itself. */
 function NavItem({
   page,
   label,
@@ -154,7 +153,7 @@ function NavItem({
   return <Tooltip label={countedLabel}>{button}</Tooltip>;
 }
 
-/** One zone's nav list: a plain named `<nav>` of items under its zone label. */
+/** One zone's nav list: a named `<nav>` of items under its zone label. */
 function NavList({
   pages,
   navLabel,
@@ -189,9 +188,8 @@ function NavList({
   );
 }
 
-/** The documentation and issue-tracker links in the rail's footer, the design reference's
- * bottom-of-rail help zone. Plain external links: they open the public docs site and the GitHub
- * repository, the two places help for this dashboard actually lives. */
+/** The documentation and issue-tracker links in the rail's footer. Plain
+ * external links, opened in a new tab. */
 function HelpLinks({ collapsed }: { readonly collapsed: boolean }): ReactNode {
   const links: ReadonlyArray<{
     readonly label: string;
@@ -277,12 +275,11 @@ function CollapseToggle({
 }
 
 /**
- * The persistent nav rail shown at and above the `md` breakpoint; hidden entirely below it,
- * where the top bar's menu button and {@link MobileNavDrawer} take over navigation. A constant
- * dark-indigo surface in both themes (the design reference's anchoring chrome). Collapses to an
- * icon-only rail whose entries keep their accessible names and gain visual tooltips. The work
- * zone scrolls only while expanded: on the collapsed rail the wrapper stays overflow-visible so
- * the tooltips, positioned outside the rail's width, are never clipped by a scroll container.
+ * The persistent nav rail shown at and above the `md` breakpoint; hidden
+ * below it, where {@link MobileNavDrawer} takes over navigation. Collapses to
+ * an icon-only rail whose entries keep their accessible names and gain
+ * tooltips. The nav zone scrolls only while expanded: the collapsed rail
+ * stays overflow-visible so tooltips are never clipped.
  */
 export function DesktopSidebar({
   collapsed,
@@ -321,13 +318,11 @@ export function DesktopSidebar({
   );
 }
 
-/** The off-canvas nav overlay the top bar's menu button opens: an `OverlayBackdrop` plus a
- * start-anchored panel, the mobile equivalent of {@link DesktopSidebar} (never collapsed; the
- * rail concept only exists on desktop). Only ever mounted while open (the app shell conditionally
- * renders it), matching this dashboard's other overlays' mount-is-open convention, so
- * `useDialogA11y` is always called with `isOpen: true`. Selecting a page closes the drawer
- * immediately (the caller's `onSelectPage` also closes it), so the next screen is never hidden
- * behind it. */
+/** The off-canvas nav overlay for small screens: an `OverlayBackdrop` plus a
+ * start-anchored panel, the mobile equivalent of {@link DesktopSidebar}.
+ * Only mounted while open, so `useDialogA11y` is always called with
+ * `isOpen: true`. Closing the drawer after a page selection is the caller's
+ * job via `onSelectPage`. */
 export function MobileNavDrawer({
   onClose,
   ...navProps

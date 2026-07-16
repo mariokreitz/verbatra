@@ -19,9 +19,6 @@ const EXPECTED_METHOD_NAMES = [
 
 describe("RPC_METHOD_NAMES", () => {
   it("contains exactly the thirteen agreed method names, no more, no fewer", () => {
-    // Every write method's schema is declared unconditionally here, independent of capability
-    // flags: contract shape is static and shared; only the handler registry
-    // (server/rpc.ts's createRpcHandlers) is capability-built.
     expect(new Set(RPC_METHOD_NAMES)).toEqual(new Set(EXPECTED_METHOD_NAMES));
     expect(RPC_METHOD_NAMES).toHaveLength(EXPECTED_METHOD_NAMES.length);
   });
@@ -63,10 +60,6 @@ describe("rpcParamsSchemas", () => {
   });
 
   it('declares no field capable of expressing "enable spend" or "enable write" on any method, read or write', () => {
-    // Every schema here is z.strictObject, which already rejects an unrecognized extra key
-    // outright; this additionally confirms none of them ever declares such a field itself, so
-    // capability enablement has no expressible shape at the RPC boundary at all, not merely a
-    // rejected one.
     for (const method of RPC_METHOD_NAMES) {
       const shapeKeys = Object.keys(rpcParamsSchemas[method].shape);
       expect(shapeKeys).not.toContain("spend");

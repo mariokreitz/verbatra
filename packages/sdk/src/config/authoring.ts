@@ -2,11 +2,15 @@ import type { AnthropicModel, GeminiModel, OpenAiModel } from "@verbatra/ai-prov
 import type { ProviderConfig, ProviderId } from "./provider-config.js";
 import type { VerbatraConfigInput } from "./schema.js";
 
-// A provider's known model literals, with the SDK's open `string` arm stripped, so the authoring field
-// accepts only that provider's models. Static authoring aid only; the runtime schema stays a non-empty
-// string, so a brand-new model the installed SDK does not yet list is flagged but still runs.
+/**
+ * A provider's known model literals, with the open `string` arm stripped, so the authoring field
+ * accepts only that provider's models. Static authoring aid only; the runtime schema stays a
+ * non-empty string, so a brand-new model the installed SDK does not yet list is flagged but still
+ * runs.
+ */
 type KnownModels<M extends string> = M extends string ? (string extends M ? never : M) : never;
 
+/** One provider's config variant with `options.model` narrowed to that provider's known literals. */
 type AuthoringVariant<Id extends ProviderId, M extends string> =
   Extract<ProviderConfig, { id: Id }> extends infer Variant
     ? Variant extends { options: { model: string } }
@@ -16,10 +20,12 @@ type AuthoringVariant<Id extends ProviderId, M extends string> =
       : never
     : never;
 
-// The authoring view of one provider variant, keyed by id. LLM providers with a known SDK model union
-// restrict `options.model` to that provider's literals. DeepL has no model field and openai-compatible's
-// model is whatever the local server exposes (no known-model list to restrict against), so both are
-// carried through unchanged.
+/**
+ * The authoring view of one provider variant, keyed by id. LLM providers with a known SDK model
+ * union restrict `options.model` to that provider's literals. DeepL has no model field and
+ * openai-compatible's model is whatever the local server exposes (no known-model list to restrict
+ * against), so both are carried through unchanged.
+ */
 type AuthoringProviderVariant = {
   anthropic: AuthoringVariant<"anthropic", AnthropicModel>;
   openai: AuthoringVariant<"openai", OpenAiModel>;

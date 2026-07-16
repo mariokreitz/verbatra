@@ -3,7 +3,7 @@ import { AdapterError } from "../errors.js";
 import { assertJsonRecord, type JsonRecord } from "../json/json-tree.js";
 
 /**
- * Parse untrusted YAML into a validated object of nested strings, reusing the same structure
+ * Parse untrusted YAML into a validated object of nested leaves, reusing the same structure
  * validation as JSON ({@link assertJsonRecord}). Anchor-alias expansion is bounded (`maxAliasCount`)
  * so a billion-laughs document cannot blow up, and the default core schema resolves no JS-typed tags.
  *

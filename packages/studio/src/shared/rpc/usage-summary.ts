@@ -7,6 +7,7 @@ export const USAGE_SUMMARY_METHOD = "usage.summary";
 /** Takes no parameters: the ticker always reflects the single loaded project's persisted run-status snapshot. */
 export const usageSummaryParamsSchema = z.strictObject({});
 
+/** Parsed `usage.summary` params. */
 export type UsageSummaryParams = z.infer<typeof usageSummaryParamsSchema>;
 
 /**

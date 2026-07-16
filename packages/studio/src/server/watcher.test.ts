@@ -140,7 +140,7 @@ describe("createProjectWatcher: debounce and coalescing", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(1); // de (targets)
+    harness.emit(1);
     harness.emit(1);
     harness.emit(1);
     expect(refresh.events).toHaveLength(0);
@@ -167,8 +167,8 @@ describe("createProjectWatcher: debounce and coalescing", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(0); // source
-    harness.emit(2); // lock
+    harness.emit(0);
+    harness.emit(2);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
@@ -261,8 +261,6 @@ describe("createProjectWatcher: per-locale key delta", () => {
   });
 
   it("reports a value-only edit on an existing key as a nonzero changed count, not a no-op delta", async () => {
-    // The key itself is untouched; only its value changes. This is the case the ticket's semantics
-    // decision exists to fix: a source-drift-based delta would report nothing here.
     const harness = multiWatcherHarness();
     const refresh = collectRefresh();
     const config: VerbatraConfig = baseStudioConfig({ targetLocales: ["de"] });
@@ -305,8 +303,8 @@ describe("createProjectWatcher: per-locale key delta", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(1); // de
-    harness.emit(2); // fr
+    harness.emit(1);
+    harness.emit(2);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
@@ -341,7 +339,7 @@ describe("createProjectWatcher: per-locale key delta", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(0); // source
+    harness.emit(0);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
@@ -365,7 +363,7 @@ describe("createProjectWatcher: per-locale key delta", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(2); // lock
+    harness.emit(2);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
@@ -403,8 +401,6 @@ describe("createProjectWatcher: per-locale key delta", () => {
   });
 
   it("the first change after startup is diffed against the snapshot taken at startup, not an absent baseline", async () => {
-    // The startup snapshot already has real content (two keys). If the baseline were wrongly
-    // treated as empty or absent, this edit would misreport as "2 added" instead of "1 changed".
     const harness = multiWatcherHarness();
     const refresh = collectRefresh();
     const config: VerbatraConfig = baseStudioConfig({ targetLocales: ["de"] });
@@ -474,8 +470,6 @@ describe("createProjectWatcher: same-locale settle race (criterion 12)", () => {
     const s1 = snapshot("de", { a: "h1", b: "h2" });
     const s2 = snapshot("de", { a: "h1", b: "h2", c: "h3" });
 
-    // Counted per locale: the source ("en") priming call must not consume a slot meant for "de",
-    // or the second ("de") priming call would itself hit the gate below and hang forever.
     const calls: string[] = [];
     let releaseFirstSettleRead: (() => void) | undefined;
     let deCallIndex = 0;
@@ -486,11 +480,9 @@ describe("createProjectWatcher: same-locale settle race (criterion 12)", () => {
       }
       deCallIndex += 1;
       if (deCallIndex === 1) {
-        return s0; // priming
+        return s0;
       }
       if (deCallIndex === 2) {
-        // The first settle's read: held open until the test explicitly releases it, simulating a
-        // slow disk read still in flight when the second change's debounce window fires.
         await new Promise<void>((resolveGate) => {
           releaseFirstSettleRead = resolveGate;
         });
@@ -504,21 +496,17 @@ describe("createProjectWatcher: same-locale settle race (criterion 12)", () => {
       { createWatcher: harness.createWatcher, readLocaleSnapshot },
     );
     watcher.onRefresh(refresh.listener);
-    // Priming reads happen for source ("en") and the one target locale ("de"); the lock entry has
-    // no tracker and is never read.
     expect(calls).toEqual(["en", "de"]);
 
-    harness.emit(1); // de: edit 1
-    await vi.advanceTimersByTimeAsync(50); // first settle's debounce fires and starts its (held) read
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
     expect(calls).toEqual(["en", "de", "de"]);
     expect(refresh.events).toEqual([]);
 
-    harness.emit(1); // de: edit 2, while the first settle's read is still in flight
-    await vi.advanceTimersByTimeAsync(50); // second settle's debounce fires
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
-    // The second settle must not have started its own read yet: it is queued behind the first
-    // settle's still-unresolved attempt, not racing it.
     expect(calls).toEqual(["en", "de", "de"]);
     expect(refresh.events).toEqual([]);
 
@@ -528,15 +516,12 @@ describe("createProjectWatcher: same-locale settle race (criterion 12)", () => {
 
     expect(calls).toEqual(["en", "de", "de", "de"]);
     expect(refresh.events).toHaveLength(2);
-    // b is new relative to s0: the first settle's delta.
     expect(refresh.events[0]).toEqual({
       reason: "targets",
       at: expect.any(String),
       locale: "de",
       delta: { added: 1, changed: 0, removed: 0 },
     });
-    // c is new relative to s1 (only c, since b is already present in s1): proves the second settle
-    // diffed against the freshly updated baseline, not the stale s0 (which would report added: 2).
     expect(refresh.events[1]).toEqual({
       reason: "targets",
       at: expect.any(String),
@@ -557,7 +542,6 @@ describe("createProjectWatcher: settle failure fallback", () => {
     const refresh = collectRefresh();
     const config: VerbatraConfig = baseStudioConfig({ targetLocales: ["de"] });
 
-    // Counted per locale: the source ("en") priming call must not consume a "de" call slot.
     let deCall = 0;
     const readLocaleSnapshot = async (locale: string): Promise<LocaleFileSnapshot> => {
       if (locale !== "de") {
@@ -565,7 +549,7 @@ describe("createProjectWatcher: settle failure fallback", () => {
       }
       deCall += 1;
       if (deCall === 1) {
-        return snapshot("de", { a: "h1" }); // priming
+        return snapshot("de", { a: "h1" });
       }
       if (deCall === 2) {
         throw new Error("simulated transient read failure");
@@ -579,7 +563,7 @@ describe("createProjectWatcher: settle failure fallback", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    harness.emit(1); // de: the failing settle
+    harness.emit(1);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
@@ -587,8 +571,6 @@ describe("createProjectWatcher: settle failure fallback", () => {
     expect(refresh.events[0]).toEqual({ reason: "targets", at: expect.any(String) });
     expect(Object.keys(refresh.events[0] as RefreshEvent).sort()).toEqual(["at", "reason"]);
 
-    // A later, successful settle still diffs against the ORIGINAL baseline ({a: "h1"}), proving the
-    // failed attempt never corrupted the stored snapshot.
     harness.emit(1);
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
@@ -626,7 +608,6 @@ describe("createProjectWatcher: settle failure fallback", () => {
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
 
-    // Diffed against the empty fallback baseline, so the one real key reads as added.
     expect(refresh.events).toEqual([
       {
         reason: "targets",
@@ -648,8 +629,6 @@ describe("createProjectWatcher: default read wiring", () => {
       await mkdir(join(root, "locales"), { recursive: true });
       await writeFile(join(root, "locales", "en.json"), JSON.stringify({ greeting: "hello" }));
 
-      // Reports every path as missing, even though a real source file exists on disk: proves the
-      // default read wiring genuinely consults deps.fs rather than the sdk's real file system.
       const fs: SdkFs = {
         fileExists: async () => false,
         readFileBounded: async () => ({ kind: "missing" }),
@@ -669,17 +648,12 @@ describe("createProjectWatcher: default read wiring", () => {
       );
       watcher.onRefresh(refresh.listener);
 
-      // A real, on-disk edit after the watcher started: if deps.fs were NOT actually consulted (a
-      // bug reverting to the sdk's real file system), the startup snapshot would have seen the
-      // original "greeting" key and this edit would report a nonzero added count. Since deps.fs
-      // reports every path as missing, both the startup snapshot and this settle stay empty, so the
-      // edit is invisible: that is the discriminating, observable proof the override is honored.
       await writeFile(
         join(root, "locales", "en.json"),
         JSON.stringify({ greeting: "hello", farewell: "bye" }),
       );
 
-      harness.emit(0); // source
+      harness.emit(0);
       await vi.advanceTimersByTimeAsync(50);
       await flushMicrotasks();
 
@@ -737,9 +711,6 @@ describe("defaultCreateStudioWatcher: real chokidar behavior", () => {
     root = await mkdtemp(join(tmpdir(), "verbatra-studio-watcher-"));
     await mkdir(join(root, "locales"), { recursive: true });
     await writeFile(join(root, "locales", "en.json"), JSON.stringify({ greeting: "hello" }));
-    // Let the fixture write itself settle before a watcher attaches: a native fs watcher started
-    // immediately after a write can otherwise observe that same write as a spurious first event,
-    // despite `ignoreInitial`, on some platforms.
     await wait(300);
   });
 
@@ -756,18 +727,10 @@ describe("defaultCreateStudioWatcher: real chokidar behavior", () => {
     );
     watcher.onRefresh(refresh.listener);
 
-    // The target file does not exist yet; only its parent directory ("locales/") does. Its startup
-    // snapshot is therefore empty, established before this watcher started.
     await wait(200);
     await writeFile(join(root, "locales", "de.json"), JSON.stringify({ greeting: "hallo" }));
     await wait(600);
 
-    // Real chokidar can occasionally split one underlying write into two raw notifications
-    // (an "add" and a separately timed "change") more than the 50ms debounce window apart, under
-    // system load; this is a pre-existing OS/chokidar notification-timing class, unrelated to this
-    // ticket's delta logic. The first event is always the meaningful one, deterministically; any
-    // further event must be a harmless zero-net-delta echo of the same settled state, never a
-    // second real content change.
     expect(refresh.events.length).toBeGreaterThanOrEqual(1);
     expect(refresh.events[0]).toEqual({
       reason: "targets",
@@ -818,7 +781,6 @@ describe("defaultCreateStudioWatcher: real chokidar behavior", () => {
 
     const lockPath = join(root, LOCK_FILE_NAME);
     const tempPath = join(dirname(lockPath), ".verbatra.lock.json.tmp-churn");
-    // Write and remove the temp sibling without ever renaming it over the watched lock path.
     await writeFile(tempPath, JSON.stringify({ version: 1, locales: {} }));
     await rm(tempPath, { force: true });
     await wait(600);

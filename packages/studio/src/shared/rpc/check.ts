@@ -12,6 +12,7 @@ export const statusCheckParamsSchema = z.strictObject({
   locales: z.array(z.string().min(1)).min(1).optional(),
 });
 
+/** Parsed `status.check` params. */
 export type StatusCheckParams = z.infer<typeof statusCheckParamsSchema>;
 
 /** The result is the sdk's own {@link CheckSummary}, unchanged: counts only, no key lists. */

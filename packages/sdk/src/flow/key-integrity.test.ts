@@ -45,7 +45,6 @@ async function withBaseline(
 
 describe("keyIntegrity", () => {
   it("reports a matching key with placeholders present on both sides", async () => {
-    // i18next-json placeholders use double-brace interpolation ({{name}}), not single-brace.
     const source = { greeting: "Hello {{name}} new" };
     const dir = await project(source, { de: { greeting: "Hallo {{name}}" } });
     await withBaseline(dir, "de", { greeting: "Hello {{name}} old" });
@@ -95,8 +94,6 @@ describe("keyIntegrity", () => {
 
     const results = await keyIntegrity({ config: cfg(), cwd: dir });
 
-    // Source carries no placeholders, yet the target invented one: this is a real mismatch,
-    // not a "no placeholders" neutral case, so matches must be false with the extra reported.
     expect(results[0]?.entries).toEqual([
       {
         key: "greeting",
@@ -146,8 +143,6 @@ describe("keyIntegrity", () => {
     expect(found?.key).toBe("count");
     expect(found?.matches).toBe(false);
     expect(found?.missing).toContain("{name}");
-    // Syntactically well-formed ICU on the target side, so icuValid is true even though the
-    // placeholder check itself failed: the two checks are independent, not short-circuited.
     expect(found?.icuValid).toBe(true);
   });
 
@@ -160,9 +155,6 @@ describe("keyIntegrity", () => {
 
     const results = await keyIntegrity({ config: cfg({ format: "next-intl-json" }), cwd: dir });
 
-    // The malformed target both fails to parse (icuValid: false) and, as a consequence, loses its
-    // placeholder ({count}) under the ICU comparator's fallback (matches: false): both checks run
-    // and are both reported, neither one skipped because the other already failed.
     expect(results[0]?.entries).toEqual([
       expect.objectContaining({ key: "count", matches: false, icuValid: false }),
     ]);
@@ -196,7 +188,6 @@ describe("keyIntegrity", () => {
 
     const results = await keyIntegrity({ config: cfg(), cwd: dir });
 
-    // a is missing (no target), c is unchanged, extra is orphaned: none of those are checked.
     expect(results[0]?.entries).toEqual([]);
   });
 
@@ -258,10 +249,6 @@ describe("keyIntegrity", () => {
         throw new Error("keyIntegrity must not write a file");
       },
     });
-    // The adapter still reads the real files on disk directly; only the lock-file read (which
-    // goes through the SdkFs seam) is faked, so the on-disk baseline is invisible here and
-    // "greeting" reads as unchanged rather than changed. This proves the injected fs took
-    // effect: the real on-disk lock file would otherwise report it as changed.
     const results = await keyIntegrity({ config: cfg(), cwd: dir }, { fs });
 
     expect(results[0]?.locale).toBe("de");

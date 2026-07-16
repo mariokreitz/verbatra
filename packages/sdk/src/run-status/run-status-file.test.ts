@@ -176,7 +176,6 @@ describe("writeRunStatusFile + readRunStatusFile: round trip", () => {
 
   it("propagates a failure creating the directory (a file already occupies the path)", async () => {
     const dir = await makeTempDir();
-    // A plain file at the directory's path makes mkdir fail with ENOTDIR, simulating "cannot create".
     await writeFile(join(dir, ".verbatra-local"), "not a directory", "utf8");
     const path = runStatusFilePath(dir);
 

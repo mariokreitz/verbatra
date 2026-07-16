@@ -68,7 +68,6 @@ describe("createXliffAdapter read", () => {
   it("populates entry.description from a 1.2 trans-unit's <note>", async () => {
     const { resource } = await adapter.read(await tempFile("m.xlf", XLIFF_12), "de");
     expect(resource.entries.get("greeting")?.description).toBe("be friendly");
-    // "bye" has no <note>, so its description stays undefined.
     expect(resource.entries.get("bye")?.description).toBeUndefined();
   });
 

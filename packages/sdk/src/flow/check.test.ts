@@ -30,7 +30,6 @@ function entry(value: string, placeholders: readonly string[] = []): Translation
 
 describe("check", () => {
   it("reports all up-to-date locales as in sync", async () => {
-    // de and fr both carry every source key; with no baseline, present keys are unchanged.
     const dir = await project(
       { a: "A", b: "B" },
       { de: { a: "Aa", b: "Ba" }, fr: { a: "Af", b: "Bf" } },
@@ -50,7 +49,6 @@ describe("check", () => {
   });
 
   it("counts missing keys and marks the locale out of sync (missing only)", async () => {
-    // de has only one of two keys; fr has no file at all (both keys missing).
     const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
     const summary = await check({ config: cfg(), cwd: dir });
 
@@ -72,7 +70,6 @@ describe("check", () => {
   });
 
   it("counts stale keys whose source changed since the recorded baseline (stale only)", async () => {
-    // de has both keys translated; the lock records the OLD hash for "a", so its drifted source is stale.
     const dir = await project({ a: "A new", b: "B" }, { de: { a: "Aa", b: "Ba" } });
     await writeJsonFile(join(dir, "verbatra.lock.json"), {
       version: 1,
@@ -92,7 +89,6 @@ describe("check", () => {
   });
 
   it("reports a mixed locale with missing, stale, and up-to-date counts together", async () => {
-    // c is missing (no target), a is stale (baseline drifted), b is up to date (baseline matches).
     const dir = await project({ a: "A new", b: "B", c: "C" }, { de: { a: "Aa", b: "Ba" } });
     await writeJsonFile(join(dir, "verbatra.lock.json"), {
       version: 1,
@@ -116,7 +112,6 @@ describe("check", () => {
     const summary = await check({
       config: cfg(),
       cwd: dir,
-      // Requested reversed; the result still follows config order (de, fr).
       locales: ["fr", "de"],
     });
 
@@ -133,7 +128,6 @@ describe("check", () => {
 
   it("writes nothing and never touches the lock (read-only)", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" } });
-    // A real fs would be fine, but assert the write paths are never reached even when stubbed.
     const fs = makeFakeFs({
       fileExists: async () => true,
       readFileBounded: async () => ({ kind: "missing" }),
@@ -144,7 +138,6 @@ describe("check", () => {
         throw new Error("check must not write bytes");
       },
     });
-    // The adapter still reads real files; only the fs seam (existence/lock/write) is faked.
     const summary = await check({ config: cfg({ targetLocales: ["de"] }), cwd: dir }, { fs });
     expect(summary.locales[0]?.locale).toBe("de");
   });

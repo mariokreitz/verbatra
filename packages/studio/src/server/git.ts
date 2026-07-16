@@ -19,9 +19,9 @@ export const defaultExecFileImpl: ExecFileImpl = async (file, args, options) => 
   return { stdout, stderr };
 };
 
-/** Default `--max-count` when `history.list` receives no `limit` (pinned at consolidation). */
+/** Default `--max-count` when `history.list` receives no `limit`. */
 export const HISTORY_LIMIT_DEFAULT = 50;
-/** Hard cap on `--max-count`, regardless of what a caller requests (G25). */
+/** Hard cap on `--max-count`, regardless of what a caller requests. */
 export const HISTORY_LIMIT_CAP = 200;
 
 /** Clamps a requested history limit to the server's bound: default 50, hard cap 200, never rejected. */
@@ -47,7 +47,7 @@ export function hasLeadingDash(path: string): boolean {
 
 /**
  * Resolves each candidate to an absolute path under `projectRoot` and drops anything that could be
- * misread as a flag or that escapes the root (G25). Both checks are defense in depth: a path built
+ * misread as a flag or that escapes the root. Both checks are defense in depth: a path built
  * from the project's own configuration never legitimately produces either shape, but a malformed
  * or unusual configuration must degrade by omission, not by handing git an unsafe argument. The
  * leading-dash check runs on each raw candidate, before resolution, since resolution against an
@@ -70,7 +70,7 @@ const FIELD_SEPARATOR = "\x1f";
 const GIT_LOG_FORMAT = `${RECORD_SEPARATOR}%H${FIELD_SEPARATOR}%aI${FIELD_SEPARATOR}%s`;
 
 /**
- * Builds the argument-array `git log` invocation (G25): bounded by `--max-count`, `--name-only`
+ * Builds the argument-array `git log` invocation: bounded by `--max-count`, `--name-only`
  * with `-z` for NUL-separated parsing, and a `--` sentinel before every path so no path can ever
  * be misread as an option. Never includes `--follow`: history before a file rename is not shown,
  * a deliberate trade-off, not a bug.

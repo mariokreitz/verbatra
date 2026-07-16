@@ -56,9 +56,6 @@ describe("gateCandidateValue: ICU-capable formats (branch-aware comparePlacehold
   });
 
   it("rejects a malformed ICU candidate that nonetheless matches on placeholders", () => {
-    // Plain-text source: zero placeholders on both the flat-comparison fallback and the source
-    // side, so the placeholder check trivially matches; the candidate's unbalanced brace only ever
-    // trips the second, ICU-syntax check.
     const source = entry("Hello world", []);
     const candidate = "Hallo {name";
     const result = gateCandidateValue(source, candidate, adapter);

@@ -86,7 +86,6 @@ describe("translate: orphan pruning (--prune)", () => {
   it("the CLI flag overrides the config option (flag false-by-absence does not, but flag true wins)", async () => {
     const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo", stale: "Alt" } });
 
-    // config prune is false, input flag is true -> prune on.
     const summary = await translate(
       { config: cfg({ prune: false }), cwd: dir, prune: true },
       { createProvider: () => makeStubProvider().provider },
@@ -97,18 +96,15 @@ describe("translate: orphan pruning (--prune)", () => {
   });
 
   it("never removes source-present keys: missing, changed, unchanged, and integrity-withheld survive", async () => {
-    // Seed: de has unchanged "u", an orphan "orphan", and a soon-to-fail "f". Source adds "m" (missing).
     const dir = await project(
       { u: "U", f: "F", m: "M" },
       { de: { u: "[de] U", f: "[de] F-old", orphan: "Orphan" } },
     );
-    // First run to establish a baseline so "f" can later be flagged changed.
     await translate(
       { config: cfg(), cwd: dir },
       { createProvider: () => makeStubProvider().provider },
     );
 
-    // Change "f" so it is a changed key, and make its translation fail integrity this run.
     await writeJsonFile(join(dir, "locales", "en.json"), { u: "U", f: "F-new", m: "M" });
     const failing = makeStubProvider({ failIntegrity: new Set(["f"]) });
 
@@ -122,7 +118,7 @@ describe("translate: orphan pruning (--prune)", () => {
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de.orphan).toBeUndefined();
     expect(de.u).toBeDefined();
-    expect(de.f).toBeDefined(); // integrity-withheld but source-present, so it survives pruning
+    expect(de.f).toBeDefined();
     expect(de.m).toBeDefined();
   });
 
@@ -153,7 +149,6 @@ describe("translate: orphan pruning (--prune)", () => {
 
   it("a stale lock entry for a now-orphaned key does not survive a prune run", async () => {
     const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo", stale: "Alt" } });
-    // Seed a lock that wrongly carries an entry for the orphan key.
     await writeFile(
       lockPath(dir),
       `${JSON.stringify(
@@ -175,7 +170,7 @@ describe("translate: orphan pruning (--prune)", () => {
 
   it("a no-orphan prune run produces a file identical to a non-prune run", async () => {
     const sourceObj = { a: "A", b: "B" };
-    const targetObj = { a: "[de] A", b: "[de] B" }; // no orphans
+    const targetObj = { a: "[de] A", b: "[de] B" };
 
     const dirPrune = await project(sourceObj, { de: { ...targetObj } });
     await translate(
@@ -204,7 +199,6 @@ describe("translate: orphan pruning (--prune)", () => {
         { config: cfg(), cwd: dir, prune: true },
         { createProvider: () => makeStubProvider().provider },
       );
-      // second identical run on the same dir must not change anything
       await translate(
         { config: cfg(), cwd: dir, prune: true },
         { createProvider: () => makeStubProvider().provider },

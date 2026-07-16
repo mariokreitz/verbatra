@@ -10,9 +10,7 @@ import { SectionHead } from "./section-head";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-// A single accordion row: a hairline-divided question button with a plus that rotates 45deg
-// into an x when open, and a motion height reveal for the answer. When reduced motion is
-// requested the transitions collapse to zero duration, so open/close is instant.
+/** One accordion row: a question button with a rotating plus icon and a motion height reveal for the answer. */
 function FaqRow({
   item,
   index,
@@ -43,7 +41,6 @@ function FaqRow({
           style={{ fontFamily: "var(--font-display)" }}
         >
           {item.question}
-          {/* A plus rotated 45deg reads as an x: the Aceternity open-state signature. */}
           <motion.span
             aria-hidden="true"
             className="relative grid h-4 w-4 shrink-0 place-items-center"
@@ -56,8 +53,6 @@ function FaqRow({
           </motion.span>
         </button>
       </h3>
-      {/* The panel stays mounted (so aria-controls always resolves); motion animates its
-          height between 0 and the natural height. */}
       <motion.section
         id={panelId}
         aria-labelledby={buttonId}
@@ -74,10 +69,12 @@ function FaqRow({
   );
 }
 
-// Two-column FAQ (Aceternity blocks style): a sticky intro on the left, a divider-led
-// single-open accordion on the right. The accordion is the only interactive part, so this
-// is the client leaf; the items come from the server page, which feeds the same array to
-// the FAQPage JSON-LD so the visible list and structured data cannot drift.
+/**
+ * Two-column FAQ: a sticky intro with CTAs on the left, a single-open
+ * accordion on the right. The items come from the server page, which feeds
+ * the same array to the FAQPage JSON-LD so the two cannot drift. Reduced
+ * motion collapses the open/close transitions to zero duration.
+ */
 export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const t = useTranslations("landing.faq");
   const [open, setOpen] = useState(0);
@@ -86,7 +83,6 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   return (
     <section className="mx-auto mt-24 max-w-6xl px-6">
       <div className="grid gap-10 md:grid-cols-5 md:gap-12">
-        {/* Left: sticky intro and CTAs. self-start lets it stick instead of stretching. */}
         <div className="md:col-span-2 md:sticky md:top-24 md:self-start">
           <SectionHead title={t("heading")} lead={t("supporting")} />
           <div className="mt-7 flex flex-col items-start gap-4">
@@ -105,7 +101,6 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
           </div>
         </div>
 
-        {/* Right: the accordion, divider-led with a top hairline to close the list frame. */}
         <div className="border-t border-fd-border md:col-span-3">
           {items.map((item, i) => (
             <FaqRow

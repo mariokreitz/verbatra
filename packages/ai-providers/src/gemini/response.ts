@@ -41,15 +41,14 @@ function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
  *
  * @param response - The raw generateContent response.
  * @returns The schema-bound raw output plus optional usage.
- * @throws {@link ProviderError} `PROVIDER_BLOCKED`: the prompt was blocked, there was no candidate, or the
- *   candidate was safety-filtered.
+ * @throws {@link ProviderError} `PROVIDER_BLOCKED`: the prompt was blocked (a present, non-empty
+ *   `blockReason`; an empty string means not blocked), there was no candidate, or the candidate was
+ *   safety-filtered.
  * @throws {@link ProviderError} `OUTPUT_TRUNCATED`: the candidate stopped on the output-token limit
  *   (`MAX_TOKENS`).
  * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty or unparseable.
  */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
-  // An empty-string blockReason means not blocked: only a present, non-empty reason
-  // indicates the prompt was actually blocked.
   const blockReason = response.promptFeedback?.blockReason;
   if (blockReason !== undefined && blockReason !== "") {
     throw new ProviderError("PROVIDER_BLOCKED", "The provider blocked the translation request.");

@@ -8,6 +8,7 @@ export const historyListParamsSchema = z.strictObject({
   limit: z.number().int().positive().optional(),
 });
 
+/** Parsed `history.list` params. */
 export type HistoryListParams = z.infer<typeof historyListParamsSchema>;
 
 /** One commit that touched the watched locale files. */

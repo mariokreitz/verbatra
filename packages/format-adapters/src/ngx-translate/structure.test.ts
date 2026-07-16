@@ -95,7 +95,6 @@ describe("buildNgxWriteTree", () => {
   }
 
   it("defaults to nested for a non-regular destination without reading it", async () => {
-    // a directory is a non-regular path: detectStyle must not read it
     const dirPath = await mkdtemp(join(tmpdir(), "verbatra-ngx-st-"));
     const tree = await buildNgxWriteTree(new Map([["a.b", entry("a.b", "v")]]), dirPath);
     expect(JSON.parse(JSON.stringify(tree))).toEqual({ a: { b: "v" } });

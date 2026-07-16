@@ -24,7 +24,7 @@ export type IntegrityGateResult =
  * @param sourceEntry - The source entry the candidate is a translation of.
  * @param candidateValue - The candidate translated value to check.
  * @param adapter - The format adapter whose placeholder and message-validity rules apply.
- * @returns `{ accepted: true }`, or `{ accepted: false, reason }` naming which check failed first.
+ * @returns The acceptance, or a rejection naming which check failed first.
  */
 export function gateCandidateValue(
   sourceEntry: TranslationEntry,

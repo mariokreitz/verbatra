@@ -7,6 +7,8 @@ export type JsonLeaf = string | number | boolean | null;
 
 /** A value in a JSON translation file: a leaf or a nested object. */
 export type JsonTree = JsonLeaf | JsonRecord;
+
+/** A nested object node in a JSON translation file, mapping keys to leaves or further nodes. */
 export interface JsonRecord {
   readonly [key: string]: JsonTree;
 }
@@ -17,7 +19,7 @@ const jsonTreeSchema: z.ZodType<JsonTree> = z.lazy(() =>
 
 const rootSchema: z.ZodType<JsonRecord> = z.record(z.string(), jsonTreeSchema);
 
-// Iterative (explicit stack) so measuring depth never itself overflows before the cap is checked.
+/** Throws when object nesting exceeds `max`. Iterative (explicit stack) so measuring depth never itself overflows before the cap is checked. */
 function assertWithinDepth(value: unknown, max: number): void {
   const stack: Array<{ node: unknown; depth: number }> = [{ node: value, depth: 1 }];
   while (stack.length > 0) {

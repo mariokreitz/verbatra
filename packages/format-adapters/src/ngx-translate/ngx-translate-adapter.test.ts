@@ -167,7 +167,6 @@ describe("ngx-translate adapter: structure-preserving round-trip", () => {
   it("does not read an over-size destination; defaults to nested (bounded write path)", async () => {
     const dir = await tempDir();
     const { resource } = await adapter.read(await write(dir, "common.json", FLAT), "en");
-    // a destination larger than the read-path cap must not be loaded to detect style
     const oversized = join(dir, "oversized.json");
     await writeFile(oversized, new Uint8Array(MAX_INPUT_BYTES + 1));
     await adapter.write(resource, oversized);

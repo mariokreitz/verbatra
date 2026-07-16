@@ -29,13 +29,11 @@ describe("computeReviewFlags: clean input", () => {
 
 describe("computeReviewFlags: LENGTH_RATIO_OUTLIER", () => {
   it("is skipped when the trimmed source is under 12 UTF-16 code units", () => {
-    // "short source" trimmed is 11 chars; a ratio-breaking translation must still not flag.
     const flag = computeReviewFlags(input({ sourceValue: "short sourc", translatedValue: "x" }));
     expect(flag).toBeUndefined();
   });
 
   it("does not flag a ratio just inside the lower bound (0.35)", () => {
-    // Source is 20 chars; translated at exactly ratio 0.35 (7 chars) must not flag.
     const source = "12345678901234567890";
     const translated = "1234567";
     expect(translated.length / source.length).toBeCloseTo(0.35, 5);
@@ -53,8 +51,8 @@ describe("computeReviewFlags: LENGTH_RATIO_OUTLIER", () => {
   });
 
   it("does not flag a ratio just inside the upper bound (3.0)", () => {
-    const source = "1234567890123"; // 13 chars
-    const translated = "1".repeat(39); // ratio exactly 3.0
+    const source = "1234567890123";
+    const translated = "1".repeat(39);
     expect(translated.length / source.length).toBeCloseTo(3.0, 5);
     expect(
       computeReviewFlags(input({ sourceValue: source, translatedValue: translated })),
@@ -62,7 +60,7 @@ describe("computeReviewFlags: LENGTH_RATIO_OUTLIER", () => {
   });
 
   it("flags a ratio just outside the upper bound", () => {
-    const source = "1234567890123"; // 13 chars
+    const source = "1234567890123";
     const translated = "1".repeat(40);
     expect(translated.length / source.length).toBeGreaterThan(3.0);
     const flag = computeReviewFlags(input({ sourceValue: source, translatedValue: translated }));

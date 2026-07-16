@@ -315,8 +315,6 @@ describe("secret sweep: translation.retranslateEntry against a real fixture proj
       id: "stub",
       kind: "llm",
       supportsGlossary: true,
-      // Drops the {{name}} placeholder: a genuine, non-secret rejection, distinct from the
-      // sentinel-bearing scenario this test is checking never leaks alongside it.
       translateBatch: async () => ({
         values: new Map([["greeting", "Hallo"]]),
         integrity: new Map(),
@@ -358,8 +356,6 @@ describe("secret sweep: translation.retranslateEntry against a real fixture proj
       writeCapableHandlers,
     );
 
-    // UNKNOWN_KEY is thrown before the provider is ever called; the sentinel-bearing stub value
-    // never had a chance to be produced, let alone returned.
     expect(result.statusCode).toBe(200);
     const parsed = JSON.parse(result.body) as { ok: boolean; error?: { code: string } };
     expect(parsed).toMatchObject({ ok: false, error: { code: "UNKNOWN_KEY" } });
@@ -368,10 +364,6 @@ describe("secret sweep: translation.retranslateEntry against a real fixture proj
 });
 
 describe("secret sweep: translation.editEntry and key.value against a real fixture project", () => {
-  // Planted in a key neither editEntry nor key.value ever touches in these tests, so any
-  // appearance in a response body is a genuine leak, distinct from the fetched/edited key's own
-  // legitimate prose (which key.value's source/target fields and editEntry's value field are
-  // explicitly designed to carry, not a leak by design).
   const ELSEWHERE_SENTINEL = "sentinel-elsewhere-key-8a21fd";
   let project: FixtureProject;
 
@@ -421,7 +413,7 @@ describe("secret sweep: translation.editEntry and key.value against a real fixtu
     const result = await dispatchRpc(
       body({
         method: "translation.editEntry",
-        params: { locale: "de", key: "greeting", value: "Hallo" }, // drops {{name}}
+        params: { locale: "de", key: "greeting", value: "Hallo" },
       }),
       fixtureDeps(),
       writeCapableHandlers,
@@ -461,8 +453,6 @@ describe("secret sweep: translation.editEntry and key.value against a real fixtu
 
     expect(result.statusCode).toBe(200);
     const parsed = JSON.parse(result.body) as { ok: boolean; result?: { source: string } };
-    // The source value is legitimate, requested content, excluded from this sweep by design; the
-    // elsewhere sentinel from an unrelated key is the actual thing this test proves never appears.
     expect(parsed).toMatchObject({ ok: true, result: { source: "Hello {{name}}" } });
     assertNoElsewhereSentinel(result.body);
   });

@@ -37,23 +37,14 @@ const PAGE_ICONS: Readonly<Record<PageId, IconName>> = {
   settings: "settings",
 };
 
-// The two sidebar zones ARE the information architecture: the surfaces someone works in daily
-// at the top, the surfaces someone checks occasionally at the bottom, next to the collapse
-// toggle. No group headers; with four flat pages the placement carries the taxonomy.
 const WORK_PAGES: readonly PageId[] = ["translations", "review"];
 const REFERENCE_PAGES: readonly PageId[] = ["activity", "settings"];
 
-// The zones must partition PAGE_IDS exactly; a page missing here would silently vanish from
-// both the rail and the drawer (still reachable through the URL hash) with nothing failing at
-// build or test time, since src/app/** has no test harness.
 const ZONED_PAGES = new Set([...WORK_PAGES, ...REFERENCE_PAGES]);
 if (ZONED_PAGES.size !== PAGE_IDS.length || PAGE_IDS.some((page) => !ZONED_PAGES.has(page))) {
   throw new Error("WORK_PAGES and REFERENCE_PAGES must partition PAGE_IDS exactly");
 }
 
-// Every page receives refreshToken (bumped once per live-refresh event) and re-fetches its
-// views on it: coverage, key diff, lock, review queue, usage, and history are all live. The
-// refresh toast below is a second, independent reaction to the same live-refresh event.
 const PAGE_PANELS: Readonly<Record<PageId, (props: PanelProps) => ReactNode>> = {
   translations: TranslationsPanel,
   review: ReviewPanel,
@@ -62,9 +53,9 @@ const PAGE_PANELS: Readonly<Record<PageId, (props: PanelProps) => ReactNode>> = 
 };
 
 /**
- * The terminal, full-screen notice shown once the session is marked expired (G22): it never
- * clears itself and nothing in this component polls or retries; the only way out is a full page
- * reload from the loopback URL printed in the terminal.
+ * The terminal, full-screen notice shown once the session is marked expired.
+ * It never clears itself and nothing here polls or retries; the only way out
+ * is a full page reload from the loopback URL printed in the terminal.
  */
 function SessionExpiredNotice(): ReactNode {
   return (
@@ -83,16 +74,16 @@ function isSessionExpired(): boolean {
   return sessionStore.getState().kind === "session-expired";
 }
 
+/**
+ * The dashboard root. Tracks the current page from the URL hash (parsed on
+ * mount and on every hashchange), subscribes to the session store and the
+ * refresh bus, and holds the toast slot, refresh token, and sidebar state.
+ * Renders the session-expired notice instead of the shell once the session
+ * store reports expiry.
+ */
 export function App(): ReactNode {
-  // The URL hash is the source of truth for the current page: parsed once on mount (a reload
-  // lands back on the same page) and re-parsed on every hashchange (browser back/forward work).
-  // navigate() writes the hash and mirrors the state immediately; the listener firing after is
-  // idempotent.
   const [page, setPage] = useState<PageId>(() => parsePageHash(window.location.hash));
   const [sessionExpired, setSessionExpired] = useState(isSessionExpired());
-  // One toast slot (client/refresh-toast.ts's own one-slot rule): a new refresh event always
-  // replaces whatever is shown, including clearing it entirely for an event with nothing to
-  // report; a dismiss always clears it without ever calling the translate-pending action.
   const [toast, setToast] = useState<RefreshToastView | undefined>(undefined);
   const [refreshToken, setRefreshToken] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -153,9 +144,10 @@ export function App(): ReactNode {
 }
 
 /**
- * The rendered shell, split from `App` so its hooks (most notably the review-queue read backing
- * the nav count) never run while the session-expired notice is up: `App` returns before
- * rendering this, and hooks in an unrendered child simply do not execute.
+ * The rendered shell, split from `App` so its hooks (most notably the
+ * review-queue read backing the nav count) never run while the
+ * session-expired notice is up: `App` returns before rendering this, and
+ * hooks in an unrendered child do not execute.
  */
 function AppShell({
   page,
@@ -178,10 +170,6 @@ function AppShell({
   readonly sidebarCollapsed: boolean;
   readonly onToggleSidebar: () => void;
 }): ReactNode {
-  // The review queue's visible size, shown as a count chip on the Review nav entry. Reuses the
-  // Review panel's own data path end to end: the same refresh-reactive fetch and the same
-  // session overlay, re-read on every overlay change (an approve, reject, or accepted edit
-  // updates the chip instantly, without waiting for the next live-refresh event).
   const reviewQueue = useReviewQueue(refreshToken);
   useReviewOverlaySignal();
   const reviewCount =

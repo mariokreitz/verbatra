@@ -44,6 +44,8 @@ export interface ShutdownEvent {
   readonly at: string;
 }
 
-/** The named SSE event types this stream ever writes, besides the heartbeat comment. */
+/** The named SSE event type carrying a {@link RefreshEvent}; with {@link SSE_EVENT_SHUTDOWN}, the only named events the stream writes besides the heartbeat comment. */
 export const SSE_EVENT_REFRESH = "refresh";
+
+/** The named SSE event type carrying a {@link ShutdownEvent}, the final event on a stream. */
 export const SSE_EVENT_SHUTDOWN = "shutdown";

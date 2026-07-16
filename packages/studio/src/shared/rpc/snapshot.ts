@@ -8,6 +8,7 @@ export const PROJECT_SNAPSHOT_METHOD = "project.snapshot";
 /** Takes no parameters: the snapshot always reflects the single loaded project. */
 export const projectSnapshotParamsSchema = z.strictObject({});
 
+/** Parsed `project.snapshot` params. */
 export type ProjectSnapshotParams = z.infer<typeof projectSnapshotParamsSchema>;
 
 /**

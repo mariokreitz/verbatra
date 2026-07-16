@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from "react";
 
+/** Props for the docs Button; native button attributes pass through when it renders as a button. */
 export type ButtonProps = {
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md" | "lg";
@@ -25,6 +26,11 @@ const SIZE: Record<NonNullable<ButtonProps["size"]>, string> = {
   lg: "py-[13px] px-[22px] text-base",
 };
 
+/**
+ * The design-system button. Renders a Next Link when `href` is set and the
+ * button is enabled; a disabled link is meaningless, so a disabled `href`
+ * falls back to a disabled button element.
+ */
 export default function Button({
   variant = "primary",
   size = "md",
@@ -50,7 +56,6 @@ export default function Button({
     </>
   );
 
-  // A disabled link is meaningless, so only render a link when enabled and fall back to a disabled <button>.
   if (href && !disabled) {
     return (
       <Link href={href} className={classes} style={style}>

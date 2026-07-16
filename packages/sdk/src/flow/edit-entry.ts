@@ -33,11 +33,10 @@ export interface EditEntryDeps {
 }
 
 /**
- * The two-armed result of one edit attempt: `accepted` carries the newly written value; a
+ * The two-armed result of one edit attempt: acceptance carries the newly written value; a
  * rejection carries the candidate value and which {@link gateCandidateValue} check failed it,
- * without writing anything. Deliberately has no `reviewReasons` field (unlike
- * {@link RetranslateEntryResult}): a human-typed correction never touches a provider, so there is
- * no provider-derived review signal to report.
+ * with nothing written. Deliberately has no review-reasons field: a human-typed correction never
+ * touches a provider, so there is no provider-derived review signal to report.
  */
 export type EditEntryResult =
   | {
@@ -51,17 +50,25 @@ export type EditEntryResult =
     };
 
 /**
- * Write exactly one human-typed correction for exactly one target locale, gated through the shared
- * {@link gateCandidateValue} before anything reaches disk. On acceptance, writes the target locale
- * file (merging just this one key into its current entries, every other key untouched) and updates
- * the lock entry for this key only (see {@link updateLockFileLocale}'s `"merge"` mode); on
- * rejection, writes nothing. Never calls a provider: {@link EditEntryDeps} has no `createProvider`
- * field, so there is no way to construct or call one even if this handler were miswired.
+ * Writes exactly one human-typed correction for exactly one target locale, gated through the
+ * shared {@link gateCandidateValue} before anything reaches disk. On acceptance, writes the target
+ * locale file (merging just this one key into its current entries, every other key untouched) and
+ * updates the lock entry for this key only (see {@link updateLockFileLocale}'s `"merge"` mode); on
+ * rejection, writes nothing. Never calls a provider: {@link EditEntryDeps} has no provider seam,
+ * so there is no way to construct or call one.
  *
- * `locale` and `key` are resolved fresh on every call, never cached: `locale` against
- * `config.targetLocales` (the existing `UNKNOWN_LOCALE`), `key` against the source resource's own
- * keys, read fresh from disk (`UNKNOWN_KEY`), via a `Map`-backed lookup, never `key in obj` or
- * `obj[key] !== undefined` against a plain object. This mirrors {@link retranslateEntry} exactly.
+ * `locale` and `key` are resolved fresh on every call, never from a cache: `locale` against
+ * `config.targetLocales`, `key` against the source resource read fresh from disk.
+ *
+ * The target-file write and the lock-file update run inside one held `withLocaleWriteLock`
+ * critical section, so no second writer for this locale can observe the target file updated but
+ * the lock entry not yet, or vice versa. Reading the source, resolving the key, and selecting the
+ * adapter stay outside the lock: they are read-only and need no protection.
+ *
+ * Never touches `.verbatra-local/run-status.json`: that file is rewritten wholesale by
+ * `translate()`/`watch()` outside any locale lock, so patching it here would race that rewrite. A
+ * key edited here stays stale in that persisted snapshot until the next real run, which self-heals
+ * it since this call already advanced the lock hash.
  *
  * @param input - The validated config, the target locale, the source key, and the replacement value.
  * @param deps - Optional composition seams (registry, file system) for tests.
@@ -74,21 +81,7 @@ export type EditEntryResult =
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  *   unsupported version.
  * @throws {@link SdkError} `LOCK_CONTENDED`: this locale's write lock could not be acquired before
- *   its timeout, because another process (another CLI run, or a second Studio write) is holding it.
- *
- * The target-file write and the lock-file update run inside the same held
- * `withLocaleWriteLock(cwd, locale, fs, ...)` critical section, so no second writer for this
- * locale can ever observe the target file updated but the lock entry not yet, or vice versa.
- * Reading the source, resolving the key, and adapter selection stay outside the lock: they are
- * read-only or pure construction and do not need protection, mirroring `retranslateEntry`'s own
- * split exactly.
- *
- * Never writes to, or reads for the purpose of updating, `.verbatra-local/run-status.json`: that
- * file is written only by `translate()`/`watch()` after their whole per-locale loop, outside any
- * locale lock, so a patching `editEntry` would be a second, unlocked writer racing that wholesale
- * rewrite. A key edited here stays stale in that persisted snapshot until the next real
- * `translate()`/`watch()` run, which self-heals it for free since this call already advanced the
- * lock hash.
+ *   its timeout, because another process is holding it.
  */
 export async function editEntry(
   input: EditEntryInput,

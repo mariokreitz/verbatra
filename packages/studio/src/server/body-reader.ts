@@ -23,9 +23,14 @@ function declaredLengthExceedsCap(request: IncomingMessage, capBytes: number): b
 /**
  * Reads a request body up to `capBytes`. A declared Content-Length over the cap rejects
  * immediately without buffering a single byte; the socket is drained (not destroyed) so the
- * client's upload completes normally and it still receives the 413 response. Otherwise bytes are
- * counted as they stream in and the connection is destroyed the instant the cap is crossed, since
- * without a Content-Length header there is no bound on how much more data might follow.
+ * client's upload completes normally and it can still receive an error response. Without a
+ * trustworthy Content-Length, bytes are counted as they stream in and the connection is destroyed
+ * the instant the cap is crossed. A connection that closes before the body fully arrives rejects
+ * with a plain error instead of leaving the promise pending.
+ *
+ * @param request - The incoming request whose body is read.
+ * @param capBytes - The maximum number of body bytes accepted.
+ * @throws PayloadTooLargeError (as a rejection) when the body exceeds the cap.
  */
 export function readBodyWithCap(request: IncomingMessage, capBytes: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -61,9 +66,6 @@ export function readBodyWithCap(request: IncomingMessage, capBytes: number): Pro
       resolve(Buffer.concat(chunks));
     });
     request.on("error", settleReject);
-    // Fires whether the connection ended normally or the client vanished mid-upload; without this,
-    // an aborted upload (no more data, no "end", no stream "error") would leave the promise pending
-    // forever instead of failing the request.
     request.on("close", () =>
       settleReject(new Error("request closed before the body was fully received")),
     );

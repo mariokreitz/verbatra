@@ -59,8 +59,6 @@ describe("buildReviewReportMarkdown", () => {
   });
 
   it("contains no em dash character anywhere", () => {
-    // Built via String.fromCharCode rather than a literal glyph, so this test file itself never
-    // contains the em dash character it checks for (see scripts/check-no-em-dash.mjs).
     const emDash = String.fromCharCode(0x2014);
     const report = buildReviewReportMarkdown(MULTI_LOCALE);
 

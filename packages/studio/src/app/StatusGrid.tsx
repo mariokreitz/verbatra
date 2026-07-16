@@ -19,11 +19,11 @@ const gridCellClassName = "px-3 py-2 text-start whitespace-nowrap";
 const gridHeaderClassName =
   "border-b border-border bg-muted/60 px-3 py-2.5 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
+/** Props for {@link StatusGrid}. */
 export interface StatusGridProps {
-  /** The Translations page's already-loaded per-locale diff data; never re-fetched by this component. */
+  /** The caller's already-loaded per-locale diff data; never re-fetched here. */
   readonly locales: readonly DiffLocale[];
-  /** The app's live-refresh token, so the header coverage bars re-fetch alongside the grid's
-   * own refresh-reactive diff data instead of freezing at their mount-time values. */
+  /** Bumped once per live-refresh event; re-fetches the header coverage data. */
   readonly refreshToken: number;
   readonly onSelectKey: (key: string) => void;
 }
@@ -51,13 +51,10 @@ function percentForLocale(status: RefreshableView<StatusData>, locale: string): 
 }
 
 /**
- * A locale header's completeness bar, sourced from `check()`'s own already-computed percentage
- * (`upToDate / (missing + stale + upToDate)`, see `client/coverage.ts`), never recomputed from the
- * diff key lists here: recounting client-side risks drifting from `check()`'s own numbers. `percent`
- * is only ever null while `status.check` has not yet produced any data (still loading, or its first
- * fetch failed); `unavailable` distinguishes those two so a genuine failure never sits mislabeled as
- * "still loading" forever. The grid itself does not depend on this: it already has everything it
- * needs to render from the diff data alone, whether or not the completeness fetch succeeds.
+ * A locale header's completeness bar, sourced from the status data's
+ * already-computed percentage, never recomputed from the diff key lists.
+ * `percent` is null while no status data exists yet; `unavailable`
+ * distinguishes a failed fetch from one still loading.
  */
 function CompletenessBar({
   percent,
@@ -95,11 +92,10 @@ interface GridCellProps {
 }
 
 /**
- * One key/locale cell: a real, individually focusable button so a click and Enter share the same
- * activation path, roving-tabindex managed by the parent grid (only the current position's button
- * is in the Tab order; every other cell is reachable by arrow key, not Tab). Status rendering
- * reuses the exact convention `KeyDetailDrawer.tsx`'s `LocaleStatusRow` established: a plain
- * success badge for in-sync, `DiffBadge` for the three drift kinds.
+ * One key/locale cell: a focusable button so a click and Enter share the same
+ * activation path, with its tabindex roved by the parent grid (only the
+ * current position's button is in the Tab order). Renders a success badge for
+ * in-sync, a `DiffBadge` for the three drift kinds.
  */
 function GridCell({
   status,
@@ -199,32 +195,18 @@ function GridBodyRow({
 }
 
 /**
- * Rows = keys, columns = locales, one cell = that key's status in that locale. Rows are the
- * drift-affected key union from `driftKeys` (see its own doc comment for the "not the full key
- * universe" scoping decision); a target locale with no target file at all needs no special case
- * here, since `readTarget` (sdk `diff-locales.ts`) already reports it as an empty resource, which
- * makes every source key "missing" for that locale through the normal diff data, and a key that
- * only exists as an orphaned entry in another locale is correctly "in sync" for the missing-file
- * locale (it is not a source key, so there is nothing to be missing).
- *
- * A `<table>` with one flat `<tr>` per key keeps the DOM row-virtualization-friendly: no nested
- * per-row wrapper structure to unwind if virtualization is added later.
- *
- * Keyboard navigation is a roving tabindex: exactly one cell is in the Tab order at a time (the
- * current position, initially the first key and first locale); arrow keys move it, wrapping at the
- * grid's edges, via the pure `moveGridFocus` (see `client/roving-tabindex.ts`); Enter or Space
- * opens the key detail drawer for that row's key, and a mouse click does the same. The grid does
- * not set an ARIA `grid` role: the native `<table>` semantics (with `scope="row"`/`scope="col"`)
- * already describe the structure correctly, and layering the full ARIA grid pattern (explicit
- * `row`/`gridcell` roles on every cell) is a bigger surface than this ticket's "keyboard-first
- * navigation" call asks for.
+ * A key-by-locale status table: rows are the drift-affected keys from
+ * `driftKeys`, columns are locales, and one cell is that key's status in that
+ * locale. Keyboard navigation is a roving tabindex: exactly one cell sits in
+ * the Tab order at a time, arrow keys move it (wrapping at the edges via
+ * `moveGridFocus`), and Enter, Space, or a click calls `onSelectKey` with the
+ * row's key. Native `<table>` semantics with row and column scopes describe
+ * the structure; no ARIA grid role is claimed.
  */
 export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridProps): ReactNode {
   const keys = useMemo(() => driftKeys(locales), [locales]);
   const status = useStatusData(refreshToken);
   const [position, setPosition] = useState<GridPosition>({ row: 0, col: 0 });
-  // The key list changes under a live refresh; a stored position past the new bounds would
-  // leave no cell tabbable (see clampGridPosition's own doc comment).
   const safePosition = clampGridPosition(position, {
     rowCount: keys.length,
     colCount: locales.length,

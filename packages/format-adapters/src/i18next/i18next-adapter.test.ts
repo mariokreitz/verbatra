@@ -17,7 +17,6 @@ async function tempFile(name: string, content: string): Promise<string> {
 }
 
 afterAll(() => {
-  // temp dirs live under the OS temp root; left for the OS to reclaim
   dirs.length = 0;
 });
 

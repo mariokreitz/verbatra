@@ -1,25 +1,24 @@
 import type { StructuredError } from "./state.js";
 
 /**
- * Codes reachable today through Studio's read-only RPC surface, mapped to specific, actionable
- * copy. Every code here can actually reach the client:
+ * Codes reachable through Studio's RPC surface regardless of capability flags, mapped to
+ * specific, actionable copy:
  *
  * - Transport-level, from `server/rpc-gate.ts` and `client/rpc-client.ts`.
- * - `SdkErrorCode` values reachable via `check()`, `diff()`, `lockState()`, `retranslateEntry()`,
- *   `editEntry()`, and `keyValue()`, the sdk calls Studio's RPC handlers make (see
+ * - `SdkErrorCode` values thrown by the sdk calls Studio's RPC handlers make (see
  *   `@verbatra/sdk`'s `errors.ts`). `UNKNOWN_KEY` is reachable through `translation.editEntry`,
  *   `translation.retranslateEntry`, and `key.value`, all three of which re-read the source
  *   resource on every call. `LOCK_CONTENDED` is reachable through `translation.editEntry` and
  *   `translation.retranslateEntry`, the two methods that hold a target locale's write lock.
- *   `CONFIG_NOT_FOUND`, `CONFIG_INVALID`, `PROVIDER_CONSTRUCTION_FAILED`, and `LOCALE_FAILED` are
- *   real `SdkErrorCode` values but are thrown only by `loadConfig` or `translate`, neither of
- *   which any Studio RPC handler calls, so they are excluded here.
  * - `AdapterErrorCode` values (see `@verbatra/format-adapters`'s `errors.ts`), reachable only when
  *   a target locale file fails to parse; a source-file failure is always wrapped as the sdk's own
  *   `SOURCE_INVALID` before it can reach the client.
+ *
+ * A code that reaches the client without an entry in the merged table (for example
+ * `ALREADY_IN_PROGRESS`, or a provider code not listed below) falls back to the server's
+ * structured `error.message` via {@link resolveErrorCopy}.
  */
 const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
-  // Transport-level.
   REQUEST_INVALID:
     "The request body was not shaped as the server expects. Reload the page and try again.",
   METHOD_UNKNOWN:
@@ -27,7 +26,6 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   PARAMS_INVALID: "The request parameters failed validation. Reload the page and try again.",
   INTERNAL: "An unexpected server error occurred. Check the terminal running Studio for details.",
   SESSION_EXPIRED: "The session has expired. Reload the page to start a new one.",
-  // SdkErrorCode.
   UNKNOWN_FORMAT:
     "No adapter is registered for this project's configured format. Check the format field in the verbatra config.",
   SOURCE_UNREADABLE: "The source locale file could not be found on disk.",
@@ -37,7 +35,6 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   UNKNOWN_KEY: "The requested key was not found in the source resource. It may have been removed.",
   LOCK_CONTENDED:
     "This locale's write lock is held by another process. Wait a moment and try again.",
-  // AdapterErrorCode: reachable only for a target locale file, never the source file.
   INVALID_JSON: "A target locale file is not valid JSON.",
   INVALID_YAML: "A target locale file is not valid YAML.",
   INVALID_XML: "A target locale file is not valid XML.",
@@ -49,14 +46,16 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
 };
 
 /**
- * Forward-looking entries for `ProviderErrorCode`-style failures (see `@verbatra/ai-providers`'s
- * `errors.ts` for the canonical codes; Studio never imports that package, so the three code
- * strings are duplicated here rather than referenced by type). None of these can be emitted
- * today: Studio's six RPC handlers never construct or call a translation provider (see
- * `server/rpc-gate.ts`'s `mapHandlerError`, which recognizes only `SdkError` and `AdapterError` by
- * name; anything else falls through to a fixed, generic `INTERNAL`). Kept here, dormant, so a
- * future write path that does call a provider (still blocked on a separate gated-write decision)
- * gets specific copy for free instead of the generic fallback.
+ * Copy for three `ProviderErrorCode` values (see `@verbatra/ai-providers`'s `errors.ts` for the
+ * canonical codes; Studio never imports that package, so the code strings are duplicated here
+ * rather than referenced by type). These reach the client on a spend-enabled server:
+ * `translation.retranslateEntry` and `translation.translatePending` call a provider, and
+ * `server/rpc-gate.ts`'s `mapHandlerError` forwards a thrown `ProviderError`'s own code and
+ * redacted message. The remaining provider codes have no entry and fall back to the server's
+ * message.
+ *
+ * Note: the server's per-method rate limiter answers HTTP 429 with the same `RATE_LIMITED` code
+ * string, so that transport-level rejection also resolves to this provider-worded copy.
  */
 const FORWARD_LOOKING_CODE_COPY: Readonly<Record<string, string>> = {
   RATE_LIMITED: "The translation provider is rate-limiting requests. Wait a moment and try again.",
@@ -64,7 +63,7 @@ const FORWARD_LOOKING_CODE_COPY: Readonly<Record<string, string>> = {
   TIMEOUT: "The translation provider did not respond in time. Try again.",
 };
 
-/** The complete code-to-copy lookup table: every reachable-today code plus the three dormant, forward-looking ones. */
+/** The complete code-to-copy lookup table: the transport, sdk, and adapter codes plus the three provider codes. */
 export const ERROR_CODE_COPY: Readonly<Record<string, string>> = {
   ...REACHABLE_CODE_COPY,
   ...FORWARD_LOOKING_CODE_COPY,

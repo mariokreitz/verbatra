@@ -1,21 +1,35 @@
 /**
- * The verbatra SDK: the central orchestration API for running translation. {@link loadConfig} loads and
- * validates the project config; {@link translate} runs the one-shot read, diff, translate, write flow
- * over all target locales; {@link watch} runs the same flow on each debounced source change;
- * {@link check} and {@link diff} report pending work without writing; {@link keyIntegrity} reports, per
- * changed key, whether its placeholders or ICU structure still match the source; {@link lockState}
- * reports the lock-file's existence, version, and per-locale drift, and {@link loadLockFile} reads the
- * lock-file itself. {@link runStatus} reads the persisted review-flag and token/usage snapshot a prior
- * non-dry-run {@link translate}/{@link watch} run left behind. {@link readLocaleFileSnapshot} and
- * {@link diffLocaleSnapshots} read one locale file as a
- * per-key content hash and compare two such snapshots, the building blocks a caller like Studio's
- * live-refresh watcher uses to report a locale file's own added, changed, and removed key counts
- * since its last observed state. For human-in-the-loop translation, {@link exportWorkbook} writes untranslated strings to an
- * `.xlsx` workbook and {@link importWorkbook} reads a filled workbook back through the same diff, lock,
- * and integrity checks. Whole-run failures
- * throw a structured, secret-free {@link SdkError}; per-locale failures, provider notices, and integrity
- * findings are surfaced as data on the {@link RunSummary} rather than thrown. API keys are read only from
- * the environment by the providers; the SDK never reads or holds a key, and the config carries none.
+ * The verbatra SDK: the central orchestration API for running translation.
+ *
+ * Config: {@link defineConfig} types a `verbatra.config.ts`, {@link loadConfig} loads and validates
+ * the project config, and {@link loadConfigWithMeta} adds config-source and glossary provenance.
+ *
+ * Runs: {@link translate} performs the one-shot read, diff, translate, write flow over all target
+ * locales; {@link watch} re-runs it on each debounced source change.
+ *
+ * Read-only reporting: {@link check} and {@link diff} report pending work without writing;
+ * {@link keyIntegrity} reports, per changed key, whether its placeholders or ICU structure still
+ * match the source; {@link lockState} reports the lock-file's existence, version, and per-locale
+ * drift; {@link loadLockFile} reads the lock-file itself; {@link runStatus} reads the persisted
+ * review-flag and token-usage snapshot a prior non-dry-run {@link translate} or {@link watch} run
+ * left behind; {@link keyValue} reads one key's current source and target values.
+ * {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a per-key
+ * content hash and compare two such snapshots, the building blocks a live-refresh watcher such as
+ * Studio's uses to report a locale file's added, changed, and removed keys since its last observed
+ * state.
+ *
+ * Single-key writes: {@link editEntry} saves a manually edited translation for one key, and
+ * {@link retranslateEntry} re-runs the provider for one key; both hold the same per-locale write
+ * lock as a full run.
+ *
+ * Excel handoff: {@link exportWorkbook} writes untranslated strings to an `.xlsx` workbook, and
+ * {@link importWorkbook} reads a filled workbook back through the same diff, lock, and integrity
+ * checks.
+ *
+ * Whole-run failures throw a structured, secret-free {@link SdkError}; per-locale failures,
+ * provider notices, and integrity findings are surfaced as data on the {@link RunSummary} rather
+ * than thrown. API keys are read only from the environment by the providers; the SDK never reads
+ * or holds a key, and the config carries none.
  *
  * @packageDocumentation
  */

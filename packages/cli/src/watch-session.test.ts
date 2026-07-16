@@ -9,7 +9,6 @@ function options(): WatchOptions {
 }
 
 describe("runWatch: stop handling", () => {
-  // A failed stop must never surface as an unhandled rejection; assert the process never sees one.
   let unhandled: unknown[];
   const onUnhandled = (reason: unknown): void => {
     unhandled.push(reason);
@@ -75,7 +74,6 @@ describe("runWatch: stop handling", () => {
     });
 
     const session = runWatch(options(), deps, streams);
-    // Request the stop BEFORE the controller exists; it must be honored once watch() resolves.
     session.requestStop();
     resolveWatch({
       stop: async () => {
@@ -93,7 +91,6 @@ describe("runWatch: stop handling", () => {
   it("a forced second stop resolves 130", async () => {
     const { streams } = captureStreams();
     const { deps } = recordingDeps({
-      // A stop that never settles, so the first requestStop stays in flight.
       watch: async () => ({ stop: () => new Promise<void>(() => {}) }) satisfies WatchController,
     });
 

@@ -3,13 +3,12 @@
 import { type ReactNode, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// Aceternity "CardSpotlight" recreated in pure CSS (no WebGL / three.js). A bordered dark
-// card; on hover a ~350px radial spotlight follows the cursor and reveals a subtle brand-
-// tinted dot grid only within its radius. The pointer position is written to CSS custom
-// properties through a ref (the same pattern the old SpotlightCard used), so moving the cursor
-// never re-renders; only the hover boolean is state. It is pointer-driven with no looping
-// animation, so it stays calm and reduced-motion is moot (the only transition is the hover
-// fade of the overlays).
+/**
+ * A bordered card with a hover spotlight: a radial glow follows the cursor and
+ * reveals a brand-tinted dot grid inside its radius. The pointer position is
+ * written to CSS custom properties through a ref, so cursor movement never
+ * re-renders; only the hover boolean is state.
+ */
 export function CardSpotlight({
   children,
   className,
@@ -44,7 +43,6 @@ export function CardSpotlight({
           : "var(--border-default)",
       }}
     >
-      {/* Soft spotlight glow that tints the card under the cursor. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
@@ -55,7 +53,6 @@ export function CardSpotlight({
             "radial-gradient(350px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--v-glow) 12%, transparent), transparent 70%)",
         }}
       />
-      {/* Brand-tinted dot grid, revealed only inside the spotlight radius via a radial mask. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"

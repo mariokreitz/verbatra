@@ -6,12 +6,10 @@ import { toUsageTickerOutcome } from "../client/usage-ticker-data.js";
 import { rpcClient } from "./api.js";
 
 /**
- * Fetches the run's persisted token/budget snapshot via `usage.summary` and exposes it as a
- * {@link RefreshableView}, mirroring `useReviewQueue` exactly. Re-fetches whenever `refreshToken`
- * changes, including the existing SSE `refresh` event `App` already threads into every panel: a
- * sdk translate or watch run, whether triggered from the CLI or Studio's own
- * `translation.translatePending`, reaches this the same way; opening or reloading Studio itself
- * does not change what the ticker shows until the next live-refresh fetch completes.
+ * Fetches the last run's persisted token and budget snapshot via
+ * `usage.summary` and exposes it as a {@link RefreshableView}, keeping the
+ * last good data with a stale marker when a re-fetch fails. Re-fetches
+ * whenever `refreshToken` changes.
  */
 export function useUsageTicker(refreshToken?: unknown): RefreshableView<UsageTickerData> {
   const [view, setView] = useState<RefreshableView<UsageTickerData>>({ kind: "loading" });

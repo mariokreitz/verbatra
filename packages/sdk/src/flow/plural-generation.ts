@@ -88,13 +88,14 @@ const EMPTY_RESULT: PluralGenerationResult = {
 /**
  * Lock basis for a source-absent generated key: hash the governing source plural forms of its base key
  * plus the category. Stable while those source forms are unchanged, changing when any of them changes.
+ * Reuses {@link contentHash} over a throwaway entry whose value encodes the category and the sorted
+ * governing-form hashes.
  */
 export function generatedLockHash(
   governingEntries: readonly TranslationEntry[],
   category: CldrPluralCategory,
 ): string {
   const governingHashes = governingEntries.map(contentHash).sort();
-  // Reuse contentHash with a throwaway entry whose value encodes the category and governing-form hashes.
   return contentHash({
     key: "",
     namespace: "",
@@ -104,13 +105,15 @@ export function generatedLockHash(
   });
 }
 
-/** A synthetic source entry for the request: the chosen source form, re-keyed to the target key. */
+/**
+ * A synthetic source entry for the request: the chosen source form, re-keyed to the target key. The
+ * CLDR category travels as data context in the `meaning` field, never in the instruction channel.
+ */
 function syntheticEntry(item: PluralGenerationItem): TranslationEntry {
   return {
     ...item.sourceEntry,
     key: item.targetKey,
     isPlural: true,
-    // The CLDR category travels as data context (the meaning field), never the instruction channel.
     meaning: `CLDR plural category "${item.category}"`,
   };
 }

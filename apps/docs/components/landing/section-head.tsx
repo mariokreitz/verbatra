@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Display heading + optional lead. Presentational, so it stays a server component
-// (no "use client").
+/** A display heading with an optional lead paragraph, left-aligned or centered. */
 export function SectionHead({
   title,
   lead,

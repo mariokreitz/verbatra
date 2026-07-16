@@ -1,9 +1,10 @@
 import type { RpcCallResult } from "./rpc-client.js";
 
 /**
- * The three outcomes a `translation.editEntry` call can settle to, ready to render. Unlike
- * `RetranslateOutcome`, there is no `reviewReasons` field on the success arm: `editEntry` never
- * calls a provider, so there is no provider-derived review signal to carry.
+ * The three outcomes a `translation.editEntry` call can settle to, ready to render. Structurally
+ * identical to `RetranslateOutcome`; the underlying RPC results differ (`EditEntryResult` carries
+ * no `reviewReasons`, since `editEntry` never calls a provider), but neither derived outcome
+ * keeps any per-result extras.
  */
 export type EditEntryOutcome =
   | { readonly kind: "success" }

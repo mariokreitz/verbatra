@@ -6,9 +6,6 @@ import { SectionHead } from "./section-head";
 
 type Reason = { title: string; body: string };
 
-// The six reasons render in a uniform card-spotlight grid (no bento spans, no skeletons): a
-// calm, premium supporting section. Server shell: the copy renders on the server; each
-// CardSpotlight is a pointer-driven client leaf.
 const REASON_KEYS = [
   "incremental",
   "provider",
@@ -18,6 +15,10 @@ const REASON_KEYS = [
   "dryRun",
 ] as const;
 
+/**
+ * The "why verbatra" section: six localized reasons in a uniform spotlight
+ * card grid. Server shell; each CardSpotlight is a pointer-driven client leaf.
+ */
 export async function Features(): Promise<ReactNode> {
   const t = await getTranslations("landing.why");
   const reasons = t.raw("reasons") as Record<string, Reason>;
