@@ -4,11 +4,13 @@ import { fileURLToPath } from "node:url";
 import type { LoadedConfig } from "@verbatra/sdk";
 import { EDIT_ENTRY_METHOD } from "../shared/rpc/edit-entry.js";
 import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
+import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
 import { buildBanner } from "./banner.js";
 import { cookieName } from "./cookie.js";
 import { resolvePort } from "./default-port.js";
 import { type DispatchContext, handleRequest } from "./dispatch.js";
 import { StudioServerStartError } from "./errors.js";
+import { createRpcInFlightGuard, type RpcInFlightGuard } from "./in-flight-guard.js";
 import { createRpcRateLimiter, type RpcRateLimiter } from "./rate-limiter.js";
 import { resolveBoundAddress } from "./resolve-bound-port.js";
 import { createRpcHandlers, type RpcHandlerDeps, type StudioCapabilities } from "./rpc.js";
@@ -28,6 +30,13 @@ const DEFAULT_RETRANSLATE_RATE_LIMIT_MAX = 20;
 /** Same production default as retranslate: 20 calls per rolling minute. */
 const DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX = 20;
+/**
+ * Sized more conservatively than the single-key actions above: every call now necessarily
+ * translates every configured target locale in one shot, the same blast radius the CLI's own
+ * whole-project translate command already has, newly reachable with one click.
+ */
+const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX = 5;
 
 function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
   return createRpcRateLimiter({
@@ -39,7 +48,21 @@ function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
       windowMs: options.editEntryRateLimitWindowMs ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS,
       maxCalls: options.editEntryRateLimitMax ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX,
     },
+    [TRANSLATE_PENDING_METHOD]: {
+      windowMs:
+        options.translatePendingRateLimitWindowMs ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.translatePendingRateLimitMax ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX,
+    },
   });
+}
+
+/**
+ * A single process-wide "a translatePending run is currently in flight" guard: a resource/UX
+ * control only, not the correctness fix (see `in-flight-guard.ts`'s own doc comment). Built fresh
+ * per server instance, mirroring {@link buildRateLimiter}.
+ */
+function buildInFlightGuard(): RpcInFlightGuard {
+  return createRpcInFlightGuard(new Set([TRANSLATE_PENDING_METHOD]));
 }
 
 const RAW_FORBIDDEN_RESPONSE = [
@@ -208,6 +231,7 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   // registry, never rebuilt or re-derived for the life of the process.
   const handlers = createRpcHandlers(capabilities);
   const rateLimiter = buildRateLimiter(options);
+  const inFlightGuard = buildInFlightGuard();
 
   const server = createServer();
   server.on("clientError", handleClientError);
@@ -224,6 +248,7 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     rpcDeps: buildRpcHandlerDeps(config, projectRoot, capabilities, options),
     handlers,
     rateLimiter,
+    inFlightGuard,
     sseHub,
   };
   server.on("request", (request, response) => {

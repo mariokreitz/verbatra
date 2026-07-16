@@ -1,6 +1,7 @@
 import { AdapterError } from "@verbatra/format-adapters";
 import { SdkError } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
+import { createRpcInFlightGuard } from "./in-flight-guard.js";
 import { createRpcRateLimiter } from "./rate-limiter.js";
 import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
@@ -307,5 +308,102 @@ describe("dispatchRpc envelope", () => {
     const parsed = await parseBody(result);
     expect(parsed).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
     expect(acquireCalls).toBe(0);
+  });
+
+  it("answers 409 ALREADY_IN_PROGRESS once the in-flight guard rejects the call, without ever invoking the handler", async () => {
+    let calls = 0;
+    const guard: { tryEnter: (method: string) => boolean; leave: (method: string) => void } = {
+      tryEnter: () => false,
+      leave: () => {},
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => {
+          calls += 1;
+          return { dryRun: false, locales: [], succeeded: [], failed: [] };
+        },
+      },
+      undefined,
+      guard,
+    );
+
+    expect(result.statusCode).toBe(409);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "ALREADY_IN_PROGRESS" } });
+    expect(calls).toBe(0);
+  });
+
+  it("does not guard a method the in-flight guard has no rule for", async () => {
+    // A real guard whose only guarded method is translation.translatePending: project.snapshot is
+    // untouched by it, so it must succeed regardless of that other method's own state.
+    const guard = createRpcInFlightGuard(new Set(["translation.translatePending"]));
+    guard.tryEnter("translation.translatePending");
+
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      {
+        "project.snapshot": async () => ({
+          sourceLocale: "en",
+          targetLocales: ["de"],
+          format: "i18next-json",
+          files: { pattern: "locales/{locale}.json" },
+          provider: { id: "anthropic" },
+          configSource: "override",
+          glossary: { source: "none" },
+          capabilities: { spend: false, writeToDisk: false },
+        }),
+      },
+      undefined,
+      guard,
+    );
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  it("calls leave exactly once after the handler settles, whether it succeeds or throws", async () => {
+    const enterCalls: string[] = [];
+    const leaveCalls: string[] = [];
+    const guard = {
+      tryEnter: (method: string): boolean => {
+        enterCalls.push(method);
+        return true;
+      },
+      leave: (method: string): void => {
+        leaveCalls.push(method);
+      },
+    };
+
+    await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => ({
+          dryRun: false,
+          locales: [],
+          succeeded: [],
+          failed: [],
+        }),
+      },
+      undefined,
+      guard,
+    );
+    await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => {
+          throw new SdkError("PROVIDER_CONSTRUCTION_FAILED", "boom");
+        },
+      },
+      undefined,
+      guard,
+    );
+
+    expect(enterCalls).toEqual(["translation.translatePending", "translation.translatePending"]);
+    expect(leaveCalls).toEqual(["translation.translatePending", "translation.translatePending"]);
   });
 });
