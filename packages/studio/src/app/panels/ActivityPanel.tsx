@@ -125,6 +125,7 @@ export function ActivityPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <>
       <PageHeader
+        kicker="Reference"
         title="Activity"
         description="What the last run did, and how the locale files have changed."
       />

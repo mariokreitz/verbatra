@@ -74,6 +74,8 @@ export function DialogCloseButton({
  * are unchanged from before `Sheet` existed.
  */
 export function DrawerShell(props: {
+  /** The monospace micro-label above the title (see `Sheet`'s `kicker`). */
+  readonly kicker?: string;
   readonly title: ReactNode;
   readonly ariaLabel: string;
   readonly closeLabel: string;
@@ -96,7 +98,7 @@ export function Section({
 }): ReactNode {
   return (
     <section className="mb-8">
-      <h3 className="mb-1 text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className={cn("mb-2", microLabelClassName)}>{title}</h3>
       {intro !== undefined ? <p className="mb-3 text-sm text-muted-foreground">{intro}</p> : null}
       {children}
     </section>
@@ -222,9 +224,9 @@ export function DetailList({
  */
 export const tableClasses = {
   table: "w-full min-w-[480px] border-collapse text-sm",
-  th: "border-b border-border bg-muted/40 px-3 py-2 text-start text-xs font-semibold text-muted-foreground",
+  th: "border-b border-border bg-muted/60 px-3 py-2.5 text-start font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
   tbody: "divide-y divide-border",
-  td: "px-3 py-2 text-foreground",
+  td: "px-3 py-2.5 text-foreground",
   rowHover: "hover:bg-accent/40",
   /** For count/amount columns: end-aligned with fixed-rhythm digits. */
   numeric: "text-end tabular-nums",
@@ -238,5 +240,13 @@ export const tableClasses = {
  * differ between the two vocabularies.
  */
 export const pillClassName =
-  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium leading-5";
+  "inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium leading-5";
 export const pillDotClassName = "size-1.5 flex-none rounded-full bg-current";
+
+/**
+ * The uppercase monospace micro-label this design uses as its signature eyebrow: stat card
+ * labels, section kickers, and the page header's context line all share it, so "this is a data
+ * label" reads the same everywhere.
+ */
+export const microLabelClassName =
+  "font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";

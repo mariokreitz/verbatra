@@ -15,17 +15,19 @@ import type { RpcCallResult } from "../../client/rpc-client.js";
 import type { RefreshableView, StructuredError } from "../../client/state.js";
 import { toUsageTickerDisplayState } from "../../client/usage-ticker-data.js";
 import { Accordion, AccordionItem } from "../Accordion.js";
-import { rpcClient } from "../api.js";
+import { reviewOverlayStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { Button } from "../Button.js";
 import { Card } from "../Card.js";
 import type { DiffTone } from "../DiffBadge.js";
 import { DiffBadge } from "../DiffBadge.js";
+import { EditEntryDialog } from "../EditEntryDialog.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Icon } from "../Icon.js";
 import { SearchInput } from "../Input.js";
 import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
+import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
 import { ProgressBar } from "../ProgressBar.js";
 import type { PanelProps } from "../panel-props.js";
@@ -151,14 +153,75 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
   );
 }
 
+/** The attention tile's figure and copy for each diff state, so the strip never fabricates a
+ * zero while the diff is still loading or failed. */
+function attentionTile(
+  diff: DiffState,
+  rows: readonly StatusRow[] | null,
+): {
+  readonly value: string;
+  readonly hint: string;
+  readonly tone: "default" | "success" | "danger";
+} {
+  if (diff.kind === "loading") {
+    return { value: "…", hint: "Checking pending changes.", tone: "default" };
+  }
+  if (diff.kind === "error") {
+    return {
+      value: "N/A",
+      hint: "The pending-change check failed; details below.",
+      tone: "default",
+    };
+  }
+  if (isFullyInSync(diff.locales)) {
+    return { value: "0", hint: "Everything is in sync.", tone: "success" };
+  }
+  const pending = driftKeys(diff.locales).length;
+  const across =
+    rows !== null
+      ? `Across ${outOfSyncCount(rows)} of ${rows.length} target ${rows.length === 1 ? "locale" : "locales"}.`
+      : "Across your target locales.";
+  return { value: String(pending), hint: across, tone: "danger" };
+}
+
+/** The last-run tile's figure and copy: the one-line answer to "what did the most recent
+ * translation run cost". Activity carries the full breakdown and every edge state. */
+function lastRunTile(view: ReturnType<typeof useUsageTicker>): {
+  readonly value: string;
+  readonly hint: string;
+} {
+  if (view.kind !== "data") {
+    return { value: "…", hint: "Loading the last recorded run." };
+  }
+  const state = toUsageTickerDisplayState(view.data);
+  if (state.kind !== "available") {
+    return { value: "No run yet", hint: "Run verbatra translate or watch to record one." };
+  }
+  const usage =
+    state.usage.kind === "reported"
+      ? `${state.usage.inputTokens.toLocaleString()} / ${state.usage.outputTokens.toLocaleString()}`
+      : "Not reported";
+  const budget =
+    state.budget.kind === "tracked"
+      ? state.budget.exceeded
+        ? "Budget ceiling reached. "
+        : "Within budget. "
+      : "";
+  const hintLead = state.usage.kind === "reported" ? "Tokens in / out. " : "";
+  return {
+    value: usage,
+    hint: `${hintLead}${budget}As of ${new Date(state.generatedAt).toLocaleString()}`,
+  };
+}
+
 /**
- * The workspace's opening statement, replacing both the old metric-tile strip and the separate
- * all-clear banner: one asymmetric card with the headline verdict on the start side (how many
- * keys need attention, or that everything is in sync) and the compact coverage figures on the
- * end side. The headline count comes from the key diff; the coverage figures come from the
- * refresh-reactive `status.check` read, so the two halves can resolve independently.
+ * The workspace's opening statement, the design reference's dashboard strip: four stat tiles
+ * (keys needing attention, average coverage, locales in sync, the last run's cost) over an
+ * all-clear line when nothing is pending. The headline count comes from the key diff; the
+ * coverage figures come from the refresh-reactive `status.check` read, and the run figures from
+ * the usage ticker, so the tiles resolve independently rather than blocking on each other.
  */
-function StatusBanner({
+function StatStrip({
   status,
   diff,
   refreshToken,
@@ -167,128 +230,69 @@ function StatusBanner({
   readonly diff: DiffState;
   readonly refreshToken: number;
 }): ReactNode {
+  const usage = useUsageTicker(refreshToken);
   const allClear = diff.kind === "loaded" && isFullyInSync(diff.locales);
   const rows = status.kind === "data" ? status.data.rows : null;
+  const attention = attentionTile(diff, rows);
+  const lastRun = lastRunTile(usage);
+  const inSyncCount = rows === null ? null : rows.filter((row) => row.inSync).length;
 
   return (
-    <Card className={cnBanner(allClear)} {...(allClear ? { role: "status" } : {})}>
-      <div className="min-w-0 max-w-xl">
-        <BannerHeadline diff={diff} allClear={allClear} rows={rows} />
-        <LastRunLine refreshToken={refreshToken} />
+    <div className="mb-10">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Needs attention"
+          icon="alert"
+          value={attention.value}
+          hint={attention.hint}
+          tone={attention.tone}
+        />
+        <MetricCard
+          label="Avg coverage"
+          icon="gauge"
+          value={rows === null ? "…" : `${averageCoverage(rows)}%`}
+          {...(rows === null ? {} : { progress: averageCoverage(rows) })}
+          hint={
+            rows === null
+              ? "Loading locale coverage."
+              : `Across ${rows.length} target ${rows.length === 1 ? "locale" : "locales"}.`
+          }
+        />
+        <MetricCard
+          label="Locales in sync"
+          icon="globe"
+          value={inSyncCount === null || rows === null ? "…" : `${inSyncCount} / ${rows.length}`}
+          hint={
+            status.kind === "data"
+              ? status.data.inSync
+                ? "All target locales are in sync."
+                : "At least one locale is out of sync."
+              : "Loading sync state."
+          }
+        />
+        <MetricCard label="Last run" icon="zap" value={lastRun.value} hint={lastRun.hint} />
       </div>
-      {rows !== null ? (
-        <div className="flex w-full flex-none flex-col gap-3 sm:w-56">
+      {allClear ? (
+        <Card
+          role="status"
+          padding="sm"
+          className="mt-4 flex flex-wrap items-center gap-3 border-s-[3px] border-s-success"
+        >
+          <Icon name="check" size={16} className="flex-none text-success" />
           <div>
-            <p className="mb-1 flex items-baseline justify-between text-xs text-muted-foreground">
-              Average coverage
-              <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
-                {averageCoverage(rows)}%
-              </span>
+            <p className="m-0 text-sm font-semibold text-foreground">Everything is in sync</p>
+            <p className="m-0 mt-0.5 text-sm text-muted-foreground">
+              No missing, changed, or orphaned keys in any configured locale.
             </p>
-            <ProgressBar percent={averageCoverage(rows)} />
           </div>
-          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-            {rows.length} target {rows.length === 1 ? "locale" : "locales"}
-            <Badge tone={status.kind === "data" && status.data.inSync ? "success" : "warning"}>
-              {status.kind === "data" && status.data.inSync ? "In sync" : "Out of sync"}
-            </Badge>
-          </div>
+        </Card>
+      ) : null}
+      {diff.kind === "loading" ? (
+        <div className="mt-4">
+          <Skeleton className="h-5 w-64" />
         </div>
       ) : null}
-    </Card>
-  );
-}
-
-/**
- * The last recorded run's token figures, inline in the banner: the one-line answer to "what did
- * the most recent translation run cost", right where the day starts. Renders nothing until a
- * run exists; Activity carries the full breakdown and every edge state.
- */
-function LastRunLine({ refreshToken }: { readonly refreshToken: number }): ReactNode {
-  const view = useUsageTicker(refreshToken);
-  if (view.kind !== "data") {
-    return null;
-  }
-  const state = toUsageTickerDisplayState(view.data);
-  if (state.kind !== "available") {
-    return null;
-  }
-  const usage =
-    state.usage.kind === "reported"
-      ? `${state.usage.inputTokens.toLocaleString()} in / ${state.usage.outputTokens.toLocaleString()} out tokens`
-      : "tokens not reported";
-  const budget =
-    state.budget.kind === "tracked"
-      ? state.budget.exceeded
-        ? " · budget ceiling reached"
-        : " · within budget"
-      : "";
-  return (
-    <p className="mt-3 text-xs text-muted-foreground">
-      Last run: {usage}
-      {budget} · {new Date(state.generatedAt).toLocaleString()}
-    </p>
-  );
-}
-
-function cnBanner(allClear: boolean): string {
-  const base = "mb-10 flex flex-wrap items-center justify-between gap-x-10 gap-y-4";
-  return allClear ? `${base} border-s-[3px] border-s-success` : base;
-}
-
-function BannerHeadline({
-  diff,
-  allClear,
-  rows,
-}: {
-  readonly diff: DiffState;
-  readonly allClear: boolean;
-  readonly rows: readonly StatusRow[] | null;
-}): ReactNode {
-  if (diff.kind === "loading") {
-    return (
-      <>
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="mt-2 h-4 w-48" />
-      </>
-    );
-  }
-  if (diff.kind === "error") {
-    return (
-      <>
-        <p className="text-2xl font-semibold tracking-tight text-foreground">
-          Sync state unavailable
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The pending-change check failed; details below.
-        </p>
-      </>
-    );
-  }
-  if (allClear) {
-    return (
-      <>
-        <p className="text-2xl font-semibold tracking-tight text-foreground">
-          Everything&apos;s in sync
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          No missing, changed, or orphaned keys in any configured locale.
-        </p>
-      </>
-    );
-  }
-  const pending = driftKeys(diff.locales).length;
-  return (
-    <>
-      <p className="text-2xl font-semibold tracking-tight text-foreground">
-        {pending} {pending === 1 ? "key needs" : "keys need"} attention
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {rows !== null
-          ? `Across ${outOfSyncCount(rows)} of ${rows.length} target ${rows.length === 1 ? "locale" : "locales"}.`
-          : "Across your target locales."}
-      </p>
-    </>
+    </div>
   );
 }
 
@@ -471,13 +475,21 @@ function lockCell(lock: LockView, locale: string): ReactNode {
 }
 
 function LocaleRow({ row, lock }: { readonly row: StatusRow; readonly lock: LockView }): ReactNode {
+  const total = row.missing + row.stale + row.upToDate;
   return (
     <TableRow>
-      <TableCell mono>{row.locale}</TableCell>
+      <TableCell mono className="font-semibold">
+        {row.locale}
+      </TableCell>
       <TableCell>
-        <span className="flex items-center gap-2">
-          <ProgressBar percent={row.percent} className="w-24 flex-none" />
-          <span className="tabular-nums text-muted-foreground">{row.percent}%</span>
+        <span className="block min-w-[160px] max-w-[240px]">
+          <span className="mb-1 flex items-baseline justify-between gap-3 font-mono text-xs tabular-nums">
+            <span className="font-semibold text-foreground">{row.percent}%</span>
+            <span className="text-muted-foreground">
+              {row.upToDate.toLocaleString()} / {total.toLocaleString()} keys
+            </span>
+          </span>
+          <ProgressBar percent={row.percent} />
         </span>
       </TableCell>
       <TableCell numeric>{row.missing}</TableCell>
@@ -638,6 +650,11 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
   const [diff, setDiff] = useState<DiffState>({ kind: "loading" });
   const [query, setQuery] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  // The locale being edited for the selected key. The editor replaces the detail drawer while
+  // set (never stacked over it: both are focus-trapping dialogs with document-level Esc
+  // listeners, so two open at once would both close on one keypress); closing the editor
+  // returns to the drawer, whose selection is still held here.
+  const [editingLocale, setEditingLocale] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<DiffViewMode>("grid");
   const status = useStatusData(refreshToken);
   const lock = useLockState(refreshToken);
@@ -675,11 +692,12 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <>
       <PageHeader
+        kicker="Workspace"
         title="Translations"
         description="Every pending change across your target locales, and how far along each locale is."
         actions={diff.kind === "loaded" ? <ReviewReportButton locales={diff.locales} /> : undefined}
       />
-      <StatusBanner status={status} diff={diff} refreshToken={refreshToken} />
+      <StatStrip status={status} diff={diff} refreshToken={refreshToken} />
       {diff.kind === "loading" ? <Loading /> : null}
       {diff.kind === "error" ? <ErrorMessage error={diff.error} /> : null}
       {diff.kind === "loaded" && diff.staleError !== undefined ? (
@@ -698,12 +716,29 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
         />
       ) : null}
       <LocalesSection status={status} lock={lock} />
-      {selectedKey !== null && diff.kind === "loaded" ? (
+      {selectedKey !== null && editingLocale === null && diff.kind === "loaded" ? (
         <KeyDetailDrawer
           keyName={selectedKey}
           locales={diff.locales}
           refreshToken={refreshToken}
-          onClose={() => setSelectedKey(null)}
+          onClose={() => {
+            setSelectedKey(null);
+            setEditingLocale(null);
+          }}
+          onEditLocale={setEditingLocale}
+        />
+      ) : null}
+      {selectedKey !== null && editingLocale !== null ? (
+        <EditEntryDialog
+          locale={editingLocale}
+          keyName={selectedKey}
+          onClose={() => setEditingLocale(null)}
+          onAccepted={(acceptedLocale, key) => {
+            // Keep the review queue's session overlay consistent with the Review panel's own
+            // accepted-edit behavior: an entry edited from here never resurfaces there either.
+            reviewOverlayStore.markActioned({ locale: acceptedLocale, key });
+            setEditingLocale(null);
+          }}
         />
       ) : null}
     </>

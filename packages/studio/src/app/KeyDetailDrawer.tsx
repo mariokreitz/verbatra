@@ -8,6 +8,7 @@ import { canRetranslate } from "../client/retranslate-eligibility.js";
 import type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { rpcClient } from "./api.js";
 import { Badge } from "./Badge.js";
+import { Button } from "./Button.js";
 import { CommitList } from "./CommitList.js";
 import { DiffBadge } from "./DiffBadge.js";
 import { RetranslateButton } from "./RetranslateButton.js";
@@ -25,6 +26,13 @@ export interface KeyDetailDrawerProps {
   /** Bumped once per live-refresh event; re-fetches this drawer's own integrity and value views. */
   readonly refreshToken: number;
   readonly onClose: () => void;
+  /**
+   * Opens the edit dialog for one of this key's locales. Rendered as a per-locale action only
+   * when the session can write to disk and the caller passes this; the caller owns swapping this
+   * drawer for the editor (never stacking them: both are focus-trapping dialogs whose Esc
+   * listeners are document-level, so two open at once would both close on one keypress).
+   */
+  readonly onEditLocale?: (locale: string) => void;
 }
 
 type KeyValuesState =
@@ -147,13 +155,16 @@ function LocaleBlock({
   integrity,
   capabilities,
   values,
+  onEditLocale,
 }: {
   readonly row: KeyLocaleStatusRow;
   readonly keyName: string;
   readonly integrity: readonly KeyIntegrityLocaleEntry[];
   readonly capabilities: StudioCapabilities | undefined;
   readonly values: KeyValuesState;
+  readonly onEditLocale?: ((locale: string) => void) | undefined;
 }): ReactNode {
+  const canEdit = capabilities?.writeToDisk === true && onEditLocale !== undefined;
   return (
     <li
       className="border-b border-border py-3 last:border-b-0"
@@ -172,6 +183,11 @@ function LocaleBlock({
           keyName={keyName}
           capabilities={capabilities}
         />
+        {canEdit ? (
+          <Button className="ms-auto" onClick={() => onEditLocale(row.locale)}>
+            Edit
+          </Button>
+        ) : null}
       </div>
       <LocaleValue values={values} locale={row.locale} />
     </li>
@@ -201,6 +217,7 @@ export function KeyDetailDrawer({
   locales,
   refreshToken,
   onClose,
+  onEditLocale,
 }: KeyDetailDrawerProps): ReactNode {
   const history = useHistoryList(refreshToken);
   const integrity = useKeyIntegrity(keyName, refreshToken);
@@ -219,6 +236,7 @@ export function KeyDetailDrawer({
 
   return (
     <DrawerShell
+      kicker="Key details"
       title={keyName}
       ariaLabel={`Details for ${keyName}`}
       closeLabel={`Close details for ${keyName}`}
@@ -245,6 +263,7 @@ export function KeyDetailDrawer({
               integrity={integrityLocales}
               capabilities={capabilities}
               values={values}
+              onEditLocale={onEditLocale}
               key={row.locale}
             />
           ))}

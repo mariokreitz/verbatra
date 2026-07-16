@@ -16,14 +16,16 @@ const SIZE_CLASSNAME: Readonly<Record<ButtonSize, string>> = {
 };
 
 const VARIANT_CLASSNAME: Readonly<Record<ButtonVariant, string>> = {
-  // The one filled call-to-action look (RefreshToast's "Translate pending changes").
+  // The one filled call-to-action look (RefreshToast's "Translate pending changes"): a solid
+  // indigo fill, the design reference's save-changes treatment.
   primary:
-    "border border-primary bg-accent text-primary hover:not-disabled:bg-primary hover:not-disabled:text-primary-foreground",
+    "border border-transparent bg-primary font-medium text-primary-foreground shadow-panel hover:not-disabled:bg-primary-strong",
   // The default small inline action (Save, Retranslate, Edit, Approve, Reject).
-  secondary: "border border-border bg-transparent text-foreground hover:not-disabled:bg-accent",
+  secondary:
+    "border border-border bg-card font-medium text-foreground hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground",
   // Icon-only or low-emphasis chrome (dialog close buttons, dismiss controls).
   ghost:
-    "border border-transparent bg-transparent text-muted-foreground hover:not-disabled:bg-accent hover:not-disabled:text-foreground",
+    "border border-transparent bg-transparent text-muted-foreground hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

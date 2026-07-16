@@ -1,6 +1,6 @@
 import type { ReactNode, Ref } from "react";
 import { cn } from "./lib/cn.js";
-import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
+import { DialogCloseButton, microLabelClassName, OverlayBackdrop } from "./ui.js";
 
 export type SheetSide = "start" | "end" | "top" | "bottom";
 
@@ -22,6 +22,9 @@ export interface SheetProps {
   /** Which edge the panel slides in from. Defaults to "end" (the drawer shape `DrawerShell`
    * already used for the key detail and edit-entry overlays). */
   readonly side?: SheetSide;
+  /** The monospace micro-label above the title, naming what kind of panel this is (the design
+   * reference's "KEY DETAILS" eyebrow). */
+  readonly kicker?: string;
   readonly title: ReactNode;
   readonly ariaLabel: string;
   readonly closeLabel: string;
@@ -31,15 +34,16 @@ export interface SheetProps {
 }
 
 /**
- * A panel anchored to one edge of the viewport, over an `OverlayBackdrop`, with a title and a
- * close button. The general form of `ui.tsx`'s `DrawerShell` (which is now a thin `side="end"`
- * wrapper around this): {@link SheetSide} covers the other three edges a caller might want a
- * panel to slide in from. The focus trap ref (`useDialogA11y`) is threaded in rather than owned
- * here, since each caller opens the dialog with its own `onClose` and the hook must be called
- * from the component that owns that closure.
+ * A panel anchored to one edge of the viewport, over an `OverlayBackdrop`, with an eyebrow, a
+ * title, and a close button in a hairline-separated header. The general form of `ui.tsx`'s
+ * `DrawerShell` (which is a thin `side="end"` wrapper around this): {@link SheetSide} covers the
+ * other three edges a caller might want a panel to slide in from. The focus trap ref
+ * (`useDialogA11y`) is threaded in rather than owned here, since each caller opens the dialog
+ * with its own `onClose` and the hook must be called from the component that owns that closure.
  */
 export function Sheet({
   side = "end",
+  kicker,
   title,
   ariaLabel,
   closeLabel,
@@ -52,7 +56,7 @@ export function Sheet({
       <OverlayBackdrop onClose={onClose} label={closeLabel} />
       <div
         className={cn(
-          "relative z-10 overflow-y-auto border-border bg-card p-6 shadow-panel-lg",
+          "relative z-10 overflow-y-auto border-border bg-card shadow-panel-lg",
           PANEL_CLASSNAME[side],
         )}
         role="dialog"
@@ -60,13 +64,20 @@ export function Sheet({
         aria-label={ariaLabel}
         ref={containerRef}
       >
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <h2 className="m-0 break-words font-mono text-lg font-semibold text-foreground">
-            {title}
-          </h2>
-          <DialogCloseButton onClose={onClose} />
+        <div className="sticky top-0 z-10 border-b border-border bg-card px-6 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              {kicker !== undefined ? (
+                <p className={cn("mb-1", microLabelClassName)}>{kicker}</p>
+              ) : null}
+              <h2 className="m-0 break-words font-mono text-base font-semibold text-foreground">
+                {title}
+              </h2>
+            </div>
+            <DialogCloseButton onClose={onClose} />
+          </div>
         </div>
-        {children}
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );

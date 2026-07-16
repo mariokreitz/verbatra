@@ -5,6 +5,7 @@ import { Badge } from "./Badge.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
+import { microLabelClassName } from "./ui.js";
 
 /**
  * The live-refresh state, always visible: this dashboard's whole model is "watch the project
@@ -34,13 +35,14 @@ export interface TopBarProps {
 
 /**
  * The application's fixed header row, always visible while the content column scrolls under it:
- * orientation on the start side (the mobile menu button and the current page's name; the nav is
- * flat, so there is no deeper trail to spell out), the live-updates indicator and the theme
- * switcher on the end side.
+ * orientation on the start side (the mobile menu button and the current page's name as a
+ * monospace context line; the nav is flat, so there is no deeper trail to spell out), the
+ * live-updates indicator and the theme switcher on the end side. Sits on the card surface so
+ * the chrome reads as one plane with the rail.
  */
 export function TopBar({ pageLabel, onOpenNav }: TopBarProps): ReactNode {
   return (
-    <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-background px-4 md:px-6">
+    <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-card px-4 md:px-6">
       <Button
         variant="ghost"
         className="p-1.5 md:hidden"
@@ -49,7 +51,7 @@ export function TopBar({ pageLabel, onOpenNav }: TopBarProps): ReactNode {
       >
         <Icon name="menu" />
       </Button>
-      <span className="text-sm font-semibold text-foreground">{pageLabel}</span>
+      <span className={microLabelClassName}>{pageLabel}</span>
       <div className="ms-auto flex items-center gap-2">
         <LiveIndicator />
         <ThemeSwitcher />

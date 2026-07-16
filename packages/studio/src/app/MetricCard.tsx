@@ -1,19 +1,30 @@
 import type { ReactNode } from "react";
 import { Card } from "./Card.js";
 import { Icon, type IconName } from "./Icon.js";
+import { cn } from "./lib/cn.js";
 import { ProgressBar } from "./ProgressBar.js";
+import { microLabelClassName } from "./ui.js";
+
+const VALUE_TONE_CLASSNAME = {
+  default: "text-foreground",
+  success: "text-success",
+  danger: "text-danger",
+} as const;
 
 /**
- * The dashboard's at-a-glance stat tile: a small caps label, a prominent value, and optionally a
- * glyph, a one-line hint under the value, and a progress meter. The value renders in monospace
- * with tabular numerals so a row of these scans as a fixed-rhythm figure strip (Overview's config
- * facts, Status's coverage figures, Usage's token totals). Purely presentational.
+ * The dashboard's at-a-glance stat tile, the design reference's signature card: an uppercase
+ * monospace micro-label with an optional glyph on the same line, a prominent figure under it,
+ * and optionally a one-line hint and a progress meter. The value renders in monospace with
+ * tabular numerals so a row of these scans as a fixed-rhythm figure strip. `tone` tints only the
+ * figure, never the label, and every toned value sits next to explanatory text, so color is
+ * never the sole carrier. Purely presentational.
  */
 export function MetricCard({
   label,
   value,
   hint,
   icon,
+  tone = "default",
   progress,
   progressTone = "primary",
 }: {
@@ -23,32 +34,33 @@ export function MetricCard({
   readonly value: ReactNode;
   readonly hint?: string;
   readonly icon?: IconName;
+  /** Tints the figure: "danger" for an alarming count, "success" for an all-clear reading. */
+  readonly tone?: "default" | "success" | "danger";
   /** When set, a 0-100 meter under the value (for example a locale's coverage percentage). */
   readonly progress?: number;
   /** The meter's tone; "danger" for an exceeded budget or similar alarm reading. */
   readonly progressTone?: "primary" | "danger";
 }): ReactNode {
+  const valueClassName = cn(
+    "mt-2 font-mono text-2xl font-bold tabular-nums",
+    VALUE_TONE_CLASSNAME[tone],
+  );
   return (
     <Card padding="sm" className="min-w-0">
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className={microLabelClassName}>{label}</span>
         {icon !== undefined ? (
-          <Icon name={icon} size={14} className="flex-none text-muted-foreground/70" />
+          <span className="grid size-7 flex-none place-items-center rounded-md bg-accent text-accent-foreground">
+            <Icon name={icon} size={14} />
+          </span>
         ) : null}
       </div>
       {typeof value === "string" ? (
-        <div
-          className="mt-2 truncate font-mono text-xl font-semibold tabular-nums text-foreground"
-          title={value}
-        >
+        <div className={cn(valueClassName, "truncate")} title={value}>
           {value}
         </div>
       ) : (
-        <div className="mt-2 font-mono text-xl font-semibold tabular-nums text-foreground">
-          {value}
-        </div>
+        <div className={valueClassName}>{value}</div>
       )}
       {hint !== undefined ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
       {progress !== undefined ? (

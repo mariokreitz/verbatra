@@ -17,7 +17,7 @@ import { useStatusData } from "./use-status-data.js";
 
 const gridCellClassName = "px-3 py-2 text-start whitespace-nowrap";
 const gridHeaderClassName =
-  "border-b border-border bg-muted/40 px-3 py-2 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
+  "border-b border-border bg-muted/60 px-3 py-2.5 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
 export interface StatusGridProps {
   /** The Translations page's already-loaded per-locale diff data; never re-fetched by this component. */
@@ -262,7 +262,13 @@ export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridPro
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
-            <th scope="col" className={cn(gridHeaderClassName, "min-w-[160px]")}>
+            <th
+              scope="col"
+              className={cn(
+                gridHeaderClassName,
+                "min-w-[160px] font-mono text-[11px] uppercase tracking-wider",
+              )}
+            >
               Key
             </th>
             {locales.map((locale) => (

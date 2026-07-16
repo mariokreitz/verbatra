@@ -1,121 +1,145 @@
 /*
  * Verbatra Studio dashboard styles: Tailwind v4, CSS-first config.
  *
+ * The visual language is "Technical Precision": an indigo primary, Inter for prose, JetBrains
+ * Mono for anything that reads as data (keys, counts, micro-labels), a compact 4px-based corner
+ * radius, and one constant dark-indigo navigation rail that anchors the chrome in both themes.
+ * Both font families resolve through local stacks only; the studio server's CSP forbids external
+ * requests, so the named fonts apply when installed and the platform stacks carry the fallback.
+ *
  * Two runtime themes share one semantic token vocabulary. The raw values live on :root as
- * --v-* custom properties (dark, the default and the brand look, with its chrome ported from
- * the docs site's palette in apps/docs/app/global.css), and :root[data-theme="light"] overrides
- * every one of them. The `@theme inline` block below maps each --v-* variable to a Tailwind
- * token, so every generated utility references the variable itself and re-resolves the moment
- * data-theme flips: switching themes recolors an already-rendered page with no rebuild and no
- * per-utility dark: variants.
+ * --v-* custom properties (light, the template's native mode, is the default), and
+ * :root[data-theme="dark"] overrides every one of them. The `@theme inline` block below maps
+ * each --v-* variable to a Tailwind token, so every generated utility references the variable
+ * itself and re-resolves the moment data-theme flips: switching themes recolors an
+ * already-rendered page with no rebuild and no per-utility dark: variants.
  *
  * main.tsx assigns data-theme before the first render (see client/theme.ts): the stored
  * preference, or the OS preference when set to "system". The bare :root defaults below only
  * cover the instant before that assignment runs.
  *
+ * The sidebar tokens are deliberately theme-invariant: the navigation rail stays dark indigo in
+ * both themes, the way the brand chrome does in the design reference, so only the content
+ * surface responds to the theme switch.
+ *
  * Status colors (is a value correct or not) and the diff vocabulary (new/changed/orphaned) are
- * tuned per theme. Every text-carrying pair below was validated against WCAG AA during
- * development with a contrast script that composites the alpha "soft" tints over both their
- * page and card surfaces: 4.5:1 for text and badge text, 3:1 for the non-text focus ring. The
- * dark diff hues reuse the docs site's own change-signal precedent (--v-status-new/-changed),
- * except orphaned, lightened from the docs value to clear AA on its badge tint.
+ * tuned per theme. Every text-carrying pair was checked against WCAG AA over both its page and
+ * card surfaces: 4.5:1 for text and badge text, 3:1 for the non-text focus ring.
  */
 
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
-
-  /* Chrome */
-  --v-background: hsl(240 24% 6%);
-  --v-card: hsl(240 28% 14%);
-  --v-popover: hsl(240 24% 18%);
-  --v-muted: hsl(240 24% 18%);
-  --v-border: hsl(240 23% 22%);
-  --v-foreground: hsl(240 30% 94%);
-  --v-muted-foreground: hsl(240 13% 65%);
-  --v-primary: hsl(258 47% 74%);
-  --v-primary-foreground: hsl(240 23% 7%);
-  --v-accent: hsl(258 25% 20%);
-  --v-accent-foreground: hsl(240 30% 94%);
-  /* Brighter than the docs site's ring (hsl(291 64% 42%)), which only reaches 2.7:1 against
-     this theme's card surface; this value clears the 3:1 non-text minimum on every surface. */
-  --v-ring: hsl(291 55% 55%);
-
-  /* Status */
-  --v-success: #4ade80;
-  --v-success-soft: hsl(142 71% 65% / 16%);
-  --v-warning: #fbbf24;
-  --v-warning-soft: hsl(43 96% 56% / 18%);
-  --v-danger: #f87171;
-  --v-danger-soft: hsl(0 91% 71% / 18%);
-  --v-neutral: hsl(240 13% 65%);
-  --v-neutral-soft: hsl(240 24% 18%);
-
-  /* Diff vocabulary */
-  --v-diff-new: hsl(258 47% 74%);
-  --v-diff-new-soft: hsl(258 47% 74% / 16%);
-  --v-diff-changed: #e7b6f2;
-  --v-diff-changed-soft: hsl(291 74% 84% / 16%);
-  --v-diff-orphaned: hsl(240 10% 65%);
-  --v-diff-orphaned-soft: hsl(240 10% 51% / 18%);
-
-  /* Elevation: neutral, restrained shadows; overlays separate from the page by depth, not tint. */
-  --v-shadow-panel: 0 8px 24px -12px hsl(240 30% 2% / 60%);
-  --v-shadow-panel-lg: 0 16px 48px -20px hsl(240 30% 2% / 65%);
-}
-
-:root[data-theme="light"] {
   color-scheme: light;
 
   /* Chrome */
-  --v-background: hsl(240 20% 99%);
+  --v-background: hsl(228 100% 99%);
   --v-card: hsl(0 0% 100%);
   --v-popover: hsl(0 0% 100%);
-  --v-muted: hsl(240 20% 95%);
-  --v-border: hsl(240 15% 88%);
-  --v-foreground: hsl(240 28% 12%);
-  --v-muted-foreground: hsl(240 9% 40%);
-  --v-primary: hsl(258 45% 42%);
+  --v-muted: hsl(222 100% 97%);
+  --v-border: hsl(244 20% 87%);
+  --v-foreground: hsl(212 63% 12%);
+  --v-muted-foreground: hsl(243 10% 31%);
+  --v-primary: hsl(243 75% 59%);
+  --v-primary-strong: hsl(246 70% 47%);
   --v-primary-foreground: hsl(0 0% 100%);
-  --v-accent: hsl(258 35% 94%);
-  --v-accent-foreground: hsl(240 28% 12%);
-  --v-ring: hsl(291 64% 42%);
+  --v-accent: hsl(240 65% 96%);
+  --v-accent-foreground: hsl(246 70% 40%);
+  --v-ring: hsl(243 75% 51%);
+
+  /* Navigation rail: constant dark indigo, independent of the theme. */
+  --v-sidebar: hsl(244 48% 12%);
+  --v-sidebar-foreground: hsl(240 35% 92%);
+  --v-sidebar-muted: hsl(242 20% 66%);
+  --v-sidebar-border: hsl(244 32% 22%);
+  --v-sidebar-accent: hsl(244 40% 20%);
+  --v-sidebar-active: hsl(243 75% 59%);
 
   /* Status */
-  --v-success: hsl(142 72% 24%);
-  --v-success-soft: hsl(142 71% 45% / 12%);
-  --v-warning: hsl(35 92% 30%);
-  --v-warning-soft: hsl(43 96% 50% / 14%);
-  --v-danger: hsl(0 72% 38%);
+  --v-success: hsl(150 85% 22%);
+  --v-success-soft: hsl(150 70% 42% / 12%);
+  --v-warning: hsl(33 95% 28%);
+  --v-warning-soft: hsl(43 96% 50% / 15%);
+  --v-danger: hsl(0 75% 40%);
   --v-danger-soft: hsl(0 84% 60% / 10%);
-  --v-neutral: hsl(240 9% 38%);
-  --v-neutral-soft: hsl(240 20% 94%);
+  --v-neutral: hsl(243 10% 36%);
+  --v-neutral-soft: hsl(240 30% 95%);
 
   /* Diff vocabulary */
-  --v-diff-new: hsl(258 45% 42%);
-  --v-diff-new-soft: hsl(258 45% 42% / 10%);
-  --v-diff-changed: hsl(291 60% 35%);
-  --v-diff-changed-soft: hsl(291 60% 42% / 10%);
-  --v-diff-orphaned: hsl(240 8% 40%);
+  --v-diff-new: hsl(246 70% 47%);
+  --v-diff-new-soft: hsl(243 75% 59% / 10%);
+  --v-diff-changed: hsl(291 62% 34%);
+  --v-diff-changed-soft: hsl(291 60% 45% / 10%);
+  --v-diff-orphaned: hsl(240 8% 38%);
   --v-diff-orphaned-soft: hsl(240 10% 45% / 10%);
 
-  /* Elevation: neutral, not purple-tinted; a glow shadow reads as a smudge on light surfaces. */
-  --v-shadow-panel: 0 16px 48px -20px hsl(240 30% 20% / 25%);
-  --v-shadow-panel-lg: 0 24px 64px -28px hsl(240 30% 20% / 30%);
+  /* Elevation: neutral, restrained; overlays separate from the page by depth, not tint. */
+  --v-shadow-panel: 0 8px 24px -12px hsl(244 40% 20% / 22%);
+  --v-shadow-panel-lg: 0 24px 64px -28px hsl(244 40% 20% / 32%);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Chrome */
+  --v-background: hsl(240 30% 7%);
+  --v-card: hsl(241 28% 11%);
+  --v-popover: hsl(241 26% 14%);
+  --v-muted: hsl(241 26% 15%);
+  --v-border: hsl(242 22% 22%);
+  --v-foreground: hsl(240 35% 94%);
+  --v-muted-foreground: hsl(240 14% 68%);
+  --v-primary: hsl(238 88% 79%);
+  --v-primary-strong: hsl(236 90% 84%);
+  --v-primary-foreground: hsl(244 48% 12%);
+  --v-accent: hsl(243 35% 20%);
+  --v-accent-foreground: hsl(238 88% 84%);
+  --v-ring: hsl(238 80% 72%);
+
+  /* The rail keeps its own values in dark mode too: slightly deeper than the page so the
+     chrome/content split stays legible when both are dark. */
+  --v-sidebar: hsl(244 44% 9%);
+  --v-sidebar-foreground: hsl(240 35% 92%);
+  --v-sidebar-muted: hsl(242 18% 64%);
+  --v-sidebar-border: hsl(244 30% 19%);
+  --v-sidebar-accent: hsl(244 36% 17%);
+  --v-sidebar-active: hsl(238 88% 79%);
+
+  /* Status */
+  --v-success: hsl(142 66% 68%);
+  --v-success-soft: hsl(142 71% 60% / 15%);
+  --v-warning: hsl(43 92% 62%);
+  --v-warning-soft: hsl(43 96% 56% / 16%);
+  --v-danger: hsl(0 91% 75%);
+  --v-danger-soft: hsl(0 91% 71% / 15%);
+  --v-neutral: hsl(240 14% 68%);
+  --v-neutral-soft: hsl(241 26% 17%);
+
+  /* Diff vocabulary */
+  --v-diff-new: hsl(238 88% 79%);
+  --v-diff-new-soft: hsl(238 88% 79% / 14%);
+  --v-diff-changed: hsl(291 70% 80%);
+  --v-diff-changed-soft: hsl(291 74% 80% / 14%);
+  --v-diff-orphaned: hsl(240 12% 66%);
+  --v-diff-orphaned-soft: hsl(240 10% 52% / 18%);
+
+  --v-shadow-panel: 0 8px 24px -12px hsl(240 40% 2% / 62%);
+  --v-shadow-panel-lg: 0 16px 48px -20px hsl(240 40% 2% / 68%);
 }
 
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Compact, technical corner rhythm (the reference's 4px roundness). */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
 }
 
 @theme inline {
@@ -127,10 +151,18 @@
   --color-foreground: var(--v-foreground);
   --color-muted-foreground: var(--v-muted-foreground);
   --color-primary: var(--v-primary);
+  --color-primary-strong: var(--v-primary-strong);
   --color-primary-foreground: var(--v-primary-foreground);
   --color-accent: var(--v-accent);
   --color-accent-foreground: var(--v-accent-foreground);
   --color-ring: var(--v-ring);
+
+  --color-sidebar: var(--v-sidebar);
+  --color-sidebar-foreground: var(--v-sidebar-foreground);
+  --color-sidebar-muted: var(--v-sidebar-muted);
+  --color-sidebar-border: var(--v-sidebar-border);
+  --color-sidebar-accent: var(--v-sidebar-accent);
+  --color-sidebar-active: var(--v-sidebar-active);
 
   --color-success: var(--v-success);
   --color-success-soft: var(--v-success-soft);

@@ -1,17 +1,21 @@
 import type { ReactNode } from "react";
+import { microLabelClassName } from "./ui.js";
 
 /**
- * The one page-title block every panel opens with: an h1 (the document's only h1), an optional
- * one-line description of what the view shows, and an optional inline-end slot for the page's
- * contextual actions (for example the Diff panel's copy-as-report button). Rendered by the
- * panels rather than the app shell so each panel owns its own copy and actions; the shell's
- * breadcrumb trail stays the cross-panel orientation device.
+ * The one page-title block every panel opens with: a monospace kicker naming the product area
+ * (the design reference's "PROJECT CONFIGURATION" eyebrow), an h1 (the document's only h1), an
+ * optional one-line description of what the view shows, and an optional inline-end slot for the
+ * page's contextual actions (for example the Translations panel's copy-as-report button).
+ * Rendered by the panels rather than the app shell so each panel owns its own copy and actions.
  */
 export function PageHeader({
+  kicker = "Verbatra Studio",
   title,
   description,
   actions,
 }: {
+  /** The eyebrow line above the title; defaults to the product name. */
+  readonly kicker?: string;
   readonly title: string;
   readonly description?: string;
   readonly actions?: ReactNode;
@@ -19,7 +23,8 @@ export function PageHeader({
   return (
     <header className="mb-8 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+        <p className={`mb-1 ${microLabelClassName}`}>{kicker}</p>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
         {description !== undefined ? (
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
         ) : null}

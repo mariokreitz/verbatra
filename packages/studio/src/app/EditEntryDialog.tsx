@@ -140,6 +140,7 @@ export function EditEntryDialog({
 
   return (
     <DrawerShell
+      kicker="Edit translation"
       title={
         <>
           {keyName} <span className="text-sm text-muted-foreground">({locale})</span>

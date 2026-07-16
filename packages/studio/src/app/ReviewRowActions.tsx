@@ -25,7 +25,9 @@ export function ReviewRowActions({
       <Button className="text-success" onClick={onApprove}>
         Approve
       </Button>
-      <Button onClick={onReject}>Reject</Button>
+      <Button className="text-danger" onClick={onReject}>
+        Reject
+      </Button>
     </span>
   );
 }

@@ -173,6 +173,7 @@ export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <>
       <PageHeader
+        kicker="Workspace"
         title="Review"
         description="Entries flagged for human review by the most recent run."
       />

@@ -26,7 +26,12 @@ export type IconName =
   | "copy"
   | "inbox"
   | "settings"
-  | "alert";
+  | "alert"
+  | "book"
+  | "help"
+  | "globe"
+  | "key"
+  | "zap";
 
 const ICON_PATHS: Readonly<Record<IconName, ReactNode>> = {
   activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
@@ -144,6 +149,31 @@ const ICON_PATHS: Readonly<Record<IconName, ReactNode>> = {
       <path d="M12 17h.01" />
     </>
   ),
+  book: (
+    <>
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+      <path d="M12 17h.01" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+      <path d="M2 12h20" />
+    </>
+  ),
+  key: (
+    <>
+      <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" />
+    </>
+  ),
+  zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
 };
 
 export function Icon({

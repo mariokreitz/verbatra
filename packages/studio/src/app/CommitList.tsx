@@ -40,7 +40,11 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   const parts = commitSummaryParts(commit);
   return (
-    <li className="py-3">
+    <li className="relative border-s border-border pb-6 ps-5 last:border-s-transparent last:pb-0">
+      <span
+        className="absolute -start-[5px] top-1 size-2.5 rounded-full border-2 border-card bg-primary"
+        aria-hidden="true"
+      />
       <p
         className="m-0 text-sm font-medium text-foreground"
         ref={(element) => {
@@ -113,7 +117,7 @@ export function CommitList({ state, compact = false, emptyMessage }: CommitListP
     );
   }
   return (
-    <ul className="m-0 max-w-3xl list-none divide-y divide-border p-0">
+    <ul className="m-0 ms-1 max-w-3xl list-none p-0">
       {state.commits.map((commit) => (
         <CommitRow commit={commit} key={commit.hash} />
       ))}

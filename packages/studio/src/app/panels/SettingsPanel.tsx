@@ -9,7 +9,6 @@ import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
 import { useCapabilities } from "../use-capabilities.js";
 
@@ -138,28 +137,20 @@ function GlossaryEntries({
     );
   }
   return (
-    <div className="overflow-x-auto">
-      <Table className="min-w-[320px]">
-        <TableHead>
-          <tr>
-            <TableHeaderCell>Source term</TableHeaderCell>
-            <TableHeaderCell>Preferred translation</TableHeaderCell>
-          </tr>
-        </TableHead>
-        <TableBody>
-          {terms.map(([term, translation]) => (
-            <TableRow key={term}>
-              <TableCell mono>{term}</TableCell>
-              {/* The glossary has no per-entry locale (it is one project-wide term map, see
-                  sdk's VerbatraConfig.glossary), so which locale's script a preferred term is
-                  written in cannot be known here. dir="auto" lets the browser infer direction
-                  from the value's own first strong character instead of guessing a locale. */}
-              <TableCell dir="auto">{translation}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+      {terms.map(([term, translation]) => (
+        <li key={term} className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+          <span className="font-mono text-sm font-semibold text-accent-foreground">{term}</span>
+          {/* The glossary has no per-entry locale (it is one project-wide term map, see
+              sdk's VerbatraConfig.glossary), so which locale's script a preferred term is
+              written in cannot be known here. dir="auto" lets the browser infer direction
+              from the value's own first strong character instead of guessing a locale. */}
+          <p className="m-0 mt-0.5 text-sm text-foreground" dir="auto">
+            {translation}
+          </p>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -193,6 +184,7 @@ export function SettingsPanel(): ReactNode {
   return (
     <>
       <PageHeader
+        kicker="Project configuration"
         title="Settings"
         description="This session's capabilities, and the resolved configuration and glossary it was started with."
       />

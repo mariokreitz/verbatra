@@ -16,8 +16,8 @@ export interface TabsProps<Id extends string> {
 /**
  * A horizontal segmented tab strip: a controlled `active`/`onChange` pair over a small, fixed set
  * of options, rendered as a native `<fieldset>` (an accessible group with no extra ARIA wiring
- * needed) with `aria-pressed` toggle buttons. `DiffPanel`'s grid/list view switch used to hand-roll
- * this exact shape; it now renders through this component instead of duplicating the classNames.
+ * needed) with `aria-pressed` toggle buttons. The active segment lifts onto a card surface with
+ * a hairline border, the segmented-control treatment from the design reference.
  */
 export function Tabs<Id extends string>({
   items,
@@ -26,17 +26,15 @@ export function Tabs<Id extends string>({
   label,
 }: TabsProps<Id>): ReactNode {
   return (
-    <fieldset
-      className="m-0 inline-flex gap-1 rounded-md border border-border p-1"
-      aria-label={label}
-    >
+    <fieldset className="m-0 inline-flex gap-1 rounded-md bg-muted p-1" aria-label={label}>
       {items.map((item) => (
         <button
           key={item.id}
           type="button"
           className={cn(
-            "rounded-sm px-3 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-            item.id === active && "bg-accent font-semibold text-primary",
+            "rounded-sm px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+            item.id === active &&
+              "border border-border bg-card font-semibold text-foreground shadow-panel",
           )}
           aria-pressed={item.id === active}
           onClick={() => onChange(item.id)}
