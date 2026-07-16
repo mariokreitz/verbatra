@@ -110,8 +110,9 @@ export function filterPaletteCommands(
   return matches.slice(0, MAX_PALETTE_RESULTS);
 }
 
-/** The tab id every key/locale command resolves to; matches `App.tsx`'s "diff" tab id. */
-export const DIFF_TAB_ID = "diff";
+/** The page every key/locale command resolves to: the Translations workspace hosts the key
+ * explorer and its detail drawer (see `client/routes.ts`'s page vocabulary). */
+export const KEY_JUMP_PAGE_ID = "translations";
 
 /** The navigation action a selected palette command resolves to: a plain data value, never a function. */
 export type PaletteSelection =
@@ -128,7 +129,7 @@ export function resolvePaletteSelection(command: PaletteCommand): PaletteSelecti
   if (command.kind === "tab") {
     return { kind: "switch-tab", tab: command.tab };
   }
-  return { kind: "open-key", tab: DIFF_TAB_ID, keyName: command.keyName };
+  return { kind: "open-key", tab: KEY_JUMP_PAGE_ID, keyName: command.keyName };
 }
 
 /** The minimal keyboard-event shape this module needs; avoids depending on the DOM lib's KeyboardEvent. */

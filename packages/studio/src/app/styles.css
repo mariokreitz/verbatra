@@ -152,6 +152,29 @@
   --shadow-panel-lg: var(--v-shadow-panel-lg);
 }
 
+/* The one navigation transition: page content enters with a short fade-and-rise, keyed on the
+   page id in the app shell, so switching workspaces reads as one consistent motion. The
+   reduced-motion override nests inside the utility itself: a base-layer override would lose the
+   cascade to the utilities layer Tailwind emits this rule into. */
+@utility animate-page-in {
+  animation: page-in 0.18s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @layer base {
   *,
   *::before,

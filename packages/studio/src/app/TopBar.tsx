@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Breadcrumbs } from "./Breadcrumbs.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
 import { SearchTrigger } from "./SearchTrigger.js";
@@ -7,10 +6,9 @@ import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import { Tooltip } from "./Tooltip.js";
 
 export interface TopBarProps {
-  /** The active tab's nav-group label, the first breadcrumb. */
-  readonly groupLabel: string;
-  /** The active tab's own label, the current-page breadcrumb. */
-  readonly tabLabel: string;
+  /** The active page's label, the bar's orientation text. Not a heading; the h1 belongs to each
+   * page's `PageHeader`. */
+  readonly pageLabel: string;
   /** Opens the mobile nav drawer; the trigger only renders below the md breakpoint. */
   readonly onOpenNav: () => void;
   /** Opens the command palette, from the search pill (or its compact icon form). */
@@ -21,13 +19,12 @@ export interface TopBarProps {
 
 /**
  * The application's fixed header row, always visible while the content column scrolls under it:
- * orientation on the start side (the mobile menu button, then breadcrumbs on desktop or the bare
- * section label on mobile), global actions on the end side (search, theme). It carries no page
- * heading itself; the h1 belongs to each panel's `PageHeader`.
+ * orientation on the start side (the mobile menu button and the current page's name; the nav is
+ * flat, so there is no deeper trail to spell out), global actions on the end side (search,
+ * shortcuts, theme).
  */
 export function TopBar({
-  groupLabel,
-  tabLabel,
+  pageLabel,
   onOpenNav,
   onOpenSearch,
   onOpenShortcuts,
@@ -42,10 +39,7 @@ export function TopBar({
       >
         <Icon name="menu" />
       </Button>
-      <div className="hidden md:block">
-        <Breadcrumbs items={[{ label: groupLabel }, { label: tabLabel }]} />
-      </div>
-      <span className="text-sm font-semibold text-foreground md:hidden">{tabLabel}</span>
+      <span className="text-sm font-semibold text-foreground">{pageLabel}</span>
       <div className="ms-auto flex items-center gap-1.5">
         <SearchTrigger onOpenSearch={onOpenSearch} className="hidden sm:flex" />
         <Button

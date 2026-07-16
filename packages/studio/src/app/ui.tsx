@@ -141,6 +141,34 @@ export function EmptyState({
 }
 
 /**
+ * An uncarded page section: a heading row (an h2 with an optional inline-end meta slot) over
+ * free-form content. For a page's primary surfaces (a key grid, a table, a feed), where wrapping
+ * the whole block in a card would just nest borders; `SectionCard` below stays the treatment for
+ * secondary, self-contained blocks.
+ */
+export function PageSection({
+  title,
+  meta,
+  children,
+  className,
+}: {
+  readonly title: string;
+  readonly meta?: ReactNode;
+  readonly children: ReactNode;
+  readonly className?: string;
+}): ReactNode {
+  return (
+    <section className={cn("mb-10", className)}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        {meta !== undefined ? <div className="flex items-center gap-2">{meta}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
  * A page section rendered as a card with its own heading row: a title (an h2; the page's h1
  * belongs to `PageHeader`), an optional intro line under it, and an optional inline-end `meta`
  * slot for a badge or count. The card-per-section rhythm is what separates a screen into

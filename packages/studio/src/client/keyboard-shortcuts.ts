@@ -43,6 +43,6 @@ export const KEYBOARD_SHORTCUTS: readonly ShortcutDescriptor[] = [
   { keys: ["Ctrl/⌘", "K"], description: "Open the command palette" },
   { keys: ["?"], description: "Open this shortcuts overview" },
   { keys: ["Esc"], description: "Close the open dialog, drawer, or menu" },
-  { keys: ["Arrow keys"], description: "Move between cells in the Diff grid" },
-  { keys: ["Enter", "Space"], description: "Open the focused Diff grid key's details" },
+  { keys: ["Arrow keys"], description: "Move between cells in the translations key grid" },
+  { keys: ["Enter", "Space"], description: "Open the focused grid key's details" },
 ];

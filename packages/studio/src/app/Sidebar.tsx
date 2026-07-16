@@ -1,4 +1,5 @@
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import type { PageId } from "../client/routes.js";
 import { Button } from "./Button.js";
 import { Icon, type IconName } from "./Icon.js";
 import { cn } from "./lib/cn.js";
@@ -7,24 +8,19 @@ import { Tooltip } from "./Tooltip.js";
 import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
-/** One labeled group of nav entries (for example "Translations": Status, Diff, Review). Purely a
- * presentation grouping over the same flat tab set the rest of the app already uses; it carries no
- * navigation behavior of its own. */
-export interface NavGroup<Tab extends string> {
-  readonly label: string;
-  readonly tabs: readonly Tab[];
+export interface SidebarNavProps {
+  /** The daily work surfaces, at the top of the rail. */
+  readonly workPages: readonly PageId[];
+  /** The occasional-lookup pages, in the bottom zone next to the collapse toggle. */
+  readonly referencePages: readonly PageId[];
+  readonly pageLabels: Readonly<Record<PageId, string>>;
+  /** One glyph per page; `Readonly<Record<...>>` makes a page without an icon a compile error. */
+  readonly pageIcons: Readonly<Record<PageId, IconName>>;
+  readonly activePage: PageId;
+  readonly onSelectPage: (page: PageId) => void;
 }
 
-export interface SidebarNavProps<Tab extends string> {
-  readonly groups: readonly NavGroup<Tab>[];
-  readonly tabLabels: Readonly<Record<Tab, string>>;
-  /** One glyph per tab; `Readonly<Record<...>>` makes a tab without an icon a compile error. */
-  readonly tabIcons: Readonly<Record<Tab, IconName>>;
-  readonly activeTab: Tab;
-  readonly onSelectTab: (tab: Tab) => void;
-}
-
-export interface DesktopSidebarProps<Tab extends string> extends SidebarNavProps<Tab> {
+export interface DesktopSidebarProps extends SidebarNavProps {
   /** Collapsed to the icon rail. Persisted by the caller (see `lib/sidebar-dom.ts`). */
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
@@ -65,28 +61,28 @@ function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): 
 
 /** One nav entry: icon plus label expanded, a tooltip-labeled icon on the collapsed rail. The
  * button always carries the label as its accessible name; the tooltip is a sighted-user aid. */
-function NavItem<Tab extends string>({
-  tab,
+function NavItem({
+  page,
   label,
   icon,
   isActive,
   collapsed,
   onSelect,
 }: {
-  readonly tab: Tab;
+  readonly page: PageId;
   readonly label: string;
   readonly icon: IconName;
   readonly isActive: boolean;
   readonly collapsed: boolean;
-  readonly onSelect: (tab: Tab) => void;
+  readonly onSelect: (page: PageId) => void;
 }): ReactNode {
   const button = (
     <button
       type="button"
-      aria-current={isActive || undefined}
+      aria-current={isActive ? "page" : undefined}
       aria-label={collapsed ? label : undefined}
       className={navItemClassName(isActive, collapsed)}
-      onClick={() => onSelect(tab)}
+      onClick={() => onSelect(page)}
     >
       <Icon name={icon} className="flex-none" />
       {collapsed ? null : <span className="truncate">{label}</span>}
@@ -98,49 +94,35 @@ function NavItem<Tab extends string>({
   return <Tooltip label={label}>{button}</Tooltip>;
 }
 
-function SidebarNavList<Tab extends string>({
-  groups,
-  tabLabels,
-  tabIcons,
-  activeTab,
-  onSelectTab,
-  collapsed = false,
-}: SidebarNavProps<Tab> & { readonly collapsed?: boolean }): ReactNode {
+/** One zone's nav list: a plain named `<nav>` of items, no group chrome. The two-zone split
+ * (work at the top, reference at the bottom) is the whole information architecture, so the
+ * layout carries it instead of labeled group headers. */
+function NavList({
+  pages,
+  navLabel,
+  collapsed,
+  ...itemProps
+}: {
+  readonly pages: readonly PageId[];
+  readonly navLabel: string;
+  readonly collapsed: boolean;
+  readonly pageLabels: Readonly<Record<PageId, string>>;
+  readonly pageIcons: Readonly<Record<PageId, IconName>>;
+  readonly activePage: PageId;
+  readonly onSelectPage: (page: PageId) => void;
+}): ReactNode {
   return (
-    <nav className="flex flex-col gap-4" aria-label="Sections">
-      {groups.map((group, index) => (
-        // A native fieldset/legend pair, not a div with role="group": the legend is natively the
-        // group's accessible name, no manual aria-labelledby wiring needed. On the collapsed rail
-        // the legend goes sr-only (the name must survive for assistive technology) and a thin
-        // divider separates the groups visually instead.
-        <Fragment key={group.label}>
-          {collapsed && index > 0 ? (
-            <span aria-hidden="true" className="mx-2 border-t border-border" />
-          ) : null}
-          <fieldset className="m-0 border-0 p-0">
-            <legend
-              className={cn(
-                "w-full px-2.5 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/70",
-                collapsed && "sr-only",
-              )}
-            >
-              {group.label}
-            </legend>
-            <div className="flex flex-col gap-1">
-              {group.tabs.map((candidate) => (
-                <NavItem
-                  key={candidate}
-                  tab={candidate}
-                  label={tabLabels[candidate]}
-                  icon={tabIcons[candidate]}
-                  isActive={candidate === activeTab}
-                  collapsed={collapsed}
-                  onSelect={onSelectTab}
-                />
-              ))}
-            </div>
-          </fieldset>
-        </Fragment>
+    <nav className="flex flex-col gap-1" aria-label={navLabel}>
+      {pages.map((page) => (
+        <NavItem
+          key={page}
+          page={page}
+          label={itemProps.pageLabels[page]}
+          icon={itemProps.pageIcons[page]}
+          isActive={page === itemProps.activePage}
+          collapsed={collapsed}
+          onSelect={itemProps.onSelectPage}
+        />
       ))}
     </nav>
   );
@@ -183,26 +165,43 @@ function CollapseToggle({
   );
 }
 
-/** The persistent nav rail shown at and above the `md` breakpoint; hidden entirely below it,
+/**
+ * The persistent nav rail shown at and above the `md` breakpoint; hidden entirely below it,
  * where the top bar's menu button and {@link MobileNavDrawer} take over navigation. Collapses to
- * an icon-only rail whose entries keep their accessible names and gain visual tooltips. */
-export function DesktopSidebar<Tab extends string>({
+ * an icon-only rail whose entries keep their accessible names and gain visual tooltips. The work
+ * zone scrolls only while expanded: on the collapsed rail the wrapper stays overflow-visible so
+ * the tooltips, positioned outside the rail's width, are never clipped by a scroll container.
+ */
+export function DesktopSidebar({
   collapsed,
   onToggleCollapsed,
   ...navProps
-}: DesktopSidebarProps<Tab>): ReactNode {
+}: DesktopSidebarProps): ReactNode {
   return (
     <aside
       className={cn(
-        "hidden flex-none flex-col gap-4 border-e border-border bg-card py-4 transition-[width] duration-200 md:flex",
+        "hidden flex-none flex-col border-e border-border bg-card py-4 transition-[width] duration-200 md:flex",
         collapsed ? "w-14 px-2" : "w-60 px-3",
       )}
     >
       <SidebarBrand collapsed={collapsed} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <SidebarNavList {...navProps} collapsed={collapsed} />
+      <div className={cn("mt-4 min-h-0 flex-1", !collapsed && "overflow-y-auto")}>
+        <NavList
+          pages={navProps.workPages}
+          navLabel="Workspaces"
+          collapsed={collapsed}
+          {...navProps}
+        />
       </div>
-      <CollapseToggle collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
+      <div className="flex flex-col gap-1 border-t border-border pt-3">
+        <NavList
+          pages={navProps.referencePages}
+          navLabel="Reference"
+          collapsed={collapsed}
+          {...navProps}
+        />
+        <CollapseToggle collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
+      </div>
     </aside>
   );
 }
@@ -211,14 +210,14 @@ export function DesktopSidebar<Tab extends string>({
  * start-anchored panel, the mobile equivalent of {@link DesktopSidebar} (never collapsed; the
  * rail concept only exists on desktop). Only ever mounted while open (the app shell conditionally
  * renders it), matching this dashboard's other overlays' mount-is-open convention, so
- * `useDialogA11y` is always called with `isOpen: true`. Selecting a tab closes the drawer
- * immediately (the caller's `onSelectTab` also calls `onClose`), so the next screen is never
- * hidden behind it. */
-export function MobileNavDrawer<Tab extends string>({
+ * `useDialogA11y` is always called with `isOpen: true`. Selecting a page closes the drawer
+ * immediately (the caller's `onSelectPage` also closes it), so the next screen is never hidden
+ * behind it. */
+export function MobileNavDrawer({
   onClose,
   onOpenSearch,
   ...navProps
-}: SidebarNavProps<Tab> & {
+}: SidebarNavProps & {
   readonly onClose: () => void;
   /** Opens the command palette; the drawer closes itself first. */
   readonly onOpenSearch: () => void;
@@ -246,7 +245,22 @@ export function MobileNavDrawer<Tab extends string>({
             onClose();
           }}
         />
-        <SidebarNavList {...navProps} />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <NavList
+            pages={navProps.workPages}
+            navLabel="Workspaces"
+            collapsed={false}
+            {...navProps}
+          />
+        </div>
+        <div className="flex flex-col gap-1 border-t border-border pt-3">
+          <NavList
+            pages={navProps.referencePages}
+            navLabel="Reference"
+            collapsed={false}
+            {...navProps}
+          />
+        </div>
       </div>
     </div>
   );

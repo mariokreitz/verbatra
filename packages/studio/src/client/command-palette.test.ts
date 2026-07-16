@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPaletteCommands,
-  DIFF_TAB_ID,
   filterPaletteCommands,
   isPaletteShortcut,
+  KEY_JUMP_PAGE_ID,
   MAX_PALETTE_RESULTS,
   type PaletteCommand,
   type PaletteTabDescriptor,
@@ -12,11 +12,10 @@ import {
 import type { DiffLocale } from "./diff-view.js";
 
 const TABS: readonly PaletteTabDescriptor[] = [
-  { tab: "overview", label: "Overview" },
-  { tab: "status", label: "Status" },
-  { tab: "diff", label: "Diff" },
-  { tab: "lock", label: "Lock" },
-  { tab: "history", label: "History" },
+  { tab: "translations", label: "Translations" },
+  { tab: "review", label: "Review" },
+  { tab: "activity", label: "Activity" },
+  { tab: "project", label: "Project" },
 ];
 
 const LOCALES: readonly DiffLocale[] = [
@@ -37,10 +36,10 @@ const LOCALES: readonly DiffLocale[] = [
 ];
 
 describe("buildPaletteCommands", () => {
-  it("returns only the five tab commands when the Diff panel has not loaded data", () => {
+  it("returns only the page commands when the key explorer has not loaded data", () => {
     const commands = buildPaletteCommands(TABS, null);
 
-    expect(commands).toHaveLength(5);
+    expect(commands).toHaveLength(4);
     expect(commands.every((command) => command.kind === "tab")).toBe(true);
   });
 
@@ -49,7 +48,7 @@ describe("buildPaletteCommands", () => {
 
     const tabCommands = commands.filter((command) => command.kind === "tab");
     const keyCommands = commands.filter((command) => command.kind === "key");
-    expect(tabCommands).toHaveLength(5);
+    expect(tabCommands).toHaveLength(4);
     // de: 1 missing + 1 changed + 1 orphaned; fr: 1 missing. 4 total.
     expect(keyCommands).toHaveLength(4);
   });
@@ -88,10 +87,10 @@ describe("filterPaletteCommands", () => {
   });
 
   it("matches a tab label case-insensitively", () => {
-    const result = filterPaletteCommands(commands, "OVERVIEW");
+    const result = filterPaletteCommands(commands, "TRANSLATIONS");
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.label).toBe("Overview");
+    expect(result[0]?.label).toBe("Translations");
   });
 
   it("matches a key command by key name", () => {
@@ -153,7 +152,7 @@ describe("resolvePaletteSelection", () => {
 
     expect(resolvePaletteSelection(command)).toEqual({
       kind: "open-key",
-      tab: DIFF_TAB_ID,
+      tab: KEY_JUMP_PAGE_ID,
       keyName: "greeting",
     });
   });

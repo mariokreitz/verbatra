@@ -7,94 +7,61 @@ import {
   nextToastSlot,
   type RefreshToastView,
 } from "../client/refresh-toast.js";
+import { PAGE_IDS, type PageId, pageHash, parsePageHash } from "../client/routes.js";
 import { refreshBus, sessionStore } from "./api.js";
 import { CommandPalette } from "./CommandPalette.js";
 import type { IconName } from "./Icon.js";
 import { readStoredSidebarCollapsed, storeSidebarCollapsed } from "./lib/sidebar-dom.js";
 import type { PanelProps } from "./panel-props.js";
-import { DiffPanel } from "./panels/DiffPanel.js";
-import { HistoryPanel } from "./panels/HistoryPanel.js";
-import { LockPanel } from "./panels/LockPanel.js";
-import { OverviewPanel } from "./panels/OverviewPanel.js";
+import { ActivityPanel } from "./panels/ActivityPanel.js";
+import { ProjectPanel } from "./panels/ProjectPanel.js";
 import { ReviewPanel } from "./panels/ReviewPanel.js";
-import { StatusPanel } from "./panels/StatusPanel.js";
-import { UsagePanel } from "./panels/UsagePanel.js";
+import { TranslationsPanel } from "./panels/TranslationsPanel.js";
 import { RefreshToast } from "./RefreshToast.js";
 import { ShortcutsDialog } from "./ShortcutsDialog.js";
-import { DesktopSidebar, MobileNavDrawer, type NavGroup } from "./Sidebar.js";
+import { DesktopSidebar, MobileNavDrawer } from "./Sidebar.js";
 import { TopBar } from "./TopBar.js";
 import { Container } from "./ui.js";
 
-const TABS = ["overview", "status", "diff", "review", "usage", "lock", "history"] as const;
-
-type Tab = (typeof TABS)[number];
-
-const TAB_LABELS: Readonly<Record<Tab, string>> = {
-  overview: "Overview",
-  status: "Status",
-  diff: "Diff",
+const PAGE_LABELS: Readonly<Record<PageId, string>> = {
+  translations: "Translations",
   review: "Review",
-  usage: "Usage",
-  lock: "Lock",
-  history: "History",
+  activity: "Activity",
+  project: "Project",
 };
 
-/** One glyph per tab for the sidebar nav; the Record type keeps this exhaustive at compile time. */
-const TAB_ICONS: Readonly<Record<Tab, IconName>> = {
-  overview: "dashboard",
-  status: "activity",
-  diff: "diff",
+/** One glyph per page for the nav rail; the Record type keeps this exhaustive at compile time. */
+const PAGE_ICONS: Readonly<Record<PageId, IconName>> = {
+  translations: "diff",
   review: "review",
-  usage: "gauge",
-  lock: "lock",
-  history: "history",
+  activity: "activity",
+  project: "dashboard",
 };
 
-// The sidebar's information architecture: Project (the read-only config/glossary snapshot),
-// Translations (the three panels a translator or reviewer actually works in day to day), and
-// Operations (drift/budget/audit views someone checks less often, not while translating). Every
-// value in TABS appears in exactly one group, so this is a presentation grouping over the same
-// flat tab set TAB_PANELS and the command palette already use, not a second source of truth for
-// which tabs exist.
-const NAV_GROUPS: readonly NavGroup<Tab>[] = [
-  { label: "Project", tabs: ["overview"] },
-  { label: "Translations", tabs: ["status", "diff", "review"] },
-  { label: "Operations", tabs: ["usage", "lock", "history"] },
-];
+// The two sidebar zones ARE the information architecture: the surfaces someone works in daily
+// at the top, the surfaces someone checks occasionally at the bottom, next to the collapse
+// toggle. No group headers; with four flat pages the placement carries the taxonomy.
+const WORK_PAGES: readonly PageId[] = ["translations", "review"];
+const REFERENCE_PAGES: readonly PageId[] = ["activity", "project"];
 
-// NAV_GROUPS's exhaustiveness over TABS gets none of the free compile-time checking
-// Readonly<Record<Tab, ...>> already gives TAB_LABELS/TAB_PANELS: a tab added to TABS but forgotten
-// here would silently vanish from both the desktop sidebar and the mobile drawer (still reachable
-// through the command palette) with nothing failing at build, lint, or test time, since src/app/**
-// has no test harness. This runtime assertion, evaluated once at module load, is the cheap
-// substitute for that missing static check.
-const GROUPED_TABS = new Set(NAV_GROUPS.flatMap((group) => group.tabs));
-if (GROUPED_TABS.size !== TABS.length || TABS.some((candidate) => !GROUPED_TABS.has(candidate))) {
-  throw new Error("NAV_GROUPS must partition TABS exactly, with no tab missing or duplicated");
+// The zones must partition PAGE_IDS exactly; a page missing here would silently vanish from
+// both the rail and the drawer (still reachable through the palette and the URL hash) with
+// nothing failing at build or test time, since src/app/** has no test harness.
+const ZONED_PAGES = new Set([...WORK_PAGES, ...REFERENCE_PAGES]);
+if (ZONED_PAGES.size !== PAGE_IDS.length || PAGE_IDS.some((page) => !ZONED_PAGES.has(page))) {
+  throw new Error("WORK_PAGES and REFERENCE_PAGES must partition PAGE_IDS exactly");
 }
 
-/** The nav group a tab belongs to, for the breadcrumb trail. Falls back to the tab's own label in
- * the impossible case a tab isn't in any group (the assertion above already rules this out; the
- * fallback exists only so this stays a total function without a second unreachable-state throw). */
-function groupLabelForTab(tabId: Tab): string {
-  return NAV_GROUPS.find((group) => group.tabs.includes(tabId))?.label ?? TAB_LABELS[tabId];
-}
-
-// Every panel receives refreshToken. StatusPanel reacts to it directly (through the covered
-// client/state.ts reducer); DiffPanel passes it straight through to an open KeyDetailDrawer,
-// which re-fetches its own key.integrity view on change. ReviewPanel and UsagePanel react to it
-// the same way StatusPanel does, re-fetching review.queue/usage.summary on every live-refresh
-// event. The remaining panels ignore the prop for now, a deliberate, incremental scope choice
-// rather than an oversight. The refresh toast below is a second, independent reaction to the
-// same live-refresh event.
-const TAB_PANELS: Readonly<Record<Tab, (props: PanelProps) => ReactNode>> = {
-  overview: OverviewPanel,
-  status: StatusPanel,
-  diff: DiffPanel,
+// Every page receives refreshToken (bumped once per live-refresh event). Within Translations,
+// the coverage read is refresh-reactive while the key diff deliberately is not (see that
+// panel's own doc comment); Activity's usage read is reactive while its history read is not;
+// Review re-fetches its queue. The refresh toast below is a second, independent reaction to
+// the same live-refresh event.
+const PAGE_PANELS: Readonly<Record<PageId, (props: PanelProps) => ReactNode>> = {
+  translations: TranslationsPanel,
   review: ReviewPanel,
-  usage: UsagePanel,
-  lock: LockPanel,
-  history: HistoryPanel,
+  activity: ActivityPanel,
+  project: ProjectPanel,
 };
 
 /**
@@ -129,20 +96,29 @@ function isEditableEventTarget(target: EventTarget | null): boolean {
 }
 
 export function App(): ReactNode {
-  const [tab, setTab] = useState<Tab>("overview");
+  // The URL hash is the source of truth for the current page: parsed once on mount (a reload
+  // lands back on the same page) and re-parsed on every hashchange (browser back/forward work).
+  // navigate() writes the hash and mirrors the state immediately; the listener firing after is
+  // idempotent.
+  const [page, setPage] = useState<PageId>(() => parsePageHash(window.location.hash));
   const [sessionExpired, setSessionExpired] = useState(isSessionExpired());
-  // Bumped once per live-refresh event (source, targets, or lock changed); passed to the active
-  // panel so it can re-fetch. The event's own reason and timestamp are not needed here: every
-  // panel re-fetches its own view wholesale rather than branching on which category changed.
-  const [refreshToken, setRefreshToken] = useState(0);
   // One toast slot (client/refresh-toast.ts's own one-slot rule): a new refresh event always
   // replaces whatever is shown, including clearing it entirely for an event with nothing to
   // report; a dismiss always clears it without ever calling the translate-pending action.
   const [toast, setToast] = useState<RefreshToastView | undefined>(undefined);
+  const [refreshToken, setRefreshToken] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
+
+  useEffect(() => {
+    function onHashChange(): void {
+      setPage(parsePageHash(window.location.hash));
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   useEffect(
     () => sessionStore.subscribe((state) => setSessionExpired(state.kind === "session-expired")),
@@ -180,19 +156,20 @@ export function App(): ReactNode {
     return <SessionExpiredNotice />;
   }
 
-  const ActivePanel = TAB_PANELS[tab];
+  const ActivePanel = PAGE_PANELS[page];
 
-  // The palette only ever resolves a selection to one of `TABS`'s own values (see
-  // `buildPaletteCommands`, which builds every tab command from this same list), so this cast is
-  // sound even though the palette's own types stay generic over `string`, independent of App's Tab
-  // union (client modules do not depend on app-layer types).
-  function handleSelectTab(nextTab: string): void {
-    setTab(nextTab as Tab);
+  function navigate(next: PageId): void {
+    window.location.hash = pageHash(next);
+    setPage(next);
+    setMobileNavOpen(false);
   }
 
-  function handleSelectTabFromSidebar(nextTab: Tab): void {
-    setTab(nextTab);
-    setMobileNavOpen(false);
+  // The palette only ever resolves a selection to one of `PAGE_IDS`'s own values (see
+  // `buildPaletteCommands`, which builds every page command from this same list, and
+  // `KEY_JUMP_PAGE_ID`), so this cast is sound even though the palette's own types stay generic
+  // over `string` (client modules do not depend on app-layer types).
+  function handleSelectPageFromPalette(next: string): void {
+    navigate(next as PageId);
   }
 
   function handleToggleSidebar(): void {
@@ -209,43 +186,46 @@ export function App(): ReactNode {
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <DesktopSidebar
-        groups={NAV_GROUPS}
-        tabLabels={TAB_LABELS}
-        tabIcons={TAB_ICONS}
-        activeTab={tab}
-        onSelectTab={handleSelectTabFromSidebar}
+        workPages={WORK_PAGES}
+        referencePages={REFERENCE_PAGES}
+        pageLabels={PAGE_LABELS}
+        pageIcons={PAGE_ICONS}
+        activePage={page}
+        onSelectPage={navigate}
         collapsed={sidebarCollapsed}
         onToggleCollapsed={handleToggleSidebar}
       />
       {mobileNavOpen ? (
         <MobileNavDrawer
-          groups={NAV_GROUPS}
-          tabLabels={TAB_LABELS}
-          tabIcons={TAB_ICONS}
-          activeTab={tab}
-          onSelectTab={handleSelectTabFromSidebar}
+          workPages={WORK_PAGES}
+          referencePages={REFERENCE_PAGES}
+          pageLabels={PAGE_LABELS}
+          pageIcons={PAGE_ICONS}
+          activePage={page}
+          onSelectPage={navigate}
           onOpenSearch={() => setPaletteOpen(true)}
           onClose={() => setMobileNavOpen(false)}
         />
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
-          groupLabel={groupLabelForTab(tab)}
-          tabLabel={TAB_LABELS[tab]}
+          pageLabel={PAGE_LABELS[page]}
           onOpenNav={() => setMobileNavOpen(true)}
           onOpenSearch={() => setPaletteOpen(true)}
           onOpenShortcuts={() => setShortcutsOpen(true)}
         />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Container>
-            <ActivePanel refreshToken={refreshToken} />
+            <div key={page} className="animate-page-in">
+              <ActivePanel refreshToken={refreshToken} />
+            </div>
           </Container>
         </main>
       </div>
       {paletteOpen ? (
         <CommandPalette
-          tabs={TABS.map((id) => ({ tab: id, label: TAB_LABELS[id] }))}
-          onSelectTab={handleSelectTab}
+          tabs={PAGE_IDS.map((id) => ({ tab: id, label: PAGE_LABELS[id] }))}
+          onSelectTab={handleSelectPageFromPalette}
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}

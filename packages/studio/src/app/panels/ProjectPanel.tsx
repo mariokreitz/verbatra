@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } fro
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
 
 /** The at-a-glance figure strip: the four facts someone opens this page to confirm. */
-function OverviewMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
+function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
       <MetricCard label="Source locale" value={snapshot.sourceLocale} />
@@ -28,7 +28,7 @@ function OverviewMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResul
   );
 }
 
-type OverviewState =
+type ProjectState =
   | { readonly status: "loading" }
   | { readonly status: "error"; readonly error: StructuredError }
   | {
@@ -40,10 +40,9 @@ type OverviewState =
 /**
  * The configuration facts the metric strip does not already carry: the full target-locale list
  * (the strip only shows the count), the file pattern, and whichever optional settings are
- * configured. Source locale, format, and provider are deliberately not repeated here; showing
- * them twice on one screen was the old layout's main noise source.
+ * configured. Source locale, format, and provider are deliberately not repeated here.
  */
-function OverviewDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
+function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   const items: Array<readonly [string, ReactNode]> = [
     [
       "Target locales",
@@ -88,7 +87,7 @@ function GlossaryEntries({
   }
   return (
     <div className="overflow-x-auto">
-      <Table>
+      <Table className="min-w-[320px]">
         <TableHead>
           <tr>
             <TableHeaderCell>Source term</TableHeaderCell>
@@ -118,6 +117,7 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
     <SectionCard
       title="Glossary"
       intro={`Source: ${glossaryIndicatorLabel(glossary)}`}
+      className="mb-0"
       meta={
         termCount > 0 ? (
           <Badge tone="neutral">
@@ -132,28 +132,26 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
 }
 
 /**
- * The default landing tab: a read-only view of the project's configuration snapshot
- * (project.snapshot) and its resolved glossary (glossary.get). Both are independent, stateless
- * reads made fresh on every mount. This merges what used to be two separate tabs, Overview and
- * Config: Config's field set was a strict superset of Overview's (the same snapshot fields plus
- * file pattern, prune, generatePlurals, maxBatchSize, tone, and the full glossary table Overview
- * only summarized by source), so splitting them across two clicks cost navigation with no
- * offsetting benefit.
+ * The reference page for how this project is configured: a read-only view of the resolved
+ * config snapshot (project.snapshot) and the glossary (glossary.get), both independent,
+ * stateless reads made fresh on every mount. Demoted from a primary workspace to the sidebar's
+ * reference zone: nothing here changes day to day, and nothing here is actionable inside a
+ * read-only dashboard.
  */
-export function OverviewPanel(): ReactNode {
+export function ProjectPanel(): ReactNode {
   return (
     <>
       <PageHeader
-        title="Overview"
-        description="The project's configuration snapshot and resolved glossary."
+        title="Project"
+        description="The resolved configuration and glossary this Studio session was started with."
       />
-      <OverviewPanelBody />
+      <ProjectPanelBody />
     </>
   );
 }
 
-function OverviewPanelBody(): ReactNode {
-  const [state, setState] = useState<OverviewState>({ status: "loading" });
+function ProjectPanelBody(): ReactNode {
+  const [state, setState] = useState<ProjectState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
@@ -191,11 +189,17 @@ function OverviewPanelBody(): ReactNode {
   }
   return (
     <div>
-      <OverviewMetrics snapshot={state.snapshot} />
-      <SectionCard title="Configuration" intro={`Loaded from ${state.snapshot.configSource}`}>
-        <OverviewDetails snapshot={state.snapshot} />
-      </SectionCard>
-      <GlossarySection glossary={state.glossary} />
+      <ProjectMetrics snapshot={state.snapshot} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <SectionCard
+          title="Configuration"
+          intro={`Loaded from ${state.snapshot.configSource}`}
+          className="mb-0"
+        >
+          <ProjectDetails snapshot={state.snapshot} />
+        </SectionCard>
+        <GlossarySection glossary={state.glossary} />
+      </div>
     </div>
   );
 }
