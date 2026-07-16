@@ -46,8 +46,10 @@ function navItemClassName(isActive: boolean, collapsed: boolean): string {
 function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): ReactNode {
   return (
     <div className={cn("flex items-center gap-2.5 py-2", collapsed ? "justify-center" : "px-2.5")}>
+      {/* primary-foreground, not white: sidebar-active tracks each theme's primary (dark indigo
+          fill in light mode, light indigo in dark mode), so the mark's ink must flip with it. */}
       <span
-        className="grid size-7 flex-none place-items-center rounded-md bg-sidebar-active text-xs font-bold text-white"
+        className="grid size-7 flex-none place-items-center rounded-md bg-sidebar-active text-xs font-bold text-primary-foreground"
         aria-hidden="true"
       >
         V
