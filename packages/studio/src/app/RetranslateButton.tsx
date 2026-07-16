@@ -4,6 +4,10 @@ import {
   deriveRetranslateOutcome,
   type RetranslateOutcome,
 } from "../client/retranslate-outcome.js";
+import {
+  settledActionStatusClassName,
+  settledActionStatusLabel,
+} from "../client/settled-action-status.js";
 import { rpcClient } from "./api.js";
 
 type ButtonState =
@@ -11,23 +15,12 @@ type ButtonState =
   | { readonly kind: "loading" }
   | { readonly kind: "settled"; readonly outcome: RetranslateOutcome };
 
-const REJECTION_LABEL: Readonly<Record<"placeholder" | "icu", string>> = {
-  placeholder: "Rejected: placeholder mismatch",
-  icu: "Rejected: invalid message syntax",
-};
-
 function statusLabel(state: ButtonState): string {
   if (state.kind === "loading") {
     return "Retranslating…";
   }
   if (state.kind === "settled") {
-    if (state.outcome.kind === "success") {
-      return "Retranslated";
-    }
-    if (state.outcome.kind === "rejected") {
-      return REJECTION_LABEL[state.outcome.reason];
-    }
-    return `Failed: ${state.outcome.message}`;
+    return settledActionStatusLabel(state.outcome, "Retranslated");
   }
   return "Retranslate";
 }
@@ -59,8 +52,6 @@ export function RetranslateButton({
     setState({ kind: "settled", outcome: deriveRetranslateOutcome(response) });
   }
 
-  const outcomeKind = state.kind === "settled" ? state.outcome.kind : undefined;
-
   return (
     <span className="retranslate-action">
       <button
@@ -73,13 +64,9 @@ export function RetranslateButton({
       </button>
       {state.kind !== "idle" ? (
         <span
-          className={
-            outcomeKind === "success"
-              ? "retranslate-status retranslate-status-success"
-              : outcomeKind === "rejected" || outcomeKind === "error"
-                ? "retranslate-status retranslate-status-error"
-                : "retranslate-status"
-          }
+          className={settledActionStatusClassName(
+            state.kind === "settled" ? state.outcome : undefined,
+          )}
         >
           {statusLabel(state)}
         </span>

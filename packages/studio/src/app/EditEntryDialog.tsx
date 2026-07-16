@@ -2,13 +2,12 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { deriveEditEntryOutcome, type EditEntryOutcome } from "../client/edit-entry-outcome.js";
 import { deriveKeyValueContext, type KeyValueContext } from "../client/key-value-context.js";
+import {
+  settledActionStatusClassName,
+  settledActionStatusLabel,
+} from "../client/settled-action-status.js";
 import { rpcClient } from "./api.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
-
-const REJECTION_LABEL: Readonly<Record<"placeholder" | "icu", string>> = {
-  placeholder: "Rejected: placeholder mismatch",
-  icu: "Rejected: invalid message syntax",
-};
 
 type SubmitState =
   | { readonly kind: "idle" }
@@ -52,26 +51,13 @@ function submitStatusLabel(state: SubmitState): string {
     return "Saving…";
   }
   if (state.kind === "settled") {
-    if (state.outcome.kind === "success") {
-      return "Saved";
-    }
-    if (state.outcome.kind === "rejected") {
-      return REJECTION_LABEL[state.outcome.reason];
-    }
-    return `Failed: ${state.outcome.message}`;
+    return settledActionStatusLabel(state.outcome, "Saved");
   }
   return "";
 }
 
 function submitStatusClassName(state: SubmitState): string {
-  const kind = state.kind === "settled" ? state.outcome.kind : undefined;
-  if (kind === "success") {
-    return "retranslate-status retranslate-status-success";
-  }
-  if (kind === "rejected" || kind === "error") {
-    return "retranslate-status retranslate-status-error";
-  }
-  return "retranslate-status";
+  return settledActionStatusClassName(state.kind === "settled" ? state.outcome : undefined);
 }
 
 function EditorFields({
