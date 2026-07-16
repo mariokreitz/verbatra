@@ -12,6 +12,7 @@ import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
 import { REVIEW_QUEUE_METHOD } from "../shared/rpc/review-queue.js";
 import { PROJECT_SNAPSHOT_METHOD, type StudioCapabilities } from "../shared/rpc/snapshot.js";
 import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
+import { USAGE_SUMMARY_METHOD } from "../shared/rpc/usage-summary.js";
 import { statusCheckHandler } from "./methods/check.js";
 import { statusDiffHandler } from "./methods/diff.js";
 import { editEntryHandler } from "./methods/edit-entry.js";
@@ -24,6 +25,7 @@ import { retranslateEntryHandler } from "./methods/retranslate-entry.js";
 import { reviewQueueHandler } from "./methods/review-queue.js";
 import { snapshotHandler } from "./methods/snapshot.js";
 import { translatePendingHandler } from "./methods/translate-pending.js";
+import { usageSummaryHandler } from "./methods/usage-summary.js";
 import type { StudioServerDeps } from "./types.js";
 
 export type { StudioCapabilities } from "../shared/rpc/snapshot.js";
@@ -48,12 +50,12 @@ export type RpcHandler<M extends RpcMethodName> = (
 export type HandlersRegistry = { readonly [M in RpcMethodName]?: RpcHandler<M> };
 
 /**
- * The eight handlers present in every registry regardless of capability: `project.snapshot`,
+ * The nine handlers present in every registry regardless of capability: `project.snapshot`,
  * `status.check`, `status.diff`, `glossary.get`, `lock.state`, `history.list`, `key.integrity`,
- * and `review.queue`. None of these ever calls a provider or writes to disk. `review.queue` is
- * unconditional (like every other read view here) even though it feeds the needs-review queue's
- * action row: the view half is gated only on the persisted run-status data existing, never on a
- * capability flag; only the per-row approve/edit/reject actions need `writeToDisk`.
+ * `review.queue`, and `usage.summary`. None of these ever calls a provider or writes to disk.
+ * `review.queue` and `usage.summary` are both unconditional (like every other read view here)
+ * even though they feed action rows or ceiling awareness elsewhere: each view half is gated only
+ * on the persisted run-status data existing, never on a capability flag.
  */
 const readOnlyHandlers: HandlersRegistry = {
   [PROJECT_SNAPSHOT_METHOD]: snapshotHandler,
@@ -64,6 +66,7 @@ const readOnlyHandlers: HandlersRegistry = {
   [HISTORY_LIST_METHOD]: historyListHandler,
   [KEY_INTEGRITY_METHOD]: keyIntegrityHandler,
   [REVIEW_QUEUE_METHOD]: reviewQueueHandler,
+  [USAGE_SUMMARY_METHOD]: usageSummaryHandler,
 };
 
 /**
@@ -81,8 +84,8 @@ const readOnlyHandlers: HandlersRegistry = {
  * The server caches no project data between requests: `project.snapshot` only reads the config
  * resolved once at startup (see {@link RpcHandlerDeps.config}), which is the one value this whole
  * dashboard intentionally holds in memory. A handler that reads anything else from disk (the
- * status, diff, lock, history, key-integrity, review-queue, retranslate, translate-pending, edit,
- * or key-value views) must read it fresh on every call, never caching it.
+ * status, diff, lock, history, key-integrity, review-queue, usage-summary, retranslate,
+ * translate-pending, edit, or key-value views) must read it fresh on every call, never caching it.
  */
 export function createRpcHandlers(capabilities: StudioCapabilities): HandlersRegistry {
   return {

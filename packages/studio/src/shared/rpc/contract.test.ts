@@ -14,10 +14,11 @@ const EXPECTED_METHOD_NAMES = [
   "translation.editEntry",
   "key.value",
   "translation.translatePending",
+  "usage.summary",
 ];
 
 describe("RPC_METHOD_NAMES", () => {
-  it("contains exactly the twelve agreed method names, no more, no fewer", () => {
+  it("contains exactly the thirteen agreed method names, no more, no fewer", () => {
     // Every write method's schema is declared unconditionally here, independent of capability
     // flags: contract shape is static and shared; only the handler registry
     // (server/rpc.ts's createRpcHandlers) is capability-built.
@@ -54,6 +55,7 @@ describe("rpcParamsSchemas", () => {
     ],
     ["key.value", { locale: "de", key: "greeting" }, { locale: "", key: "greeting" }],
     ["translation.translatePending", {}, { locale: "de" }],
+    ["usage.summary", {}, { extra: true }],
   ] as const)("%s accepts a valid shape and rejects an invalid shape", (method, valid, invalid) => {
     const schema = rpcParamsSchemas[method];
     expect(schema.safeParse(valid).success).toBe(true);
