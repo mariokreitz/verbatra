@@ -116,7 +116,7 @@ describe("dispatchRpc envelope", () => {
         provider: { id: "anthropic" },
         configSource: "override",
         glossary: { source: "none" },
-        capabilities: { spend: false, writeToDisk: false },
+        capabilities: { spend: false, writeToDisk: true },
       }),
     });
 
@@ -201,7 +201,7 @@ describe("dispatchRpc envelope", () => {
     const result = await dispatchRpc(
       body({ method: "project.snapshot", params: {} }),
       deps(),
-      createRpcHandlers({ spend: false, writeToDisk: false }),
+      createRpcHandlers({ spend: false, writeToDisk: true }),
     );
 
     expect(result.statusCode).toBe(200);
@@ -279,7 +279,7 @@ describe("dispatchRpc envelope", () => {
           provider: { id: "anthropic" },
           configSource: "override",
           glossary: { source: "none" },
-          capabilities: { spend: false, writeToDisk: false },
+          capabilities: { spend: false, writeToDisk: true },
         }),
       },
       limiter,
@@ -354,7 +354,7 @@ describe("dispatchRpc envelope", () => {
           provider: { id: "anthropic" },
           configSource: "override",
           glossary: { source: "none" },
-          capabilities: { spend: false, writeToDisk: false },
+          capabilities: { spend: false, writeToDisk: true },
         }),
       },
       undefined,

@@ -599,10 +599,6 @@ function buildProgram(
       "--allow-spend",
       "allow Studio to call a translation provider (also: VERBATRA_STUDIO_ALLOW_SPEND)",
     )
-    .option(
-      "--allow-write",
-      "allow Studio to write locale files and the lock (also: VERBATRA_STUDIO_ALLOW_WRITE)",
-    )
     .action(async (opts: unknown) => {
       setCode(await runStudioCommand(opts, deps, streams, hooks));
     })
@@ -611,9 +607,9 @@ function buildProgram(
       [
         "",
         "Examples:",
-        "  $ verbatra studio                             start Verbatra Studio on the default port",
-        "  $ verbatra studio --port 6000                 start Verbatra Studio on a specific port",
-        "  $ verbatra studio --allow-spend --allow-write start Studio with retranslate enabled",
+        "  $ verbatra studio                start Verbatra Studio on the default port",
+        "  $ verbatra studio --port 6000    start Verbatra Studio on a specific port",
+        "  $ verbatra studio --allow-spend  start Studio with retranslate enabled",
       ].join("\n"),
     );
 

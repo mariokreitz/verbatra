@@ -287,7 +287,6 @@ describe("GET /events: no sentinel leaks through the refresh event a retranslate
           loader: fixtureLoader(project),
           createWatcher: harness.createWatcher,
           spend: true,
-          writeToDisk: true,
           createProvider: stubCreateProvider,
         },
       );

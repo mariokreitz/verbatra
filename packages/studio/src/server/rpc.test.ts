@@ -14,46 +14,37 @@ const READ_ONLY_METHODS = [
   "usage.summary",
 ] as const;
 
-const WRITE_TO_DISK_ONLY_METHODS = ["translation.editEntry", "key.value"] as const;
-const SPEND_AND_WRITE_METHODS = ["translation.retranslateEntry", "translation.translatePending"];
+/** Local-file write methods: always registered, since writing a locale file needs no flag. */
+const ALWAYS_ON_WRITE_METHODS = ["translation.editEntry", "key.value"] as const;
+/** Provider-calling methods: registered only when the spend capability is granted. */
+const SPEND_METHODS = ["translation.retranslateEntry", "translation.translatePending"];
 
 describe("the shared contract's method list", () => {
   it("is exactly the thirteen agreed methods, including the schema-only write methods", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(
-      new Set([...READ_ONLY_METHODS, ...SPEND_AND_WRITE_METHODS, ...WRITE_TO_DISK_ONLY_METHODS]),
+      new Set([...READ_ONLY_METHODS, ...SPEND_METHODS, ...ALWAYS_ON_WRITE_METHODS]),
     );
     expect(RPC_METHOD_NAMES).toHaveLength(13);
   });
 });
 
 describe("createRpcHandlers: capability gating", () => {
-  it("always includes exactly the nine read handlers when neither capability is set", () => {
-    const handlers = createRpcHandlers({ spend: false, writeToDisk: false });
-    expect(new Set(Object.keys(handlers))).toEqual(new Set(READ_ONLY_METHODS));
-    expect(Object.keys(handlers)).toHaveLength(READ_ONLY_METHODS.length);
+  it("registers the nine read handlers plus translation.editEntry and key.value by default, without spend", () => {
+    const handlers = createRpcHandlers({ spend: false, writeToDisk: true });
+    expect(new Set(Object.keys(handlers))).toEqual(
+      new Set([...READ_ONLY_METHODS, ...ALWAYS_ON_WRITE_METHODS]),
+    );
   });
 
-  it("still omits every write method with only spend set", () => {
-    const handlers = createRpcHandlers({ spend: true, writeToDisk: false });
-    expect(handlers["translation.retranslateEntry"]).toBeUndefined();
-    expect(handlers["translation.translatePending"]).toBeUndefined();
-    expect(handlers["translation.editEntry"]).toBeUndefined();
-    expect(handlers["key.value"]).toBeUndefined();
-    expect(Object.keys(handlers)).toHaveLength(READ_ONLY_METHODS.length);
-  });
-
-  it("includes translation.editEntry and key.value, but still omits translation.retranslateEntry and translation.translatePending, with only writeToDisk set", () => {
+  it("omits translation.retranslateEntry and translation.translatePending without spend", () => {
     const handlers = createRpcHandlers({ spend: false, writeToDisk: true });
     expect(handlers["translation.retranslateEntry"]).toBeUndefined();
     expect(handlers["translation.translatePending"]).toBeUndefined();
     expect(handlers["translation.editEntry"]).toBeDefined();
     expect(handlers["key.value"]).toBeDefined();
-    expect(new Set(Object.keys(handlers))).toEqual(
-      new Set([...READ_ONLY_METHODS, ...WRITE_TO_DISK_ONLY_METHODS]),
-    );
   });
 
-  it("includes every method, including translation.retranslateEntry and translation.translatePending, only when both capabilities are set", () => {
+  it("includes every method, including translation.retranslateEntry and translation.translatePending, when spend is set", () => {
     const handlers = createRpcHandlers({ spend: true, writeToDisk: true });
     expect(handlers["translation.retranslateEntry"]).toBeDefined();
     expect(handlers["translation.translatePending"]).toBeDefined();
@@ -63,21 +54,17 @@ describe("createRpcHandlers: capability gating", () => {
   });
 
   it("never mutates the read-only handlers across separate calls with different capabilities", () => {
-    const off = createRpcHandlers({ spend: false, writeToDisk: false });
+    const off = createRpcHandlers({ spend: false, writeToDisk: true });
     const on = createRpcHandlers({ spend: true, writeToDisk: true });
     expect(off["project.snapshot"]).toBe(on["project.snapshot"]);
   });
 
-  it("keeps usage.summary reachable identically regardless of either capability flag", () => {
-    const neither = createRpcHandlers({ spend: false, writeToDisk: false });
-    const spendOnly = createRpcHandlers({ spend: true, writeToDisk: false });
-    const writeOnly = createRpcHandlers({ spend: false, writeToDisk: true });
-    const both = createRpcHandlers({ spend: true, writeToDisk: true });
+  it("keeps usage.summary reachable identically regardless of the spend flag", () => {
+    const withoutSpend = createRpcHandlers({ spend: false, writeToDisk: true });
+    const withSpend = createRpcHandlers({ spend: true, writeToDisk: true });
 
-    expect(neither["usage.summary"]).toBeDefined();
-    expect(spendOnly["usage.summary"]).toBeDefined();
-    expect(writeOnly["usage.summary"]).toBeDefined();
-    expect(both["usage.summary"]).toBeDefined();
-    expect(neither["usage.summary"]).toBe(both["usage.summary"]);
+    expect(withoutSpend["usage.summary"]).toBeDefined();
+    expect(withSpend["usage.summary"]).toBeDefined();
+    expect(withoutSpend["usage.summary"]).toBe(withSpend["usage.summary"]);
   });
 });

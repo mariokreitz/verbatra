@@ -1,6 +1,6 @@
 # @verbatra/studio
 
-Local Verbatra Studio dashboard: a read-only web view over a verbatra project, served from a
+Local Verbatra Studio dashboard: a live web view over a verbatra project with built-in local editing, served from a
 prebuilt single-page app by a small loopback HTTP server.
 
 This package is published to npm as a prerelease. It has not had a stable release yet, so its own `latest` dist-tag already carries the current prerelease build; no `@next` needed to install it.

@@ -5,9 +5,9 @@ import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
 import { baseStudioConfig, type FixtureProject, makeFixtureProject } from "./test-support.js";
 
-/** The eight read-only handlers, matching the module-level default before capability-gating. */
-const readOnlyHandlers = createRpcHandlers({ spend: false, writeToDisk: false });
-/** The full registry with translation.retranslateEntry also registered. */
+/** The default registry: the read handlers plus the always-on local write methods, no spend. */
+const defaultHandlers = createRpcHandlers({ spend: false, writeToDisk: true });
+/** The full registry with the spend-gated translation.retranslateEntry also registered. */
 const writeCapableHandlers = createRpcHandlers({ spend: true, writeToDisk: true });
 
 const SENTINELS = {
@@ -82,7 +82,7 @@ describe("secret sweep across every registered method and error path", () => {
     const result = await dispatchRpc(
       body({ method: "project.snapshot", params: {} }),
       depsWithSentinelConfig(),
-      readOnlyHandlers,
+      defaultHandlers,
     );
 
     expect(result.statusCode).toBe(200);
@@ -108,7 +108,7 @@ describe("secret sweep across every registered method and error path", () => {
     const result = await dispatchRpc(
       body({ method: "status.check", params: {} }),
       depsWithSentinelConfig(),
-      readOnlyHandlers,
+      defaultHandlers,
     );
 
     assertNoSentinel(result.body);
@@ -118,12 +118,12 @@ describe("secret sweep across every registered method and error path", () => {
     const unknown = await dispatchRpc(
       body({ method: `not.${SENTINELS.ANTHROPIC_API_KEY}`, params: {} }),
       depsWithSentinelConfig(),
-      readOnlyHandlers,
+      defaultHandlers,
     );
     const invalidParams = await dispatchRpc(
       body({ method: "status.check", params: { locales: [] } }),
       depsWithSentinelConfig(),
-      readOnlyHandlers,
+      defaultHandlers,
     );
 
     assertNoSentinel(unknown.body);

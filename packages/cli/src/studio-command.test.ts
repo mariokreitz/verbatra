@@ -360,7 +360,9 @@ describe("run studio: success path and shutdown", () => {
   });
 });
 
-describe("run studio: --allow-spend / --allow-write capability resolution", () => {
+describe("run studio: --allow-spend capability resolution", () => {
+  // VERBATRA_STUDIO_ALLOW_WRITE is no longer read by anything; it is saved, cleared, and restored
+  // here only so the "ignored entirely" test below can set it without leaking into other tests.
   const ENV_VARS = ["VERBATRA_STUDIO_ALLOW_SPEND", "VERBATRA_STUDIO_ALLOW_WRITE"] as const;
   const originalValues: Record<string, string | undefined> = {};
 
@@ -384,16 +386,16 @@ describe("run studio: --allow-spend / --allow-write capability resolution", () =
 
   async function captureResolvedCapabilities(
     argv: readonly string[],
-  ): Promise<{ spend: boolean | undefined; writeToDisk: boolean | undefined }> {
-    let resolved: { spend: boolean | undefined; writeToDisk: boolean | undefined } = {
+  ): Promise<{ spend: boolean | undefined; passesWriteToDisk: boolean }> {
+    let resolved: { spend: boolean | undefined; passesWriteToDisk: boolean } = {
       spend: undefined,
-      writeToDisk: undefined,
+      passesWriteToDisk: false,
     };
     const { deps } = recordingDeps({
       importStudio: async () =>
         makeStudioModule({
           startStudioServer: async (options) => {
-            resolved = { spend: options.spend, writeToDisk: options.writeToDisk };
+            resolved = { spend: options.spend, passesWriteToDisk: "writeToDisk" in options };
             return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
           },
         }),
@@ -409,41 +411,48 @@ describe("run studio: --allow-spend / --allow-write capability resolution", () =
     return resolved;
   }
 
-  it("defaults both capabilities to false when neither flag nor env var is set", async () => {
+  it("defaults spend to false and never passes a writeToDisk option (writing is always on server-side)", async () => {
     const resolved = await captureResolvedCapabilities(["studio"]);
-    expect(resolved).toEqual({ spend: false, writeToDisk: false });
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
   });
 
-  it("sets a capability true from its own CLI flag alone", async () => {
+  it("sets spend true from the CLI flag alone", async () => {
     const resolved = await captureResolvedCapabilities(["studio", "--allow-spend"]);
-    expect(resolved).toEqual({ spend: true, writeToDisk: false });
+    expect(resolved).toEqual({ spend: true, passesWriteToDisk: false });
   });
 
-  it("sets both capabilities true when both flags are given", async () => {
-    const resolved = await captureResolvedCapabilities([
-      "studio",
-      "--allow-spend",
-      "--allow-write",
-    ]);
-    expect(resolved).toEqual({ spend: true, writeToDisk: true });
+  it("rejects the removed --allow-write flag as an unknown option", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["studio", "--allow-write"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(calls.importStudio).toHaveLength(0);
   });
 
   it("falls back to the environment variable when the CLI flag is absent", async () => {
     process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: true, passesWriteToDisk: false });
+  });
+
+  it("ignores the retired VERBATRA_STUDIO_ALLOW_WRITE variable entirely", async () => {
     process.env.VERBATRA_STUDIO_ALLOW_WRITE = "1";
 
     const resolved = await captureResolvedCapabilities(["studio"]);
 
-    expect(resolved).toEqual({ spend: true, writeToDisk: true });
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
   });
 
   it("treats an unrecognized or falsy environment value as off", async () => {
     process.env.VERBATRA_STUDIO_ALLOW_SPEND = "0";
-    process.env.VERBATRA_STUDIO_ALLOW_WRITE = "false";
 
     const resolved = await captureResolvedCapabilities(["studio"]);
 
-    expect(resolved).toEqual({ spend: false, writeToDisk: false });
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
   });
 
   it("the CLI flag wins when both the flag and the environment variable are given", async () => {

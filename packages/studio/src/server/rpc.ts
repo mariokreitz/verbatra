@@ -70,16 +70,15 @@ const readOnlyHandlers: HandlersRegistry = {
 };
 
 /**
- * Builds the capability-gated handlers registry: always the eight read handlers above, plus
- * `translation.retranslateEntry` and `translation.translatePending` only when both
- * `capabilities.spend` and `capabilities.writeToDisk` are true, plus `translation.editEntry` and
- * `key.value` when `capabilities.writeToDisk` alone is true (neither needs `spend`: `editEntry`
- * never calls a provider, and `key.value` performs no write and only exists to feed an edit
- * dialog that itself requires `writeToDisk`). Called exactly once by `createStudioServer`, before
- * `listen()`; the built registry is threaded into `DispatchContext` alongside `rpcDeps` and never
- * rebuilt afterward. A disabled write method is simply absent from the returned record;
- * `handleRpcBody` already falls back to `METHOD_UNKNOWN` when `handlers[method]` is `undefined`,
- * so no new gate mechanism is introduced here, only a capability-dependent registry.
+ * Builds the capability-gated handlers registry: always the nine read handlers above, always
+ * `translation.editEntry` and `key.value` (writing a local locale file needs no capability flag,
+ * and neither method ever calls a provider), plus `translation.retranslateEntry` and
+ * `translation.translatePending` only when `capabilities.spend` is true. Called exactly once by
+ * `createStudioServer`, before `listen()`; the built registry is threaded into `DispatchContext`
+ * alongside `rpcDeps` and never rebuilt afterward. A spend-gated method a server was not granted
+ * is simply absent from the returned record; `handleRpcBody` already falls back to
+ * `METHOD_UNKNOWN` when `handlers[method]` is `undefined`, so no new gate mechanism is introduced
+ * here, only a capability-dependent registry.
  *
  * The server caches no project data between requests: `project.snapshot` only reads the config
  * resolved once at startup (see {@link RpcHandlerDeps.config}), which is the one value this whole
@@ -90,16 +89,12 @@ const readOnlyHandlers: HandlersRegistry = {
 export function createRpcHandlers(capabilities: StudioCapabilities): HandlersRegistry {
   return {
     ...readOnlyHandlers,
-    ...(capabilities.spend && capabilities.writeToDisk
+    [EDIT_ENTRY_METHOD]: editEntryHandler,
+    [KEY_VALUE_METHOD]: keyValueHandler,
+    ...(capabilities.spend
       ? {
           [RETRANSLATE_ENTRY_METHOD]: retranslateEntryHandler,
           [TRANSLATE_PENDING_METHOD]: translatePendingHandler,
-        }
-      : {}),
-    ...(capabilities.writeToDisk
-      ? {
-          [EDIT_ENTRY_METHOD]: editEntryHandler,
-          [KEY_VALUE_METHOD]: keyValueHandler,
         }
       : {}),
   };

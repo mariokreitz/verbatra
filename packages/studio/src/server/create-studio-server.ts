@@ -105,9 +105,9 @@ function defaultOutput(line: string): void {
  * Builds the deps every RPC handler receives, resolved once here (see the `loader` call in
  * {@link startStudioServer}, before listen) and reused for the life of the process (G11/G12): no
  * handler re-loads the config, and the server otherwise caches no project data between requests.
- * `spend`/`writeToDisk` are threaded through unchanged so `project.snapshot`'s handler can build
- * the read-only `capabilities` projection from the same resolved booleans `createRpcHandlers` used
- * to build the registry itself.
+ * `spend` is threaded through unchanged so `project.snapshot`'s handler can build the read-only
+ * `capabilities` projection from the same resolved boolean `createRpcHandlers` used to build the
+ * registry itself (`writeToDisk` is always true and needs no threading).
  */
 function buildRpcHandlerDeps(
   config: LoadedConfig,
@@ -119,7 +119,6 @@ function buildRpcHandlerDeps(
     config,
     projectRoot,
     spend: capabilities.spend,
-    writeToDisk: capabilities.writeToDisk,
     ...(options.fs !== undefined ? { fs: options.fs } : {}),
     ...(options.adapterRegistry !== undefined ? { adapterRegistry: options.adapterRegistry } : {}),
     ...(options.execFileImpl !== undefined ? { execFileImpl: options.execFileImpl } : {}),
@@ -202,10 +201,11 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   const token = options.token ?? generateToken();
   // Fixed before the config loader ever runs (G11-style ordering, matching how token/loader/cwd
   // are resolved once): nothing the loader or the project's own config module does can feed back
-  // into which capabilities this process was granted.
+  // into which capabilities this process was granted. `writeToDisk` is always true (local editing
+  // needs no flag); only `spend` remains an opt-in.
   const capabilities: StudioCapabilities = {
     spend: options.spend ?? false,
-    writeToDisk: options.writeToDisk ?? false,
+    writeToDisk: true,
   };
   const config = await options.loader();
   const projectRoot = options.cwd ?? process.cwd();
@@ -227,8 +227,8 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   );
   watcher.onRefresh((event) => sseHub.broadcastRefresh(event));
 
-  // Built once, before listen(): a disabled write method is simply absent from the returned
-  // registry, never rebuilt or re-derived for the life of the process.
+  // Built once, before listen(): a spend-gated method a server was not granted is simply absent
+  // from the returned registry, never rebuilt or re-derived for the life of the process.
   const handlers = createRpcHandlers(capabilities);
   const rateLimiter = buildRateLimiter(options);
   const inFlightGuard = buildInFlightGuard();

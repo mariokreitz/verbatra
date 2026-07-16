@@ -65,16 +65,10 @@ export interface StudioServerDeps {
    * Authorizes a provider invocation (network egress, an API key read from its environment
    * variable, a billable call). Resolved once at process start (CLI flag or environment variable
    * fallback) and read exactly once here, before `listen()`; never re-derived and never an RPC
-   * parameter. Off (`false`) by default. Composed independently with {@link writeToDisk}: neither
-   * implies the other.
+   * parameter. Off (`false`) by default. This is the only capability option: writing a local
+   * locale file and its lock entry needs no flag and is always allowed.
    */
   readonly spend?: boolean;
-  /**
-   * Authorizes mutating a source-controlled locale file and its lock entry. Resolved once at
-   * process start (CLI flag or environment variable fallback) and read exactly once here, before
-   * `listen()`; never re-derived and never an RPC parameter. Off (`false`) by default.
-   */
-  readonly writeToDisk?: boolean;
   /** Provider builder for the write-capable RPC handlers; defaults to constructing the configured provider (which reads its key from env). Test-only injection seam, mirroring the sdk's own `TranslateDeps.createProvider`. */
   readonly createProvider?: CreateProvider;
   /** Rolling window, in milliseconds, `translation.retranslateEntry`'s dispatch-layer rate limit is measured over. Defaults to a production-sized window; tests override it to trip the limit deterministically. */

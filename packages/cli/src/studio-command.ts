@@ -33,14 +33,12 @@ const studioOptsSchema = z.object({
   config: z.string().optional(),
   port: z.coerce.number().int().min(1).max(65535).optional(),
   allowSpend: z.boolean().optional(),
-  allowWrite: z.boolean().optional(),
 });
 
 type StudioOpts = z.infer<typeof studioOptsSchema>;
 
-/** Environment variable fallbacks for the two capability flags, read only when the CLI flag itself is absent. */
+/** Environment variable fallback for the spend capability flag, read only when the CLI flag itself is absent. */
 const ALLOW_SPEND_ENV_VAR = "VERBATRA_STUDIO_ALLOW_SPEND";
-const ALLOW_WRITE_ENV_VAR = "VERBATRA_STUDIO_ALLOW_WRITE";
 
 /** Env-var values that count as "on"; anything else (including unset) is "off". Case-insensitive. */
 const TRUTHY_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
@@ -50,34 +48,18 @@ function isEnvValueTruthy(value: string | undefined): boolean {
 }
 
 /**
- * Resolves one capability flag: the CLI flag wins when given; otherwise its environment variable
- * fallback; otherwise off. Never re-read after this call: the caller resolves both flags once,
- * before the config loader ever runs, and passes the two plain booleans through unchanged.
+ * Resolves the spend capability flag: the CLI flag wins when given; otherwise its environment
+ * variable fallback; otherwise off. Never re-read after this call: the caller resolves the flag
+ * once, before the config loader ever runs (G1-style ordering: the config loader executes the
+ * project's own config module in-process, so nothing that module does can influence which
+ * capabilities this process was granted), and passes the plain boolean through unchanged.
+ * Spend is the only capability flag: local file editing is always on and needs no flag.
  */
-function resolveCapabilityFlag(cliValue: boolean | undefined, envVarName: string): boolean {
-  if (cliValue !== undefined) {
-    return cliValue;
+function resolveSpendCapability(opts: StudioOpts): boolean {
+  if (opts.allowSpend !== undefined) {
+    return opts.allowSpend;
   }
-  return isEnvValueTruthy(process.env[envVarName]);
-}
-
-/** The two write capabilities, resolved once from CLI flags or their environment variable fallback. */
-interface ResolvedCapabilities {
-  readonly spend: boolean;
-  readonly writeToDisk: boolean;
-}
-
-/**
- * Resolves `spend` and `writeToDisk` from CLI flags or their environment variable fallback. Must
- * be called before `loadConfigWithMeta` ever runs (G1-style ordering: the config loader executes
- * the project's own config module in-process), so nothing that module does can influence which
- * capabilities this process was granted.
- */
-function resolveCapabilities(opts: StudioOpts): ResolvedCapabilities {
-  return {
-    spend: resolveCapabilityFlag(opts.allowSpend, ALLOW_SPEND_ENV_VAR),
-    writeToDisk: resolveCapabilityFlag(opts.allowWrite, ALLOW_WRITE_ENV_VAR),
-  };
+  return isEnvValueTruthy(process.env[ALLOW_SPEND_ENV_VAR]);
 }
 
 /** A CLI-local usage error for a malformed `--port` value; routed to exit 2 like an `SdkError`. */
@@ -152,19 +134,19 @@ function watchForStop(
 }
 
 /**
- * Run the `studio` command: start Verbatra Studio, a local, read-only-by-default translation
- * dashboard. A thin sequence with no server or view logic of its own: load env, resolve the two
- * write capabilities, load the config, dynamically import `@verbatra/studio`, start the server,
- * print the ruled banner, then wire shutdown to `requestStop`.
+ * Run the `studio` command: start Verbatra Studio, a local translation dashboard that can always
+ * edit the project's own locale files but never calls a provider without `--allow-spend`. A thin
+ * sequence with no server or view logic of its own: load env, resolve the spend capability, load
+ * the config, dynamically import `@verbatra/studio`, start the server, print the ruled banner,
+ * then wire shutdown to `requestStop`.
  *
- * Ordering: env loads, then the two capability flags are resolved, before the config ever loads
- * and before `@verbatra/studio` is ever imported. `spend`/`writeToDisk` are therefore fixed before
- * `loadConfigWithMeta` (and, with it, the project's own config module) ever executes, so nothing
- * that module does can influence which capabilities this process was granted; a config error never
- * reaches the dynamic import or `startStudioServer` either.
+ * Ordering: env loads, then the spend flag is resolved, before the config ever loads and before
+ * `@verbatra/studio` is ever imported. `spend` is therefore fixed before `loadConfigWithMeta`
+ * (and, with it, the project's own config module) ever executes, so nothing that module does can
+ * influence which capabilities this process was granted; a config error never reaches the dynamic
+ * import or `startStudioServer` either.
  *
- * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`,
- *   `--allow-write`).
+ * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`).
  * @param deps - The injected `loadConfigWithMeta` and `importStudio` seams.
  * @param streams - The stdout/stderr sink.
  * @returns A {@link StudioSession}: `done` resolves the exit code; `requestStop` is wired to SIGINT/SIGTERM
@@ -185,7 +167,7 @@ export async function runStudio(
 
   const cwd = opts.cwd ?? process.cwd();
   loadEnvFiles(cwd);
-  const capabilities = resolveCapabilities(opts);
+  const spend = resolveSpendCapability(opts);
 
   const config = await step(
     () =>
@@ -220,8 +202,7 @@ export async function runStudio(
         // default output sink would otherwise also print its own differently-worded banner, and
         // per-request log lines are not needed by this thin wrapper.
         output: () => {},
-        spend: capabilities.spend,
-        writeToDisk: capabilities.writeToDisk,
+        spend,
         ...(opts.port !== undefined ? { port: opts.port } : {}),
       }),
     streams,

@@ -34,12 +34,12 @@ async function postRpc(
 const TOKEN = "capabilities-test-token-0123456789abcdef";
 
 /**
- * Direct proof (B6) that a disabled write method is unreachable through dispatch, and that both
- * capabilities are required together: every row of the two-permission table for
- * `translation.retranslateEntry` specifically, not only the read methods' own unaffected behavior.
+ * Direct proof (B6) that a spend-gated method is unreachable through dispatch on a default server:
+ * both rows of the spend table for `translation.retranslateEntry` specifically, not only the read
+ * methods' own unaffected behavior.
  */
-describe("translation.retranslateEntry reachability across the capability table", () => {
-  it("returns METHOD_UNKNOWN with neither capability set", async () => {
+describe("translation.retranslateEntry reachability across the spend table", () => {
+  it("returns METHOD_UNKNOWN on a default server (no spend)", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -54,7 +54,7 @@ describe("translation.retranslateEntry reachability across the capability table"
     );
   });
 
-  it("returns METHOD_UNKNOWN with only spend set", async () => {
+  it("returns METHOD_UNKNOWN when spend is explicitly false", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -64,25 +64,11 @@ describe("translation.retranslateEntry reachability across the capability table"
         });
         expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: false },
+      { token: TOKEN, loader: stubLoader(), spend: false },
     );
   });
 
-  it("returns METHOD_UNKNOWN with only writeToDisk set", async () => {
-    await withServer(
-      async (server) => {
-        const cookie = await authenticatedCookie(server.url, TOKEN);
-        const { body } = await postRpc(server.url, cookie, "translation.retranslateEntry", {
-          locale: "de",
-          key: "greeting",
-        });
-        expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-      },
-      { token: TOKEN, loader: stubLoader(), spend: false, writeToDisk: true },
-    );
-  });
-
-  it("reaches the real handler (not METHOD_UNKNOWN) with both capabilities set", async () => {
+  it("reaches the real handler (not METHOD_UNKNOWN) with spend set, no other flag needed", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -96,7 +82,7 @@ describe("translation.retranslateEntry reachability across the capability table"
         expect(body.ok).toBe(false);
         expect(body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 
@@ -110,27 +96,27 @@ describe("translation.retranslateEntry reachability across the capability table"
         });
         expect(body).toMatchObject({ ok: false, error: { code: "PARAMS_INVALID" } });
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 });
 
 describe("project.snapshot's capabilities projection reflects the resolved flags", () => {
-  it("reports both false by default", async () => {
+  it("reports spend false and writeToDisk true by default", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
         const { body } = await postRpc(server.url, cookie, "project.snapshot");
         expect(body).toMatchObject({
           ok: true,
-          result: { capabilities: { spend: false, writeToDisk: false } },
+          result: { capabilities: { spend: false, writeToDisk: true } },
         });
       },
       { token: TOKEN, loader: stubLoader() },
     );
   });
 
-  it("reports both true when both flags are set", async () => {
+  it("reports both true when spend is set", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -140,58 +126,17 @@ describe("project.snapshot's capabilities projection reflects the resolved flags
           result: { capabilities: { spend: true, writeToDisk: true } },
         });
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 });
 
 /**
- * Direct proof that `translation.editEntry` and `key.value` are gated on `writeToDisk` alone,
- * independent of `spend`: every row of the two-permission table, not only the read methods' own
- * unaffected behavior. Mirrors the `translation.retranslateEntry` table above.
+ * Direct proof that `translation.editEntry` and `key.value` are always registered, independent of
+ * `spend`: local editing needs no capability flag, so a default server already dispatches both.
  */
-describe("translation.editEntry and key.value reachability across the capability table", () => {
-  it("returns METHOD_UNKNOWN for both with neither capability set", async () => {
-    await withServer(
-      async (server) => {
-        const cookie = await authenticatedCookie(server.url, TOKEN);
-        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
-          locale: "de",
-          key: "greeting",
-          value: "Hallo",
-        });
-        const value = await postRpc(server.url, cookie, "key.value", {
-          locale: "de",
-          key: "greeting",
-        });
-        expect(edit.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-        expect(value.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-      },
-      { token: TOKEN, loader: stubLoader() },
-    );
-  });
-
-  it("returns METHOD_UNKNOWN for both with only spend set", async () => {
-    await withServer(
-      async (server) => {
-        const cookie = await authenticatedCookie(server.url, TOKEN);
-        const edit = await postRpc(server.url, cookie, "translation.editEntry", {
-          locale: "de",
-          key: "greeting",
-          value: "Hallo",
-        });
-        const value = await postRpc(server.url, cookie, "key.value", {
-          locale: "de",
-          key: "greeting",
-        });
-        expect(edit.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-        expect(value.body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-      },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: false },
-    );
-  });
-
-  it("reaches the real handlers (not METHOD_UNKNOWN) with only writeToDisk set, no spend needed", async () => {
+describe("translation.editEntry and key.value reachability on a default server", () => {
+  it("reaches the real handlers (not METHOD_UNKNOWN) on a default server, no flag needed", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -206,17 +151,17 @@ describe("translation.editEntry and key.value reachability across the capability
         });
         // The stub project has no real source file on disk, so both handlers fail with a domain
         // error, not METHOD_UNKNOWN; reaching a different error code is exactly the proof both
-        // are now registered and invoked.
+        // are registered and invoked.
         expect(edit.body.ok).toBe(false);
         expect(edit.body.error?.code).not.toBe("METHOD_UNKNOWN");
         expect(value.body.ok).toBe(false);
         expect(value.body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
-      { token: TOKEN, loader: stubLoader(), spend: false, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader() },
     );
   });
 
-  it("reaches the real handlers with both capabilities set", async () => {
+  it("reaches the real handlers with spend also set", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -227,13 +172,13 @@ describe("translation.editEntry and key.value reachability across the capability
         });
         expect(edit.body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 });
 
-describe("translation.editEntry is reachable with only --allow-write, no --allow-spend", () => {
-  it("completes a real edit end to end against a fixture project with writeToDisk true and spend false", async () => {
+describe("translation.editEntry is reachable on a default server, no flag at all", () => {
+  it("completes a real edit end to end against a fixture project with no capability option set", async () => {
     const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
     try {
       await withServer(
@@ -254,8 +199,6 @@ describe("translation.editEntry is reachable with only --allow-write, no --allow
           token: TOKEN,
           loader: fixtureLoader(project),
           cwd: project.root,
-          spend: false,
-          writeToDisk: true,
         },
       );
     } finally {
@@ -294,7 +237,6 @@ describe("translation.editEntry's dispatch-layer rate limit, wired end to end", 
       {
         token: TOKEN,
         loader: stubLoader(),
-        writeToDisk: true,
         editEntryRateLimitWindowMs: 60_000,
         editEntryRateLimitMax: 2,
       },
@@ -332,7 +274,6 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
         token: TOKEN,
         loader: stubLoader(),
         spend: true,
-        writeToDisk: true,
         retranslateRateLimitWindowMs: 60_000,
         retranslateRateLimitMax: 2,
       },
@@ -341,12 +282,12 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
 });
 
 /**
- * Direct proof (write-half addendum criterion 1) that a disabled write method is unreachable
- * through dispatch, and that both capabilities are required together, mirroring
- * `translation.retranslateEntry`'s own table above.
+ * Direct proof (write-half addendum criterion 1) that a spend-gated method is unreachable through
+ * dispatch without the spend capability, mirroring `translation.retranslateEntry`'s own table
+ * above.
  */
-describe("translation.translatePending reachability across the capability table", () => {
-  it("returns METHOD_UNKNOWN with neither capability set", async () => {
+describe("translation.translatePending reachability across the spend table", () => {
+  it("returns METHOD_UNKNOWN on a default server (no spend)", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -358,29 +299,18 @@ describe("translation.translatePending reachability across the capability table"
     );
   });
 
-  it("returns METHOD_UNKNOWN with only spend set", async () => {
+  it("returns METHOD_UNKNOWN when spend is explicitly false", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
         const { body } = await postRpc(server.url, cookie, "translation.translatePending");
         expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: false },
+      { token: TOKEN, loader: stubLoader(), spend: false },
     );
   });
 
-  it("returns METHOD_UNKNOWN with only writeToDisk set", async () => {
-    await withServer(
-      async (server) => {
-        const cookie = await authenticatedCookie(server.url, TOKEN);
-        const { body } = await postRpc(server.url, cookie, "translation.translatePending");
-        expect(body).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
-      },
-      { token: TOKEN, loader: stubLoader(), spend: false, writeToDisk: true },
-    );
-  });
-
-  it("reaches the real handler (not METHOD_UNKNOWN) with both capabilities set", async () => {
+  it("reaches the real handler (not METHOD_UNKNOWN) with spend set, no other flag needed", async () => {
     await withServer(
       async (server) => {
         const cookie = await authenticatedCookie(server.url, TOKEN);
@@ -391,7 +321,7 @@ describe("translation.translatePending reachability across the capability table"
         expect(body.ok).toBe(false);
         expect(body.error?.code).not.toBe("METHOD_UNKNOWN");
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 
@@ -404,11 +334,11 @@ describe("translation.translatePending reachability across the capability table"
         });
         expect(body).toMatchObject({ ok: false, error: { code: "PARAMS_INVALID" } });
       },
-      { token: TOKEN, loader: stubLoader(), spend: true, writeToDisk: true },
+      { token: TOKEN, loader: stubLoader(), spend: true },
     );
   });
 
-  it("the params schema still rejects an unexpected key even with both capabilities off", async () => {
+  it("the params schema still rejects an unexpected key even without the spend capability", async () => {
     // The shared params schema is looked up and validated before the handler registry is ever
     // consulted (rpc-gate.ts's invokeHandler), so PARAMS_INVALID for a malformed body is not
     // itself gated on capability state, unlike the handler's own reachability above.
@@ -441,7 +371,6 @@ describe("translation.translatePending completes a real run end to end", () => {
           loader: fixtureLoader(project),
           cwd: project.root,
           spend: true,
-          writeToDisk: true,
           createProvider: () => ({
             id: "stub",
             kind: "llm",
@@ -478,7 +407,6 @@ describe("translation.translatePending's dispatch-layer rate limit, wired end to
         token: TOKEN,
         loader: stubLoader(),
         spend: true,
-        writeToDisk: true,
         translatePendingRateLimitWindowMs: 60_000,
         translatePendingRateLimitMax: 2,
       },
@@ -554,7 +482,6 @@ describe("translation.translatePending's process-wide in-flight guard, wired end
           loader: fixtureLoader(project),
           cwd: project.root,
           spend: true,
-          writeToDisk: true,
           createProvider: () => ({
             id: "stub",
             kind: "llm",

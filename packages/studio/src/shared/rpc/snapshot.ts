@@ -11,12 +11,12 @@ export const projectSnapshotParamsSchema = z.strictObject({});
 export type ProjectSnapshotParams = z.infer<typeof projectSnapshotParamsSchema>;
 
 /**
- * The two independent write permissions a server instance was started with, resolved once at
- * process start (CLI flags or their environment variable fallback) and never re-derived or
- * RPC-toggleable afterward. `spend` authorizes a provider invocation; `writeToDisk` authorizes
- * mutating a source-controlled locale file and its lock entry. Sized for both the current
- * (`retranslateEntry`, requires both) and a future (`editEntry`, requires only `writeToDisk`)
- * write seam, even though only the former exists today.
+ * The write permissions a server instance runs with. `spend` authorizes a provider invocation
+ * (`translation.retranslateEntry` and `translation.translatePending` are registered only when it
+ * is true); it is resolved once at process start (CLI flag or its environment variable fallback)
+ * and never re-derived or RPC-toggleable afterward. `writeToDisk` (mutating a local locale file
+ * and its lock entry, the seam behind `translation.editEntry` and `key.value`) is always `true`:
+ * local editing needs no flag. The field is kept so clients keep one stable capabilities shape.
  */
 export interface StudioCapabilities {
   readonly spend: boolean;

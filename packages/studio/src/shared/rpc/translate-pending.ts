@@ -22,7 +22,7 @@ export type TranslatePendingParams = z.infer<typeof translatePendingParamsSchema
  * `succeeded`/`failed` locale lists, and optional `usage`/`budget`. Exposing `LocaleSummary`'s
  * key-name arrays over this RPC does not cross the SSE "counts only, never key names" boundary:
  * that rule is specific to the passive SSE channel, not RPC responses (`key.integrity` and
- * `review.queue` already expose key names, and `key.value` already exposes raw string content,
- * all gated on `writeToDisk`). `RunSummary` carries no translated-content field at all.
+ * `review.queue` already expose key names, and the always-registered `key.value` already exposes
+ * raw string content). `RunSummary` carries no translated-content field at all.
  */
 export type TranslatePendingResult = RunSummary;

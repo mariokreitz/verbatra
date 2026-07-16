@@ -92,15 +92,17 @@ async function hashTree(root: string): Promise<string> {
   return createHash("sha256").update(entries.join("\n")).digest("hex");
 }
 
-// Proves "no write-capable call is reachable when neither capability flag is set", not an
-// absolute, permanent, repository-wide invariant: with both flags off (the default `withServer`
-// below never sets them), translation.retranslateEntry is absent from the dispatch registry
-// (server/rpc.ts's createRpcHandlers), so driving every registered method still leaves the tree
-// untouched. This no longer holds unconditionally once a server is started with both capabilities
-// on; that flag-dependent reachability is covered separately by
+// Proves "no provider-spending call is reachable on a default server", not an absolute,
+// permanent, repository-wide invariant: without the spend flag (the default `withServer` below
+// never sets it), translation.retranslateEntry and translation.translatePending are absent from
+// the dispatch registry (server/rpc.ts's createRpcHandlers), so posting them answers
+// METHOD_UNKNOWN and driving the read views leaves the tree untouched. A default server does
+// register the local write methods (translation.editEntry and key.value; local editing needs no
+// flag), so this proof deliberately drives only the read views and the refused spend methods;
+// translation.editEntry's actual disk write is covered separately by
 // create-studio-server.capabilities.test.ts, not by this proof.
 describe("read-only proof: the fixture project's file tree is untouched", () => {
-  it("hashes identically before and after driving every registered method through the server", async () => {
+  it("hashes identically after driving the read views, and a default server answers METHOD_UNKNOWN for both spend methods", async () => {
     const project = await makeFixtureProject();
     try {
       const before = await hashTree(project.root);
@@ -108,7 +110,22 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
       await withServer(
         async (server) => {
           const cookie = await authenticatedCookie(server.url, "read-only-proof-token");
-          const methods = [
+          const postMethod = async (
+            method: string,
+            params: Record<string, unknown> = {},
+          ): Promise<{ error?: { code?: string } }> => {
+            const response = await fetch(new URL("/rpc", server.url), {
+              method: "POST",
+              headers: {
+                Cookie: cookie,
+                "Content-Type": "application/json",
+                Origin: server.url.replace(/\/$/, ""),
+              },
+              body: JSON.stringify({ method, params }),
+            });
+            return (await response.json()) as { error?: { code?: string } };
+          };
+          const readMethods = [
             "project.snapshot",
             "status.check",
             "status.diff",
@@ -116,17 +133,18 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
             "lock.state",
             "history.list",
           ];
-          for (const method of methods) {
-            await fetch(new URL("/rpc", server.url), {
-              method: "POST",
-              headers: {
-                Cookie: cookie,
-                "Content-Type": "application/json",
-                Origin: server.url.replace(/\/$/, ""),
-              },
-              body: JSON.stringify({ method, params: {} }),
-            });
+          for (const method of readMethods) {
+            await postMethod(method);
           }
+          // Valid-shaped params on purpose: the shared schema is validated before the registry is
+          // consulted, so only a well-formed body proves the refusal is the absent handler itself.
+          const retranslate = await postMethod("translation.retranslateEntry", {
+            locale: "de",
+            key: "greeting",
+          });
+          expect(retranslate.error?.code).toBe("METHOD_UNKNOWN");
+          const translatePending = await postMethod("translation.translatePending");
+          expect(translatePending.error?.code).toBe("METHOD_UNKNOWN");
         },
         {
           token: "read-only-proof-token",

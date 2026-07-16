@@ -8,8 +8,8 @@ import type { RpcHandler } from "../rpc.js";
  * `reviewQueueHandler`'s own precedent. `usage`/`budget` are only ever included when the source
  * field was present: exactOptionalPropertyTypes forbids assigning `undefined` to an optional prop,
  * so each is spread in conditionally rather than defaulted. Always present in the dispatch registry
- * regardless of `capabilities.spend`/`capabilities.writeToDisk`, since it never calls a provider or
- * writes anything, matching every other unconditional read handler here.
+ * regardless of `capabilities.spend`, since it never calls a provider or writes anything, matching
+ * every other unconditional read handler here.
  */
 export const usageSummaryHandler: RpcHandler<"usage.summary"> = async (_params, deps) => {
   const result = await runStatus({ cwd: deps.projectRoot });
