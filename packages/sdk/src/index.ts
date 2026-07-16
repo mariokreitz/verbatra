@@ -53,6 +53,12 @@ export {
   type LocaleDiff,
 } from "./flow/diff.js";
 export {
+  type EditEntryDeps,
+  type EditEntryInput,
+  type EditEntryResult,
+  editEntry,
+} from "./flow/edit-entry.js";
+export {
   type KeyIntegrityDeps,
   type KeyIntegrityEntry,
   type KeyIntegrityInput,
