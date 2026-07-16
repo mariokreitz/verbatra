@@ -14,8 +14,17 @@ export interface SidebarNavProps {
   readonly pageLabels: Readonly<Record<PageId, string>>;
   /** One glyph per page; `Readonly<Record<...>>` makes a page without an icon a compile error. */
   readonly pageIcons: Readonly<Record<PageId, IconName>>;
+  /** Per-page attention counts (today: the review queue's visible size). A page with a positive
+   * count renders a count chip on its nav entry; zero or absent renders nothing, so the rail
+   * only speaks up when there is actually something waiting. */
+  readonly pageBadges?: Readonly<Partial<Record<PageId, number>>>;
   readonly activePage: PageId;
   readonly onSelectPage: (page: PageId) => void;
+}
+
+/** Caps the rendered count so an enormous queue cannot stretch the rail. */
+function formatBadgeCount(count: number): string {
+  return count > 99 ? "99+" : String(count);
 }
 
 export interface DesktopSidebarProps extends SidebarNavProps {
@@ -86,13 +95,16 @@ function ZoneLabel({
 }
 
 /** One nav entry: icon plus label expanded, a tooltip-labeled icon on the collapsed rail. The
- * button always carries the label as its accessible name; the tooltip is a sighted-user aid. */
+ * button always carries the label as its accessible name; the tooltip is a sighted-user aid. A
+ * positive `badge` renders a count chip (inline-end expanded, overlaid on the icon collapsed);
+ * the count reaches assistive technology through the accessible name, never the chip itself. */
 function NavItem({
   page,
   label,
   icon,
   isActive,
   collapsed,
+  badge,
   onSelect,
 }: {
   readonly page: PageId;
@@ -100,24 +112,46 @@ function NavItem({
   readonly icon: IconName;
   readonly isActive: boolean;
   readonly collapsed: boolean;
+  readonly badge?: number | undefined;
   readonly onSelect: (page: PageId) => void;
 }): ReactNode {
+  const count = badge !== undefined && badge > 0 ? badge : undefined;
+  const countedLabel = count === undefined ? label : `${label}, ${count} waiting`;
   const button = (
     <button
       type="button"
       aria-current={isActive ? "page" : undefined}
-      aria-label={collapsed ? label : undefined}
+      aria-label={collapsed ? countedLabel : undefined}
       className={navItemClassName(isActive, collapsed)}
       onClick={() => onSelect(page)}
     >
       <Icon name={icon} className="flex-none" />
       {collapsed ? null : <span className="truncate">{label}</span>}
+      {count !== undefined && !collapsed ? (
+        <>
+          <span
+            className="ms-auto rounded-full bg-sidebar-active px-1.5 py-px font-mono text-[10px] font-bold tabular-nums text-primary-foreground"
+            aria-hidden="true"
+          >
+            {formatBadgeCount(count)}
+          </span>
+          <span className="sr-only">, {count} waiting</span>
+        </>
+      ) : null}
+      {count !== undefined && collapsed ? (
+        <span
+          className="absolute -end-0.5 -top-0.5 min-w-4 rounded-full bg-sidebar-active px-1 text-center font-mono text-[10px] font-bold leading-4 tabular-nums text-primary-foreground"
+          aria-hidden="true"
+        >
+          {formatBadgeCount(count)}
+        </span>
+      ) : null}
     </button>
   );
   if (!collapsed) {
     return button;
   }
-  return <Tooltip label={label}>{button}</Tooltip>;
+  return <Tooltip label={countedLabel}>{button}</Tooltip>;
 }
 
 /** One zone's nav list: a plain named `<nav>` of items under its zone label. */
@@ -132,6 +166,7 @@ function NavList({
   readonly collapsed: boolean;
   readonly pageLabels: Readonly<Record<PageId, string>>;
   readonly pageIcons: Readonly<Record<PageId, IconName>>;
+  readonly pageBadges?: Readonly<Partial<Record<PageId, number>>> | undefined;
   readonly activePage: PageId;
   readonly onSelectPage: (page: PageId) => void;
 }): ReactNode {
@@ -146,6 +181,7 @@ function NavList({
           icon={itemProps.pageIcons[page]}
           isActive={page === itemProps.activePage}
           collapsed={collapsed}
+          badge={itemProps.pageBadges?.[page]}
           onSelect={itemProps.onSelectPage}
         />
       ))}

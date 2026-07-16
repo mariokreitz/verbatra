@@ -401,7 +401,6 @@ const VIEW_MODE_ITEMS: ReadonlyArray<{ readonly id: DiffViewMode; readonly label
  */
 function KeysSection({
   locales,
-  hasPendingChanges,
   query,
   onQueryChange,
   viewMode,
@@ -410,7 +409,6 @@ function KeysSection({
   refreshToken,
 }: {
   readonly locales: readonly DiffLocale[];
-  readonly hasPendingChanges: boolean;
   readonly query: string;
   readonly onQueryChange: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly viewMode: DiffViewMode;
@@ -418,15 +416,10 @@ function KeysSection({
   readonly onSelectKey: (key: string) => void;
   readonly refreshToken: number;
 }): ReactNode {
+  // No "Pending changes" meta badge here: this section only renders while drift exists (the
+  // all-clear state is carried by the stat strip), so the badge could only ever say one thing.
   return (
-    <PageSection
-      title="Keys"
-      meta={
-        <Badge tone={hasPendingChanges ? "warning" : "success"}>
-          {hasPendingChanges ? "Pending changes" : "Up to date"}
-        </Badge>
-      }
-    >
+    <PageSection title="Keys">
       <Toolbar className="mb-4">
         <Tabs
           items={VIEW_MODE_ITEMS}
@@ -706,7 +699,6 @@ export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
       {diff.kind === "loaded" && !allClear ? (
         <KeysSection
           locales={diff.locales}
-          hasPendingChanges={diff.hasPendingChanges}
           query={query}
           onQueryChange={(event) => setQuery(event.target.value)}
           viewMode={viewMode}

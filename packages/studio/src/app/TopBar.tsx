@@ -8,26 +8,26 @@ import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import { microLabelClassName } from "./ui.js";
 
 /**
- * The live-refresh state, always visible: this dashboard's whole model is "watch the project
- * and stay current", so whether the stream is up is first-class chrome, not a hidden detail.
- * Green while the SSE connection streams; amber while it reconnects with backoff. `role=status`
- * announces the transition to assistive technology.
+ * The live-refresh state, surfaced only while it is degraded: the healthy case is this
+ * dashboard's baseline (a page you can see at all is being served by a live local process), so
+ * a permanent "Live" badge carries no information. While the stream is down the amber badge
+ * appears; the moment it recovers the chrome goes quiet again. The wrapping `role=status` stays
+ * mounted so both transitions announce to assistive technology.
  */
 function LiveIndicator(): ReactNode {
   const [status, setStatus] = useState(connectionStore.getStatus());
   useEffect(() => {
     const unsubscribe = connectionStore.subscribe(setStatus);
-    // The stream opens from module scope (api.ts), so the live transition can land between
-    // this component's first render and this subscription; re-read once after subscribing or
-    // that transition is missed and the badge sits on "Reconnecting" for the whole session.
+    // The stream opens from module scope (api.ts), so a transition can land between this
+    // component's first render and this subscription; re-read once after subscribing or that
+    // transition is missed and the badge reports a stale state for the whole session.
     setStatus(connectionStore.getStatus());
     return unsubscribe;
   }, []);
 
-  const live = status === "live";
   return (
     <span role="status">
-      <Badge tone={live ? "success" : "warning"}>{live ? "Live" : "Reconnecting"}</Badge>
+      {status === "live" ? null : <Badge tone="warning">Reconnecting</Badge>}
     </span>
   );
 }

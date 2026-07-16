@@ -3,71 +3,13 @@ import { useEffect, useState } from "react";
 import type { StructuredError } from "../../client/state.js";
 import type { GlossaryGetResult } from "../../shared/rpc/glossary.js";
 import type { ProjectSnapshotResult } from "../../shared/rpc/snapshot.js";
-import { connectionStore, rpcClient } from "../api.js";
+import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
 import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
-import { useCapabilities } from "../use-capabilities.js";
-
-/**
- * What this Studio session can do right now: local editing (always available; it writes only
- * your own project files behind the loopback session), whether provider-calling actions were
- * enabled at startup with --allow-spend, and whether the live-refresh stream is currently up.
- */
-function SessionSection(): ReactNode {
-  const capabilitiesState = useCapabilities();
-  const [connection, setConnection] = useState(connectionStore.getStatus());
-  useEffect(() => {
-    const unsubscribe = connectionStore.subscribe(setConnection);
-    // Same race as the top bar's LiveIndicator: the stream opens from module scope, so a
-    // transition can land between the first render and this subscription; re-read once.
-    setConnection(connectionStore.getStatus());
-    return unsubscribe;
-  }, []);
-
-  const spend =
-    capabilitiesState.kind === "loaded" ? capabilitiesState.capabilities.spend : undefined;
-
-  const items: Array<readonly [string, ReactNode]> = [
-    [
-      "Local editing",
-      <Badge key="editing" tone="success">
-        Available
-      </Badge>,
-    ],
-    [
-      "Provider actions",
-      spend === undefined ? (
-        <span key="spend" className="text-sm text-muted-foreground">
-          Loading…
-        </span>
-      ) : (
-        <Badge key="spend" tone={spend ? "success" : "neutral"}>
-          {spend ? "Enabled" : "Off (start with --allow-spend)"}
-        </Badge>
-      ),
-    ],
-    [
-      "Live updates",
-      <Badge key="live" tone={connection === "live" ? "success" : "warning"}>
-        {connection === "live" ? "Connected" : "Reconnecting"}
-      </Badge>,
-    ],
-  ];
-
-  return (
-    <SectionCard
-      title="Session"
-      intro="What this Studio process can do, resolved once at startup."
-      className="mb-6"
-    >
-      <DetailList items={items} />
-    </SectionCard>
-  );
-}
 
 /** The at-a-glance figure strip: the four facts someone opens this page to confirm. */
 function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
@@ -96,8 +38,11 @@ type SettingsState =
 
 /**
  * The configuration facts the metric strip does not already carry: the full target-locale list
- * (the strip only shows the count), the file pattern, and whichever optional settings are
- * configured. Source locale, format, and provider are deliberately not repeated here.
+ * (the strip only shows the count), the file pattern, whether provider-calling actions were
+ * enabled at startup, and whichever optional settings are configured. Source locale, format,
+ * and provider are deliberately not repeated here. Session-health chrome (a live-updates row,
+ * a local-editing row) is deliberately absent: a page you can read at all is being served by a
+ * live process with editing built in, so those rows would never carry information.
  */
 function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   const items: Array<readonly [string, ReactNode]> = [
@@ -106,6 +51,18 @@ function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult
       <MonoValue key="target-locales">{snapshot.targetLocales.join(", ")}</MonoValue>,
     ],
     ["File pattern", <MonoValue key="file-pattern">{snapshot.files.pattern}</MonoValue>],
+    [
+      "Provider actions",
+      snapshot.capabilities.spend ? (
+        <Badge key="spend" tone="success">
+          Enabled
+        </Badge>
+      ) : (
+        <span key="spend">
+          Off <span className="text-muted-foreground">(start with --allow-spend)</span>
+        </span>
+      ),
+    ],
   ];
   if (snapshot.prune !== undefined) {
     items.push(["Prune", snapshot.prune ? "yes" : "no"]);
@@ -181,10 +138,10 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
 }
 
 /**
- * The settings overview: what this session can do (capabilities and the live-update stream),
- * the resolved config snapshot (project.snapshot), and the glossary (glossary.get). The config
- * and glossary are independent, stateless reads made fresh on every mount; nothing here changes
- * day to day, which is why this lives in the sidebar's reference zone.
+ * The settings overview: the resolved config snapshot (project.snapshot, including whether
+ * provider actions were enabled at startup) and the glossary (glossary.get). Independent,
+ * stateless reads made fresh on every mount; nothing here changes day to day, which is why this
+ * lives in the sidebar's reference zone.
  */
 export function SettingsPanel(): ReactNode {
   return (
@@ -192,9 +149,8 @@ export function SettingsPanel(): ReactNode {
       <PageHeader
         kicker="Project configuration"
         title="Settings"
-        description="This session's capabilities, and the resolved configuration and glossary it was started with."
+        description="The resolved configuration and glossary this session was started with."
       />
-      <SessionSection />
       <SettingsPanelBody />
     </>
   );

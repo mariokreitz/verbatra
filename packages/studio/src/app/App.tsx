@@ -5,8 +5,9 @@ import {
   nextToastSlot,
   type RefreshToastView,
 } from "../client/refresh-toast.js";
+import { visibleReviewQueueRows } from "../client/review-queue-data.js";
 import { PAGE_IDS, type PageId, pageHash, parsePageHash } from "../client/routes.js";
-import { refreshBus, sessionStore } from "./api.js";
+import { refreshBus, reviewOverlayStore, sessionStore } from "./api.js";
 import type { IconName } from "./Icon.js";
 import { readStoredSidebarCollapsed, storeSidebarCollapsed } from "./lib/sidebar-dom.js";
 import type { PanelProps } from "./panel-props.js";
@@ -18,6 +19,8 @@ import { RefreshToast } from "./RefreshToast.js";
 import { DesktopSidebar, MobileNavDrawer } from "./Sidebar.js";
 import { TopBar } from "./TopBar.js";
 import { Container } from "./ui.js";
+import { useReviewOverlaySignal } from "./use-review-overlay-signal.js";
+import { useReviewQueue } from "./use-review-queue.js";
 
 const PAGE_LABELS: Readonly<Record<PageId, string>> = {
   translations: "Translations",
@@ -119,18 +122,6 @@ export function App(): ReactNode {
     [],
   );
 
-  if (sessionExpired) {
-    return <SessionExpiredNotice />;
-  }
-
-  const ActivePanel = PAGE_PANELS[page];
-
-  function navigate(next: PageId): void {
-    window.location.hash = pageHash(next);
-    setPage(next);
-    setMobileNavOpen(false);
-  }
-
   function handleToggleSidebar(): void {
     setSidebarCollapsed((current) => {
       storeSidebarCollapsed(!current);
@@ -142,6 +133,71 @@ export function App(): ReactNode {
     setToast((current) => nextToastSlot(current, { kind: "dismiss" }));
   }
 
+  if (sessionExpired) {
+    return <SessionExpiredNotice />;
+  }
+
+  return (
+    <AppShell
+      page={page}
+      onNavigate={setPage}
+      refreshToken={refreshToken}
+      toast={toast}
+      onDismissToast={handleDismissToast}
+      mobileNavOpen={mobileNavOpen}
+      onSetMobileNavOpen={setMobileNavOpen}
+      sidebarCollapsed={sidebarCollapsed}
+      onToggleSidebar={handleToggleSidebar}
+    />
+  );
+}
+
+/**
+ * The rendered shell, split from `App` so its hooks (most notably the review-queue read backing
+ * the nav count) never run while the session-expired notice is up: `App` returns before
+ * rendering this, and hooks in an unrendered child simply do not execute.
+ */
+function AppShell({
+  page,
+  onNavigate,
+  refreshToken,
+  toast,
+  onDismissToast,
+  mobileNavOpen,
+  onSetMobileNavOpen,
+  sidebarCollapsed,
+  onToggleSidebar,
+}: {
+  readonly page: PageId;
+  readonly onNavigate: (page: PageId) => void;
+  readonly refreshToken: number;
+  readonly toast: RefreshToastView | undefined;
+  readonly onDismissToast: () => void;
+  readonly mobileNavOpen: boolean;
+  readonly onSetMobileNavOpen: (open: boolean) => void;
+  readonly sidebarCollapsed: boolean;
+  readonly onToggleSidebar: () => void;
+}): ReactNode {
+  // The review queue's visible size, shown as a count chip on the Review nav entry. Reuses the
+  // Review panel's own data path end to end: the same refresh-reactive fetch and the same
+  // session overlay, re-read on every overlay change (an approve, reject, or accepted edit
+  // updates the chip instantly, without waiting for the next live-refresh event).
+  const reviewQueue = useReviewQueue(refreshToken);
+  useReviewOverlaySignal();
+  const reviewCount =
+    reviewQueue.kind === "data"
+      ? visibleReviewQueueRows(reviewQueue.data, reviewOverlayStore).length
+      : 0;
+  const pageBadges: Readonly<Partial<Record<PageId, number>>> = { review: reviewCount };
+
+  const ActivePanel = PAGE_PANELS[page];
+
+  function navigate(next: PageId): void {
+    window.location.hash = pageHash(next);
+    onNavigate(next);
+    onSetMobileNavOpen(false);
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <DesktopSidebar
@@ -149,10 +205,11 @@ export function App(): ReactNode {
         referencePages={REFERENCE_PAGES}
         pageLabels={PAGE_LABELS}
         pageIcons={PAGE_ICONS}
+        pageBadges={pageBadges}
         activePage={page}
         onSelectPage={navigate}
         collapsed={sidebarCollapsed}
-        onToggleCollapsed={handleToggleSidebar}
+        onToggleCollapsed={onToggleSidebar}
       />
       {mobileNavOpen ? (
         <MobileNavDrawer
@@ -160,20 +217,21 @@ export function App(): ReactNode {
           referencePages={REFERENCE_PAGES}
           pageLabels={PAGE_LABELS}
           pageIcons={PAGE_ICONS}
+          pageBadges={pageBadges}
           activePage={page}
           onSelectPage={navigate}
-          onClose={() => setMobileNavOpen(false)}
+          onClose={() => onSetMobileNavOpen(false)}
         />
       ) : null}
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar pageLabel={PAGE_LABELS[page]} onOpenNav={() => setMobileNavOpen(true)} />
+        <TopBar pageLabel={PAGE_LABELS[page]} onOpenNav={() => onSetMobileNavOpen(true)} />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Container>
             <ActivePanel refreshToken={refreshToken} />
           </Container>
         </main>
       </div>
-      {toast !== undefined ? <RefreshToast view={toast} onDismiss={handleDismissToast} /> : null}
+      {toast !== undefined ? <RefreshToast view={toast} onDismiss={onDismissToast} /> : null}
     </div>
   );
 }
