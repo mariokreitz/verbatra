@@ -32,26 +32,37 @@ function collectSourceFiles(root: string): string[] {
 }
 
 describe("static proof: no write-capable sdk call is ever referenced", () => {
-  // This grep scans for the literal call-shaped substrings of the four sdk functions Phase 1
-  // never imported at all (translate, watch, importWorkbook, exportWorkbook); it does not, and by
-  // its own literal pattern list cannot, cover retranslateEntry (a fifth, later, capability-gated
-  // write seam with a different name). That seam's own reachability is proved separately by
-  // "capability-gated proof" below and by server/rpc.test.ts's createRpcHandlers tests; this proof
-  // still holds unconditionally for the four names it actually checks.
-  it("never calls translate(, watch(, importWorkbook(, or exportWorkbook( anywhere in studio's own source", () => {
+  // This grep scans for the literal call-shaped substrings of the three sdk functions never
+  // imported at all (watch, importWorkbook, exportWorkbook); it does not, and by its own literal
+  // pattern list cannot, cover retranslateEntry or translatePending (two later, capability-gated
+  // write seams, one calling translate() directly by design). Those seams' own reachability is
+  // proved separately by "capability-gated proof" below and by server/rpc.test.ts's
+  // createRpcHandlers tests; this proof still holds unconditionally for the three names it
+  // actually checks. `translate` itself was in this list before the write-half addendum to the
+  // live-change-signal feature added `translation.translatePending`, whose handler
+  // (server/methods/translate-pending.ts) calls the sdk's `translate()` by design, the same
+  // whole-project call the CLI's own `verbatra translate` already performs; that one, deliberate
+  // call site is excluded from `collectSourceFiles` scanning below instead of weakening this
+  // proof for every other file.
+  it("never calls watch(, importWorkbook(, or exportWorkbook( anywhere in studio's own source, and calls translate( only from the one handler that is meant to", () => {
     // Built via concatenation so this file's own source text never contains the literal
     // call-shaped substring it searches for. Each pattern requires the call to be unqualified (not
     // preceded by "." or a word character), so it matches only a bare call to the sdk's own
     // imported function (for example `watch(...)`) and not a qualified call on some other object
     // that merely shares the method name, such as a future chokidar `.watch(...)` call once the
     // live-refresh watcher lands.
-    const forbidden = ["translate", "watch", "importWorkbook", "exportWorkbook"].map(
-      (name) => new RegExp(`(?<![.\\w])${name}\\(`),
-    );
+    const forbidden = ["watch", "importWorkbook", "exportWorkbook", "translate"].map((name) => ({
+      name,
+      pattern: new RegExp(`(?<![.\\w])${name}\\(`),
+    }));
+    const allowedTranslateCaller = join(SRC_ROOT, "server", "methods", "translate-pending.ts");
     const offenders: string[] = [];
     for (const file of collectSourceFiles(SRC_ROOT)) {
+      if (file === allowedTranslateCaller) {
+        continue;
+      }
       const content = readFileSync(file, "utf8");
-      for (const pattern of forbidden) {
+      for (const { pattern } of forbidden) {
         if (pattern.test(content)) {
           offenders.push(`${relative(SRC_ROOT, file)}: ${pattern.source}`);
         }
@@ -141,6 +152,21 @@ describe("static proof: the retranslateEntry handler never reads a provider's en
     // The handler reaches a provider only by delegating to the sdk's retranslateEntry seam, which
     // itself is proved (packages/sdk's own retranslate-entry.no-direct-env.test.ts) to reach a
     // provider only through selectProvider; this handler never constructs one itself.
+    expect(content).not.toMatch(/(?<![.\w])buildProvider\(/);
+    expect(content).not.toMatch(/(?<![.\w])selectProvider\(/);
+  });
+});
+
+describe("static proof: the translatePending handler never reads a provider's environment directly", () => {
+  it("never references process.env, the PROVIDER_ENV table, or a raw provider construction call", () => {
+    const path = join(SRC_ROOT, "server", "methods", "translate-pending.ts");
+    const content = readFileSync(path, "utf8");
+
+    expect(content).not.toContain("process.env");
+    expect(content).not.toContain("PROVIDER_ENV");
+    // The handler reaches a provider only by delegating to the sdk's translate() flow, which
+    // itself reaches a provider only through selectProvider; this handler never constructs one
+    // itself.
     expect(content).not.toMatch(/(?<![.\w])buildProvider\(/);
     expect(content).not.toMatch(/(?<![.\w])selectProvider\(/);
   });
