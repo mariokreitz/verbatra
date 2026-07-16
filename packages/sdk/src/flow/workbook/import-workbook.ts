@@ -15,6 +15,7 @@ import {
 import type { LockFile } from "../../lock/types.js";
 import { localeFilePath } from "../../paths.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
+import { readTarget } from "../diff-locales.js";
 import { failureSummary, partition } from "../locale-failure.js";
 import { readSource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
@@ -53,21 +54,6 @@ async function readWorkbookBytes(path: string, fs: SdkFs): Promise<Uint8Array> {
     );
   }
   return read.bytes;
-}
-
-/** Read a locale's existing target resource, or an empty resource when the file does not exist. */
-async function readTarget(
-  cwd: string,
-  config: VerbatraConfig,
-  adapter: FormatAdapter,
-  fs: SdkFs,
-  locale: string,
-): Promise<LocaleResource> {
-  const path = localeFilePath(cwd, config.files.pattern, locale);
-  if (!(await fs.fileExists(path))) {
-    return { locale, namespace: "", format: config.format, entries: new Map() };
-  }
-  return (await adapter.read(path, locale)).resource;
 }
 
 function mergeAccepted(

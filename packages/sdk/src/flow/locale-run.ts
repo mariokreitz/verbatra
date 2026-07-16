@@ -36,6 +36,7 @@ import {
   generatePluralForms,
   type PluralGenerationResult,
 } from "./plural-generation.js";
+import { readTargetResource } from "./read-target.js";
 import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
@@ -82,18 +83,6 @@ interface Accepted {
   readonly source: TranslationEntry;
 }
 
-function emptyResource(locale: string, format: SupportedFormat): LocaleResource {
-  return { locale, namespace: "", format, entries: new Map() };
-}
-
-async function readTarget(params: LocaleRunParams): Promise<LocaleResource> {
-  const path = localeFilePath(params.cwd, params.filesPattern, params.targetLocale);
-  if (!(await params.fs.fileExists(path))) {
-    return emptyResource(params.targetLocale, params.format);
-  }
-  return (await params.adapter.read(path, params.targetLocale)).resource;
-}
-
 function buildRequest(
   params: LocaleRunParams,
   entries: readonly TranslationEntry[],
@@ -118,7 +107,14 @@ function buildRequest(
  * the orphaned and pruned lists. May throw; the orchestrator isolates that as a per-locale failure.
  */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
-  const target = await readTarget(params);
+  const target = await readTargetResource({
+    cwd: params.cwd,
+    filesPattern: params.filesPattern,
+    format: params.format,
+    locale: params.targetLocale,
+    adapter: params.adapter,
+    fs: params.fs,
+  });
   const diff = diffResources(params.source, target, { baseline: params.baseline });
 
   const orphaned = params.generatePlurals
