@@ -8,6 +8,7 @@ import { contentHash, type LocaleResource, type TranslationEntry } from "@verbat
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { chunk, subBatchFailedNotice } from "./batching.js";
 import { type BudgetTracker, checkBudgetTrip, foldTrackerUsage } from "./budget.js";
+import { gateCandidateValue } from "./integrity-gate.js";
 import { readNotices } from "./notices.js";
 import {
   type CldrPluralCategory,
@@ -230,15 +231,21 @@ async function runGenerationSubBatch(
     return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const item of batch) {
-    foldGenerationItem(item, result, accepted, withheld, providerFailures);
+    foldGenerationItem(item, result, context.adapter, accepted, withheld, providerFailures);
   }
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/** Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. */
+/**
+ * Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. The
+ * accept/reject decision is recomputed directly from the candidate value via the shared
+ * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report: this is
+ * the same accept/reject choke point every other disk-writing path uses.
+ */
 function foldGenerationItem(
   item: PluralGenerationItem,
   result: TranslateResult,
+  adapter: FormatAdapter,
   accepted: GeneratedForm[],
   withheld: string[],
   providerFailures: string[],
@@ -248,7 +255,7 @@ function foldGenerationItem(
     providerFailures.push(item.targetKey);
     return;
   }
-  if (result.integrity.get(item.targetKey)?.matches === true) {
+  if (gateCandidateValue(item.sourceEntry, value, adapter).accepted) {
     accepted.push({
       targetKey: item.targetKey,
       entry: { ...syntheticEntry(item), value },

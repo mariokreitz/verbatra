@@ -889,3 +889,115 @@ describe("generatePluralForms: comparePlaceholders wiring (the second buildReque
     expect(requests[0]).not.toHaveProperty("comparePlaceholders");
   });
 });
+
+describe("generatePluralForms: accept/withhold is recomputed via gateCandidateValue, not the provider's self-report", () => {
+  function pluralEntry(key: string, value: string): TranslationEntry {
+    return { key, namespace: "n", value, placeholders: [], isPlural: true };
+  }
+
+  function sourceResource(): LocaleResource {
+    return {
+      locale: "en",
+      namespace: "n",
+      format: "i18next-json",
+      entries: new Map([
+        ["items_one", pluralEntry("items_one", "{{count}} item")],
+        ["items_other", pluralEntry("items_other", "{{count}} items")],
+      ]),
+    };
+  }
+
+  /** An adapter whose comparePlaceholders is fully controlled by the test, unlike the real adapter's. */
+  function fakeAdapter(comparePlaceholders: PlaceholderComparator): FormatAdapter {
+    return {
+      format: "i18next-json",
+      canHandle: () => true,
+      read: () => Promise.reject(new Error("not exercised by this test")),
+      write: () => Promise.resolve(),
+      extractPlaceholders: () => [],
+      validateMessage: () => true,
+      comparePlaceholders,
+    };
+  }
+
+  /** A provider whose self-reported `result.integrity` is fixed independently of the actual value. */
+  function providerReporting(claimedMatch: boolean): TranslationProvider {
+    return {
+      id: "stub",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: (request: TranslateRequest): Promise<TranslateResult> => {
+        const values = new Map<string, string>();
+        const integrity = new Map<string, PlaceholderIntegrityResult>();
+        for (const entry of request.entries) {
+          values.set(entry.key, `[pl] ${entry.value}`);
+          integrity.set(entry.key, {
+            matches: claimedMatch,
+            missing: claimedMatch ? [] : ["{{count}}"],
+            extra: [],
+            reordered: false,
+          });
+        }
+        return Promise.resolve({ values, integrity });
+      },
+    };
+  }
+
+  function context(adapter: FormatAdapter, provider: TranslationProvider): PluralGenerationContext {
+    return {
+      source: sourceResource(),
+      sourceLocale: "en",
+      targetLocale: "pl",
+      format: "i18next-json",
+      adapter,
+      provider,
+      glossary: undefined,
+      tone: undefined,
+      baseline: new Map(),
+      maxBatchSize: 50,
+      budget: createBudgetTracker(undefined, "warn"),
+    };
+  }
+
+  it("withholds a generated form when the provider falsely self-reports a match but the adapter's own check disagrees", async () => {
+    const disagreeingAdapter = fakeAdapter(() => ({
+      matches: false,
+      missing: ["{{count}}"],
+      extra: [],
+      reordered: false,
+    }));
+
+    const result = await generatePluralForms(context(disagreeingAdapter, providerReporting(true)));
+
+    expect(result.accepted).toEqual([]);
+    expect(result.withheld.length).toBeGreaterThan(0);
+  });
+
+  it("still accepts a generated form when the adapter agrees the placeholders match (unchanged common-path behavior)", async () => {
+    const agreeingAdapter = fakeAdapter(() => ({
+      matches: true,
+      missing: [],
+      extra: [],
+      reordered: false,
+    }));
+
+    const result = await generatePluralForms(context(agreeingAdapter, providerReporting(true)));
+
+    expect(result.withheld).toEqual([]);
+    expect(result.accepted.length).toBeGreaterThan(0);
+  });
+
+  it("still withholds a generated form when the adapter agrees the placeholders do not match (unchanged common-path behavior)", async () => {
+    const agreeingAdapter = fakeAdapter(() => ({
+      matches: false,
+      missing: ["{{count}}"],
+      extra: [],
+      reordered: false,
+    }));
+
+    const result = await generatePluralForms(context(agreeingAdapter, providerReporting(false)));
+
+    expect(result.accepted).toEqual([]);
+    expect(result.withheld.length).toBeGreaterThan(0);
+  });
+});
