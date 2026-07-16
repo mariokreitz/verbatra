@@ -7,15 +7,25 @@ import { Icon } from "./Icon.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import { microLabelClassName } from "./ui.js";
 
+/** How long the stream must stay degraded before the badge appears: long enough to swallow the
+ * normal connect handshake on every fresh page load, short enough that a real outage surfaces
+ * within a breath. */
+const DEGRADED_BADGE_DELAY_MS = 1500;
+
 /**
  * The live-refresh state, surfaced only while it is degraded: the healthy case is this
  * dashboard's baseline (a page you can see at all is being served by a live local process), so
- * a permanent "Live" badge carries no information. While the stream is down the amber badge
- * appears; the moment it recovers the chrome goes quiet again. The wrapping `role=status` stays
- * mounted so both transitions announce to assistive technology.
+ * a permanent "Live" badge carries no information. The amber badge appears only after the
+ * stream has been down for {@link DEGRADED_BADGE_DELAY_MS}: the store starts "reconnecting" on
+ * every fresh load until the first connect lands, and flashing amber during that normal
+ * handshake would be exactly the meaningless chrome this indicator exists to avoid. The moment
+ * the stream recovers the chrome goes quiet again. The wrapping `role=status` stays mounted so
+ * the transitions announce to assistive technology.
  */
 function LiveIndicator(): ReactNode {
   const [status, setStatus] = useState(connectionStore.getStatus());
+  const [showDegraded, setShowDegraded] = useState(false);
+
   useEffect(() => {
     const unsubscribe = connectionStore.subscribe(setStatus);
     // The stream opens from module scope (api.ts), so a transition can land between this
@@ -25,10 +35,17 @@ function LiveIndicator(): ReactNode {
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    if (status === "live") {
+      setShowDegraded(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShowDegraded(true), DEGRADED_BADGE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [status]);
+
   return (
-    <span role="status">
-      {status === "live" ? null : <Badge tone="warning">Reconnecting</Badge>}
-    </span>
+    <span role="status">{showDegraded ? <Badge tone="warning">Reconnecting</Badge> : null}</span>
   );
 }
 

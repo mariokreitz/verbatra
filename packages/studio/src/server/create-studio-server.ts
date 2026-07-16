@@ -166,20 +166,30 @@ function listen(server: Server, port: number): Promise<AddressInfo> {
   });
 }
 
+/** How long a graceful close waits for the final SSE shutdown frames to flush before destroying
+ * the remaining sockets. Loopback flushes within a tick or two; 50ms is comfortably above that
+ * while keeping shutdown effectively instant for a human. */
+const SHUTDOWN_FLUSH_GRACE_MS = 50;
+
 /**
  * Shuts the server down in the pinned order (G23): the SSE hub's close, which writes a final
  * shutdown frame to every open connection and ends each response, runs first, so in-flight
- * streams end cleanly instead of being cut off mid-frame by `closeAllConnections` below. The
- * project watcher is stopped concurrently with the HTTP server's own close; neither depends on
- * the other, but both must settle before this resolves, so no chokidar handle outlives the server.
+ * streams end cleanly instead of being cut off mid-frame by `closeAllConnections` below. A short
+ * grace period sits between the two: the just-written shutdown frames are still in the ended
+ * sockets' write buffers, and destroying every connection in the same tick discards them before
+ * the loopback flushes; a real browser then sees only a dropped connection and reconnects
+ * forever instead of showing the session-expired notice. The project watcher is stopped
+ * concurrently with the HTTP server's own close; neither depends on the other, but both must
+ * settle before this resolves, so no chokidar handle outlives the server.
  */
-function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): Promise<void> {
+async function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): Promise<void> {
   sseHub.closeAll();
+  await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_FLUSH_GRACE_MS));
   const serverClosed = new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
     server.closeAllConnections();
   });
-  return Promise.all([serverClosed, watcher.close()]).then(() => undefined);
+  await Promise.all([serverClosed, watcher.close()]);
 }
 
 /**

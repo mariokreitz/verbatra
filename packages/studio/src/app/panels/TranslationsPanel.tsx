@@ -488,11 +488,10 @@ function LocaleRow({ row, lock }: { readonly row: StatusRow; readonly lock: Lock
       <TableCell numeric>{row.missing}</TableCell>
       <TableCell numeric>{row.stale}</TableCell>
       <TableCell numeric>{row.upToDate}</TableCell>
-      <TableCell>
-        <Badge tone={row.inSync ? "success" : "warning"}>
-          {row.inSync ? "In sync" : "Out of sync"}
-        </Badge>
-      </TableCell>
+      {/* No in-sync/out-of-sync badge column: it would restate the counts sitting right next to
+          it (out of sync is exactly missing + stale > 0), and the stat strip already carries the
+          project-level verdict. The lock column stays: lock-vs-files drift is not derivable from
+          this row's own figures. */}
       {lock.kind === "loaded" ? <TableCell>{lockCell(lock, row.locale)}</TableCell> : null}
     </TableRow>
   );
@@ -525,27 +524,21 @@ function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] 
               <TableHeaderCell numeric>Missing</TableHeaderCell>
               <TableHeaderCell numeric>Stale</TableHeaderCell>
               <TableHeaderCell numeric>Up to date</TableHeaderCell>
-              <TableHeaderCell>State</TableHeaderCell>
             </tr>
           </TableHead>
           <TableBody>
-            {locales.map((locale) => {
-              const drift = locale.missing > 0 || locale.stale > 0;
-              return (
-                <TableRow key={locale.locale}>
-                  <TableCell mono>{locale.locale}</TableCell>
-                  <TableCell numeric>{locale.keyCount}</TableCell>
-                  <TableCell numeric>{locale.missing}</TableCell>
-                  <TableCell numeric>{locale.stale}</TableCell>
-                  <TableCell numeric>{locale.upToDate}</TableCell>
-                  <TableCell>
-                    <Badge tone={drift ? "warning" : "success"}>
-                      {drift ? "Drift" : "In sync"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {/* No drift badge column: drift is exactly missing + stale > 0, both printed in the
+                same row, and the coverage table's lock column already badges the per-locale
+                verdict. */}
+            {locales.map((locale) => (
+              <TableRow key={locale.locale}>
+                <TableCell mono>{locale.locale}</TableCell>
+                <TableCell numeric>{locale.keyCount}</TableCell>
+                <TableCell numeric>{locale.missing}</TableCell>
+                <TableCell numeric>{locale.stale}</TableCell>
+                <TableCell numeric>{locale.upToDate}</TableCell>
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
@@ -592,7 +585,6 @@ function LocalesSection({
                   <TableHeaderCell numeric>Missing</TableHeaderCell>
                   <TableHeaderCell numeric>Stale</TableHeaderCell>
                   <TableHeaderCell numeric>Up to date</TableHeaderCell>
-                  <TableHeaderCell>State</TableHeaderCell>
                   {lock.kind === "loaded" ? <TableHeaderCell>Lock</TableHeaderCell> : null}
                 </tr>
               </TableHead>
