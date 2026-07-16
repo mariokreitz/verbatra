@@ -14,6 +14,14 @@
 // `needs.publish.outputs.published == 'true'`, so it never inherits the publish job's write or
 // OIDC scopes even though it depends on that job's outcome.
 //
+// Second check (defense in depth behind scripts/release-publish.mjs): no prerelease published
+// in this run may sit on the registry's `latest` dist-tag. The assertion is pinned to the
+// just-published version, not to registry state at large: @verbatra/studio's `latest` is
+// currently stuck on an older prerelease from before the publish guard existed, its repair is
+// a manual registry operation out of scope here, and a broader "latest must never be a
+// prerelease" assertion would fail every future release until that repair happens. Scoped this
+// way it catches a recurrence without tripping on the pre-existing damage.
+//
 // Usage: PUBLISHED_PACKAGES_JSON='[{"name":"@verbatra/cli","version":"0.5.0"}]' node scripts/verify-npm-publish.mjs
 
 import { execFileSync } from "node:child_process";
@@ -73,6 +81,42 @@ function parsePublishedPackages(raw) {
   });
 }
 
+// Semver shape check: major.minor.patch, optional prerelease component, optional build
+// metadata. Slightly looser than SemVer 2.0.0 (leading zeros pass), which is immaterial
+// for changesets-produced versions.
+// Group 1 is the prerelease component when present.
+const SEMVER_PATTERN =
+  /^\d+\.\d+\.\d+(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+
+/**
+ * Whether a version carries a semver prerelease component. Pure, unit-tested. Versions here
+ * come from changesets' own output, so anything that is not valid semver is a corrupted
+ * payload and fails loudly rather than being silently classified as stable.
+ * @param {string} version
+ * @returns {boolean}
+ */
+function isPrereleaseVersion(version) {
+  const match = SEMVER_PATTERN.exec(version);
+  if (!match) {
+    throw new Error(
+      `"${version}" is not valid semver; cannot classify it as prerelease or stable.`,
+    );
+  }
+  return match[1] !== undefined;
+}
+
+/**
+ * Whether a just-published version has taken over the `latest` dist-tag it must never hold.
+ * Pure, unit-tested. Pinned to the just-published version: an older prerelease stuck on
+ * `latest` from before the guard existed is not this run's violation and must not trip it.
+ * @param {string} publishedVersion the version published in this run
+ * @param {string | null} latestVersion registry dist-tags.latest, or null when the tag is absent
+ * @returns {boolean}
+ */
+function isLatestTagViolation(publishedVersion, latestVersion) {
+  return isPrereleaseVersion(publishedVersion) && latestVersion === publishedVersion;
+}
+
 /**
  * @returns {PublishedPackage[]}
  */
@@ -116,6 +160,85 @@ async function resolveRegistryVersion(pkg) {
   return null;
 }
 
+/**
+ * Read the registry's `latest` dist-tag for a package. Single read, no retry: it runs only
+ * after resolveRegistryVersion confirmed the packument already serves the just-published
+ * version. This is a separate registry request that can hit a different CDN edge; a stale
+ * read can only produce a false pass, accepted as defense in depth. Returns null when the tag does not
+ * exist, which is the expected state for a package that has only ever published prereleases
+ * behind the release-publish.mjs tag guard.
+ * @param {string} name
+ * @returns {string | null}
+ */
+function readLatestDistTag(name) {
+  try {
+    const output = execFileSync("npm", ["view", name, "dist-tags.latest", "--json"], {
+      encoding: "utf8",
+    }).trim();
+    if (output === "") {
+      return null;
+    }
+    const latest = JSON.parse(output);
+    return typeof latest === "string" ? latest : null;
+  } catch {
+    // npm view exits non-zero when the tag is missing on some registry responses, which is
+    // the accepted new-package-in-pre-mode state. A transient registry error lands here too
+    // and reads as "no violation"; accepted, because this check is defense in depth behind
+    // the release-publish.mjs prevention guard, and a false failure would block a good release.
+    return null;
+  }
+}
+
+/**
+ * Whether a just-published package is a prerelease now sitting on the registry's `latest`
+ * dist-tag. Thin I/O shell over the pure classification and comparison functions.
+ * @param {PublishedPackage} pkg
+ * @returns {boolean}
+ */
+function tookOverLatestTag(pkg) {
+  if (!isPrereleaseVersion(pkg.version)) {
+    return false;
+  }
+  return isLatestTagViolation(pkg.version, readLatestDistTag(pkg.name));
+}
+
+/**
+ * @param {PublishedPackage[]} missing
+ */
+function reportMissing(missing) {
+  console.error(
+    `verify-npm-publish: ${missing.length} package(s) reported as published by changesets/action ` +
+      "did not resolve on the npm registry after retrying:",
+  );
+  for (const pkg of missing) {
+    console.error(`  ${pkg.name}@${pkg.version}`);
+  }
+  console.error(
+    "This means the release workflow reported success while at least one package silently " +
+      "failed to publish. Check the OIDC Trusted Publisher configuration for the missing " +
+      "package(s) on npmjs.com and the publish step logs for this run.",
+  );
+}
+
+/**
+ * @param {PublishedPackage[]} violations
+ */
+function reportLatestTagViolations(violations) {
+  console.error(
+    `verify-npm-publish: ${violations.length} prerelease package(s) published in this run took ` +
+      "over the latest dist-tag:",
+  );
+  for (const pkg of violations) {
+    console.error(`  ${pkg.name}@${pkg.version} (dist-tags.latest points at it)`);
+  }
+  console.error(
+    "The publish guard (scripts/release-publish.mjs) should have forced the pre tag; check " +
+      "the publish step logs for this run and repair the dist-tag on npmjs.com with " +
+      "`npm dist-tag add`. This assertion is pinned to the just-published version, so a " +
+      "stale latest tag from before the guard does not trip it.",
+  );
+}
+
 async function main() {
   const packages = readPublishedPackages();
   console.log(
@@ -124,35 +247,37 @@ async function main() {
 
   /** @type {PublishedPackage[]} */
   const missing = [];
+  /** @type {PublishedPackage[]} */
+  const latestTagViolations = [];
   for (const pkg of packages) {
     process.stdout.write(`  ${pkg.name}@${pkg.version} ... `);
     const resolved = await resolveRegistryVersion(pkg);
-    if (resolved === pkg.version) {
-      console.log("ok");
-    } else {
+    if (resolved !== pkg.version) {
       console.log("MISSING");
       missing.push(pkg);
+      continue;
+    }
+    console.log("ok");
+    if (tookOverLatestTag(pkg)) {
+      console.log(`    dist-tags.latest is ${pkg.version}: the prerelease just published.`);
+      latestTagViolations.push(pkg);
     }
   }
 
   if (missing.length > 0) {
-    console.error(
-      `verify-npm-publish: ${missing.length} package(s) reported as published by changesets/action ` +
-        "did not resolve on the npm registry after retrying:",
-    );
-    for (const pkg of missing) {
-      console.error(`  ${pkg.name}@${pkg.version}`);
-    }
-    console.error(
-      "This means the release workflow reported success while at least one package silently " +
-        "failed to publish. Check the OIDC Trusted Publisher configuration for the missing " +
-        "package(s) on npmjs.com and the publish step logs for this run.",
-    );
+    reportMissing(missing);
     process.exitCode = 1;
-    return;
   }
-
-  console.log("verify-npm-publish: all reported packages confirmed on the npm registry.");
+  if (latestTagViolations.length > 0) {
+    reportLatestTagViolations(latestTagViolations);
+    process.exitCode = 1;
+  }
+  if (missing.length === 0 && latestTagViolations.length === 0) {
+    console.log(
+      "verify-npm-publish: all reported packages confirmed on the npm registry, no prerelease " +
+        "took over the latest dist-tag.",
+    );
+  }
 }
 
 // Only run when invoked as a script, not when imported by the test file for the pure parser.
@@ -164,4 +289,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 
-export { parsePublishedPackages };
+export { isLatestTagViolation, isPrereleaseVersion, parsePublishedPackages };

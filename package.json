@@ -32,7 +32,7 @@
     "test:scripts": "vitest run scripts",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
-    "release": "changeset publish"
+    "release": "node scripts/release-publish.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.0",
