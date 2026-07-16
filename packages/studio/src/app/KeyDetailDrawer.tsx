@@ -180,7 +180,7 @@ export function KeyDetailDrawer({
       >
         <CommitList
           state={history}
-          emptyClassName="text-sm text-muted-foreground"
+          compact
           emptyMessage="No commit history yet for the locale files."
         />
       </Section>

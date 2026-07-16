@@ -10,12 +10,14 @@ import type { RefreshableView } from "../client/state.js";
 import { Badge } from "./Badge.js";
 import { DiffBadge } from "./DiffBadge.js";
 import { cn } from "./lib/cn.js";
+import { ProgressBar } from "./ProgressBar.js";
+import { TableCard } from "./Table.js";
 import { EmptyState } from "./ui.js";
 import { useStatusData } from "./use-status-data.js";
 
 const gridCellClassName = "px-3 py-2 text-start whitespace-nowrap";
 const gridHeaderClassName =
-  "border-b-2 border-border px-3 py-2 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
+  "border-b border-border bg-muted/40 px-3 py-2 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
 export interface StatusGridProps {
   /** The Diff panel's already-loaded per-locale diff data; never re-fetched by this component. */
@@ -70,15 +72,7 @@ function CompletenessBar({
   }
   return (
     <div className="mt-1 flex items-center gap-2 text-xs font-normal text-muted-foreground">
-      <span
-        className="inline-block h-1.5 w-[60px] overflow-hidden rounded-full bg-neutral-soft"
-        aria-hidden="true"
-      >
-        <span
-          className="block h-full rounded-[inherit] bg-primary"
-          style={{ width: `${percent}%` }}
-        />
-      </span>
+      <ProgressBar percent={percent} className="w-[60px] flex-none" />
       <span className="whitespace-nowrap">{percent}% up to date</span>
     </div>
   );
@@ -177,7 +171,7 @@ function GridBodyRow({
         scope="row"
         className={cn(
           gridCellClassName,
-          "sticky start-0 bg-background text-start font-mono text-sm font-semibold text-foreground",
+          "sticky start-0 bg-card text-start font-mono text-sm font-semibold text-foreground",
         )}
       >
         {keyName}
@@ -251,12 +245,12 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
   }
 
   if (keys.length === 0) {
-    return <EmptyState>No drift-affected keys to show.</EmptyState>;
+    return <EmptyState title="No drift">No drift-affected keys to show.</EmptyState>;
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-auto border-collapse text-sm">
+    <TableCard>
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
             <th scope="col" className={cn(gridHeaderClassName, "min-w-[160px]")}>
@@ -294,6 +288,6 @@ export function StatusGrid({ locales, onSelectKey }: StatusGridProps): ReactNode
           ))}
         </tbody>
       </table>
-    </div>
+    </TableCard>
   );
 }

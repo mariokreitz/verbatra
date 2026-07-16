@@ -87,10 +87,11 @@ function EditorFields({
         ) : null}
         <TextArea
           aria-label={`Translation for ${context.source}`}
+          className="max-w-none"
           value={value}
           onChange={(event) => onChangeValue(event.target.value)}
           disabled={disabled}
-          rows={4}
+          rows={5}
         />
       </Section>
     </>
@@ -163,8 +164,13 @@ export function EditEntryDialog({
             onChangeValue={setValue}
             disabled={submit.kind === "submitting"}
           />
-          <span className="ms-2 inline-flex items-center gap-2">
-            <Button disabled={submit.kind === "submitting"} onClick={() => void handleSubmit()}>
+          <span className="mt-2 flex items-center gap-3">
+            <Button
+              variant="primary"
+              size="md"
+              disabled={submit.kind === "submitting"}
+              onClick={() => void handleSubmit()}
+            >
               Save
             </Button>
             {submit.kind !== "idle" ? (

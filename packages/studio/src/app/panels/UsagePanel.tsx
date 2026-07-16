@@ -1,48 +1,71 @@
 import type { ReactNode } from "react";
 import type { BudgetDisplay, UsageDisplay } from "../../client/usage-ticker-data.js";
-import { toUsageTickerDisplayState } from "../../client/usage-ticker-data.js";
+import { budgetPercent, toUsageTickerDisplayState } from "../../client/usage-ticker-data.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
 import { Loading } from "../Loading.js";
+import { MetricCard } from "../MetricCard.js";
+import { PageHeader } from "../PageHeader.js";
 import type { PanelProps } from "../panel-props.js";
-import { DetailList, EmptyState, MonoValue } from "../ui.js";
+import { EmptyState } from "../ui.js";
 import { useUsageTicker } from "../use-usage-ticker.js";
 
-function usageItems(usage: UsageDisplay): Array<readonly [string, ReactNode]> {
+/** The run's token totals as metric tiles, or one explicit not-reported tile: an absent figure
+ * is a fact about the provider, never rendered as a fabricated zero. */
+function UsageCards({ usage }: { readonly usage: UsageDisplay }): ReactNode {
   if (usage.kind === "not-reported") {
-    return [["Tokens", "Not reported by this provider."]];
+    return (
+      <MetricCard
+        label="Tokens"
+        icon="gauge"
+        value="Not reported"
+        hint="This provider does not report token usage."
+      />
+    );
   }
-  return [
-    ["Input tokens", <MonoValue key="input-tokens">{usage.inputTokens}</MonoValue>],
-    ["Output tokens", <MonoValue key="output-tokens">{usage.outputTokens}</MonoValue>],
-  ];
+  return (
+    <>
+      <MetricCard label="Input tokens" icon="gauge" value={usage.inputTokens.toLocaleString()} />
+      <MetricCard label="Output tokens" icon="gauge" value={usage.outputTokens.toLocaleString()} />
+    </>
+  );
 }
 
-function budgetItems(budget: BudgetDisplay): Array<readonly [string, ReactNode]> {
+/** The budget tiles for the two renderable budget arms; a run without a budget renders nothing,
+ * exactly as before. The consumed meter turns danger-toned only off the run's own exceeded flag,
+ * never re-derived from the percentage. */
+function BudgetCards({ budget }: { readonly budget: BudgetDisplay }): ReactNode {
   if (budget.kind === "none") {
-    return [];
+    return null;
   }
   if (budget.kind === "not-tracked") {
-    return [
-      ["Budget ceiling", <MonoValue key="budget-ceiling">{budget.maxTokens}</MonoValue>],
-      ["Budget status", "Not tracked for this provider."],
-    ];
+    return (
+      <MetricCard
+        label="Budget ceiling"
+        value={budget.maxTokens.toLocaleString()}
+        hint="Not tracked for this provider."
+      />
+    );
   }
-  return [
-    [
-      "Budget ceiling",
-      <MonoValue key="budget-ceiling">
-        {budget.tokensUsed} / {budget.maxTokens}
-      </MonoValue>,
-    ],
-    ["Budget behavior", <MonoValue key="budget-behavior">{budget.behavior}</MonoValue>],
-    [
-      "Budget status",
-      <Badge tone={budget.exceeded ? "danger" : "success"} key="budget-status">
-        {budget.exceeded ? "Ceiling reached" : "Within budget"}
-      </Badge>,
-    ],
-  ];
+  return (
+    <>
+      <MetricCard
+        label="Budget"
+        value={`${budget.tokensUsed.toLocaleString()} / ${budget.maxTokens.toLocaleString()}`}
+        hint={`Behavior: ${budget.behavior}`}
+        progress={budgetPercent(budget)}
+        progressTone={budget.exceeded ? "danger" : "primary"}
+      />
+      <MetricCard
+        label="Budget status"
+        value={
+          <Badge tone={budget.exceeded ? "danger" : "success"}>
+            {budget.exceeded ? "Ceiling reached" : "Within budget"}
+          </Badge>
+        }
+      />
+    </>
+  );
 }
 
 /**
@@ -55,6 +78,18 @@ function budgetItems(budget: BudgetDisplay): Array<readonly [string, ReactNode]>
  * changes what this shows; opening or reloading Studio does not.
  */
 export function UsagePanel({ refreshToken }: PanelProps): ReactNode {
+  return (
+    <>
+      <PageHeader
+        title="Usage"
+        description="Token usage and budget from the most recent recorded run."
+      />
+      <UsagePanelBody refreshToken={refreshToken} />
+    </>
+  );
+}
+
+function UsagePanelBody({ refreshToken }: PanelProps): ReactNode {
   const view = useUsageTicker(refreshToken);
 
   if (view.kind === "loading") {
@@ -68,9 +103,8 @@ export function UsagePanel({ refreshToken }: PanelProps): ReactNode {
 
   if (state.kind === "unavailable") {
     return (
-      <EmptyState>
-        No run has been recorded yet. Run <code>verbatra translate</code> or{" "}
-        <code>verbatra watch</code> to populate this ticker.
+      <EmptyState icon="gauge" title="No run recorded yet">
+        Run <code>verbatra translate</code> or <code>verbatra watch</code> to populate this ticker.
       </EmptyState>
     );
   }
@@ -78,10 +112,13 @@ export function UsagePanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <div>
       {view.stale && <ErrorMessage error={view.error} prefix="Showing the last known usage." />}
-      <p className="mb-3 text-sm text-muted-foreground">
+      <p className="mb-4 text-sm text-muted-foreground">
         As of {new Date(state.generatedAt).toLocaleString()}
       </p>
-      <DetailList items={[...usageItems(state.usage), ...budgetItems(state.budget)]} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <UsageCards usage={state.usage} />
+        <BudgetCards budget={state.budget} />
+      </div>
     </div>
   );
 }

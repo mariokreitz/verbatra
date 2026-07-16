@@ -1,20 +1,66 @@
 import type { ReactNode } from "react";
-import type { StatusRow } from "../../client/coverage.js";
+import {
+  averageCoverage,
+  outOfSyncCount,
+  type StatusData,
+  type StatusRow,
+} from "../../client/coverage.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
+import { MetricCard } from "../MetricCard.js";
+import { PageHeader } from "../PageHeader.js";
+import { ProgressBar } from "../ProgressBar.js";
 import type { PanelProps } from "../panel-props.js";
 import { TableSkeleton } from "../Skeleton.js";
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../Table.js";
 import { useStatusData } from "../use-status-data.js";
+
+/** The summary strip above the table: overall state, locale count, and mean coverage. */
+function StatusMetrics({ data }: { readonly data: StatusData }): ReactNode {
+  const average = averageCoverage(data.rows);
+  const outOfSync = outOfSyncCount(data.rows);
+  return (
+    <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <MetricCard
+        label="Overall"
+        icon="activity"
+        value={
+          <Badge tone={data.inSync ? "success" : "warning"}>
+            {data.inSync ? "In sync" : "Out of sync"}
+          </Badge>
+        }
+      />
+      <MetricCard
+        label="Target locales"
+        value={String(data.rows.length)}
+        hint={outOfSync === 0 ? "All in sync" : `${outOfSync} out of sync`}
+      />
+      <MetricCard label="Average coverage" value={`${average}%`} progress={average} />
+    </div>
+  );
+}
 
 function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   return (
     <TableRow>
       <TableCell mono>{row.locale}</TableCell>
-      <TableCell>{row.percent}%</TableCell>
-      <TableCell>{row.missing}</TableCell>
-      <TableCell>{row.stale}</TableCell>
-      <TableCell>{row.upToDate}</TableCell>
+      <TableCell>
+        <span className="flex items-center gap-2">
+          <ProgressBar percent={row.percent} className="w-24 flex-none" />
+          <span className="tabular-nums text-muted-foreground">{row.percent}%</span>
+        </span>
+      </TableCell>
+      <TableCell numeric>{row.missing}</TableCell>
+      <TableCell numeric>{row.stale}</TableCell>
+      <TableCell numeric>{row.upToDate}</TableCell>
       <TableCell>
         <Badge tone={row.inSync ? "success" : "warning"}>
           {row.inSync ? "In sync" : "Out of sync"}
@@ -24,28 +70,18 @@ function StatusRowView({ row }: { readonly row: StatusRow }): ReactNode {
   );
 }
 
-function StatusTable({
-  inSync,
-  rows,
-}: {
-  readonly inSync: boolean;
-  readonly rows: readonly StatusRow[];
-}): ReactNode {
+function StatusTable({ rows }: { readonly rows: readonly StatusRow[] }): ReactNode {
   return (
-    <div>
-      <p className="mb-3 text-sm text-muted-foreground">
-        Overall status:{" "}
-        <Badge tone={inSync ? "success" : "warning"}>{inSync ? "In sync" : "Out of sync"}</Badge>
-      </p>
+    <TableCard>
       <Table>
         <TableHead>
           <tr>
             <TableHeaderCell>Locale</TableHeaderCell>
             <TableHeaderCell>Coverage</TableHeaderCell>
-            <TableHeaderCell>Missing</TableHeaderCell>
-            <TableHeaderCell>Stale</TableHeaderCell>
-            <TableHeaderCell>Up to date</TableHeaderCell>
-            <TableHeaderCell>In sync</TableHeaderCell>
+            <TableHeaderCell numeric>Missing</TableHeaderCell>
+            <TableHeaderCell numeric>Stale</TableHeaderCell>
+            <TableHeaderCell numeric>Up to date</TableHeaderCell>
+            <TableHeaderCell>State</TableHeaderCell>
           </tr>
         </TableHead>
         <TableBody>
@@ -54,7 +90,7 @@ function StatusTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </TableCard>
   );
 }
 
@@ -65,6 +101,15 @@ function StatusTable({
  * `client/state.ts`'s covered `applyRefreshOutcome`, the one tested place that decision lives.
  */
 export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
+  return (
+    <>
+      <PageHeader title="Status" description="Per-locale translation coverage and drift." />
+      <StatusPanelBody refreshToken={refreshToken} />
+    </>
+  );
+}
+
+function StatusPanelBody({ refreshToken }: PanelProps): ReactNode {
   const view = useStatusData(refreshToken);
 
   if (view.kind === "loading") {
@@ -81,7 +126,8 @@ export function StatusPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <div>
       {view.stale && <ErrorMessage error={view.error} prefix="Showing the last known status." />}
-      <StatusTable inSync={view.data.inSync} rows={view.data.rows} />
+      <StatusMetrics data={view.data} />
+      <StatusTable rows={view.data.rows} />
     </div>
   );
 }

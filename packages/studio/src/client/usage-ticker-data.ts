@@ -80,6 +80,21 @@ export function toUsageTickerDisplayState(data: UsageTickerData): UsageTickerDis
 }
 
 /**
+ * Percent of a tracked budget consumed, clamped to 0-100 for rendering as a meter. A
+ * non-positive ceiling (nothing can be afforded) reads as fully consumed rather than dividing
+ * by zero; the exceeded flag, not this percentage, is what gates the alarm styling.
+ */
+export function budgetPercent(budget: {
+  readonly tokensUsed: number;
+  readonly maxTokens: number;
+}): number {
+  if (budget.maxTokens <= 0) {
+    return 100;
+  }
+  return Math.min(100, Math.round((budget.tokensUsed / budget.maxTokens) * 100));
+}
+
+/**
  * Maps one `usage.summary` rpc outcome to the generic {@link FetchOutcome} shape
  * `applyRefreshOutcome` (see `client/state.ts`) expects, matching `toReviewQueueOutcome`'s
  * existing precedent.

@@ -6,18 +6,22 @@ import { filterAndCapKeys, MAX_RENDERED_KEYS } from "../../client/filter.js";
 import { isRtlLocale } from "../../client/locale-direction.js";
 import { buildReviewReportMarkdown } from "../../client/review-report.js";
 import type { StructuredError } from "../../client/state.js";
-import { AccordionItem } from "../Accordion.js";
+import { Accordion, AccordionItem } from "../Accordion.js";
 import { diffDataStore, openKeyStore, rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
+import { Button } from "../Button.js";
 import type { DiffTone } from "../DiffBadge.js";
 import { DiffBadge } from "../DiffBadge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
-import { TextField } from "../Input.js";
+import { Icon } from "../Icon.js";
+import { SearchInput } from "../Input.js";
 import { KeyDetailDrawer } from "../KeyDetailDrawer.js";
 import { Loading } from "../Loading.js";
+import { PageHeader } from "../PageHeader.js";
 import type { PanelProps } from "../panel-props.js";
 import { StatusGrid } from "../StatusGrid.js";
 import { Tabs } from "../Tabs.js";
+import { Toolbar } from "../Toolbar.js";
 
 type DiffViewMode = "grid" | "flat";
 
@@ -34,12 +38,12 @@ type DiffPanelState =
 const COPY_CONFIRMATION_MS = 2000;
 
 /**
- * A "copy as review report" button: it renders the panel's full, currently loaded diff data
- * (never the on-screen filtered or capped view) as a Markdown review report and copies it to the
- * clipboard. The confirmation is a transient label swap, not a new toast system, matching this
- * codebase's existing preference for small, direct feedback. Clipboard access can fail (an
- * insecure context, or a browser permission denial); there is nothing actionable to surface
- * beyond the button simply not confirming.
+ * The page's contextual action, rendered in the `PageHeader`: it renders the panel's full,
+ * currently loaded diff data (never the on-screen filtered or capped view) as a Markdown review
+ * report and copies it to the clipboard. The confirmation is a transient label swap, not a new
+ * toast system, matching this codebase's existing preference for small, direct feedback.
+ * Clipboard access can fail (an insecure context, or a browser permission denial); there is
+ * nothing actionable to surface beyond the button simply not confirming.
  */
 function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale[] }): ReactNode {
   const [copied, setCopied] = useState(false);
@@ -65,13 +69,10 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
   }
 
   return (
-    <button
-      type="button"
-      className="mb-4 inline-block rounded-md border border-border bg-transparent px-3 py-1 text-sm text-foreground hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-      onClick={() => void handleClick()}
-    >
+    <Button size="md" onClick={() => void handleClick()}>
+      <Icon name={copied ? "check" : "copy"} size={14} />
       {copied ? "Copied" : "Copy as review report"}
-    </button>
+    </Button>
   );
 }
 
@@ -115,6 +116,19 @@ function KeyList({
   );
 }
 
+/** The at-a-glance drift figures in a locale section's always-visible summary row. */
+function LocaleSectionCounts({ locale }: { readonly locale: DiffLocale }): ReactNode {
+  if (!locale.hasPendingChanges) {
+    return null;
+  }
+  return (
+    <span className="text-xs text-muted-foreground">
+      {locale.missing.length} missing &middot; {locale.changed.length} changed &middot;{" "}
+      {locale.orphaned.length} orphaned
+    </span>
+  );
+}
+
 /**
  * One locale's missing/changed/orphaned key lists, collapsed by default when that locale is
  * already up to date and expanded by default when it has pending changes: a project with many
@@ -133,17 +147,17 @@ function LocaleSection({
 }): ReactNode {
   return (
     <AccordionItem
-      className="mb-4"
       defaultOpen={locale.hasPendingChanges}
       dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
       summary={
-        <span className="inline-flex items-center gap-2">
+        <span className="inline-flex flex-wrap items-center gap-2">
           {locale.locale}
           {locale.hasPendingChanges ? (
             <Badge tone="warning">Pending changes</Badge>
           ) : (
             <Badge tone="success">Up to date</Badge>
           )}
+          <LocaleSectionCounts locale={locale} />
         </span>
       }
     >
@@ -171,15 +185,86 @@ function AllClearState(): ReactNode {
       className="flex items-start gap-3 rounded-lg border-s-[3px] border-success bg-success-soft px-5 py-4 text-success"
       role="status"
     >
-      <span className="text-lg leading-snug" aria-hidden="true">
-        ✓
-      </span>
+      <Icon name="check" className="mt-0.5 flex-none" />
       <div>
         <p className="mb-1 font-semibold text-foreground">Everything&apos;s in sync</p>
         <p className="text-sm text-muted-foreground">
           No missing, changed, or orphaned keys in any configured locale.
         </p>
       </div>
+    </div>
+  );
+}
+
+interface DiffContentProps {
+  readonly hasPendingChanges: boolean;
+  readonly locales: readonly DiffLocale[];
+  readonly query: string;
+  readonly onQueryChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  readonly viewMode: DiffViewMode;
+  readonly onViewModeChange: (mode: DiffViewMode) => void;
+  readonly selectedKey: string | null;
+  readonly refreshToken: number;
+}
+
+/** The loaded, not-fully-in-sync body: the view toolbar, the grid or the per-locale lists, and
+ * the key detail drawer when a key is selected. */
+function DiffContent({
+  hasPendingChanges,
+  locales,
+  query,
+  onQueryChange,
+  viewMode,
+  onViewModeChange,
+  selectedKey,
+  refreshToken,
+}: DiffContentProps): ReactNode {
+  return (
+    <div>
+      <Toolbar
+        end={
+          <Badge tone={hasPendingChanges ? "warning" : "success"}>
+            {hasPendingChanges ? "Pending changes" : "Up to date"}
+          </Badge>
+        }
+      >
+        <Tabs
+          items={VIEW_MODE_ITEMS}
+          active={viewMode}
+          onChange={onViewModeChange}
+          label="Diff view"
+        />
+        {viewMode === "flat" ? (
+          <SearchInput
+            aria-label="Filter keys"
+            placeholder="Filter keys…"
+            value={query}
+            onChange={onQueryChange}
+          />
+        ) : null}
+      </Toolbar>
+      {viewMode === "grid" ? (
+        <StatusGrid locales={locales} onSelectKey={openKeyStore.request} />
+      ) : (
+        <Accordion>
+          {locales.map((locale) => (
+            <LocaleSection
+              key={locale.locale}
+              locale={locale}
+              query={query}
+              onSelectKey={openKeyStore.request}
+            />
+          ))}
+        </Accordion>
+      )}
+      {selectedKey !== null ? (
+        <KeyDetailDrawer
+          keyName={selectedKey}
+          locales={locales}
+          refreshToken={refreshToken}
+          onClose={() => openKeyStore.clear()}
+        />
+      ) : null}
     </div>
   );
 }
@@ -235,64 +320,37 @@ export function DiffPanel({ refreshToken }: PanelProps): ReactNode {
     };
   }, []);
 
-  if (state.kind === "loading") {
-    return <Loading />;
-  }
-  if (state.kind === "error") {
-    return <ErrorMessage error={state.error} />;
-  }
-
   const onQueryChange = (event: ChangeEvent<HTMLInputElement>): void => {
     setQuery(event.target.value);
   };
 
-  if (isFullyInSync(state.locales)) {
-    return (
-      <div>
-        <ReviewReportButton locales={state.locales} />
-        <AllClearState />
-      </div>
-    );
-  }
-
   return (
-    <div>
-      <ReviewReportButton locales={state.locales} />
-      <p className="mb-3 text-sm text-muted-foreground">
-        Overall:{" "}
-        <Badge tone={state.hasPendingChanges ? "warning" : "success"}>
-          {state.hasPendingChanges ? "Pending changes" : "Up to date"}
-        </Badge>
-      </p>
-      <div className="mb-4">
-        <Tabs items={VIEW_MODE_ITEMS} active={viewMode} onChange={setViewMode} label="Diff view" />
-      </div>
-      {viewMode === "grid" ? (
-        <StatusGrid locales={state.locales} onSelectKey={openKeyStore.request} />
-      ) : (
-        <>
-          <label htmlFor="diff-filter-keys" className="mb-4 block text-sm text-muted-foreground">
-            Filter keys
-            <TextField id="diff-filter-keys" value={query} onChange={onQueryChange} />
-          </label>
-          {state.locales.map((locale) => (
-            <LocaleSection
-              key={locale.locale}
-              locale={locale}
-              query={query}
-              onSelectKey={openKeyStore.request}
-            />
-          ))}
-        </>
-      )}
-      {selectedKey !== null ? (
-        <KeyDetailDrawer
-          keyName={selectedKey}
-          locales={state.locales}
-          refreshToken={refreshToken}
-          onClose={() => openKeyStore.clear()}
-        />
+    <>
+      <PageHeader
+        title="Diff"
+        description="Pending changes by key across every target locale."
+        actions={
+          state.kind === "loaded" ? <ReviewReportButton locales={state.locales} /> : undefined
+        }
+      />
+      {state.kind === "loading" ? <Loading /> : null}
+      {state.kind === "error" ? <ErrorMessage error={state.error} /> : null}
+      {state.kind === "loaded" ? (
+        isFullyInSync(state.locales) ? (
+          <AllClearState />
+        ) : (
+          <DiffContent
+            hasPendingChanges={state.hasPendingChanges}
+            locales={state.locales}
+            query={query}
+            onQueryChange={onQueryChange}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            selectedKey={selectedKey}
+            refreshToken={refreshToken}
+          />
+        )
       ) : null}
-    </div>
+    </>
   );
 }

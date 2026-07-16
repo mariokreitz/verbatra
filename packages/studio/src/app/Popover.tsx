@@ -7,6 +7,10 @@ export interface PopoverProps {
   readonly anchor: ReactNode;
   readonly children: ReactNode;
   readonly align?: "start" | "end";
+  /** Accessible name for the floating panel. When set, the panel exposes `role="dialog"` with
+   * this name; when absent it stays a plain, role-less container, since an unnamed dialog is
+   * worse for a screen reader than no dialog semantics at all. */
+  readonly ariaLabel?: string | undefined;
 }
 
 /**
@@ -22,6 +26,7 @@ export function Popover({
   anchor,
   children,
   align = "start",
+  ariaLabel,
 }: PopoverProps): ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -56,8 +61,9 @@ export function Popover({
             "absolute top-full z-30 mt-1 min-w-[180px] rounded-lg border border-border bg-card p-2 shadow-panel-lg",
             align === "end" ? "end-0" : "start-0",
           )}
-          role="dialog"
-          aria-modal="false"
+          {...(ariaLabel !== undefined
+            ? { role: "dialog", "aria-modal": false, "aria-label": ariaLabel }
+            : {})}
         >
           {children}
         </div>

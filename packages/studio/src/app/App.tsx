@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { isPaletteShortcut } from "../client/command-palette.js";
+import { isEditableTagName, isHelpShortcut } from "../client/keyboard-shortcuts.js";
 import {
   handleRefreshEvent,
   nextToastSlot,
   type RefreshToastView,
 } from "../client/refresh-toast.js";
 import { refreshBus, sessionStore } from "./api.js";
-import { Breadcrumbs } from "./Breadcrumbs.js";
 import { CommandPalette } from "./CommandPalette.js";
+import type { IconName } from "./Icon.js";
+import { readStoredSidebarCollapsed, storeSidebarCollapsed } from "./lib/sidebar-dom.js";
 import type { PanelProps } from "./panel-props.js";
 import { DiffPanel } from "./panels/DiffPanel.js";
 import { HistoryPanel } from "./panels/HistoryPanel.js";
@@ -18,7 +20,10 @@ import { ReviewPanel } from "./panels/ReviewPanel.js";
 import { StatusPanel } from "./panels/StatusPanel.js";
 import { UsagePanel } from "./panels/UsagePanel.js";
 import { RefreshToast } from "./RefreshToast.js";
-import { DesktopSidebar, MobileNavDrawer, MobileTopBar, type NavGroup } from "./Sidebar.js";
+import { ShortcutsDialog } from "./ShortcutsDialog.js";
+import { DesktopSidebar, MobileNavDrawer, type NavGroup } from "./Sidebar.js";
+import { TopBar } from "./TopBar.js";
+import { Container } from "./ui.js";
 
 const TABS = ["overview", "status", "diff", "review", "usage", "lock", "history"] as const;
 
@@ -32,6 +37,17 @@ const TAB_LABELS: Readonly<Record<Tab, string>> = {
   usage: "Usage",
   lock: "Lock",
   history: "History",
+};
+
+/** One glyph per tab for the sidebar nav; the Record type keeps this exhaustive at compile time. */
+const TAB_ICONS: Readonly<Record<Tab, IconName>> = {
+  overview: "dashboard",
+  status: "activity",
+  diff: "diff",
+  review: "review",
+  usage: "gauge",
+  lock: "lock",
+  history: "history",
 };
 
 // The sidebar's information architecture: Project (the read-only config/glossary snapshot),
@@ -103,6 +119,15 @@ function isSessionExpired(): boolean {
   return sessionStore.getState().kind === "session-expired";
 }
 
+/** Whether a keydown's target consumes ordinary character keys as text entry, so plain-character
+ * shortcuts like "?" must stay inert. The tag-name half lives in the covered client module; the
+ * `isContentEditable` half has no tag name and can only be read off the live element here. */
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement && (isEditableTagName(target.tagName) || target.isContentEditable)
+  );
+}
+
 export function App(): ReactNode {
   const [tab, setTab] = useState<Tab>("overview");
   const [sessionExpired, setSessionExpired] = useState(isSessionExpired());
@@ -115,7 +140,9 @@ export function App(): ReactNode {
   // report; a dismiss always clears it without ever calling the translate-pending action.
   const [toast, setToast] = useState<RefreshToastView | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readStoredSidebarCollapsed);
 
   useEffect(
     () => sessionStore.subscribe((state) => setSessionExpired(state.kind === "session-expired")),
@@ -138,6 +165,11 @@ export function App(): ReactNode {
       if (isPaletteShortcut(event)) {
         event.preventDefault();
         setPaletteOpen(true);
+        return;
+      }
+      if (isHelpShortcut(event, isEditableEventTarget(event.target))) {
+        event.preventDefault();
+        setShortcutsOpen(true);
       }
     }
     document.addEventListener("keydown", onKeyDown);
@@ -163,39 +195,53 @@ export function App(): ReactNode {
     setMobileNavOpen(false);
   }
 
+  function handleToggleSidebar(): void {
+    setSidebarCollapsed((current) => {
+      storeSidebarCollapsed(!current);
+      return !current;
+    });
+  }
+
   function handleDismissToast(): void {
     setToast((current) => nextToastSlot(current, { kind: "dismiss" }));
   }
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground md:flex-row">
-      <MobileTopBar title={TAB_LABELS[tab]} onOpenNav={() => setMobileNavOpen(true)} />
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <DesktopSidebar
         groups={NAV_GROUPS}
         tabLabels={TAB_LABELS}
+        tabIcons={TAB_ICONS}
         activeTab={tab}
         onSelectTab={handleSelectTabFromSidebar}
-        onOpenSearch={() => setPaletteOpen(true)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={handleToggleSidebar}
       />
       {mobileNavOpen ? (
         <MobileNavDrawer
           groups={NAV_GROUPS}
           tabLabels={TAB_LABELS}
+          tabIcons={TAB_ICONS}
           activeTab={tab}
           onSelectTab={handleSelectTabFromSidebar}
           onOpenSearch={() => setPaletteOpen(true)}
           onClose={() => setMobileNavOpen(false)}
         />
       ) : null}
-      <main className="min-w-0 flex-1 overflow-y-auto overflow-x-auto px-4 py-4 md:px-8 md:py-6">
-        <div className="max-w-7xl">
-          <div className="sticky top-0 z-[5] mb-6 hidden bg-background pb-2 md:block">
-            <Breadcrumbs items={[{ label: groupLabelForTab(tab) }, { label: TAB_LABELS[tab] }]} />
-            <h1 className="text-xl font-semibold text-foreground">{TAB_LABELS[tab]}</h1>
-          </div>
-          <ActivePanel refreshToken={refreshToken} />
-        </div>
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          groupLabel={groupLabelForTab(tab)}
+          tabLabel={TAB_LABELS[tab]}
+          onOpenNav={() => setMobileNavOpen(true)}
+          onOpenSearch={() => setPaletteOpen(true)}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+        />
+        <main className="min-w-0 flex-1 overflow-y-auto">
+          <Container>
+            <ActivePanel refreshToken={refreshToken} />
+          </Container>
+        </main>
+      </div>
       {paletteOpen ? (
         <CommandPalette
           tabs={TABS.map((id) => ({ tab: id, label: TAB_LABELS[id] }))}
@@ -203,6 +249,7 @@ export function App(): ReactNode {
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}
+      {shortcutsOpen ? <ShortcutsDialog onClose={() => setShortcutsOpen(false)} /> : null}
       {toast !== undefined ? <RefreshToast view={toast} onDismiss={handleDismissToast} /> : null}
     </div>
   );

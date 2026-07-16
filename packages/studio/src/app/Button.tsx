@@ -3,8 +3,17 @@ import { cn } from "./lib/cn.js";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost";
 
+export type ButtonSize = "sm" | "md";
+
 const BASE_CLASSNAME =
-  "inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-default disabled:opacity-60";
+  "inline-flex items-center justify-center gap-1.5 rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:cursor-default disabled:opacity-60";
+
+const SIZE_CLASSNAME: Readonly<Record<ButtonSize, string>> = {
+  // The compact inline-action size (row actions, dialog chrome), the default.
+  sm: "px-2 py-1 text-xs",
+  // Page-level actions (a PageHeader's contextual action, toolbar buttons).
+  md: "px-3 py-1.5 text-sm",
+};
 
 const VARIANT_CLASSNAME: Readonly<Record<ButtonVariant, string>> = {
   // The one filled call-to-action look (RefreshToast's "Translate pending changes").
@@ -19,6 +28,7 @@ const VARIANT_CLASSNAME: Readonly<Record<ButtonVariant, string>> = {
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: ButtonVariant;
+  readonly size?: ButtonSize;
   readonly children: ReactNode;
 }
 
@@ -32,6 +42,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 export function Button({
   variant = "secondary",
+  size = "sm",
   className,
   type = "button",
   ...props
@@ -39,7 +50,7 @@ export function Button({
   return (
     <button
       type={type}
-      className={cn(BASE_CLASSNAME, VARIANT_CLASSNAME[variant], className)}
+      className={cn(BASE_CLASSNAME, SIZE_CLASSNAME[size], VARIANT_CLASSNAME[variant], className)}
       {...props}
     />
   );

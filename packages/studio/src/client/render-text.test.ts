@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { HistoryCommit } from "../shared/rpc/history.js";
-import { formatCommitSummary, renderCommitSummary, type TextTarget } from "./render-text.js";
+import { commitSummaryParts, renderText, type TextTarget } from "./render-text.js";
 
 function commit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
   return {
@@ -12,43 +12,44 @@ function commit(overrides: Partial<HistoryCommit> = {}): HistoryCommit {
   };
 }
 
-describe("formatCommitSummary", () => {
-  it("joins the short hash, author date, and subject with a single space", () => {
-    const summary = formatCommitSummary(commit());
-
-    expect(summary).toBe("abcdef1 2026-01-01T00:00:00+00:00 add greeting key");
+describe("commitSummaryParts", () => {
+  it("shortens the hash to its first 7 characters", () => {
+    expect(commitSummaryParts(commit({ hash: "0123456789abcdef" })).shortHash).toBe("0123456");
   });
 
-  it("shortens the hash to its first 7 characters", () => {
-    const summary = formatCommitSummary(commit({ hash: "0123456789abcdef" }));
+  it("derives the calendar-date label from the ISO author date and keeps the full date", () => {
+    const parts = commitSummaryParts(commit());
+    expect(parts.dateLabel).toBe("2026-01-01");
+    expect(parts.authorDate).toBe("2026-01-01T00:00:00+00:00");
+  });
 
-    expect(summary.startsWith("0123456 ")).toBe(true);
+  it("passes the subject through unmodified, never interpreted", () => {
+    const parts = commitSummaryParts(commit({ subject: '<script>alert("xss")</script>' }));
+    expect(parts.subject).toBe('<script>alert("xss")</script>');
   });
 });
 
-describe("renderCommitSummary", () => {
-  it("writes the formatted summary into target.textContent", () => {
+describe("renderText", () => {
+  it("writes the text into target.textContent", () => {
     const target: TextTarget = { textContent: null };
 
-    renderCommitSummary(target, commit());
+    renderText(target, "add greeting key");
 
-    expect(target.textContent).toBe(formatCommitSummary(commit()));
+    expect(target.textContent).toBe("add greeting key");
   });
 
-  it("renders an HTML-injection-shaped commit message as literal text, never markup", () => {
+  it("renders HTML-injection-shaped text as literal text, never markup", () => {
     const target: TextTarget = { textContent: null };
-    const malicious = commit({ subject: '<script>alert("xss")</script>' });
 
-    renderCommitSummary(target, malicious);
+    renderText(target, '<script>alert("xss")</script>');
 
-    expect(target.textContent).toContain('<script>alert("xss")</script>');
-    expect(target.textContent).toBe(formatCommitSummary(malicious));
+    expect(target.textContent).toBe('<script>alert("xss")</script>');
   });
 
   it("never assigns anything other than a plain string to textContent", () => {
     const target: TextTarget = { textContent: null };
 
-    renderCommitSummary(target, commit());
+    renderText(target, "plain");
 
     expect(typeof target.textContent).toBe("string");
   });

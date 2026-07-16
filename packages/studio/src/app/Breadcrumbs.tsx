@@ -11,7 +11,7 @@ export interface BreadcrumbItem {
  */
 export function Breadcrumbs({ items }: { readonly items: readonly BreadcrumbItem[] }): ReactNode {
   return (
-    <nav aria-label="Breadcrumb" className="mb-2 text-sm text-muted-foreground">
+    <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
       <ol className="m-0 flex list-none items-center gap-2 p-0">
         {items.map((item, index) => (
           <li key={item.label} className="flex items-center gap-2">

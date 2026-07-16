@@ -1,6 +1,9 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Button } from "./Button.js";
+import { Icon, type IconName } from "./Icon.js";
 import { cn } from "./lib/cn.js";
+import { SearchTrigger } from "./SearchTrigger.js";
+import { Tooltip } from "./Tooltip.js";
 import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
@@ -12,144 +15,214 @@ export interface NavGroup<Tab extends string> {
   readonly tabs: readonly Tab[];
 }
 
-export interface SidebarProps<Tab extends string> {
+export interface SidebarNavProps<Tab extends string> {
   readonly groups: readonly NavGroup<Tab>[];
   readonly tabLabels: Readonly<Record<Tab, string>>;
+  /** One glyph per tab; `Readonly<Record<...>>` makes a tab without an icon a compile error. */
+  readonly tabIcons: Readonly<Record<Tab, IconName>>;
   readonly activeTab: Tab;
   readonly onSelectTab: (tab: Tab) => void;
-  /** Opens the command palette: the sidebar's global-search entry point, alongside the Ctrl/⌘+K
-   * shortcut it already documents. */
-  readonly onOpenSearch: () => void;
 }
 
-/** A search-styled button that opens the command palette: `TextField`'s bordered look with no
- * real input underneath, since typing a query only ever happens inside the palette itself once
- * open. Sits above the grouped nav in both the desktop sidebar and the mobile drawer. */
-function SearchTrigger({ onOpenSearch }: { readonly onOpenSearch: () => void }): ReactNode {
-  return (
-    <button
-      type="button"
-      onClick={onOpenSearch}
-      className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 text-start text-sm text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
-    >
-      Search…
-      <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-xs">
-        Ctrl/&#8984;+K
-      </kbd>
-    </button>
-  );
+export interface DesktopSidebarProps<Tab extends string> extends SidebarNavProps<Tab> {
+  /** Collapsed to the icon rail. Persisted by the caller (see `lib/sidebar-dom.ts`). */
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
 }
 
-function navItemClassName(isActive: boolean): string {
+function navItemClassName(isActive: boolean, collapsed: boolean): string {
   return cn(
-    "relative block w-full rounded-md px-3 py-2 text-start font-mono text-sm lowercase tracking-wide text-muted-foreground transition-colors",
+    "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors",
+    collapsed && "justify-center px-0",
     "hover:bg-accent hover:text-foreground",
     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-    isActive && "bg-accent font-semibold text-primary",
+    isActive && "bg-accent text-primary",
     isActive &&
-      "before:absolute before:start-0 before:top-1/2 before:h-[1.1em] before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-glow before:content-['']",
+      !collapsed &&
+      "before:absolute before:start-0 before:top-1/2 before:h-[1.1em] before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-primary before:content-['']",
   );
 }
 
-/** The "V" mark plus wordmark, shared by the persistent desktop sidebar and the mobile nav drawer. */
-function SidebarBrand(): ReactNode {
+/** The "V" mark plus wordmark, shared by the desktop sidebar (mark only while collapsed) and the
+ * mobile nav drawer. */
+function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): ReactNode {
   return (
-    <div className="flex items-center gap-2 px-3 py-2">
+    <div className={cn("flex items-center gap-2 py-2", collapsed ? "justify-center" : "px-2.5")}>
       <span
         className="grid size-6 flex-none place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground"
         aria-hidden="true"
       >
         V
       </span>
-      <span className="text-sm font-semibold text-foreground">Verbatra Studio</span>
+      {collapsed ? null : (
+        <span className="whitespace-nowrap text-sm font-semibold text-foreground">
+          Verbatra Studio
+        </span>
+      )}
     </div>
   );
+}
+
+/** One nav entry: icon plus label expanded, a tooltip-labeled icon on the collapsed rail. The
+ * button always carries the label as its accessible name; the tooltip is a sighted-user aid. */
+function NavItem<Tab extends string>({
+  tab,
+  label,
+  icon,
+  isActive,
+  collapsed,
+  onSelect,
+}: {
+  readonly tab: Tab;
+  readonly label: string;
+  readonly icon: IconName;
+  readonly isActive: boolean;
+  readonly collapsed: boolean;
+  readonly onSelect: (tab: Tab) => void;
+}): ReactNode {
+  const button = (
+    <button
+      type="button"
+      aria-current={isActive || undefined}
+      aria-label={collapsed ? label : undefined}
+      className={navItemClassName(isActive, collapsed)}
+      onClick={() => onSelect(tab)}
+    >
+      <Icon name={icon} className="flex-none" />
+      {collapsed ? null : <span className="truncate">{label}</span>}
+    </button>
+  );
+  if (!collapsed) {
+    return button;
+  }
+  return <Tooltip label={label}>{button}</Tooltip>;
 }
 
 function SidebarNavList<Tab extends string>({
   groups,
   tabLabels,
+  tabIcons,
   activeTab,
   onSelectTab,
-}: SidebarProps<Tab>): ReactNode {
+  collapsed = false,
+}: SidebarNavProps<Tab> & { readonly collapsed?: boolean }): ReactNode {
   return (
     <nav className="flex flex-col gap-4" aria-label="Sections">
-      {groups.map((group) => (
-        // A native fieldset/legend pair, not a div with role="group": the legend is natively
-        // the group's accessible name, no manual aria-labelledby wiring needed. Styled to read as
-        // this dashboard's mono, lowercase, tracked-out group-separator convention (matching the
-        // docs site's own sidebar group labels, `#nd-sidebar p` in apps/docs/app/global.css)
-        // rather than a fieldset's usual bordered-box default.
-        <fieldset key={group.label} className="m-0 border-0 p-0">
-          <legend className="w-full px-3 pb-1 font-mono text-xs uppercase tracking-wider text-muted-foreground/70">
-            {group.label}
-          </legend>
-          <div className="flex flex-col gap-1">
-            {group.tabs.map((candidate) => (
-              <button
-                key={candidate}
-                type="button"
-                aria-current={candidate === activeTab || undefined}
-                className={navItemClassName(candidate === activeTab)}
-                onClick={() => onSelectTab(candidate)}
-              >
-                {tabLabels[candidate]}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+      {groups.map((group, index) => (
+        // A native fieldset/legend pair, not a div with role="group": the legend is natively the
+        // group's accessible name, no manual aria-labelledby wiring needed. On the collapsed rail
+        // the legend goes sr-only (the name must survive for assistive technology) and a thin
+        // divider separates the groups visually instead.
+        <Fragment key={group.label}>
+          {collapsed && index > 0 ? (
+            <span aria-hidden="true" className="mx-2 border-t border-border" />
+          ) : null}
+          <fieldset className="m-0 border-0 p-0">
+            <legend
+              className={cn(
+                "w-full px-2.5 pb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground/70",
+                collapsed && "sr-only",
+              )}
+            >
+              {group.label}
+            </legend>
+            <div className="flex flex-col gap-1">
+              {group.tabs.map((candidate) => (
+                <NavItem
+                  key={candidate}
+                  tab={candidate}
+                  label={tabLabels[candidate]}
+                  icon={tabIcons[candidate]}
+                  isActive={candidate === activeTab}
+                  collapsed={collapsed}
+                  onSelect={onSelectTab}
+                />
+              ))}
+            </div>
+          </fieldset>
+        </Fragment>
       ))}
     </nav>
   );
 }
 
-/** The persistent sidebar shown at and above the `md` breakpoint; hidden entirely below it, where
- * {@link MobileTopBar} and {@link MobileNavDrawer} take over navigation. */
-export function DesktopSidebar<Tab extends string>(props: SidebarProps<Tab>): ReactNode {
+/** The rail's footer control: collapse (labeled) when expanded, expand (tooltip) when collapsed. */
+function CollapseToggle({
+  collapsed,
+  onToggleCollapsed,
+}: {
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+}): ReactNode {
+  if (collapsed) {
+    return (
+      <Tooltip label="Expand sidebar">
+        <Button
+          variant="ghost"
+          className="w-full justify-center p-2"
+          onClick={onToggleCollapsed}
+          aria-label="Expand sidebar"
+          aria-expanded={false}
+        >
+          <Icon name="panel" />
+        </Button>
+      </Tooltip>
+    );
+  }
   return (
-    <aside className="hidden w-56 flex-none flex-col gap-4 border-e border-border bg-card px-3 py-4 md:flex">
-      <SidebarBrand />
-      <SearchTrigger onOpenSearch={props.onOpenSearch} />
-      <SidebarNavList {...props} />
+    <Button
+      variant="ghost"
+      className="w-full justify-start gap-2.5 px-2.5 py-2 text-sm"
+      onClick={onToggleCollapsed}
+      aria-label="Collapse sidebar"
+      aria-expanded={true}
+    >
+      <Icon name="panel" className="flex-none" />
+      Collapse
+    </Button>
+  );
+}
+
+/** The persistent nav rail shown at and above the `md` breakpoint; hidden entirely below it,
+ * where the top bar's menu button and {@link MobileNavDrawer} take over navigation. Collapses to
+ * an icon-only rail whose entries keep their accessible names and gain visual tooltips. */
+export function DesktopSidebar<Tab extends string>({
+  collapsed,
+  onToggleCollapsed,
+  ...navProps
+}: DesktopSidebarProps<Tab>): ReactNode {
+  return (
+    <aside
+      className={cn(
+        "hidden flex-none flex-col gap-4 border-e border-border bg-card py-4 transition-[width] duration-200 md:flex",
+        collapsed ? "w-14 px-2" : "w-60 px-3",
+      )}
+    >
+      <SidebarBrand collapsed={collapsed} />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <SidebarNavList {...navProps} collapsed={collapsed} />
+      </div>
+      <CollapseToggle collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} />
     </aside>
   );
 }
 
-/** The mobile-only header bar: the current section's label plus a button that opens
- * {@link MobileNavDrawer}. Hidden at and above the `md` breakpoint, where the persistent
- * {@link DesktopSidebar} already shows every section. */
-export function MobileTopBar({
-  title,
-  onOpenNav,
-}: {
-  readonly title: string;
-  readonly onOpenNav: () => void;
-}): ReactNode {
-  return (
-    <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3 md:hidden">
-      <Button
-        variant="ghost"
-        className="p-1.5 text-lg leading-none text-foreground"
-        onClick={onOpenNav}
-        aria-label="Open navigation"
-      >
-        <span aria-hidden="true">&#9776;</span>
-      </Button>
-      <h1 className="text-sm font-semibold text-foreground">{title}</h1>
-    </header>
-  );
-}
-
-/** The off-canvas nav overlay {@link MobileTopBar}'s menu button opens: an `OverlayBackdrop` plus a
- * start-anchored panel, the mobile equivalent of `DesktopSidebar`. Only ever mounted while open
- * (the app shell conditionally renders it), matching this dashboard's other overlays' mount-is-open
- * convention, so `useDialogA11y` is always called with `isOpen: true`. Selecting a tab closes the
- * drawer immediately (the caller's `onSelectTab` also calls `onClose`), so the next screen is never
+/** The off-canvas nav overlay the top bar's menu button opens: an `OverlayBackdrop` plus a
+ * start-anchored panel, the mobile equivalent of {@link DesktopSidebar} (never collapsed; the
+ * rail concept only exists on desktop). Only ever mounted while open (the app shell conditionally
+ * renders it), matching this dashboard's other overlays' mount-is-open convention, so
+ * `useDialogA11y` is always called with `isOpen: true`. Selecting a tab closes the drawer
+ * immediately (the caller's `onSelectTab` also calls `onClose`), so the next screen is never
  * hidden behind it. */
 export function MobileNavDrawer<Tab extends string>({
   onClose,
+  onOpenSearch,
   ...navProps
-}: SidebarProps<Tab> & { readonly onClose: () => void }): ReactNode {
+}: SidebarNavProps<Tab> & {
+  readonly onClose: () => void;
+  /** Opens the command palette; the drawer closes itself first. */
+  readonly onOpenSearch: () => void;
+}): ReactNode {
   const containerRef = useDialogA11y<HTMLDivElement>({ isOpen: true, onClose });
 
   return (
@@ -167,8 +240,9 @@ export function MobileNavDrawer<Tab extends string>({
           <DialogCloseButton onClose={onClose} label="Close navigation" />
         </div>
         <SearchTrigger
+          className="w-full"
           onOpenSearch={() => {
-            navProps.onOpenSearch();
+            onOpenSearch();
             onClose();
           }}
         />

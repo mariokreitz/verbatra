@@ -2,7 +2,9 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  readonly padding?: "sm" | "md";
+  /** "none" is for flush content that brings its own spacing, most notably `TableCard`'s
+   * edge-to-edge tables. */
+  readonly padding?: "none" | "sm" | "md";
   /** The element `Card` renders as. Defaults to a plain `div`; `section` is for a caller that is
    * itself a landmark with its own heading, not a general-purpose polymorphism escape hatch. No
    * current caller needs it (the Diff panel's per-locale groups, the original reason this existed,
@@ -29,7 +31,8 @@ export function Card({
     <Element
       className={cn(
         "rounded-lg border border-border bg-card",
-        padding === "sm" ? "p-4" : "p-6",
+        padding === "sm" && "p-4",
+        padding === "md" && "p-6",
         className,
       )}
       {...props}

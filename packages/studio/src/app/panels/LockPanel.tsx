@@ -5,8 +5,18 @@ import type { StructuredError } from "../../client/state.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
+import { MetricCard } from "../MetricCard.js";
+import { PageHeader } from "../PageHeader.js";
 import { TableSkeleton } from "../Skeleton.js";
-import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from "../Table.js";
+import {
+  Table,
+  TableBody,
+  TableCard,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../Table.js";
 import { EmptyState } from "../ui.js";
 
 type LockStateResponse = RpcCallResult<"lock.state">;
@@ -33,15 +43,37 @@ function hasDrift(locale: LockLocaleState): boolean {
   return locale.missing > 0 || locale.stale > 0;
 }
 
+/** The summary strip: the lock file's version, its breadth, and how much of it has drifted. */
+function LockMetrics({
+  version,
+  locales,
+}: {
+  readonly version: number;
+  readonly locales: readonly LockLocaleState[];
+}): ReactNode {
+  const drifted = locales.filter(hasDrift).length;
+  return (
+    <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <MetricCard label="Lock version" icon="lock" value={String(version)} />
+      <MetricCard label="Recorded locales" value={String(locales.length)} />
+      <MetricCard
+        label="Drift"
+        value={String(drifted)}
+        hint={drifted === 0 ? "All recorded locales in sync" : "Locales drifted from source"}
+      />
+    </div>
+  );
+}
+
 function LockLocaleRow({ locale }: { readonly locale: LockLocaleState }): ReactNode {
   const drift = hasDrift(locale);
   return (
     <TableRow>
       <TableCell mono>{locale.locale}</TableCell>
-      <TableCell>{locale.keyCount}</TableCell>
-      <TableCell>{locale.missing}</TableCell>
-      <TableCell>{locale.stale}</TableCell>
-      <TableCell>{locale.upToDate}</TableCell>
+      <TableCell numeric>{locale.keyCount}</TableCell>
+      <TableCell numeric>{locale.missing}</TableCell>
+      <TableCell numeric>{locale.stale}</TableCell>
+      <TableCell numeric>{locale.upToDate}</TableCell>
       <TableCell>
         <Badge tone={drift ? "warning" : "success"}>{drift ? "Drift" : "In sync"}</Badge>
       </TableCell>
@@ -49,25 +81,18 @@ function LockLocaleRow({ locale }: { readonly locale: LockLocaleState }): ReactN
   );
 }
 
-function LockTable({
-  version,
-  locales,
-}: {
-  readonly version: number;
-  readonly locales: readonly LockLocaleState[];
-}): ReactNode {
+function LockTable({ locales }: { readonly locales: readonly LockLocaleState[] }): ReactNode {
   return (
-    <div>
-      <p className="mb-3 text-sm text-muted-foreground">Lock-file present, version {version}.</p>
+    <TableCard>
       <Table>
         <TableHead>
           <tr>
             <TableHeaderCell>Locale</TableHeaderCell>
-            <TableHeaderCell>Recorded keys</TableHeaderCell>
-            <TableHeaderCell>Missing</TableHeaderCell>
-            <TableHeaderCell>Stale</TableHeaderCell>
-            <TableHeaderCell>Up to date</TableHeaderCell>
-            <TableHeaderCell>Status</TableHeaderCell>
+            <TableHeaderCell numeric>Recorded keys</TableHeaderCell>
+            <TableHeaderCell numeric>Missing</TableHeaderCell>
+            <TableHeaderCell numeric>Stale</TableHeaderCell>
+            <TableHeaderCell numeric>Up to date</TableHeaderCell>
+            <TableHeaderCell>State</TableHeaderCell>
           </tr>
         </TableHead>
         <TableBody>
@@ -76,7 +101,7 @@ function LockTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </TableCard>
   );
 }
 
@@ -86,6 +111,15 @@ function LockTable({
  * distinct from a present but empty lock-file, which renders a table with zero recorded keys.
  */
 export function LockPanel(): ReactNode {
+  return (
+    <>
+      <PageHeader title="Lock" description="The lock file's recorded state per locale." />
+      <LockPanelBody />
+    </>
+  );
+}
+
+function LockPanelBody(): ReactNode {
   const [state, setState] = useState<LockPanelState>({ kind: "loading" });
 
   useEffect(() => {
@@ -126,10 +160,15 @@ export function LockPanel(): ReactNode {
   }
   if (state.kind === "no-lock") {
     return (
-      <EmptyState>
-        No lock-file yet. It is written after the first successful translate run.
+      <EmptyState icon="lock" title="No lock file yet">
+        It is written after the first successful translate run.
       </EmptyState>
     );
   }
-  return <LockTable version={state.version} locales={state.locales} />;
+  return (
+    <div>
+      <LockMetrics version={state.version} locales={state.locales} />
+      <LockTable locales={state.locales} />
+    </div>
+  );
 }

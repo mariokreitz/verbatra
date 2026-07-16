@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { CommitList } from "../CommitList.js";
-import { emptyStateClassName } from "../ui.js";
+import { PageHeader } from "../PageHeader.js";
 import { useHistoryList } from "../use-history-list.js";
 
 /**
@@ -13,10 +13,12 @@ export function HistoryPanel(): ReactNode {
   const state = useHistoryList();
 
   return (
-    <CommitList
-      state={state}
-      emptyClassName={emptyStateClassName}
-      emptyMessage="No commit history yet for the source or target locale files."
-    />
+    <>
+      <PageHeader title="History" description="Commit history for the project's locale files." />
+      <CommitList
+        state={state}
+        emptyMessage="No commit history yet for the source or target locale files."
+      />
+    </>
   );
 }

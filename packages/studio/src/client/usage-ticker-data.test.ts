@@ -1,9 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
+  budgetPercent,
   toUsageTickerDisplayState,
   toUsageTickerOutcome,
   type UsageTickerData,
 } from "./usage-ticker-data.js";
+
+describe("budgetPercent", () => {
+  it("computes a rounded consumed percentage", () => {
+    expect(budgetPercent({ tokensUsed: 460, maxTokens: 1000 })).toBe(46);
+    expect(budgetPercent({ tokensUsed: 1, maxTokens: 3 })).toBe(33);
+  });
+
+  it("clamps an exceeded budget to 100", () => {
+    expect(budgetPercent({ tokensUsed: 1500, maxTokens: 1000 })).toBe(100);
+  });
+
+  it("treats a non-positive ceiling as fully consumed, never a division by zero", () => {
+    expect(budgetPercent({ tokensUsed: 0, maxTokens: 0 })).toBe(100);
+  });
+});
 
 describe("toUsageTickerDisplayState", () => {
   it("maps available: false to the unavailable display state", () => {

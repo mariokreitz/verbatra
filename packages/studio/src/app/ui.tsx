@@ -1,5 +1,8 @@
 import { Fragment, type ReactNode, type Ref } from "react";
 import { Button } from "./Button.js";
+import { Card } from "./Card.js";
+import { Icon, type IconName } from "./Icon.js";
+import { cn } from "./lib/cn.js";
 import { Sheet } from "./Sheet.js";
 
 /**
@@ -11,6 +14,20 @@ import { Sheet } from "./Sheet.js";
 /** A monospace value cell, for anything that reads as code: locale codes, formats, token counts. */
 export function MonoValue({ children }: { readonly children: ReactNode }): ReactNode {
   return <span className="font-mono">{children}</span>;
+}
+
+/** A keyboard-key chip, for shortcut hints (the search pill, the shortcuts dialog). */
+export function Kbd({ children }: { readonly children: ReactNode }): ReactNode {
+  return (
+    <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+      {children}
+    </kbd>
+  );
+}
+
+/** The centered, width-capped content column every page renders inside. */
+export function Container({ children }: { readonly children: ReactNode }): ReactNode {
+  return <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>;
 }
 
 /** The click-outside-to-dismiss backdrop shared by every overlay (drawer, dialog, palette): a real
@@ -33,7 +50,7 @@ export function OverlayBackdrop({
   );
 }
 
-/** The icon-only "×" close button every overlay (`Sheet`, `Modal`, the mobile nav drawer) shows
+/** The icon-only close button every overlay (`Sheet`, `Modal`, the mobile nav drawer) shows
  * next to its title, previously copy-pasted identically in each of the three. `label` defaults to
  * "Close" (what every existing caller already passed) but stays overridable, since the mobile nav
  * drawer's is more specific ("Close navigation"). */
@@ -49,11 +66,11 @@ export function DialogCloseButton({
   return (
     <Button
       variant="ghost"
-      className={className ?? "flex-none text-lg leading-none"}
+      className={className ?? "flex-none p-1.5"}
       onClick={onClose}
       aria-label={label}
     >
-      <span aria-hidden="true">&times;</span>
+      <Icon name="close" />
     </Button>
   );
 }
@@ -95,14 +112,69 @@ export function Section({
   );
 }
 
-/** Shared className for a muted "nothing here" placeholder, exported so callers that need the
- * className alone (for example `CommitList`'s `emptyClassName` prop) stay in sync with `EmptyState`
- * below instead of hardcoding a copy of the string. */
-export const emptyStateClassName = "rounded-lg bg-muted p-4 text-muted-foreground";
+/**
+ * The designed "nothing here" placeholder: a dashed, centered block with a muted glyph, an
+ * optional short title, and the explanatory copy as children. Used for every empty table, list,
+ * and not-yet-recorded state, so "empty" always reads as a deliberate state of the page rather
+ * than a rendering gap. `action` is a slot for a follow-up control if a caller ever has one;
+ * most of this read-only dashboard's empty states are purely informational.
+ */
+export function EmptyState({
+  icon = "inbox",
+  title,
+  action,
+  children,
+}: {
+  readonly icon?: IconName;
+  readonly title?: string;
+  readonly action?: ReactNode;
+  readonly children: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-6 py-10 text-center">
+      <Icon name={icon} size={20} className="text-muted-foreground/60" />
+      {title !== undefined ? <p className="font-medium text-foreground">{title}</p> : null}
+      <div className="max-w-md text-sm text-muted-foreground">{children}</div>
+      {action}
+    </div>
+  );
+}
 
-/** A muted placeholder for "nothing here", used for empty tables and lists. */
-export function EmptyState({ children }: { readonly children: ReactNode }): ReactNode {
-  return <p className={emptyStateClassName}>{children}</p>;
+/**
+ * A page section rendered as a card with its own heading row: a title (an h2; the page's h1
+ * belongs to `PageHeader`), an optional intro line under it, and an optional inline-end `meta`
+ * slot for a badge or count. The card-per-section rhythm is what separates a screen into
+ * scannable blocks; the plain `Section` above stays for lighter contexts (drawer content).
+ */
+export function SectionCard({
+  title,
+  intro,
+  meta,
+  children,
+  className,
+}: {
+  readonly title: string;
+  readonly intro?: ReactNode;
+  readonly meta?: ReactNode;
+  readonly children: ReactNode;
+  readonly className?: string;
+}): ReactNode {
+  return (
+    <Card as="section" padding="md" className={cn("mb-6", className)}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          {intro !== undefined ? (
+            <p className="mt-0.5 text-sm text-muted-foreground">{intro}</p>
+          ) : null}
+        </div>
+        {meta !== undefined ? (
+          <div className="flex flex-none items-center gap-2">{meta}</div>
+        ) : null}
+      </div>
+      {children}
+    </Card>
+  );
 }
 
 /** A compact key/value grid for read-only config-style fields, replacing .detail-list. */
@@ -126,14 +198,17 @@ export function DetailList({
 /**
  * Shared table classes (not a component, since header/body shapes vary too much across panels to
  * usefully wrap): `divide-y` on tbody draws a rule between rows without one trailing the last row,
- * so no last-child override is needed the way the old .data-table CSS required.
+ * so no last-child override is needed the way the old .data-table CSS required. The tinted header
+ * row and full-width tables assume the `TableCard` (edge-to-edge card) or an in-card context.
  */
 export const tableClasses = {
-  table: "w-auto min-w-[480px] border-collapse text-sm",
-  th: "border-b-2 border-border px-3 py-2 text-start text-xs font-semibold text-muted-foreground",
+  table: "w-full min-w-[480px] border-collapse text-sm",
+  th: "border-b border-border bg-muted/40 px-3 py-2 text-start text-xs font-semibold text-muted-foreground",
   tbody: "divide-y divide-border",
   td: "px-3 py-2 text-foreground",
   rowHover: "hover:bg-accent/40",
+  /** For count/amount columns: end-aligned with fixed-rhythm digits. */
+  numeric: "text-end tabular-nums",
 };
 
 /**

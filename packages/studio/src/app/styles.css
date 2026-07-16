@@ -1,19 +1,109 @@
 /*
  * Verbatra Studio dashboard styles: Tailwind v4, CSS-first config.
  *
- * The chrome tokens (background, card, border, foreground, muted-foreground, primary, accent,
- * ring) are ported verbatim from the official docs site's design system
- * (apps/docs/app/global.css: --color-fd-*, --v-purple, --v-glow). The docs system is dark-only
- * (a single :root block, no light-mode variant), so Studio is dark-only too: same palette, same
- * theme, no toggle to build or maintain.
+ * Two runtime themes share one semantic token vocabulary. The raw values live on :root as
+ * --v-* custom properties (dark, the default and the brand look, with its chrome ported from
+ * the docs site's palette in apps/docs/app/global.css), and :root[data-theme="light"] overrides
+ * every one of them. The `@theme inline` block below maps each --v-* variable to a Tailwind
+ * token, so every generated utility references the variable itself and re-resolves the moment
+ * data-theme flips: switching themes recolors an already-rendered page with no rebuild and no
+ * per-utility dark: variants.
  *
- * Status colors (success/warning/danger) and the diff vocabulary (new/changed/unchanged) are not
- * part of the docs palette (it defines no such vocabulary). Status colors are common, recognizable
- * hues tuned for AA contrast on this dark surface. The diff colors reuse the docs site's own
- * change-signal precedent verbatim (--v-status-new/--v-status-changed/--v-status-unchanged).
+ * main.tsx assigns data-theme before the first render (see client/theme.ts): the stored
+ * preference, or the OS preference when set to "system". The bare :root defaults below only
+ * cover the instant before that assignment runs.
+ *
+ * Status colors (is a value correct or not) and the diff vocabulary (new/changed/orphaned) are
+ * tuned per theme. Every text-carrying pair below was validated against WCAG AA during
+ * development with a contrast script that composites the alpha "soft" tints over both their
+ * page and card surfaces: 4.5:1 for text and badge text, 3:1 for the non-text focus ring. The
+ * dark diff hues reuse the docs site's own change-signal precedent (--v-status-new/-changed),
+ * except orphaned, lightened from the docs value to clear AA on its badge tint.
  */
 
 @import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+
+  /* Chrome */
+  --v-background: hsl(240 24% 6%);
+  --v-card: hsl(240 28% 14%);
+  --v-popover: hsl(240 24% 18%);
+  --v-muted: hsl(240 24% 18%);
+  --v-border: hsl(240 23% 22%);
+  --v-foreground: hsl(240 30% 94%);
+  --v-muted-foreground: hsl(240 13% 65%);
+  --v-primary: hsl(258 47% 74%);
+  --v-primary-foreground: hsl(240 23% 7%);
+  --v-accent: hsl(258 25% 20%);
+  --v-accent-foreground: hsl(240 30% 94%);
+  /* Brighter than the docs site's ring (hsl(291 64% 42%)), which only reaches 2.7:1 against
+     this theme's card surface; this value clears the 3:1 non-text minimum on every surface. */
+  --v-ring: hsl(291 55% 55%);
+
+  /* Status */
+  --v-success: #4ade80;
+  --v-success-soft: hsl(142 71% 65% / 16%);
+  --v-warning: #fbbf24;
+  --v-warning-soft: hsl(43 96% 56% / 18%);
+  --v-danger: #f87171;
+  --v-danger-soft: hsl(0 91% 71% / 18%);
+  --v-neutral: hsl(240 13% 65%);
+  --v-neutral-soft: hsl(240 24% 18%);
+
+  /* Diff vocabulary */
+  --v-diff-new: hsl(258 47% 74%);
+  --v-diff-new-soft: hsl(258 47% 74% / 16%);
+  --v-diff-changed: #e7b6f2;
+  --v-diff-changed-soft: hsl(291 74% 84% / 16%);
+  --v-diff-orphaned: hsl(240 10% 65%);
+  --v-diff-orphaned-soft: hsl(240 10% 51% / 18%);
+
+  /* Elevation */
+  --v-shadow-panel: 0 24px 60px -30px hsl(291 64% 42% / 35%);
+  --v-shadow-panel-lg: 0 30px 80px -44px hsl(291 64% 42% / 38%);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* Chrome */
+  --v-background: hsl(240 20% 99%);
+  --v-card: hsl(0 0% 100%);
+  --v-popover: hsl(0 0% 100%);
+  --v-muted: hsl(240 20% 95%);
+  --v-border: hsl(240 15% 88%);
+  --v-foreground: hsl(240 28% 12%);
+  --v-muted-foreground: hsl(240 9% 40%);
+  --v-primary: hsl(258 45% 42%);
+  --v-primary-foreground: hsl(0 0% 100%);
+  --v-accent: hsl(258 35% 94%);
+  --v-accent-foreground: hsl(240 28% 12%);
+  --v-ring: hsl(291 64% 42%);
+
+  /* Status */
+  --v-success: hsl(142 72% 24%);
+  --v-success-soft: hsl(142 71% 45% / 12%);
+  --v-warning: hsl(35 92% 30%);
+  --v-warning-soft: hsl(43 96% 50% / 14%);
+  --v-danger: hsl(0 72% 38%);
+  --v-danger-soft: hsl(0 84% 60% / 10%);
+  --v-neutral: hsl(240 9% 38%);
+  --v-neutral-soft: hsl(240 20% 94%);
+
+  /* Diff vocabulary */
+  --v-diff-new: hsl(258 45% 42%);
+  --v-diff-new-soft: hsl(258 45% 42% / 10%);
+  --v-diff-changed: hsl(291 60% 35%);
+  --v-diff-changed-soft: hsl(291 60% 42% / 10%);
+  --v-diff-orphaned: hsl(240 8% 40%);
+  --v-diff-orphaned-soft: hsl(240 10% 45% / 10%);
+
+  /* Elevation: neutral, not purple-tinted; a glow shadow reads as a smudge on light surfaces. */
+  --v-shadow-panel: 0 16px 48px -20px hsl(240 30% 20% / 25%);
+  --v-shadow-panel-lg: 0 24px 64px -28px hsl(240 30% 20% / 30%);
+}
 
 @theme {
   --font-sans:
@@ -22,59 +112,44 @@
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
     monospace;
 
-  /* Chrome tokens, ported from apps/docs/app/global.css */
-  --color-background: hsl(240 24% 6%); /* --color-fd-background */
-  --color-card: hsl(240 28% 14%); /* --color-fd-card */
-  --color-popover: hsl(240 24% 18%); /* --color-fd-popover */
-  --color-muted: hsl(240 24% 18%); /* --color-fd-muted */
-  --color-border: hsl(240 23% 22%); /* --color-fd-border */
-  --color-foreground: hsl(240 30% 94%); /* --color-fd-foreground */
-  --color-muted-foreground: hsl(240 13% 65%); /* --color-fd-muted-foreground */
-  --color-primary: hsl(258 47% 74%); /* --color-fd-primary / --v-glow */
-  --color-primary-foreground: hsl(240 23% 7%); /* --color-fd-primary-foreground */
-  --color-accent: hsl(258 25% 20%); /* --color-fd-accent */
-  --color-accent-foreground: hsl(240 30% 94%); /* --color-fd-accent-foreground */
-  --color-ring: hsl(291 64% 42%); /* --color-fd-ring / --v-purple */
-
-  /* Extended brand tokens, ported verbatim */
-  --color-purple: hsl(291 64% 42%);
-  --color-glow: hsl(258 47% 74%);
-  --color-glow-soft: #d8c8f5;
-  --color-violet: #7c4dff;
-  --color-pink: #e7b6f2;
-  --color-void: hsl(240 24% 4%);
-
-  /* Status colors (is a value correct or not) are not part of the docs palette; deliberately
-     chosen, recognizable hues tuned for AA contrast on this dark surface. */
-  --color-success: #4ade80;
-  --color-success-soft: hsl(142 71% 65% / 16%);
-  --color-warning: #fbbf24;
-  --color-warning-soft: hsl(43 96% 56% / 18%);
-  --color-danger: #f87171;
-  --color-danger-soft: hsl(0 91% 71% / 18%);
-  --color-neutral: hsl(240 13% 65%);
-  --color-neutral-soft: hsl(240 24% 18%);
-
-  /* Diff vocabulary: what kind of pending change is this? "new" and "changed" reuse the docs
-     site's own change-signal hues verbatim (--v-status-new/--v-status-changed). "orphaned" starts
-     from the docs site's --v-status-unchanged (#6f6f86) but is lightened to hsl(240 10% 65%): the
-     original value only reaches ~2.9:1 against this badge's own soft-tint background (measured
-     against the card surface, its worst case), short of WCAG AA's 4.5:1 for normal text; this
-     value clears 4.5:1 on both the page and card surfaces while staying the same muted gray hue. */
-  --color-diff-new: hsl(258 47% 74%);
-  --color-diff-new-soft: hsl(258 47% 74% / 16%);
-  --color-diff-changed: #e7b6f2;
-  --color-diff-changed-soft: hsl(291 74% 84% / 16%);
-  --color-diff-orphaned: hsl(240 10% 65%);
-  --color-diff-orphaned-soft: hsl(240 10% 51% / 18%);
-
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+}
 
-  --shadow-panel: 0 24px 60px -30px hsl(291 64% 42% / 35%);
-  --shadow-panel-lg: 0 30px 80px -44px hsl(291 64% 42% / 38%);
+@theme inline {
+  --color-background: var(--v-background);
+  --color-card: var(--v-card);
+  --color-popover: var(--v-popover);
+  --color-muted: var(--v-muted);
+  --color-border: var(--v-border);
+  --color-foreground: var(--v-foreground);
+  --color-muted-foreground: var(--v-muted-foreground);
+  --color-primary: var(--v-primary);
+  --color-primary-foreground: var(--v-primary-foreground);
+  --color-accent: var(--v-accent);
+  --color-accent-foreground: var(--v-accent-foreground);
+  --color-ring: var(--v-ring);
+
+  --color-success: var(--v-success);
+  --color-success-soft: var(--v-success-soft);
+  --color-warning: var(--v-warning);
+  --color-warning-soft: var(--v-warning-soft);
+  --color-danger: var(--v-danger);
+  --color-danger-soft: var(--v-danger-soft);
+  --color-neutral: var(--v-neutral);
+  --color-neutral-soft: var(--v-neutral-soft);
+
+  --color-diff-new: var(--v-diff-new);
+  --color-diff-new-soft: var(--v-diff-new-soft);
+  --color-diff-changed: var(--v-diff-changed);
+  --color-diff-changed-soft: var(--v-diff-changed-soft);
+  --color-diff-orphaned: var(--v-diff-orphaned);
+  --color-diff-orphaned-soft: var(--v-diff-orphaned-soft);
+
+  --shadow-panel: var(--v-shadow-panel);
+  --shadow-panel-lg: var(--v-shadow-panel-lg);
 }
 
 @layer base {

@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import { Card } from "./Card.js";
 import { cn } from "./lib/cn.js";
 import { tableClasses } from "./ui.js";
 
@@ -35,15 +36,41 @@ export function TableRow({
 
 export function TableHeaderCell({
   className,
+  numeric = false,
   ...props
-}: ThHTMLAttributes<HTMLTableCellElement>): ReactNode {
-  return <th className={cn(tableClasses.th, className)} {...props} />;
+}: ThHTMLAttributes<HTMLTableCellElement> & { readonly numeric?: boolean }): ReactNode {
+  return (
+    <th className={cn(tableClasses.th, numeric && tableClasses.numeric, className)} {...props} />
+  );
 }
 
 export function TableCell({
   className,
   mono = false,
+  numeric = false,
   ...props
-}: TdHTMLAttributes<HTMLTableCellElement> & { readonly mono?: boolean }): ReactNode {
-  return <td className={cn(tableClasses.td, mono && "font-mono", className)} {...props} />;
+}: TdHTMLAttributes<HTMLTableCellElement> & {
+  readonly mono?: boolean;
+  readonly numeric?: boolean;
+}): ReactNode {
+  return (
+    <td
+      className={cn(
+        tableClasses.td,
+        mono && "font-mono",
+        numeric && tableClasses.numeric,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * The edge-to-edge card a page-level table sits in: rounded, bordered, horizontally scrollable
+ * when the table's minimum width exceeds the viewport, with the table's own tinted header row
+ * meeting the card's edges flush.
+ */
+export function TableCard({ className, ...props }: HTMLAttributes<HTMLDivElement>): ReactNode {
+  return <Card padding="none" className={cn("overflow-x-auto", className)} {...props} />;
 }

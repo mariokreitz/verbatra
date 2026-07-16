@@ -7,6 +7,7 @@ import {
 } from "../client/translate-pending-outcome.js";
 import { rpcClient } from "./api.js";
 import { Button } from "./Button.js";
+import { Icon } from "./Icon.js";
 import { actionStatusTextClassName } from "./lib/action-status-classes.js";
 import { Toast } from "./Toast.js";
 import { useCapabilities } from "./use-capabilities.js";
@@ -86,13 +87,8 @@ export function RefreshToast({ view, onDismiss }: RefreshToastProps): ReactNode 
         {state.kind !== "idle" ? (
           <span className={actionStatusClassName(state)}>{actionStatusLabel(state)}</span>
         ) : null}
-        <Button
-          variant="ghost"
-          className="ms-auto text-base leading-none"
-          onClick={onDismiss}
-          aria-label="Dismiss"
-        >
-          ×
+        <Button variant="ghost" className="ms-auto p-1.5" onClick={onDismiss} aria-label="Dismiss">
+          <Icon name="close" size={14} />
         </Button>
       </div>
     </Toast>

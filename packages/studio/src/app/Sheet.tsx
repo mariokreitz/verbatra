@@ -12,8 +12,8 @@ const CONTAINER_CLASSNAME: Readonly<Record<SheetSide, string>> = {
 };
 
 const PANEL_CLASSNAME: Readonly<Record<SheetSide, string>> = {
-  start: "h-full w-[min(420px,100%)] border-e",
-  end: "h-full w-[min(420px,100%)] border-s",
+  start: "h-full w-[min(480px,100%)] border-e",
+  end: "h-full w-[min(480px,100%)] border-s",
   top: "w-full max-h-[80vh] border-b",
   bottom: "w-full max-h-[80vh] border-t",
 };

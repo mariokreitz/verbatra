@@ -1,14 +1,19 @@
 ---
-"@verbatra/studio": patch
+"@verbatra/studio": minor
 ---
 
-The Verbatra Studio dashboard has a completely redesigned interface: the dashboard now uses
-Tailwind CSS, color-matched to the official documentation site's dark theme, in place of its
-previous hand-written stylesheet. The layout is responsive, with a collapsible off-canvas
-navigation drawer on narrower screens in place of the old fixed-width sidebar; the sidebar nav is
-grouped (Project, Translations, Operations) with a breadcrumb trail and a search entry point above
-it; and the UI is built on a full set of reusable components (Button, Card, form fields, Sheet,
-Modal, Popover, Dropdown, Tabs, Accordion, Table, Toast, skeleton loaders) instead of duplicated
-utility strings. Every panel (Overview, Status, Diff, Review, Usage, Lock, History) keeps its
-existing behavior and read-only RPC surface unchanged; only the visual layout, typography, and
-styling were rebuilt for a simpler, more consistent, and more accessible look.
+The Verbatra Studio dashboard is a completely redesigned application. The interface is rebuilt on
+Tailwind CSS with a reusable design system (metric tiles, section cards, data tables with tinted
+headers and progress meters, designed empty states, toasts, dialogs, tooltips, and skeleton
+loaders) in place of the previous hand-written stylesheet. The shell is new: a collapsible icon
+sidebar with grouped navigation, a fixed top bar with breadcrumbs, a global search entry point for
+the command palette, and a System/Light/Dark theme switcher backed by a full light theme (the
+dashboard was previously dark-only); the preference persists across reloads and "System" follows
+live OS changes. Screens were recomposed rather than restyled: Overview leads with the project's
+key facts and cards the configuration and glossary, Status and Lock lead with summary tiles over
+coverage-metered tables, Usage renders token totals and the budget as tiles with a consumed meter,
+Diff moves its report action into the page header and gains per-locale drift counts, Review gains
+locale and key filters over the queue, and History renders as a commit feed. A new keyboard
+shortcuts overview opens with "?" or from the top bar. Both themes were contrast-checked against
+WCAG AA during development. Every panel keeps its existing behavior and read-only RPC surface
+unchanged.
