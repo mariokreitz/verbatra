@@ -232,6 +232,33 @@ describe("dispatchRpc envelope", () => {
     expect(calls).toBe(0);
   });
 
+  it("answers 429 RATE_LIMITED for translation.editEntry specifically, without ever invoking its handler or reaching the sdk seam or disk", async () => {
+    let calls = 0;
+    const limiter: { tryAcquire: (method: string) => boolean } = {
+      tryAcquire: () => false,
+    };
+
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "greeting", value: "Hallo" },
+      }),
+      deps(),
+      {
+        "translation.editEntry": async () => {
+          calls += 1;
+          return { accepted: true, value: "Hallo" };
+        },
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(429);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "RATE_LIMITED" } });
+    expect(calls).toBe(0);
+  });
+
   it("does not rate-limit a method the limiter has no rule for", async () => {
     // A real limiter with a rule only for translation.retranslateEntry: project.snapshot is
     // untouched by any rule, so it must succeed regardless of how tight that other rule is.

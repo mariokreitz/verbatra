@@ -5,7 +5,7 @@ import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
 import { baseStudioConfig, type FixtureProject, makeFixtureProject } from "./test-support.js";
 
-/** The seven read-only handlers, matching the module-level default before capability-gating. */
+/** The eight read-only handlers, matching the module-level default before capability-gating. */
 const readOnlyHandlers = createRpcHandlers({ spend: false, writeToDisk: false });
 /** The full registry with translation.retranslateEntry also registered. */
 const writeCapableHandlers = createRpcHandlers({ spend: true, writeToDisk: true });
