@@ -1,4 +1,3 @@
-/** Renders a JSON-LD script block, escaping "<" so a value can never close the script element early. */
 export function JsonLd({ data }: { data: Record<string, unknown> }) {
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   return (

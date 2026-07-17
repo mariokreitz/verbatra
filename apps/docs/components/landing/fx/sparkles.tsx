@@ -4,12 +4,6 @@ import { type ReactNode, useEffect, useRef } from "react";
 
 type Particle = { x: number; y: number; r: number; p: number; s: number };
 
-/**
- * A twinkling canvas particle field sized to its parent. One animation loop
- * runs for the canvas lifetime; resizes are rAF-coalesced and preserve
- * particle positions and phases so the field never visibly reseeds. Under
- * prefers-reduced-motion it paints one static frame.
- */
 export function Sparkles({
   density = 0.00018,
   color = "#d8c8f5",

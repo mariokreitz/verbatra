@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 
 type Line = { kind: "command" | "output"; text: string };
 
-/** Props for the animated Terminal; `outputs` maps a command index to its output lines. */
 export type TerminalProps = {
   commands: ReadonlyArray<string>;
   outputs?: Readonly<Record<number, ReadonlyArray<string>>>;
@@ -13,7 +12,6 @@ export type TerminalProps = {
   typingSpeed?: number;
   delayBetweenCommands?: number;
   initialDelay?: number;
-  /** When false, the sequence types once and then holds the settled state. */
   loop?: boolean;
   className?: string;
 };
@@ -23,7 +21,6 @@ const HOLD_PAUSE_MS = 2600;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Lets the module-scope animation helpers drive component state without being redefined per render. */
 type PlayerContext = {
   isCancelled: () => boolean;
   setTyping: (value: string | null) => void;
@@ -99,7 +96,6 @@ function buildSettled(
   return settled;
 }
 
-/** Brand-token color for a shell token (check glyph, flags, quoted strings, numbers), or undefined for the base color. */
 function tokenColor(token: string): string | undefined {
   if (token === "✓") return "var(--v-glow)";
   if (token.startsWith("-")) return "var(--v-glow-soft)";
@@ -139,12 +135,6 @@ function LineRow({ line }: { line: Line }): ReactNode {
   );
 }
 
-/**
- * A macOS-style terminal window that types each command and prints its output
- * once scrolled into view, looping when `loop` is true. Under reduced motion
- * it renders the settled transcript at once. The animated body is decorative
- * (aria-hidden); an sr-only transcript is its accessible equivalent.
- */
 export function Terminal({
   commands,
   outputs,

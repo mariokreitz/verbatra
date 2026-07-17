@@ -15,10 +15,6 @@ const REASON_KEYS = [
   "dryRun",
 ] as const;
 
-/**
- * The "why verbatra" section: six localized reasons in a uniform spotlight
- * card grid. Server shell; each CardSpotlight is a pointer-driven client leaf.
- */
 export async function Features(): Promise<ReactNode> {
   const t = await getTranslations("landing.why");
   const reasons = t.raw("reasons") as Record<string, Reason>;

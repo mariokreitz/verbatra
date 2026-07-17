@@ -11,12 +11,6 @@ const SPARKLES = [
   { left: "13%", top: "64%", delay: 1.2, duration: 4.2 },
 ] as const;
 
-/**
- * An animated feature card: a masked visual area at the top with a traveling
- * glow beam and drifting sparkles, holding the given visual, with title and
- * body below. The visual area is decorative (aria-hidden); title and body
- * carry the meaning. Reduced motion settles the animation to a static frame.
- */
 export function FeatureCard({
   title,
   body,

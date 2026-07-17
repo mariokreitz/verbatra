@@ -6,10 +6,6 @@ import { GithubIcon } from "./github-icon";
 import { GITHUB_URL } from "./links";
 import { SectionHead } from "./section-head";
 
-/**
- * The closing CTA section, repeating the hero's quickstart and GitHub buttons
- * over a decorative backdrop. Server shell; only the Backdrop is a client leaf.
- */
 export async function FinalCta(): Promise<ReactNode> {
   const t = await getTranslations("landing.finalClose");
   const tHero = await getTranslations("landing.hero");

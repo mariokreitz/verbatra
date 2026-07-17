@@ -38,7 +38,6 @@ const HERO_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   ],
 };
 
-/** Static, server-rendered backdrop for the docs home: a faint fading grid and a soft violet wash, with no client JS or animation. */
 function StaticBackdrop(): ReactNode {
   const fade = "radial-gradient(ellipse 75% 65% at 50% 0%, #000 35%, transparent 80%)";
   return (
@@ -66,13 +65,6 @@ function StaticBackdrop(): ReactNode {
   );
 }
 
-/**
- * Full-bleed docs-home hero: static backdrop, gradient headline, the tabbed
- * install card, two CTAs, and a one-shot CLI terminal. The docs home article
- * runs full width, so this section spans the content area and centers itself.
- * Localized copy arrives as props from the per-locale MDX; the terminal script
- * is verbatim English CLI and never localized.
- */
 export function DocsHomeHero({
   eyebrow,
   headline,
@@ -168,7 +160,6 @@ export function DocsHomeHero({
   );
 }
 
-/** Wraps the below-hero docs-home content in a centered, readable column, since the home article itself runs full width. */
 export function DocsHomeBody({ children }: { children: ReactNode }): ReactNode {
   return <div className="mx-auto w-full max-w-4xl px-6 pt-4 pb-16">{children}</div>;
 }
@@ -181,7 +172,6 @@ type PathCard = {
   primary?: boolean;
 };
 
-/** The entry-lane cards on the docs home; the card marked primary renders filled, the rest outlined. */
 export function DocsHomePaths({ cards }: { cards: ReadonlyArray<PathCard> }): ReactNode {
   return (
     <div className="not-prose my-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -230,7 +220,6 @@ export function DocsHomePaths({ cards }: { cards: ReadonlyArray<PathCard> }): Re
   );
 }
 
-/** A compact two-column feature card grid for the docs home. */
 export function DocsHomeFeatures({
   features,
 }: {

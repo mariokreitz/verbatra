@@ -6,7 +6,6 @@ const WIDTHS = {
   lg: "max-w-6xl",
 } as const;
 
-/** Shared shell for the centered landing sections: the standard vertical rhythm, a centered container, and one of the two landing max widths. */
 export function Section({
   children,
   width = "lg",

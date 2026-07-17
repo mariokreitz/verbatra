@@ -15,12 +15,10 @@ const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 const display = Space_Grotesk({ subsets: ["latin"], variable: "--font-space-grotesk" });
 
-/** Static params for every supported locale. */
 export function generateStaticParams(): Array<{ lang: string }> {
   return i18n.languages.map((lang) => ({ lang }));
 }
 
-/** Site-wide metadata for the locale: title template, hreflang alternates, OpenGraph, and Twitter card. */
 export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
@@ -63,16 +61,10 @@ export async function generateMetadata(props: {
   };
 }
 
-/** Browser theme color matching the dark site background. */
 export const viewport: Viewport = {
   themeColor: "#0B0B12",
 };
 
-/**
- * Root layout for a locale: validates the URL locale, loads its message
- * catalog, and mounts the next-intl and Fumadocs providers plus the Umami
- * analytics script. Unknown locales 404.
- */
 export default async function Layout({
   params,
   children,

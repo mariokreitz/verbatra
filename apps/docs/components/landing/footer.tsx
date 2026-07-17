@@ -5,7 +5,6 @@ import { VMark } from "@/components/landing";
 import { GithubIcon } from "./github-icon";
 import { CODE_OF_CONDUCT_URL, GITHUB_URL, NPM_CLI, NPM_SDK, SECURITY_URL } from "./links";
 
-/** A footer link's text is either a translated catalog key (`labelKey`) or a verbatim proper noun (`literal`). */
 type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
 type FooterCol = { col: string; titleKey: string; links: ReadonlyArray<FooterLink> };
 
@@ -73,11 +72,6 @@ function FooterLinkItem({ link, label }: { link: FooterLink; label: string }): R
   );
 }
 
-/**
- * The full landing footer: brand column, four localized link columns, and the
- * legal line, over a void gradient with a glow seam and a large decorative
- * wordmark. Fully static, so it stays a server component.
- */
 export async function FullFooter(): Promise<ReactNode> {
   const t = await getTranslations("landing.footer");
   return (

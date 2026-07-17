@@ -56,7 +56,6 @@ const FAN_PATHS = [
   "M0 32 C 22 32, 22 52, 44 52",
 ] as const;
 
-/** Decorative mini-demo for the AI pillar: a source string fanning out into de/es/fr targets. Animates on scroll-into-view; static under reduced motion. */
 export function AiTranslationSkeleton(): ReactNode {
   const reduced = useReducedMotion() ?? false;
   return (
@@ -121,7 +120,6 @@ function GridGlyph(): ReactNode {
   );
 }
 
-/** Decorative mini-demo for the Excel pillar: an export -> xlsx -> import flow above a spreadsheet whose target column fills in. Animates on scroll-into-view; static under reduced motion. */
 export function ExcelHandoffSkeleton(): ReactNode {
   const reduced = useReducedMotion() ?? false;
   return (
@@ -225,7 +223,6 @@ function CheckCircle({ reduced }: { reduced: boolean }): ReactNode {
   );
 }
 
-/** Decorative mini-demo for the automation pillar: a CI pipeline that ticks to a check mark. Animates on scroll-into-view; static under reduced motion. */
 export function AutomationSkeleton(): ReactNode {
   const reduced = useReducedMotion() ?? false;
   return (

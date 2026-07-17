@@ -2,13 +2,6 @@ import type * as PageTree from "fumadocs-core/page-tree";
 import { getTranslations } from "next-intl/server";
 import type { Locale } from "@/lib/i18n";
 
-/**
- * Appends a separator plus the llms.txt and llms-full.txt links to a page
- * tree's root children so they render after every real docs section.
- * Fumadocs' own `links`/`menuItems` mechanism always renders above the page
- * tree with no way to reorder it, which is why this edits the tree data
- * instead of using DocsLayout's `links` prop.
- */
 export async function withLlmsLinks(tree: PageTree.Root, locale: Locale): Promise<PageTree.Root> {
   const t = await getTranslations({ locale, namespace: "docs.llms" });
   const trailer: PageTree.Node[] = [

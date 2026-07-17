@@ -16,13 +16,6 @@ import { i18n, type Locale } from "@/lib/i18n";
 import { source } from "@/lib/source";
 import { techArticleLd } from "@/lib/structured-data";
 
-/**
- * Renders a docs page from the Fumadocs source. The docs home ships its own
- * full-bleed hero, so title, description, table of contents, footer, and page
- * padding are suppressed there; every other page keeps the standard chrome.
- * Non-English pages get a translation notice linking to the English original,
- * and "Edit this page" points at the page's own locale-suffixed source file.
- */
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
   const lang = params.lang as Locale;
@@ -80,16 +73,10 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   );
 }
 
-/** Static params for every docs page in every locale. */
 export function generateStaticParams() {
   return source.generateParams();
 }
 
-/**
- * Per-page metadata with hreflang alternates pairing each translation of the
- * page, plus OpenGraph and Twitter cards carrying this page's own title and
- * description instead of the layout defaults.
- */
 export async function generateMetadata(props: {
   params: Promise<{ slug?: string[]; lang: string }>;
 }): Promise<Metadata> {

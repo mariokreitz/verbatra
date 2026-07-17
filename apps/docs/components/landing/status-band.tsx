@@ -51,11 +51,6 @@ const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
   },
 ];
 
-/**
- * Six linked trust badges sourced as live external images. The "band" variant
- * is a full-width ribbon; the "inline" variant is the centered row inside the
- * hero. Static server component; no runtime fetch happens here.
- */
 export async function StatusBand({
   variant = "band",
 }: {

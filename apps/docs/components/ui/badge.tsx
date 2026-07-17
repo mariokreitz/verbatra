@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/** Props for the docs Badge; `tone` picks the color treatment. */
 export type BadgeProps = {
   tone?: "neutral" | "glow" | "new" | "changed" | "unchanged" | "solid";
   children: ReactNode;
@@ -35,7 +34,6 @@ const TONE_STYLE: Record<Exclude<NonNullable<BadgeProps["tone"]>, "neutral">, CS
   },
 };
 
-/** A small mono uppercase badge with a tone-driven color treatment. */
 export default function Badge({ tone = "neutral", children }: BadgeProps): ReactNode {
   if (tone === "neutral") {
     return <span className={`${BASE} ${NEUTRAL}`}>{children}</span>;

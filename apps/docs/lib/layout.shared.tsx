@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { CONTRIBUTING_URL } from "@/components/landing/links";
 import { i18n, type Locale } from "@/lib/i18n";
 
-/** Fumadocs UI translations; de/es/fr inherit the English strings, since Fumadocs ships no bundled preset for them. */
 export const translations = i18n.translations().extend(uiTranslations());
 
 const localeNames = [
@@ -14,24 +13,14 @@ const localeNames = [
   { locale: "fr", name: "Français" },
 ];
 
-/** RootProvider i18n config for the active locale, including the language switcher's autonym display names. */
 export function i18nConfig(locale: string) {
   return { ...i18nProvider(translations, locale), locales: localeNames };
 }
 
-/** Prefixes a path with the locale, except for the unprefixed default locale, so chrome links never jump a reader out of their locale. */
 function localized(locale: Locale, path: string): string {
   return locale === i18n.defaultLanguage ? path : `/${locale}${path}`;
 }
 
-/**
- * Shared nav chrome for the home, legal, and docs layouts: the brand mark,
- * the Docs and Contributing links, the GitHub URL, and a disabled theme
- * switch (the theme is forced dark). The llms.txt links are deliberately not
- * here; they are appended to the docs page tree instead (see
- * lib/docs-page-tree.ts), because Fumadocs renders layout links above the
- * tree with no way to reorder them.
- */
 export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
   const t = await getTranslations({ locale, namespace: "landing.nav" });
   return {

@@ -5,7 +5,6 @@ import type { Locale } from "@/lib/i18n";
 import { baseOptions } from "@/lib/layout.shared";
 import { source } from "@/lib/source";
 
-/** Wraps docs pages in the Fumadocs docs layout, with the llms.txt links appended to the page tree. */
 export default async function Layout({
   params,
   children,

@@ -21,10 +21,6 @@ import {
 
 const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const;
 
-/**
- * The localized marketing landing page. Feeds the same FAQ and how-to copy to
- * the visible sections and their JSON-LD blocks so the two cannot drift.
- */
 export default async function HomePage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
   const locale = lang as Locale;

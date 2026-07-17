@@ -26,11 +26,6 @@ const PROVIDERS: ReadonlyArray<SwapLogo> = [
   },
 ];
 
-/**
- * The providers section: the four provider logos in a static cloud (the pool
- * matches the visible slots, so nothing rotates). Server shell; the cloud is
- * the client leaf.
- */
 export async function ProvidersCloud(): Promise<ReactNode> {
   const t = await getTranslations("landing.providers");
   return (

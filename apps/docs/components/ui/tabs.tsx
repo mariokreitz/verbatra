@@ -2,7 +2,6 @@
 
 import { type ReactNode, useState } from "react";
 
-/** Props for the docs Tabs; pass `value` for controlled use or `defaultValue` for uncontrolled. */
 export type TabsProps = {
   tabs: ReadonlyArray<{ id: string; label: string }>;
   value?: string;
@@ -11,7 +10,6 @@ export type TabsProps = {
   children?: ReactNode;
 };
 
-/** The design-system tab strip, controlled or uncontrolled; renders `children` unconditionally below the tablist. */
 export default function Tabs({
   tabs,
   value,

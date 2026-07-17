@@ -2,13 +2,11 @@
 
 import { type ReactNode, useState } from "react";
 
-/** Props for CommandLine; `link` turns one token of the command into an external link. */
 export type CommandLineProps = {
   command: string;
   link?: { token: string; href: string };
 };
 
-/** A single shell command in a prompt-styled row with a copy button. */
 export default function CommandLine({ command, link }: CommandLineProps): ReactNode {
   const [copied, setCopied] = useState(false);
 

@@ -22,7 +22,6 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
-/** SoftwareApplication and SoftwareSourceCode facts for the homepage; `description`, `inLanguage`, and `version` follow the active locale and the resolved package version. */
 export function softwareApplicationLd(args: {
   description: string;
   lang: string;
@@ -63,10 +62,8 @@ export function softwareApplicationLd(args: {
   };
 }
 
-/** One question/answer pair shared by the visible FAQ and its JSON-LD. */
 export type FaqItem = { question: string; answer: string };
 
-/** FAQPage facts mirroring the on-page FAQ; `inLanguage` follows the active locale. */
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;
@@ -83,10 +80,8 @@ export function faqPageLd(args: {
   };
 }
 
-/** One step shared by the visible how-it-works list and its JSON-LD. */
 export type HowToStepItem = { name: string; text: string };
 
-/** HowTo facts mirroring the on-page "How it works" pipeline; `inLanguage` follows the active locale. */
 export function howToLd(args: {
   name: string;
   steps: ReadonlyArray<HowToStepItem>;
@@ -106,7 +101,6 @@ export function howToLd(args: {
   };
 }
 
-/** TechArticle facts for an individual documentation page. */
 export function techArticleLd(args: {
   title: string;
   description?: string | undefined;

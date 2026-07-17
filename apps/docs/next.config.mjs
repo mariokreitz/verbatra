@@ -2,7 +2,6 @@ import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import createNextIntlPlugin from "next-intl/plugin";
 
-/** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
   output: "standalone",

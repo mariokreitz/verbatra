@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** The GitHub mark as an inline SVG in the current text color. */
 export function GithubIcon({
   size = 18,
   className,

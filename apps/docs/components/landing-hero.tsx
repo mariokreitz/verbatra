@@ -45,12 +45,6 @@ const CLI_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   ],
 };
 
-/**
- * The centered landing hero: gradient headline, lead, install card, two CTAs,
- * the live trust badges, and the animated CLI terminal in a glowing frame.
- * Server shell; only the Backdrop, the install card, and the Terminal are
- * client leaves. The terminal script is verbatim English CLI, never localized.
- */
 export async function LandingHero(): Promise<ReactNode> {
   const t = await getTranslations("landing.hero");
   return (

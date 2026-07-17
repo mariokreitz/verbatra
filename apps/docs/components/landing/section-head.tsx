@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-/** A display heading with an optional lead paragraph, left-aligned or centered. */
 export function SectionHead({
   title,
   lead,

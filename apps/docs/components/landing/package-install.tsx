@@ -15,11 +15,6 @@ const MANAGERS = [
 const CLI_TOKEN = "@verbatra/cli";
 const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
 
-/**
- * The terminal-style install card: package-manager tabs in the title bar, the
- * install command with the @verbatra/cli token linked to npm, and a copy
- * button. Interactive, so it is a client leaf.
- */
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("pnpm");

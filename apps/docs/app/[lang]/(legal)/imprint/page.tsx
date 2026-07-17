@@ -4,7 +4,6 @@ import { LEGAL_LAST_UPDATED } from "@/lib/site";
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
 
-/** Localized title and description for the imprint page; indexing stays enabled. */
 export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
@@ -17,10 +16,6 @@ export async function generateMetadata(props: {
   };
 }
 
-/**
- * The imprint (Impressum) page. The German statutory body is kept verbatim in
- * every locale; only the intro and the last-updated label are localized.
- */
 export default async function ImprintPage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
   const t = await getTranslations({ locale: lang, namespace: "legal.imprint" });

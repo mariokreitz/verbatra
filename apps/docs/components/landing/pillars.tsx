@@ -17,11 +17,6 @@ const PILLARS: ReadonlyArray<Pillar> = [
   { key: "automation", visual: <AutomationSkeleton /> },
 ];
 
-/**
- * The three-pillar section (AI translation, Excel handoff, automation) as a
- * row of animated feature cards. Server shell; each FeatureCard and its
- * skeleton visual is a client leaf.
- */
 export async function Pillars(): Promise<ReactNode> {
   const t = await getTranslations("landing.pillars");
   return (

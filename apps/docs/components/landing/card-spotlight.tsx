@@ -3,12 +3,6 @@
 import { type ReactNode, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-/**
- * A bordered card with a hover spotlight: a radial glow follows the cursor and
- * reveals a brand-tinted dot grid inside its radius. The pointer position is
- * written to CSS custom properties through a ref, so cursor movement never
- * re-renders; only the hover boolean is state.
- */
 export function CardSpotlight({
   children,
   className,

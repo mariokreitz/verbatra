@@ -15,11 +15,6 @@ const DEFAULT_ROWS: ReadonlyArray<Row> = [
   { key: "cart.total", source: "Total", target: "Gesamt" },
 ];
 
-/**
- * Animated diff figure demonstrating "translate only what changed": the one
- * changed row types out its new translation when scrolled into view. The
- * server render and reduced-motion users get the final, settled state.
- */
 export function DiffPanel({
   rows = DEFAULT_ROWS,
   sourceFile = "en.json",

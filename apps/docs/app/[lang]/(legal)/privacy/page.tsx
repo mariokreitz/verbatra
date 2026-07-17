@@ -20,7 +20,6 @@ const linkTags = {
   strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
 };
 
-/** Localized title and description for the privacy page; indexing stays enabled. */
 export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
@@ -33,11 +32,6 @@ export async function generateMetadata(props: {
   };
 }
 
-/**
- * The privacy policy page. Section keys and link targets are fixed in code so
- * every locale renders the same sections and links; English is the legally
- * authoritative version, so non-English pages carry a translation disclaimer.
- */
 export default async function PrivacyPage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
   const locale = lang as Locale;

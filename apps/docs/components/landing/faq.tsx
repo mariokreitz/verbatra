@@ -10,7 +10,6 @@ import { SectionHead } from "./section-head";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-/** One accordion row: a question button with a rotating plus icon and a motion height reveal for the answer. */
 function FaqRow({
   item,
   index,
@@ -69,12 +68,6 @@ function FaqRow({
   );
 }
 
-/**
- * Two-column FAQ: a sticky intro with CTAs on the left, a single-open
- * accordion on the right. The items come from the server page, which feeds
- * the same array to the FAQPage JSON-LD so the two cannot drift. Reduced
- * motion collapses the open/close transitions to zero duration.
- */
 export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const t = useTranslations("landing.faq");
   const [open, setOpen] = useState(0);

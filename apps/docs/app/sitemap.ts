@@ -12,10 +12,6 @@ const HOME_ALTERNATES = {
   },
 } as const;
 
-/**
- * The sitemap: the four locale homes plus every docs page per locale, each
- * entry carrying hreflang alternates for its translations.
- */
 export default function sitemap(): MetadataRoute.Sitemap {
   const homePaths: ReadonlyArray<{ path: string; priority: number }> = [
     { path: "/", priority: 1 },

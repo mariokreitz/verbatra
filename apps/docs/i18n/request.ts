@@ -4,7 +4,6 @@ import en from "../messages/en.json";
 
 type Messages = Record<string, unknown>;
 
-/** Validates the requested locale, falling back to the default so a stray value can never load a missing catalog. */
 function resolveLocale(requested: string | undefined): Locale {
   if (requested && (i18n.languages as readonly string[]).includes(requested)) {
     return requested as Locale;
@@ -16,12 +15,6 @@ function isPlainObject(value: unknown): value is Messages {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/**
- * Deep-merges a locale catalog over the English base, locale values winning.
- * next-intl does not fall back per message, so a key present only in en.json
- * would otherwise render its raw path under de/es/fr until `pnpm i18n`
- * regenerates the catalogs.
- */
 function withFallback(base: Messages, override: Messages): Messages {
   const merged: Messages = { ...base };
   for (const [key, value] of Object.entries(override)) {
@@ -32,7 +25,6 @@ function withFallback(base: Messages, override: Messages): Messages {
   return merged;
 }
 
-/** next-intl request config: resolves the locale and loads its messages with English fallback merged in. */
 export default getRequestConfig(async ({ requestLocale }) => {
   const locale = resolveLocale(await requestLocale);
   const base = en as Messages;

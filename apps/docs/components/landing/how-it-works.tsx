@@ -5,7 +5,6 @@ import { SectionHead } from "./section-head";
 
 type Step = { title: string; body: string };
 
-/** The "how it works" section: a numbered, connector-lined step list from the localized catalog. Fully static server component. */
 export async function HowItWorks(): Promise<ReactNode> {
   const t = await getTranslations("landing.how");
   const steps = Object.values(t.raw("steps") as Record<string, Step>);

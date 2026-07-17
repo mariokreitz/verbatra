@@ -69,11 +69,6 @@ const FRAMEWORKS: ReadonlyArray<SwapLogo> = [
   },
 ];
 
-/**
- * The frameworks compatibility section: a rotating logo cloud of frameworks
- * whose locale formats verbatra reads. Server shell; the swap cloud is the
- * client leaf.
- */
 export async function FrameworksCloud(): Promise<ReactNode> {
   const t = await getTranslations("landing.compat");
   return (

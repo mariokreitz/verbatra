@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** The OpenAI brand mark as an inline SVG, inlined because Simple Icons does not ship it. */
 export function OpenAiIcon({
   size = 16,
   className,
