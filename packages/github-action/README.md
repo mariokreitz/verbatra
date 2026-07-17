@@ -23,9 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha> # v1.1.0
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
         with:
-          version: 1.2.3
+          version: 0.5.0
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -35,10 +35,11 @@ A composite action cannot declare its own `permissions:`; only the consuming wor
 only `contents: read`. Do not grant anything broader unless your own surrounding steps require it.
 
 Pin every `uses:` reference, including this action itself, to a full commit SHA rather than a
-mutable tag such as `@v1.1.0` or `@v4`, matching this repository's own SHA-pinning convention
-(see `actions/checkout` above). `<commit-sha>` above is a placeholder: replace it with the full
-40-character SHA of the release commit of this action you intend to depend on, and keep the
-version tag as a trailing comment so the pin stays readable.
+mutable ref, matching this repository's own SHA-pinning convention (see `actions/checkout`
+above). `<commit-sha>` above is a placeholder: replace it with the full 40-character SHA of the
+commit on `main` you intend to depend on. This repository tags releases per npm package (for
+example `@verbatra/cli@0.5.0`); the action itself is not published and has no version tag of its
+own, so a commit SHA is the only stable reference to it.
 
 ## Secret wiring
 
@@ -68,10 +69,11 @@ env:
 
 ## Version pinning
 
-The `version` input MUST be pinned to an exact version (for example `version: 1.2.3`) for
+The `version` input MUST be pinned to an exact version (for example `version: 0.5.0`) for
 reproducible, supply-chain-safe CI. Do not use a floating tag such as `latest` and do not use a
 range. A floating tag pulls whatever is newest at run time, which is non-reproducible and would
-auto-pull a compromised release.
+auto-pull a compromised release. The action enforces this: a `version` that is not an exact
+semver (a dist-tag, a range, or a `^`/`~` prefix) fails the step before anything is installed.
 
 The action installs the CLI via `npx` at run time, so the pinned `version` is what governs
 reproducibility: pinning it pins exactly which CLI release runs.
@@ -87,7 +89,7 @@ annotation built from the CLI error. The job then exits with the CLI exit code.
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | none | The `@verbatra/cli` version to run, for example `1.2.3`. Pin to an exact version; do not use a floating tag such as `latest`. |
+| `version` | yes | none | The `@verbatra/cli` version to run, for example `0.5.0`. Must be an exact semver version; a dist-tag such as `latest`, a range, or a `^`/`~` prefix fails the step. |
 | `config-path` | no | `""` | Explicit config file to load (maps to `--config`). Empty uses the normal config search. |
 | `working-directory` | no | `""` | Directory to resolve config and locale files against (maps to `--cwd`). |
 | `dry-run` | no | `"false"` | Report what would change without calling a provider or writing (maps to `--dry-run`). |

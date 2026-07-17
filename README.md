@@ -21,7 +21,7 @@
 
 verbatra translates your application's locale files for you. You maintain the source locale by hand, and as strings are added or change, verbatra fills in every target locale through the AI or machine-translation provider you choose. It records what it has already translated, so each run touches only what actually changed.
 
-It ships in two packages. `@verbatra/cli` gives you a `verbatra` command for the terminal and CI, and `@verbatra/sdk` is the same engine as a programmatic API. verbatra is built SDK-first: the CLI is a thin wrapper over the SDK, so anything the command line does, you can also do in code.
+It ships in three packages. `@verbatra/cli` gives you a `verbatra` command for the terminal and CI, `@verbatra/sdk` is the same engine as a programmatic API, and `@verbatra/studio` is a local web dashboard served through the `verbatra studio` command. verbatra is built SDK-first: the CLI is a thin wrapper over the SDK, so anything the command line does, you can also do in code.
 
 ## Features
 
@@ -35,6 +35,7 @@ It ships in two packages. `@verbatra/cli` gives you a `verbatra` command for the
 - **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run.
 - **Placeholder integrity.** Every translation is checked after the fact; a result that drops or alters a placeholder is withheld and reported rather than written.
 - **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape. A genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path, errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. See the [Formats page](https://verbatra.kreitz-webdev.de/docs/formats) for the full behavior.
+- **Document key order preserved.** JSON-family, YAML, and ARB files round-trip in exact document key order: integer-like keys keep their position, and new keys append in source-document order. A YAML composite key (a map or sequence used as a mapping key) fails with a structured error instead of being silently mangled.
 - **Opt-in cleanup and plural generation.** Orphan pruning (`--prune` / `prune`) and CLDR plural-category generation (`generatePlurals`) are off by default and documented on the [Configuration page](https://verbatra.kreitz-webdev.de/docs/config-file).
 - **Keys stay in your environment.** API keys are read only from environment variables, never from the config.
 
@@ -131,18 +132,22 @@ Each provider reads its API key from one environment variable:
 | `verbatra diff` | List the keys per locale that would be added, re-translated, or are orphaned, without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
+| `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--cwd`, `--config` |
 
 Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
 
 ## Verbatra Studio
 
-`verbatra studio` starts Verbatra Studio, a local, read-only web dashboard over your project: translation status, the diff explorer, your resolved config and glossary, lock-file drift, and locale-file history, all read from the same computations as `check` and `diff`. It binds to `127.0.0.1` only, gates every request behind a per-session token, and never calls a provider or writes a file.
+`verbatra studio` starts Verbatra Studio, a local web dashboard over your project with four pages: Translations (per-locale status, the diff, and lock drift, down to a per-key detail view), Review (the needs-review queue, where you can edit a translation in place), Activity (a live feed of locale-file changes and the last run's token usage and budget), and Settings (your resolved config, glossary, and the session's capabilities). Every page refreshes live over a server-sent event stream as your locale files change.
+
+Local editing is always on: an edit from the Review queue goes through the same placeholder and ICU integrity checks as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only and gates every request behind a per-session token.
 
 ```bash
 verbatra studio
+# Verbatra Studio running at http://127.0.0.1:5849/?token=...
 ```
 
-Studio ships with the regular packages; install both as dev dependencies:
+Studio ships as its own package; install both as dev dependencies:
 
 ```bash
 pnpm add -D @verbatra/cli @verbatra/studio
@@ -188,6 +193,7 @@ See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
 | --- | --- |
 | [`@verbatra/cli`](./packages/cli/README.md) | The `verbatra` command-line tool. |
 | [`@verbatra/sdk`](./packages/sdk/README.md) | The programmatic API. |
+| [`@verbatra/studio`](./packages/studio/README.md) | The local Verbatra Studio dashboard, served through `verbatra studio`. |
 
 ## Security
 
