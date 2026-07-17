@@ -1,5 +1,8 @@
 #!/usr/bin/env node
-// Fails if the em dash character (U+2014) appears in any git-tracked text file.
+/**
+ * Fails if the em dash character (U+2014) appears in any git-tracked text file. Skips the
+ * lockfile, known binary extensions, and files whose content looks binary.
+ */
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -29,7 +32,8 @@ const BINARY_EXTENSIONS = new Set([
 ]);
 
 /**
- * @returns {string[]} repository-relative paths of all git-tracked files.
+ * Lists all git-tracked files.
+ * @returns {string[]} repository-relative paths
  */
 function listTrackedFiles() {
   const output = execFileSync("git", ["ls-files", "-z"], { encoding: "utf8" });
@@ -37,7 +41,8 @@ function listTrackedFiles() {
 }
 
 /**
- * @param {string} path
+ * Whether a tracked file should be scanned, based on the skip list and its extension.
+ * @param {string} path - repository-relative file path
  * @returns {boolean}
  */
 function isScannable(path) {
@@ -57,9 +62,10 @@ function isScannable(path) {
  */
 
 /**
- * @param {string} text
- * @param {string} path
- * @param {number} line
+ * Collects every em dash occurrence in a single line.
+ * @param {string} text - the line content
+ * @param {string} path - the file the line belongs to
+ * @param {number} line - one-based line number
  * @returns {Hit[]}
  */
 function scanLine(text, path, line) {
@@ -74,8 +80,9 @@ function scanLine(text, path, line) {
 }
 
 /**
- * A missing or unreadable tracked file is skipped rather than treated as a violation.
- * @param {string} path
+ * Scans one file for em dash occurrences. A missing or unreadable tracked file, or one whose
+ * content contains a NUL byte (binary), is skipped rather than treated as a violation.
+ * @param {string} path - repository-relative file path
  * @returns {Hit[]}
  */
 function scanFile(path) {

@@ -32,6 +32,13 @@ async function buildPackables(): Promise<void> {
   );
 }
 
+/**
+ * Resolves the sdk and cli tarballs: from `VERBATRA_SDK_TARBALL`/`VERBATRA_CLI_TARBALL` when both
+ * are set (the CI path), otherwise by building the publishable subgraph and running `pnpm pack`
+ * into a temp directory.
+ *
+ * @throws When exactly one of the two override variables is set.
+ */
 async function packTarballs(): Promise<{ sdk: string; cli: string }> {
   const envSdk = process.env.VERBATRA_SDK_TARBALL;
   const envCli = process.env.VERBATRA_CLI_TARBALL;
@@ -58,6 +65,10 @@ async function packTarballs(): Promise<{ sdk: string; cli: string }> {
   };
 }
 
+/**
+ * Vitest global setup: packs (or resolves) the tarballs once per run and writes their paths to
+ * `e2e/.tarballs.json` for the harness's `readTarballs` to consume.
+ */
 export async function setup(): Promise<void> {
   const tarballs = await packTarballs();
   await writeFile(manifestPath, JSON.stringify(tarballs, null, 2));

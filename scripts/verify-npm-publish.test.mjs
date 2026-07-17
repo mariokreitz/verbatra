@@ -104,8 +104,6 @@ describe("isLatestTagViolation", () => {
   });
 
   it("passes when latest is stuck on an older prerelease from before the guard", () => {
-    // The @verbatra/studio state this check must not trip on: latest = 0.1.0-next.6
-    // predates the guard; only the version published in this run counts.
     expect(isLatestTagViolation("0.1.0-next.7", "0.1.0-next.6")).toBe(false);
   });
 
