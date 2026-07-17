@@ -1,41 +1,10 @@
-/*
- * Verbatra Studio dashboard styles: Tailwind v4, CSS-first config.
- *
- * The visual language is "Technical Precision": an indigo primary, Inter for prose, JetBrains
- * Mono for anything that reads as data (keys, counts, micro-labels), a compact 4px-based corner
- * radius, and one constant dark-indigo navigation rail that anchors the chrome in both themes.
- * Both font families resolve through local stacks only; the studio server's CSP forbids external
- * requests, so the named fonts apply when installed and the platform stacks carry the fallback.
- *
- * Two runtime themes share one semantic token vocabulary. The raw values live on :root as
- * --v-* custom properties (light, the template's native mode, is the default), and
- * :root[data-theme="dark"] overrides every one of them. The `@theme inline` block below maps
- * each --v-* variable to a Tailwind token, so every generated utility references the variable
- * itself and re-resolves the moment data-theme flips: switching themes recolors an
- * already-rendered page with no rebuild and no per-utility dark: variants.
- *
- * main.tsx assigns data-theme before the first render (see client/theme.ts): the stored
- * preference, or the OS preference when set to "system". The bare :root defaults below only
- * cover the instant before that assignment runs.
- *
- * The sidebar tokens are deliberately theme-invariant: the navigation rail stays dark indigo in
- * both themes, the way the brand chrome does in the design reference, so only the content
- * surface responds to the theme switch.
- *
- * Status colors (is a value correct or not) and the diff vocabulary (new/changed/orphaned) are
- * tuned per theme. Every text-carrying pair below was computed against WCAG AA during this
- * redesign with a contrast script that composites the alpha "soft" tints over their card
- * surface: 4.5:1 for text and badge text (all pairs measure 5.5:1 or better), and 3:1 for the
- * non-text focus ring, including the rail's own focus outline (--v-sidebar-active against
- * --v-sidebar).
- */
+
 
 @import "tailwindcss";
 
 :root {
   color-scheme: light;
 
-  /* Chrome */
   --v-background: hsl(228 100% 99%);
   --v-card: hsl(0 0% 100%);
   --v-popover: hsl(0 0% 100%);
@@ -50,7 +19,6 @@
   --v-accent-foreground: hsl(246 70% 40%);
   --v-ring: hsl(243 75% 51%);
 
-  /* Navigation rail: constant dark indigo, independent of the theme. */
   --v-sidebar: hsl(244 48% 12%);
   --v-sidebar-foreground: hsl(240 35% 92%);
   --v-sidebar-muted: hsl(242 20% 66%);
@@ -58,7 +26,6 @@
   --v-sidebar-accent: hsl(244 40% 20%);
   --v-sidebar-active: hsl(243 80% 62%);
 
-  /* Status */
   --v-success: hsl(150 85% 22%);
   --v-success-soft: hsl(150 70% 42% / 12%);
   --v-warning: hsl(33 95% 28%);
@@ -68,7 +35,6 @@
   --v-neutral: hsl(243 10% 36%);
   --v-neutral-soft: hsl(240 30% 95%);
 
-  /* Diff vocabulary */
   --v-diff-new: hsl(246 70% 47%);
   --v-diff-new-soft: hsl(243 75% 59% / 10%);
   --v-diff-changed: hsl(291 62% 34%);
@@ -76,7 +42,6 @@
   --v-diff-orphaned: hsl(240 8% 38%);
   --v-diff-orphaned-soft: hsl(240 10% 45% / 10%);
 
-  /* Elevation: neutral, restrained; overlays separate from the page by depth, not tint. */
   --v-shadow-panel: 0 8px 24px -12px hsl(244 40% 20% / 22%);
   --v-shadow-panel-lg: 0 24px 64px -28px hsl(244 40% 20% / 32%);
 }
@@ -84,7 +49,6 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Chrome */
   --v-background: hsl(240 30% 7%);
   --v-card: hsl(241 28% 11%);
   --v-popover: hsl(241 26% 14%);
@@ -99,8 +63,6 @@
   --v-accent-foreground: hsl(238 88% 84%);
   --v-ring: hsl(238 80% 72%);
 
-  /* The rail keeps its own values in dark mode too: slightly deeper than the page so the
-     chrome/content split stays legible when both are dark. */
   --v-sidebar: hsl(244 44% 9%);
   --v-sidebar-foreground: hsl(240 35% 92%);
   --v-sidebar-muted: hsl(242 18% 64%);
@@ -108,7 +70,6 @@
   --v-sidebar-accent: hsl(244 36% 17%);
   --v-sidebar-active: hsl(238 88% 79%);
 
-  /* Status */
   --v-success: hsl(142 66% 68%);
   --v-success-soft: hsl(142 71% 60% / 15%);
   --v-warning: hsl(43 92% 62%);
@@ -118,7 +79,6 @@
   --v-neutral: hsl(240 14% 68%);
   --v-neutral-soft: hsl(241 26% 17%);
 
-  /* Diff vocabulary */
   --v-diff-new: hsl(238 88% 79%);
   --v-diff-new-soft: hsl(238 88% 79% / 14%);
   --v-diff-changed: hsl(291 70% 80%);
@@ -138,7 +98,6 @@
     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
 
-  /* Compact, technical corner rhythm (the reference's 4px roundness). */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
