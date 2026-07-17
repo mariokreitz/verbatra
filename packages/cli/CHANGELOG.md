@@ -1,5 +1,138 @@
 # @verbatra/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- b6c871f: Harden the CLI's error handling at four boundary points that previously bypassed the structured error
+  scaffold and could surface a raw stack instead of a clean exit code:
+
+  - `translate` and `watch` now load `.env`/`.env.local` inside the same try that maps errors to exit
+    `2`. A missing `.env` file is still a silent no-op, but a non-ENOENT read error (for example an
+    unreadable file, or a directory named `.env`) now renders as a structured error instead of an
+    unhandled exception.
+  - `--debounce` is now validated instead of silently defaulted. A non-integer, zero, negative, or
+    unit-suffixed value (like `250ms`) is rejected as a usage error (`INVALID_DEBOUNCE`, exit `2`); it no
+    longer falls back to the 300ms default. This is a user-facing behavior change: a `--debounce` value
+    that previously silently defaulted now fails the run.
+  - All six one-shot commands (`translate`, `watch`, `export`, `import`, `check`, `diff`) now validate
+    their options with a zod schema inside the error scaffold. `import`'s option parsing in particular
+    moved inside the try, so a malformed option object can no longer escape as an unhandled rejection.
+  - The exit-code documentation in the package header and `run()`'s JSDoc now also names `check`/`diff`
+    returning `1` for drift or pending changes, alongside `translate`/`import`'s "some locales failed".
+
+  `@verbatra/sdk` is version-locked with `@verbatra/cli` and picks up the same bump with no behavior
+  change of its own.
+
+- 7d50d22: `translate` and `watch` now persist each non-dry-run's review-flag and token/usage
+  data to a new gitignored file, `.verbatra-local/run-status.json`, written once after
+  the per-locale loop completes. A new SDK function, `runStatus`, reads it back:
+  `{ available: false }` when no file exists yet or it cannot be parsed, or
+  `{ available: true, version, generatedAt, usage?, budget?, locales }` when it does.
+  The write is best-effort (any failure is caught and swallowed, never failing the run
+  or reaching `RunSummary`) and is skipped on dry-run, mirroring the existing lock-file
+  write discipline. `verbatra.lock.json` itself is unchanged.
+
+  `verbatra init` now also scaffolds `.verbatra-local/` into a project's `.gitignore`,
+  alongside the existing `.env`/`.env.local` entries.
+
+- 314aefa: Add `retranslateEntry`, a new sdk seam that retranslates exactly one source key into exactly one
+  target locale: a single-entry provider call through the same `selectProvider` registry
+  `translate()` already uses, gated through a new shared `gateCandidateValue` accept/reject check
+  before anything reaches disk. On acceptance it writes the target locale file (merging only the
+  requested key, leaving every other key untouched) and updates the lock entry for that key; on
+  rejection it writes nothing and reports the candidate value and which check failed it. Add a new
+  `UNKNOWN_KEY` error code, thrown when the requested key does not exist in the source resource.
+
+  Also extract the placeholder and ICU integrity check that `translate()`/`watch()` and workbook
+  import already ran independently into this one shared `gateCandidateValue` function, and route
+  both existing call sites through it. This adds a real behavior change to `translate()`/`watch()`:
+  the provider-translation path previously only compared placeholders before accepting a
+  translation; it now also validates the candidate against the format's message syntax (ICU
+  plural/select, for `next-intl-json` and `arb`), so a well-formed-on-placeholders but malformed ICU
+  candidate is now withheld where it was previously accepted. This has no effect on non-ICU formats,
+  whose message validation always passes.
+
+  `@verbatra/cli`'s `studio` command gains one new flag, `--allow-spend`, with an environment
+  variable fallback (`VERBATRA_STUDIO_ALLOW_SPEND`); the CLI flag wins when both are given. It
+  defaults to off and is the only way to enable Studio's provider-calling actions, including the
+  new gated retranslate action. Local editing of the project's own locale files is always
+  available and needs no flag; only provider spend is gated.
+
+  `keyIntegrity`'s per-key result gains a new `icuValid: boolean` field, computed unconditionally
+  and independently of the placeholder check: a target value can now be reported as placeholder-valid
+  but ICU-invalid, the exact failure the gated retranslate action exists to fix. Always true for a
+  non-ICU format.
+
+  `translate()`/`watch()` and `importWorkbook()` now serialize their writes per target locale: each
+  locale's read-translate-write step, including the provider call, holds a new real, cross-process
+  advisory lock for that locale before touching its target file or lock-file entry, so a concurrent
+  writer for the same locale (another CLI run, a workbook import, or a Studio `retranslateEntry`
+  call) can never interleave with it and silently lose a key. A new `LOCK_CONTENDED` error code is
+  thrown if a locale's lock cannot be acquired within its timeout, naming the lock file's path. This
+  also removes the lock-file's previous compare-and-swap retry, which left a residual race window of
+  its own; mutual exclusion is now provided entirely by the new lock. A dry run never acquires a
+  lock, since it never writes anything.
+
+  Breaking change: the exported `SdkFs` interface gains two new required methods, `createExclusive`
+  and `deleteFile`, backing the new lock. Any custom `SdkFs` implementation passed to `translate()`,
+  `watch()`, `importWorkbook()`, or any other SDK entry point's `deps.fs` must add both, or it will
+  fail to type-check and, since the new lock is now taken unconditionally on every write path, throw
+  at runtime the first time a locale is written.
+
+- d99347a: Add `editEntry`, a new sdk seam that writes exactly one human-typed correction into exactly one
+  target locale: gated through the shared `gateCandidateValue` accept/reject check before anything
+  reaches disk, wrapped in `withLocaleWriteLock` across read-target through lock-update, mirroring
+  `retranslateEntry`'s own critical section exactly. Unlike `retranslateEntry`, it never calls a
+  provider: `EditEntryDeps` carries no `createProvider` field, so there is no path to one even if the
+  seam were miswired. On acceptance it writes the target locale file (merging only the requested key)
+  and updates the lock entry for that key; on rejection it writes nothing and reports the candidate
+  value and which check failed it. Never writes to, or reads for the purpose of updating,
+  `.verbatra-local/run-status.json`.
+
+  Add `keyValue`, a new read-only sdk function that reads a key's current source and target value for
+  exactly one target locale, live via the same `readSource`/`readTarget` calls `check`, `diff`,
+  `retranslateEntry`, and `editEntry` already use. `target` is absent exactly when the key does not
+  yet exist in that target locale. No provider call, no file write, no lock.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+### Patch Changes
+
+- a53e0c4: Deduplicate the tolerant target-locale read into a single shared helper. The export, import, and per-locale translate flows now delegate to the same implementation as diff and check, so the empty-resource shape and the file-existence check can no longer drift apart. No behavior change.
+- bcd68e8: Rewrite all JSDoc from the implementation and remove non-documentation comments. Corrects stale API documentation, including the SdkError per-code thrown-by attributions, the translate() docblock attachment, and the CLI watch-session exit-code contract.
+- 0ae2f52: Preserve document key order exactly on round-trip for the JSON-family, YAML, and ARB adapters. Integer-like keys such as "2", "10", or "404" are no longer hoisted to the front and re-sorted on read or write, so files keyed by numeric ids, HTTP status codes, or years keep their own key order, and new keys added by a translate run now append after the target's existing keys in source-document order instead of alphabetically. As part of the YAML conformance, a document using a map or sequence as a mapping key is now rejected with a structured INVALID_STRUCTURE error instead of silently collapsing to "[object Object]".
+- Updated dependencies [81dd225]
+- Updated dependencies [a53e0c4]
+- Updated dependencies [35fe0f6]
+- Updated dependencies [bcd68e8]
+- Updated dependencies [565eb89]
+- Updated dependencies [874cf70]
+- Updated dependencies [14e9719]
+- Updated dependencies [0ae2f52]
+- Updated dependencies [e617c6b]
+- Updated dependencies [4c6fd52]
+- Updated dependencies [440212e]
+- Updated dependencies [54a641a]
+- Updated dependencies [2127234]
+- Updated dependencies [7d50d22]
+- Updated dependencies [2ede9ae]
+- Updated dependencies [400e044]
+- Updated dependencies [e116642]
+- Updated dependencies [f3fd15f]
+- Updated dependencies [314aefa]
+- Updated dependencies [4515726]
+- Updated dependencies [ea054a2]
+- Updated dependencies [d99347a]
+- Updated dependencies [dfd2b77]
+- Updated dependencies [435e048]
+- Updated dependencies [10a264e]
+- Updated dependencies [ad431ca]
+- Updated dependencies [2fe16b2]
+- Updated dependencies [b945e53]
+  - @verbatra/sdk@0.5.0
+
 ## 0.5.0-next.4
 
 ### Patch Changes
