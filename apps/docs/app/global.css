@@ -252,6 +252,10 @@ figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }
 
+.shiki span[style*="#6A737D" i] {
+  color: #8b949e !important;
+}
+
 @keyframes vk-spot-sweep {
   from {
     transform: translateX(-54%) rotate(-4deg);

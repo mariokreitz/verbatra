@@ -1,10 +1,26 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
+import { GithubIcon } from "@/components/landing/github-icon";
 import { CONTRIBUTING_URL } from "@/components/landing/links";
 import { i18n, type Locale } from "@/lib/i18n";
 
-export const translations = i18n.translations().extend(uiTranslations());
+const LANGUAGE_ARIA_KEY = "Choose a language(language switcher)(aria-label)";
+
+/**
+ * Fumadocs UI translations with one override per locale: the language switcher's
+ * aria-label must contain the button's visible text (the current locale's display
+ * name) or the label-in-name accessibility rule fails on every page.
+ */
+export const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .add({
+    en: { [LANGUAGE_ARIA_KEY]: "English - choose a language" },
+    de: { [LANGUAGE_ARIA_KEY]: "Deutsch - Sprache wechseln" },
+    es: { [LANGUAGE_ARIA_KEY]: "Español - elegir idioma" },
+    fr: { [LANGUAGE_ARIA_KEY]: "Français - choisir la langue" },
+  });
 
 const localeNames = [
   { locale: "en", name: "English" },
@@ -58,8 +74,15 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
     links: [
       { text: t("docs"), url: localized(locale, "/docs") },
       { text: t("contributing"), url: CONTRIBUTING_URL, external: true },
+      {
+        type: "icon",
+        label: "GitHub",
+        text: "GitHub",
+        icon: <GithubIcon />,
+        url: "https://github.com/mariokreitz/verbatra",
+        external: true,
+      },
     ],
-    githubUrl: "https://github.com/mariokreitz/verbatra",
     themeSwitch: { enabled: false },
   };
 }
