@@ -65,6 +65,13 @@ export interface StudioServerDeps {
    * locale file needs no flag and is always allowed.
    */
   readonly spend?: boolean;
+  /**
+   * A client-render hint, never a server gate: when set, the prebuilt SPA registers the RPC
+   * methods as WebMCP agent tools on `document.modelContext`; when off (the default) it registers
+   * none. It is projected verbatim on the `project.snapshot` result and the server never branches
+   * on it. Off (`false`) by default.
+   */
+  readonly exposeAgentTools?: boolean;
   /** Provider builder for the spend-gated handlers; defaults to the sdk constructing the configured provider. */
   readonly createProvider?: CreateProvider;
   /** Rolling window, in milliseconds, for `translation.retranslateEntry`'s rate limit; tests shrink it to trip the limit deterministically. */

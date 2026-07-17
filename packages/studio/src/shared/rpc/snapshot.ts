@@ -44,6 +44,8 @@ export interface ProjectSnapshotResult {
   readonly configSource: string;
   readonly glossary: GlossaryIndicator;
   readonly capabilities: StudioCapabilities;
+  /** Client control over WebMCP tool registration, never a server gate. */
+  readonly exposeAgentTools: boolean;
   readonly prune?: boolean;
   readonly generatePlurals?: boolean;
   readonly maxBatchSize?: number;

@@ -497,6 +497,68 @@ describe("run studio: --allow-spend capability resolution", () => {
   });
 });
 
+describe("run studio: --expose-agent-tools opt-in resolution", () => {
+  const ENV_VAR = "VERBATRA_STUDIO_AGENT_TOOLS";
+  let original: string | undefined;
+
+  beforeEach(() => {
+    original = process.env[ENV_VAR];
+    delete process.env[ENV_VAR];
+  });
+
+  afterEach(() => {
+    if (original === undefined) {
+      delete process.env[ENV_VAR];
+    } else {
+      process.env[ENV_VAR] = original;
+    }
+  });
+
+  async function captureExposeAgentTools(argv: readonly string[]): Promise<boolean | undefined> {
+    let resolved: boolean | undefined;
+    const { deps } = recordingDeps({
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            resolved = options.exposeAgentTools;
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run([...argv], deps, cap.streams, captured.hooks);
+    await flush();
+    captured.session()?.requestStop();
+    await donePromise;
+
+    return resolved;
+  }
+
+  it("defaults exposeAgentTools to false", async () => {
+    expect(await captureExposeAgentTools(["studio"])).toBe(false);
+  });
+
+  it("sets exposeAgentTools true from the CLI flag alone", async () => {
+    expect(await captureExposeAgentTools(["studio", "--expose-agent-tools"])).toBe(true);
+  });
+
+  it("falls back to the environment variable when the CLI flag is absent", async () => {
+    process.env[ENV_VAR] = "true";
+    expect(await captureExposeAgentTools(["studio"])).toBe(true);
+  });
+
+  it("treats an unrecognized or falsy environment value as off", async () => {
+    process.env[ENV_VAR] = "0";
+    expect(await captureExposeAgentTools(["studio"])).toBe(false);
+  });
+
+  it("keeps the two opt-ins independent: --allow-spend does not enable the agent tools", async () => {
+    expect(await captureExposeAgentTools(["studio", "--allow-spend"])).toBe(false);
+  });
+});
+
 describe("run studio: help text (Naming ruling)", () => {
   it("matches the ruled --help description exactly", async () => {
     const { deps } = recordingDeps();

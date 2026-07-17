@@ -117,6 +117,7 @@ describe("dispatchRpc envelope", () => {
         configSource: "override",
         glossary: { source: "none" },
         capabilities: { spend: false, writeToDisk: true },
+        exposeAgentTools: false,
       }),
     });
 
@@ -284,6 +285,7 @@ describe("dispatchRpc envelope", () => {
           configSource: "override",
           glossary: { source: "none" },
           capabilities: { spend: false, writeToDisk: true },
+          exposeAgentTools: false,
         }),
       },
       limiter,
@@ -357,6 +359,7 @@ describe("dispatchRpc envelope", () => {
           configSource: "override",
           glossary: { source: "none" },
           capabilities: { spend: false, writeToDisk: true },
+          exposeAgentTools: false,
         }),
       },
       undefined,

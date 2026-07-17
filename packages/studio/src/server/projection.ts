@@ -36,11 +36,14 @@ export function projectGlossaryIndicator(
  *
  * @param capabilities - The server's resolved capabilities, projected verbatim as a client hint;
  *   never the authoritative gate.
+ * @param exposeAgentTools - The resolved opt-in the client reads to decide whether to register the
+ *   WebMCP agent tools; a client rendering hint only, never a server gate.
  */
 export function buildProjectSnapshot(
   loaded: LoadedConfig,
   projectRoot: string,
   capabilities: StudioCapabilities,
+  exposeAgentTools: boolean,
 ): ProjectSnapshotResult {
   const { config } = loaded;
   return {
@@ -52,6 +55,7 @@ export function buildProjectSnapshot(
     configSource: projectConfigSource(loaded.source, projectRoot),
     glossary: projectGlossaryIndicator(loaded.glossary, projectRoot),
     capabilities,
+    exposeAgentTools,
     ...(config.prune !== undefined ? { prune: config.prune } : {}),
     ...(config.generatePlurals !== undefined ? { generatePlurals: config.generatePlurals } : {}),
     ...(config.maxBatchSize !== undefined ? { maxBatchSize: config.maxBatchSize } : {}),
