@@ -1,6 +1,6 @@
 ---
-"@verbatra/sdk": major
-"@verbatra/cli": major
+"@verbatra/sdk": minor
+"@verbatra/cli": minor
 ---
 
 Add `retranslateEntry`, a new sdk seam that retranslates exactly one source key into exactly one
@@ -20,11 +20,11 @@ plural/select, for `next-intl-json` and `arb`), so a well-formed-on-placeholders
 candidate is now withheld where it was previously accepted. This has no effect on non-ICU formats,
 whose message validation always passes.
 
-`@verbatra/cli`'s `studio` command gains two new flags, `--allow-spend` and `--allow-write`, each
-with an environment variable fallback (`VERBATRA_STUDIO_ALLOW_SPEND`,
-`VERBATRA_STUDIO_ALLOW_WRITE`); the CLI flag wins when both are given. Both default to off. These
-flags are the only way to enable Studio's new gated retranslate action; with either flag off,
-Studio remains exactly as read-only as before.
+`@verbatra/cli`'s `studio` command gains one new flag, `--allow-spend`, with an environment
+variable fallback (`VERBATRA_STUDIO_ALLOW_SPEND`); the CLI flag wins when both are given. It
+defaults to off and is the only way to enable Studio's provider-calling actions, including the
+new gated retranslate action. Local editing of the project's own locale files is always
+available and needs no flag; only provider spend is gated.
 
 `keyIntegrity`'s per-key result gains a new `icuValid: boolean` field, computed unconditionally
 and independently of the placeholder check: a target value can now be reported as placeholder-valid

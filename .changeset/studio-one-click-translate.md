@@ -9,15 +9,15 @@ any event carrying a nonzero delta, showing which category changed and a summary
 nonzero counts, with a manual dismiss.
 
 A `"source"`-reason toast (the source locale file drifted) also gets a "translate pending changes
-across all locales" action, gated on both `--allow-spend` and `--allow-write`: a new RPC method,
+across all locales" action, gated on `--allow-spend`: a new RPC method,
 `translation.translatePending`, wraps the sdk's unfiltered `translate()`, the exact whole-project
 call `verbatra translate` already performs. A `"targets"`-reason toast (a target locale file's own
 content changed) never gets this action: `translate()`'s diff cannot see most target-content
 changes, so the action would either do nothing or spend on unrelated drift; the existing
 key-scoped retranslate action is the right tool for a bad target value.
 
-The new action is gated the same way as the existing retranslate action (`spend` and
-`writeToDisk` together), has its own dispatch-layer rate limit sized for its whole-project blast
+The new action is gated the same way as the existing retranslate action (`spend`), has its own
+dispatch-layer rate limit sized for its whole-project blast
 radius, and a process-wide in-flight guard answers a second overlapping call with a structured
 `ALREADY_IN_PROGRESS` (409) immediately instead of leaving it to block on the real per-locale
 lock. `StudioServerOptions` gains `translatePendingRateLimitWindowMs`/`translatePendingRateLimitMax`

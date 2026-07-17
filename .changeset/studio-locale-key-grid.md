@@ -2,7 +2,8 @@
 "@verbatra/studio": minor
 ---
 
-The Diff panel gets a new grid view: rows are keys, columns are target locales, and each cell
+The Translations page's key explorer gets a grid view: rows are keys, columns are target
+locales, and each cell
 shows that key's status (missing, changed, orphaned, or in sync) with the same color and badge
 vocabulary as the rest of the dashboard. Each locale column header shows its completeness
 percentage. Grid is the default view; the previous flat per-locale key lists stay reachable as a
