@@ -1,5 +1,440 @@
 # @verbatra/sdk
 
+## 0.5.0
+
+### Minor Changes
+
+- 81dd225: A JSON, YAML, or ARB locale file that contains a stray non-string leaf, such as `"count": 5`,
+  `"enabled": true`, or `"active": null`, no longer fails `translate`, `watch`, `check`, `diff`,
+  `import`, or `export` for the whole file. The non-string leaf is accepted as valid file structure,
+  excluded from the translatable set (never sent to a provider, hashed, diffed, or checked for
+  placeholder or ICU integrity), and every sibling string key in that file is read and translated
+  normally. This is a strict widening of what was previously rejected outright with
+  `INVALID_STRUCTURE`. A non-string leaf is not preserved if the same file is later rewritten by
+  verbatra: its path is silently absent from the output the next time that target file is written,
+  since the write path rebuilds the file purely from the translatable entries. This applies to every
+  JSON-family format (i18next, vue-i18n, next-intl, ngx-translate), YAML, and Flutter ARB.
+
+  Two smaller, unrelated correctness fixes ship on the same branch. `check` and `diff` findings from
+  `validate()` now sort by plain code-unit order instead of locale-sensitive `localeCompare`, so their
+  order no longer depends on the host's locale and always agrees with `diff()`'s own ordering for the
+  same key set. Writes to locale files are now crash-durable: the temp file is fsynced before the
+  rename that makes it visible, and the containing directory is fsynced (best-effort) after, closing a
+  window where a crash between the rename and disk flush could leave a target file renamed but empty
+  or corrupt.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump.
+
+- 35fe0f6: Fix the DeepL provider silently mishandling two boundary cases it never checked. First, a locale code DeepL's API does not accept (a regional source code like `en-US`, when only the base code is valid as a DeepL source; or a deprecated bare target code like `en` or `pt` that DeepL requires disambiguated) now fails fast with a structured `INVALID_REQUEST` error naming the rejected code, instead of reaching DeepL and surfacing as an opaque generic provider failure. A locale code DeepL does accept, including a title-case script subtag like `zh-Hans`, passes through unchanged.
+
+  Second, the DeepL provider now chunks its own outgoing requests to stay within DeepL's documented per-request caps (50 texts, 128 KiB of payload), independent of and in addition to the existing `maxBatchSize` config. Previously a `maxBatchSize` above DeepL's real cap (its default of 50 happened to match, but any larger configured value did not) reached `translateText` unchunked and failed only at the provider. A sub-batch that already fits in one request is sent exactly as before; only an over-cap sub-batch is now split into multiple sequential requests and merged back transparently.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- 565eb89: Move `ProviderNotice` and `ProviderNoticeCode` onto the shared `TranslateResult` type instead of
+  DeepL's own extended result shape, and add an optional `notices` field to `TranslateResult` itself.
+  Every provider now populates it as a present array: DeepL reports its real graceful-degradation
+  notices (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`, `PLACEHOLDER_UNSUPPORTED`), and every LLM
+  provider (Anthropic, OpenAI, Gemini, openai-compatible) returns an empty array rather than omitting
+  the field. The SDK's internal notice reader is now a plain, typed accessor over this field instead of
+  a duck-typed structural cast, so a provider-side rename or shape change is now caught by the
+  compiler instead of silently returning no notices.
+
+  Also fixes DeepL's `supportsGlossary` flag, which is a behavior change worth calling out explicitly:
+  it previously reported `true` unconditionally, even though DeepL only ever applies a pre-created
+  native glossary id, never the SDK's generic source-term to target-term map. Supplying a term map
+  without a configured native glossary id already produced a `GLOSSARY_IGNORED` notice; the flag was
+  simply lying about it. `supportsGlossary` now reports `true` only when a native `glossaryId` is
+  configured, and `false` for the generic term-map-only case. This is not a regression: DeepL's actual
+  glossary behavior is unchanged, and nothing in the SDK gates glossary data on this flag, so a
+  supplied term map still flows through to DeepL (and is still ignored with the same notice) exactly
+  as before.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- 4c6fd52: The shared LLM layer (`runLlmTranslation`) no longer discards an entire sub-batch when the model's
+  response is only partially well-formed. Previously, a response missing, duplicating, or adding a single
+  key relative to what was requested failed the whole batch with `INVALID_RESPONSE`, so a 50-key sub-batch
+  that came back with 49 good keys and one bad one withheld and re-paid for all 50 on the next run.
+
+  Reconciliation now partitions a response into the well-formed keys (accepted immediately) and the keys
+  missing or duplicated (neither is safe to guess at). The well-formed remainder is kept, and exactly one
+  bounded repair round re-requests only the still-missing keys through the same schema-bound boundary.
+  Placeholder and ICU integrity still runs on every accepted value, including one recovered in the repair
+  round. A key still missing after the repair round is withheld and reported under the existing
+  `providerFailures` category (nothing was translated for it), never counted as a placeholder-integrity
+  mismatch, and the lock baseline advances only for keys actually accepted this run so a withheld key
+  retries next time.
+
+  An unrequested (hallucinated) key is unaffected by this change: it still fails the whole batch
+  immediately, in the first response or the repair round, exactly as before. This is a reliability
+  improvement, not a breaking change: `@verbatra/sdk`'s and `@verbatra/cli`'s (version-locked) public
+  behavior is unchanged except that fewer whole-batch failures are observable when a provider response is
+  mostly, but not perfectly, well-formed.
+
+- 54a641a: Add a new provider id `openai-compatible` for pointing verbatra at a local or self-hosted OpenAI-compatible inference server (LM Studio, Ollama, vLLM). Configure it with `{ baseUrl, model, maxOutputTokens, apiKeyEnvVar? }`; `baseUrl` is validated as an absolute http or https URL at config-parse time, and lives in config rather than the environment since it is a network address, not a secret. It must include your server's API path segment (typically `/v1`, the same convention the underlying client already uses for the hosted `openai` provider).
+
+  The API key still never lives in config. It resolves in three tiers: an explicitly named `apiKeyEnvVar` (throws a clear error if that variable is unset), then the new convention variable `OPENAI_COMPATIBLE_API_KEY`, then the non-secret placeholder `"local"` for servers that need no key at all. `apiKeyEnvVar` cannot name any of the four hosted providers' environment variables, and the new provider's client never reads `OPENAI_API_KEY` or shares any code path with the hosted `openai` provider, so a hosted key can never reach a custom `baseUrl`.
+
+  The request body uses the same strict, schema-constrained response format as the hosted `openai` provider (verified against a live LM Studio server); the one difference is that this provider tolerantly extracts the first brace-balanced JSON object anywhere in the response before parsing, since a local or smaller model can still wrap an otherwise-correct answer in prose or a ```json block despite the constraint. The extraction is string-aware, so prose or Markdown fence characters before, after, or even embedded inside a translated string value never defeat it. Its output still runs through the exact same canonical schema validation and placeholder and ICU integrity checks as every other provider.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged, and `verbatra init` does not yet offer `openai-compatible` as a scaffold option (it has no single required environment variable, unlike every other provider).
+
+- 7d50d22: `translate` and `watch` now persist each non-dry-run's review-flag and token/usage
+  data to a new gitignored file, `.verbatra-local/run-status.json`, written once after
+  the per-locale loop completes. A new SDK function, `runStatus`, reads it back:
+  `{ available: false }` when no file exists yet or it cannot be parsed, or
+  `{ available: true, version, generatedAt, usage?, budget?, locales }` when it does.
+  The write is best-effort (any failure is caught and swallowed, never failing the run
+  or reaching `RunSummary`) and is skipped on dry-run, mirroring the existing lock-file
+  write discipline. `verbatra.lock.json` itself is unchanged.
+
+  `verbatra init` now also scaffolds `.verbatra-local/` into a project's `.gitignore`,
+  alongside the existing `.env`/`.env.local` entries.
+
+- 400e044: Providers now classify a failed translation call by HTTP status code or SDK error class instead of collapsing every failure into one opaque error: a 429 or an equivalent rate-limit error class surfaces as `RATE_LIMITED`, a network or request timeout as `TIMEOUT`, and a 401 or 403 as `AUTH_FAILED`, with the prior generic code kept as the fallback for anything unclassified. Classification never inspects error message text, so nothing provider-specific or key-shaped can leak through it. A caller-initiated cancellation (via `AbortSignal`) is now re-thrown as an abort instead of being wrapped as a provider error, so it can be told apart from a real failure; abort detection correlates the caught error's own identity with the signal instead of trusting the signal's `aborted` flag alone, so an unrelated failure that merely coincides with the signal being aborted is still classified and redacted, never passed through raw.
+
+  The Gemini provider now retries a transient rate limit or server error with backoff before giving up, closing a gap where a single transient failure could kill an entire translation sub-batch (the other three v1 providers already retry through their own SDKs).
+
+  A translation request can now carry an optional cancellation signal, threaded down into each provider's underlying call where the provider's SDK supports it. This is additive: `@verbatra/sdk`'s own APIs are unchanged in behavior, and `@verbatra/cli` (version-locked with `@verbatra/sdk`) picks up the same bump with no behavior change of its own.
+
+- 314aefa: Add `retranslateEntry`, a new sdk seam that retranslates exactly one source key into exactly one
+  target locale: a single-entry provider call through the same `selectProvider` registry
+  `translate()` already uses, gated through a new shared `gateCandidateValue` accept/reject check
+  before anything reaches disk. On acceptance it writes the target locale file (merging only the
+  requested key, leaving every other key untouched) and updates the lock entry for that key; on
+  rejection it writes nothing and reports the candidate value and which check failed it. Add a new
+  `UNKNOWN_KEY` error code, thrown when the requested key does not exist in the source resource.
+
+  Also extract the placeholder and ICU integrity check that `translate()`/`watch()` and workbook
+  import already ran independently into this one shared `gateCandidateValue` function, and route
+  both existing call sites through it. This adds a real behavior change to `translate()`/`watch()`:
+  the provider-translation path previously only compared placeholders before accepting a
+  translation; it now also validates the candidate against the format's message syntax (ICU
+  plural/select, for `next-intl-json` and `arb`), so a well-formed-on-placeholders but malformed ICU
+  candidate is now withheld where it was previously accepted. This has no effect on non-ICU formats,
+  whose message validation always passes.
+
+  `@verbatra/cli`'s `studio` command gains one new flag, `--allow-spend`, with an environment
+  variable fallback (`VERBATRA_STUDIO_ALLOW_SPEND`); the CLI flag wins when both are given. It
+  defaults to off and is the only way to enable Studio's provider-calling actions, including the
+  new gated retranslate action. Local editing of the project's own locale files is always
+  available and needs no flag; only provider spend is gated.
+
+  `keyIntegrity`'s per-key result gains a new `icuValid: boolean` field, computed unconditionally
+  and independently of the placeholder check: a target value can now be reported as placeholder-valid
+  but ICU-invalid, the exact failure the gated retranslate action exists to fix. Always true for a
+  non-ICU format.
+
+  `translate()`/`watch()` and `importWorkbook()` now serialize their writes per target locale: each
+  locale's read-translate-write step, including the provider call, holds a new real, cross-process
+  advisory lock for that locale before touching its target file or lock-file entry, so a concurrent
+  writer for the same locale (another CLI run, a workbook import, or a Studio `retranslateEntry`
+  call) can never interleave with it and silently lose a key. A new `LOCK_CONTENDED` error code is
+  thrown if a locale's lock cannot be acquired within its timeout, naming the lock file's path. This
+  also removes the lock-file's previous compare-and-swap retry, which left a residual race window of
+  its own; mutual exclusion is now provided entirely by the new lock. A dry run never acquires a
+  lock, since it never writes anything.
+
+  Breaking change: the exported `SdkFs` interface gains two new required methods, `createExclusive`
+  and `deleteFile`, backing the new lock. Any custom `SdkFs` implementation passed to `translate()`,
+  `watch()`, `importWorkbook()`, or any other SDK entry point's `deps.fs` must add both, or it will
+  fail to type-check and, since the new lock is now taken unconditionally on every write path, throw
+  at runtime the first time a locale is written.
+
+- 4515726: Add a new sdk function, `keyIntegrity`, that reports per changed key
+  and target locale whether the format's placeholders or ICU structure
+  still match between source and target: a boolean match result plus,
+  on a mismatch, the specific placeholder tokens that are missing or
+  extra. It reuses core's `checkPlaceholders` and an adapter's own
+  `comparePlaceholders` exactly as they exist today; only "changed" keys
+  are checked, since a missing or orphaned key has no value on one side
+  to compare.
+
+  Studio exposes this through a new read-only RPC method, `key.integrity`,
+  scoped to exactly the one key currently open in the detail drawer,
+  mirroring the existing `history.list` pattern of supplementary data
+  fetched lazily on open rather than growing the already-uncapped
+  `status.diff` payload. `KeyDetailDrawer` now renders an Integrity
+  column with a pill: green for a match, red with the mismatched tokens
+  for a mismatch, and neutral (never a false red) for a format with no
+  placeholders at all. The pill reuses the existing `Badge` component
+  and its success, neutral, and danger tones; no new styling is added.
+
+  No RPC response carries a full source or target string value at any
+  point, only the boolean result and, on a mismatch, the specific
+  placeholder tokens involved.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the
+  same bump; its own behavior is unchanged.
+
+- ea054a2: Studio's live-refresh SSE channel now reports a real, still-content-free key delta instead of a
+  blank "something changed" signal. `RefreshEvent` gains two optional fields, `locale` and `delta`
+  (`added`/`changed`/`removed` counts), populated for `"source"` and `"targets"` refresh events; a
+  `"lock"` event is unchanged. The `targets` watch category is now split into one chokidar watcher and
+  one debounce per configured target locale, so a change to one target locale's file is distinguishable
+  from a change to another, and each locale reports its own delta.
+
+  The delta is a plain content diff of one locale file against its own last observed snapshot (taken at
+  Studio startup and after every settled change), independent of source drift or the lock baseline.
+  This is a deliberate semantics choice: it is the only reading under which a translator hand-editing an
+  existing translation's wording, with the key itself untouched, is ever detected as a change. Two rapid
+  changes to the same locale file, close enough together that the second's debounce window opens while
+  the first's snapshot read is still in flight, are serialized so the second's reported delta is always
+  correct against the first's settled state, never a stale or out-of-order baseline.
+
+  `@verbatra/sdk` gains a new small read-only module, `readLocaleFileSnapshot` and
+  `diffLocaleSnapshots`, exported for this purpose: reading one locale file through the configured
+  adapter into a per-key content hash, and comparing two such snapshots into added/changed/removed
+  counts. No translation string, key name, or file content ever crosses the SSE wire, only locale codes
+  and counts.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump with no behavior
+  change of its own.
+
+- d99347a: Add `editEntry`, a new sdk seam that writes exactly one human-typed correction into exactly one
+  target locale: gated through the shared `gateCandidateValue` accept/reject check before anything
+  reaches disk, wrapped in `withLocaleWriteLock` across read-target through lock-update, mirroring
+  `retranslateEntry`'s own critical section exactly. Unlike `retranslateEntry`, it never calls a
+  provider: `EditEntryDeps` carries no `createProvider` field, so there is no path to one even if the
+  seam were miswired. On acceptance it writes the target locale file (merging only the requested key)
+  and updates the lock entry for that key; on rejection it writes nothing and reports the candidate
+  value and which check failed it. Never writes to, or reads for the purpose of updating,
+  `.verbatra-local/run-status.json`.
+
+  Add `keyValue`, a new read-only sdk function that reads a key's current source and target value for
+  exactly one target locale, live via the same `readSource`/`readTarget` calls `check`, `diff`,
+  `retranslateEntry`, and `editEntry` already use. `target` is absent exactly when the key does not
+  yet exist in that target locale. No provider call, no file write, no lock.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- dfd2b77: Developer context that Flutter ARB (`@key.description`) and XLIFF (`<note>`) already carry now
+  reaches both the translation provider and the exported workbook, instead of always being blank.
+
+  ARB reads populate `entry.description` from `@key.description` via a new post-flatten hook on the
+  tree-file adapter, aligned by key with dotted literal keys. XLIFF reads populate `entry.description`
+  from a trans-unit's `<note>` (or, in XLIFF 2.0, the unit's `<notes><note>`, shared by every segment in
+  that unit). Neither format's write or round-trip behavior changes: the metadata is read-only context,
+  never written back.
+
+  `entry.description` already reached the AI provider payload as disambiguation context and was never
+  translated or echoed; this change only makes sure the field is finally populated for these two
+  formats. The exported workbook (`exportWorkbook`) gains a 7th column, `Context`, appended after
+  `Source hash` so the editable `Translation` column keeps its position. It is read-only and protected
+  like `Source` and `Current translation`. `importWorkbook` never reads `Context` as a translation
+  source, and a workbook built before this column existed still imports successfully.
+
+  One behavior change worth calling out: an ARB or XLIFF entry that carries a description or note will
+  re-export and re-translate once on upgrade, since the lock baseline's content hash already accounts
+  for `description` and now sees a value where it previously saw none. This is intentional: the newly
+  surfaced context can change how the string should be translated, so it gets one reconsideration pass,
+  and the baseline then stabilizes.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is
+  unchanged.
+
+- 435e048: `translate`, `watch`, and `importWorkbook` now aggregate the token usage every LLM provider already
+  reports per call. `LocaleSummary.usage` and `RunSummary.usage` sum input and output tokens across
+  every provider call in scope (main translation and plural generation alike); both stay `undefined`,
+  never a fabricated zero, whenever nothing in that scope reported usage (a dry-run, or a token-less
+  provider such as DeepL).
+
+  A new optional config pair, `maxTokens` and `budgetBehavior` (`"warn"` or `"stop"`, default `"warn"`),
+  lets a project cap or flag a run's spend. The check runs after each completed provider sub-batch, never
+  mid-batch: the sub-batch whose completion crosses the ceiling is retained and counted, since a call
+  already in flight cannot be undone. Under `"warn"` the run continues unchanged past the ceiling. Under
+  `"stop"`, every not-yet-attempted key for the rest of the run, in the current locale and every later
+  target locale, is withheld into a new `LocaleSummary.budgetWithheld` array (parallel to
+  `integrityMismatches` and `providerFailures`) and retried automatically next run, exactly like a failed
+  provider call today. A budget trip never fails a locale and never changes the exit code of `translate`,
+  `watch`, or `import`. `RunSummary.budget` is present only when `maxTokens` is configured, including a
+  `supported: false` case against a token-less provider or a dry-run, so the guardrail is visibly and
+  honestly inert rather than silently omitted or falsely tripped.
+
+  The CLI's human `translate`/`watch` summary now shows per-locale and aggregate token counts when usage
+  was reported, and a budget line when a ceiling is configured. `--json` output needed no new rendering
+  code: the new fields serialize automatically once populated.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump for the new rendering.
+
+- ad431ca: Add a derived, per-key "needs review" signal for translations, distinct from the
+  placeholder/ICU integrity gate: a suspiciously short or long output, a translation
+  identical to the source, a missed glossary term, a placeholder set that matches but
+  landed in a different order, or a batch that was gracefully degraded by the provider
+  (currently DeepL only) now surfaces as a review flag instead of passing silently.
+
+  `translate` and `watch` summaries gain a `needsReview` list of flagged keys and their
+  reason codes, and `verbatra translate`/`watch`'s human output shows a `needs-review`
+  count alongside `integrity-withheld` and `notices` when it is non-zero (already
+  present in `--json` once the summary carries the field). The Excel export/import
+  workbook gains two read-only "Review status" / "Review reasons" columns, recomputed
+  fresh from the on-disk source and current target at export time; they are purely
+  informational and never gate what import accepts, and importing a workbook exported
+  before this change (with no such columns) is unaffected.
+
+  This is advisory only: a review flag never withholds a translation, and there is no
+  way to "clear" it other than fixing the underlying value. A workbook exported later
+  from the same on-disk target does not retroactively show a `PROVIDER_DEGRADED` flag
+  from an earlier run, since that fact lives only in memory during the run that
+  produced it.
+
+### Patch Changes
+
+- a53e0c4: Deduplicate the tolerant target-locale read into a single shared helper. The export, import, and per-locale translate flows now delegate to the same implementation as diff and check, so the empty-resource shape and the file-existence check can no longer drift apart. No behavior change.
+- bcd68e8: Rewrite all JSDoc from the implementation and remove non-documentation comments. Corrects stale API documentation, including the SdkError per-code thrown-by attributions, the translate() docblock attachment, and the CLI watch-session exit-code contract.
+- 874cf70: Fix a raw, uncaught exceljs crash when a target locale collided, case-insensitively, with another
+  target locale (for example `"de"` and `"DE"`) or with the reserved "Instructions" worksheet name
+  (for example a target locale of `"instructions"`). exceljs deduplicates worksheet names
+  case-insensitively inside its own `Worksheet` constructor, not in `addWorksheet`, so both cases
+  previously escaped as a raw library error instead of a structured one.
+
+  `targetLocales` is now validated at config-load time: two entries that are case-insensitively equal
+  are rejected with a clear zod error naming the colliding locale, matching the existing
+  source-locale-exclusion check. As defense in depth, `exportWorkbook` also rejects the same
+  collisions, and a locale colliding with the reserved instructions sheet, before any worksheet is
+  added, surfacing an `ExchangeError` (`WORKBOOK_INVALID`) instead of letting the exceljs error
+  propagate.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- 14e9719: Fix ICU plural/select placeholder-integrity checking (next-intl and ARB) to compare source and target
+  branch by matched branch instead of flattening each side into one multiset first. The prior flattening
+  strategy dropped any placeholder confined to only some branches of a value before the comparison ever ran,
+  which meant a fabricated placeholder invented in a single branch of a translated ARB or next-intl value
+  (for example, only in a richer target locale's `few` or `many` CLDR category) could pass the integrity
+  check undetected. The new comparison walks matched plural/select nodes branch by branch: a category present
+  on both sides is checked directly, so an invention or a drop confined to one branch is caught precisely; a
+  category only the target's richer cardinality supplies is checked for fabricated content against the union
+  of every source branch, so a translator legitimately reusing a placeholder that appears in only one source
+  branch is never wrongly rejected. This closes the gap for the LLM and DeepL provider translation paths and
+  for workbook import, the two live call sites that resolve an ICU-capable format adapter.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is
+  unchanged.
+
+- 0ae2f52: Preserve document key order exactly on round-trip for the JSON-family, YAML, and ARB adapters. Integer-like keys such as "2", "10", or "404" are no longer hoisted to the front and re-sorted on read or write, so files keyed by numeric ids, HTTP status codes, or years keep their own key order, and new keys added by a translate run now append after the target's existing keys in source-document order instead of alphabetically. As part of the YAML conformance, a document using a map or sequence as a mapping key is now rejected with a structured INVALID_STRUCTURE error instead of silently collapsing to "[object Object]".
+- e617c6b: Fix `exportWorkbook`'s `includeUnchanged` option labeling already up-to-date rows as `"changed"`.
+  `RowStatus` gains a third value, `"unchanged"`, and rows from the unchanged diff bucket are now
+  exported with that status instead of the misleading `"changed"`, which told translators the source
+  string had changed and needed re-translation even though it had not. The read-side row schema
+  accepts `"unchanged"` so a previously exported sheet round-trips through import without error, and
+  the instructions sheet gains an honest line explaining the new status. Import behavior is
+  unaffected: it already decides accept-or-withhold purely from source-hash drift, placeholder, and
+  ICU checks, never from the status column.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
+- 440212e: Reject a lock-file whose `version` does not match the version this build of verbatra
+  understands. `readLockFile` previously validated the lock-file's shape but never compared its
+  `version` field to the current supported version, so a lock-file written by an incompatible
+  future (or otherwise mismatched) verbatra build was read and reinterpreted as if it were the
+  current format, then rewritten still stamped with the wrong version, silently corrupting or
+  misinterpreting the recorded baselines. A version mismatch now throws the same structured
+  `LOCK_FILE_INVALID` error already used for a corrupt or oversized lock-file, naming the found and
+  expected version numbers.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
+- 2127234: Fix the `openai-compatible` provider against Mistral and other OpenAI-compatible servers that expect `max_tokens` rather than OpenAI's newer `max_completion_tokens` field. The shared Chat Completions request builder previously hardcoded `max_completion_tokens` for every caller, including `openai-compatible`, so every request against a server that rejects that field (Mistral's chat completions API answers with HTTP 422, "Extra inputs are not permitted") failed outright. The `openai-compatible` provider now sends `max_tokens` instead, the field understood broadly across LM Studio, Ollama, vLLM, and hosted OpenAI-compatible APIs such as Mistral's; the hosted `openai` provider is unaffected and still sends `max_completion_tokens`.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- 2ede9ae: Fix generated plural forms trusting the provider's self-reported `result.integrity` map instead of
+  recomputing the accept/withhold decision through the shared integrity gate. Every other disk-writing
+  path (the main translation run, workbook import, and manual retranslate or edit) already recomputes
+  placeholder and ICU integrity directly from the candidate value rather than trusting what the provider
+  claims about its own output; generated plural forms are now the same. Practical impact today is small,
+  since plural-form generation only ever runs for the non-ICU i18next-json format, but a provider that
+  misreports its own placeholder match can no longer slip a mismatched generated form past the check.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is
+  unchanged.
+
+- e116642: Refresh the bundled Anthropic (`@anthropic-ai/sdk`, 0.105.0 to 0.111.0), Gemini (`@google/genai`,
+  2.9.0 to 2.11.0), and OpenAI (`openai`, 6.44.0 to 6.46.0) SDKs pinned in the `bundled` pnpm catalog.
+  OpenAI's 6.47.0 was published the same day as this change and is deliberately left one patch behind
+  current latest, to give a freshly published release a cycle to surface any issues upstream before
+  verbatra bundles it.
+  `@verbatra/sdk` bundles `@verbatra/ai-providers` into its published dist, so these exact versions
+  ship to every consumer of `@verbatra/sdk` and `@verbatra/cli`.
+
+  Each vendor's changelog was reviewed across the bumped range for changes on every surface this
+  package touches: request construction, response parsing, and error classification. None of the
+  three renamed or removed a field, response shape, or SDK error class verbatra reads (`RateLimitError`,
+  `AuthenticationError`, `PermissionDeniedError`, `APIConnectionTimeoutError`, and `APIUserAbortError`
+  for the two SDKs that classify by class identity; HTTP status codes for Gemini). Gemini 2.11.0's one
+  refactor in range, removing `cached_content`, `presence_penalty`, and `frequency_penalty` from
+  request options, is scoped to the newer Interactions API; the classic `models.generateContent` call
+  this provider uses is unaffected, per the SDK's own release notes. New model IDs each vendor added in
+  this range (for example claude-sonnet-5, gpt-5.6-sol) are now available to configure, since verbatra
+  never restates a model allow-list of its own; it forwards whatever model id a project's config sets.
+
+  No behavior change beyond what each vendor's own patch and minor releases carry. `@verbatra/cli` is
+  version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior is unchanged.
+
+- f3fd15f: Fix reading a UTF-8 JSON or ARB translation file that starts with a leading byte-order-mark
+  (U+FEFF). The shared bounded file reader decoded the raw bytes to a UTF-8 string but never
+  stripped a leading BOM, so any JSON-based format (including ARB) reading a BOM-prefixed file
+  failed with an `INVALID_JSON` error even though the file was otherwise valid. Exactly one leading
+  BOM is now stripped once, in the shared read layer, before content ever reaches a parser; interior
+  BOM characters and everything else in the file are left untouched, and the fix is bounded and
+  fixed-length rather than a regex. No adapter's write path emits a BOM, so a file without one stays
+  unchanged on round-trip.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
+- 10a264e: Fix a duplicate-spend race in `translate()`: the lock-file was read exactly once before the
+  per-locale loop, so two concurrent `translate()` calls against the same project (two CLI
+  processes, or a CLI run overlapping a Studio write action) both diffed a "changed" key against
+  the same stale baseline and both sent it to the provider, paying twice for the same translation.
+  The lock-file is now read fresh inside each locale's own write lock on every non-dry-run call, so
+  a second concurrent call blocks on that locale's real lock, then re-reads a lock-file that already
+  reflects the first call's write and correctly finds nothing left to do. Dry-run is unaffected: it
+  still reads the lock once, since it never writes anything to serialize against. A corrupt
+  lock-file discovered on this path still aborts the whole run with `LOCK_FILE_INVALID`, matching
+  `translate()`'s existing documented behavior.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump with no behavior
+  change of its own.
+
+- 2fe16b2: Harden the XLIFF adapter's XML handling. Two trans-units resolving to the same key (typically a
+  duplicate `id`, or a positional fallback colliding with a real id) now raise `INVALID_STRUCTURE`
+  instead of silently dropping one entry on read and misdirecting a translation to both units on
+  write. The DTD and entity rejection already applied to XLIFF files on read now also applies to
+  translated values before they are re-parsed as XML fragments on write, closing a gap where a
+  malicious value could smuggle a DOCTYPE or entity declaration past the existing guard. Translated
+  values are also filtered against an allow-list of genuine XLIFF inline elements (`x`, `g`, `bx`,
+  `ex`, `ph`, `it`, `mrk`), each carrying no namespace or the genuine XLIFF 1.2/2.0 document
+  namespace, and each restricted to its own minimal, non-executable set of attributes (`id`, and
+  where applicable `rid`, `ctype`, `pos`, or `mtype`). A value containing any other element, an
+  allow-listed element under any other namespace, a CDATA section, a comment, a processing
+  instruction, or an attribute outside that element's allow-list (such as `onclick` or
+  `xlink:href`) now degrades entirely to a plain text node, the same fallback already used for
+  unbalanced markup, instead of reaching the written file as live markup or an unfiltered attribute.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own
+  behavior is unchanged.
+
+- b945e53: Fix the workbook decompressed-byte guard over-counting binary parts on import. The guard measured
+  each entry's decompressed size by re-encoding the entry's UTF-8-decoded text with
+  `Buffer.byteLength`, but decoding is lossy for a binary part (a thumbnail, embedded image, or any
+  non-UTF-8 workbook part): every invalid byte becomes the replacement character U+FFFD, which is 3
+  bytes wide, so the re-encoded count could overstate the true decompressed size by up to roughly 3x.
+  A legitimate translated workbook carrying such a part could be wrongly rejected with a
+  `WORKBOOK_INVALID` error even though it never actually exceeded the configured limit. The guard now
+  sums the true raw decompressed byte count as it streams each entry, so the cap is checked against
+  what the entry actually decompresses to.
+
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
 ## 0.5.0-next.4
 
 ### Minor Changes
