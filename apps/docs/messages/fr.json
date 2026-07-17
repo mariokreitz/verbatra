@@ -17,7 +17,7 @@
       "lead": "verbatra est plus que de la traduction par IA. Il couvre la traduction automatique que tu contrôles, un transfert Excel propre pour les traducteurs humains, et l'automatisation pour garder chaque locale synchronisée.",
       "ai": {
         "title": "Traduction par IA",
-        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini ou DeepL. Un fichier de verrouillage validé garde chaque exécution incrémentale, et l'intégrité des espaces réservés et de l'ICU est vérifiée avant que quoi que ce soit ne soit écrit."
+        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini, DeepL ou n'importe quel serveur compatible OpenAI que tu héberges toi-même. Un fichier de verrouillage validé garde chaque exécution incrémentale, et l'intégrité des espaces réservés et de l'ICU est vérifiée avant que quoi que ce soit ne soit écrit."
       },
       "excel": {
         "title": "Transfert Excel",
@@ -45,12 +45,12 @@
     },
     "compat": {
       "heading": "Un seul outil, tous les frameworks.",
-      "body": "verbatra lit les formats de locale JSON que ton framework utilise déjà, et les remplit via le fournisseur que tu choisis.",
+      "body": "verbatra lit les fichiers de locale que ta stack utilise déjà : JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que XLIFF, YAML et Flutter ARB. Il les remplit via le fournisseur que tu choisis, sans aucun nouveau format à adopter.",
       "labelFrameworks": "Frameworks et formats"
     },
     "providers": {
       "heading": "Traduis via le modèle en qui tu as confiance.",
-      "lead": "Anthropic, OpenAI, Gemini ou DeepL. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
+      "lead": "Anthropic, OpenAI, Gemini, DeepL ou n'importe quel serveur compatible OpenAI que tu héberges toi-même. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
       "marqueeLabel": "Fournisseurs de traduction"
     },
     "how": {
@@ -85,7 +85,7 @@
         },
         "provider": {
           "title": "Le fournisseur de ton choix",
-          "body": "Anthropic, OpenAI, Gemini ou DeepL, choisi en une ligne de config. Change de fournisseur sans toucher à tes fichiers de locale."
+          "body": "Anthropic, OpenAI, Gemini, DeepL ou un modèle local compatible OpenAI, choisi en une ligne de config. Change de fournisseur sans toucher à tes fichiers de locale."
         },
         "safety": {
           "title": "Sûr par conception",
@@ -111,33 +111,45 @@
       "ctaDocs": "Lis la documentation",
       "ctaIssue": "ouvre une issue",
       "items": {
-        "avoidRetranslate": {
+        "incremental": {
           "question": "Comment verbatra évite-t-il de tout re-traduire à chaque exécution ?",
-          "answer": "verbatra garde un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. À chaque exécution, il compare ta locale source à ce fichier de verrouillage et envoie seulement les clés nouvelles ou modifiées à ton fournisseur ; les clés inchangées sont laissées intactes."
+          "answer": "Il garde un fichier de verrouillage validé qui enregistre ce qui a déjà été traduit. Chaque exécution compare ta locale source à ce fichier de verrouillage et envoie seulement les clés nouvelles ou modifiées à ton fournisseur. Les clés inchangées ne sont jamais touchées, donc une exécution typique coûte une poignée de chaînes, pas tout ton catalogue."
         },
         "providers": {
-          "question": "Quels fournisseurs de traduction verbatra prend-il en charge ?",
-          "answer": "Anthropic, OpenAI, Gemini et DeepL. Tu en choisis un en une seule ligne de config, et la clé d'API est lue depuis une variable d'environnement, jamais depuis le fichier de config."
-        },
-        "icu": {
-          "question": "Comment verbatra gère-t-il les espaces réservés ICU et les formats de message ?",
-          "answer": "Il vérifie l'intégrité des espaces réservés et de l'ICU après chaque traduction. Si une traduction renvoyée casse un espace réservé ou produit un ICU invalide, ce résultat est retenu plutôt qu'écrit dans ton fichier de locale."
+          "question": "Quels fournisseurs de traduction puis-je utiliser ?",
+          "answer": "Cinq, derrière une seule interface : Anthropic, OpenAI et Gemini (des LLM), DeepL (traduction automatique) et openai-compatible, qui pointe verbatra vers un serveur local ou auto-hébergé comme Ollama, LM Studio ou vLLM. Tu en choisis un par id dans ta config et tu peux en changer plus tard en modifiant cette seule ligne. Gemini a un vrai palier gratuit, et un modèle local ne coûte rien par appel."
         },
         "formats": {
-          "question": "Quels formats de fichiers i18n verbatra peut-il lire ?",
-          "answer": "Les formats JSON pour i18next, vue-i18n, next-intl et ngx-translate, couvrant les projets React, Vue, Next.js, Nuxt, Angular et Node.js."
+          "question": "Quels formats et frameworks verbatra prend-il en charge ?",
+          "answer": "JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que XLIFF, YAML et Flutter ARB. Cela couvre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js et Flutter. verbatra lit les fichiers que tu as déjà ; il n'y a aucun format propre à verbatra vers lequel migrer."
         },
-        "openSource": {
+        "studio": {
+          "question": "Qu'est-ce que Verbatra Studio ?",
+          "answer": "Un tableau de bord web local au-dessus de ton projet qui montre en direct l'état de chaque locale, rassemble une file de relecture des entrées signalées et te laisse corriger les traductions sur place. Lance-le avec verbatra studio (installe d'abord @verbatra/studio). Éditer tes propres fichiers de locale fonctionne d'emblée ; appeler un fournisseur depuis l'interface est optionnel, derrière --allow-spend. Il tourne uniquement sur 127.0.0.1 et ne quitte jamais ta machine."
+        },
+        "safety": {
+          "question": "Qu'est-ce qui empêche une mauvaise traduction de casser mon app ?",
+          "answer": "Chaque résultat passe une vérification d'intégrité des espaces réservés et de l'ICU avant d'être écrit. Une traduction qui supprime, invente ou réordonne un espace réservé, ou produit une syntaxe de message ICU invalide, est retenue plutôt qu'enregistrée dans ton fichier de locale. La même vérification s'applique aux modifications et aux re-traductions faites dans Verbatra Studio."
+        },
+        "keys": {
+          "question": "Où sont mes clés d'API, et mon contenu est-il envoyé quelque part que je ne contrôle pas ?",
+          "answer": "Les clés sont lues seulement depuis les variables d'environnement (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, DEEPL_API_KEY), jamais depuis le fichier de config, les arguments du CLI ou les journaux. Seules les chaînes que tu traduis sont envoyées, et seulement au fournisseur que tu as choisi. Si tu utilises le fournisseur openai-compatible avec un modèle local, rien ne quitte ta machine ni ton réseau."
+        },
+        "preview": {
           "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?",
-          "answer": "Oui. Une exécution à blanc rapporte exactement quelles clés seraient envoyées et écrites sans toucher à tes fichiers de locale, et le mode watch continue à traduire au fur et à mesure que ta locale source change."
+          "answer": "Oui. Une exécution à blanc rapporte exactement quelles clés seraient envoyées et écrites sans toucher à tes fichiers, et verbatra check et verbatra diff rapportent l'écart par locale sans appeler de fournisseur. Le mode watch fait l'inverse : il continue à traduire au fur et à mesure que ta locale source change."
         },
-        "ci": {
-          "question": "Y a-t-il un SDK en plus d'un CLI ?",
-          "answer": "Oui. La commande verbatra est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate et watch pour les scripts, la CI et tes propres outils."
+        "automation": {
+          "question": "Puis-je utiliser verbatra dans des scripts, en CI et dans GitHub Actions ?",
+          "answer": "Oui. Le CLI est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate, watch, check et diff pour tes propres outils. Les commandes renvoient des codes de sortie compatibles CI et prennent en charge la sortie --json, et une GitHub Action officielle exécute verbatra dans ton workflow."
+        },
+        "cost": {
+          "question": "Combien coûte verbatra ?",
+          "answer": "verbatra lui-même est gratuit et open source sous la licence MIT. Le seul coût est l'usage de ton fournisseur, que tu contrôles : il traduit seulement ce qui a changé, et tu peux le faire tourner gratuitement sur le palier gratuit de Gemini ou sur un modèle local compatible OpenAI."
         },
         "production": {
           "question": "verbatra est-il prêt pour la production ?",
-          "answer": "verbatra est jeune et activement développé, donc son API peut encore changer entre les versions ; épingle une version et lis le changelog quand tu mets à jour. Ce qui est déjà solide, c'est le modèle de sûreté : chaque exécution compare à un fichier de verrouillage validé, vérifie l'intégrité des espaces réservés et de l'ICU sur chaque résultat, et retient tout ce qui casse un espace réservé plutôt que de l'écrire dans ton fichier de locale. De nombreuses équipes l'utilisent en CI aujourd'hui ; vois cela comme un signal pour épingler les versions, pas comme un avertissement que les résultats seraient risqués."
+          "answer": "Il est jeune et activement développé, donc épingle une version et lis le changelog quand tu mets à jour. Le modèle de sûreté est déjà solide : chaque exécution compare à un fichier de verrouillage validé, vérifie l'intégrité des espaces réservés et de l'ICU sur chaque résultat, et retient tout ce qui casse plutôt que de l'écrire. Les équipes l'utilisent en CI aujourd'hui ; si tu épingles les versions, tu es sur un terrain stable."
         }
       }
     },
@@ -153,6 +165,7 @@
           "documentation": "Documentation",
           "cliReference": "Référence du CLI",
           "sdk": "SDK",
+          "studio": "Studio",
           "githubAction": "GitHub Action"
         },
         "learn": {
