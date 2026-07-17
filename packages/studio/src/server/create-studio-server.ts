@@ -101,19 +101,22 @@ function defaultOutput(line: string): void {
  * config that was resolved before listen, and reused for the life of the process: no handler
  * re-loads the config. `spend` is threaded through unchanged so the snapshot handler can project
  * the same resolved boolean `createRpcHandlers` used to build the registry (`writeToDisk` is
- * always true and needs no threading). Optional test seams from `options` are forwarded only when
- * set.
+ * always true and needs no threading). `exposeAgentTools` is threaded the same way so the snapshot
+ * handler projects the same resolved opt-in; the server never branches on it. Optional test seams
+ * from `options` are forwarded only when set.
  */
 function buildRpcHandlerDeps(
   config: LoadedConfig,
   projectRoot: string,
   capabilities: StudioCapabilities,
+  exposeAgentTools: boolean,
   options: StudioServerOptions,
 ): RpcHandlerDeps {
   return {
     config,
     projectRoot,
     spend: capabilities.spend,
+    exposeAgentTools,
     ...(options.fs !== undefined ? { fs: options.fs } : {}),
     ...(options.adapterRegistry !== undefined ? { adapterRegistry: options.adapterRegistry } : {}),
     ...(options.execFileImpl !== undefined ? { execFileImpl: options.execFileImpl } : {}),
@@ -211,6 +214,7 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     spend: options.spend ?? false,
     writeToDisk: true,
   };
+  const exposeAgentTools = options.exposeAgentTools ?? false;
   const config = await options.loader();
   const projectRoot = options.cwd ?? process.cwd();
 
@@ -247,7 +251,7 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     cookieName: cookieName(port),
     assetsRootPath,
     log: output,
-    rpcDeps: buildRpcHandlerDeps(config, projectRoot, capabilities, options),
+    rpcDeps: buildRpcHandlerDeps(config, projectRoot, capabilities, exposeAgentTools, options),
     handlers,
     rateLimiter,
     inFlightGuard,

@@ -602,6 +602,10 @@ function buildProgram(
       "--allow-spend",
       "allow Studio to call a translation provider (also: VERBATRA_STUDIO_ALLOW_SPEND)",
     )
+    .option(
+      "--expose-agent-tools",
+      "register Studio's RPC methods as WebMCP agent tools in the browser (also: VERBATRA_STUDIO_AGENT_TOOLS)",
+    )
     .action(async (opts: unknown) => {
       setCode(await runStudioCommand(opts, deps, streams, hooks));
     })
@@ -610,9 +614,10 @@ function buildProgram(
       [
         "",
         "Examples:",
-        "  $ verbatra studio                start Verbatra Studio on the default port",
-        "  $ verbatra studio --port 6000    start Verbatra Studio on a specific port",
-        "  $ verbatra studio --allow-spend  start Studio with retranslate enabled",
+        "  $ verbatra studio                      start Verbatra Studio on the default port",
+        "  $ verbatra studio --port 6000          start Verbatra Studio on a specific port",
+        "  $ verbatra studio --allow-spend        start Studio with retranslate enabled",
+        "  $ verbatra studio --expose-agent-tools start Studio with the WebMCP agent tools enabled",
       ].join("\n"),
     );
 

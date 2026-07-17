@@ -36,12 +36,16 @@ const studioOptsSchema = z.object({
   config: z.string().optional(),
   port: z.coerce.number().int().min(1).max(65535).optional(),
   allowSpend: z.boolean().optional(),
+  exposeAgentTools: z.boolean().optional(),
 });
 
 type StudioOpts = z.infer<typeof studioOptsSchema>;
 
 /** Environment variable fallback for the spend capability flag, read only when the CLI flag itself is absent. */
 const ALLOW_SPEND_ENV_VAR = "VERBATRA_STUDIO_ALLOW_SPEND";
+
+/** Environment variable fallback for the WebMCP agent-tools opt-in, read only when the CLI flag itself is absent. */
+const AGENT_TOOLS_ENV_VAR = "VERBATRA_STUDIO_AGENT_TOOLS";
 
 /** Env-var values that count as "on"; anything else (including unset) is "off". Case-insensitive. */
 const TRUTHY_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
@@ -63,6 +67,19 @@ function resolveSpendCapability(opts: StudioOpts): boolean {
     return opts.allowSpend;
   }
   return isEnvValueTruthy(process.env[ALLOW_SPEND_ENV_VAR]);
+}
+
+/**
+ * Resolves the WebMCP agent-tools opt-in, mirroring {@link resolveSpendCapability}: the CLI flag
+ * wins when given; otherwise its environment variable fallback; otherwise off. Resolved once at
+ * startup and passed through unchanged; it only decides whether the prebuilt SPA advertises the
+ * RPC methods as WebMCP tools and never widens what the server itself allows.
+ */
+function resolveExposeAgentTools(opts: StudioOpts): boolean {
+  if (opts.exposeAgentTools !== undefined) {
+    return opts.exposeAgentTools;
+  }
+  return isEnvValueTruthy(process.env[AGENT_TOOLS_ENV_VAR]);
 }
 
 /** A CLI-local usage error for a malformed `--port` value; routed to exit 2 like an `SdkError`. */
@@ -155,7 +172,8 @@ function watchForStop(
  * influence which capabilities this process was granted; a config error never reaches the dynamic
  * import or `startStudioServer` either.
  *
- * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`).
+ * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`,
+ *   `--expose-agent-tools`).
  * @param deps - The injected `loadConfigWithMeta` and `importStudio` seams.
  * @param streams - The stdout/stderr sink.
  * @returns A {@link StudioSession}: `done` resolves the exit code; `requestStop` is wired to SIGINT/SIGTERM
@@ -177,6 +195,7 @@ export async function runStudio(
   const cwd = opts.cwd ?? process.cwd();
   loadEnvFiles(cwd);
   const spend = resolveSpendCapability(opts);
+  const exposeAgentTools = resolveExposeAgentTools(opts);
 
   const config = await step(
     () =>
@@ -209,6 +228,7 @@ export async function runStudio(
         cwd,
         output: () => {},
         spend,
+        exposeAgentTools,
         ...(opts.port !== undefined ? { port: opts.port } : {}),
       }),
     streams,

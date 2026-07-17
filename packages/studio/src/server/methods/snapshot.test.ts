@@ -22,4 +22,21 @@ describe("snapshotHandler", () => {
       configSource: "override",
     });
   });
+
+  it("projects exposeAgentTools false when deps omit it, and true when deps set it", async () => {
+    const loaded: LoadedConfig = {
+      config: baseStudioConfig(),
+      source: { kind: "override" },
+      glossary: { source: "none" },
+    };
+
+    const defaulted = await snapshotHandler({}, { config: loaded, projectRoot: "/project" });
+    expect(defaulted.exposeAgentTools).toBe(false);
+
+    const enabled = await snapshotHandler(
+      {},
+      { config: loaded, projectRoot: "/project", exposeAgentTools: true },
+    );
+    expect(enabled.exposeAgentTools).toBe(true);
+  });
 });
