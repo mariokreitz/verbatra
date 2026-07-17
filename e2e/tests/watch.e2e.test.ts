@@ -24,6 +24,11 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     consumer = await makeConsumer();
   }, 180_000);
 
+  /**
+   * The shutdown assertions (exit 0 on a single SIGINT, at least one NDJSON record, no secret in
+   * either stream) run only after the watch/translate flow has already succeeded, so a translate
+   * failure is never masked by a shutdown assertion.
+   */
   it("translates on startup and again when the source changes, then stops on interrupt", async () => {
     if (provider === null) {
       return;
@@ -47,7 +52,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     let stopResult: Awaited<Subprocess> | undefined;
 
     try {
-      // The startup run fills the missing key; reaching it also proves the watcher is live.
       await pollUntil(
         async () => {
           const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
@@ -74,16 +78,10 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
       expect(de.welcome ?? "").toContain("{{name}}");
       expect(de.greeting ?? "").toContain("{{name}}");
     } finally {
-      // Cleanup runs whether the assertions above passed or failed, so a stuck watcher never
-      // outlives the test.
       watcher.kill("SIGINT");
       stopResult = await watcher;
     }
 
-    // A single SIGINT is the documented graceful-stop contract: exit 0, having already emitted at
-    // least one NDJSON record to stdout, with no secret in either stream. Asserted only once the
-    // watch/translate flow above has already succeeded, so a translate failure is never masked by
-    // a shutdown assertion.
     expect(stopResult.signal).toBeUndefined();
     expect(stopResult.exitCode).toBe(0);
 

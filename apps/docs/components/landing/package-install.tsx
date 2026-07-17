@@ -13,12 +13,8 @@ const MANAGERS = [
 ] as const;
 
 const CLI_TOKEN = "@verbatra/cli";
-// Same macOS window chrome as the hero Terminal, tying the two cards together.
 const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
 
-// Terminal-style install card: a windowed frame whose title bar carries the package-manager
-// tabs, a surface-bg body with the glow $ prompt, the @verbatra/cli npm link, and a copy
-// button. Interactive, so it is a client leaf.
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("pnpm");
@@ -30,9 +26,7 @@ export function PackageInstall(): ReactNode {
       await navigator.clipboard.writeText(current.command);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context); the command is still visible.
-    }
+    } catch {}
   }
 
   const tokenAt = current.command.indexOf(CLI_TOKEN);

@@ -1,0 +1,48 @@
+---
+title: verbatra init
+description: Crea una configuración de verbatra y un ejemplo de .env para este proyecto.
+---
+Prepara un proyecto: `init` escribe un `verbatra.config.ts` y un `.env.example` que nombra la variable de la clave API de tu proveedor (nunca el valor de una clave), y se asegura de que `.gitignore` cubra `.env`, `.env.local` y `.verbatra-local/`. Cuando stdin es una terminal y `--yes` está ausente, pregunta por todo lo que no pasaste como flag; si no, toma los valores por defecto, así que corre desatendido en CI.
+
+## Sinopsis
+
+```bash
+verbatra init [flags]
+```
+
+## Flags
+
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | escribe la configuración y los archivos de entorno en este directorio |
+| `--provider` | `<id>` | ninguno (obligatorio) | proveedor a preparar: `anthropic`, `openai`, `gemini` o `deepl`; se pregunta cuando se omite en modo interactivo |
+| `--source` | `<locale>` | `en` | el locale de origen en el que están escritas tus cadenas |
+| `--targets` | `<locales>` | `de` | locales de destino separados por comas a los que traducir |
+| `--path` | `<pattern>` | `locales/{locale}.json` | patrón de los archivos de locale; debe contener el token `{locale}` |
+| `--yes` | ninguno | desactivado | omite las preguntas y acepta los valores por defecto |
+| `--force` | ninguno | desactivado | sobrescribe un `verbatra.config.ts` o `.env.example` existente |
+
+El formato no es un flag: `init` lo detecta a partir de tus dependencias (`i18next`, `vue-i18n`, `next-intl` o `@ngx-translate/core`). Sin una única coincidencia inequívoca recurre a `i18next-json` y deja un comentario TODO que lista todos los formatos admitidos. Sin `--force`, un `verbatra.config.ts` o `.env.example` existente se omite, nunca se sobrescribe, y el comando aun así termina con éxito.
+
+## Ejemplos
+
+```bash
+# create config + .env example, prompting for the rest
+verbatra init --provider gemini
+
+# non-interactive, accept all defaults
+verbatra init --provider deepl --yes
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | archivos escritos, u omitidos con seguridad porque ya existen |
+| `2` | un `--provider` faltante o desconocido, un scaffold inválido o un error de uso |
+
+## Relacionado
+
+- [Tu primera traducción](/docs/your-first-translation) va desde init hasta la primera ejecución.
+- [Archivo de configuración](/docs/config-file) documenta cada clave que define el scaffold.
+- [Proveedores](/docs/providers) cubre las opciones de proveedor y las variables de clave API.

@@ -1,3 +1,4 @@
+import { getBreadcrumbItems } from "fumadocs-core/breadcrumb";
 import { Callout } from "fumadocs-ui/components/callout";
 import {
   DocsBody,
@@ -12,9 +13,63 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
+import { extractFaqItems } from "@/lib/extract-faq";
 import { i18n, type Locale } from "@/lib/i18n";
 import { source } from "@/lib/source";
-import { techArticleLd } from "@/lib/structured-data";
+import {
+  type BreadcrumbLdItem,
+  breadcrumbListLd,
+  faqPageLd,
+  techArticleLd,
+} from "@/lib/structured-data";
+
+/**
+ * Mirrors the breadcrumb trail Fumadocs renders (includePage: true, no root)
+ * so the emitted BreadcrumbList matches the visible trail exactly. Items with
+ * non-string names (none today) are dropped rather than approximated.
+ */
+function breadcrumbTrail(pageUrl: string, lang: Locale): BreadcrumbLdItem[] {
+  const items = getBreadcrumbItems(pageUrl, source.getPageTree(lang), { includePage: true });
+  const trail: BreadcrumbLdItem[] = [];
+  for (const item of items) {
+    if (typeof item.name !== "string") continue;
+    trail.push({ name: item.name, url: item.url });
+  }
+  return trail;
+}
+
+type DocsPageData = NonNullable<ReturnType<typeof source.getPage>>;
+
+/**
+ * Collects the JSON-LD blocks for a docs page: TechArticle everywhere, a
+ * BreadcrumbList matching the rendered trail on non-home pages, and an
+ * FAQPage block on /docs/faq built from the page's own H2 questions and
+ * answer bodies (per locale, nothing fabricated).
+ */
+async function pageJsonLd(
+  page: DocsPageData,
+  slug: string[] | undefined,
+  lang: Locale,
+): Promise<Array<Record<string, unknown>>> {
+  const blocks: Array<Record<string, unknown>> = [
+    techArticleLd({
+      title: page.data.title,
+      description: page.data.description,
+      path: page.url,
+      lang,
+    }),
+  ];
+  if (!slug || slug.length === 0) return blocks;
+
+  const trail = breadcrumbTrail(page.url, lang);
+  if (trail.length > 0) blocks.push(breadcrumbListLd({ items: trail }));
+
+  if (slug.length === 1 && slug[0] === "faq") {
+    const items = extractFaqItems(await page.data.getText("processed"));
+    if (items.length > 0) blocks.push(faqPageLd({ items, lang }));
+  }
+  return blocks;
+}
 
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
@@ -24,18 +79,8 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
 
   const MDX = page.data.body;
 
-  // The docs home renders its own full-bleed hero (with its own h1), so the default title,
-  // description, table of contents, breadcrumb, and prev/next footer are suppressed there. The
-  // article also drops its max-width and padding for the home so the hero can span the full
-  // content area edge to edge; the home MDX re-contains the below-hero content in <DocsHomeBody>.
-  // The footer is dropped because its single "next" card renders full width (there is no prev)
-  // and duplicates the home's entry cards, which are the real, uniform-size navigation. Every
-  // other page keeps the standard docs chrome.
   const isHome = !params.slug || params.slug.length === 0;
 
-  // Non-English docs pages are machine-translated (UI strings by verbatra, content by hand),
-  // so a transparency notice links back to the authoritative English original. The home is
-  // excluded so the notice never sits above the full-bleed hero.
   const isTranslated = lang !== i18n.defaultLanguage;
   const englishHref = `/docs${params.slug && params.slug.length > 0 ? `/${params.slug.join("/")}` : ""}`;
   const translationNote =
@@ -43,35 +88,24 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
       ? await getTranslations({ locale: lang, namespace: "docs.machineTranslated" })
       : null;
 
-  // The right-hand table of contents (rendered by DocsPage's default `toc` slot) already
-  // gives page-level wayfinding, so the breadcrumb trail is redundant chrome and stays off
-  // for every page, not just the home.
-  //
-  // "Edit this page" points at this exact page's own source file (`page.path`, relative to
-  // `content/docs`), including its locale suffix where one applies, so a reader editing the
-  // German page lands on `page.de.mdx`, the file that actually produced what they are
-  // reading, not the English source they cannot use to fix it. The home is excluded, same as
-  // the breadcrumb and footer, since it has no matching content file to edit.
   const editHref = isHome
     ? null
     : `https://github.com/mariokreitz/verbatra/blob/main/apps/docs/content/docs/${page.path}`;
+
+  const jsonLd = await pageJsonLd(page, params.slug, lang);
 
   return (
     <DocsPage
       toc={isHome ? [] : page.data.toc}
       full={isHome}
-      breadcrumb={{ enabled: false }}
+      role="main"
+      breadcrumb={{ enabled: !isHome, includePage: true }}
       footer={{ enabled: !isHome }}
       className={isHome ? "max-w-none p-0 md:p-0 xl:p-0" : undefined}
     >
-      <JsonLd
-        data={techArticleLd({
-          title: page.data.title,
-          description: page.data.description,
-          path: page.url,
-          lang,
-        })}
-      />
+      {jsonLd.map((data) => (
+        <JsonLd key={String(data["@type"])} data={data} />
+      ))}
       {isHome ? null : (
         <>
           <DocsTitle>{page.data.title}</DocsTitle>
@@ -103,8 +137,6 @@ export async function generateMetadata(props: {
   const page = source.getPage(params.slug, params.lang as Locale);
   if (!page) notFound();
 
-  // Per-page hreflang alternates: pair each translation of this page so search engines serve
-  // the right locale. The sitemap carries the same signal; page-level link tags reinforce it.
   const languages: Record<string, string> = {};
   for (const altLocale of i18n.languages) {
     const altPage = source.getPage(params.slug, altLocale);
@@ -123,8 +155,6 @@ export async function generateMetadata(props: {
       url: page.url,
       images: [{ url: "/og-image.png", width: 1200, height: 630 }],
     },
-    // Set the Twitter card explicitly so shared docs pages show this page's title and
-    // description, not the site-wide defaults inherited from the layout.
     twitter: {
       card: "summary_large_image",
       title: page.data.title,

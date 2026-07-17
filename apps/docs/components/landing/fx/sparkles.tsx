@@ -2,12 +2,6 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 
-// Lightweight twinkling canvas particle field. Renders nothing meaningful on the server
-// (the canvas is empty until JS draws), so it is loaded via next/dynamic ssr:false. The
-// rAF loop runs once for the canvas lifetime; the ResizeObserver is rAF-coalesced and only
-// rebuilds when the box changes beyond a small threshold, preserving particle positions and
-// phases so the field never visibly reseeds. Under prefers-reduced-motion it paints one
-// static frame.
 type Particle = { x: number; y: number; r: number; p: number; s: number };
 
 export function Sparkles({
@@ -44,8 +38,6 @@ export function Sparkles({
       };
     }
 
-    // Rescale existing particle positions into the new box so the field shifts with the
-    // resize instead of clumping.
     function rescaleParticles(prevW: number, prevH: number) {
       if (parts.length === 0 || prevW <= 0 || prevH <= 0) return;
       const sx = w / prevW;
@@ -56,8 +48,6 @@ export function Sparkles({
       }
     }
 
-    // Add or trim only the difference to the target count, preserving every kept particle's
-    // x/y/phase so the twinkle never visibly reseeds during normal play.
     function fitParticleCount() {
       const target = Math.max(18, Math.floor(w * h * density));
       if (parts.length < target) {
@@ -67,7 +57,6 @@ export function Sparkles({
       }
     }
 
-    // Resize the backing store while preserving the existing field.
     function applySize(nextW: number, nextH: number) {
       if (!ctx || !canvas) return;
       const prevW = w;
@@ -83,8 +72,6 @@ export function Sparkles({
       fitParticleCount();
     }
 
-    // Only rebuild when the box actually changed beyond a small threshold; pure re-fires
-    // at the same size (the hero terminal typing reflows the section) must not touch particles.
     function measure() {
       if (!parent) return;
       const nextW = parent.clientWidth;
@@ -125,11 +112,9 @@ export function Sparkles({
     if (reduce) {
       paintStatic();
     } else {
-      // One continuous loop for the canvas lifetime; never restarted on resize.
       draw();
     }
 
-    // Coalesce a burst of height changes into a single measure on the next frame.
     const ro = new ResizeObserver(() => {
       if (resizeRaf) return;
       resizeRaf = requestAnimationFrame(() => {

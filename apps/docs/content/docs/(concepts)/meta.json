@@ -1,0 +1,5 @@
+{
+  "title": "Core concepts",
+  "defaultOpen": true,
+  "pages": ["how-it-works", "the-lock-file", "translation-safety"]
+}

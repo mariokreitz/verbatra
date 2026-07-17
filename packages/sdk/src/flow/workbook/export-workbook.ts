@@ -11,8 +11,8 @@ import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
 import { baselineFor, lockFilePath, readLockFile } from "../../lock/lock-file.js";
-import { localeFilePath } from "../../paths.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
+import { readTarget } from "../diff-locales.js";
 import { selectLocales } from "../select-locales.js";
 import { readSource } from "../source.js";
 
@@ -45,21 +45,6 @@ export interface ExportWorkbookResult {
   readonly path: string;
   /** Per-locale row counts, in config order; the same set the workbook carries. */
   readonly locales: readonly { readonly locale: string; readonly rows: number }[];
-}
-
-/** Read a locale's existing target resource, or an empty resource when the file does not exist. */
-async function readTarget(
-  cwd: string,
-  config: VerbatraConfig,
-  adapter: FormatAdapter,
-  fs: SdkFs,
-  locale: string,
-): Promise<LocaleResource> {
-  const path = localeFilePath(cwd, config.files.pattern, locale);
-  if (!(await fs.fileExists(path))) {
-    return { locale, namespace: "", format: config.format, entries: new Map() };
-  }
-  return (await adapter.read(path, locale)).resource;
 }
 
 /** A reason code's lowercase-hyphenated label, e.g. "LENGTH_RATIO_OUTLIER" -> "length-ratio-outlier". */
@@ -111,6 +96,11 @@ function computeRowReview(
   return reviewColumns(flag);
 }
 
+/**
+ * Build one locale sheet's rows: missing and changed keys from the lock-baseline diff, plus
+ * unchanged keys on opt-in. Rows are re-sorted by key across the status buckets so the whole sheet
+ * has a deterministic total order.
+ */
 function buildRows(
   source: LocaleResource,
   target: LocaleResource,
@@ -152,7 +142,6 @@ function buildRows(
   if (includeUnchanged) {
     add(diff.unchanged, "unchanged");
   }
-  // Re-sort across buckets so the whole sheet has a deterministic total order by key.
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 

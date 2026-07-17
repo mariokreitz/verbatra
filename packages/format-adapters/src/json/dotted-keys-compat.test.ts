@@ -20,7 +20,6 @@ afterAll(() => {
   dirs.length = 0;
 });
 
-// A dotted-free fixture: no key segment contains a literal dot; its only dots are inside values.
 const DOTTED_FREE = [
   "{",
   '  "common": {',
@@ -68,7 +67,6 @@ describe("compatibility: dotted-free files are unaffected", () => {
         placeholders: ["{{name}}"],
         isPlural: false,
       });
-      // Same content but a different key/namespace yields an identical hash: the map-key encoding cannot influence it.
       expect(contentHash(greeting)).toBe(direct);
     }
   });

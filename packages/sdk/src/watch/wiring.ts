@@ -2,11 +2,9 @@ import { watch as chokidarWatch } from "chokidar";
 import { translate } from "../flow/translate-project.js";
 import type { CreateWatcher, RunTranslate, WatchDeps } from "./watch.js";
 
-/** Production wiring for watch: the two IO seams (chokidar watcher and real translate runner) tests inject. */
-
 /**
- * The production watcher wrapping chokidar; watches the given paths narrowly (a specific file).
- * ignoreInitial because watch does its own initial run. Both change and add map to one signal.
+ * The production watcher wrapping chokidar; watches exactly the given paths. `ignoreInitial` is set
+ * because watch does its own initial run. Both change and add events map to one signal.
  */
 export const defaultCreateWatcher: CreateWatcher = (paths) => {
   const fsWatcher = chokidarWatch([...paths], { persistent: true, ignoreInitial: true });
@@ -19,7 +17,7 @@ export const defaultCreateWatcher: CreateWatcher = (paths) => {
   };
 };
 
-/** The production run: the one-shot translate(), with the non-secret deps passed through. */
+/** The production run for a watch trigger: the one-shot translate(), with the deps passed through. */
 export function defaultRunTranslate(deps: WatchDeps): RunTranslate {
   return (input) =>
     translate(input, {

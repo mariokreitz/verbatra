@@ -1,14 +1,19 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "../errors.js";
+import { serializeJsonTree } from "./json-tree.js";
 import { unflattenEntries } from "./unflatten.js";
 
 function entry(key: string, value: string): TranslationEntry {
   return { key, namespace: "n", value, placeholders: [], isPlural: false };
 }
 
+/** Collapse the ordered tree to a plain object for order-insensitive shape assertions. */
 function plain(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value));
+  if (value instanceof Map) {
+    return Object.fromEntries([...value].map(([key, child]) => [key, plain(child)]));
+  }
+  return value;
 }
 
 describe("unflattenEntries", () => {
@@ -22,6 +27,22 @@ describe("unflattenEntries", () => {
     expect(plain(tree)).toEqual({ a: { b: "B", c: "C" } });
   });
 
+  it("preserves entry insertion order for integer-like keys at every level", () => {
+    const tree = unflattenEntries(
+      new Map([
+        ["b", entry("b", "B")],
+        ["10", entry("10", "ten")],
+        ["nested.404", entry("nested.404", "nf")],
+        ["nested.2", entry("nested.2", "two")],
+        ["200", entry("200", "ok")],
+      ]),
+    );
+    expect([...tree.keys()]).toEqual(["b", "10", "nested", "200"]);
+    const nested = tree.get("nested");
+    expect(nested).toBeInstanceOf(Map);
+    expect([...(nested as Map<string, unknown>).keys()]).toEqual(["404", "2"]);
+  });
+
   it("throws a structured error when a leaf collides with a nested path", () => {
     const entries = new Map([
       ["a", entry("a", "X")],
@@ -30,11 +51,11 @@ describe("unflattenEntries", () => {
     expect(() => unflattenEntries(entries)).toThrow(AdapterError);
   });
 
-  it("treats a __proto__ segment as inert data without polluting prototypes", () => {
+  it("treats a __proto__ segment as inert Map data without polluting prototypes", () => {
     const tree = unflattenEntries(new Map([["__proto__.x", entry("__proto__.x", "v")]]));
-    expect(Object.getPrototypeOf(tree)).toBeNull();
     expect(({} as Record<string, unknown>).x).toBeUndefined();
-    expect(JSON.stringify(tree)).toBe('{"__proto__":{"x":"v"}}');
+    expect(plain(tree.get("__proto__"))).toEqual({ x: "v" });
+    expect(serializeJsonTree(tree)).toBe('{\n  "__proto__": {\n    "x": "v"\n  }\n}\n');
   });
 
   it("restores an encoded literal dotted leaf as a single leaf, not re-nested", () => {

@@ -12,17 +12,16 @@ const TYPE_MAP: Record<string, string> = {
 };
 
 /**
- * Keywords the transform recognizes: transformed or recursed, or intentionally dropped
- * because Google's Schema dialect rejects them. Any other keyword throws so a future
- * addition to the canonical schema surfaces loudly instead of being silently dropped.
+ * Keywords the transform recognizes. `type`, `required`, `properties`, and `items` are transformed
+ * or recursed; `$schema` and `additionalProperties` are intentionally dropped because Google's
+ * Schema dialect rejects them. Any other keyword throws so a future addition to the canonical
+ * schema surfaces loudly instead of being silently dropped.
  */
 const HANDLED_KEYWORDS = new Set([
-  // transformed or recursed
   "type",
   "required",
   "properties",
   "items",
-  // deliberately dropped (not part of Google's Schema dialect)
   "$schema",
   "additionalProperties",
 ]);

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 
-// Inline GitHub mark. Pure SVG, so it stays a server component and is shared by the hero,
-// the final CTA, and the footer.
 export function GithubIcon({
   size = 18,
   className,

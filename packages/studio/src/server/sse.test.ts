@@ -81,10 +81,6 @@ describe("createSseHub: broadcast and heartbeat", () => {
     const response = fakeResponse();
     hub.register(response);
 
-    // The refresh event's own fields are otherwise payload-free (G12); this crafts a secret-shaped
-    // value into the one string field the type allows, so the assertion actually depends on
-    // `redact()` running in `tryWrite` rather than passing vacuously because nothing secret-shaped
-    // could ever appear.
     hub.broadcastRefresh({ reason: "source", at: "sk-abcdefgh12345678" });
 
     expect(response.writes[0]).not.toContain("sk-abcdefgh12345678");
@@ -128,7 +124,7 @@ describe("createSseHub: broadcast and heartbeat", () => {
       const hub = createSseHub({ heartbeatIntervalMs: 10 });
       const response = fakeResponse();
       hub.register(response);
-      response.failWrites = true; // simulates a destroyed socket
+      response.failWrites = true;
 
       await vi.advanceTimersByTimeAsync(10);
 
@@ -159,7 +155,6 @@ describe("createSseHub: shutdown", () => {
     expect(response.ended).toBe(true);
     expect(hub.size).toBe(0);
 
-    // The heartbeat timer was cleared: advancing past it writes nothing further.
     response.writes.length = 0;
     return vi.advanceTimersByTimeAsync(100).then(() => {
       expect(response.writes).toHaveLength(0);

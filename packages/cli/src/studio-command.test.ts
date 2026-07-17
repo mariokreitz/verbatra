@@ -1,7 +1,13 @@
 import { SdkError } from "@verbatra/sdk";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run } from "./run.js";
-import { captureStreams, flush, makeStudioModule, recordingDeps } from "./test-support.js";
+import {
+  captureStreams,
+  flush,
+  makeLoadedConfig,
+  makeStudioModule,
+  recordingDeps,
+} from "./test-support.js";
 import type { RunHooks, StudioSession } from "./types.js";
 
 /** A 64-hex-char string is what the command's own token generation always produces. */
@@ -44,8 +50,6 @@ describe("run studio: ordering", () => {
     expect(code).toBe(2);
     expect(cap.err()).toContain("CONFIG_NOT_FOUND");
     expect(calls.importStudio).toHaveLength(0);
-    // A hook wired to an already-failed session has nothing to close; calling requestStop on it
-    // is a harmless no-op.
     expect(() => captured.session()?.requestStop()).not.toThrow();
   });
 
@@ -123,11 +127,6 @@ describe("run studio: @verbatra/studio not installed", () => {
   });
 
   it("never masks a resolution failure inside @verbatra/studio's own dependency graph as not-installed", async () => {
-    // Realistic shape: studio itself resolved fine, but one of its own dependencies did not. The failed
-    // specifier is "chokidar", quoted; "@verbatra/studio" appears too, but only unquoted, as part of the
-    // importer's file path (its own installed location under node_modules). A pattern that matched
-    // "@verbatra/studio" as a bare substring (rather than quote-anchored) would wrongly treat this as
-    // studio itself missing, so this message is deliberately built to contain that unquoted occurrence.
     const importedFrom = "/proj/node_modules/@verbatra/studio/dist/server/create-studio-server.js";
     const { deps } = recordingDeps({
       importStudio: async () => {
@@ -311,7 +310,7 @@ describe("run studio: success path and shutdown", () => {
           startStudioServer: async () => ({
             url: "http://127.0.0.1:5849/",
             port: 5849,
-            close: () => new Promise(() => {}), // never resolves within this test
+            close: () => new Promise(() => {}),
           }),
         }),
     });
@@ -351,6 +350,150 @@ describe("run studio: success path and shutdown", () => {
 
     expect(code).toBe(1);
     expect(cap.err()).toContain("CLOSE_FAILED");
+  });
+});
+
+describe("run studio: --allow-spend capability resolution", () => {
+  const ENV_VARS = ["VERBATRA_STUDIO_ALLOW_SPEND", "VERBATRA_STUDIO_ALLOW_WRITE"] as const;
+  const originalValues: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const name of ENV_VARS) {
+      originalValues[name] = process.env[name];
+      delete process.env[name];
+    }
+  });
+
+  afterEach(() => {
+    for (const name of ENV_VARS) {
+      const value = originalValues[name];
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  });
+
+  async function captureResolvedCapabilities(
+    argv: readonly string[],
+  ): Promise<{ spend: boolean | undefined; passesWriteToDisk: boolean }> {
+    let resolved: { spend: boolean | undefined; passesWriteToDisk: boolean } = {
+      spend: undefined,
+      passesWriteToDisk: false,
+    };
+    const { deps } = recordingDeps({
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            resolved = { spend: options.spend, passesWriteToDisk: "writeToDisk" in options };
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run([...argv], deps, cap.streams, captured.hooks);
+    await flush();
+    captured.session()?.requestStop();
+    await donePromise;
+
+    return resolved;
+  }
+
+  it("defaults spend to false and never passes a writeToDisk option (writing is always on server-side)", async () => {
+    const resolved = await captureResolvedCapabilities(["studio"]);
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
+  });
+
+  it("sets spend true from the CLI flag alone", async () => {
+    const resolved = await captureResolvedCapabilities(["studio", "--allow-spend"]);
+    expect(resolved).toEqual({ spend: true, passesWriteToDisk: false });
+  });
+
+  it("rejects the removed --allow-write flag as an unknown option", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["studio", "--allow-write"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(calls.importStudio).toHaveLength(0);
+  });
+
+  it("falls back to the environment variable when the CLI flag is absent", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: true, passesWriteToDisk: false });
+  });
+
+  it("ignores the retired VERBATRA_STUDIO_ALLOW_WRITE variable entirely", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_WRITE = "1";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
+  });
+
+  it("treats an unrecognized or falsy environment value as off", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "0";
+
+    const resolved = await captureResolvedCapabilities(["studio"]);
+
+    expect(resolved).toEqual({ spend: false, passesWriteToDisk: false });
+  });
+
+  it("the CLI flag wins when both the flag and the environment variable are given", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+
+    const resolved = await captureResolvedCapabilities(["studio", "--allow-spend"]);
+
+    expect(resolved.spend).toBe(true);
+  });
+
+  it("resolves capabilities before loadConfigWithMeta ever runs, and never re-derives them afterward", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+    const { deps } = recordingDeps({
+      loadConfigWithMeta: async () => {
+        process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+        throw new SdkError("CONFIG_NOT_FOUND", "irrelevant for this test");
+      },
+    });
+    const cap = captureStreams();
+
+    await run(["studio"], deps, cap.streams);
+
+    expect(process.env.VERBATRA_STUDIO_ALLOW_SPEND).toBe("false");
+  });
+
+  it("the flag stays true even when the config module mutates its source env var afterward", async () => {
+    process.env.VERBATRA_STUDIO_ALLOW_SPEND = "true";
+    const startCalls: Array<{ spend: boolean | undefined }> = [];
+    const { deps } = recordingDeps({
+      loadConfigWithMeta: async () => {
+        process.env.VERBATRA_STUDIO_ALLOW_SPEND = "false";
+        return makeLoadedConfig();
+      },
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            startCalls.push({ spend: options.spend });
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run(["studio"], deps, cap.streams, captured.hooks);
+    await flush(20);
+    captured.session()?.requestStop();
+    await donePromise;
+
+    expect(startCalls).toEqual([{ spend: true }]);
   });
 });
 

@@ -50,3 +50,36 @@ describe("defaultFs binary read/write", () => {
     expect([...(await readFile(path))]).toEqual([9, 8, 7]);
   });
 });
+
+describe("defaultFs.createExclusive", () => {
+  it("creates a missing parent directory, then the file, returning true", async () => {
+    const dir = await makeTempDir();
+    const path = join(dir, "nested", "lock.json");
+    const created = await defaultFs.createExclusive(path, "payload");
+    expect(created).toBe(true);
+    expect(await readFile(path, "utf8")).toBe("payload");
+  });
+
+  it("returns false and writes nothing when the file already exists", async () => {
+    const dir = await makeTempDir();
+    const path = join(dir, "lock.json");
+    expect(await defaultFs.createExclusive(path, "first")).toBe(true);
+    expect(await defaultFs.createExclusive(path, "second")).toBe(false);
+    expect(await readFile(path, "utf8")).toBe("first");
+  });
+});
+
+describe("defaultFs.deleteFile", () => {
+  it("deletes an existing file", async () => {
+    const dir = await makeTempDir();
+    const path = join(dir, "lock.json");
+    await defaultFs.createExclusive(path, "payload");
+    await defaultFs.deleteFile(path);
+    expect(await defaultFs.fileExists(path)).toBe(false);
+  });
+
+  it("is a no-op when the file is already absent", async () => {
+    const dir = await makeTempDir();
+    await expect(defaultFs.deleteFile(join(dir, "absent.json"))).resolves.toBeUndefined();
+  });
+});

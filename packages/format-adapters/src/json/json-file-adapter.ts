@@ -2,6 +2,7 @@ import type { PlaceholderIntegrityResult, SupportedFormat, TranslationEntry } fr
 import type { FormatAdapter } from "../adapter.js";
 import type { DeriveEntry, KeyMode } from "./flatten.js";
 import { type JsonRecord, parseJsonObject, serializeJsonTree } from "./json-tree.js";
+import type { OrderedRecord } from "./ordered-json.js";
 import { createTreeFileAdapter } from "./tree-file-adapter.js";
 
 /** Per-value placeholder extraction, exposed on the adapter for consumers. */
@@ -19,12 +20,13 @@ type ComparePlaceholders = (sourceValue: string, targetValue: string) => Placeho
 /** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
 type ValidateTree = (tree: JsonRecord) => void;
 
-/** Optional builder for the object to write, allowing formats to control on-disk structure. */
+/** Optional builder for the ordered tree to write, allowing formats to control on-disk structure. */
 type BuildWriteTree = (
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
-) => unknown | Promise<unknown>;
+) => OrderedRecord | Promise<OrderedRecord>;
 
+/** The format-specific behavior {@link createJsonFileAdapter} builds an adapter from. */
 export interface JsonFileAdapterOptions {
   readonly format: SupportedFormat;
   readonly deriveEntry: DeriveEntry;

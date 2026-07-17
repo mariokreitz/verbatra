@@ -12,8 +12,6 @@ import {
 import { loadConfig, loadConfigWithMeta } from "./load-config.js";
 import type { VerbatraConfigInput } from "./schema.js";
 
-// baseConfig() returns the resolved VerbatraConfig shape (glossary as a plain record); tests here need
-// the as-authored union, so this builds a config whose glossary is a file path.
 function configWithGlossaryPath(path: string): VerbatraConfigInput {
   return { ...baseConfig(), glossary: path };
 }
@@ -93,7 +91,6 @@ describe("loadConfigWithMeta: glossary provenance", () => {
     const configFile = join(configDir, "ci.verbatra.json");
     await writeFile(configFile, JSON.stringify(configWithGlossaryPath("glossary.json")), "utf8");
     await writeJsonFile(join(configDir, "glossary.json"), { hello: "hallo" });
-    // A same-named file in cwd must never be consulted; only the config dir should resolve.
     await writeJsonFile(join(cwdDir, "glossary.json"), { hello: "wrong" });
 
     const loaded = await loadConfigWithMeta({ configPath: configFile, cwd: cwdDir });

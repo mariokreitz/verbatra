@@ -17,7 +17,7 @@
 
 ## Description
 
-`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, check or diff your locales without writing, or export and import an Excel workbook for manual translation. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
+`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, check or diff your locales without writing, export and import an Excel workbook for manual translation, or open Verbatra Studio, a local web dashboard over the project. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
 
 ## Requirements
 
@@ -55,7 +55,7 @@ Plural-category generation is opt-in too, but config/SDK only: set `generatePlur
 
 ## Commands
 
-verbatra ships seven commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `check` (report per-locale missing, stale, and up-to-date counts without writing), `diff` (list the keys that would be added, re-translated, or are orphaned per locale, without writing), `export` (write untranslated strings to an Excel workbook for a human translator), and `import` (read the filled workbook back, with the same safety checks as `translate`). `check` and `diff` are read-only: they call no provider and write no file, so they suit CI gates. `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
+verbatra ships eight commands: `init` (scaffold a config), `translate` (translate every target locale once), `watch` (re-translate on every source change), `check` (report per-locale missing, stale, and up-to-date counts without writing), `diff` (list the keys that would be added, re-translated, or are orphaned per locale, without writing), `export` (write untranslated strings to an Excel workbook for a human translator), `import` (read the filled workbook back, with the same safety checks as `translate`), and `studio` (start the local Verbatra Studio dashboard). `check` and `diff` are read-only: they call no provider and write no file, so they suit CI gates. `export` and `import` are the manual-translation workflow, for the strings you want a human to translate. The full reference - every flag, examples, and the exit-code contract - lives on the documentation site:
 
 - [CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)
 - [`verbatra init`](https://verbatra.kreitz-webdev.de/docs/cli/init)
@@ -65,9 +65,19 @@ verbatra ships seven commands: `init` (scaffold a config), `translate` (translat
 - [`verbatra diff`](https://verbatra.kreitz-webdev.de/docs/cli/diff)
 - [`verbatra export`](https://verbatra.kreitz-webdev.de/docs/cli/export)
 - [`verbatra import`](https://verbatra.kreitz-webdev.de/docs/cli/import)
+- [`verbatra studio`](https://verbatra.kreitz-webdev.de/docs/cli/studio)
 - [Manual translation workflow](https://verbatra.kreitz-webdev.de/docs/manual-translation)
 
 Run `verbatra <command> --help` for the same reference at the terminal.
+
+## Verbatra Studio
+
+`verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same placeholder and ICU integrity checks as a translate run; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. The server binds to `127.0.0.1` only and gates every request behind a per-session token. The dashboard itself ships as [`@verbatra/studio`](https://github.com/mariokreitz/verbatra/tree/main/packages/studio); install it alongside the CLI:
+
+```bash
+pnpm add -D @verbatra/studio
+verbatra studio
+```
 
 ## Exit codes
 
@@ -78,7 +88,7 @@ The CLI returns codes you can branch on in CI and scripts:
 | `0` | Success (also `--help` and `--version`); for `check` and `diff`, every locale is in sync. |
 | `1` | `translate` or `import` finished, but at least one locale failed; for `check` and `diff`, at least one locale is out of sync. |
 | `2` | Could not run: a whole-run error or a usage error. |
-| `130` | `watch` was force-stopped by a second interrupt (a single interrupt stops gracefully and exits `0`). |
+| `130` | `watch` or `studio` was force-stopped by a second interrupt (a single interrupt stops gracefully and exits `0`). |
 
 A `watch` per-run failure is reported as an output record, not an exit code.
 

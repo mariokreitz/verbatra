@@ -1,8 +1,8 @@
 ---
 title: Formats
-description: The i18n formats verbatra supports, how it reads them, and how each handles placeholders, plurals, and ICU.
+description: The seven supported formats, how each one reads and writes its files, and the document key order guarantee.
 ---
-verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your config. Seven are supported: four JSON flavors, plus ARB, YAML, and XLIFF.
+verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your [config](/docs/config-file). Seven are supported: four JSON flavors, plus XLIFF, YAML, and ARB.
 
 ## The four JSON formats
 
@@ -13,38 +13,64 @@ verbatra works on your locale files through a format adapter. Each adapter reads
 | `next-intl-json` | next-intl | ICU argument and tag names | ICU plural or selectordinal | yes |
 | `ngx-translate-json` | ngx-translate | `{{name}}` | none | no |
 
-i18next and ngx-translate share the same `{{double-brace}}` interpolation. i18next additionally extracts and guards its `$t()` nesting references (which splice another key's content into the value), for example `$t(common.foo)` and `$t(common.foo, { options })`, as placeholders, so a translation that drops or alters one fails the integrity check. Two limitations apply: nested parentheses inside the `$t()` options are not supported, and only the default `$t(` prefix is recognized. ngx-translate uses the same double-brace interpolation but has no `$t()` nesting. vue-i18n uses single braces and decides plural from a pipe in the value. next-intl values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. ngx-translate has no built-in plural or ICU, and its files may be flat with dotted keys or nested; verbatra preserves whichever style the file uses on write.
+All four read nested JSON objects of string leaves. Their differences are the message syntax:
 
-## ARB, YAML, and XLIFF
+- **i18next** uses `{{double-brace}}` interpolation and decides plural from the CLDR suffix on the key (`_zero`, `_one`, `_two`, `_few`, `_many`, `_other`). It additionally extracts and guards `$t()` nesting references (which splice another key's content into the value), for example `$t(common.foo)` and `$t(common.foo, { options })`, as placeholders, so a translation that drops or alters one fails the integrity check. Two limitations: nested parentheses inside the `$t()` options are not supported, and only the default `$t(` prefix is recognized.
+- **vue-i18n** uses single-brace `{name}` and `{0}` tokens and decides plural from a pipe in the value.
+- **next-intl** values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. A value that fails to parse as ICU is reported as invalid and skipped, never thrown.
+- **ngx-translate** shares i18next's `{{double-brace}}` interpolation but has no `$t()` nesting and no built-in plural or ICU. Its files may be flat (dotted keys) or nested, and verbatra preserves whichever style the file uses on write; a new target file is written nested. Uniquely, a file that mixes flat dotted keys with nested objects fails the read with `MIXED_STRUCTURE`, since such a file is ambiguous rather than guessable.
 
-Three more formats are now available beyond the JSON family. They use the same adapter pipeline, the same format-neutral representation, and the same placeholder and ICU integrity checks. Select each with its `format` tag.
+## XLIFF
 
-| `format` | For | Extensions | Placeholders | Notable behavior |
-| --- | --- | --- | --- | --- |
-| `arb` | Flutter | `.arb` | ICU | `@`-prefixed metadata is preserved and never translated |
-| `yaml` | YAML i18n | `.yml`, `.yaml` | `{{name}}` | nested tree, i18next-style interpolation |
-| `xliff` | XLIFF (XML) | `.xlf`, `.xliff` | inline placeholder ids | updates existing `<target>` elements in place; the target file must already exist |
+The `xliff` format covers `.xlf` and `.xliff` files, XLIFF 1.2 (`file/body/trans-unit`) and 2.0 (`file/unit/segment`). Unlike the tree formats, an XLIFF document is a flat list of trans-units.
 
-ARB (Flutter Application Resource Bundle) is JSON-based, with `@`-prefixed metadata keys (`@key` per-message metadata and `@@`-prefixed globals such as `@@locale`) sitting alongside the message keys. verbatra preserves that metadata and writes it back unchanged: it is never sent for translation. ARB message values are ICU MessageFormat, so the placeholders, plural handling, and ICU validation work exactly as they do for next-intl. When a message carries an `@key.description`, verbatra reads it as developer context: it reaches the AI provider as disambiguation context (never as text to translate) and appears in the [`Context` column](/docs/manual-translation) of an exported workbook. This is read-only context, not a new writable field: it is never written back to the ARB file.
+- **Keys.** Each entry is keyed by its trans-unit `id`, falling back to `resname`. A unit with neither falls back to a positional key, which shifts when earlier units are added or removed, so give every unit a stable `id`. Two units resolving to the same key (typically a duplicate `id`) fail the read with `INVALID_STRUCTURE` rather than silently keeping one.
+- **Values.** The value comes from `<target>` when present, otherwise `<source>`.
+- **Writes update targets in place.** verbatra writes each value into its `<target>` and leaves `<source>`, attributes, and `<note>` elements untouched, so the document round-trips. Because a flat key/value map cannot reconstruct an XLIFF document, the destination file must already exist: verbatra updates targets in a pre-seeded target file (the standard XLIFF workflow) and does not create a missing one; a missing destination fails with `INVALID_STRUCTURE`.
+- **Inline markup.** Inline placeholder elements (`x`, `g`, `bx`, `ex`, `ph`, `it`, `mrk`) and single-brace `{name}` interpolation are extracted as placeholders and guarded across translation. On write, only those allow-listed elements (with their own minimal, non-executable attributes) survive as live markup in `<target>`; anything else in a translated value, including an unexpected element or a namespace mismatch, is written as plain text instead.
+- **Notes as context.** A trans-unit's `<note>` (in 2.0, the unit's `<notes><note>`, shared by every segment in the unit) is read as developer context: it reaches the provider as disambiguation context and appears in the [`Context` column](/docs/manual-translation) of an exported workbook. It is read-only and never written back.
 
-YAML is a nested tree in YAML syntax, the same shape as a nested JSON file. The `yaml` format assumes i18next-compatible `{{double-brace}}` interpolation. A round-trip preserves the tree and its values; YAML comments are not carried across a write, the same way JSON has no comment concept.
+## YAML
 
-XLIFF is XML, a flat list of trans-units rather than a nested tree. verbatra reads both XLIFF 1.2 (`file/body/trans-unit`) and XLIFF 2.0 (`file/unit/segment`), keying each entry by its trans-unit `id` and taking the value from `<target>` when present, otherwise `<source>`. Two trans-units resolving to the same key, typically a duplicate `id`, fails the read with `INVALID_STRUCTURE` rather than silently keeping one and dropping the other. On write it updates each `<target>` in place and leaves `<source>`, attributes, and `<note>` elements untouched, so the document round-trips. Because a single flat key/value map cannot reconstruct an XLIFF document, the destination file must already exist: verbatra updates targets in a pre-seeded target file (the standard XLIFF workflow) and does not create a missing target file. Inline placeholder elements (`x`, `g`, `bx`, `ex`, `ph`, `it`, `mrk`) are extracted by id and guarded across translation; on write, only these allow-listed elements (with their own minimal, non-executable attributes) survive as live markup in `<target>`, and anything else in a translated value, including an unexpected element or a namespace mismatch, is written as plain text instead. A trans-unit's `<note>` (or, in XLIFF 2.0, the unit's `<notes><note>`, shared by every segment in that unit) is read the same way as ARB's description: developer context for the provider and the exported workbook's `Context` column, read-only and never written back.
+The `yaml` format covers `.yml` and `.yaml` files: a nested tree in YAML syntax, the same shape as a nested JSON file, handled by the same tree pipeline. It assumes i18next-compatible `{{double-brace}}` interpolation and detects by extension only.
 
-## Why the format matters
+- YAML comments are not carried across a write, the same way JSON has no comment concept.
+- Scalar non-string keys keep their string form (`1:` reads as `"1"`, `true:` as `"true"`).
+- A composite key (a map or sequence used as a mapping key) has no faithful string form, so the read fails with `INVALID_STRUCTURE` instead of silently collapsing it to text.
+- Malformed syntax is reported as `INVALID_YAML`, and anchor-alias expansion is bounded, so a hostile document cannot blow up the parse.
 
-The format tells verbatra two things it needs for a safe run. First, the placeholder syntax, so the [placeholder integrity check](/docs/translation-safety) knows what to compare before and after translation. Second, for ICU, which values to validate, so an invalid ICU source key is skipped rather than sent in a broken state. The wrong format compares the wrong tokens, so match it to your i18n library.
+## ARB
+
+The `arb` format covers Flutter's `.arb` files: JSON with a flat object of message keys alongside `@`-prefixed metadata (`@key` per-message metadata and `@@`-prefixed globals such as `@@locale`).
+
+- **Metadata is preserved, never translated.** `@`-prefixed keys are stripped before translation and merged back on write in their document position. A destination file that exists but is corrupt fails the write rather than silently erasing its metadata.
+- **Messages are ICU.** Placeholders, plural handling, and ICU validation work exactly as they do for `next-intl-json`.
+- **Descriptions become context.** Each `@key.description` is read as developer context for that message: it reaches the provider as disambiguation context (never as text to translate) and appears in the [`Context` column](/docs/manual-translation) of an exported workbook. It is read-only and never written back.
+
+## Document key order
+
+Writes preserve your document's key order. The JSON family, YAML, and ARB round-trip keys exactly in document order:
+
+- An integer-like key such as `"2"`, `"10"`, or `"404"` keeps its position instead of being hoisted to the front and re-sorted, so a file keyed by numeric ids, HTTP status codes, or years stays in its own order.
+- A key that a `translate` run adds to a target file appends after the target's existing keys, following the source document's order, rather than being inserted alphabetically.
+- ARB metadata blocks round-trip in their document position too.
+
+XLIFF is unaffected: it updates existing `<target>` elements in place, so the document's order was never rebuilt in the first place.
+
+## Dotted keys and collisions
+
+For `i18next-json`, `vue-i18n-json`, and `next-intl-json`, a literal dotted leaf (a key such as `"foo.bar"` used as a single leaf) round-trips losslessly: verbatra reads it and writes it back with its on-disk shape preserved, not re-nested into `foo` then `bar`. Real nested paths stay nested.
+
+The one case that fails by design is a genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path (for example `"foo.bar"` alongside `"foo": { "bar": ... }`). That read fails with `INVALID_STRUCTURE` rather than guessing or corrupting data.
+
+`ngx-translate-json` treats a dotted key as a nested path rather than a literal leaf, so there is no dotted-vs-literal ambiguity to preserve, but it gets the same collision safety: a dotted key whose path collides with a real nested path, including one being an ancestor of the other, fails with `INVALID_STRUCTURE` instead of silently overwriting a value.
 
 ## How files are read and written
 
-verbatra caps input size and nesting depth on read, and resists a file changing underneath it. It writes atomically: it writes to a temporary file, then renames it into place, so an interrupted write never leaves a half-finished locale file. When verbatra cannot handle a file, it raises a structured, secret-free error rather than a raw one, for example on invalid JSON, a structure too deep, or, for ngx-translate only, a file that mixes flat dotted keys with nested objects.
+verbatra caps input size and nesting depth on read, and resists a file changing underneath it. It writes atomically: it writes to a temporary file, then renames it into place, so an interrupted write never leaves a half-finished locale file. When verbatra cannot handle a file, it raises a structured, secret-free error with a stable code rather than a raw one: `INVALID_JSON`, `INVALID_YAML`, or `INVALID_XML` for malformed syntax, `INVALID_STRUCTURE` for a parseable file of the wrong shape, `MAX_DEPTH_EXCEEDED` and `INPUT_TOO_LARGE` for the caps, and `MIXED_STRUCTURE` for ngx-translate's mixed-style case.
 
-A tree-based locale file (the JSON family, YAML, and ARB) can carry a leaf that isn't a string, for example a `count: 5` or `enabled: true` value sitting next to the translatable keys. verbatra accepts these: a leaf can be a string, a number, a boolean, or null, and only a leaf of another type, such as an array, still fails with `INVALID_STRUCTURE`. A non-string leaf is excluded from the translatable set: it is never translated, hashed, diffed, or checked for placeholders or ICU. This replaces the older behavior, where one such leaf anywhere in the file failed the whole read with `INVALID_STRUCTURE`, blocking every sibling string key in that file too. Exclusion is not preservation: if verbatra later writes that same locale file, the write is rebuilt from the strings it manages, so a non-string leaf present at read time is not carried into the output. If such a value needs to survive a rewrite, keep it out of the files verbatra writes to. XLIFF's trans-unit values are always strings, so this does not apply there.
+A tree-based locale file (the JSON family, YAML, and ARB) can carry a leaf that is not a string, for example a `count: 5` or `enabled: true` value sitting next to the translatable keys. verbatra accepts these: a leaf can be a string, a number, a boolean, or null, and only a leaf of another type, such as an array, fails with `INVALID_STRUCTURE`. A non-string leaf is excluded from the translatable set: it is never translated, hashed, diffed, or checked for placeholders or ICU. Exclusion is not preservation: if verbatra later writes that same locale file, the write is rebuilt from the strings it manages, so a non-string leaf present at read time is not carried into the output. If such a value needs to survive a rewrite, keep it out of the files verbatra writes to. XLIFF's trans-unit values are always strings, so this does not apply there.
 
-## Dotted keys
+## Why the format matters
 
-For i18next, vue-i18n, and next-intl, a literal dotted leaf (a key such as `"foo.bar"` used as a single leaf) round-trips losslessly: verbatra reads it and writes it back with its on-disk shape preserved, not re-nested into `foo` then `bar`. Real nested paths stay nested. The one case that still fails by design is a genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path (for example `"foo.bar"` alongside `"foo": { "bar": ... }`); that run errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. ngx-translate treats a dotted key as a nested path rather than a literal leaf, so there is no dotted-vs-literal ambiguity to preserve on that side, but it gets the same collision safety: a dotted key whose path collides with a real nested path, including one being an ancestor of the other, throws `INVALID_STRUCTURE` instead of silently overwriting a value. A file that mixes flat dotted keys with nested objects still errors too, now caught at any nesting depth, not just at the top level.
-
-## Choosing a format
-
-Match the format to your framework: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, and `ngx-translate-json` for ngx-translate. For non-JSON sources, use `arb` for Flutter, `yaml` for YAML-based i18n, and `xliff` for XLIFF files. See [Config file](/docs/config-file) for where `format` sits in the config.
+The format tells verbatra two things it needs for a safe run. First, the placeholder syntax, so the [placeholder integrity check](/docs/translation-safety) knows what to compare before and after translation. Second, for the ICU formats, which values to validate, so an invalid ICU source key is skipped rather than sent in a broken state. The wrong format compares the wrong tokens, so match it to your i18n library: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, `ngx-translate-json` for ngx-translate, `xliff` for XLIFF files, `yaml` for YAML-based i18n, and `arb` for Flutter.

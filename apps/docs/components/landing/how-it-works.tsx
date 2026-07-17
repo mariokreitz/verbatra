@@ -5,8 +5,6 @@ import { SectionHead } from "./section-head";
 
 type Step = { title: string; body: string };
 
-// Fully static four-step pipeline: no interactivity, so it is a server component and ships
-// zero client JS.
 export async function HowItWorks(): Promise<ReactNode> {
   const t = await getTranslations("landing.how");
   const steps = Object.values(t.raw("steps") as Record<string, Step>);
@@ -14,7 +12,6 @@ export async function HowItWorks(): Promise<ReactNode> {
     <Section width="md">
       <SectionHead title={t("heading")} lead={t("lead")} />
       <ol className="relative mt-12 list-none">
-        {/* The glowing connector runs through the centers of the number badges (left 19px). */}
         <span
           aria-hidden="true"
           className="absolute top-2 bottom-8 w-px"

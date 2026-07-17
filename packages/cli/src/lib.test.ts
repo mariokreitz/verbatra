@@ -12,7 +12,6 @@ describe("library export", () => {
     };
 
     expect(typeof defineConfig).toBe("function");
-    // defineConfig's authoring overloads narrow model to known literals, so cast the runtime-shaped value.
     expect(defineConfig(config as Parameters<typeof defineConfig>[0])).toBe(config);
   });
 });

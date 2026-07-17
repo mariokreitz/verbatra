@@ -9,4 +9,5 @@ export const anthropicConfigSchema = z.object({
   maxTokens: z.number().int().positive(),
 });
 
+/** The validated Anthropic provider configuration, inferred from {@link anthropicConfigSchema}. */
 export type AnthropicConfig = z.infer<typeof anthropicConfigSchema>;

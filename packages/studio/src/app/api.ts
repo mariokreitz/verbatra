@@ -1,11 +1,18 @@
 /**
- * The single rpc client, session store, and live-refresh wiring the whole app shares, wired to
- * the real browser `fetch` and `EventSource`. Kept deliberately thin: the actual client,
- * session-expiry, reconnect, and stale-data logic live in `src/client/` (covered by the coverage
- * gate); this module only supplies the DOM-backed implementations and one shared refresh bus.
+ * The single rpc client, session store, and live-refresh wiring the whole app
+ * shares, bound to the real browser `fetch` and `EventSource`. The client,
+ * session-expiry, reconnect, and overlay logic live in `src/client/`; this
+ * module supplies the DOM-backed implementations, one shared refresh bus, and
+ * one shared connection-status store.
  */
-import type { EventSourceLike, MessageEventLike, ProbeOutcome } from "../client/reconnect.js";
+import type {
+  ConnectionStatus,
+  EventSourceLike,
+  MessageEventLike,
+  ProbeOutcome,
+} from "../client/reconnect.js";
 import { createReconnectController } from "../client/reconnect.js";
+import { createReviewOverlayStore, type ReviewOverlayStore } from "../client/review-overlay.js";
 import type { FetchLike, RpcClient } from "../client/rpc-client.js";
 import { createRpcClient } from "../client/rpc-client.js";
 import { createSessionStore, type SessionStore } from "../client/state.js";
@@ -13,12 +20,21 @@ import type { RefreshEvent } from "../shared/sse-events.js";
 
 const browserFetch: FetchLike = (url, init) => fetch(url, init);
 
+/** The app's single session store, shared by the rpc client and the reconnect controller. */
 export const sessionStore: SessionStore = createSessionStore();
 
+/** The app's single rpc client, bound to the browser `fetch` and {@link sessionStore}. */
 export const rpcClient: RpcClient = createRpcClient({
   fetchImpl: browserFetch,
   session: sessionStore,
 });
+
+/**
+ * The review queue's "actioned this session" overlay, held at module scope so
+ * it survives a page switch away from and back to the Review panel and resets
+ * only on a full page reload.
+ */
+export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore();
 
 const refreshListeners = new Set<(event: RefreshEvent) => void>();
 
@@ -35,6 +51,35 @@ export const refreshBus = {
 function notifyRefresh(event: RefreshEvent): void {
   for (const listener of refreshListeners) {
     listener(event);
+  }
+}
+
+const connectionListeners = new Set<(status: ConnectionStatus) => void>();
+
+/** Starts as "reconnecting" until the first SSE connection opens. */
+let connectionStatus: ConnectionStatus = "reconnecting";
+
+/** The live-refresh connection's current state, for the top bar's live indicator. */
+export const connectionStore = {
+  getStatus(): ConnectionStatus {
+    return connectionStatus;
+  },
+  subscribe(listener: (status: ConnectionStatus) => void): () => void {
+    connectionListeners.add(listener);
+    return () => {
+      connectionListeners.delete(listener);
+    };
+  },
+};
+
+/** Deduplicates repeated statuses so subscribers re-render once per actual transition. */
+function notifyConnectionStatus(status: ConnectionStatus): void {
+  if (status === connectionStatus) {
+    return;
+  }
+  connectionStatus = status;
+  for (const listener of connectionListeners) {
+    listener(status);
   }
 }
 
@@ -55,10 +100,9 @@ function browserCreateEventSource(url: string): EventSourceLike {
 }
 
 /**
- * A cheap RPC probe used only to distinguish a terminal 401 from a transient network failure
- * (see `client/reconnect.ts`). Any reachable response that is not that specific session-expired
- * error is treated the same as a network error: both simply mean "retry with backoff", and the
- * distinction only matters for the terminal case.
+ * A cheap rpc probe that distinguishes a terminal session expiry from a
+ * transient network failure. Any outcome other than the specific
+ * session-expired error means "retry with backoff".
  */
 async function probeSession(): Promise<ProbeOutcome> {
   try {
@@ -78,4 +122,5 @@ createReconnectController({
   probe: probeSession,
   session: sessionStore,
   onRefresh: notifyRefresh,
+  onStatusChange: notifyConnectionStatus,
 });

@@ -14,6 +14,7 @@ export interface RequestInitLike {
   readonly body: string;
 }
 
+/** The injected fetch-shaped function the client posts through. */
 export type FetchLike = (url: string, init: RequestInitLike) => Promise<FetchResponseLike>;
 
 /** One RPC call's outcome: the envelope the server sends, or a client-side session-expired stand-in. */
@@ -21,6 +22,7 @@ export type RpcCallResult<M extends RpcMethodName> =
   | { readonly ok: true; readonly result: RpcResultFor<M> }
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } };
 
+/** Options for {@link createRpcClient}. */
 export interface RpcClientOptions {
   /** The injected fetch implementation; production wraps the browser global, tests inject a stub. */
   readonly fetchImpl: FetchLike;
@@ -30,6 +32,7 @@ export interface RpcClientOptions {
   readonly endpoint?: string;
 }
 
+/** The typed client handle: one `call` per RPC method, never throwing on a failed call. */
 export interface RpcClient {
   call<M extends RpcMethodName>(method: M, params: RpcParamsFor<M>): Promise<RpcCallResult<M>>;
 }

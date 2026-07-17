@@ -8,10 +8,6 @@ import { StatusBand } from "@/components/landing/status-band";
 import { Terminal } from "@/components/landing/terminal";
 import Button from "@/components/ui/button";
 
-// The hero terminal walks the real v1 commands (init, translate, diff, watch). CLI code is
-// verbatim English and never localized. Outputs are consistent with the documented behavior
-// and the RunSummary fields (translated / unchanged / orphaned / skipped invalid icu /
-// withheld).
 const CLI_COMMANDS = [
   "verbatra init",
   "verbatra translate",
@@ -49,10 +45,6 @@ const CLI_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   ],
 };
 
-// Centered hero (Direction A): eyebrow, gradient headline, lead, install card, the two CTAs,
-// the live trust badges, and the animated CLI Terminal promoted into a glowing framed card.
-// The shell is a server component; only the decorative Backdrop, the install card, and the
-// Terminal are client leaves.
 export async function LandingHero(): Promise<ReactNode> {
   const t = await getTranslations("landing.hero");
   return (
@@ -60,9 +52,6 @@ export async function LandingHero(): Promise<ReactNode> {
       <Backdrop />
       <div className="relative mx-auto max-w-6xl px-6 pt-20 pb-20 md:pt-24">
         <div className="mx-auto max-w-[820px] text-center">
-          {/* The localized headline carries the lavender-to-violet gradient treatment. The
-              protective clamp floor keeps the longest localized string (German) from clipping
-              on narrow viewports. */}
           <h1
             className="mx-auto max-w-[16ch] font-semibold"
             style={{
@@ -99,8 +88,6 @@ export async function LandingHero(): Promise<ReactNode> {
           </div>
         </div>
 
-        {/* The animated CLI terminal, framed with a globe-glow wash behind it. It plays the
-            sequence once and then holds the settled state so it does not distract above the fold. */}
         <div className="relative mx-auto mt-14 max-w-[46rem]">
           <div
             aria-hidden="true"

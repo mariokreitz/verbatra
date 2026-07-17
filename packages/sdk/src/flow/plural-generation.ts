@@ -8,6 +8,7 @@ import { contentHash, type LocaleResource, type TranslationEntry } from "@verbat
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { chunk, subBatchFailedNotice } from "./batching.js";
 import { type BudgetTracker, checkBudgetTrip, foldTrackerUsage } from "./budget.js";
+import { gateCandidateValue } from "./integrity-gate.js";
 import { readNotices } from "./notices.js";
 import {
   type CldrPluralCategory,
@@ -87,13 +88,14 @@ const EMPTY_RESULT: PluralGenerationResult = {
 /**
  * Lock basis for a source-absent generated key: hash the governing source plural forms of its base key
  * plus the category. Stable while those source forms are unchanged, changing when any of them changes.
+ * Reuses {@link contentHash} over a throwaway entry whose value encodes the category and the sorted
+ * governing-form hashes.
  */
 export function generatedLockHash(
   governingEntries: readonly TranslationEntry[],
   category: CldrPluralCategory,
 ): string {
   const governingHashes = governingEntries.map(contentHash).sort();
-  // Reuse contentHash with a throwaway entry whose value encodes the category and governing-form hashes.
   return contentHash({
     key: "",
     namespace: "",
@@ -103,13 +105,15 @@ export function generatedLockHash(
   });
 }
 
-/** A synthetic source entry for the request: the chosen source form, re-keyed to the target key. */
+/**
+ * A synthetic source entry for the request: the chosen source form, re-keyed to the target key. The
+ * CLDR category travels as data context in the `meaning` field, never in the instruction channel.
+ */
 function syntheticEntry(item: PluralGenerationItem): TranslationEntry {
   return {
     ...item.sourceEntry,
     key: item.targetKey,
     isPlural: true,
-    // The CLDR category travels as data context (the meaning field), never the instruction channel.
     meaning: `CLDR plural category "${item.category}"`,
   };
 }
@@ -230,15 +234,21 @@ async function runGenerationSubBatch(
     return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const item of batch) {
-    foldGenerationItem(item, result, accepted, withheld, providerFailures);
+    foldGenerationItem(item, result, context.adapter, accepted, withheld, providerFailures);
   }
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/** Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. */
+/**
+ * Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. The
+ * accept/reject decision is recomputed directly from the candidate value via the shared
+ * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report: this is
+ * the same accept/reject choke point every other disk-writing path uses.
+ */
 function foldGenerationItem(
   item: PluralGenerationItem,
   result: TranslateResult,
+  adapter: FormatAdapter,
   accepted: GeneratedForm[],
   withheld: string[],
   providerFailures: string[],
@@ -248,7 +258,7 @@ function foldGenerationItem(
     providerFailures.push(item.targetKey);
     return;
   }
-  if (result.integrity.get(item.targetKey)?.matches === true) {
+  if (gateCandidateValue(item.sourceEntry, value, adapter).accepted) {
     accepted.push({
       targetKey: item.targetKey,
       entry: { ...syntheticEntry(item), value },

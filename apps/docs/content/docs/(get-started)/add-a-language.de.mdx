@@ -1,15 +1,15 @@
 ---
 title: Eine Sprache hinzufügen
-description: Füge ein neues Ziel-Locale mit einer einzeiligen Konfigurationsänderung und einem Lauf zu einer bestehenden verbatra-Einrichtung hinzu.
+description: "Füge einem bestehenden verbatra-Projekt eine neue Ziel-Locale hinzu: eine Zeile Konfiguration und ein translate-Lauf, während deine bestehenden Locales unangetastet bleiben."
 ---
-Eine Sprache hinzuzufügen ist eine einzeilige Konfigurationsänderung plus ein Übersetzungs-Lauf. verbatra sieht das neue Locale so, als würde ihm alles fehlen, daher füllt der erste Lauf es vollständig aus, und jeder Lauf danach bleibt inkrementell.
+Eine Sprache hinzuzufügen ist eine einzeilige Konfigurationsänderung plus ein Lauf. verbatra sieht die neue Locale als komplett fehlend und füllt sie vollständig; deine bestehenden Locales kosten nichts, weil die Lock-Datei sie weiterhin als aktuell verzeichnet.
 
-## Füge das Locale zu deiner Konfiguration hinzu
+## Füge die Locale zu deiner Konfiguration hinzu
 
-Füge es zu `targetLocales` in `verbatra.config.ts` hinzu. Es darf nur nicht dein `sourceLocale` sein:
+Trage sie in `targetLocales` in `verbatra.config.ts` ein:
 
 ```ts
-import { defineConfig } from "@verbatra/sdk";
+import { defineConfig } from "@verbatra/cli";
 
 export default defineConfig({
   sourceLocale: "en",
@@ -28,27 +28,33 @@ export default defineConfig({
 });
 ```
 
-## Übersetze
+Zwei Regeln, beide beim Laden der Konfiguration erzwungen: Eine Ziel-Locale darf nicht die `sourceLocale` sein, und zwei Einträge dürfen nicht case-insensitiv kollidieren (kein `de` und `DE` in derselben Liste).
 
-Führe es aus:
+## Sieh dir die anstehende Arbeit an
+
+Bevor du einen Token ausgibst, sieh dir an, was ein Lauf tun würde. `diff` ist schreibgeschützt und listet die ausstehenden Keys pro Locale:
+
+```bash
+verbatra diff
+```
+
+Die neue Locale hat noch keine Zieldatei, also behandelt verbatra sie als leer, und jeder Quell-Key erscheint als fehlend; deine bestehenden Locales listen nichts, sofern sich ihre Quellstrings nicht geändert haben. `diff` endet mit `1`, solange Änderungen ausstehen, und mit `0`, sobald keine mehr da sind. `verbatra translate --dry-run` liefert dieselbe Vorschau in Form einer Lauf-Zusammenfassung, ohne Provider-Aufruf und ohne Schreibvorgänge.
+
+## Übersetze
 
 ```bash
 verbatra translate
 ```
 
-Das neue Locale hat noch keine Zieldatei, daher behandelt verbatra es als leer und übersetzt jeden Quell-Schlüssel hinein, wobei die Datei aus `files.pattern` (hier `locales/fr.json`) geschrieben wird. Deine bestehenden Locales bleiben unberührt, es sei denn, ihre Quell-Strings haben sich geändert, weil die Lock-Datei sie immer noch als aktuell aufzeichnet.
+Der Lauf übersetzt jeden Quell-Key in die neue Locale und schreibt die Datei an dein `files.pattern` (hier `locales/fr.json`). Eine große Quelle wird in Sub-Batches von höchstens 50 Keys pro Provider-Anfrage aufgeteilt (konfigurierbar über `maxBatchSize`), damit eine überdimensionierte Anfrage nicht die ganze Locale versenkt.
 
-Erst schauen, bevor du springst? Sieh dir die Schlüssel des neuen Locales zuerst in der Vorschau an:
-
-```bash
-verbatra translate --dry-run
-```
+Das ist das inkrementelle Verhalten in Aktion: Nur die neue Locale löst Provider-Aufrufe aus. Für jede bestehende Locale vergleicht verbatra die Quelle mit der Baseline dieser Locale in `verbatra.lock.json`, findet keine fehlenden oder geänderten Keys und sendet nichts. Danach endet `verbatra check` mit `0`: Jede Locale, einschließlich der neuen, ist synchron.
 
 ## Sprachen mit mehr Pluralkategorien
 
-Manche Sprachen benötigen mehr CLDR-Pluralkategorien, als deine Quelle hat. Englisch hat zwei (`one` und `other`); Polnisch, Arabisch und Russisch haben mehr. Standardmäßig übersetzt verbatra die in der Quelle gefundenen Pluralformen und erfindet die zusätzlichen nicht: Der Lauf ist weiterhin erfolgreich und gibt eine Pluralkategorie-Warnung pro Locale aus (Hinweis-Code `PLURAL_CATEGORIES_INCOMPLETE`), die das Locale und die fehlenden Kategorien benennt.
+Manche Sprachen brauchen mehr CLDR-Pluralkategorien, als deine Quelle hat. Englisch hat zwei (`one` und `other`); Polnisch, Arabisch und Russisch haben mehr. Standardmäßig übersetzt verbatra die Pluralformen, die es in der Quelle findet, und erfindet die zusätzlichen nicht: Der Lauf gelingt trotzdem und gibt pro Locale einen Hinweis aus (Code `PLURAL_CATEGORIES_INCOMPLETE`), der die fehlenden Kategorien nennt.
 
-Damit verbatra stattdessen die fehlenden Formen synthetisiert, setze `generatePlurals: true` in deiner Konfiguration (oder übergib eine `generatePlurals`-Überschreibung pro Lauf):
+Damit verbatra die fehlenden Formen stattdessen synthetisiert, setze `generatePlurals: true` in deiner Konfiguration:
 
 ```ts
 export default defineConfig({
@@ -57,13 +63,14 @@ export default defineConfig({
 });
 ```
 
-Die Generierung wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden. DeepL, die anderen Formate und unbekannte Zielsprachen fallen auf die Warnung zurück und schlagen niemals fehl. Generierte Formen werden wie jede Übersetzung integritätsgeprüft und in der Lauf-Zusammenfassung getrennt von den übersetzten Schlüsseln gemeldet.
+Die Generierung wird nur für i18next-JSON-Projekte unterstützt, die ein LLM-Provider übersetzt; DeepL, die anderen Formate und unbekannte Zielsprachen fallen auf den Hinweis zurück und lassen den Lauf nie fehlschlagen. Generierte Formen werden wie jede Übersetzung auf Integrität geprüft und in der Lauf-Zusammenfassung getrennt von übersetzten Keys ausgewiesen.
 
-## Pflege des Quell-Locales
+## Die Quell-Locale pflegen
 
-Du pflegst immer nur das Quell-Locale von Hand. Um Strings hinzuzufügen, füge sie der Quelldatei hinzu und führe `translate` erneut aus: verbatra füllt sie in jedes Ziel, einschließlich desjenigen, das du gerade hinzugefügt hast.
+Du pflegst immer nur die Quell-Locale von Hand. Um Strings hinzuzufügen, trage sie in die Quelldatei ein und führe `translate` erneut aus: verbatra füllt sie in jedes Ziel, auch in das gerade hinzugefügte.
 
-## Weiter
+## Nächste Schritte
 
-- [Konfiguration](/docs/config-file): das vollständige Konfigurationsschema, einschließlich `glossary` und `tone`.
-- [Provider](/docs/providers): Provider-Optionen und wo du einen Schlüssel erhältst.
+- [Die Lock-Datei](/docs/the-lock-file): warum erneute Läufe günstig sind und was du committen solltest.
+- [Konfigurationsdatei](/docs/config-file): das vollständige Konfigurationsschema, einschließlich `glossary` und `tone`.
+- [Provider](/docs/providers): Provider-Optionen und wo du einen Schlüssel bekommst.

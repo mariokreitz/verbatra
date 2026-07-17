@@ -49,6 +49,7 @@ describe("runInit", () => {
     const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(gitignore).toContain(".env");
     expect(gitignore).toContain(".env.local");
+    expect(gitignore).toContain(".verbatra-local/");
   });
 
   it("scaffolds an LLM provider with a default model and token limit", async () => {
@@ -68,8 +69,6 @@ describe("runInit", () => {
   });
 
   it("pins each scaffold default model as valid for its provider (compile-time)", () => {
-    // Routing DEFAULT_MODEL through defineConfig fails the type-check if a provider drops or renames a
-    // model literal; the runtime assertion just keeps the calls live.
     const anthropic = defineConfig({
       sourceLocale: "en",
       targetLocales: ["de"],
@@ -138,7 +137,6 @@ describe("runInit", () => {
 
   it("returns 2 when the inputs would produce an invalid config", async () => {
     const cap = captureStreams();
-    // A target locale equal to the source violates a schema refinement.
     const code = await runInit(
       { cwd: dir, yes: true, provider: "deepl", source: "en", targets: "en" },
       cap.streams,
@@ -195,6 +193,7 @@ describe("runInit", () => {
     const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
     expect(gitignore.match(/^\.env$/gm)?.length).toBe(1);
     expect(gitignore).toContain(".env.local");
+    expect(gitignore).toContain(".verbatra-local/");
 
     const cap2 = captureStreams();
     await runInit(
@@ -203,6 +202,22 @@ describe("runInit", () => {
       nonInteractive,
     );
     expect(cap2.out()).toContain("already ignores");
+
+    const cap3 = captureStreams();
+    await runInit(
+      { cwd: dir, yes: true, provider: "deepl", force: true },
+      cap3.streams,
+      nonInteractive,
+    );
+    const reread = readFileSync(join(dir, ".gitignore"), "utf8");
+    expect(reread.match(/^\.verbatra-local\/$/gm)?.length).toBe(1);
+  });
+
+  it("scaffolds .verbatra-local/ into a freshly created .gitignore", async () => {
+    const cap = captureStreams();
+    await runInit({ cwd: dir, yes: true, provider: "deepl" }, cap.streams, nonInteractive);
+    const gitignore = readFileSync(join(dir, ".gitignore"), "utf8");
+    expect(gitignore).toContain(".verbatra-local/");
   });
 
   it("skips existing files without --force and overwrites with it", async () => {

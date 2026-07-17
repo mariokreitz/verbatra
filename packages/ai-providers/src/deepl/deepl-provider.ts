@@ -43,12 +43,18 @@ export interface DeepLDeps {
  * Create the DeepL provider, a machine-translation (non-LLM) provider that implements
  * translateBatch directly against TranslationProvider.
  *
+ * `supportsGlossary` is an honest capability signal: it is true only when a native glossary id is
+ * configured, because DeepL only ever applies a pre-created glossary id, never a generic term map
+ * (see `buildTranslateOptions`). Without one configured, a supplied term map is silently ignored and
+ * surfaces only as a `GLOSSARY_IGNORED` notice.
+ *
  * @param config - An optional pre-existing DeepL glossary id; never a key.
  * @param deps - Optional injected client and free-tier flag; when omitted, the production client is built.
  * @returns A {@link TranslationProvider} whose result also carries {@link ProviderNotice}s
  *   (`FORMALITY_DOWNGRADED`, `GLOSSARY_IGNORED`, `PLACEHOLDER_UNSUPPORTED`) as data. Its `translateBatch` raises
- *   {@link ProviderError} `INVALID_REQUEST`, `INVALID_RESPONSE` (a result-count mismatch), or
- *   `PROVIDER_ERROR`, never `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
+ *   {@link ProviderError} `INVALID_REQUEST`, `INVALID_RESPONSE` (a result-count mismatch), or (via the
+ *   shared guard) `RATE_LIMITED`, `TIMEOUT`, `AUTH_FAILED`, or `PROVIDER_ERROR`, never
+ *   `PROVIDER_REFUSED` or `PROVIDER_BLOCKED`.
  * @throws A `ZodError` if `config` is invalid.
  * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected and
  *   `DEEPL_API_KEY` is unset (the default client reads the env key eagerly).
@@ -72,9 +78,6 @@ export function createDeepLProvider(
   return {
     id: PROVIDER_ID,
     kind: "machine-translation",
-    // Honest capability signal: DeepL only ever applies a pre-created native glossary id, never a
-    // generic term map (see buildTranslateOptions). Without one configured, a supplied term map is
-    // silently ignored and surfaces only as a GLOSSARY_IGNORED notice.
     supportsGlossary: validConfig.glossaryId !== undefined,
     translateBatch: (request: TranslateRequest): Promise<DeepLTranslateResult> =>
       translate(bundle, validConfig, request),
@@ -88,6 +91,12 @@ function resolveClient(deps: DeepLDeps): DeepLClientBundle {
   return createDefaultClient();
 }
 
+/**
+ * The DeepL translateBatch body. Placeholder- and ICU-bearing entries are withheld (absent from both
+ * result maps) rather than sent to DeepL, which would mangle their tokens; withholding surfaces as a
+ * `PLACEHOLDER_UNSUPPORTED` notice. Notices ride a successful result only: any throw discards them,
+ * so they never attach to an error.
+ */
 async function translate(
   bundle: DeepLClientBundle,
   config: DeepLConfig,
@@ -105,8 +114,6 @@ async function translate(
     ...(data.tone !== undefined ? { tone: data.tone } : {}),
     ...(config.glossaryId !== undefined ? { glossaryId: config.glossaryId } : {}),
   });
-  // Placeholder- and ICU-bearing entries are withheld (absent from both maps) rather than sent to
-  // DeepL, which would mangle their tokens and loop forever on a never-converging paid retry.
   const { values, integrity } = await translateProtectable(
     bundle.client,
     data,
@@ -124,7 +131,6 @@ async function translate(
     notices,
     [...values.keys()],
   );
-  // Notices ride a successful result only; any throw above discards them so they never attach to the error.
   return { values, integrity, notices, reviewFlags };
 }
 

@@ -83,10 +83,11 @@ Everything else is private or internal and must not be published by accident.
   interface resolved through `ProviderRegistry`.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
   Excel workbooks over a neutral, format-agnostic row model.
-- `@verbatra/studio` (public): read-only local dashboard, a prebuilt single-page
-  app served over a verbatra project. Depends on `@verbatra/sdk`; reached only
-  through the CLI `studio` command via a dynamic import, so its absence never
-  breaks the rest of the CLI.
+- `@verbatra/studio` (public): local dashboard, a prebuilt single-page app served
+  over a verbatra project. Local editing is always on; provider-spending actions
+  (retranslate, translate pending) are gated behind the `--allow-spend` flag.
+  Depends on `@verbatra/sdk`; reached only through the CLI `studio` command via a
+  dynamic import, so its absence never breaks the rest of the CLI.
 - `@verbatra/sdk` (public): central orchestration API. One-shot `translate()`,
   long-running `watch()`, read-only `check()` and `diff()` (per-locale drift over the
   core `diffResources`, no provider call), `exportWorkbook()` and `importWorkbook()`

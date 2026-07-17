@@ -1,0 +1,48 @@
+---
+title: verbatra export
+description: Exporte les chaînes non traduites dans un classeur Excel stylisé pour un traducteur humain.
+---
+Écris les chaînes à traduire dans un classeur Excel stylisé qu'un humain peut remplir et renvoyer pour [`verbatra import`](/docs/cli/import). Par défaut, le classeur ne porte que les chaînes manquantes et modifiées : les mêmes clés qu'une exécution automatisée enverrait à un fournisseur. `export` n'appelle jamais de fournisseur et n'a besoin d'aucune clé d'API.
+
+## Synopsis
+
+```bash
+verbatra export [flags]
+```
+
+## Options
+
+| Option | Argument | Défaut | Effet |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
+| `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
+| `--out` | `<path>` | `verbatra-translations.xlsx` | écrit le classeur à ce chemin |
+| `--locales` | `<list>` | toutes les cibles configurées | sous-ensemble de locales cibles à exporter, séparées par des virgules |
+| `--include-unchanged` | aucun | désactivé | exporte aussi les chaînes déjà à jour |
+| `--json` | aucun | désactivé | affiche le résultat d'export (chemin et nombre de lignes par locale) comme un seul objet JSON sur stdout ; les erreurs vont toujours sur stderr |
+
+Une valeur `--locales` vide ou inconnue est rejetée avec la sortie `2` plutôt que de ne rien exporter en silence.
+
+## Exemples
+
+```bash
+# write the workbook with missing and changed strings
+verbatra export
+
+# only the German and French sheets, to a specific path
+verbatra export --locales de,fr --out handoff/round-2.xlsx
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | le classeur a été écrit |
+| `2` | impossible de s'exécuter : une erreur globale, ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
+
+`export` n'a pas de mode d'échec par locale, donc il ne sort jamais avec `1`.
+
+## Voir aussi
+
+- [Traduction humaine](/docs/manual-translation) couvre la disposition du classeur, les colonnes de révision et l'aller-retour complet.
+- [`verbatra import`](/docs/cli/import) relit le classeur rempli.

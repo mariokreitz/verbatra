@@ -108,6 +108,65 @@ describe("createReconnectController: refresh delivery", () => {
     expect(onRefresh).not.toHaveBeenCalled();
   });
 
+  it("passes locale and a well-formed delta through intact alongside reason and at", () => {
+    const source = fakeEventSourceFactory();
+    const onRefresh = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: async () => "network-error",
+      session: createSessionStore(),
+      onRefresh,
+    });
+
+    source.fire(
+      0,
+      "refresh",
+      JSON.stringify({
+        reason: "source",
+        at: "2026-01-01T00:00:00.000Z",
+        locale: "de",
+        delta: { added: 1, changed: 2, removed: 0 },
+      }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledWith({
+      reason: "source",
+      at: "2026-01-01T00:00:00.000Z",
+      locale: "de",
+      delta: { added: 1, changed: 2, removed: 0 },
+    });
+  });
+
+  it("parses the frame with delta absent when delta is present but malformed, instead of dropping the whole frame", () => {
+    const source = fakeEventSourceFactory();
+    const onRefresh = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: async () => "network-error",
+      session: createSessionStore(),
+      onRefresh,
+    });
+
+    source.fire(
+      0,
+      "refresh",
+      JSON.stringify({
+        reason: "targets",
+        at: "2026-01-01T00:00:00.000Z",
+        locale: "fr",
+        delta: { added: 1, changed: "two", removed: 0 },
+      }),
+    );
+
+    expect(onRefresh).toHaveBeenCalledWith({
+      reason: "targets",
+      at: "2026-01-01T00:00:00.000Z",
+      locale: "fr",
+    });
+  });
+
   it("drops a refresh payload that parses to a non-object or null instead of throwing", () => {
     const source = fakeEventSourceFactory();
     const onRefresh = vi.fn();
@@ -141,7 +200,7 @@ describe("createReconnectController: shutdown", () => {
 
     expect(session.getState()).toEqual({ kind: "session-expired" });
     expect(source.instances[0]?.closed).toBe(true);
-    expect(source.instances).toHaveLength(1); // no reconnect attempt after shutdown
+    expect(source.instances).toHaveLength(1);
   });
 });
 
@@ -204,26 +263,23 @@ describe("createReconnectController: backoff schedule", () => {
     async function disconnectAndCapture(index: number): Promise<number> {
       source.setReadyState(index, EVENT_SOURCE_CLOSED);
       source.fire(index, "error");
-      await vi.advanceTimersByTimeAsync(0); // let the probe promise settle
+      await vi.advanceTimersByTimeAsync(0);
       const before = source.instances.length;
       return before;
     }
 
-    // 1st disconnect: expect a reconnect after 1000ms.
     await disconnectAndCapture(0);
     await vi.advanceTimersByTimeAsync(999);
     expect(source.instances).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(source.instances).toHaveLength(2);
 
-    // 2nd disconnect: expect a reconnect after 2000ms.
     await disconnectAndCapture(1);
     await vi.advanceTimersByTimeAsync(1999);
     expect(source.instances).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(1);
     expect(source.instances).toHaveLength(3);
 
-    // 3rd disconnect: expect a reconnect after 4000ms.
     await disconnectAndCapture(2);
     await vi.advanceTimersByTimeAsync(3999);
     expect(source.instances).toHaveLength(3);
@@ -242,7 +298,6 @@ describe("createReconnectController: backoff schedule", () => {
       onRefresh: () => {},
     });
 
-    // Drive enough disconnects that the exponential formula would exceed the cap (1,2,4,8,16,32->30).
     for (let i = 0; i < 5; i += 1) {
       const index = source.instances.length - 1;
       source.setReadyState(index, EVENT_SOURCE_CLOSED);
@@ -275,17 +330,17 @@ describe("createReconnectController: backoff schedule", () => {
 
     source.setReadyState(0, EVENT_SOURCE_CLOSED);
     source.fire(0, "error");
-    await vi.advanceTimersByTimeAsync(1000); // reconnect #2 created after the 1s base delay
+    await vi.advanceTimersByTimeAsync(1000);
     expect(source.instances).toHaveLength(2);
 
-    source.fire(1, "open"); // the reconnect succeeds; backoff resets
+    source.fire(1, "open");
 
     source.setReadyState(1, EVENT_SOURCE_CLOSED);
     source.fire(1, "error");
     await vi.advanceTimersByTimeAsync(999);
     expect(source.instances).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(1);
-    expect(source.instances).toHaveLength(3); // base delay again, not 2s
+    expect(source.instances).toHaveLength(3);
   });
 });
 
@@ -310,7 +365,7 @@ describe("createReconnectController: stop()", () => {
       controller.stop();
       await vi.advanceTimersByTimeAsync(5000);
 
-      expect(source.instances).toHaveLength(1); // the pending reconnect never fired
+      expect(source.instances).toHaveLength(1);
       expect(source.instances[0]?.closed).toBe(true);
       expect(session.getState()).toEqual({ kind: "active" });
     } finally {
@@ -335,7 +390,7 @@ describe("createReconnectController: stop()", () => {
     });
 
     source.setReadyState(0, EVENT_SOURCE_CLOSED);
-    source.fire(0, "error"); // the probe is now in flight
+    source.fire(0, "error");
 
     controller.stop();
     resolveProbe?.("unauthorized");
@@ -344,5 +399,102 @@ describe("createReconnectController: stop()", () => {
 
     expect(source.instances).toHaveLength(1);
     expect(session.getState()).toEqual({ kind: "active" });
+  });
+});
+
+describe("createReconnectController: status changes", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reports live on open and reconnecting on a dropped connection", async () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+    });
+
+    source.fire(0, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
+
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    expect(onStatusChange).toHaveBeenLastCalledWith("reconnecting");
+  });
+
+  it("reports live again once a reconnect attempt opens", async () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+      baseDelayMs: 10,
+    });
+
+    source.fire(0, "open");
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    await vi.runAllTimersAsync();
+
+    source.fire(1, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
+    expect(onStatusChange.mock.calls.map(([status]) => status)).toEqual([
+      "live",
+      "reconnecting",
+      "live",
+    ]);
+  });
+
+  it("never reports status without an observer wired", () => {
+    const source = fakeEventSourceFactory();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+    });
+
+    source.fire(0, "open");
+    source.setReadyState(0, EVENT_SOURCE_CLOSED);
+    source.fire(0, "error");
+    expect(source.instances[0]?.closed).toBe(true);
+  });
+});
+
+describe("createReconnectController: native-retry status", () => {
+  it("reports reconnecting for an error during the EventSource's own retry, without closing it", () => {
+    const source = fakeEventSourceFactory();
+    const onStatusChange = vi.fn();
+    createReconnectController({
+      url: "/events",
+      createEventSource: source.createEventSource,
+      probe: fakeProbe(["network-error"]).probe,
+      session: createSessionStore(),
+      onRefresh: () => {},
+      onStatusChange,
+    });
+
+    source.fire(0, "open");
+    source.setReadyState(0, 0);
+    source.fire(0, "error");
+
+    expect(onStatusChange).toHaveBeenLastCalledWith("reconnecting");
+    expect(source.instances[0]?.closed).toBe(false);
+
+    source.fire(0, "open");
+    expect(onStatusChange).toHaveBeenLastCalledWith("live");
   });
 });

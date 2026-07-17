@@ -68,6 +68,7 @@ export interface WatchController {
   stop(): Promise<void>;
 }
 
+/** Project any thrown value onto the secret-free `{ code, message }` shape of a failed run. */
 function describeError(error: unknown): { code: string; message: string } {
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;
@@ -133,11 +134,11 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   let inFlight: Promise<void> | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
+  /** One run; a failure is surfaced through onRun, never thrown, so the in-flight promise never rejects. */
   async function runOnce(): Promise<void> {
     try {
       input.onRun({ status: "succeeded", summary: await runTranslate(runInput) });
     } catch (error) {
-      // Caught so the in-flight promise never rejects, which would break onRunComplete.
       input.onRun({ status: "failed", error: describeError(error) });
     }
   }
@@ -156,7 +157,6 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     }
     if (pending) {
       pending = false;
-      // Immediate follow-up: the source is known-stale, so no fresh debounce window.
       startRun();
       return;
     }
@@ -164,8 +164,12 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     inFlight = undefined;
   }
 
+  /**
+   * The debounce window elapsed: start a run, or mark a follow-up if one is in flight. The source
+   * is then known-stale, so the follow-up starts immediately on completion with no fresh debounce
+   * window. No stopped-guard is needed: stop() clears the timer before it can fire.
+   */
   function onSettledChange(): void {
-    // stop() clears the debounce timer before it can fire, so no stopped-guard is needed here.
     debounceTimer = undefined;
     if (state === "idle") {
       startRun();

@@ -1,0 +1,90 @@
+---
+title: FAQ
+description: Short answers to the questions that come up most when running verbatra.
+---
+Quick answers, each grounded in how verbatra actually behaves. For symptom-first help with error
+messages, see [Troubleshooting](/docs/troubleshooting).
+
+## How do I control cost?
+
+Four levers, all free of a provider call until you decide otherwise:
+
+- Runs are incremental by default: only keys that are missing or whose source changed since the
+  lock baseline are sent to the provider. An unchanged project costs nothing to re-run.
+- `--dry-run` (or `translate({ config, dryRun: true })`) previews exactly what would be sent,
+  with no provider call and no writes.
+- `maxTokens` in the config sets a whole-run token ceiling, with `budgetBehavior` deciding what
+  happens when it is reached: `"warn"` (default) flags it and continues, `"stop"` withholds every
+  key not yet attempted; withheld keys are retried automatically next run.
+- Gemini has a real free API tier, and the `openai-compatible` provider runs against a local
+  model at zero API cost.
+
+## Which provider should I start with?
+
+Gemini: it has a free API tier, so you can translate a whole project at no cost, and switching
+later means editing one `id` in the config. Anthropic and OpenAI are the paid-LLM quality picks,
+DeepL is the dedicated machine-translation option, and `openai-compatible` keeps everything on
+your own hardware. See [Providers](/docs/providers) for the full comparison.
+
+## Can I run a local model?
+
+Yes. The `openai-compatible` provider points verbatra at any server that speaks the OpenAI chat
+API, such as LM Studio, Ollama, or vLLM, via its `baseUrl` option. Most local servers need no API
+key: when neither an `apiKeyEnvVar`-named variable nor `OPENAI_COMPATIBLE_API_KEY` is set,
+verbatra sends the fixed placeholder `"local"`. If your server does need a key, name its
+environment variable with `apiKeyEnvVar`.
+
+## How do keys keep their order?
+
+The JSON-family, YAML, and ARB adapters round-trip files in exact document order: existing keys
+keep their positions (including integer-like keys), and new keys are appended in source order. A
+translated file diffs cleanly against its previous version. See [Formats](/docs/formats).
+
+## Why did a translation get flagged for review?
+
+Accepted translations pass through review heuristics that flag suspicious results without
+withholding them: a length far out of proportion to the source (`LENGTH_RATIO_OUTLIER`), a
+translation identical to the source (`EQUALS_SOURCE`), a missed glossary term
+(`GLOSSARY_TERM_MISSED`), reordered placeholders (`INTEGRITY_REORDERED`), or a degraded provider
+path (`PROVIDER_DEGRADED`). The flags land on the run summary's `needsReview` list and in Studio's
+Review queue. See [Translation safety](/docs/translation-safety).
+
+## Does verbatra work in a monorepo?
+
+Yes. The config search starts in the current working directory and walks upward, so running from a
+package directory finds that package's config. From anywhere else, pass `--cwd <dir>` (every
+command supports it) or point at a specific file with `--config <path>`. In the SDK, the same
+knobs are `cwd` and `configPath` on `loadConfig`. The `files.pattern` and the lock file resolve
+against the working directory.
+
+## What should I commit?
+
+Commit your locale files and `verbatra.lock.json`: the lock records, per key, the source content
+hash each translation came from, and committing it is what makes runs incremental and drift
+detection work everywhere, including CI. Do not commit `.env`, `.env.local`, or
+`.verbatra-local/`; `verbatra init` adds all three to `.gitignore`. See
+[The lock file](/docs/the-lock-file).
+
+## How do I re-translate everything?
+
+Deleting the lock file does not do it: without a baseline, keys that exist in both source and
+target count as up to date, so a run after deleting the lock translates nothing. To rebuild a
+locale from scratch, delete that locale's file and run `verbatra translate`: every key is then
+missing and gets translated fresh. For one key, use Studio's retranslate action or the SDK's
+`retranslateEntry`. To re-translate keys whose source text changed, just run `translate`: that is
+the normal incremental path.
+
+## Does using the CLI mean installing the SDK?
+
+`@verbatra/cli` depends on `@verbatra/sdk`, so installing the CLI brings the SDK along
+automatically; there is nothing extra to install. The reverse also holds: the SDK works standalone
+in your own scripts with no CLI. Only `@verbatra/studio` is a separate, optional install, loaded
+dynamically by the `studio` command.
+
+## Where do API keys live?
+
+Only in environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
+`DEEPL_API_KEY`, plus whatever variable you name for `openai-compatible`. The CLI loads `.env` and
+`.env.local` from the working directory (real environment variables win). The config schema
+rejects unknown keys precisely so a secret cannot end up in a committed file, and error messages
+name the variable but never a value. See [Providers](/docs/providers).

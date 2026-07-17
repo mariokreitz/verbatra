@@ -12,20 +12,37 @@ export interface TextTarget {
 }
 
 /**
- * One commit's plain-text summary line: its short hash, ISO author date, and subject, joined by a
- * single space. Never markup: every field renders exactly as git reported it, with no HTML
- * entities decoded or escaped, because it is never interpreted as HTML in the first place.
+ * Writes plain text into `target.textContent`, never through `innerHTML` or any other
+ * markup-interpreting sink. Whatever the text contains, including something shaped like
+ * `<script>`, ends up as literal text: a real `textContent` assignment never parses its argument
+ * as markup, so this is safe by construction rather than by escaping. The commit feed renders
+ * every git-sourced string (hash, date, subject) through this one seam.
  */
-export function formatCommitSummary(commit: HistoryCommit): string {
-  return `${commit.hash.slice(0, 7)} ${commit.authorDate} ${commit.subject}`;
+export function renderText(target: TextTarget, text: string): void {
+  target.textContent = text;
+}
+
+/** The visually distinct pieces of one commit's feed row, each still plain text. */
+export interface CommitSummaryParts {
+  /** The hash's first 7 characters, the conventional short form. */
+  readonly shortHash: string;
+  /** The calendar-date prefix of the strict ISO author date (git `%aI`), for the compact meta row. */
+  readonly dateLabel: string;
+  /** The full ISO author date, for a hover title on the compact label. */
+  readonly authorDate: string;
+  readonly subject: string;
 }
 
 /**
- * Writes a commit's summary into `target.textContent`, never through `innerHTML` or any other
- * markup-interpreting sink. Whatever `commit.subject` contains, including something shaped like
- * `<script>`, ends up as literal text: a real `textContent` assignment never parses its argument
- * as markup, so this is safe by construction rather than by escaping.
+ * Splits one commit into the parts the feed row renders separately (a hash chip, a date label,
+ * the subject line). Every field is passed through or sliced, never interpreted; each part is
+ * still written to the DOM via {@link renderText}, so the anti-markup guarantee holds per part.
  */
-export function renderCommitSummary(target: TextTarget, commit: HistoryCommit): void {
-  target.textContent = formatCommitSummary(commit);
+export function commitSummaryParts(commit: HistoryCommit): CommitSummaryParts {
+  return {
+    shortHash: commit.hash.slice(0, 7),
+    dateLabel: commit.authorDate.slice(0, 10),
+    authorDate: commit.authorDate,
+    subject: commit.subject,
+  };
 }

@@ -4,14 +4,14 @@ import { join } from "node:path";
 import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "../errors.js";
-import type { JsonRecord } from "./json-tree.js";
+import { parseJsonObject, serializeJsonTree } from "./json-tree.js";
 import { createTreeFileAdapter, type TreeFileAdapterOptions } from "./tree-file-adapter.js";
 
 const baseOptions: TreeFileAdapterOptions = {
   format: "yaml",
   extensions: [".tree", ".tr"],
-  parse: (content) => JSON.parse(content) as JsonRecord,
-  serialize: (tree) => JSON.stringify(tree),
+  parse: parseJsonObject,
+  serialize: serializeJsonTree,
   deriveEntry: () => ({ placeholders: [], isPlural: false }),
   extractPlaceholders: () => [],
 };
@@ -148,7 +148,7 @@ describe("createTreeFileAdapter write", () => {
 
   it("uses a supplied buildWriteTree to control the on-disk shape", async () => {
     const adapter = makeAdapter({
-      buildWriteTree: (entries) => ({ flat: [...entries.keys()] }),
+      buildWriteTree: (entries) => new Map([["flat", [...entries.keys()]]]),
     });
     const path = await tempFile("out.tree", "{}");
     await adapter.write(
@@ -161,6 +161,49 @@ describe("createTreeFileAdapter write", () => {
       path,
     );
     expect(JSON.parse(await readFile(path, "utf8"))).toEqual({ flat: ["k"] });
+  });
+});
+
+describe("createTreeFileAdapter key-order preservation", () => {
+  const mixedOrder =
+    '{\n  "zebra": "Z",\n  "1": "one",\n  "alpha": "A",\n  "nested": {\n    "10": "ten",\n    "b": "B",\n    "2": "two"\n  }\n}\n';
+
+  it("reads mixed integer-like and named keys into the entries Map in document order, at root and nested levels", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("f.tree", mixedOrder);
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual([
+      "zebra",
+      "1",
+      "alpha",
+      "nested.10",
+      "nested.b",
+      "nested.2",
+    ]);
+  });
+
+  it("writes keys in the entries Map iteration order exactly, so the round-trip is byte-identical", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("f.tree", mixedOrder);
+    const { resource } = await adapter.read(path, "en");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe(mixedOrder);
+  });
+
+  it("keeps an edited key in place instead of re-sorting it", async () => {
+    const adapter = makeAdapter();
+    const path = await tempFile("f.tree", mixedOrder);
+    const { resource } = await adapter.read(path, "en");
+    const entries = new Map(resource.entries);
+    const alpha = entries.get("alpha");
+    expect(alpha).toBeDefined();
+    if (alpha !== undefined) {
+      entries.set("alpha", { ...alpha, value: "edited" });
+    }
+    await adapter.write({ ...resource, entries }, path);
+    expect(await readFile(path, "utf8")).toBe(
+      mixedOrder.replace('"alpha": "A"', '"alpha": "edited"'),
+    );
   });
 });
 

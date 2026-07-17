@@ -10,11 +10,13 @@ import {
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
-// Read provider, env-var, and model truth from the SDK scaffolding metadata rather than restating it.
+/** The scaffoldable provider ids, derived from the SDK scaffolding metadata rather than restated. */
 const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];
 
-// Maps a dependency id to the locale format it implies; typed against SupportedFormat so a renamed or
-// removed core format id breaks this compile.
+/**
+ * Maps a dependency name to the locale format it implies. Typed against SupportedFormat so a renamed
+ * or removed core format id breaks this compile.
+ */
 const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["i18next", "i18next-json"],
   ["vue-i18n", "vue-i18n-json"],
@@ -22,11 +24,12 @@ const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["@ngx-translate/core", "ngx-translate-json"],
 ];
 const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
-// An alias of the SDK's per-provider scaffold models, not a source of truth.
+
+/** The per-provider scaffold models: an alias of the SDK scaffolding metadata, not a source of truth. */
 export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
 const TOKEN_LIMIT = 4096;
 
-/** Prompting seams, injected so the decision logic is tested without a real TTY. */
+/** Prompting seams for `runInit`, injected so the decision logic is tested without a real TTY. */
 export interface InitDeps {
   /** Reads one line for a prompt; defaults to the readline seam. Tests inject canned answers. */
   readonly ask?: (question: string) => Promise<string>;
@@ -45,7 +48,7 @@ function isProviderId(value: string): value is ScaffoldableProviderId {
   return (PROVIDER_IDS as string[]).includes(value);
 }
 
-/** Read the dependency + devDependency names from the project's package.json (empty if absent/invalid). */
+/** Reads the dependency and devDependency names from the project's package.json (empty if absent or invalid). */
 function readDependencyNames(cwd: string): Set<string> {
   const pkgPath = resolve(cwd, "package.json");
   if (!existsSync(pkgPath)) {
@@ -65,11 +68,13 @@ function readDependencyNames(cwd: string): Set<string> {
   }
 }
 
-/** Pre-fill the format from a single matching dependency; otherwise fall back to the default. */
+/**
+ * Pre-fills the format from the project's dependencies. Only a single match is unambiguous; zero or
+ * several matches fall back to the default, marked undetected.
+ */
 function detectFormat(cwd: string): { format: string; detected: boolean } {
   const deps = readDependencyNames(cwd);
   const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
-  // Only a single match is unambiguous; zero or several fall back to the default, marked undetected.
   const [first, second] = matches;
   if (first !== undefined && second === undefined) {
     return { format: first, detected: true };
@@ -77,17 +82,18 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   return { format: DEFAULT_FORMAT, detected: false };
 }
 
-// Read this package's name at runtime so the scaffolded import stays correct if the package is renamed.
+/** Reads this package's name at runtime so the scaffolded import stays correct if the package is renamed. */
 function readPackageName(): string {
   const manifestUrl = new URL("../package.json", import.meta.url);
   const { name } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { name: string };
   return name;
 }
 
-// buildProviderConfig (the validated object) and renderProviderBlock (the emitted text) must stay in
-// sync, since validation checks the object, not the text; the all-provider loadConfig round-trip guards
-// against drift.
-/** The provider block as a plain object, for validating the assembled config before writing. */
+/**
+ * The provider block as a plain object, used to validate the assembled config before writing. Must
+ * stay in sync with {@link renderProviderBlock} (the emitted text), since validation checks the
+ * object, not the text.
+ */
 function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown> {
   switch (id) {
     case "anthropic":
@@ -101,7 +107,7 @@ function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown
   }
 }
 
-/** The provider block rendered as commented TypeScript for the scaffolded config. */
+/** The provider block rendered as commented TypeScript for the scaffolded config file. */
 function renderProviderBlock(id: ScaffoldableProviderId): string {
   if (id === "deepl") {
     return [
@@ -125,7 +131,7 @@ function renderProviderBlock(id: ScaffoldableProviderId): string {
   ].join("\n");
 }
 
-/** Render the scaffolded verbatra.config.ts; importName is the CLI's own package name. */
+/** Renders the scaffolded verbatra.config.ts text; importName is the CLI's own package name. */
 function renderConfig(
   inputs: Inputs,
   format: string,
@@ -155,7 +161,7 @@ function renderConfig(
   ].join("\n");
 }
 
-/** Render .env.example: the provider's key name only, never a literal value. */
+/** Renders .env.example: the provider's key name only, never a literal value. */
 function renderEnvExample(id: ScaffoldableProviderId): string {
   return [
     `# Copy this file to .env and set your ${id} API key. Do not commit your real key.`,
@@ -164,7 +170,7 @@ function renderEnvExample(id: ScaffoldableProviderId): string {
   ].join("\n");
 }
 
-// Skip an existing file unless --force, so re-running init never clobbers a user's edits.
+/** Writes the file, but skips an existing one unless --force, so re-running init never clobbers a user's edits. */
 function writeFileIfAllowed(
   path: string,
   content: string,
@@ -181,33 +187,36 @@ function writeFileIfAllowed(
   streams.out(`${existed ? "overwrote" : "created"} ${label}\n`);
 }
 
-/** Ensure .env and .env.local are gitignored: create if absent, idempotently append otherwise. */
+/**
+ * Ensures .env, .env.local, and .verbatra-local/ are gitignored: creates the file if absent,
+ * otherwise appends only the entries not already present, so re-running init never duplicates
+ * them. .verbatra-local/ holds process-local, never-committed state (the run-status snapshot
+ * `translate`/`watch` write, and the per-locale write lock files under locks/).
+ */
 function ensureGitignore(cwd: string, streams: Streams): void {
   const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".env", ".env.local"];
+  const entries = [".env", ".env.local", ".verbatra-local/"];
   if (!existsSync(gitignorePath)) {
     writeFileSync(
       gitignorePath,
       `# Local environment files (never commit real keys)\n${entries.join("\n")}\n`,
     );
-    streams.out("created .gitignore (.env, .env.local)\n");
+    streams.out(`created .gitignore (${entries.join(", ")})\n`);
     return;
   }
   const content = readFileSync(gitignorePath, "utf8");
-  // Only append entries not already present, so re-running init never duplicates them.
   const present = new Set(content.split(/\r?\n/).map((line) => line.trim()));
   const missing = entries.filter((entry) => !present.has(entry));
   if (missing.length === 0) {
-    streams.out(".gitignore already ignores .env and .env.local\n");
+    streams.out(`.gitignore already ignores ${entries.join(", ")}\n`);
     return;
   }
-  // Prepend a newline when the file is non-empty and lacks a trailing one so the entry starts on its own line.
   const prefix = content.length === 0 || content.endsWith("\n") ? "" : "\n";
   appendFileSync(gitignorePath, `${prefix}${missing.join("\n")}\n`);
   streams.out(`updated .gitignore (added ${missing.join(", ")})\n`);
 }
 
-/** Resolve the provider from the flag or an interactive prompt; report and return undefined on error. */
+/** Resolves the provider from the flag or an interactive prompt; reports and returns undefined on error. */
 async function resolveProvider(
   opts: InitOpts,
   interactive: boolean,
@@ -251,8 +260,10 @@ async function resolveValue(
 }
 
 /**
- * Scaffold a verbatra config, a .env.example, and gitignore the real .env. Prompts only for
- * un-defaultable values when interactive; never writes a real key.
+ * Runs the `init` command: scaffolds a verbatra config and a .env.example, and gitignores the real
+ * .env. Prompts only when stdin is a TTY and --yes is absent, so init runs unattended in CI; it
+ * never writes a real key. The assembled config is validated against the real schema before
+ * anything is written, so a scaffolding bug fails with a clear message instead of an invalid file.
  *
  * @param opts - The parsed `init` flags.
  * @param streams - The output sink; init writes only human-readable status, never a key value.
@@ -268,7 +279,6 @@ export async function runInit(
   const ask = deps.ask ?? askLine;
   const isTty = deps.isTty ?? stdinIsTty;
   const cwd = opts.cwd ?? process.cwd();
-  // Prompt only with a real terminal and without --yes, so init runs unattended in CI.
   const interactive = opts.yes !== true && isTty();
 
   const provider = await resolveProvider(opts, interactive, ask, streams);
@@ -306,7 +316,6 @@ export async function runInit(
     files: { pattern: filesPattern },
     provider: buildProviderConfig(provider),
   };
-  // Validate against the real schema before writing, so a scaffolding bug fails here with a clear message.
   const validated = verbatraConfigSchema.safeParse(candidate);
   if (!validated.success) {
     const detail = validated.error.issues.map((issue) => issue.message).join("; ");

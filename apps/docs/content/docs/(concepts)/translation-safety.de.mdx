@@ -1,0 +1,111 @@
+---
+title: Übersetzungssicherheit
+description: "Das Sicherheitsmodell: nicht vertrauenswürdige Strings, das Integritäts-Gate, Review-Flags, das Token-Budget und Fehler, die nie etwas preisgeben."
+---
+verbatra vertraut Maschinenausgaben nicht, und den Strings, die es übersetzt, auch nicht. Jedes
+Ergebnis passiert ein Integritäts-Gate, bevor es geschrieben werden darf, alles, was das Gate
+ablehnt, taucht als Daten auf, statt den Lauf fehlschlagen zu lassen, und Geheimnisse bleiben aus
+jedem Fehlerpfad heraus. Diese Seite behandelt jede Schicht dieses Modells.
+
+## Nicht vertrauenswürdige Strings und die Prompt-Injection-Grenze
+
+Ein übersetzbarer String kann Text enthalten, der wie eine Anweisung aussieht (ein UI-String, der
+wörtlich "ignore your instructions" lautet), deshalb behandelt verbatra jeden einzelnen als nicht
+vertrauenswürdige Eingabe. Die Systemregeln, die an einen LLM-Provider gehen, sind Konstanten aus
+der Kompilierzeit. Alle variablen Eingaben, die zu übersetzenden Einträge samt deinem Glossar und
+Ton, reisen ausschließlich im JSON-Datenpayload des User-Turns und werden nie in den
+Anweisungskanal gespleißt. Die Ausgabe des Providers ist auf ein Schema beschränkt und wird als
+Daten validiert: Eine fehlerhafte Antwort schlägt fehl, und eine Antwort mit einem Key, der nie
+angefragt wurde, lässt den ganzen Sub-Batch fehlschlagen, weil es um erfundene Inhalte herum kein
+sicheres teilweises Annehmen gibt.
+
+## Das Integritäts-Gate
+
+Eine schemavalide Übersetzung kann trotzdem kaputt sein, deshalb berechnet ein Gate die
+Entscheidung über Annehmen oder Ablehnen direkt aus dem Kandidatenwert neu; dem eigenen
+Integritätsbericht des Providers wird nie vertraut. Dasselbe Gate läuft auf jedem Schreibpfad:
+einer Übersetzung vom Provider, einer importierten Arbeitsmappen-Zeile und einer von Hand
+getippten Bearbeitung in Studio.
+
+- Platzhalter-Integrität: Der übersetzte Wert muss dieselben Platzhalter tragen wie seine Quelle,
+  verglichen als Multimenge (die Anzahl zählt, die Reihenfolge nicht). Lass einen fallen, füge
+  einen hinzu oder verändere einen, und der Kandidat wird abgelehnt. Was als Platzhalter zählt,
+  ist pro Format definiert; siehe [Formate](/docs/formats).
+- ICU-Integrität: Für die ICU-Formate (next-intl und ARB) muss der übersetzte Wert weiterhin als
+  gültige Nachricht parsen. Ein Kandidat, der jeden Platzhalter behält, aber die Plural- oder
+  Select-Struktur bricht, wird ebenfalls abgelehnt. Für diese Formate vergleicht die
+  Platzhalterprüfung außerdem pro Zweig: Ein Platzhalter, der in einem Plural-Zweig erfunden
+  wurde, fällt auch dann auf, wenn er in einem anderen legitim vorkommt.
+
+Ein abgelehnter Kandidat wird als Daten zurückgehalten, nie geschrieben: Er erscheint in der
+Lauf-Zusammenfassung als Integritätsabweichung, behält seinen vorherigen Hash in
+[der Lock-Datei](/docs/the-lock-file) und wird beim nächsten Lauf erneut versucht. Zurückgehalten
+bleibt außerdem von fehlgeschlagen getrennt: Ein Key, für den nichts übersetzt wurde (der
+Provider-Aufruf warf einen Fehler, oder der Key fehlte auch nach der begrenzten Reparaturrunde
+noch), wird als Provider-Fehlschlag gemeldet, nicht als Integritätsabweichung. Beide werden auf
+demselben Weg erneut versucht.
+
+Auf der Quellseite wird ein Quell-Key, dessen eigener Wert ungültiges ICU ist, vor der Übersetzung
+beiseitegelegt und gemeldet, statt in kaputtem Zustand an den Provider zu gehen.
+
+## Review-Flags
+
+Das Gate zu bestehen beweist, dass eine Übersetzung strukturell sicher ist, nicht, dass sie gut
+ist, deshalb markiert eine zweite, beratende Schicht verdächtige Ergebnisse für einen Menschen.
+Ein Review-Flag hält nie einen Key zurück und trägt einen oder mehrere Grund-Codes:
+
+- `LENGTH_RATIO_OUTLIER`: Die Übersetzung ist deutlich kürzer oder länger als ihre Quelle (unter
+  dem 0.35-Fachen oder über dem 3.0-Fachen der getrimmten Länge; sehr kurze Quellen werden
+  übersprungen). Ein Anstoß hinzusehen, kein Urteil.
+- `EQUALS_SOURCE`: Die Übersetzung entspricht der Quelle wortwörtlich in einer anderen
+  Ziel-Locale, und die Quelle hatte tatsächlich übersetzbaren Text.
+- `GLOSSARY_TERM_MISSED`: Ein konfigurierter Glossarbegriff kommt in der Quelle vor, aber sein
+  zugeordneter Zielbegriff fehlt in der Übersetzung.
+- `INTEGRITY_REORDERED`: Die Platzhaltermenge stimmte exakt überein, landete aber in einer anderen
+  Reihenfolge als in der Quelle. Feuert nur auf einer Übersetzung, die das Gate bereits akzeptiert
+  hat.
+- `PROVIDER_DEGRADED`: Der Batch, aus dem dieser Key stammt, wurde vom Provider kontrolliert
+  herabgestuft (eine Formalitäts-Herabstufung oder ein ignoriertes Glossar; im aktuellen
+  Provider-Satz nur DeepL).
+
+Markierte Keys erscheinen pro Locale als `needsReview` in der Lauf-Zusammenfassung und speisen die
+Review-Warteschlange: Die CLI gibt die Anzahl aus, die Excel-Arbeitsmappe trägt dasselbe Signal in
+ihren Review-Spalten, und Studios Review-Seite listet die markierten Keys zum Abarbeiten; siehe
+[Review in Studio](/docs/review-in-studio). Ein Flag verschwindet nur, indem du die zugrunde
+liegende Übersetzung korrigierst.
+
+## Das Token-Budget
+
+Die Kosten beim Provider sollten eine Obergrenze haben, die du setzt, nicht eine, die du auf der
+Rechnung entdeckst. Mit konfiguriertem `maxTokens` verfolgt verbatra den kumulierten
+Token-Verbrauch über den ganzen Lauf und prüft ihn nach jedem abgeschlossenen Sub-Batch. Was an
+der Obergrenze passiert, bestimmt `budgetBehavior`:
+
+- `warn` (der Default): Der Lauf geht weiter, und die Zusammenfassung vermerkt, dass das Budget
+  überschritten wurde.
+- `stop`: Es folgen keine weiteren Provider-Aufrufe; jeder verbleibende Kandidat wird als
+  `budgetWithheld` zurückgehalten, behält seinen vorherigen Lock-Hash und wird beim nächsten Lauf
+  erneut versucht.
+
+Der Sub-Batch, der die Obergrenze überschreitet, wird nie rückgängig gemacht, und das Budget
+ändert nie den Exit-Code des Befehls. Bei einem Provider, der keinen Token-Verbrauch meldet
+(DeepL), ist der Schutzmechanismus ehrlich wirkungslos: Die Zusammenfassung markiert ihn als nicht
+unterstützt, statt eine Zählung vorzutäuschen.
+
+## Fehler geben nichts preis
+
+API-Schlüssel kommen nur aus Umgebungsvariablen, nie aus der Konfiguration oder aus Argumenten,
+also steckt in keinem Wert, den verbatra verarbeitet, ein Schlüssel. Wenn ein Provider-SDK-Aufruf
+fehlschlägt, wird der rohe Fehler (der Request-Header oder Zugangsdaten tragen kann) verworfen,
+nie gebunden, geloggt oder weitergeworfen; an seiner Stelle erzeugt verbatra einen strukturierten
+Fehler mit einem stabilen Code (etwa `RATE_LIMITED`, `TIMEOUT` oder `AUTH_FAILED`) und einer
+statischen, geheimnisfreien Meldung. Dieselbe Regel gilt über den ganzen Lauf: Hinweise und
+Zusammenfassungen tragen Codes und Zählungen, keine Geheimnisse.
+
+## Wo du das siehst
+
+All das sind Daten in der Lauf-Zusammenfassung, pro Locale: übersetzte Keys,
+Integritätsabweichungen, Provider-Fehlschläge, wegen des Budgets zurückgehaltene Keys, Quell-Keys
+mit ungültigem ICU, Review-Flags und Hinweise. Nichts wird versteckt, und der Fehlschlag einer
+Locale stoppt nie die anderen. Siehe [Wie es funktioniert](/docs/how-it-works) dafür, wo jede
+Prüfung in der Pipeline sitzt.

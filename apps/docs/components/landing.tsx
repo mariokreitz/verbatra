@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-// Landing pieces for the /docs index hero. The deep brand purple is only used as a filled surface, never as text on the dark background, where it would fall below AA contrast.
 export function VMark({ size = 44 }: { size?: number }) {
   return (
     <svg

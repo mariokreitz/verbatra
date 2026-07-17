@@ -1,0 +1,46 @@
+---
+title: verbatra diff
+description: Show the keys that would be added, re-translated, or orphaned per locale without writing files.
+---
+List, per target locale, the exact pending keys: the ones a run would add (missing from the target), the ones it would re-translate (source changed since last translation), and the ones now orphaned (in the target but gone from the source). `diff` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) performs right before it would call a provider, then stops: no provider call, no files written, no [lock file](/docs/the-lock-file) update, and no API key needed.
+
+## Synopsis
+
+```bash
+verbatra diff [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--locales` | `<list>` | all configured targets | comma-separated subset of target locales to diff |
+| `--json` | none | off | print the diff summary as one JSON object on stdout; errors still go to stderr |
+
+A locale has pending changes when it has at least one key to add or re-translate. Orphaned keys are reported but never count as pending, because a default run does not remove them (only [`verbatra translate --prune`](/docs/cli/translate) does). An empty or unknown `--locales` value is rejected with exit `2` rather than silently diffing nothing. Where [`verbatra check`](/docs/cli/check) answers "how much has drifted" with counts, `diff` answers "which keys" with the lists.
+
+## Examples
+
+```bash
+# list the pending keys per locale (exit 1 if any are pending)
+verbatra diff
+
+# machine-readable key lists for tooling or a PR comment
+verbatra diff --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | no pending changes: no locale has a key to add or re-translate |
+| `1` | pending changes: at least one locale has a missing or changed key (orphaned keys alone never produce `1`) |
+| `2` | could not run: a whole-run error, or a usage error (including an empty or unknown `--locales` value) |
+
+## Related
+
+- [`verbatra check`](/docs/cli/check) gives the per-locale counts behind these lists.
+- [`verbatra translate`](/docs/cli/translate) applies the pending changes; `--prune` removes the orphaned keys.
+- [CI and exit codes](/docs/ci-and-exit-codes) shows diff in a pipeline.

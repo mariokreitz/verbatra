@@ -10,7 +10,7 @@ import { type VerbatraConfig, type VerbatraConfigInput, verbatraConfigSchema } f
 
 const MODULE_NAME = "verbatra";
 
-// Search places in cosmiconfig precedence order; the first found wins.
+/** Search places in cosmiconfig precedence order; the first found wins. */
 const SEARCH_PLACES = [
   "package.json",
   `.${MODULE_NAME}rc`,
@@ -59,12 +59,15 @@ export interface LoadedConfig {
   readonly glossary: GlossaryProvenance;
 }
 
+/**
+ * Join a zod error's issues into one message. An unrecognized-key issue (most often a secret placed
+ * in the config) gains a hint pointing to the environment.
+ */
 function formatIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
       const path = issue.path.join(".");
       const base = path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-      // An unrecognized key most often means a secret was placed in config; point to the environment.
       return issue.code === "unrecognized_keys"
         ? `${base} (API keys are read from the environment, not the config)`
         : base;
@@ -101,9 +104,11 @@ async function finalizeConfig(
   return { config, glossary: resolved.provenance };
 }
 
-// The existsSync pre-check only buys the nicer not-found message; a file that passes it but then fails
-// to load (parse error, or vanishing between check and load) is still caught and surfaced as
-// CONFIG_INVALID, so no raw fs error escapes.
+/**
+ * Load one explicit config file. The existsSync pre-check only buys the nicer not-found message; a
+ * file that passes it but then fails to load (parse error, or vanishing between check and load) is
+ * still caught and surfaced as `CONFIG_INVALID`, so no raw fs error escapes.
+ */
 async function loadExplicitWithMeta(
   explorer: ReturnType<typeof cosmiconfig>,
   configPath: string,

@@ -1,0 +1,48 @@
+---
+title: verbatra import
+description: Réimporte un classeur rempli dans les fichiers de locale, avec les mêmes vérifications de sûreté.
+---
+Relis dans tes fichiers de locale un classeur rempli par un traducteur. Chaque valeur passe par les mêmes vérifications d'intégrité des placeholders et d'intégrité ICU qu'une exécution automatisée : les valeurs qui passent sont écrites et [le fichier de verrouillage](/docs/the-lock-file) est mis à jour ; les valeurs qui échouent sont retenues et signalées au lieu d'être écrites, donc une cellule défectueuse n'atterrit jamais dans un fichier de locale.
+
+## Synopsis
+
+```bash
+verbatra import <workbook> [flags]
+```
+
+`<workbook>` est le chemin du classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur.
+
+## Options
+
+| Option | Argument | Défaut | Effet |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
+| `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
+| `--dry-run` | aucun | désactivé | valide et rapporte sans écrire les fichiers de locale ni mettre à jour le verrou |
+| `--json` | aucun | désactivé | affiche le résumé d'exécution comme un seul objet JSON sur stdout (la même [forme `RunSummary`](/docs/sdk) que `translate`) ; les erreurs vont toujours sur stderr |
+
+## Exemples
+
+```bash
+# import the filled workbook
+verbatra import verbatra-translations.xlsx
+
+# validate and report, write nothing
+verbatra import verbatra-translations.xlsx --dry-run
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | chaque locale cible a réussi |
+| `1` | l'exécution a terminé mais une ou plusieurs locales ont échoué |
+| `2` | impossible de s'exécuter : une erreur globale (config, classeur, format ou verrou) ou une erreur d'utilisation |
+
+Le contrat correspond à [`verbatra translate`](/docs/cli/translate), donc une passation manuelle se branche de la même façon en CI.
+
+## Voir aussi
+
+- [Traduction humaine](/docs/manual-translation) couvre l'aller-retour complet export, remplissage, import et ce qu'un traducteur peut modifier.
+- [Sûreté de la traduction](/docs/translation-safety) explique les vérifications qui peuvent retenir une valeur.
+- [`verbatra export`](/docs/cli/export) produit le classeur que cette commande lit.

@@ -65,7 +65,7 @@ export interface LocaleSummary {
   /** Whether this locale's run succeeded or failed (a failure does not abort the run). */
   readonly status: "succeeded" | "failed";
   /**
-   * Keys translated and written this run. In dry-run, the keys that WOULD be translated
+   * Keys translated and written this run. In dry-run, the keys that would be translated
    * (the provider is not called and nothing is written).
    */
   readonly translated: readonly string[];
@@ -75,7 +75,7 @@ export interface LocaleSummary {
   readonly orphaned: readonly string[];
   /**
    * Orphaned keys actually removed this run because pruning was on. In a dry-run with pruning on, the keys
-   * that WOULD be removed. Empty when pruning is off (the orphans then survive and are reported in
+   * that would be removed. Empty when pruning is off (the orphans then survive and are reported in
    * `orphaned` only). A subset of `orphaned`; never includes a source-present key.
    */
   readonly pruned: readonly string[];
@@ -133,7 +133,7 @@ export interface LocaleSummary {
    */
   readonly needsReview: readonly NeedsReviewEntry[];
   /**
-   * Present only when status is "failed": a structured, secret-free error. `code` is a PRESERVED string
+   * Present only when status is "failed": a structured, secret-free error. `code` is a preserved string
    * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback), intentionally
    * wider than {@link SdkErrorCode}, so do not treat it as a closed set.
    */

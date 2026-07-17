@@ -27,7 +27,6 @@ export function buildTranslateOptions(input: TranslateOptionsInput): {
 } {
   const notices: ProviderNotice[] = [];
 
-  // Branch on the tone literal so formality is derived without a type assertion.
   let formality: string | undefined;
   if (input.tone === "formal" || input.tone === "informal") {
     if (input.freeAccount) {

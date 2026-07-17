@@ -37,6 +37,9 @@ export type ProbeOutcome = "unauthorized" | "network-error";
 /** Runs one cheap RPC call solely to distinguish a terminal 401 from a transient network failure. */
 export type ProbeFn = () => Promise<ProbeOutcome>;
 
+/** The live-refresh connection's observable state: streaming, or between attempts. */
+export type ConnectionStatus = "live" | "reconnecting";
+
 /** Options for {@link createReconnectController}. */
 export interface ReconnectControllerOptions {
   /** The `/events` URL to connect to. */
@@ -46,6 +49,10 @@ export interface ReconnectControllerOptions {
   readonly session: SessionStore;
   /** Called once per refresh event received on the current connection. */
   readonly onRefresh: (event: RefreshEvent) => void;
+  /** Called when the connection's observable state changes: "live" once a connection opens,
+   * "reconnecting" the moment one drops. Drives the dashboard's live indicator; optional so
+   * existing callers and tests that do not observe status stay untouched. */
+  readonly onStatusChange?: (status: ConnectionStatus) => void;
   /** Base backoff delay in milliseconds; defaults to 1000 (1 second). */
   readonly baseDelayMs?: number;
   /** Backoff cap in milliseconds; defaults to 30000 (30 seconds). */
@@ -66,6 +73,27 @@ function computeBackoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: n
   return Math.min(baseDelayMs * BACKOFF_FACTOR ** attempt, maxDelayMs);
 }
 
+/**
+ * Parses a raw `delta` field into a well-formed `RefreshKeyDelta`, or `undefined` if it is absent
+ * or malformed (missing a field, or a field that is not a number): a malformed `delta` degrades to
+ * absent, consistent with this whole module's "tolerate and degrade, never throw" discipline, and
+ * never drops the surrounding frame on its own.
+ */
+function parseDelta(raw: unknown): RefreshEvent["delta"] {
+  if (typeof raw !== "object" || raw === null) {
+    return undefined;
+  }
+  const { added, changed, removed } = raw as {
+    added?: unknown;
+    changed?: unknown;
+    removed?: unknown;
+  };
+  if (typeof added === "number" && typeof changed === "number" && typeof removed === "number") {
+    return { added, changed, removed };
+  }
+  return undefined;
+}
+
 /** Parses one SSE `refresh` frame's data; malformed data is dropped rather than thrown. */
 function parseRefreshEvent(data: string): RefreshEvent | undefined {
   let parsed: unknown;
@@ -77,12 +105,23 @@ function parseRefreshEvent(data: string): RefreshEvent | undefined {
   if (typeof parsed !== "object" || parsed === null) {
     return undefined;
   }
-  const { reason, at } = parsed as { reason?: unknown; at?: unknown };
+  const { reason, at, locale, delta } = parsed as {
+    reason?: unknown;
+    at?: unknown;
+    locale?: unknown;
+    delta?: unknown;
+  };
   if (
     (reason === "source" || reason === "targets" || reason === "lock") &&
     typeof at === "string"
   ) {
-    return { reason, at };
+    const parsedDelta = parseDelta(delta);
+    return {
+      reason,
+      at,
+      ...(typeof locale === "string" ? { locale } : {}),
+      ...(parsedDelta !== undefined ? { delta: parsedDelta } : {}),
+    };
   }
   return undefined;
 }
@@ -147,8 +186,19 @@ export function createReconnectController(
     scheduleReconnect();
   }
 
+  /**
+   * Any error event means the stream is interrupted, including the browser EventSource's own
+   * native retry (readyState `CONNECTING`, no terminal `CLOSED`), so the status turns
+   * "reconnecting" for both paths. Only the terminal `CLOSED` case additionally hands
+   * reconnection over to this controller's probe-and-backoff; the native retry keeps the source
+   * alive and a later open flips the status back to "live" through `handleOpen`.
+   */
   function handleError(source: EventSourceLike): void {
-    if (stopped || source.readyState !== EVENT_SOURCE_CLOSED) {
+    if (stopped) {
+      return;
+    }
+    options.onStatusChange?.("reconnecting");
+    if (source.readyState !== EVENT_SOURCE_CLOSED) {
       return;
     }
     source.close();
@@ -157,6 +207,7 @@ export function createReconnectController(
 
   function handleOpen(): void {
     attempt = 0;
+    options.onStatusChange?.("live");
   }
 
   function connect(): void {

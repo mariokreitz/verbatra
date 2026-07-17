@@ -22,6 +22,7 @@ import {
   checkBudgetTrip,
   foldTrackerUsage,
 } from "./budget.js";
+import { gateCandidateValue } from "./integrity-gate.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -35,9 +36,11 @@ import {
   generatePluralForms,
   type PluralGenerationResult,
 } from "./plural-generation.js";
+import { readTargetResource } from "./read-target.js";
 import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
+/** Everything {@link runLocale} needs to process one target locale, resolved by the orchestrator. */
 export interface LocaleRunParams {
   readonly source: LocaleResource;
   readonly sourceInvalidIcuKeys: readonly string[];
@@ -69,6 +72,7 @@ export interface LocaleRunParams {
   readonly budget: BudgetTracker;
 }
 
+/** One locale's outcome: the public summary and the lock entries to persist for it. */
 export interface LocaleRunResult {
   readonly summary: LocaleSummary;
   readonly lockEntries: Record<string, string>;
@@ -77,18 +81,6 @@ export interface LocaleRunResult {
 interface Accepted {
   readonly value: string;
   readonly source: TranslationEntry;
-}
-
-function emptyResource(locale: string, format: SupportedFormat): LocaleResource {
-  return { locale, namespace: "", format, entries: new Map() };
-}
-
-async function readTarget(params: LocaleRunParams): Promise<LocaleResource> {
-  const path = localeFilePath(params.cwd, params.filesPattern, params.targetLocale);
-  if (!(await params.fs.fileExists(path))) {
-    return emptyResource(params.targetLocale, params.format);
-  }
-  return (await params.adapter.read(path, params.targetLocale)).resource;
 }
 
 function buildRequest(
@@ -109,15 +101,24 @@ function buildRequest(
 }
 
 /**
- * Run one target locale: read, diff, translate, integrity-check, write, and compute the lock entries.
- * A dry-run (provider undefined) stops after the diff. May throw; the orchestrator isolates that as a
- * per-locale failure.
+ * Runs one target locale: read, diff, translate, integrity-check, write, and compute the lock
+ * entries. A dry-run (provider undefined) stops after the diff and reports what would change.
+ * Accepted translations are applied in source-document order, not diff order, so a key already in
+ * the target keeps its position (Map.set semantics) and a new key appends where the source puts it.
+ * When generation is on, source-absent keys that look like generated plural forms are kept out of
+ * the orphaned and pruned lists. May throw; the orchestrator isolates that as a per-locale failure.
  */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
-  const target = await readTarget(params);
+  const target = await readTargetResource({
+    cwd: params.cwd,
+    filesPattern: params.filesPattern,
+    format: params.format,
+    locale: params.targetLocale,
+    adapter: params.adapter,
+    fs: params.fs,
+  });
   const diff = diffResources(params.source, target, { baseline: params.baseline });
 
-  // Generated plural forms are not true orphans, so when generation is on keep them out of orphaned/pruning.
   const orphaned = params.generatePlurals
     ? diff.orphaned.filter((key) => !isGeneratedPluralKey(key, sourcePluralBaseKeys(params.source)))
     : diff.orphaned;
@@ -138,7 +139,6 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 
   const provider = params.provider;
   if (provider === undefined) {
-    // Dry-run: report what would change, write nothing.
     return {
       summary: baseSummary({
         locale: params.targetLocale,
@@ -161,8 +161,6 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     .map((key) => params.source.entries.get(key))
     .filter((entry): entry is TranslationEntry => entry !== undefined);
 
-  // Captured before this locale makes any call: distinguishes "this locale caused the trip" from
-  // "a prior locale already tripped stop mode", each of which the budget notice is worded around.
   const startedStopped = params.budget.stopped;
   const accepted = new Map<string, Accepted>();
   const integrityMismatches: string[] = [];
@@ -181,13 +179,14 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   );
 
   const merged = new Map(target.entries);
-  // Drop pruned (source-absent) orphans before merging; accepted keys are source-present and never collide.
   for (const key of pruned) {
     merged.delete(key);
   }
-  for (const [key, { value, source }] of accepted) {
-    // Carry the source entry's fields but the target's namespace and the translated value.
-    merged.set(key, { ...source, value, namespace: target.namespace });
+  for (const key of params.source.entries.keys()) {
+    const hit = accepted.get(key);
+    if (hit !== undefined) {
+      merged.set(key, { ...hit.source, value: hit.value, namespace: target.namespace });
+    }
   }
 
   const generation = await runGeneration(params, provider);
@@ -220,7 +219,6 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     ...invalidIcuSource,
     ...generation.withheld,
     ...generation.providerFailures,
-    // Source-present keys withheld by the budget guardrail must keep their prior lock hash too.
     ...budgetWithheld,
   ]);
   const localeUsage = combineUsage(translation.usage, generation.usage);
@@ -232,9 +230,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       invalidIcuSource,
       translated: [...accepted.keys()],
       generated: generation.accepted.map((form) => form.targetKey).sort(),
-      // Withheld generated forms surface alongside withheld translations: both failed integrity.
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
-      // A generation sub-batch whose provider call itself threw is a provider failure, never integrity.
       providerFailures: [...providerFailures, ...generation.providerFailures].sort(),
       budgetWithheld: [...budgetWithheld, ...generation.budgetWithheld].sort(),
       pruned,
@@ -257,7 +253,7 @@ const NO_GENERATION_RESULT: PluralGenerationResult = {
   tripped: false,
 };
 
-/** Run plural generation when enabled and the provider is an LLM; otherwise skip and fall back to the warning. */
+/** Runs plural generation when enabled and the provider is an LLM; otherwise returns the empty result. */
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
@@ -281,9 +277,9 @@ async function runGeneration(
 }
 
 /**
- * One `BUDGET_TOKENS_EXCEEDED` notice for this locale if it caused the trip (main translation or
- * generation), or if it started already stopped by an earlier locale's trip (`stop` mode only);
- * otherwise none. Never more than one per locale.
+ * Emits one `BUDGET_TOKENS_EXCEEDED` notice for this locale if it caused the trip (main
+ * translation or generation), or if it started already stopped by an earlier locale's trip
+ * (`stop` mode only); otherwise none. Never more than one per locale.
  */
 function budgetLocaleNotices(
   budget: BudgetTracker,
@@ -294,7 +290,7 @@ function budgetLocaleNotices(
   return startedStopped || mainTripped || generationTripped ? [budgetExceededNotice(budget)] : [];
 }
 
-/** Recompute the plural warning per base key against the written target; a complete generated set clears it. */
+/** Recomputes the plural warning against the written target (i18next-json only); a complete set clears it. */
 function pluralNoticeFor(
   params: LocaleRunParams,
   merged: ReadonlyMap<string, TranslationEntry>,
@@ -367,9 +363,10 @@ interface TranslateAndCheckResult {
 }
 
 /**
- * Split entries into sequential sub-batches of at most `maxBatchSize` and run each as its own request.
- * The budget is checked between completed sub-batches (see `translate-project.ts` for why never
- * mid-batch): once `stop` mode trips, remaining sub-batches are withheld without a provider call.
+ * Splits entries into sequential sub-batches of at most `maxBatchSize` and runs each as its own
+ * request. The budget is checked between completed sub-batches (see `translate-project.ts` for why
+ * never mid-batch): once `stop` mode trips, remaining sub-batches are withheld without a provider
+ * call.
  */
 async function translateAndCheck(
   provider: TranslationProvider,
@@ -416,14 +413,14 @@ interface SubBatchResult {
 }
 
 /**
- * Run one sub-batch and fold its result into `accepted`, `integrityMismatches`, or `providerFailures`.
- * A thrown provider call (a revoked key, a rate limit, a network timeout, ...) is caught, never
- * re-thrown, and never surfaced as an integrity problem: nothing was translated, so the whole
- * sub-batch's keys are withheld under `providerFailures` and a secret-free notice carrying the
- * failure's code and message is returned. The same `providerFailures` bucket also collects a key the
- * provider call returned no value for at all: the shared LLM layer's bounded reconcile repair round
- * (see `runLlmTranslation`) already retried it once, so a key still absent from `result.values` here
- * means nothing was ever translated for it, exactly like a thrown call, and not a placeholder mismatch.
+ * Runs one sub-batch and folds its result into `accepted`, `integrityMismatches`, or
+ * `providerFailures`. A thrown provider call (a revoked key, a rate limit, a network timeout) is
+ * caught, never re-thrown, and never surfaced as an integrity problem: nothing was translated, so
+ * the whole sub-batch's keys are withheld under `providerFailures` and a secret-free notice
+ * carrying the failure's code and message is returned. The same `providerFailures` bucket also
+ * collects a key the provider call returned no value for at all: a key still absent from
+ * `result.values` here means nothing was ever translated for it, exactly like a thrown call, and
+ * not a placeholder mismatch.
  */
 async function runSubBatch(
   provider: TranslationProvider,
@@ -444,7 +441,7 @@ async function runSubBatch(
     return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
   }
   for (const entry of batch) {
-    foldEntryResult(entry, result, accepted, integrityMismatches, providerFailures);
+    foldEntryResult(entry, result, params.adapter, accepted, integrityMismatches, providerFailures);
   }
   if (result.reviewFlags !== undefined) {
     for (const [key, flag] of result.reviewFlags) {
@@ -454,10 +451,15 @@ async function runSubBatch(
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/** Fold one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. */
+/**
+ * Folds one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. The
+ * accept/reject decision is recomputed directly from the candidate value via the shared
+ * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report.
+ */
 function foldEntryResult(
   entry: TranslationEntry,
   result: TranslateResult,
+  adapter: FormatAdapter,
   accepted: Map<string, Accepted>,
   integrityMismatches: string[],
   providerFailures: string[],
@@ -467,7 +469,7 @@ function foldEntryResult(
     providerFailures.push(entry.key);
     return;
   }
-  if (result.integrity.get(entry.key)?.matches === true) {
+  if (gateCandidateValue(entry, value, adapter).accepted) {
     accepted.set(entry.key, { value, source: entry });
   } else {
     integrityMismatches.push(entry.key);
@@ -475,9 +477,10 @@ function foldEntryResult(
 }
 
 /**
- * Lock entries for the written target: the current source hash for every source-present key, except keys
- * withheld this run (those keep their prior baseline hash so they retry). Generated plural keys are
- * source-absent and instead carry their own governing-source hash ({@link GeneratedForm.lockHash}).
+ * Computes the lock entries for the written target: the current source hash for every
+ * source-present key, except keys withheld this run (those keep their prior baseline hash so they
+ * retry). Generated plural keys are source-absent and instead carry their own governing-source
+ * hash ({@link GeneratedForm.lockHash}).
  */
 function computeLockEntries(
   params: LocaleRunParams,
@@ -490,7 +493,6 @@ function computeLockEntries(
   for (const key of merged.keys()) {
     const sourceEntry = params.source.entries.get(key);
     if (sourceEntry === undefined) {
-      // Carry a prior generated-plural lock entry forward (only when generation is enabled).
       if (params.generatePlurals) {
         carryGeneratedLock(lockEntries, params.baseline, key, sourceBaseKeys);
       }
@@ -511,7 +513,7 @@ function computeLockEntries(
   return lockEntries;
 }
 
-/** Preserve a prior lock entry for a generated plural key that stayed in the target but was not regenerated. */
+/** Preserves the prior lock entry for a generated plural key that stayed in the target but was not regenerated. */
 function carryGeneratedLock(
   lockEntries: Record<string, string>,
   baseline: ReadonlyMap<string, string>,

@@ -9,8 +9,6 @@ interface CapturedOptions {
 
 const capturedOptions: CapturedOptions[] = [];
 
-// A minimal fake of the openai SDK's default export, capturing constructor options so the test can
-// assert what apiKey and baseURL the client is actually built with, without any network call.
 vi.mock("openai", () => {
   class FakeOpenAI {
     readonly chat = { completions: { create: vi.fn() } };

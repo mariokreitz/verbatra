@@ -9,4 +9,5 @@ export const deepLConfigSchema = z.object({
   glossaryId: z.string().min(1).optional(),
 });
 
+/** The validated DeepL provider configuration, inferred from {@link deepLConfigSchema}. */
 export type DeepLConfig = z.infer<typeof deepLConfigSchema>;

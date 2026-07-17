@@ -10,10 +10,8 @@ const GITHUB_PRIVACY =
   "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement";
 const CONTACT_MAILTO = "mailto:mario.kreitz@web.de";
 
-// Section keys in render order, kept identical across every locale.
 const SECTION_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"] as const;
 
-// Link URL targets live here, not in the catalogs, so every locale links to the same targets.
 const linkTags = {
   email: (chunks: ReactNode) => <a href={CONTACT_MAILTO}>{chunks}</a>,
   umami: (chunks: ReactNode) => <a href={UMAMI_DOCS}>{chunks}</a>,
@@ -53,7 +51,6 @@ export default async function PrivacyPage(props: { params: Promise<{ lang: strin
       <h1>{t("title")}</h1>
       {lastUpdated}
 
-      {/* English is the legally authoritative version, so only localized pages carry the convenience-translation disclaimer. */}
       {!isAuthoritative && (
         <p>
           <em>{t("disclaimer")}</em>

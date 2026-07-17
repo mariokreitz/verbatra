@@ -55,4 +55,8 @@ export const openAiCompatibleConfigSchema = z.object({
     .optional(),
 });
 
+/**
+ * The validated openai-compatible provider configuration, inferred from
+ * {@link openAiCompatibleConfigSchema}.
+ */
 export type OpenAiCompatibleConfig = z.infer<typeof openAiCompatibleConfigSchema>;

@@ -1,9 +1,3 @@
-// Regenerates lib/version.generated.json from the published @verbatra/cli version so the
-// landing page has a correct build-time version even when the npm registry is unreachable.
-// Runs before dev and build (wired into the scripts in package.json). The output is a
-// tracked file; this keeps it in sync on every build, and the live npm value
-// (getLatestVersion) layers daily freshness on top of it.
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

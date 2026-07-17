@@ -1,62 +1,126 @@
 ---
 title: Ta première traduction
-description: Lance verbatra pour la première fois, lis le résumé de l'exécution, et vois pourquoi les réexécutions ne touchent que ce qui a changé.
+description: Installe la CLI, génère une configuration avec verbatra init, définis ta clé d'API, et lance ta première commande translate. Moins de dix minutes entre rien et un fichier de locale traduit.
 ---
-Le CLI est installé, la configuration est échafaudée, et la clé de ton fournisseur est dans l'environnement (sinon, commence par le [démarrage rapide](/docs)). Il est temps de traduire.
+Quatre étapes te mènent d'un projet vide à un fichier de locale traduit. Il te faut seulement Node.js `>=22.14.0` et une clé d'API pour un fournisseur.
 
-## Lance-le
+## 1. Installe
 
-Une seule commande traduit chaque locale cible puis se termine :
+verbatra est une dépendance de développement :
+
+```bash
+pnpm add -D @verbatra/cli
+```
+
+npm et yarn fonctionnent aussi. Le paquet fournit le binaire `verbatra` ; lance-le via ton gestionnaire de paquets (`pnpm verbatra ...`, `npx verbatra ...` ou `yarn verbatra ...`). Les blocs de code ci-dessous utilisent le nom nu.
+
+## 2. Génère une configuration
+
+```bash
+verbatra init --provider gemini
+```
+
+Avec un terminal attaché, `init` demande tout ce que tu n'as pas passé en option, chaque question avec une valeur par défaut :
+
+- le fournisseur : `anthropic`, `openai`, `gemini` ou `deepl` (option `--provider`, la seule entrée sans défaut)
+- la locale source, par défaut `en` (`--source`)
+- les locales cibles, séparées par des virgules, par défaut `de` (`--targets`)
+- le motif des fichiers de locale, par défaut `locales/{locale}.json` (`--path`)
+
+Passe `--yes` pour sauter les questions et prendre les valeurs par défaut. Sans terminal (en CI, par exemple) `init` ne demande jamais rien ; il utilise les défauts et n'exige que `--provider`.
+
+`init` écrit trois choses :
+
+- `verbatra.config.ts` : la configuration de ton projet, validée contre le vrai schéma avant d'être écrite
+- `.env.example` : nomme la variable de clé du fournisseur, jamais une valeur de clé
+- des entrées `.gitignore` pour `.env`, `.env.local` et `.verbatra-local/`, créées ou ajoutées pour qu'une vraie clé ou l'état local ne finisse jamais dans un commit
+
+Relancer `init` saute les fichiers qui existent déjà ; `--force` les écrase. Il pré-remplit aussi `format` en regardant tes dépendances : un projet utilisant i18next, vue-i18n, next-intl ou `@ngx-translate/core` reçoit le format JSON correspondant, tout le reste prend `i18next-json` par défaut avec un commentaire TODO pour le changer. Pour Gemini, le fichier généré ressemble à ceci :
+
+```ts
+import { defineConfig } from "@verbatra/cli";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "gemini",
+    options: {
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
+    },
+  },
+});
+```
+
+## 3. Définis ta clé d'API
+
+Les clés viennent de l'environnement, jamais du fichier de configuration. Chaque fournisseur hébergé lit exactement une variable ; pour Gemini c'est `GEMINI_API_KEY`. Copie l'exemple généré et renseigne ta clé :
+
+```bash
+cp .env.example .env
+```
+
+Puis ouvre `.env` et colle ta clé après `GEMINI_API_KEY=`. verbatra charge `.env.local` puis `.env` depuis le répertoire de travail avant une exécution, et une variable déjà définie dans ton shell gagne toujours. Voir [Fournisseurs](/docs/providers) pour la variable de chaque fournisseur.
+
+<Callout title="Pas encore de clé ? Gemini a une offre gratuite.">
+L'API de Gemini a une offre réellement gratuite, ce qui en fait la façon la moins chère d'essayer verbatra. Récupère une clé sur [Google AI Studio](https://aistudio.google.com/apikey) et définis `GEMINI_API_KEY`. L'offre gratuite a des limites de requêtes par minute et par jour, donc étale une grosse première traduction.
+</Callout>
+
+## 4. Traduis
+
+Si tu n'as pas encore de fichier source, crée-en un au motif configuré, par exemple `locales/en.json` :
+
+```json
+{
+  "greeting": "Hello, {{name}}!",
+  "cart": {
+    "empty": "Your cart is empty."
+  }
+}
+```
+
+Puis lance :
 
 ```bash
 verbatra translate
 ```
 
-Voici ce qui se passe sous le capot : verbatra lit ta locale source, la compare à ce qu'il a traduit la dernière fois, et n'envoie à ton fournisseur que les chaînes nouvelles et modifiées. Tout ce qui est encore à jour est laissé intact. Chaque fichier cible est écrit sur place, de sorte que `locales/de.json` et les autres apparaissent (ou se mettent à jour) juste à côté de ton fichier source.
+verbatra lit la locale source, voit que chaque clé manque dans `de`, les envoie au fournisseur par lots, vérifie l'intégrité des placeholders et l'intégrité ICU de chaque résultat, et écrit `locales/de.json`. L'exécution se termine par un résumé par locale : clés traduites, clés inchangées, clés orphelines, et les éventuels avis. Le code de sortie est `0` quand chaque locale a réussi et `1` quand une a échoué ; ajoute `--json` pour un résumé lisible par machine.
 
-## Lis le résumé de l'exécution
+## Ce qui vient de se passer
 
-Chaque exécution se termine par un résumé. Tu obtiens l'essentiel (quelles locales ont réussi, lesquelles ont échoué) et une ventilation par locale : clés traduites, clés laissées inchangées, clés orphelines (présentes dans une cible mais disparues de la source), et toute notification du fournisseur. L'échec d'une seule locale n'arrête pas les autres ; il est signalé sur la ligne de cette locale avec un code et un message.
+Trois choses sont maintenant sur le disque :
 
-Tu le veux lisible par machine ? Ajoute `--json` et verbatra affiche tout le résumé sous forme d'un seul objet JSON :
+- `locales/de.json` : le fichier de la locale cible. Il a les mêmes clés que ta source, dans le même ordre de document, et `{{name}}` a survécu intact à la traduction ; un résultat qui l'aurait perdu aurait été retenu, pas écrit.
+- `verbatra.lock.json` : le fichier de verrouillage. Pour chaque locale cible, il associe chaque clé traduite au hash de la chaîne source dont cette traduction provient :
 
-```bash
-verbatra translate --json
-```
+  ```json
+  {
+    "version": 1,
+    "locales": {
+      "de": {
+        "cart.empty": "<source content hash>",
+        "greeting": "<source content hash>"
+      }
+    }
+  }
+  ```
 
-Voir [CI et codes de sortie](/docs/ci-and-exit-codes) pour la structure du JSON et le contrat des codes de sortie.
+- `.verbatra-local/` : l'état local au processus (l'instantané de statut d'exécution et les verrous d'écriture par locale). `init` l'a ajouté au `.gitignore` ; ne le commite jamais.
 
-## Prévisualise avant de dépenser un token
-
-Pour voir exactement ce qu'une exécution ferait sans appeler de fournisseur ni écrire un seul fichier, fais une exécution à blanc :
-
-```bash
-verbatra translate --dry-run
-```
-
-Tu obtiens le même résumé, listant les clés qui seraient traduites, mais rien n'est envoyé et rien n'est écrit. C'est le moyen sûr de vérifier une exécution avant qu'elle ne te coûte quoi que ce soit, ce qui est particulièrement pratique avec une clé de niveau gratuit.
-
-## Les réexécutions ne touchent que ce qui a changé
-
-C'est ce qui rend verbatra économique à lancer souvent. Relance `verbatra translate` sans modifier ta source et rien ne part vers le fournisseur : chaque clé est déjà à jour. Modifie une seule chaîne source et seule cette clé est retraduite à la prochaine exécution.
-
-L'astuce est un fichier de verrouillage versionné (`verbatra.lock.json`) qui enregistre ce qui a été traduit. Chaque exécution le compare, de sorte que le fournisseur n'est appelé que pour ce qui a réellement changé. Voir [Comment ça marche](/docs/how-it-works) pour le pipeline complet.
+Le fichier de verrouillage est la référence de chaque exécution future. Relance `verbatra translate` sans rien modifier et rien n'est envoyé : chaque clé est déjà à jour. Modifie une seule chaîne source et seule cette clé est retraduite. Pour prévisualiser n'importe quelle exécution sans appel fournisseur ni la moindre écriture, utilise `verbatra translate --dry-run`.
 
 <Callout title="Commite le fichier de verrouillage">
-verbatra écrit `verbatra.lock.json` lors de la première exécution. Commite-le avec tes fichiers de locale afin que chaque machine, et ta CI, se comparent à la même base de référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).
+Commite `verbatra.lock.json` avec tes fichiers de locale, pour que chaque machine et ta CI comparent avec la même référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).
 </Callout>
 
-## Traduis pendant que tu travailles
+## Ensuite
 
-Tu ne veux pas relancer à la main ? Surveille la source et laisse verbatra retraduire à chaque modification :
-
-```bash
-verbatra watch
-```
-
-Il continue de tourner jusqu'à ce que tu l'arrêtes avec Ctrl-C.
-
-## Suivant
-
-- [Ajouter une langue](/docs/add-a-language) : ajoute une nouvelle locale cible à une configuration existante.
-- [Comment ça marche](/docs/how-it-works) : ce qu'une exécution fait, de bout en bout.
+- [Ajouter une langue](/docs/add-a-language) : ajoute une nouvelle locale cible à cette installation.
+- [Comment ça marche](/docs/how-it-works) : le pipeline complet derrière une exécution.
+- [Fichier de configuration](/docs/config-file) : tout ce que `verbatra.config.ts` peut contenir.

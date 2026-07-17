@@ -1,18 +1,25 @@
 #!/usr/bin/env node
-// Regression guard for the `studio` command's bundling contract (see packages/cli/tsup.config.ts).
-// Run after the build (see the root `check:studio-bundle` script and the CI step). @verbatra/studio
-// is a devDependency of @verbatra/cli, never a dependency or peerDependency, so tsup would inline it
-// by default; `external: ["@verbatra/studio"]` keeps `await import("@verbatra/studio")` a genuine
-// runtime import instead. This is a root script rather than a package Vitest test because it
-// inspects the actual built dist/index.js, which `pnpm test` (turbo `test` depends only on `^build`,
-// not on the cli package's own build) does not guarantee is fresh.
-//
-// It enforces two things and fails if either is violated:
-//
-//   1. The built dist/index.js contains a genuine dynamic import of the literal specifier
-//      "@verbatra/studio" (esbuild emits it with single quotes; either quote character is accepted).
-//   2. The built dist/index.js does not inline @verbatra/studio's own server source: a sentinel name
-//      that only exists inside packages/studio/src/server is absent.
+/**
+ * Regression guard for the `studio` command's bundling contract
+ * (see packages/cli/tsup.config.ts). Run after the build, via the root
+ * `check:studio-bundle` script and the CI step.
+ *
+ * @verbatra/studio is a devDependency of @verbatra/cli, never a dependency or
+ * peerDependency, so tsup would inline it by default; `external:
+ * ["@verbatra/studio"]` keeps `await import("@verbatra/studio")` a genuine
+ * runtime import instead. This is a root script rather than a package Vitest
+ * test because it inspects the actual built dist/index.js, which `pnpm test`
+ * does not guarantee is fresh (turbo `test` depends only on `^build`, not on
+ * the cli package's own build).
+ *
+ * It enforces two things and fails if either is violated:
+ *
+ * 1. The built dist/index.js contains a dynamic import of the literal
+ *    specifier "@verbatra/studio".
+ * 2. The built dist/index.js does not inline @verbatra/studio's own server
+ *    source: sentinel names that only exist inside packages/studio/src/server
+ *    must be absent.
+ */
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -22,13 +29,22 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const CLI_DIST_ENTRY = "packages/cli/dist/index.js";
 
-// Matches a dynamic import of the bare specifier, either quote character, exactly like the source.
+/**
+ * Matches a dynamic import of the bare @verbatra/studio specifier. esbuild emits it with single
+ * quotes; either quote character is accepted.
+ */
 const DYNAMIC_IMPORT_PATTERN = /import\(\s*['"]@verbatra\/studio['"]\s*\)/;
 
-// Names that only exist inside packages/studio/src/server; their presence in the cli bundle would
-// mean tsup inlined @verbatra/studio instead of treating it as an external runtime import.
+/**
+ * Names that only exist inside packages/studio/src/server. Their presence in the cli bundle
+ * would mean tsup inlined @verbatra/studio instead of treating it as an external runtime import.
+ */
 const STUDIO_SOURCE_SENTINELS = ["assertLoopbackAddress", "FORBIDDEN_BODY"];
 
+/**
+ * Reads the built cli entry. Throws when the build output is missing.
+ * @returns {string}
+ */
 function readDist() {
   const absolutePath = resolve(REPO_ROOT, CLI_DIST_ENTRY);
   if (!existsSync(absolutePath)) {
@@ -38,7 +54,8 @@ function readDist() {
 }
 
 /**
- * @param {string} contents
+ * Fails when the bundle lost the dynamic import of "@verbatra/studio".
+ * @param {string} contents - the built dist/index.js source
  * @returns {void}
  */
 function assertDynamicImportPresent(contents) {
@@ -50,7 +67,8 @@ function assertDynamicImportPresent(contents) {
 }
 
 /**
- * @param {string} contents
+ * Fails when a studio server sentinel name appears in the bundle, meaning studio was inlined.
+ * @param {string} contents - the built dist/index.js source
  * @returns {void}
  */
 function assertStudioSourceNotInlined(contents) {

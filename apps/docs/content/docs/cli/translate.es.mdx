@@ -1,0 +1,50 @@
+---
+title: verbatra translate
+description: Traduce cada locale de destino una vez y luego termina.
+---
+Ejecuta una pasada de traducción sobre cada locale de destino y luego sal. `translate` lee el locale de origen, lo compara con [el archivo de bloqueo](/docs/the-lock-file), envía al proveedor solo las cadenas nuevas o modificadas, ejecuta las [comprobaciones de integridad](/docs/translation-safety), escribe los archivos de locale y actualiza el bloqueo. Lo que sigue al día nunca se reenvía, así que nunca pagas dos veces por una cadena sin cambios.
+
+## Sinopsis
+
+```bash
+verbatra translate [flags]
+```
+
+## Flags
+
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--dry-run` | ninguno | desactivado | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
+| `--prune` | ninguno | la opción `prune` de la configuración, si no, desactivado | elimina del archivo escrito y del bloqueo las claves huérfanas (en un archivo de destino pero ausentes del origen) |
+| `--json` | ninguno | desactivado | imprime el resumen de la ejecución como un objeto JSON en stdout (la [forma `RunSummary`](/docs/sdk)); los errores siguen yendo a stderr |
+
+Por defecto una ejecución no borra nada: las claves huérfanas se informan y se dejan en su sitio. `--prune` elimina exactamente esas claves y nada más, y anula la opción `prune` de la configuración para esta ejecución. Antes de ejecutarse, `translate` carga `.env.local` y luego `.env` desde el directorio de trabajo; una variable ya definida en el entorno real gana.
+
+## Ejemplos
+
+```bash
+# translate once using the config it finds
+verbatra translate
+
+# preview the keys that would be pruned, spending nothing
+verbatra translate --prune --dry-run
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | todos los locales de destino tuvieron éxito |
+| `1` | la ejecución terminó pero uno o más locales fallaron |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración, origen, formato, proveedor o bloqueo) o un error de uso |
+
+Que falle un locale no es fatal: la ejecución termina, sale con `1` y el detalle por locale queda en el resumen.
+
+## Relacionado
+
+- [Cómo funciona](/docs/how-it-works) explica la canalización de leer, comparar, traducir y escribir.
+- [Seguridad de la traducción](/docs/translation-safety) cubre las comprobaciones de integridad y la cola de revisión.
+- [`verbatra diff`](/docs/cli/diff) previsualiza las mismas claves pendientes en modo de solo lectura.
+- [CI y códigos de salida](/docs/ci-and-exit-codes) muestra cómo ramificar sobre estos códigos.

@@ -1,36 +1,78 @@
+import type * as PageTree from "fumadocs-core/page-tree";
 import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-// Docs content is English-only, so index the default-locale pages; the i18n-aware loader would otherwise repeat each page per locale.
 export const dynamic = "force-static";
 
-export function GET(): Response {
-  const docs = source
-    .getPages(i18n.defaultLanguage)
-    .map((page) => {
-      const url = new URL(page.url, SITE_URL).href;
-      const desc = page.data.description ? `: ${page.data.description}` : "";
-      return `- [${page.data.title}](${url})${desc}`;
-    })
-    .join("\n");
+type PageInfo = { title: string; url: string; description?: string | undefined };
 
+/**
+ * Renders one page as a markdown link bullet with its description.
+ */
+function pageLine(info: PageInfo): string {
+  const url = new URL(info.url, SITE_URL).href;
+  const desc = info.description ? `: ${info.description}` : "";
+  return `- [${info.title}](${url})${desc}`;
+}
+
+/**
+ * Groups the docs pages by the sections of the page tree (route groups and
+ * folders), so the list mirrors the sidebar: Introduction, Get started,
+ * Core concepts, Configuration, Guides, CLI reference, SDK, and Help.
+ */
+function renderSections(): string {
+  const byUrl = new Map<string, PageInfo>();
+  for (const page of source.getPages(i18n.defaultLanguage)) {
+    byUrl.set(page.url, {
+      title: page.data.title,
+      url: page.url,
+      description: page.data.description,
+    });
+  }
+
+  const lookup = (node: PageTree.Item): PageInfo | undefined => byUrl.get(node.url);
+
+  const sections: string[] = [];
+  for (const node of source.getPageTree(i18n.defaultLanguage).children) {
+    if (node.type === "page") {
+      const info = lookup(node);
+      if (info) sections.push(`## ${info.title}\n\n${pageLine(info)}`);
+      continue;
+    }
+    if (node.type !== "folder") continue;
+    const heading = typeof node.name === "string" ? node.name : "Documentation";
+    const seen = new Set<string>();
+    const children = [node.index, ...node.children]
+      .filter((child): child is PageTree.Item => child?.type === "page")
+      .filter((child) => {
+        if (seen.has(child.url)) return false;
+        seen.add(child.url);
+        return true;
+      })
+      .map(lookup)
+      .filter((info): info is PageInfo => info !== undefined)
+      .map(pageLine);
+    if (children.length > 0) sections.push(`## ${heading}\n\n${children.join("\n")}`);
+  }
+  return sections.join("\n\n");
+}
+
+export function GET(): Response {
   const body = `# verbatra
 
-> verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that changed through your choice of AI or machine-translation provider.
+> verbatra is a CLI and SDK that keeps your i18n locale files in sync, translating only the keys that are new or whose source text changed, through your choice of AI or machine-translation provider.
 
-verbatra is open source and MIT licensed. You maintain one source locale; on each run it diffs the source against a committed lock file and sends only the new or changed keys to your provider, leaving current translations untouched. Placeholder and ICU integrity are checked after every translation, and any result that breaks a placeholder is withheld.
+verbatra is open source and MIT licensed. You maintain one source locale; on each run it diffs the source against a committed lock file and sends only the new or changed keys to your provider, leaving current translations untouched. Placeholder and ICU integrity are checked after every translation, and any result that breaks a placeholder is withheld. Written files round-trip in exact document order: existing keys keep their positions and new keys are appended in source order, so translated files diff cleanly. Suspicious results are flagged for review, and the local Studio dashboard (the \`verbatra studio\` command) shows project state, drift, and the review queue.
 
 - Repository: https://github.com/mariokreitz/verbatra
-- npm packages: @verbatra/cli (the \`verbatra\` command), @verbatra/sdk (programmatic API)
+- npm packages: @verbatra/cli (the \`verbatra\` command), @verbatra/sdk (programmatic API), @verbatra/studio (local review dashboard, loaded by \`verbatra studio\`)
 - Translation providers: Anthropic, OpenAI, Gemini, DeepL, openai-compatible (local or self-hosted)
 - i18n formats: i18next, vue-i18n, next-intl, ngx-translate, Flutter ARB, YAML, and XLIFF
 - Frameworks: React, Vue, Angular, Node.js, Flutter
 - Requires Node.js >= 22.14.0
 
-## Documentation
-
-${docs}
+${renderSections()}
 `;
 
   return new Response(body, {

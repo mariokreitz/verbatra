@@ -6,9 +6,6 @@ import { SectionHead } from "./section-head";
 
 type Reason = { title: string; body: string };
 
-// The six reasons render in a uniform card-spotlight grid (no bento spans, no skeletons): a
-// calm, premium supporting section. Server shell: the copy renders on the server; each
-// CardSpotlight is a pointer-driven client leaf.
 const REASON_KEYS = [
   "incremental",
   "provider",

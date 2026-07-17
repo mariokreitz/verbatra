@@ -11,7 +11,11 @@ export interface ReadWorkbookOptions {
   readonly limits?: WorkbookLimits;
 }
 
-/** The zod boundary check on untrusted workbook content: key non-empty, status a known bucket. */
+/**
+ * The zod boundary check on untrusted workbook content: key non-empty, status a known bucket.
+ * The review fields fall back via `.catch` ("ok" / "") instead of rejecting, so a legacy workbook
+ * exported before the review columns existed, or an unrecognized review-status cell, still imports.
+ */
 const rowSchema = z.object({
   key: z.string().min(1),
   source: z.string(),
@@ -20,8 +24,6 @@ const rowSchema = z.object({
   sourceHash: z.string(),
   translation: z.string(),
   context: z.string(),
-  // A legacy workbook exported before these columns existed has no such cell; cellString then yields
-  // "", and .catch maps it to "ok" / "" rather than rejecting the row.
   reviewStatus: z.enum(["ok", "review"]).catch("ok"),
   reviewReasons: z.string().catch(""),
 });
@@ -72,10 +74,7 @@ function parseRow(sheet: ExcelJS.Worksheet, row: ExcelJS.Row): WorkbookRow {
     status: cellString(row.getCell(COLUMN.status)) as RowStatus,
     sourceHash: cellString(row.getCell(COLUMN.sourceHash)),
     translation: cellString(row.getCell(COLUMN.translation)),
-    // A workbook built before the Context column existed has no cell here; getCell auto-vivifies an
-    // empty one, so cellString yields "" and the row still validates, keeping import backward-compatible.
     context: cellString(row.getCell(COLUMN.context)),
-    // Same backward-compatible pattern for a workbook built before the Review columns existed.
     reviewStatus: cellString(row.getCell(COLUMN.reviewStatus)),
     reviewReasons: cellString(row.getCell(COLUMN.reviewReasons)),
   };
@@ -112,13 +111,11 @@ function readDataSheet(sheet: ExcelJS.Worksheet, limits: WorkbookLimits): Workbo
         `The sheet "${sheet.name}" has a row with more than the maximum of ${limits.maxCellsPerRow} cells.`,
       );
     }
-    // A wholly blank row (no key) is skipped: translators sometimes leave trailing blanks.
     if (cellString(row.getCell(COLUMN.key)) === "") {
       continue;
     }
     rows.push(parseRow(sheet, row));
   }
-  // The locale round-trips through the worksheet name: set to the locale on build and read back here.
   return { locale: sheet.name, rows };
 }
 
@@ -131,7 +128,6 @@ function readDataSheet(sheet: ExcelJS.Worksheet, limits: WorkbookLimits): Workbo
 async function loadWorkbook(bytes: Uint8Array): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   try {
-    // exceljs expects a Node Buffer; wrap the bytes in a Buffer view (no copy).
     const buffer = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   } catch {

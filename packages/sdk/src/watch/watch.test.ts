@@ -189,10 +189,10 @@ describe("watch: debounce + serialization state machine", () => {
     await settle();
     w.emit();
     await vi.advanceTimersByTimeAsync(49);
-    expect(r.calls).toBe(1); // not yet settled at the custom interval
+    expect(r.calls).toBe(1);
     await vi.advanceTimersByTimeAsync(1);
     await settle();
-    expect(r.calls).toBe(2); // settled at 50ms
+    expect(r.calls).toBe(2);
   });
 
   it("a burst of events triggers exactly ONE run after the debounce window", async () => {
@@ -202,14 +202,14 @@ describe("watch: debounce + serialization state machine", () => {
       { config: baseConfig(), cwd: CWD, onRun: () => {} },
       { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
     );
-    await settle(); // initial run completes -> idle
+    await settle();
     w.emit();
     w.emit();
     w.emit();
-    expect(r.calls).toBe(1); // still only the initial run; debounce pending
+    expect(r.calls).toBe(1);
     await vi.advanceTimersByTimeAsync(300);
     await settle();
-    expect(r.calls).toBe(2); // one run for the whole burst
+    expect(r.calls).toBe(2);
   });
 
   it("a change DURING a run does not start a concurrent run; exactly one follow-up after", async () => {
@@ -220,14 +220,14 @@ describe("watch: debounce + serialization state machine", () => {
       { config: baseConfig(), cwd: CWD, onRun: () => {} },
       { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
     );
-    await settle(); // initial run is in flight (held)
+    await settle();
     w.emit();
-    await vi.advanceTimersByTimeAsync(300); // settled change during RUNNING -> pending
-    expect(r.calls).toBe(1); // no concurrent run
+    await vi.advanceTimersByTimeAsync(300);
+    expect(r.calls).toBe(1);
     r.release();
     await settle();
-    expect(r.calls).toBe(2); // exactly one follow-up
-    expect(r.maxActive).toBe(1); // never two in flight
+    expect(r.calls).toBe(2);
+    expect(r.maxActive).toBe(1);
   });
 
   it("MANY changes during a run collapse into a single follow-up", async () => {
@@ -246,7 +246,7 @@ describe("watch: debounce + serialization state machine", () => {
     expect(r.calls).toBe(1);
     r.release();
     await settle();
-    expect(r.calls).toBe(2); // one follow-up, not five
+    expect(r.calls).toBe(2);
     expect(r.maxActive).toBe(1);
   });
 
@@ -260,10 +260,10 @@ describe("watch: debounce + serialization state machine", () => {
     );
     await settle();
     w.emit();
-    await vi.advanceTimersByTimeAsync(300); // pending set
+    await vi.advanceTimersByTimeAsync(300);
     r.release();
-    await settle(); // microtasks only, NO timer advance
-    expect(r.calls).toBe(2); // the follow-up ran without any debounce wait
+    await settle();
+    expect(r.calls).toBe(2);
   });
 
   it("a debounce timer pending when the run completes fires against the idle machine: one run, not dropped or doubled", async () => {
@@ -274,15 +274,15 @@ describe("watch: debounce + serialization state machine", () => {
       { config: baseConfig(), cwd: CWD, onRun: () => {} },
       { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
     );
-    await settle(); // initial run held in flight
-    w.emit(); // raw event -> debounce timer started, NOT advanced past the window
+    await settle();
+    w.emit();
     expect(r.calls).toBe(1);
     r.release();
-    await settle(); // initial completes; pending is false (timer not fired) -> idle
-    expect(r.calls).toBe(1); // the still-pending timer has not fired, no premature run
-    await vi.advanceTimersByTimeAsync(300); // timer fires against the now-idle machine
     await settle();
-    expect(r.calls).toBe(2); // exactly one run from the edit; not dropped, not doubled
+    expect(r.calls).toBe(1);
+    await vi.advanceTimersByTimeAsync(300);
+    await settle();
+    expect(r.calls).toBe(2);
     expect(r.maxActive).toBe(1);
   });
 });
@@ -305,7 +305,6 @@ describe("watch: failure handling and shutdown", () => {
       status: "failed",
       error: { code: "SOURCE_INVALID", message: "bad source" },
     });
-    // watcher is still alive: the next change triggers another run
     w.emit();
     await vi.advanceTimersByTimeAsync(300);
     await settle();
@@ -345,18 +344,17 @@ describe("watch: failure handling and shutdown", () => {
       { config: baseConfig(), cwd: CWD, onRun: () => {} },
       { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
     );
-    await settle(); // initial run in flight
-    w.emit();
-    await vi.advanceTimersByTimeAsync(300); // pending set during the run
-
-    const stopped = controller.stop();
-    // events after stop() are ignored
+    await settle();
     w.emit();
     await vi.advanceTimersByTimeAsync(300);
-    r.release(); // let the in-flight run finish
+
+    const stopped = controller.stop();
+    w.emit();
+    await vi.advanceTimersByTimeAsync(300);
+    r.release();
     await stopped;
 
-    expect(r.calls).toBe(1); // the pending follow-up was discarded; post-stop event ignored
+    expect(r.calls).toBe(1);
     expect(w.closed).toBe(true);
   });
 
@@ -367,12 +365,12 @@ describe("watch: failure handling and shutdown", () => {
       { config: baseConfig(), cwd: CWD, onRun: () => {} },
       { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
     );
-    await settle(); // initial run done -> idle
-    w.emit(); // raw event -> debounce timer pending (not advanced)
-    await controller.stop(); // stop clears the pending timer
-    await vi.advanceTimersByTimeAsync(300); // timer was cleared -> nothing fires
     await settle();
-    expect(r.calls).toBe(1); // only the initial run; the pending edit produced no run after stop
+    w.emit();
+    await controller.stop();
+    await vi.advanceTimersByTimeAsync(300);
+    await settle();
+    expect(r.calls).toBe(1);
     expect(w.closed).toBe(true);
   });
 });

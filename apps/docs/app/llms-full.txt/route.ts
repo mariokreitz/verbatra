@@ -2,8 +2,6 @@ import { i18n } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-// Docs content is English-only, so export the default-locale pages; the i18n-aware loader
-// would otherwise repeat each page per locale.
 export const dynamic = "force-static";
 
 async function renderPage(page: ReturnType<typeof source.getPages>[number]): Promise<string> {

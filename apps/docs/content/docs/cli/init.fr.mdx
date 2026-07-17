@@ -1,0 +1,48 @@
+---
+title: verbatra init
+description: Crée une config verbatra et un exemple de .env pour ce projet.
+---
+Échafaude un projet : `init` écrit un `verbatra.config.ts` et un `.env.example` qui nomme la variable de clé d'API de ton fournisseur (jamais une valeur de clé), et s'assure que `.gitignore` couvre `.env`, `.env.local` et `.verbatra-local/`. Quand stdin est un terminal et que `--yes` est absent, il te demande tout ce que tu n'as pas passé en option ; sinon il prend les valeurs par défaut, donc il tourne sans surveillance en CI.
+
+## Synopsis
+
+```bash
+verbatra init [flags]
+```
+
+## Options
+
+| Option | Argument | Défaut | Effet |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | répertoire courant | écrit la config et les fichiers d'environnement dans ce répertoire |
+| `--provider` | `<id>` | aucun (requis) | fournisseur à échafauder : `anthropic`, `openai`, `gemini` ou `deepl` ; demandé interactivement quand il est omis |
+| `--source` | `<locale>` | `en` | la locale source dans laquelle tes chaînes sont écrites |
+| `--targets` | `<locales>` | `de` | locales cibles à traduire, séparées par des virgules |
+| `--path` | `<pattern>` | `locales/{locale}.json` | motif des fichiers de locale ; doit contenir le jeton `{locale}` |
+| `--yes` | aucun | désactivé | saute les questions et accepte les valeurs par défaut |
+| `--force` | aucun | désactivé | écrase un `verbatra.config.ts` ou un `.env.example` existant |
+
+Le format n'est pas une option : `init` le détecte depuis tes dépendances (`i18next`, `vue-i18n`, `next-intl` ou `@ngx-translate/core`). Sans correspondance unique et non ambiguë, il retombe sur `i18next-json` et laisse un commentaire TODO listant tous les formats pris en charge. Sans `--force`, un `verbatra.config.ts` ou un `.env.example` existant est sauté, jamais écrasé, et la commande réussit quand même.
+
+## Exemples
+
+```bash
+# create config + .env example, prompting for the rest
+verbatra init --provider gemini
+
+# non-interactive, accept all defaults
+verbatra init --provider deepl --yes
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | fichiers écrits, ou sautés sans risque parce qu'ils existent déjà |
+| `2` | un `--provider` manquant ou inconnu, un échafaudage invalide, ou une erreur d'utilisation |
+
+## Voir aussi
+
+- [Ta première traduction](/docs/your-first-translation) va de init jusqu'à la première exécution.
+- [Le fichier de configuration](/docs/config-file) documente chaque clé posée par l'échafaudage.
+- [Fournisseurs](/docs/providers) couvre les options de fournisseur et les variables de clé d'API.

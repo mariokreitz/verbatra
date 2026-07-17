@@ -15,12 +15,12 @@
   --color-fd-border: hsl(240 23% 22%);
   --color-fd-foreground: hsl(240 30% 94%);
   --color-fd-muted-foreground: hsl(240 13% 65%);
-  /* Links and the active-nav accent ride the glow; the deep purple is reserved (ring below + CTA). */
+
   --color-fd-primary: hsl(258 47% 74%);
   --color-fd-primary-foreground: hsl(240 23% 7%);
   --color-fd-accent: hsl(258 25% 20%);
   --color-fd-accent-foreground: hsl(240 30% 94%);
-  /* The focus ring is the one spot the deep purple shows in the chrome. */
+
   --color-fd-ring: hsl(291 64% 42%);
 }
 
@@ -43,9 +43,6 @@ h6 {
   font-family: var(--font-display);
 }
 
-/* Lavender-to-violet gradient headline treatment (hero). The solid glow color is the fallback:
-   it shows if background-clip:text is unsupported, and forced-colors mode drops the gradient
-   entirely so the headline never renders as invisible transparent text. */
 .vk-gradient-text {
   color: var(--v-glow);
   background: var(--gradient-headline);
@@ -71,13 +68,7 @@ h6 {
   --fd-layout-width: 100%;
 }
 
-/* ---------------------------------------------------------------------------
-   Verbatra Design System scale tokens (theme-agnostic, additive).
-   These never vary by theme. Theme-dependent values live in the :root / .dark
-   blocks above and are referenced through the semantic aliases at the end.
-   --------------------------------------------------------------------------- */
 :root {
-  /* Type scale */
   --text-hero: 3.75rem;
   --text-h1: 2.5rem;
   --text-h2: 1.75rem;
@@ -88,24 +79,20 @@ h6 {
   --text-xs: 0.75rem;
   --text-2xs: 0.6875rem;
 
-  /* Weights */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
 
-  /* Leading */
   --leading-tight: 1.1;
   --leading-snug: 1.3;
   --leading-normal: 1.6;
 
-  /* Tracking */
   --tracking-tight: -0.02em;
   --tracking-normal: 0;
   --tracking-wide: 0.12em;
   --tracking-wider: 0.18em;
 
-  /* Spacing */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -118,7 +105,6 @@ h6 {
   --space-16: 4rem;
   --space-24: 6rem;
 
-  /* Radii */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 12px;
@@ -126,16 +112,13 @@ h6 {
   --radius-full: 9999px;
   --border-accent-width: 2px;
 
-  /* Shadows - purple-tinted, never gray */
   --shadow-panel: 0 24px 60px -30px color-mix(in srgb, var(--v-purple) 35%, transparent);
   --shadow-panel-lg: 0 30px 80px -44px color-mix(in srgb, var(--v-purple) 38%, transparent);
   --shadow-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.4);
 
-  /* Glows */
   --glow-text: 0 0 10px color-mix(in srgb, var(--v-purple) 55%, transparent);
   --glow-mark: 0 0 6px color-mix(in srgb, var(--v-glow) 60%, transparent);
 
-  /* Washes */
   --wash-hero: radial-gradient(
     circle,
     rgba(156, 39, 176, 0.2),
@@ -149,20 +132,18 @@ h6 {
     transparent 100%
   );
 
-  /* Motion */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 140ms;
   --duration-base: 240ms;
   --type-cadence: 38ms;
 
-  /* Extended brand colors (additive: --v-purple and --v-glow stay defined above) */
   --v-purple-strong: #7b1fa2;
   --v-glow-soft: #d8c8f5;
   --v-violet: #7c4dff;
   --v-pink: #e7b6f2;
-  /* A near-black void below the page surface, used for the footer wash and beam contrast. */
+
   --v-void: hsl(240 24% 4%);
-  /* Lavender-to-violet gradient for the hero headline treatment. */
+
   --gradient-headline: linear-gradient(
     92deg,
     var(--v-glow-soft),
@@ -173,9 +154,6 @@ h6 {
   --v-status-changed: var(--v-pink);
   --v-status-unchanged: #6f6f86;
 
-  /* Semantic aliases → existing fd-* tokens.
-     These resolve through whichever fd-* value is active, so light/dark stays
-     unified under .dark. No parallel theme. */
   --surface-bg: var(--color-fd-background);
   --surface-card: var(--color-fd-card);
   --surface-raised: var(--color-fd-popover);
@@ -184,7 +162,7 @@ h6 {
   --text-strong: var(--color-fd-foreground);
   --text-body: var(--color-fd-foreground);
   --text-muted: var(--color-fd-muted-foreground);
-  --text-faint: color-mix(in srgb, var(--color-fd-muted-foreground) 70%, transparent);
+  --text-faint: hsl(240 13% 58%);
   --text-link: var(--color-fd-primary);
   --accent: var(--v-glow);
   --accent-fill: var(--v-purple);
@@ -199,7 +177,7 @@ h6 {
 }
 
 #nd-sidebar p {
-  letter-spacing: 0.12em; /* group (separator) labels */
+  letter-spacing: 0.12em;
 }
 
 #nd-sidebar a[data-active] {
@@ -224,9 +202,6 @@ h6 {
   background: var(--v-glow);
 }
 
-/* Home / legal navbar (navbar-classic): a frosted sticky bar with a glow bottom-seam. The
-   docs layout renders its own header, so this only targets #nd-nav (home + legal) and cannot
-   affect the docs navbar or sidebar. The bar already ships sticky + backdrop-blur-lg. */
 #nd-nav {
   background-color: color-mix(in srgb, var(--color-fd-background) 70%, transparent);
   border-bottom-color: transparent;
@@ -247,8 +222,6 @@ h6 {
   );
 }
 
-/* Main nav links carry a data-active attribute; a glow-accent underline fades in on hover
-   and marks the active page. The brand lockup, GitHub icon, and CTA lack the attribute. */
 #nd-nav a[data-active] {
   position: relative;
 }
@@ -279,10 +252,11 @@ figure.shiki {
   border-inline-start: 2px solid var(--v-glow);
 }
 
-/* ---------------------------------------------------------------------------
-   Aceternity-flavored landing motion. Each animated class degrades to a static
-   frame under prefers-reduced-motion (the block at the end disables them all).
-   --------------------------------------------------------------------------- */
+.shiki span[style*="#6A737D" i] {
+  /* biome-ignore lint/complexity/noImportantStyles: shiki sets token colors through inline custom properties; only an important declaration outranks them, raising comment tokens to WCAG AA. */
+  color: #8b949e !important;
+}
+
 @keyframes vk-spot-sweep {
   from {
     transform: translateX(-54%) rotate(-4deg);
@@ -324,7 +298,6 @@ figure.shiki {
   animation: vk-spot-sweep 9s var(--ease-out) infinite alternate;
 }
 
-/* Duration and delay are set per beam inline; the class supplies the rest. */
 .vk-beam {
   animation-name: vk-beam;
   animation-timing-function: linear;
@@ -336,9 +309,6 @@ figure.shiki {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* These animations are applied through the class selectors above (not inline), so
-     clearing the animation-name here by source order disables them: no !important
-     needed. The beams keep their inline duration/delay, but with no name they never run. */
   .vk-spot,
   .vk-beam,
   .vk-float {

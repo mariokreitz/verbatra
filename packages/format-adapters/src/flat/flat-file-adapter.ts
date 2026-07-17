@@ -19,6 +19,7 @@ type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) =>
 /** Validates a single value against the format's message syntax (one value, before write). */
 type ValidateMessage = (value: string) => boolean;
 
+/** The format-specific behavior {@link createFlatFileAdapter} builds an adapter from. */
 export interface FlatFileAdapterOptions {
   readonly format: SupportedFormat;
   /** Accepted file extensions, lower-cased and dot-prefixed (for example `[".xlf", ".xliff"]`). */

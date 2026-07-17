@@ -1,0 +1,48 @@
+---
+title: verbatra init
+description: Lege eine verbatra-Konfiguration und ein .env-Beispiel für dieses Projekt an.
+---
+Setze ein Projekt auf: `init` schreibt eine `verbatra.config.ts` und eine `.env.example`, die die API-Key-Variable deines Providers nennt (nie einen Key-Wert), und stellt sicher, dass `.gitignore` die Einträge `.env`, `.env.local` und `.verbatra-local/` abdeckt. Wenn stdin ein Terminal ist und `--yes` fehlt, fragt der Befehl alles ab, was du nicht als Flag übergeben hast; sonst nimmt er die Standardwerte und läuft damit unbeaufsichtigt in CI.
+
+## Synopsis
+
+```bash
+verbatra init [flags]
+```
+
+## Flags
+
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | die Konfigurations- und Env-Dateien in dieses Verzeichnis schreiben |
+| `--provider` | `<id>` | keiner (erforderlich) | Provider, der aufgesetzt wird: `anthropic`, `openai`, `gemini` oder `deepl`; wird interaktiv abgefragt, wenn er fehlt |
+| `--source` | `<locale>` | `en` | das Quell-Locale, in dem deine Strings geschrieben sind |
+| `--targets` | `<locales>` | `de` | kommagetrennte Ziel-Locales, in die übersetzt wird |
+| `--path` | `<pattern>` | `locales/{locale}.json` | Muster der Locale-Dateien; muss das Token `{locale}` enthalten |
+| `--yes` | keins | aus | Abfragen überspringen und die Standardwerte übernehmen |
+| `--force` | keins | aus | eine bestehende `verbatra.config.ts` oder `.env.example` überschreiben |
+
+Das Format ist kein Flag: `init` erkennt es an deinen Dependencies (`i18next`, `vue-i18n`, `next-intl` oder `@ngx-translate/core`). Ohne einen einzelnen eindeutigen Treffer fällt es auf `i18next-json` zurück und hinterlässt einen TODO-Kommentar mit jedem unterstützten Format. Ohne `--force` wird eine bestehende `verbatra.config.ts` oder `.env.example` übersprungen, nie überschrieben, und der Befehl ist trotzdem erfolgreich.
+
+## Beispiele
+
+```bash
+# create config + .env example, prompting for the rest
+verbatra init --provider gemini
+
+# non-interactive, accept all defaults
+verbatra init --provider deepl --yes
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | Dateien geschrieben, oder sicher übersprungen, weil sie schon existieren |
+| `2` | ein fehlender oder unbekannter `--provider`, ein ungültiges Scaffold oder ein Verwendungsfehler |
+
+## Siehe auch
+
+- [Deine erste Übersetzung](/docs/your-first-translation) führt von init bis zum ersten Lauf.
+- [Konfigurationsdatei](/docs/config-file) dokumentiert jeden Key, den das Scaffold setzt.
+- [Provider](/docs/providers) behandelt die Provider-Optionen und API-Key-Variablen.

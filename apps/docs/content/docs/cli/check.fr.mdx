@@ -1,0 +1,48 @@
+---
+title: verbatra check
+description: Signale les clés manquantes ou obsolètes par locale sans écrire de fichiers.
+---
+Signale, par locale cible, combien de clés sont manquantes, obsolètes ou à jour, puis sort avec un code sur lequel une étape CI peut se brancher. `check` exécute la même lecture et la même comparaison que [`verbatra translate`](/docs/cli/translate) effectue juste avant d'appeler un fournisseur, puis s'arrête : aucun appel de fournisseur, aucun fichier écrit, aucune mise à jour du [fichier de verrouillage](/docs/the-lock-file) et aucune clé d'API requise.
+
+## Synopsis
+
+```bash
+verbatra check [flags]
+```
+
+## Options
+
+| Option | Argument | Défaut | Effet |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
+| `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
+| `--locales` | `<list>` | toutes les cibles configurées | sous-ensemble de locales cibles à vérifier, séparées par des virgules |
+| `--json` | aucun | désactivé | affiche le résumé de vérification comme un seul objet JSON sur stdout ; les erreurs vont toujours sur stderr |
+
+Une clé est manquante quand la source l'a et pas la cible ; obsolète quand la chaîne source a changé depuis sa dernière traduction. Une locale est synchronisée quand elle n'a ni l'un ni l'autre. Une valeur `--locales` vide ou inconnue est rejetée avec la sortie `2` plutôt que de ne rien vérifier en silence, donc une coquille dans un nom de locale ne laisse jamais passer un contrôle CI. Tu veux les listes de clés derrière ces comptes ? C'est [`verbatra diff`](/docs/cli/diff).
+
+## Exemples
+
+```bash
+# fail the build when translations drifted
+verbatra check
+
+# machine-readable status for two locales
+verbatra check --locales de,fr --json
+```
+
+## Codes de sortie
+
+| Code | Signification |
+| --- | --- |
+| `0` | synchronisé : aucune locale n'a de clé manquante ou obsolète |
+| `1` | désynchronisé : au moins une locale a une clé manquante ou obsolète (le rapport est quand même affiché) |
+| `2` | impossible de s'exécuter : une erreur globale, ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
+
+La sortie `1` signifie "désynchronisé", pas un échec : l'exécution elle-même a réussi, le résultat n'est juste pas tout vert.
+
+## Voir aussi
+
+- [`verbatra diff`](/docs/cli/diff) liste les clés exactes derrière ces comptes.
+- [CI et codes de sortie](/docs/ci-and-exit-codes) montre check comme contrôle de dérive.
+- [Le fichier de verrouillage](/docs/the-lock-file) explique comment l'obsolescence est détectée.

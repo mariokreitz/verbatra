@@ -6,12 +6,9 @@ import type { GeminiModel } from "./gemini/models.js";
 import { openAiConfigSchema } from "./openai/config.js";
 import type { OpenAiModel } from "./openai/models.js";
 
-// Type-level assertions verified by `tsc --noEmit`: a call that fails to type-check is a build failure.
 type Extends<A, B> = A extends B ? true : false;
 type Expect<T extends true> = T;
 
-// Isolate the named literal members of an open model union `M | (string & {})`: the wide `string` arm
-// satisfies `string extends T` and is dropped, leaving the literals the SDK ships.
 type LiteralMembers<T> = T extends string ? (string extends T ? never : T) : never;
 
 const knownAnthropic = "claude-opus-4-8";
@@ -31,8 +28,6 @@ describe("LLM provider authoring model types are sourced from the SDK", () => {
   });
 
   it("reflects each SDK union shape: open SDKs accept an unknown model string directly", () => {
-    // Anthropic and Gemini export open unions (literals plus `string & {}`), so an unknown ID is
-    // assignable; OpenAI ships a closed `ChatModel`, so the unknown ID is not assignable to it here.
     type Assertions = [
       Expect<Extends<"some-future-model-2099", AnthropicModel>>,
       Expect<Extends<"some-future-model-2099", GeminiModel>>,
@@ -43,7 +38,6 @@ describe("LLM provider authoring model types are sourced from the SDK", () => {
   });
 
   it("narrows by provider: a foreign literal is not a named member of another provider", () => {
-    // The open `string & {}` arm makes every string assignable, so this asserts over named members only.
     type Assertions = [
       Expect<Extends<Extends<"gpt-4o", LiteralMembers<AnthropicModel>>, false>>,
       Expect<Extends<Extends<"gemini-2.5-flash", LiteralMembers<AnthropicModel>>, false>>,

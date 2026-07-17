@@ -22,7 +22,7 @@ interface CheckSummaryJson {
   locales: { locale: string; missing: number }[];
 }
 
-// Column indices mirror @verbatra/exchange's fixed workbook layout.
+/** Positions coupled to @verbatra/exchange's fixed workbook layout (see its layout.ts). */
 const HEADER_ROW = 1;
 const TRANSLATION_COLUMN = 5;
 const INSTRUCTIONS_SHEET = "Instructions";
@@ -139,6 +139,10 @@ describe("translate --dry-run (no provider)", () => {
 });
 
 describe("export then import round-trip (no provider)", () => {
+  /**
+   * Simulates a translator: fills only the Translation column so the hidden source-hash column
+   * survives the round-trip and import can match rows back to their keys.
+   */
   it("applies a human-filled workbook back into the locale files", async () => {
     const dir = await seedProject("import-roundtrip", i18nextConfig, {
       "locales/en.json": { greeting: "Hello {{name}}", farewell: "Goodbye" },
@@ -148,7 +152,6 @@ describe("export then import round-trip (no provider)", () => {
     const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
     expect(exported.exitCode).toBe(0);
 
-    // Touch only the Translation column so the hidden source-hash column survives the round-trip.
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(workbookPath);
     for (const sheet of workbook.worksheets) {
@@ -215,6 +218,7 @@ describe("other formats (read-only, no provider)", () => {
     expect(de?.missing).toBe(1);
   });
 
+  /** The "@@locale" key is ARB metadata, stripped before diffing, so only "farewell" counts as missing. */
   it("checks a Flutter ARB project", async () => {
     const dir = await seedProject(
       "arb-check",
@@ -232,7 +236,6 @@ describe("other formats (read-only, no provider)", () => {
     const summary = JSON.parse(result.stdout) as CheckSummaryJson;
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
-    // The "@@locale" key is ARB metadata, stripped before diffing, so only "farewell" is missing.
     expect(de?.missing).toBe(1);
   });
 });
@@ -267,9 +270,11 @@ describe("init (no provider)", () => {
 });
 
 describe("config errors (no provider)", () => {
+  /**
+   * Uses a fresh temp directory outside the consumer tree, so cosmiconfig's upward search cannot
+   * pick up any ambient config.
+   */
   it("exits 2 with a config-not-found error when no config file is present", async () => {
-    // A fresh temp directory outside the consumer tree, so cosmiconfig's upward search cannot pick
-    // up any ambient config.
     const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-noconfig-"));
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(2);
@@ -326,6 +331,11 @@ describe("CLI boundary hardening (subprocess-level proof, no provider)", () => {
 });
 
 describe("watch SIGINT contract (no provider key needed)", () => {
+  /**
+   * Without an API key the initial run fails at provider construction (a structured, secret-free
+   * ProviderError) but the watcher stays up, which is enough to exercise the SIGINT contract: a
+   * single interrupt stops it cleanly with exit 0 after at least one NDJSON record.
+   */
   it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {
     const dir = join(consumer.dir, "watch-sigint");
     await mkdir(dir, { recursive: true });
@@ -337,10 +347,6 @@ describe("watch SIGINT contract (no provider key needed)", () => {
       `import { defineConfig } from "@verbatra/cli";\n\nexport default defineConfig({\n  sourceLocale: "en",\n  targetLocales: ["de"],\n  format: "i18next-json",\n  files: { pattern: "locales/{locale}.json" },\n  provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } },\n});\n`,
     );
 
-    // No API key: the initial run fails at provider construction (a structured, secret-free
-    // ProviderError), but the watcher stays up. That is enough to exercise the SIGINT contract
-    // without a live key: a single interrupt should still stop it cleanly with exit 0, having
-    // already emitted one NDJSON record to stdout.
     const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
       env: { ANTHROPIC_API_KEY: "" },
     });
@@ -362,13 +368,19 @@ describe("watch SIGINT contract (no provider key needed)", () => {
       expect(result.signal).toBeUndefined();
       expect(result.exitCode).toBe(0);
     } finally {
-      // A no-op if the process already exited cleanly above; a safety net otherwise.
       watcher.kill("SIGKILL");
     }
   }, 45_000);
 });
 
 describe("runVerbatra signal-death (no provider key needed)", () => {
+  /**
+   * Without an API key, watch stays running after its failed startup run, so it is still alive
+   * when runVerbatra's timeout fires and execa force-kills it. runVerbatra never hands back a kill
+   * handle, so the timeout is the only way to reach a still-running child through it; SIGKILL
+   * cannot be caught by the CLI's shutdown handling, making this a real signal death (the same
+   * shape as a crash or an OOM kill).
+   */
   it("reports a null exit code and the killing signal when the process is force-killed", async () => {
     const dir = join(consumer.dir, "watch-signal-death");
     await mkdir(dir, { recursive: true });
@@ -380,13 +392,6 @@ describe("runVerbatra signal-death (no provider key needed)", () => {
       `import { defineConfig } from "@verbatra/cli";\n\nexport default defineConfig({\n  sourceLocale: "en",\n  targetLocales: ["de"],\n  format: "i18next-json",\n  files: { pattern: "locales/{locale}.json" },\n  provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } },\n});\n`,
     );
 
-    // Without an API key, watch fails to construct a provider on startup but stays running (the
-    // same behavior the SIGINT test above relies on), so it is still alive when the timeout
-    // fires. This drives the signal-death path through runVerbatra itself, not spawnVerbatra:
-    // runVerbatra fully awaits execa internally and never hands back a kill handle, so the only
-    // way to reach a still-running child through it is to have execa force-kill it via its own
-    // timeout option. SIGKILL cannot be caught by the CLI's SIGINT/SIGTERM shutdown handling, so
-    // this is a real signal death, the same shape a crash or an OOM kill produces.
     const result = await runVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
       env: { ANTHROPIC_API_KEY: "" },
       timeoutMs: 3000,

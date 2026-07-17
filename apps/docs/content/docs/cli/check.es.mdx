@@ -1,0 +1,48 @@
+---
+title: verbatra check
+description: Informa qué claves faltan o están obsoletas por locale sin escribir archivos.
+---
+Informa, por locale de destino, cuántas claves faltan, están obsoletas o al día, y sal con un código sobre el que un paso de CI puede ramificar. `check` ejecuta la misma lectura y el mismo diff que [`verbatra translate`](/docs/cli/translate) hace justo antes de llamar a un proveedor, y luego se detiene: sin llamada al proveedor, sin archivos escritos, sin actualización de [el archivo de bloqueo](/docs/the-lock-file) y sin necesidad de clave API.
+
+## Sinopsis
+
+```bash
+verbatra check [flags]
+```
+
+## Flags
+
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--locales` | `<list>` | todos los destinos configurados | subconjunto de locales de destino separado por comas a comprobar |
+| `--json` | ninguno | desactivado | imprime el resumen de la comprobación como un objeto JSON en stdout; los errores siguen yendo a stderr |
+
+Una clave falta cuando el origen la tiene y el destino no; está obsoleta cuando la cadena de origen cambió desde la última vez que se tradujo. Un locale está sincronizado cuando no tiene ni lo uno ni lo otro. Un valor `--locales` vacío o desconocido se rechaza con salida `2` en lugar de comprobar nada en silencio, así que una errata en un nombre de locale nunca deja pasar una puerta de CI. ¿Quieres las listas de claves detrás de los contadores? Eso es [`verbatra diff`](/docs/cli/diff).
+
+## Ejemplos
+
+```bash
+# fail the build when translations drifted
+verbatra check
+
+# machine-readable status for two locales
+verbatra check --locales de,fr --json
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | sincronizado: ningún locale tiene una clave faltante u obsoleta |
+| `1` | desincronizado: al menos un locale tiene una clave faltante u obsoleta (el informe se imprime igualmente) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso (incluido un valor `--locales` vacío o desconocido) |
+
+La salida `1` significa "desincronizado", no un fallo: la ejecución en sí tuvo éxito, solo que el resultado no está todo en verde.
+
+## Relacionado
+
+- [`verbatra diff`](/docs/cli/diff) lista las claves exactas detrás de estos contadores.
+- [CI y códigos de salida](/docs/ci-and-exit-codes) muestra check como puerta contra el desfase.
+- [El archivo de bloqueo](/docs/the-lock-file) explica cómo se detecta la obsolescencia.

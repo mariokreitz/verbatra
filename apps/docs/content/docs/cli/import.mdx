@@ -1,0 +1,48 @@
+---
+title: verbatra import
+description: Import a filled workbook back into the locale files, running the same safety checks.
+---
+Read a workbook a translator filled in back into your locale files. Every value runs through the same placeholder integrity and ICU integrity checks as an automated run: values that pass are written and [the lock file](/docs/the-lock-file) is updated; values that fail are withheld and reported instead of written, so a bad cell never lands in a locale file.
+
+## Synopsis
+
+```bash
+verbatra import <workbook> [flags]
+```
+
+`<workbook>` is the path to the workbook produced by [`verbatra export`](/docs/cli/export) and filled in by the translator.
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--dry-run` | none | off | validate and report without writing locale files or updating the lock |
+| `--json` | none | off | print the run summary as one JSON object on stdout (the same [`RunSummary` shape](/docs/sdk) as `translate`); errors still go to stderr |
+
+## Examples
+
+```bash
+# import the filled workbook
+verbatra import verbatra-translations.xlsx
+
+# validate and report, write nothing
+verbatra import verbatra-translations.xlsx --dry-run
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | every target locale succeeded |
+| `1` | the run finished but one or more locales failed |
+| `2` | could not run: a whole-run error (config, workbook, format, or lock), or a usage error |
+
+The contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI.
+
+## Related
+
+- [Manual translation](/docs/manual-translation) covers the full export, fill, import round-trip and what a translator may edit.
+- [Translation safety](/docs/translation-safety) explains the checks that can withhold a value.
+- [`verbatra export`](/docs/cli/export) produces the workbook this command reads.

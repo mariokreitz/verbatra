@@ -1,0 +1,97 @@
+---
+title: Preguntas frecuentes
+description: Respuestas cortas a las preguntas que más surgen al ejecutar verbatra.
+---
+Respuestas rápidas, cada una fundada en cómo se comporta verbatra de verdad. Para ayuda a partir de
+síntomas con mensajes de error, consulta [Solución de problemas](/docs/troubleshooting).
+
+## ¿Cómo controlo el coste?
+
+Cuatro palancas, todas libres de llamadas al proveedor hasta que tú decidas lo contrario:
+
+- Las ejecuciones son incrementales por defecto: solo se envían al proveedor las claves faltantes o
+  cuyo origen cambió desde la línea base del bloqueo. Volver a ejecutar un proyecto sin cambios no
+  cuesta nada.
+- `--dry-run` (o `translate({ config, dryRun: true })`) previsualiza exactamente qué se enviaría,
+  sin llamada al proveedor y sin escrituras.
+- `maxTokens` en la configuración fija un techo de tokens para toda la ejecución, y
+  `budgetBehavior` decide qué pasa al alcanzarlo: `"warn"` (por defecto) lo señala y continúa,
+  `"stop"` retiene cada clave aún no intentada; las claves retenidas se reintentan automáticamente
+  en la siguiente ejecución.
+- Gemini tiene un nivel de API gratuito de verdad, y el proveedor `openai-compatible` corre contra
+  un modelo local a coste de API cero.
+
+## ¿Con qué proveedor empiezo?
+
+Gemini: tiene un nivel de API gratuito, así que puedes traducir un proyecto entero sin coste, y
+cambiar más tarde es editar un solo `id` en la configuración. Anthropic y OpenAI son las opciones
+de calidad de LLM de pago, DeepL es la opción dedicada de traducción automática, y
+`openai-compatible` mantiene todo en tu propio hardware. Consulta [Proveedores](/docs/providers)
+para la comparación completa.
+
+## ¿Puedo usar un modelo local?
+
+Sí. El proveedor `openai-compatible` apunta verbatra a cualquier servidor que hable la API de chat
+de OpenAI, como LM Studio, Ollama o vLLM, a través de su opción `baseUrl`. La mayoría de los
+servidores locales no necesitan clave de API: cuando ni una variable nombrada por `apiKeyEnvVar` ni
+`OPENAI_COMPATIBLE_API_KEY` están definidas, verbatra envía el marcador fijo `"local"`. Si tu
+servidor sí necesita una clave, nombra su variable de entorno con `apiKeyEnvVar`.
+
+## ¿Cómo conservan las claves su orden?
+
+Los adaptadores de la familia JSON, YAML y ARB hacen el viaje de ida y vuelta de los archivos en el
+orden exacto del documento: las claves existentes conservan sus posiciones (incluidas las claves
+con pinta de entero), y las claves nuevas se añaden en el orden del origen. Un archivo traducido
+produce un diff limpio contra su versión anterior. Consulta [Formatos](/docs/formats).
+
+## ¿Por qué una traducción quedó marcada para revisión?
+
+Las traducciones aceptadas pasan por heurísticas de revisión que marcan resultados sospechosos sin
+retenerlos: una longitud muy desproporcionada respecto al origen (`LENGTH_RATIO_OUTLIER`), una
+traducción idéntica al origen (`EQUALS_SOURCE`), un término del glosario que se perdió
+(`GLOSSARY_TERM_MISSED`), marcadores de posición reordenados (`INTEGRITY_REORDERED`) o una ruta de
+proveedor degradada (`PROVIDER_DEGRADED`). Las señales aterrizan en la lista `needsReview` del
+resumen de la ejecución y en la cola de revisión de Studio. Consulta
+[Seguridad de la traducción](/docs/translation-safety).
+
+## ¿Funciona verbatra en un monorepo?
+
+Sí. La búsqueda de configuración empieza en el directorio de trabajo actual y sube, así que
+ejecutar desde el directorio de un paquete encuentra la configuración de ese paquete. Desde
+cualquier otro sitio, pasa `--cwd <dir>` (todos los comandos lo soportan) o apunta a un archivo
+concreto con `--config <path>`. En el SDK, los mismos mandos son `cwd` y `configPath` en
+`loadConfig`. El `files.pattern` y el archivo de bloqueo se resuelven contra el directorio de
+trabajo.
+
+## ¿Qué debo confirmar?
+
+Confirma tus archivos de locale y `verbatra.lock.json`: el bloqueo registra, por clave, el hash del
+contenido de origen del que salió cada traducción, y confirmarlo es lo que hace que las ejecuciones
+incrementales y la detección de desfase funcionen en todas partes, incluido CI. No confirmes
+`.env`, `.env.local` ni `.verbatra-local/`; `verbatra init` añade los tres a `.gitignore`. Consulta
+[El archivo de bloqueo](/docs/the-lock-file).
+
+## ¿Cómo lo retraduzco todo?
+
+Borrar el archivo de bloqueo no lo consigue: sin línea base, las claves que existen tanto en el
+origen como en el destino cuentan como al día, así que una ejecución tras borrar el bloqueo no
+traduce nada. Para reconstruir un locale desde cero, borra el archivo de ese locale y ejecuta
+`verbatra translate`: entonces cada clave es faltante y se traduce de nuevo. Para una sola clave,
+usa la acción de retraducir de Studio o `retranslateEntry` del SDK. Para retraducir claves cuyo
+texto de origen cambió, simplemente ejecuta `translate`: esa es la ruta incremental normal.
+
+## ¿Usar la CLI implica instalar el SDK?
+
+`@verbatra/cli` depende de `@verbatra/sdk`, así que instalar la CLI trae el SDK consigo
+automáticamente; no hay nada extra que instalar. Lo inverso también vale: el SDK funciona solo en
+tus propios scripts sin la CLI. Solo `@verbatra/studio` es una instalación aparte y opcional,
+cargada dinámicamente por el comando `studio`.
+
+## ¿Dónde viven las claves de API?
+
+Solo en variables de entorno: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` o
+`DEEPL_API_KEY`, más la variable que tú nombres para `openai-compatible`. La CLI carga `.env` y
+`.env.local` desde el directorio de trabajo (las variables del entorno real ganan). El esquema de
+configuración rechaza las claves desconocidas precisamente para que un secreto no pueda acabar en
+un archivo confirmado, y los mensajes de error nombran la variable pero nunca un valor. Consulta
+[Proveedores](/docs/providers).

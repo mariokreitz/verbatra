@@ -14,8 +14,6 @@ describe("compareIcuPlaceholders: branch-aware fabrication detection", () => {
   });
 
   it("flags a placeholder invented in a single branch of a richer-cardinality target", () => {
-    // English source has only one/other; Polish needs one/few/many/other. The fabrication lives only in
-    // "few", a category the source does not have, so it must be caught via the source-union fallback.
     const source = "{count, plural, one {{name} has # apple} other {{name} has # apples}}";
     const target =
       "{count, plural, one {{name} ma # jablko} few {{name} ma {ghost} # jablka} many {{name} ma # jablek} other {{name} ma # jablka}}";
@@ -62,8 +60,6 @@ describe("compareIcuPlaceholders: missing-placeholder detection preserved", () =
   });
 
   it("accepts a translator reusing a source-only-partial placeholder in a target-only richer category", () => {
-    // {sender} appears only in the source's "one" branch. Polish's extra "few"/"many" categories reusing
-    // it must not be rejected: the source union includes every source branch, "one" included.
     const source = "{count, plural, one {One msg from {sender}} other {# messages}}";
     const target =
       "{count, plural, one {Jedna wiadomosc od {sender}} few {# wiadomosci od {sender}} many {# wiadomosci} other {# wiadomosci}}";
@@ -76,19 +72,18 @@ describe("compareIcuPlaceholders: missing-placeholder detection preserved", () =
 
 describe("compareIcuPlaceholders: parse-failure fallback", () => {
   it("falls back to the flat comparison when the source fails to parse", () => {
-    const source = "{count, plural, one {x"; // unbalanced, invalid ICU
+    const source = "{count, plural, one {x";
     const target = "hi {name}";
 
     const result = compareIcuPlaceholders(source, target);
 
-    // Flat fallback: icuPlaceholders(source) is [] (invalid), so target's {name} is reported as extra.
     expect(result.matches).toBe(false);
     expect(result.extra).toEqual(["{name}"]);
   });
 
   it("falls back to the flat comparison when the target fails to parse", () => {
     const source = "hi {name}";
-    const target = "{count, plural, one {x"; // unbalanced, invalid ICU
+    const target = "{count, plural, one {x";
 
     const result = compareIcuPlaceholders(source, target);
 
@@ -119,8 +114,6 @@ describe("compareIcuPlaceholders: non-plural structure", () => {
   });
 
   it("does not compare branch contents under a renamed plural argument (accepted non-goal)", () => {
-    // The rename itself ({count} vs {n}) is caught at the flat layer; the invented {ghost} inside the
-    // renamed node's branches is not further inspected, an accepted, pre-existing limitation.
     const source = "{count, plural, one {# item} other {# items}}";
     const target = "{n, plural, one {# item} other {# items by {ghost}}}";
 
@@ -148,9 +141,6 @@ describe("compareIcuPlaceholders: non-plural structure", () => {
 
 describe("compareIcuPlaceholders: deep source-union recursion for a target-only category", () => {
   it("descends into a tag inside a source branch when building the richer-category union", () => {
-    // {name} lives only inside a <b> tag; the "one"/"other" branches match structurally on both
-    // sides (direct comparison), so the "few"/"many" target-only categories are the only ones that
-    // exercise the union path, and it must recognize {name} through the tag via deep recursion.
     const source = "{count, plural, one {<b>{name}</b> item} other {<b>{name}</b> items}}";
     const target =
       "{count, plural, one {<b>{name}</b> item} few {{name}} many {y} other {<b>{name}</b> items}}";
@@ -172,8 +162,6 @@ describe("compareIcuPlaceholders: deep source-union recursion for a target-only 
   });
 
   it("descends into a nested select inside a source branch when building the richer-category union", () => {
-    // {name} lives only inside a nested select in the source's "other" branch; "one"/"other" match
-    // structurally on both sides, so "few"/"many" are the only categories exercising the union path.
     const source =
       "{count, plural, one {solo} other {{g, select, male {He is {name}} female {She is {name}} other {They are {name}}}}}";
     const target =
@@ -187,8 +175,6 @@ describe("compareIcuPlaceholders: deep source-union recursion for a target-only 
 
 describe("compareIcuPlaceholders: source-only categories are skipped", () => {
   it("does not require a target to cover a source category the target's cardinality lacks", () => {
-    // Arabic source has zero/one/two/few/many/other; the German target has only one/other. The
-    // source-only categories (zero/two/few/many) impose nothing on the target.
     const source =
       "{count, plural, zero {none} one {{name} 1} two {{name} 2} few {{name} 3} many {{name} 4} other {{name} 5}}";
     const target = "{count, plural, one {{name} eins} other {{name} andere}}";
@@ -206,8 +192,6 @@ describe("compareIcuPlaceholders: an unmatched tag is not recursed into", () => 
 
     const result = compareIcuPlaceholders(source, target);
 
-    // The tag rename is caught at the flat layer (<link> missing, <other> extra); the {a}/{b} pair
-    // inside the unmatched tags is never inspected, an accepted, pre-existing limitation.
     expect(result.missing).toEqual(["<link>"]);
     expect(result.extra).toEqual(["<other>"]);
   });
@@ -215,9 +199,6 @@ describe("compareIcuPlaceholders: an unmatched tag is not recursed into", () => 
 
 describe("compareIcuPlaceholders: type-mismatched branching nodes still compare", () => {
   it("flags a placeholder invented under a select translated from a plural with the same argument name", () => {
-    // Matching by type (plural vs. select) instead of by argument name alone would make this rename
-    // fail to match at all, so neither the branch-aware layer nor the flat fallback (tokenOf ignores
-    // node type) would ever see {author}.
     const source = "{count, plural, one {# item} other {# items}}";
     const target = "{count, select, one {# item} other {# items by {author}}}";
 
@@ -231,11 +212,6 @@ describe("compareIcuPlaceholders: type-mismatched branching nodes still compare"
 
 describe("compareIcuPlaceholders: duplicate argument names at one nesting level", () => {
   it("pairs same-named plural nodes positionally instead of both matching the first target node", () => {
-    // Two "count" plural nodes at the same level, valid ICU. The first pair is a correct translation
-    // that reuses {a}; the second pair fabricates {ghost}. An unconstrained find() would match both
-    // source nodes to the first target node: the correctly-translated second source node ({b}) would be
-    // falsely reported as missing/extra against the first target node, while the real fabrication in the
-    // second target node would go completely unchecked.
     const source =
       "{count, plural, one {{a} x} other {{a} y}} and {count, plural, one {{b} x} other {{b} y}}";
     const target =

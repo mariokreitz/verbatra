@@ -104,7 +104,7 @@ function findUnconsumed<T extends MessageFormatElement>(
 }
 
 /**
- * A target plural/select node matching `source` by argument NAME alone (`element.value`), not by node
+ * A target plural/select node matching `source` by argument name alone (`element.value`), not by node
  * type: a plural translated as a select (or vice versa) under the same argument name still matches, so
  * the branch-level comparison in `compareBranching` runs and can surface a placeholder fabricated under
  * the mismatched type, instead of the type check silently hiding the whole node from comparison.
@@ -172,7 +172,11 @@ function compareAgainstSourceUnion(
   return { matches: extra.length === 0, missing: [], extra, reordered: false };
 }
 
-/** Compare a matched plural/select pair branch by branch, over the union of both sides' categories. */
+/**
+ * Compare a matched plural/select pair branch by branch, over the union of both sides' categories.
+ * A category present on both sides is compared directly; a target-only category is checked against
+ * the source union; a source-only category has no target branch to compare against and is skipped.
+ */
 function compareBranching(
   source: BranchingElement,
   target: BranchingElement,
@@ -189,7 +193,6 @@ function compareBranching(
     } else if (targetBranch !== undefined) {
       results.push(compareAgainstSourceUnion(sourceBranches, targetBranch));
     }
-    // Source-only category: no target branch to compare against, skip.
   }
   return combineResults(results);
 }
@@ -248,7 +251,7 @@ function compareElements(
  *
  * A placeholder invented in a single branch of the target is flagged as extra, even when the source
  * never established that placeholder as universal. A placeholder legitimately present in only some of the
- * SOURCE's branches never causes a correctly-translated target to be rejected. If either value fails to
+ * source's branches never causes a correctly-translated target to be rejected. If either value fails to
  * parse as ICU MessageFormat, this falls back to the flat comparison (`icuPlaceholders` +
  * `checkPlaceholders`); a parse failure is a separate signal (`icuIsValid`/`icuInvalidKeys`), not this
  * function's job.

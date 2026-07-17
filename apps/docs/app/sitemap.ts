@@ -26,7 +26,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     alternates: HOME_ALTERNATES,
   }));
 
-  // Alternates rely on the i18n fallbackLanguage copy so every locale resolves and does not 404.
   const docs: MetadataRoute.Sitemap = i18n.languages.flatMap((locale) =>
     source.getPages(locale).map((page) => {
       const languages: Record<string, string> = {};

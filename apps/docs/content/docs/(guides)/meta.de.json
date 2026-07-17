@@ -1,0 +1,5 @@
+{
+  "title": "Anleitungen",
+  "defaultOpen": true,
+  "pages": ["ci-and-exit-codes", "github-action", "manual-translation", "review-in-studio"]
+}

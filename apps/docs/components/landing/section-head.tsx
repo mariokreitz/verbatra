@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Display heading + optional lead. Presentational, so it stays a server component
-// (no "use client").
 export function SectionHead({
   title,
   lead,

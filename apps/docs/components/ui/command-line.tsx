@@ -15,9 +15,7 @@ export default function CommandLine({ command, link }: CommandLineProps): ReactN
       await navigator.clipboard.writeText(command);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // Clipboard can be unavailable (insecure context); the command is still visible.
-    }
+    } catch {}
   }
 
   const tokenAt = link ? command.indexOf(link.token) : -1;

@@ -9,4 +9,5 @@ export const geminiConfigSchema = z.object({
   maxOutputTokens: z.number().int().positive(),
 });
 
+/** The validated Gemini provider configuration, inferred from {@link geminiConfigSchema}. */
 export type GeminiConfig = z.infer<typeof geminiConfigSchema>;

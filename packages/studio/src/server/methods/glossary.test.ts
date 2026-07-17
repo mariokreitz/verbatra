@@ -68,8 +68,6 @@ describe("glossaryGetHandler", () => {
     const result = await glossaryGetHandler({}, deps(loaded));
 
     expect(Object.keys(result)).toEqual(["indicator", "entries"]);
-    // baseStudioConfig's default provider carries a model name and token limit; neither ever
-    // reaches the response since the handler only ever projects the glossary field.
     expect(JSON.stringify(result)).not.toContain("test-model");
     expect(JSON.stringify(result)).not.toContain("maxTokens");
   });

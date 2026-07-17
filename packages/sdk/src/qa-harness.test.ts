@@ -17,7 +17,6 @@ type Lock = { locales: Record<string, Record<string, string>> };
 
 describe("QA independent: invalid-ICU source handling", () => {
   it("skips an invalid-ICU source key for translation, does not write or lock it, reports it", async () => {
-    // 'bad' is valid JSON but invalid ICU (plural missing the 'other' clause).
     const dir = await projectWithSource(
       JSON.stringify({ ok: "Hello {name}", bad: "{n, plural, one {x}}" }),
     );
@@ -39,7 +38,7 @@ describe("QA independent: invalid-ICU source handling", () => {
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as Lock;
     expect(lock.locales.de?.ok).toBeDefined();
-    expect(lock.locales.de?.bad).toBeUndefined(); // not lock-updated, so it retries once the ICU is fixed
+    expect(lock.locales.de?.bad).toBeUndefined();
   });
 });
 
@@ -76,7 +75,6 @@ describe("QA independent: corrupt lock-file is a whole-run error", () => {
       ),
     ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
 
-    // the run did not proceed: no target file was written
     const wrote = await access(join(dir, "locales", "de.json")).then(
       () => true,
       () => false,

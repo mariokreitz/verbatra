@@ -1,5 +1,8 @@
-// The "\b" stops a name-prefixed element such as <source> from matching, and the character classes
-// keep matching linear (no catastrophic backtracking) on adversarial input.
+/**
+ * Opening tags of XLIFF inline placeholder elements plus single-brace interpolation. The `\b` stops
+ * a name-prefixed element such as `<source>` from matching, and the character classes keep matching
+ * linear (no catastrophic backtracking) on adversarial input.
+ */
 const XLIFF_PATTERN = /<(?:x|g|bx|ex|ph|it|mrk)\b[^>]*>|\{[^{}]+\}/g;
 
 /**

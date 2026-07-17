@@ -1,0 +1,70 @@
+---
+title: Le fichier de verrouillage
+description: Ce que verbatra.lock.json enregistre, comment la dérive est détectée, comment les exécutions concurrentes sont sérialisées, et pourquoi tu le commites.
+---
+Le fichier de verrouillage, `verbatra.lock.json`, existe pour qu'une exécution sache ce qui a déjà
+été traduit et le saute : c'est la référence avec laquelle chaque exécution compare, et c'est ce
+qui rend verbatra incrémental. Cette page couvre ce qu'il stocke, comment il change, et ce qui se
+passe quand il est disputé, absent ou corrompu.
+
+## Ce qu'il enregistre
+
+Pour chaque locale cible, le fichier de verrouillage stocke un hash de contenu par clé traduite,
+calculé à partir de la valeur source qui a produit la traduction existante. Il ne contient aucune
+traduction et aucun secret : juste un champ `version` et des hashs. Le hash normalise l'Unicode en
+NFC et les fins de ligne en LF, donc réenregistrer un fichier source avec une normalisation
+différente ou des fins de ligne CRLF ne marque rien comme modifié.
+
+## Comment la dérive est détectée
+
+Quand une exécution compare une locale cible, une clé source absente de la cible est manquante.
+Pour une clé que la cible possède, le hash source actuel est comparé au hash que le fichier de
+verrouillage a enregistré : une différence signifie que la source a dérivé depuis la dernière
+traduction de la clé, donc elle est modifiée et se fait retraduire ; une correspondance signifie
+qu'elle est inchangée et n'est jamais envoyée au fournisseur. C'est pourquoi une seconde exécution
+sans modification de la source n'appelle le fournisseur pour rien, et pourquoi des traductions
+périmées ne peuvent pas se cacher derrière une clé qui existe simplement. Le pipeline complet est
+sur [Comment ça marche](/docs/how-it-works).
+
+## Comment il est mis à jour
+
+Le fichier de verrouillage est mis à jour par locale, et la façon dépend de ce qui a tourné :
+
+- Une exécution complète (translate, watch, ou un import de classeur) remplace en bloc les entrées
+  de cette locale par le résultat autoritaire de l'exécution.
+- Une action sur une seule clé (comme une retraduction depuis Studio) fusionne uniquement l'entrée
+  de cette clé, en laissant chaque autre clé enregistrée intacte.
+
+Dans les deux cas une exception s'applique : une clé retenue pendant cette exécution (un contrôle
+d'intégrité échoué, un appel fournisseur échoué, ou une source ICU invalide) garde son hash
+précédent, pour que l'exécution suivante la voie toujours comme demandant du travail et la retente
+au lieu de l'enregistrer comme faite. Les clés orphelines ne reçoivent aucune entrée. Le fichier
+est sérialisé avec des clés triées, pour que ses diffs restent stables et relisibles.
+
+## Le verrou d'écriture
+
+Deux exécutions touchant la même locale au même moment (un second terminal, un job CI, une action
+Studio) pourraient sinon comparer toutes deux avec une référence périmée et payer toutes deux le
+même appel fournisseur. Pour l'empêcher, chaque écriture d'une locale et de ses entrées de
+verrouillage se fait sous un verrou d'écriture inter-processus limité à cette seule locale ; un
+second rédacteur pour la même locale attend, puis relit le fichier de verrouillage à frais et
+compare avec une référence qui inclut déjà le résultat du premier rédacteur. Des locales
+différentes ne se bloquent pas entre elles.
+
+Si un verrou ne peut pas être acquis, l'exécution échoue avec `LOCK_CONTENDED` et nomme le chemin
+du fichier de verrou (sous le répertoire `.verbatra-local/`, ignoré par git). Si aucun processus
+verbatra ne tourne, ce fichier a été laissé par un processus tué : supprime-le et réessaie.
+
+## Absent ou corrompu
+
+Un fichier de verrouillage absent n'est pas une erreur : il compte comme une première exécution, où
+chaque clé source est manquante. Un fichier de verrouillage présent mais inanalysable,
+structurellement faux, trop gros ou à une version non prise en charge fait échouer l'exécution avec
+`LOCK_FILE_INVALID` au lieu d'être écrasé en silence, pour que tu puisses l'inspecter ou le
+restaurer plutôt que de perdre la référence.
+
+## Commite-le
+
+Commite `verbatra.lock.json` avec tes fichiers de locale. C'est la référence partagée avec laquelle
+tes coéquipiers et ta CI comparent ; le garder sous contrôle de version est ce qui rend les
+exécutions incrémentales reproductibles d'une machine à l'autre. Ne le modifie jamais à la main.

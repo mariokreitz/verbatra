@@ -1,13 +1,27 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
+import { GithubIcon } from "@/components/landing/github-icon";
 import { CONTRIBUTING_URL } from "@/components/landing/links";
 import { i18n, type Locale } from "@/lib/i18n";
 
-// de/es/fr inherit Fumadocs's English UI strings, since it ships no bundled preset for them.
-export const translations = i18n.translations().extend(uiTranslations());
+const LANGUAGE_ARIA_KEY = "Choose a language(language switcher)(aria-label)";
 
-// Autonyms for the language switcher; without them Fumadocs lists only the current locale.
+/**
+ * Fumadocs UI translations with one override per locale: the language switcher's
+ * aria-label must contain the button's visible text (the current locale's display
+ * name) or the label-in-name accessibility rule fails on every page.
+ */
+export const translations = i18n
+  .translations()
+  .extend(uiTranslations())
+  .add({
+    en: { [LANGUAGE_ARIA_KEY]: "English - choose a language" },
+    de: { [LANGUAGE_ARIA_KEY]: "Deutsch - Sprache wechseln" },
+    es: { [LANGUAGE_ARIA_KEY]: "Español - elegir idioma" },
+    fr: { [LANGUAGE_ARIA_KEY]: "Français - choisir la langue" },
+  });
+
 const localeNames = [
   { locale: "en", name: "English" },
   { locale: "de", name: "Deutsch" },
@@ -15,17 +29,14 @@ const localeNames = [
   { locale: "fr", name: "Français" },
 ];
 
-/** RootProvider i18n config for the active locale, including switcher display names. */
 export function i18nConfig(locale: string) {
   return { ...i18nProvider(translations, locale), locales: localeNames };
 }
 
-// English is unprefixed and other locales are prefixed; chrome links follow the same rule so the nav never jumps a reader out of their locale.
 function localized(locale: Locale, path: string): string {
   return locale === i18n.defaultLanguage ? path : `/${locale}${path}`;
 }
 
-// Shared nav chrome for the home, legal, and docs layouts, with strings from the next-intl catalog.
 export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
   const t = await getTranslations({ locale, namespace: "landing.nav" });
   return {
@@ -60,22 +71,18 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         </span>
       ),
     },
-    // A minimal, real link set. Docs points into the sidebar tree; Contributing is an external
-    // link to the repo's CONTRIBUTING.md, surfaced in the header the way Node.js does. Providers
-    // and Formats are intentionally omitted: they already sit in the docs sidebar tree, so listing
-    // them here duplicated them in the docs rail. The GitHub icon and search trigger sit in the
-    // right-side actions.
-    //
-    // The llms.txt pair is NOT here: Fumadocs' `links`/`menuItems` mechanism always renders above
-    // the page tree with no way to reorder it, which put "For AI agents" ahead of the real docs
-    // navigation. It is appended to the end of the page tree itself instead; see
-    // lib/docs-page-tree.ts and its use in app/[lang]/docs/layout.tsx.
     links: [
       { text: t("docs"), url: localized(locale, "/docs") },
       { text: t("contributing"), url: CONTRIBUTING_URL, external: true },
+      {
+        type: "icon",
+        label: "GitHub",
+        text: "GitHub",
+        icon: <GithubIcon />,
+        url: "https://github.com/mariokreitz/verbatra",
+        external: true,
+      },
     ],
-    githubUrl: "https://github.com/mariokreitz/verbatra",
-    // The theme is forced dark via RootProvider, so the theme-switch control is removed.
     themeSwitch: { enabled: false },
   };
 }

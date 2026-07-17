@@ -1,16 +1,20 @@
 #!/usr/bin/env node
-// Regression guard for the published type declarations. Run after the build (see the root `check:dts`
-// script and the CI step). It enforces two things and fails if either is violated:
-//
-//   1. Import grep: the published declaration files must not import or re-export from an unpublished
-//      @verbatra/* workspace package (@verbatra/core, @verbatra/ai-providers, @verbatra/format-adapters,
-//      @verbatra/exchange). Those packages are never published, so such a specifier is unresolvable in a
-//      consumer install and degrades the model types to `any`. A reference to @verbatra/sdk is allowed
-//      (it is a real published dependency of @verbatra/cli), and @verbatra/studio is allowed too: it is
-//      publishable (no longer on this forbidden list) but stays a cli devDependency only, installed by
-//      hand alongside the cli for anyone who wants the `verbatra studio` command to actually run.
-//   2. Consumer typecheck: a fixture that maps @verbatra/sdk to the built dist must typecheck clean,
-//      catching the real failure mode (model types collapsing to never/any) that the grep alone misses.
+/**
+ * Regression guard for the published type declarations. Run after the build, via the root
+ * `check:dts` script and the CI step. It enforces two things and fails if either is violated:
+ *
+ * 1. Import grep: the published declaration files must not import or re-export from an
+ *    unpublished @verbatra/* workspace package (@verbatra/core, @verbatra/ai-providers,
+ *    @verbatra/format-adapters, @verbatra/exchange). Those packages are never published, so
+ *    such a specifier is unresolvable in a consumer install and degrades the model types to
+ *    `any`. A reference to @verbatra/sdk is allowed (it is a real published dependency of
+ *    @verbatra/cli), and @verbatra/studio is allowed too: it is publishable (not on the
+ *    forbidden list) but stays a cli devDependency only, installed by hand alongside the cli
+ *    for anyone who wants the `verbatra studio` command to actually run.
+ * 2. Consumer typecheck: a fixture that maps @verbatra/sdk to the built dist must typecheck
+ *    clean, catching the real failure mode (model types collapsing to never/any) that the
+ *    grep alone misses.
+ */
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -20,7 +24,10 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 
-// Unpublished workspace packages. A published declaration must never emit a specifier from one of these.
+/**
+ * Unpublished workspace packages. A published declaration must never emit a specifier from one
+ * of these.
+ */
 const FORBIDDEN_PACKAGES = [
   "@verbatra/core",
   "@verbatra/ai-providers",
@@ -28,7 +35,7 @@ const FORBIDDEN_PACKAGES = [
   "@verbatra/exchange",
 ];
 
-// Published declaration files to scan, relative to the repository root.
+/** Published declaration files to scan, relative to the repository root. */
 const DECLARATION_FILES = [
   "packages/sdk/dist/index.d.ts",
   "packages/sdk/dist/index.d.cts",
@@ -39,9 +46,12 @@ const DECLARATION_FILES = [
 const FIXTURE_TSCONFIG = "scripts/dts-fixture/tsconfig.json";
 const TSC_BIN = resolve(REPO_ROOT, "node_modules/typescript/bin/tsc");
 
-// Match a forbidden package as a top-level re-export (`from "pkg"`), a bare side-effect import
-// (`import "pkg"`), or a TypeScript inline type import (`import("pkg").Foo`), which rollup-plugin-dts
-// can emit. Each form carries its own capture group, read in order by scanDeclarationFile.
+/**
+ * Matches a forbidden package as a top-level re-export (`from "pkg"`), a bare side-effect
+ * import (`import "pkg"`), or a TypeScript inline type import (`import("pkg").Foo`), which
+ * rollup-plugin-dts can emit. Each form carries its own capture group, read in order by
+ * scanDeclarationFile.
+ */
 const PKG_GROUP = `(${FORBIDDEN_PACKAGES.join("|")})`;
 const forbiddenSpecifier = new RegExp(
   `from\\s*['"]${PKG_GROUP}['"]|import\\s*['"]${PKG_GROUP}['"]|import\\(\\s*['"]${PKG_GROUP}['"]`,
@@ -53,7 +63,8 @@ const forbiddenSpecifier = new RegExp(
  */
 
 /**
- * @param {string} relativePath
+ * Scans one built declaration file for forbidden specifiers. Throws when the file is missing.
+ * @param {string} relativePath - declaration path relative to the repository root
  * @returns {Hit[]}
  */
 function scanDeclarationFile(relativePath) {
@@ -78,6 +89,7 @@ function scanDeclarationFile(relativePath) {
 }
 
 /**
+ * Scans every published declaration file.
  * @returns {Hit[]}
  */
 function scanAllDeclarations() {
@@ -90,7 +102,7 @@ function scanAllDeclarations() {
 }
 
 /**
- * Typecheck the consumer fixture against the built dist. Throws on failure.
+ * Typechecks the consumer fixture against the built dist. Throws on failure.
  * @returns {void}
  */
 function runConsumerTypecheck() {
@@ -111,6 +123,7 @@ function runConsumerTypecheck() {
 }
 
 /**
+ * Prints every forbidden-specifier hit to stderr.
  * @param {Hit[]} hits
  * @returns {void}
  */

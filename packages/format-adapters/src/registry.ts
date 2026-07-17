@@ -53,14 +53,17 @@ export class AdapterRegistry {
     return { status: "resolved", adapter };
   }
 
+  /**
+   * Resolve by asking every registered adapter's `canHandle`. Several adapters can claim one file
+   * (all JSON adapters claim `.json`), so more than one match is reported as `ambiguous` rather
+   * than guessed at.
+   */
   private resolveByDetection(filePath: string, sample?: string): AdapterResolution {
     const matches = this.adapters.filter((adapter) => adapter.canHandle(filePath, sample));
     const first = matches[0];
     if (first === undefined) {
       return { status: "no-match", filePath, triedFormats: this.formats() };
     }
-    // Multiple adapters can claim one file (all JSON adapters claim `.json`); report ambiguity rather
-    // than guess.
     if (matches.length > 1) {
       return { status: "ambiguous", filePath, candidates: matches.map((m) => m.format) };
     }

@@ -1,0 +1,78 @@
+---
+title: GitHub Action
+description: "Lance verbatra translate dans GitHub Actions avec l'action composite : entrées, câblage des secrets, annotations et résumé de job."
+---
+verbatra fournit une GitHub Action composite qui lance `verbatra translate --json` en CI, transforme les échecs en annotations sur l'exécution, écrit un tableau de résumé de job et sort avec le code de sortie de la CLI. Cette page couvre son câblage et ce qu'elle te montre.
+
+## Quand l'utiliser plutôt qu'une étape CLI brute
+
+L'action est l'étape translate avec le reporting déjà intégré : des annotations d'erreur par locale, un tableau de résumé sur la page d'exécution et une propagation du code de sortie qui n'avale jamais un échec. Préfère-la quand ton job est "traduire au push et me montrer ce qui s'est passé".
+
+Lance plutôt la [CLI directement](/docs/ci-and-exit-codes) quand tu veux autre chose : un contrôle `check` ou `diff` en lecture seule, des options personnalisées comme `--prune`, ou ton propre traitement de la sortie JSON. L'action lance toujours `translate --json` et rien d'autre ; elle ne lance jamais `init`, `watch` ni `check`.
+
+## Disponibilité
+
+L'action vit dans le dépôt verbatra et se référence par chemin, épinglée à un SHA de commit :
+
+```text
+uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+```
+
+Il n'y a pas de paquet npm, pas de fiche Marketplace et pas de tag d'action versionné. La référence par chemin épinglée à un SHA est la seule façon prise en charge de la consommer.
+
+## Utilisation
+
+```yaml
+name: translate
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verbatra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+        with:
+          version: 0.5.0 # pin @verbatra/cli to an exact version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+L'action récupère et lance `@verbatra/cli` exactement à la version que tu épingles, donc le workflow n'a besoin d'aucune étape d'installation pour verbatra lui-même.
+
+### Câblage des secrets
+
+L'action lance la CLI, et la CLI lit la clé d'API du fournisseur uniquement depuis l'environnement. Passe la clé depuis les secrets de ton dépôt sous la variable que ton fournisseur attend (voir [Fournisseurs](/docs/providers)) : `ANTHROPIC_API_KEY` ci-dessus, `OPENAI_API_KEY`, `GEMINI_API_KEY` ou `DEEPL_API_KEY`. Il n'y a pas d'entrée de clé ; une clé ne voyage jamais comme entrée d'action ni comme argument CLI.
+
+## Entrées
+
+| Entrée | Requis | Défaut | Description |
+| --- | --- | --- | --- |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.5.0` ou `0.5.1-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
+| `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config |
+| `working-directory` | non | `""` | répertoire depuis lequel résoudre la config et les fichiers de locale (correspond à `--cwd`) |
+| `dry-run` | non | `"false"` | mets `"true"` pour rapporter ce qui changerait sans appeler de fournisseur ni écrire (correspond à `--dry-run`) |
+| `node-version` | non | `"24"` | version de Node.js à installer pour lancer la CLI |
+
+L'action ne définit aucune sortie. Ses résultats sont les annotations, le résumé de job et le code de sortie.
+
+## Ce qu'une exécution te montre
+
+**Annotations.** Quand la CLI sort avec `1` (certaines locales ont échoué), chaque locale échouée devient une annotation d'erreur intitulée `verbatra: <locale>`, portant le `[CODE] message` structuré de cette locale. Quand toute l'exécution échoue avant de produire un résumé (sortie `2`), une seule annotation `verbatra` porte à la place la ligne d'erreur de la CLI.
+
+**Résumé de job.** Chaque exécution ajoute un résumé Markdown à la page du job : un tableau avec une ligne par locale (statut, traduites, inchangées, orphelines, ICU invalide, retenues pour intégrité, échecs fournisseur, avis), une ligne d'agrégat et une liste des locales échouées avec leurs codes d'erreur. Un dry run est étiqueté comme tel. Un échec global reçoit un court résumé d'échec avec le code de sortie et le détail de l'erreur.
+
+**Comportement de sortie.** L'action capture le stdout et le code de sortie de la CLI sans s'interrompre prématurément, émet les annotations et le résumé, et sort seulement ensuite avec le code de la CLI. L'étape échoue donc sur `1` ou `2`, mais jamais avant que tu puisses voir pourquoi. La page [CI et codes de sortie](/docs/ci-and-exit-codes) détaille la signification de chaque code. Si le câblage interne du code de sortie casse un jour, l'action échoue avec `2` plutôt que de rapporter un faux succès.
+
+## Persister les traductions
+
+Sans `dry-run`, `translate` écrit les fichiers de locale mis à jour dans le checkout du runner, et l'action s'arrête là : elle ne commit pas. Pour garder les changements, ajoute ta propre étape qui commit et pousse ou ouvre une pull request. Quand tu veux seulement que la CI signale les traductions manquantes ou obsolètes sans rien écrire, mets `dry-run: "true"` (ou contrôle avec `verbatra check` et saute l'action entièrement).
+
+## Sécurité
+
+Épingle les deux références exactement : la ligne `uses:` à un SHA de commit et l'entrée `version` à une version exacte de `@verbatra/cli`. L'action applique elle-même la seconde en rejetant tout ce qui n'est pas une version semver exacte, donc une exécution ne peut jamais résoudre `latest` en silence. Ne donne au workflow que le privilège dont il a besoin : `contents: read` pour un rapport, plus `contents: write` ou `pull-requests: write` seulement quand une étape ultérieure commit ou ouvre une pull request. Les entrées atteignent la CLI via l'environnement, comme données, et sont développées dans un tableau d'arguments protégé par des guillemets, jamais insérées dans du texte shell : une valeur d'entrée forgée reste un argument et ne devient jamais du code exécutable.

@@ -1,0 +1,78 @@
+---
+title: GitHub Action
+description: "Führe verbatra translate in GitHub Actions mit der Composite Action aus: Eingaben, Secret-Verdrahtung, Annotationen und die Job-Zusammenfassung."
+---
+verbatra liefert eine Composite GitHub Action mit, die `verbatra translate --json` in CI ausführt, Fehlschläge in Annotationen auf dem Lauf verwandelt, eine Tabelle in die Job-Zusammenfassung schreibt und mit dem Exit-Code der CLI endet. Diese Seite erklärt die Verdrahtung und was die Action dir zeigt.
+
+## Wann sie statt eines rohen CLI-Schritts
+
+Die Action ist der translate-Schritt mit fertig eingebautem Reporting: Fehler-Annotationen pro Locale, eine Zusammenfassungstabelle auf der Lauf-Seite und Exit-Code-Weitergabe, die nie einen Fehlschlag verschluckt. Nimm sie, wenn dein Job "bei einem Push übersetzen und mir zeigen, was passiert ist" lautet.
+
+Führe stattdessen die [CLI direkt](/docs/ci-and-exit-codes) aus, wenn du irgendetwas anderes willst: ein schreibgeschütztes `check`- oder `diff`-Gate, eigene Flags wie `--prune` oder deine eigene Verarbeitung der JSON-Ausgabe. Die Action führt immer `translate --json` aus und sonst nichts; sie startet nie `init`, `watch` oder `check`.
+
+## Verfügbarkeit
+
+Die Action lebt im verbatra-Repository und wird per Pfad referenziert, gepinnt auf einen Commit-SHA:
+
+```text
+uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+```
+
+Es gibt kein npm-Paket, keinen Marketplace-Eintrag und keinen versionierten Action-Tag. Die SHA-gepinnte Pfadreferenz ist der einzige unterstützte Weg, sie zu nutzen.
+
+## Verwendung
+
+```yaml
+name: translate
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verbatra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+        with:
+          version: 0.5.0 # pin @verbatra/cli to an exact version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Die Action holt und startet `@verbatra/cli` in exakt der Version, die du pinnst; der Workflow braucht also keinen eigenen Installationsschritt für verbatra.
+
+### Secret-Verdrahtung
+
+Die Action führt die CLI aus, und die CLI liest den API-Key des Providers nur aus der Umgebung. Übergib den Key aus deinen Repository-Secrets unter der Variable, die dein Provider erwartet (siehe [Provider](/docs/providers)): `ANTHROPIC_API_KEY` wie oben, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder `DEEPL_API_KEY`. Es gibt keine Key-Eingabe; ein Key reist nie als Action-Eingabe oder CLI-Argument.
+
+## Eingaben
+
+| Eingabe | Erforderlich | Standard | Beschreibung |
+| --- | --- | --- | --- |
+| `version` | ja | - | die auszuführende `@verbatra/cli`-Version. Muss eine exakte Semver-Version wie `0.5.0` oder `0.5.1-next.0` sein; der Schritt schlägt sofort fehl bei einem Dist-Tag wie `latest`, einem Bereich oder einem `^`/`~`-Präfix |
+| `config-path` | nein | `""` | explizit zu ladende Konfigurationsdatei (entspricht `--config`); leer nutzt die normale Konfigurationssuche |
+| `working-directory` | nein | `""` | Verzeichnis, gegen das Konfiguration und Locale-Dateien aufgelöst werden (entspricht `--cwd`) |
+| `dry-run` | nein | `"false"` | auf `"true"` setzen, um zu melden, was sich ändern würde, ohne einen Provider aufzurufen oder zu schreiben (entspricht `--dry-run`) |
+| `node-version` | nein | `"24"` | Node.js-Version, die zum Ausführen der CLI eingerichtet wird |
+
+Die Action definiert keine Outputs. Die Ergebnisse sind die Annotationen, die Job-Zusammenfassung und der Exit-Code.
+
+## Was ein Lauf dir zeigt
+
+**Annotationen.** Wenn die CLI mit `1` endet (einige Locales schlugen fehl), wird jedes fehlgeschlagene Locale zu einer Fehler-Annotation mit dem Titel `verbatra: <locale>`, die dessen strukturierte `[CODE] message` trägt. Wenn der ganze Lauf fehlschlägt, bevor eine Zusammenfassung entsteht (Exit `2`), trägt stattdessen eine einzelne `verbatra`-Annotation die Fehlerzeile der CLI.
+
+**Job-Zusammenfassung.** Jeder Lauf hängt eine Markdown-Zusammenfassung an die Job-Seite an: eine Tabelle mit einer Zeile pro Locale (Status, übersetzt, unverändert, verwaist, ungültiges ICU, wegen Integrität zurückgehalten, Provider-Fehlschläge, Notices), eine Summenzeile und eine Liste fehlgeschlagener Locales mit ihren Fehlercodes. Ein Dry-Run wird als solcher gekennzeichnet. Ein Fehlschlag des gesamten Laufs bekommt eine kurze Fehlerzusammenfassung mit Exit-Code und Fehlerdetail.
+
+**Exit-Verhalten.** Die Action fängt stdout und Exit-Code der CLI ab, ohne früh auszusteigen, gibt erst die Annotationen und die Zusammenfassung aus und endet dann mit dem Code der CLI. Der Schritt schlägt also bei `1` oder `2` fehl, aber nie, bevor du sehen kannst, warum. Die Seite [Exit-Codes](/docs/ci-and-exit-codes) erklärt, was jeder Code bedeutet. Sollte die interne Exit-Code-Verdrahtung je brechen, schlägt die Action mit `2` fehl, statt einen falschen Erfolg zu melden.
+
+## Übersetzungen persistieren
+
+Ohne `dry-run` schreibt `translate` aktualisierte Locale-Dateien in den Checkout des Runners, und dort hört die Action auf: sie committet nicht. Um die Änderungen zu behalten, füge einen eigenen Schritt hinzu, der committet und pusht oder einen Pull Request öffnet. Wenn CI nur fehlende oder veraltete Übersetzungen melden soll, ohne etwas zu schreiben, setze `dry-run: "true"` (oder sichere mit `verbatra check` ab und lass die Action ganz weg).
+
+## Sicherheit
+
+Pinne beide Referenzen exakt: die `uses:`-Zeile auf einen Commit-SHA und die Eingabe `version` auf ein exaktes `@verbatra/cli`-Release. Die zweite erzwingt die Action selbst, indem sie alles ablehnt, was keine exakte Semver-Version ist; ein Lauf kann also nie stillschweigend `latest` auflösen. Gib dem Workflow nur die Rechte, die er braucht: `contents: read` für einen Bericht, plus `contents: write` oder `pull-requests: write` nur, wenn ein späterer Schritt committet oder einen Pull Request öffnet. Eingaben erreichen die CLI über die Umgebung als Daten und werden in ein quotiertes Argument-Array expandiert, nie in Shell-Text gespleißt; ein präparierter Eingabewert bleibt also ein Argument und wird nie zu ausführbarem Code.

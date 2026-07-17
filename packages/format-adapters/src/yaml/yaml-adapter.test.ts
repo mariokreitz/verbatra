@@ -86,6 +86,28 @@ describe("createYamlAdapter read", () => {
     const error = await readError(adapter.read(await tempFile("bomb.yml", bomb), "en"));
     expect(error).toBeInstanceOf(AdapterError);
   });
+
+  it("stringifies a scalar non-string key, matching the previous plain-object behavior", async () => {
+    const path = await tempFile("keys.yml", "1: one\ntrue: yes-value\n");
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["1", "true"]);
+    expect(resource.entries.get("1")?.value).toBe("one");
+  });
+
+  it("rejects a composite mapping key (map or sequence as key) as INVALID_STRUCTURE", async () => {
+    for (const doc of ["? [a, b]\n: value\n", "? {k: v}\n: value\n"]) {
+      const error = await readError(adapter.read(await tempFile("composite.yml", doc), "en"));
+      expect(error).toBeInstanceOf(AdapterError);
+      expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+    }
+  });
+
+  it("rejects a nested composite mapping key too, never writing back an object stringification", async () => {
+    const error = await readError(
+      adapter.read(await tempFile("nested-composite.yml", "outer:\n  ? [a]\n  : value\n"), "en"),
+    );
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
 });
 
 describe("createYamlAdapter write (round-trip)", () => {
@@ -95,5 +117,21 @@ describe("createYamlAdapter write (round-trip)", () => {
     await adapter.write(resource, path);
     const written = await readFile(path, "utf8");
     expect(parseYaml(written)).toEqual({ greeting: "Hello", nested: { title: "Welcome" } });
+  });
+
+  it("round-trips mixed integer-like and named keys in document order at every level", async () => {
+    const original = 'b: B\n"10": ten\n"2": two\nnested:\n  "404": nf\n  a: A\n  "200": ok\n';
+    const path = await tempFile("order.yml", original);
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual([
+      "b",
+      "10",
+      "2",
+      "nested.404",
+      "nested.a",
+      "nested.200",
+    ]);
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe(original);
   });
 });

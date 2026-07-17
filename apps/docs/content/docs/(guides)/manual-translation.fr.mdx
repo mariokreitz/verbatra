@@ -1,0 +1,123 @@
+---
+title: Traduction humaine
+description: Exporte les chaînes non traduites vers un classeur Excel, confie-le à un traducteur et réimporte le résultat avec les mêmes vérifications de sûreté qu'une exécution automatisée.
+---
+Toutes les chaînes ne sont pas faites pour un fournisseur. Les textes marketing, les textes juridiques et les langues qui comptent le plus veulent souvent un traducteur humain. verbatra gère ça avec un aller-retour de classeur : **exporte** les chaînes à traduire dans un fichier Excel stylisé, confie-le, puis **importe** le fichier rempli dans tes fichiers de locale.
+
+La même comparaison pilote les deux directions. L'export choisit exactement les clés qu'une exécution automatisée traduirait (les nouvelles et les modifiées), et l'import exécute les mêmes vérifications de placeholders et d'ICU que `translate`, donc une valeur saisie à la main qui casse un placeholder est retenue et signalée au lieu d'être écrite.
+
+## L'aller-retour
+
+```bash
+# 1. Export the strings that need translating
+verbatra export
+
+# 2. A translator fills the Translation column and sends the file back
+
+# 3. Import the filled workbook
+verbatra import verbatra-translations.xlsx
+```
+
+Par défaut, l'export écrit `verbatra-translations.xlsx` dans le répertoire de travail. L'import le relit, valide chaque ligne remplie, écrit dans tes fichiers de locale les valeurs qui passent, et fait avancer la ligne de base du [fichier de verrouillage](/docs/the-lock-file) exactement pour les clés acceptées, comme le ferait une exécution `translate`.
+
+## Ce qui atterrit dans le classeur
+
+Le fichier s'ouvre sur une feuille **Instructions**, puis une feuille de données par locale cible, nommée d'après sa locale (`de`, `fr`, ...). Comme la locale fait l'aller-retour via le nom de feuille, une locale qui ne peut pas être un nom de feuille Excel est rejetée avant la construction du classeur : plus de 31 caractères, contenant l'un des caractères `: \ / ? * [ ]`, égale à `Instructions` quelle que soit la casse, ou égale à une autre locale cible sans tenir compte de la casse.
+
+Chaque feuille de données partage les mêmes colonnes, dans cet ordre :
+
+| Colonne | Modifiable | Rôle |
+| --- | --- | --- |
+| `Key` | non | Le chemin de clé en notation pointée. La seule identité qui relie une ligne à une chaîne. |
+| `Source` | non | La valeur de la locale source, pour référence. |
+| `Current translation` | non | La valeur cible existante, le cas échéant. |
+| `Status` | non | `new` (pas encore de traduction), `changed` (la source a changé depuis la dernière traduction) ou `unchanged` (déjà à jour, inclus seulement avec `--include-unchanged`). |
+| `Translation` | **oui** | La seule cellule que le traducteur remplit. |
+| `Source hash` | non | Masquée. Le hash du contenu source capturé à l'export, utilisé pour détecter une source modifiée après l'export. |
+| `Context` | non | Contexte développeur, quand le format source en porte (le `@key.description` de Flutter ARB, le `<note>` de XLIFF). Référence seulement, jamais importé. |
+| `Review status` | non | `ok` ou `review` : indique si les heuristiques de révision de verbatra ont signalé la traduction actuelle pour un second regard. Consultatif, jamais bloquant. |
+| `Review reasons` | non | Étiquettes de raison séparées par des virgules, expliquant un statut `review` (par exemple `length-ratio-outlier, equals-source`). |
+
+Les lignes sont triées par clé, la ligne d'en-tête est figée, la colonne `Source hash` est masquée, et chaque colonne sauf `Translation` est verrouillée par la protection de feuille avec un fond grisé. La colonne `Translation` utilise le format texte d'Excel, donc une valeur comme `007` ou commençant par `=` reste du texte littéral au lieu d'être convertie en nombre ou en formule.
+
+## La passation
+
+Ce qu'un traducteur doit savoir tient en trois lignes (et se répète sur la feuille Instructions du classeur elle-même) :
+
+- Remplis la colonne `Translation`, rien d'autre. La protection de feuille l'impose.
+- Trier et filtrer les lignes ne pose aucun problème : l'import relie les lignes par `Key`, jamais par position. Les colonnes doivent rester à leur place ; l'import les lit par position et vérifie les en-têtes `Key` et `Source hash`.
+- Une cellule `Translation` vide signifie "pas encore traduit". L'import la saute et n'écrit jamais de chaîne vide, donc un classeur à moitié rempli peut revenir maintenant et le reste plus tard.
+
+## Ce que l'import accepte
+
+L'import n'est pas un collage aveugle. Chaque ligne remplie est jugée contre le projet vivant avant toute écriture :
+
+- **Dérive de la source** : le `Source hash` masqué est comparé à la source actuelle. Si la chaîne source a changé après l'export, la ligne est retenue, donc tu n'écrases jamais une source actuelle avec la traduction d'une ancienne.
+- **Intégrité des placeholders** : la traduction doit porter exactement les mêmes placeholders que sa source. Supprime `{name}` ou invente `{total}` et la ligne est retenue.
+- **Validité ICU** : un message ICU doit rester structurellement valide avec les mêmes noms d'arguments ; seul le texte lisible par un humain peut changer.
+- **Clés inconnues** : une ligne remplie dont la clé n'existe ni dans la source actuelle ni dans le fichier cible actuel (par exemple une clé tapée à la main) fait échouer toute la feuille de cette locale, puisque l'aller-retour est cassé. Une ligne remplie dont la clé n'existe que dans la cible (une clé orpheline) est silencieusement laissée non écrite.
+- **Le contexte n'est jamais une source de traduction** : l'import ignore entièrement la colonne `Context`, et un classeur exporté avant l'existence de cette colonne s'importe toujours normalement.
+
+Les lignes retenues sont rapportées dans le résumé d'exécution sous la locale à laquelle elles appartiennent ; les lignes acceptées sont écrites et leur ligne de base du verrou avance. Une ligne retenue ou vide garde sa ligne de base antérieure, donc la clé continue de se réexporter jusqu'à sa vraie résolution. Une ligne vide dont la source a dérivé depuis l'export est en plus signalée par un avis `BLANK_ROW_BASELINE_RETAINED`, donc la dérive reste visible.
+
+Chaque feuille de données est une locale dans le résumé : un échec de feuille (une clé inventée, une feuille pour une locale absente de ta config) fait échouer cette locale et laisse les autres intactes. L'import partage le contrat de codes de sortie de `translate` : `0` quand chaque feuille réussit, `1` quand une échoue, `2` quand l'exécution n'a pas pu démarrer. Une passation manuelle retombe donc dans les mêmes [contrôles CI](/docs/ci-and-exit-codes) qu'une exécution automatisée.
+
+### D'abord en dry run
+
+Valide un classeur renvoyé et prévisualise ce qui serait écrit sans toucher un seul fichier :
+
+```bash
+verbatra import verbatra-translations.xlsx --dry-run
+```
+
+## Choisir quoi exporter
+
+Par défaut, l'export n'inclut que les chaînes manquantes et modifiées, le travail qui a vraiment besoin d'être fait :
+
+```bash
+# Only the German and French sheets
+verbatra export --locales de,fr
+
+# Also include strings that are already up to date
+verbatra export --include-unchanged
+
+# Write to a specific path
+verbatra export --out handoff/round-2.xlsx
+```
+
+Prends `--include-unchanged` quand un traducteur veut le contexte complet d'une locale, pas seulement le delta. Voir [`verbatra export`](/docs/cli/export) pour toutes les options.
+
+## Les colonnes de révision
+
+`Review status` et `Review reasons` sont une couche non bloquante au-dessus des vérifications ci-dessus : les heuristiques de verbatra pour repérer une traduction structurellement correcte mais qui mérite un second regard. Elles ne retiennent jamais une ligne et l'import ne les lit jamais ; la seule façon d'effacer un signalement est de corriger la traduction. Les deux colonnes sont recalculées à chaque export depuis la source et les valeurs cibles actuelles :
+
+- `length-ratio-outlier` : la traduction est bien plus courte ou plus longue que sa source.
+- `equals-source` : la traduction est identique à la source.
+- `glossary-term-missed` : un terme du glossaire configuré n'est pas arrivé dans la traduction.
+- `integrity-reordered` : les placeholders correspondent mais ont atterri dans un ordre différent de la source.
+
+Une cinquième raison, `provider-degraded`, n'existe qu'au moment de translate (un avis de dégradation DeepL sur le lot d'où vient une clé) ; comme l'export n'appelle jamais de fournisseur, elle n'apparaît jamais sur une ligne exportée. Une ligne sans traduction exporte toujours `ok` ; il n'y a rien à réviser. Voir [Sûreté de la traduction](/docs/translation-safety) pour la relation entre ces signalements et les vérifications strictes de placeholders et d'ICU.
+
+## Depuis le SDK
+
+Les commandes CLI enveloppent deux fonctions du SDK, `exportWorkbook` et `importWorkbook` :
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating
+await exportWorkbook({ config });
+
+// ...later, import the filled file back
+const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
+```
+
+Les deux prennent la config validée de [`loadConfig`](/docs/sdk), et `importWorkbook` renvoie le même `RunSummary` que `translate`. Le classeur lui-même est construit et parsé par `@verbatra/exchange`, un paquet interne que tu n'atteins que via ces deux fonctions.
+
+## Et ensuite
+
+- [`verbatra export`](/docs/cli/export) : chaque option d'export et le rapport affiché.
+- [`verbatra import`](/docs/cli/import) : chaque option d'import, le résumé d'exécution et les codes de sortie.
+- [Sûreté de la traduction](/docs/translation-safety) : les vérifications de placeholders et d'ICU qui gardent chaque écriture, manuelle ou automatisée.

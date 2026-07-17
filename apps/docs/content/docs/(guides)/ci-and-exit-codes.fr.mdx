@@ -1,0 +1,154 @@
+---
+title: CI et codes de sortie
+description: Conditionne un pipeline à l'état des traductions avec check ou diff, lis le contrat des codes de sortie et consomme la sortie JSON.
+---
+Ce guide montre comment faire échouer la CI quand les traductions se désynchronisent, et comment lire ce que verbatra rapporte quand ça arrive. Les outils : le contrat des codes de sortie que chaque commande suit et la sortie `--json` que tes scripts peuvent parser.
+
+verbatra est une dépendance de développement, donc les commandes que tu lances en local tournent pareil en CI. Le découpage habituel :
+
+- **Contrôle une pull request** avec [`verbatra check`](/docs/cli/check) ou [`verbatra diff`](/docs/cli/diff). Les deux sont en lecture seule : aucun appel de fournisseur, aucune clé d'API requise, sortie `1` en cas de dérive.
+- **Traduis lors d'un push** avec [`verbatra translate`](/docs/cli/translate), soit directement (cette page), soit via la [GitHub Action](/docs/github-action).
+
+## Les codes de sortie
+
+Le code de sortie est le contrat sur lequel ton étape CI se branche :
+
+| Code | Signification |
+| --- | --- |
+| `0` | succès : `translate` ou `import` a réussi pour chaque locale, `check` a trouvé chaque locale synchronisée, `diff` n'a trouvé aucun changement en attente |
+| `1` | `translate` ou `import` a terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
+| `2` | impossible de s'exécuter : une erreur globale (config invalide, source illisible) ou une erreur d'utilisation (une valeur `--locales` vide ou inconnue, un `--debounce` ou `--port` invalide) |
+| `130` | `watch` ou `studio` a été arrêté de force par une seconde interruption |
+
+Deux cas limites à connaître :
+
+- `watch` traite une interruption unique comme un arrêt propre et sort avec `0` ; une exécution échouée pendant la surveillance apparaît comme un enregistrement sur le flux de sortie, jamais comme un code de sortie non nul.
+- `export` n'a pas de mode d'échec par locale : il sort avec `0` ou `2`, jamais `1`.
+
+## check ou diff : choisir le contrôle
+
+`check` et `diff` exécutent le même calcul en lecture seule sur ta source, tes fichiers cibles et [le fichier de verrouillage](/docs/the-lock-file). La différence est ce qu'ils rapportent :
+
+```bash
+# counts per locale: exit 1 if any locale is missing or stale
+verbatra check
+
+# key lists per locale: exit 1 if any locale has keys to add or re-translate
+verbatra diff
+```
+
+Utilise `check` quand le code de sortie te suffit. Utilise `diff` quand tu veux les clés exactes derrière la dérive, par exemple pour les poster dans un commentaire de pull request. Les clés orphelines (dans un fichier cible mais disparues de la source) apparaissent dans la sortie de `diff` mais ne déclenchent jamais le code de sortie `1` à elles seules.
+
+Les deux acceptent `--locales de,fr` pour contrôler un sous-ensemble. Passer `--locales` sans aucune locale valide est une erreur d'utilisation et sort avec `2`, donc une coquille ne peut jamais mettre le contrôle au vert.
+
+## Sortie JSON
+
+Six commandes acceptent `--json` pour une sortie lisible par machine sur stdout : `translate`, `watch`, `check`, `diff`, `export` et `import`. Les erreurs vont toujours sur stderr sous forme d'une ligne structurée (`verbatra: error [CODE] message`), donc stdout reste parsable.
+
+`verbatra translate --json` et `verbatra import --json` affichent un objet `RunSummary` :
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+  usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
+  budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured
+}
+```
+
+Chaque `LocaleSummary` porte les listes de clés par locale (traduites, inchangées, orphelines, retenues, signalées pour révision, et plus) ; voir [la référence SDK](/docs/sdk) pour l'anatomie complète.
+
+`verbatra watch --json` affiche un enregistrement par exécution en NDJSON (un objet JSON par ligne) :
+
+```ts
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+`verbatra check --json` affiche un document d'état. Le `inSync` de premier niveau est vrai exactement quand la commande sort avec `0` :
+
+```ts
+interface CheckSummary {
+  inSync: boolean;             // true exactly when the command exits 0
+  locales: LocaleCheckSummary[];
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;             // in source, absent from target
+  stale: number;               // source changed since last translated
+  upToDate: number;            // target matches the recorded baseline
+  inSync: boolean;             // missing === 0 && stale === 0
+}
+```
+
+`verbatra diff --json` te donne des listes de clés au lieu de comptes. Le `hasPendingChanges` de premier niveau est vrai exactement quand la commande sort avec `1` :
+
+```ts
+interface DiffSummary {
+  hasPendingChanges: boolean;  // true exactly when the command exits 1
+  locales: LocaleDiff[];
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];           // in source, absent from target: would be added
+  changed: string[];           // source changed since last translated: would be re-translated
+  orphaned: string[];          // in target, absent from source: reported only
+  hasPendingChanges: boolean;  // missing.length > 0 || changed.length > 0
+}
+```
+
+`verbatra export --json` affiche où le classeur a été écrit et le nombre de lignes par locale :
+
+```ts
+{
+  path: string;                // absolute path of the written workbook
+  locales: { locale: string; rows: number }[];
+}
+```
+
+## Un job GitHub Actions avec la CLI
+
+Un contrôle de dérive sur les pull requests, en lançant la CLI directement. `check` n'appelle jamais de fournisseur, donc ce job n'a besoin d'aucune clé d'API :
+
+```yaml
+name: i18n
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: pnpm/action-setup@<commit-sha>
+      - uses: actions/setup-node@<commit-sha>
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec verbatra check
+```
+
+Pour traduire en CI à la place, remplace la dernière étape par `translate` et passe la clé du fournisseur depuis ton coffre de secrets sous la variable d'environnement que ton fournisseur attend (voir [Fournisseurs](/docs/providers)) :
+
+```yaml
+      - run: pnpm exec verbatra translate --json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Si tu préfères ne pas écrire ce job toi-même, la [GitHub Action](/docs/github-action) enveloppe la variante translate avec des annotations et un résumé de job.
+
+## Installations gelées et clés
+
+- **Installe depuis le lockfile.** `pnpm install --frozen-lockfile` (ou `npm ci`) épingle la version exacte de `@verbatra/cli` enregistrée dans ton lockfile, donc une exécution CI est reproductible et ne peut pas tirer une version plus récente en silence. La CLI exige Node `>=22.14.0`.
+- **Les clés sont des variables d'environnement, jamais des options.** La CLI ne prend aucun argument de clé et ne lit aucune clé depuis la config ; les fournisseurs lisent uniquement leur variable d'environnement (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`). Stocke la clé dans le coffre de secrets de ta CI et mappe-la dans `env`. Les messages d'erreur nomment la variable mais ne contiennent jamais de valeur de clé.
+- **Les contrôles en lecture seule n'ont pas besoin de clé.** `check`, `diff` et `export` n'appellent jamais de fournisseur, donc garde les secrets entièrement hors de ces jobs.
+
+verbatra charge aussi `.env.local` et `.env` depuis le répertoire de travail avant de s'exécuter, les vraies variables d'environnement l'emportant toujours ; en CI, tu t'appuieras normalement sur `env:` seul.

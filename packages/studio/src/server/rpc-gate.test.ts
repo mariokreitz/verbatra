@@ -1,7 +1,9 @@
 import { AdapterError } from "@verbatra/format-adapters";
 import { SdkError } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
-import type { RpcHandlerDeps } from "./rpc.js";
+import { createRpcInFlightGuard } from "./in-flight-guard.js";
+import { createRpcRateLimiter } from "./rate-limiter.js";
+import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
 import { baseStudioConfig } from "./test-support.js";
 
@@ -114,6 +116,7 @@ describe("dispatchRpc envelope", () => {
         provider: { id: "anthropic" },
         configSource: "override",
         glossary: { source: "none" },
+        capabilities: { spend: false, writeToDisk: true },
       }),
     });
 
@@ -194,11 +197,215 @@ describe("dispatchRpc envelope", () => {
     expect(result.body).not.toContain("ENOENT");
   });
 
-  it("defaults to the production handler registry when none is injected", async () => {
-    const result = await dispatchRpc(body({ method: "project.snapshot", params: {} }), deps());
+  it("dispatches through a real capability-built registry, not only a stubbed one", async () => {
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      createRpcHandlers({ spend: false, writeToDisk: true }),
+    );
 
     expect(result.statusCode).toBe(200);
     const parsed = await parseBody(result);
     expect(parsed).toMatchObject({ ok: true });
+  });
+
+  it("answers 429 METHOD_RATE_LIMITED once the limiter trips, without ever invoking the handler", async () => {
+    let calls = 0;
+    const limiter: { tryAcquire: (method: string) => boolean } = {
+      tryAcquire: () => false,
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "translation.retranslateEntry", params: { locale: "de", key: "greeting" } }),
+      deps(),
+      {
+        "translation.retranslateEntry": async () => {
+          calls += 1;
+          return { accepted: true, value: "x", reviewReasons: [] };
+        },
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(429);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({
+      ok: false,
+      error: {
+        code: "METHOD_RATE_LIMITED",
+        message: "Too many calls to this method; wait before retrying.",
+      },
+    });
+    expect(calls).toBe(0);
+  });
+
+  it("answers 429 METHOD_RATE_LIMITED for translation.editEntry specifically, without ever invoking its handler or reaching the sdk seam or disk", async () => {
+    let calls = 0;
+    const limiter: { tryAcquire: (method: string) => boolean } = {
+      tryAcquire: () => false,
+    };
+
+    const result = await dispatchRpc(
+      body({
+        method: "translation.editEntry",
+        params: { locale: "de", key: "greeting", value: "Hallo" },
+      }),
+      deps(),
+      {
+        "translation.editEntry": async () => {
+          calls += 1;
+          return { accepted: true, value: "Hallo" };
+        },
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(429);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "METHOD_RATE_LIMITED" } });
+    expect(calls).toBe(0);
+  });
+
+  it("does not rate-limit a method the limiter has no rule for", async () => {
+    const limiter = createRpcRateLimiter({
+      "translation.retranslateEntry": { windowMs: 1000, maxCalls: 0 },
+    });
+
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      {
+        "project.snapshot": async () => ({
+          sourceLocale: "en",
+          targetLocales: ["de"],
+          format: "i18next-json",
+          files: { pattern: "locales/{locale}.json" },
+          provider: { id: "anthropic" },
+          configSource: "override",
+          glossary: { source: "none" },
+          capabilities: { spend: false, writeToDisk: true },
+        }),
+      },
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  it("checks the rate limit only after method resolution, so an unregistered method still answers METHOD_UNKNOWN", async () => {
+    let acquireCalls = 0;
+    const limiter = {
+      tryAcquire: (): boolean => {
+        acquireCalls += 1;
+        return false;
+      },
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "status.check", params: {} }),
+      deps(),
+      {},
+      limiter,
+    );
+
+    expect(result.statusCode).toBe(400);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "METHOD_UNKNOWN" } });
+    expect(acquireCalls).toBe(0);
+  });
+
+  it("answers 409 ALREADY_IN_PROGRESS once the in-flight guard rejects the call, without ever invoking the handler", async () => {
+    let calls = 0;
+    const guard: { tryEnter: (method: string) => boolean; leave: (method: string) => void } = {
+      tryEnter: () => false,
+      leave: () => {},
+    };
+
+    const result = await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => {
+          calls += 1;
+          return { dryRun: false, locales: [], succeeded: [], failed: [] };
+        },
+      },
+      undefined,
+      guard,
+    );
+
+    expect(result.statusCode).toBe(409);
+    const parsed = await parseBody(result);
+    expect(parsed).toMatchObject({ ok: false, error: { code: "ALREADY_IN_PROGRESS" } });
+    expect(calls).toBe(0);
+  });
+
+  it("does not guard a method the in-flight guard has no rule for", async () => {
+    const guard = createRpcInFlightGuard(new Set(["translation.translatePending"]));
+    guard.tryEnter("translation.translatePending");
+
+    const result = await dispatchRpc(
+      body({ method: "project.snapshot", params: {} }),
+      deps(),
+      {
+        "project.snapshot": async () => ({
+          sourceLocale: "en",
+          targetLocales: ["de"],
+          format: "i18next-json",
+          files: { pattern: "locales/{locale}.json" },
+          provider: { id: "anthropic" },
+          configSource: "override",
+          glossary: { source: "none" },
+          capabilities: { spend: false, writeToDisk: true },
+        }),
+      },
+      undefined,
+      guard,
+    );
+
+    expect(result.statusCode).toBe(200);
+  });
+
+  it("calls leave exactly once after the handler settles, whether it succeeds or throws", async () => {
+    const enterCalls: string[] = [];
+    const leaveCalls: string[] = [];
+    const guard = {
+      tryEnter: (method: string): boolean => {
+        enterCalls.push(method);
+        return true;
+      },
+      leave: (method: string): void => {
+        leaveCalls.push(method);
+      },
+    };
+
+    await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => ({
+          dryRun: false,
+          locales: [],
+          succeeded: [],
+          failed: [],
+        }),
+      },
+      undefined,
+      guard,
+    );
+    await dispatchRpc(
+      body({ method: "translation.translatePending", params: {} }),
+      deps(),
+      {
+        "translation.translatePending": async () => {
+          throw new SdkError("PROVIDER_CONSTRUCTION_FAILED", "boom");
+        },
+      },
+      undefined,
+      guard,
+    );
+
+    expect(enterCalls).toEqual(["translation.translatePending", "translation.translatePending"]);
+    expect(leaveCalls).toEqual(["translation.translatePending", "translation.translatePending"]);
   });
 });

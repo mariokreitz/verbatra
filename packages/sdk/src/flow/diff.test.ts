@@ -48,7 +48,6 @@ describe("diff", () => {
   });
 
   it("lists missing keys and marks the locale pending (missing only)", async () => {
-    // de has only one of two keys; fr has no file at all (both keys missing).
     const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
     const summary = await diff({ config: cfg(), cwd: dir });
 
@@ -89,7 +88,6 @@ describe("diff", () => {
   });
 
   it("lists orphaned keys but they alone do NOT set hasPendingChanges", async () => {
-    // de carries every source key plus an extra key absent from source -> orphaned only.
     const dir = await project({ a: "A" }, { de: { a: "Aa", legacy: "old" } });
     const summary = await diff({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
 
@@ -104,7 +102,6 @@ describe("diff", () => {
   });
 
   it("reports a mixed locale with missing, changed, and orphaned lists together", async () => {
-    // c is missing, a is changed (baseline drifted), legacy is orphaned; b is up to date.
     const dir = await project(
       { a: "A new", b: "B", c: "C" },
       { de: { a: "Aa", b: "Ba", legacy: "old" } },

@@ -1,4 +1,13 @@
 {
   "title": "Documentation",
-  "pages": ["index", "(get-started)", "(configure)", "(automate)", "(under-the-hood)", "(sdk)"]
+  "pages": [
+    "index",
+    "(get-started)",
+    "(concepts)",
+    "(configure)",
+    "(guides)",
+    "cli",
+    "(sdk)",
+    "(help)"
+  ]
 }

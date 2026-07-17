@@ -6,10 +6,10 @@ import type { AnthropicCallOptions, AnthropicMessage, MessagesClient } from "./t
 /**
  * Build the production client wrapping the real @anthropic-ai/sdk. The only place
  * the SDK is constructed, keeping the rest of the package offline-testable via
- * {@link MessagesClient}.
+ * {@link MessagesClient}. The explicit `logLevel: "off"` overrides ANTHROPIC_LOG so
+ * the SDK never logs the x-api-key header.
  */
 export function createDefaultClient(): MessagesClient {
-  // Explicit logLevel "off" overrides ANTHROPIC_LOG so the SDK never logs the x-api-key header.
   const sdk = new Anthropic({ apiKey: requireAnthropicKey(), logLevel: "off" });
   return {
     messages: {

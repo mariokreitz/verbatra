@@ -1,0 +1,154 @@
+---
+title: CI und Exit-Codes
+description: Sichere eine Pipeline mit check oder diff gegen Übersetzungsdrift ab, lies den Exit-Code-Vertrag und verarbeite die JSON-Ausgabe.
+---
+Diese Anleitung zeigt, wie du CI fehlschlagen lässt, wenn Übersetzungen auseinanderlaufen, und wie du liest, was verbatra dann meldet. Die Werkzeuge dafür sind der Exit-Code-Vertrag, dem jeder Befehl folgt, und die `--json`-Ausgabe, die deine Skripte parsen können.
+
+verbatra ist eine Dev-Dependency, die Befehle laufen in CI also genauso wie lokal. Die übliche Aufteilung:
+
+- **Sichere einen Pull Request ab** mit [`verbatra check`](/docs/cli/check) oder [`verbatra diff`](/docs/cli/diff). Beide sind schreibgeschützt: kein Provider-Aufruf, kein API-Key nötig, Exit `1` bei Drift.
+- **Übersetze bei einem Push** mit [`verbatra translate`](/docs/cli/translate), entweder direkt (diese Seite) oder über die [GitHub Action](/docs/github-action).
+
+## Die Exit-Codes
+
+Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | Erfolg: `translate` oder `import` war für jedes Locale erfolgreich, `check` fand jedes Locale synchron, `diff` fand keine ausstehenden Änderungen |
+| `1` | `translate` oder `import` lief durch, aber einige Locales schlugen fehl, `check` fand ein Locale nicht synchron, oder `diff` fand ausstehende Änderungen |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (kaputte Konfiguration, unlesbare Quelle) oder ein Verwendungsfehler (ein leerer oder unbekannter `--locales`-Wert, ein ungültiges `--debounce` oder `--port`) |
+| `130` | `watch` oder `studio` wurde durch einen zweiten Interrupt zwangsbeendet |
+
+Zwei Randfälle, die du kennen solltest:
+
+- `watch` behandelt einen einzelnen Interrupt als sauberen Stopp und endet mit `0`; ein fehlgeschlagener Lauf während watch erscheint als Datensatz im Ausgabestrom, nie als Exit-Code ungleich null.
+- `export` hat keinen Fehlermodus pro Locale: der Befehl endet mit `0` oder `2`, nie mit `1`.
+
+## check oder diff: das Gate wählen
+
+`check` und `diff` führen dieselbe schreibgeschützte Berechnung über deine Quelle, die Zieldateien und die [Lock-Datei](/docs/the-lock-file) aus. Der Unterschied ist, was sie melden:
+
+```bash
+# counts per locale: exit 1 if any locale is missing or stale
+verbatra check
+
+# key lists per locale: exit 1 if any locale has keys to add or re-translate
+verbatra diff
+```
+
+Nimm `check`, wenn der Exit-Code alles ist, was du brauchst. Nimm `diff`, wenn du die genauen Keys hinter der Drift willst, etwa um sie als Kommentar in einen Pull Request zu posten. Verwaiste Keys (in einer Zieldatei vorhanden, aber aus der Quelle verschwunden) erscheinen in der `diff`-Ausgabe, setzen aber nie allein Exit-Code `1`.
+
+Beide nehmen `--locales de,fr`, um nur eine Teilmenge abzusichern. `--locales` ohne gültiges Locale ist ein Verwendungsfehler und endet mit `2`, ein Tippfehler kann das Gate also nie grün schalten.
+
+## JSON-Ausgabe
+
+Sechs Befehle akzeptieren `--json` für maschinenlesbare Ausgabe auf stdout: `translate`, `watch`, `check`, `diff`, `export` und `import`. Fehler gehen immer als eine strukturierte Zeile (`verbatra: error [CODE] message`) auf stderr, stdout bleibt also parsebar.
+
+`verbatra translate --json` und `verbatra import --json` geben ein `RunSummary`-Objekt aus:
+
+```ts
+interface RunSummary {
+  dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
+  locales: LocaleSummary[]; // one entry per target locale, in config order
+  succeeded: string[];      // locales whose run succeeded
+  failed: string[];         // locales whose run failed
+  usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
+  budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured
+}
+```
+
+Jedes `LocaleSummary` trägt die Key-Listen pro Locale (übersetzt, unverändert, verwaist, zurückgehalten, für Review markiert und mehr); die vollständige Anatomie steht in der [SDK-Referenz](/docs/sdk).
+
+`verbatra watch --json` gibt pro Lauf einen Datensatz als NDJSON aus (ein JSON-Objekt pro Zeile):
+
+```ts
+type WatchRunResult =
+  | { status: "succeeded"; summary: RunSummary }
+  | { status: "failed"; error: { code: string; message: string } };
+```
+
+`verbatra check --json` gibt ein Statusdokument aus. Das oberste `inSync` ist genau dann true, wenn der Befehl mit `0` endet:
+
+```ts
+interface CheckSummary {
+  inSync: boolean;             // true exactly when the command exits 0
+  locales: LocaleCheckSummary[];
+}
+
+interface LocaleCheckSummary {
+  locale: string;
+  missing: number;             // in source, absent from target
+  stale: number;               // source changed since last translated
+  upToDate: number;            // target matches the recorded baseline
+  inSync: boolean;             // missing === 0 && stale === 0
+}
+```
+
+`verbatra diff --json` liefert dir Key-Listen statt Zähler. Das oberste `hasPendingChanges` ist genau dann true, wenn der Befehl mit `1` endet:
+
+```ts
+interface DiffSummary {
+  hasPendingChanges: boolean;  // true exactly when the command exits 1
+  locales: LocaleDiff[];
+}
+
+interface LocaleDiff {
+  locale: string;
+  missing: string[];           // in source, absent from target: would be added
+  changed: string[];           // source changed since last translated: would be re-translated
+  orphaned: string[];          // in target, absent from source: reported only
+  hasPendingChanges: boolean;  // missing.length > 0 || changed.length > 0
+}
+```
+
+`verbatra export --json` gibt aus, wohin die Arbeitsmappe geschrieben wurde, plus die Zeilenzahlen pro Locale:
+
+```ts
+{
+  path: string;                // absolute path of the written workbook
+  locales: { locale: string; rows: number }[];
+}
+```
+
+## Ein GitHub-Actions-Job mit der CLI
+
+Ein Drift-Gate für Pull Requests, das die CLI direkt ausführt. `check` ruft nie einen Provider auf, dieser Job braucht also gar keinen API-Key:
+
+```yaml
+name: i18n
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: pnpm/action-setup@<commit-sha>
+      - uses: actions/setup-node@<commit-sha>
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec verbatra check
+```
+
+Um stattdessen in CI zu übersetzen, tausche den letzten Schritt gegen `translate` und übergib den Provider-Key aus deinem Secret-Store als die Umgebungsvariable, die dein Provider erwartet (siehe [Provider](/docs/providers)):
+
+```yaml
+      - run: pnpm exec verbatra translate --json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Wenn du diesen Job lieber nicht selbst schreiben willst: die [GitHub Action](/docs/github-action) verpackt die translate-Variante mit Annotationen und einer Job-Zusammenfassung.
+
+## Eingefrorene Installationen und Keys
+
+- **Installiere aus dem Lockfile.** `pnpm install --frozen-lockfile` (oder `npm ci`) pinnt genau das `@verbatra/cli`-Release, das dein Lockfile festhält; ein CI-Lauf ist damit reproduzierbar und kann nie stillschweigend ein neueres Release ziehen. Die CLI braucht Node `>=22.14.0`.
+- **Keys sind Umgebungsvariablen, nie Flags.** Die CLI nimmt kein Key-Argument entgegen und liest keinen Key aus der Konfiguration; Provider lesen nur ihre Umgebungsvariable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`). Lege den Key im Secret-Store deiner CI ab und reiche ihn über `env` durch. Fehlermeldungen nennen die Variable, enthalten aber nie einen Key-Wert.
+- **Schreibgeschützte Gates brauchen keinen Key.** `check`, `diff` und `export` rufen nie einen Provider auf, halte Secrets also komplett aus diesen Jobs heraus.
+
+verbatra lädt vor dem Lauf außerdem `.env.local` und `.env` aus dem Arbeitsverzeichnis, wobei echte Umgebungsvariablen immer gewinnen; in CI verlässt du dich normalerweise allein auf `env:`.

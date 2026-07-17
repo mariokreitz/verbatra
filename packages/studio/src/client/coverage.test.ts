@@ -1,6 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { coveragePercent, toStatusData, toStatusOutcome } from "./coverage.js";
+import {
+  averageCoverage,
+  coveragePercent,
+  outOfSyncCount,
+  type StatusRow,
+  toStatusData,
+  toStatusOutcome,
+} from "./coverage.js";
 import type { RpcCallResult } from "./rpc-client.js";
+
+function statusRow(overrides: Partial<StatusRow>): StatusRow {
+  return {
+    locale: "de",
+    missing: 0,
+    stale: 0,
+    upToDate: 1,
+    percent: 100,
+    inSync: true,
+    ...overrides,
+  };
+}
+
+describe("averageCoverage", () => {
+  it("is 100 for an empty row list, matching coveragePercent's zero-denominator convention", () => {
+    expect(averageCoverage([])).toBe(100);
+  });
+
+  it("averages and rounds the per-locale percentages", () => {
+    const rows = [
+      statusRow({ locale: "de", percent: 100 }),
+      statusRow({ locale: "fr", percent: 50 }),
+      statusRow({ locale: "ar", percent: 34 }),
+    ];
+    expect(averageCoverage(rows)).toBe(61);
+  });
+});
+
+describe("outOfSyncCount", () => {
+  it("counts only the rows that are out of sync", () => {
+    const rows = [
+      statusRow({ locale: "de", inSync: true }),
+      statusRow({ locale: "fr", inSync: false }),
+      statusRow({ locale: "ar", inSync: false }),
+    ];
+    expect(outOfSyncCount(rows)).toBe(2);
+  });
+
+  it("is zero when every locale is in sync", () => {
+    expect(outOfSyncCount([statusRow({ inSync: true })])).toBe(0);
+  });
+});
 
 describe("coveragePercent", () => {
   it("is 100 for a zero-key source project, never NaN or Infinity", () => {

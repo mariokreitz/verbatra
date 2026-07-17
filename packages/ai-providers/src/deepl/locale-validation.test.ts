@@ -4,7 +4,6 @@ import { assertValidDeepLSourceLocale, assertValidDeepLTargetLocale } from "./lo
 
 describe("assertValidDeepLSourceLocale", () => {
   it("rejects a regional source code as INVALID_REQUEST, naming the code verbatim", () => {
-    // "de-DE" appears nowhere in the static message text, so this can only pass via interpolation.
     try {
       assertValidDeepLSourceLocale("de-DE");
       expect.unreachable("should have thrown");
@@ -23,8 +22,6 @@ describe("assertValidDeepLSourceLocale", () => {
 
 describe("assertValidDeepLTargetLocale", () => {
   it("rejects a deprecated bare target code (en) requiring disambiguation", () => {
-    // The quoted form `"en"` only occurs at the interpolation site: the message's hardcoded examples
-    // are "en-GB"/"en-US", neither of which contains the exact substring `"en"`.
     try {
       assertValidDeepLTargetLocale("en");
       expect.unreachable("should have thrown");

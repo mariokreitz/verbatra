@@ -1,0 +1,64 @@
+---
+title: verbatra studio
+description: Start Verbatra Studio, the local translation dashboard.
+---
+Start Verbatra Studio, a local web dashboard over your verbatra project: translation status, the needs-review queue, run activity, and your resolved settings, all live over the files on disk. Editing your own locale files works out of the box; only provider spend is opt-in, behind `--allow-spend`. Before it starts, `studio` loads `.env.local` and then `.env` from the working directory and resolves your config once; a config error exits `2` before any server starts.
+
+## Synopsis
+
+```bash
+verbatra studio [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--port` | `<n>` | `5849` | listen on this port; must be an integer from 1 to 65535 |
+| `--allow-spend` | none | off | allow Studio to call a translation provider (retranslate a key, translate pending changes) |
+
+When the `--allow-spend` flag is absent, Studio reads the `VERBATRA_STUDIO_ALLOW_SPEND` environment variable instead: `1`, `true`, `yes`, or `on` (case-insensitive) counts as on. The CLI flag always wins over the environment variable. Without either, Studio never contacts a provider; local editing needs no flag.
+
+## The printed URL
+
+Studio binds to `127.0.0.1` only. Once it is listening, it prints one line to stdout:
+
+```
+Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
+```
+
+Open that exact URL: the token in the query string bootstraps your browser session, and every request without it is rejected. Nothing is printed before the port is successfully bound, so a failed startup never leaks a URL or a token.
+
+## Installation
+
+`@verbatra/studio` is its own package, reached through a dynamic import so the rest of the CLI works without it. If it is not installed, `verbatra studio` exits `2` with:
+
+```
+Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
+```
+
+## Examples
+
+```bash
+# start Verbatra Studio on the default port
+verbatra studio
+
+# enable the provider-calling actions, on a specific port
+verbatra studio --allow-spend --port 6000
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | stopped cleanly by a single interrupt (Ctrl-C, or SIGTERM) |
+| `1` | stopping failed: closing the server threw during shutdown |
+| `2` | could not start: a config error, `@verbatra/studio` not installed, the port in use, or a usage error (an out-of-range or non-integer `--port`) |
+| `130` | force-stopped by a second interrupt while shutdown was in flight |
+
+## Related
+
+- [Review in Studio](/docs/review-in-studio) walks through the Translations page, the review queue, and retranslating with `--allow-spend`.
+- [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff) are the same computations Studio shows live.

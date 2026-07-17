@@ -68,9 +68,7 @@ describe("exportWorkbook", () => {
     expect(result.path).toBe(join(dir, "verbatra-translations.xlsx"));
     const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
     expect(data.sheets.map((s) => s.locale)).toEqual(["de", "fr"]);
-    // de is missing only "farewell" (greeting already present and unchanged with no baseline).
     expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["farewell"]);
-    // fr has no target file: both keys are missing.
     expect(data.sheets[1]?.rows.map((r) => r.key)).toEqual(["farewell", "greeting"]);
   });
 
@@ -96,19 +94,14 @@ describe("exportWorkbook", () => {
       includeUnchanged: true,
     });
     expect(result.locales.map((l) => l.locale)).toEqual(["de"]);
-    // Unchanged "a" is included because of the opt-in.
     expect(result.locales[0]?.rows).toBe(1);
 
     const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
     const row = data.sheets[0]?.rows.find((r) => r.key === "a");
-    // Must be labeled "unchanged", not "changed": the source never drifted.
     expect(row?.status).toBe("unchanged");
   });
 
   it("never emits an 'unchanged' status row when includeUnchanged is off or omitted", async () => {
-    // "a" is already in sync (unchanged) and "b" is missing, so the default export carries one
-    // "new" row and, absent the bug fix, would carry zero "unchanged" rows either way. Asserting
-    // a non-empty sheet with no "unchanged" row makes this a real check, not a vacuous one.
     const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
     const result = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
     const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
@@ -125,8 +118,6 @@ describe("exportWorkbook", () => {
   });
 
   it("exports a baseline key whose source drifted with status 'changed'", async () => {
-    // de already has "a" translated, and the lock records the OLD source hash. The live source
-    // value has since changed, so diffResources classifies "a" as changed, not new.
     const dir = await project({ a: "A new" }, { de: { a: "Aa" } });
     const config = cfg({ targetLocales: ["de"] });
     await writeJsonFile(join(dir, "verbatra.lock.json"), {
@@ -187,8 +178,6 @@ describe("exportWorkbook", () => {
   });
 
   it("recomputes EQUALS_SOURCE for a changed row whose current target equals the source", async () => {
-    // de already carries "a" equal to the (new) source value, and the lock records the OLD source
-    // hash, so diffResources classifies "a" as changed with a non-empty currentTarget.
     const dir = await project({ a: "Hello there, friend" }, { de: { a: "Hello there, friend" } });
     const config = cfg({ targetLocales: ["de"] });
     await writeJsonFile(join(dir, "verbatra.lock.json"), {
@@ -255,9 +244,6 @@ describe("exportWorkbook", () => {
     });
     const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
     const row = data.sheets[0]?.rows.find((r) => r.key === "a");
-    // "Hi there" trims to under 12 UTF-16 code units, so no LENGTH_RATIO_OUTLIER; not equal to
-    // source; no glossary configured; no placeholders on either side so integrity always matches
-    // unreordered.
     expect(row?.reviewStatus).toBe("ok");
     expect(row?.reviewReasons).toBe("");
   });
@@ -265,7 +251,6 @@ describe("exportWorkbook", () => {
 
 describe("importWorkbook", () => {
   it("writes accepted values by key, updates the lock, reports orphaned, and the summary", async () => {
-    // de already carries an orphaned key (not in source); it is reported and never locked.
     const dir = await project(
       { greeting: "Hello", farewell: "Bye" },
       { de: { stale: "Veraltet" } },
@@ -287,7 +272,6 @@ describe("importWorkbook", () => {
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    // The orphaned key gets no lock entry; only the two source-present keys do.
     expect(Object.keys(lock.locales.de ?? {}).sort()).toEqual(["farewell", "greeting"]);
   });
 
@@ -315,8 +299,6 @@ describe("importWorkbook", () => {
   });
 
   it("bootstraps a baseline for an already-synced key with no prior lock entry", async () => {
-    // "a" is already in sync in de.json and there is no lock file yet, so it never appears as a
-    // workbook row; only "b" is missing and gets exported and filled.
     const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
     const config = cfg({ targetLocales: ["de"] });
     const out = await exportWorkbook({ config, cwd: dir });
@@ -328,7 +310,6 @@ describe("importWorkbook", () => {
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    // First run bootstraps "a"'s baseline to the current source hash, since there is no prior one.
     expect(lock.locales.de?.a).toBe(contentHash(entry("A")));
     expect(lock.locales.de?.b).toBe(contentHash(entry("B")));
   });
@@ -337,7 +318,7 @@ describe("importWorkbook", () => {
     const dir = await project({ a: "A", b: "B" }, { de: undefined });
     const config = cfg({ targetLocales: ["de"] });
     const out = await exportWorkbook({ config, cwd: dir });
-    await fillWorkbook(out.path, "de", { a: "Aa" }); // b left empty
+    await fillWorkbook(out.path, "de", { a: "Aa" });
 
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.translated).toEqual(["a"]);
@@ -349,12 +330,11 @@ describe("importWorkbook", () => {
     const dir = await project({ greet: "Hi {{name}}" }, { de: undefined });
     const config = cfg({ targetLocales: ["de"] });
     const out = await exportWorkbook({ config, cwd: dir });
-    await fillWorkbook(out.path, "de", { greet: "Hallo" }); // dropped {{name}}
+    await fillWorkbook(out.path, "de", { greet: "Hallo" });
 
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.integrityMismatches).toEqual(["greet"]);
     expect(summary.locales[0]?.translated).toEqual([]);
-    // Nothing accepted: the target file is never written.
     await expect(readJsonFile(join(dir, "locales", "de.json"))).rejects.toThrow();
   });
 
@@ -365,7 +345,7 @@ describe("importWorkbook", () => {
     );
     const config = cfg({ targetLocales: ["de"], format: "next-intl-json" });
     const out = await exportWorkbook({ config, cwd: dir });
-    await fillWorkbook(out.path, "de", { items: "{n, plural, one {x" }); // malformed ICU
+    await fillWorkbook(out.path, "de", { items: "{n, plural, one {x" });
 
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.integrityMismatches).toEqual(["items"]);
@@ -377,18 +357,15 @@ describe("importWorkbook", () => {
     const config = cfg({ targetLocales: ["de"] });
     const out = await exportWorkbook({ config, cwd: dir });
     await fillWorkbook(out.path, "de", { a: "Aa" });
-    // Source changes after export, before import.
     await writeJsonFile(join(dir, "locales", "en.json"), { a: "A changed" });
 
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
     expect(summary.locales[0]?.translated).toEqual([]);
-    // Drifted value is withheld: the target file is never written.
     await expect(readJsonFile(join(dir, "locales", "de.json"))).rejects.toThrow();
   });
 
   it("a withheld key with an existing target keeps its prior lock hash (not refreshed)", async () => {
-    // de already has greet translated; a prior lock records the OLD source hash.
     const dir = await project({ greet: "Hi {{name}}" }, { de: { greet: "Hallo {{name}}" } });
     const config = cfg({ targetLocales: ["de"] });
     const priorHash = contentHash(entry("Old source", ["{{name}}"]));
@@ -396,7 +373,6 @@ describe("importWorkbook", () => {
       version: 1,
       locales: { de: { greet: priorHash } },
     });
-    // greet is changed (source hash != prior), so it exports; the translator drops {{name}}.
     const out = await exportWorkbook({ config, cwd: dir });
     await fillWorkbook(out.path, "de", { greet: "Hallo" });
 
@@ -406,15 +382,12 @@ describe("importWorkbook", () => {
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    // Withheld: the lock keeps the prior hash, so greet re-exports next run.
     expect(lock.locales.de?.greet).toBe(priorHash);
-    // The existing translation is untouched on disk.
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.greet).toBe("Hallo {{name}}");
   });
 
   it("keeps the prior lock baseline when a changed row is left blank", async () => {
-    // de already has "greeting" translated; the lock records the source hash at that time.
     const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
     const config = cfg({ targetLocales: ["de"] });
     const priorHash = contentHash(entry("Hello"));
@@ -422,22 +395,18 @@ describe("importWorkbook", () => {
       version: 1,
       locales: { de: { greeting: priorHash } },
     });
-    // The source changes after the lock was recorded, so "greeting" exports as changed.
     await writeJsonFile(join(dir, "locales", "en.json"), { greeting: "Hi there" });
     const out = await exportWorkbook({ config, cwd: dir });
 
-    // The translator leaves the cell blank (the exported row already has an empty translation).
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.translated).toEqual([]);
 
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
-    // The target file is untouched: still the translation of the OLD source.
     expect(de.greeting).toBe("Hallo");
 
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    // The baseline must not advance to the new source hash: check/diff must keep reporting drift.
     expect(lock.locales.de?.greeting).toBe(priorHash);
     expect(lock.locales.de?.greeting).not.toBe(contentHash(entry("Hi there")));
 
@@ -445,7 +414,6 @@ describe("importWorkbook", () => {
       expect.objectContaining({ code: "BLANK_ROW_BASELINE_RETAINED" }),
     ]);
 
-    // The acceptance criterion is phrased in check terms: de must still report the drift, not 0 stale.
     const checked = await check({ config, cwd: dir });
     expect(checked.locales[0]?.stale).toBe(1);
     expect(checked.inSync).toBe(false);
@@ -469,14 +437,12 @@ describe("importWorkbook", () => {
         fr: { greeting: priorGreeting, farewell: priorFarewell },
       },
     });
-    // Both source strings change after the lock was recorded.
     await writeJsonFile(join(dir, "locales", "en.json"), {
       greeting: "Hi there",
       farewell: "Goodbye",
     });
     const out = await exportWorkbook({ config, cwd: dir });
 
-    // The entire workbook is imported untouched: every cell stays blank for every locale.
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales.map((l) => l.translated)).toEqual([[], []]);
 
@@ -499,7 +465,6 @@ describe("importWorkbook", () => {
       ]);
     }
 
-    // Every locale must still report both keys as stale, matching the acceptance criterion.
     const checked = await check({ config, cwd: dir });
     expect(checked.inSync).toBe(false);
     expect(checked.locales.map((l) => l.stale)).toEqual([2, 2]);
@@ -526,14 +491,12 @@ describe("importWorkbook", () => {
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir, dryRun: true });
     expect(summary.dryRun).toBe(true);
     expect(summary.locales[0]?.translated).toEqual(["a"]);
-    // Nothing written: no target file, no lock file.
     await expect(readJsonFile(join(dir, "locales", "de.json"))).rejects.toThrow();
     await expect(readJsonFile(join(dir, "verbatra.lock.json"))).rejects.toThrow();
   });
 
   it("fails the locale for a sheet whose locale is not in the config", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
-    // Export with de+es, then import against a config that only knows de.
     const exportConfig = cfg({ targetLocales: ["de", "es"] });
     const out = await exportWorkbook({ config: exportConfig, cwd: dir });
     await fillWorkbook(out.path, "es", { a: "Ae" });
@@ -552,7 +515,6 @@ describe("importWorkbook", () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const config = cfg({ targetLocales: ["de"] });
     const out = await exportWorkbook({ config, cwd: dir });
-    // Forge an extra row with an invented key.
     const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
     const sheets = data.sheets.map((sheet) =>
       sheet.locale !== "de"
@@ -603,8 +565,6 @@ describe("importWorkbook", () => {
   });
 
   it("rejects an over-cap workbook (on-disk gate) as a structured SOURCE_INVALID", async () => {
-    // project() writes a real en.json the adapter reads; fileExists is faked true and only the
-    // workbook's bounded read reports too-large, so the on-disk gate fires before any sheet work.
     const dir = await project({ a: "A" }, { de: undefined });
     const fs = makeFakeFs({
       fileExists: async () => true,

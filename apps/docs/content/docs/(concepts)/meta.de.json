@@ -1,0 +1,5 @@
+{
+  "title": "Grundkonzepte",
+  "defaultOpen": true,
+  "pages": ["how-it-works", "the-lock-file", "translation-safety"]
+}

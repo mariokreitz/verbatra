@@ -44,7 +44,6 @@ export default function Tabs({
                   ? "text-fd-foreground"
                   : "text-fd-muted-foreground hover:text-fd-foreground"
               }`}
-              // Inset shadow draws the 2px glow underline without layout shift.
               style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
             >
               {tab.label}

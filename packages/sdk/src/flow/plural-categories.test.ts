@@ -96,9 +96,7 @@ describe("detectMissingPluralCategories", () => {
 });
 
 describe("planPluralGeneration: representative source form (divergent placeholders)", () => {
-  // When source plural forms diverge in placeholders across categories, each generated form is drawn from a single representative form (prefer _other, then _one), against whose placeholder set integrity is checked.
   it("draws every generated form from the _other form when categories diverge", () => {
-    // items_one carries an extra {{unit}} that items_other omits; _other is the representative.
     const src = sourceWith([
       entryWith("items_one", "{{count}} {{unit}}", ["{{count}}", "{{unit}}"]),
       entryWith("items_other", "{{count}} items", ["{{count}}"]),
@@ -106,17 +104,14 @@ describe("planPluralGeneration: representative source form (divergent placeholde
 
     const plan = planPluralGeneration(src, "pl", "i18next-json");
 
-    // pl needs one/few/many/other; one and other are present, so few and many are generated.
     expect(plan.items.map((i) => i.targetKey)).toEqual(["items_few", "items_many"]);
     for (const item of plan.items) {
-      // Each generated form is drawn from items_other (the representative), NOT items_one.
       expect(item.sourceEntry.key).toBe("items_other");
       expect(item.sourceEntry.placeholders).toEqual(["{{count}}"]);
     }
   });
 
   it("falls back to the _one form as representative when _other is absent", () => {
-    // A pathological source with no _other; _one is then the representative whose placeholders apply.
     const src = sourceWith([
       entryWith("items_one", "{{count}} {{unit}}", ["{{count}}", "{{unit}}"]),
     ]);

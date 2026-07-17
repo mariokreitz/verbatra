@@ -11,7 +11,6 @@ describe("selectLocales", () => {
   it("returns all configured targets when requested is undefined", () => {
     const config = cfg(["de", "fr", "es"]);
     expect(selectLocales(config, undefined)).toEqual(["de", "fr", "es"]);
-    // The very same reference is returned; no copy is made for the default path.
     expect(selectLocales(config, undefined)).toBe(config.targetLocales);
   });
 
@@ -45,7 +44,6 @@ describe("selectLocales", () => {
       expect(sdkError.code).toBe("UNKNOWN_LOCALE");
       expect(sdkError.message).toContain("locales");
       expect(sdkError.message).toContain("fr, it");
-      // The one valid locale is not blamed.
       expect(sdkError.message).not.toContain(": de,");
     }
   });

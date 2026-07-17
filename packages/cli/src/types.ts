@@ -14,9 +14,6 @@ import type {
   WatchController,
   WatchInput,
 } from "@verbatra/sdk";
-// Type-only: erased at compile time (verbatimModuleSyntax), so this never becomes a runtime import.
-// @verbatra/studio is a devDependency of this package (types and tests only); the command itself
-// reaches the package only through a dynamic `import("@verbatra/studio")`, never a static one.
 import type { StudioServer, StudioServerOptions } from "@verbatra/studio";
 
 /** Output sink: the core writes through this, never to process.stdout/stderr directly. */
@@ -55,10 +52,11 @@ export interface CliDeps {
 /**
  * The subset of `@verbatra/studio`'s public exports the `studio` command needs, structurally
  * matching the real module returned by `import("@verbatra/studio")`. Kept narrow so a test stub only
- * has to implement what the command actually calls. The default port is never read here: an omitted
- * `--port` simply omits `port` from the options passed to `startStudioServer`, which resolves its own
- * default internally from `DEFAULT_STUDIO_PORT`, so the value is never duplicated as a literal in the
- * CLI.
+ * has to implement what the command actually calls. `@verbatra/studio` stays a type-only import in
+ * this package (a devDependency, erased at compile time); the command reaches the real package only
+ * through the dynamic `importStudio` seam. The default port is never read here: an omitted `--port`
+ * simply omits `port` from the options passed to `startStudioServer`, which resolves its own default
+ * internally, so the value is never duplicated as a literal in the CLI.
  */
 export interface StudioModule {
   startStudioServer(options: StudioServerOptions): Promise<StudioServer>;
@@ -68,7 +66,7 @@ export interface StudioModule {
 export interface WatchSession {
   /** Resolves with the process exit code once watching has stopped. */
   readonly done: Promise<number>;
-  /** First call stops gracefully (awaits the in-flight run) then exits 0; a second forces 130. */
+  /** First call stops gracefully (awaits the in-flight run) then exits 0, or 2 if stopping itself fails; a second forces 130. */
   requestStop(): void;
 }
 

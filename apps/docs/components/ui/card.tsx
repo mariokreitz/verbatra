@@ -16,7 +16,6 @@ export default function Card({
   className,
 }: CardProps): ReactNode {
   const classes = `${BASE}${padded ? " p-5" : ""}${className ? ` ${className}` : ""}`;
-  // borderInlineStart (logical property) keeps the rule on the correct side under RTL.
   const style: CSSProperties | undefined = signature
     ? { borderInlineStart: "2px solid var(--v-glow)", boxShadow: "var(--shadow-panel)" }
     : undefined;

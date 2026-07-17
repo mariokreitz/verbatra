@@ -4,19 +4,11 @@ import { motion, useReducedMotion } from "motion/react";
 import { Fragment, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// Decorative animated mini-demos for the three-pillar section. Each animates on
-// scroll-into-view (motion whileInView) and renders a static settled frame under
-// prefers-reduced-motion. The parent cell marks the wrapper aria-hidden; the title/body carry
-// the meaning. These motifs (fan-out translate, spreadsheet handoff, CI pipeline) are kept
-// distinct from the why-verbatra bento skeletons.
-
 const EASE = [0.22, 1, 0.36, 1] as const;
 const VIEWPORT = { once: true, amount: 0.3 } as const;
 
 type FromTarget = { opacity?: number; x?: number; y?: number };
 
-// Frameless container: the parent feature-card provides the framed, beam-lit visual area, so
-// the skeleton floats on top of it (the beam and sparkles show through the gaps).
 function Panel({ children, className }: { children: ReactNode; className?: string }): ReactNode {
   return (
     <div className={cn("w-full font-mono text-[11px] leading-relaxed", className)}>{children}</div>
@@ -53,7 +45,6 @@ function Reveal({
   );
 }
 
-// ---- 1: AI translation (source fans out into de/es/fr targets) -------------
 const AI_TARGETS = [
   { code: "de", value: "Jetzt bezahlen" },
   { code: "es", value: "Paga ahora" },
@@ -113,7 +104,6 @@ export function AiTranslationSkeleton(): ReactNode {
   );
 }
 
-// ---- 2: Excel handoff (export -> xlsx -> import, spreadsheet fills) ---------
 const EXCEL_ROWS = [
   { key: "cart.checkout", source: "Pay now", target: "Jetzt bezahlen" },
   { key: "cart.total", source: "Total", target: "Gesamt" },
@@ -199,7 +189,6 @@ export function ExcelHandoffSkeleton(): ReactNode {
   );
 }
 
-// ---- 3: Automation (CI pipeline ticks to a check) --------------------------
 const PIPELINE_NODES = ["commit", "check", "translate"] as const;
 
 function CheckCircle({ reduced }: { reduced: boolean }): ReactNode {

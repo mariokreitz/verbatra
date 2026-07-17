@@ -140,11 +140,6 @@ describe("resolveGlossary: failure modes (structured, secret-free, naming the re
   });
 
   it("two invalid lead bytes decode to a leading replacement character and are CONFIG_INVALID", async () => {
-    // 0xFF and 0xFE are never valid UTF-8 bytes, so decoding them as UTF-8 yields a leading U+FFFD.
-    // The rest of the file is plain UTF-8 JSON with no embedded NUL, so this isolates the
-    // startsWith(replacement character) arm from the embedded-NUL arm: deleting the startsWith
-    // check from looksLikeInvalidEncoding makes this test fail on its own, unlike the BOM-less
-    // UTF-16LE fixture above, which also carries embedded NUL bytes and would still fail either way.
     const dir = await makeTempDir();
     const file = join(dir, "invalid-lead-bytes.json");
     const bytes = Buffer.concat([

@@ -45,7 +45,10 @@ function throwAbort(signal: AbortSignal | undefined): never {
   throw new DOMException("This operation was aborted.", "AbortError");
 }
 
-/** Wait `ms` milliseconds, or return early once `signal` aborts. Never rejects. */
+/**
+ * Wait `ms` milliseconds, or return early once `signal` aborts. Never rejects; the caller
+ * re-checks the signal after the wait, since `call()` honoring the signal is caller-specific.
+ */
 function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
   return new Promise((resolve) => {
     const onAbort = () => {
@@ -105,8 +108,6 @@ export async function withGeminiRetry<T>(
         throw error;
       }
       await delay(config.baseDelayMs * 2 ** (attempt - 1), signal);
-      // The delay can resolve early because the signal aborted mid-wait; re-check here instead
-      // of relying on `call()` to honor the signal itself, since that behavior is caller-specific.
       if (isAborted(signal)) {
         throwAbort(signal);
       }

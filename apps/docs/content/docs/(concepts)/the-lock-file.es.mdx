@@ -1,0 +1,69 @@
+---
+title: El archivo de bloqueo
+description: Qué registra verbatra.lock.json, cómo se detecta el desfase, cómo se serializan las ejecuciones concurrentes y por qué debes confirmarlo.
+---
+El archivo de bloqueo, `verbatra.lock.json`, existe para que una ejecución pueda saber qué ya se
+tradujo y saltárselo: es la línea base contra la que hace diff cada ejecución, y es lo que hace a
+verbatra incremental. Esta página cubre qué almacena, cómo cambia y qué pasa cuando está en
+disputa, ausente o corrupto.
+
+## Qué registra
+
+Para cada locale de destino, el archivo de bloqueo almacena un hash de contenido por clave
+traducida, calculado a partir del valor de origen que produjo la traducción existente. No contiene
+traducciones ni secretos: solo un campo `version` y hashes. El hash normaliza Unicode a NFC y los
+finales de línea a LF, así que volver a guardar un archivo de origen con otra normalización o con
+finales CRLF no marca nada como modificado.
+
+## Cómo se detecta el desfase
+
+Cuando una ejecución hace diff de un locale de destino, una clave de origen ausente del destino es
+faltante. Para una clave que el destino sí tiene, el hash de origen actual se compara contra el
+hash que registró el bloqueo: una diferencia significa que el origen se desvió desde la última vez
+que se tradujo la clave, así que está modificada y se retraduce; una coincidencia significa que
+está sin cambios y nunca se envía al proveedor. Por eso una segunda ejecución sin ediciones en el
+origen no llama al proveedor para nada, y por eso las traducciones obsoletas no pueden
+esconderse detrás de una clave que simplemente existe. La canalización completa está en
+[Cómo funciona](/docs/how-it-works).
+
+## Cómo se actualiza
+
+El bloqueo se actualiza por locale, y el cómo depende de qué se ejecutó:
+
+- Una ejecución completa (translate, watch o una importación de libro) reemplaza en bloque las
+  entradas de ese locale con el resultado autoritativo de la ejecución.
+- Una acción de una sola clave (como una retraducción desde Studio) fusiona solo la entrada de esa
+  clave, dejando intacta cada una de las demás claves registradas.
+
+En ambos casos aplica una excepción: una clave retenida en esta ejecución (una comprobación de
+integridad fallida, una llamada al proveedor fallida o un origen con ICU inválido) conserva su hash
+anterior, para que la siguiente ejecución siga viéndola como pendiente de trabajo y la reintente en
+lugar de registrarla como hecha. Las claves huérfanas no reciben entrada. El archivo se serializa
+con las claves ordenadas, así que sus diffs se mantienen estables y revisables.
+
+## El bloqueo de escritura
+
+Dos ejecuciones tocando el mismo locale a la vez (una segunda terminal, un job de CI, una acción de
+Studio) podrían, si no, hacer diff ambas contra una línea base obsoleta y pagar ambas la misma
+llamada al proveedor. Para evitarlo, cada escritura a un locale y a sus entradas del bloqueo ocurre
+bajo un bloqueo de escritura entre procesos limitado a ese único locale; un segundo escritor del
+mismo locale espera, luego relee el archivo de bloqueo fresco y hace diff contra una línea base que
+ya incluye el resultado del primer escritor. Locales distintos no se bloquean entre sí.
+
+Si un bloqueo no se puede adquirir, la ejecución falla con `LOCK_CONTENDED` y nombra la ruta del
+archivo de bloqueo (bajo el directorio `.verbatra-local/`, ignorado por git). Si no hay ningún
+proceso de verbatra en marcha, ese archivo lo dejó atrás uno que fue matado: bórralo y reintenta.
+
+## Ausente o corrupto
+
+Un archivo de bloqueo ausente no es un error: cuenta como una primera ejecución, en la que toda
+clave de origen es faltante. Un archivo de bloqueo presente pero imposible de parsear,
+estructuralmente incorrecto, demasiado grande o con una versión no soportada hace fallar la
+ejecución con `LOCK_FILE_INVALID` en lugar de sobrescribirse en silencio, para que puedas
+inspeccionarlo o restaurarlo en vez de perder la línea base.
+
+## Confírmalo
+
+Confirma `verbatra.lock.json` junto a tus archivos de locale. Es la línea base compartida contra la
+que hacen diff tus compañeros y tu CI; mantenerlo en control de versiones es lo que hace que las
+ejecuciones incrementales sean reproducibles entre máquinas. Nunca lo edites a mano.

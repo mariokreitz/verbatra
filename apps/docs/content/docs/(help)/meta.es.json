@@ -1,0 +1,5 @@
+{
+  "title": "Ayuda",
+  "defaultOpen": true,
+  "pages": ["faq", "troubleshooting"]
+}

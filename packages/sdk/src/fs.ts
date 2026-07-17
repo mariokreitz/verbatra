@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { access, type FileHandle, open, rename, rm, writeFile } from "node:fs/promises";
+import { access, type FileHandle, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 /** Outcome of a bounded read: the content, or why it could not be read in bounds. */
@@ -33,6 +33,16 @@ export interface SdkFs {
   writeFile(path: string, data: string): Promise<void>;
   /** Write raw bytes atomically (temp file, then rename over the target). Used for the workbook. */
   writeBytes(path: string, data: Uint8Array): Promise<void>;
+  /**
+   * Atomically create a file only if it does not already exist (O_EXCL semantics), creating any
+   * missing parent directory first. Returns true if this call created the file, false if a file
+   * was already present (no write performed). The backbone of {@link withLocaleWriteLock}'s
+   * exclusive-create lock: the parent-directory creation lives here so that primitive never touches
+   * `node:fs` directly and a fake `SdkFs` in tests never needs a real directory to exist.
+   */
+  createExclusive(path: string, data: string): Promise<boolean>;
+  /** Delete a file if present; a no-op if it is already absent. */
+  deleteFile(path: string): Promise<void>;
 }
 
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
@@ -53,7 +63,6 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   try {
     handle = await open(path, "r");
   } catch {
-    // Missing or unreadable: treated as first-run.
     return { kind: "missing" };
   }
   try {
@@ -70,8 +79,11 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   }
 }
 
+/**
+ * Read `size` bytes from the handle into a non-pooled buffer, so the returned view owns its memory
+ * and is never aliased by a later allocation.
+ */
 async function readBoundedBytesInto(handle: FileHandle, size: number): Promise<Uint8Array> {
-  // A non-pooled buffer so the returned view owns its memory and is never aliased by a later allocation.
   const buffer = Buffer.allocUnsafeSlow(size);
   let offset = 0;
   while (offset < size) {
@@ -128,6 +140,25 @@ async function atomicWrite(path: string, data: string | Uint8Array): Promise<voi
   }
 }
 
+async function createExclusive(path: string, data: string): Promise<boolean> {
+  await mkdir(dirname(path), { recursive: true });
+  let handle: FileHandle;
+  try {
+    handle = await open(path, "wx");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      return false;
+    }
+    throw error;
+  }
+  try {
+    await handle.writeFile(data, "utf8");
+  } finally {
+    await handle.close();
+  }
+  return true;
+}
+
 /** The production file system, backed by node:fs/promises. */
 export const defaultFs: SdkFs = {
   async fileExists(path: string): Promise<boolean> {
@@ -144,4 +175,8 @@ export const defaultFs: SdkFs = {
     readBoundedBytes(path, maxBytes),
   writeFile: (path: string, data: string): Promise<void> => atomicWrite(path, data),
   writeBytes: (path: string, data: Uint8Array): Promise<void> => atomicWrite(path, data),
+  createExclusive: (path: string, data: string): Promise<boolean> => createExclusive(path, data),
+  deleteFile: async (path: string): Promise<void> => {
+    await rm(path, { force: true });
+  },
 };

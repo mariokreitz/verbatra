@@ -1,8 +1,11 @@
-// The brace-excluding inner class keeps matching linear (no backtracking) on adversarial input.
+/** Double-brace interpolation tokens. The brace-excluding inner class keeps matching linear (no backtracking) on adversarial input. */
 const DOUBLE_BRACE_PATTERN = /\{\{[^{}]*\}\}/g;
 
-// Adds i18next $t() nesting references. The parenthesis-excluding inner class keeps matching
-// linear, so nested parentheses inside options are unsupported and only the "$t(" prefix is matched.
+/**
+ * Double-brace tokens plus i18next `$t()` nesting references. The parenthesis-excluding inner class
+ * keeps matching linear, so nested parentheses inside options are unsupported and only the `$t(`
+ * prefix is matched.
+ */
 const I18NEXT_PATTERN = /\{\{[^{}]*\}\}|\$t\([^()]*\)/g;
 
 function scanTokens(value: string, pattern: RegExp): readonly string[] {

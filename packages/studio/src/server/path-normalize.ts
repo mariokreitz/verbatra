@@ -1,10 +1,9 @@
 import { sep } from "node:path";
 
 /**
- * Strips a trailing path separator so a root is comparable both as a directory prefix and as an
- * exact match. Callers may pass a root derived from a URL (for example via `fileURLToPath` on a
- * `file://.../` directory URL), which keeps its trailing slash. Shared by the static-asset
- * containment check and the git-log history view's containment check.
+ * Strips one trailing path separator so a root path compares cleanly as a directory prefix. A
+ * bare separator is returned unchanged, never an empty string. Useful for roots derived via
+ * `fileURLToPath` from a directory URL, which keep their trailing slash.
  */
 export function withoutTrailingSep(path: string): string {
   return path.length > sep.length && path.endsWith(sep) ? path.slice(0, -sep.length) : path;

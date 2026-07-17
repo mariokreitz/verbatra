@@ -1,0 +1,123 @@
+---
+title: Human translation
+description: Export untranslated strings to an Excel workbook, hand it to a translator, and import the result back with the same safety checks as an automated run.
+---
+Not every string belongs to a provider. Marketing copy, legal text, and the languages that matter most often want a human translator. verbatra handles this with a workbook round-trip: **export** the strings that need translating into a styled Excel file, hand it off, then **import** the filled file back into your locale files.
+
+The same diff drives both directions. Export picks exactly the keys an automated run would translate (the new and changed ones), and import runs the same placeholder and ICU checks as `translate`, so a hand-typed value that breaks a placeholder is withheld and reported instead of written.
+
+## The round-trip
+
+```bash
+# 1. Export the strings that need translating
+verbatra export
+
+# 2. A translator fills the Translation column and sends the file back
+
+# 3. Import the filled workbook
+verbatra import verbatra-translations.xlsx
+```
+
+By default, export writes `verbatra-translations.xlsx` in the working directory. Import reads it back, validates every filled row, writes the values that pass into your locale files, and advances [the lock file](/docs/the-lock-file) baseline for exactly the keys it accepted, the same way a `translate` run would.
+
+## What lands in the workbook
+
+The file opens with one **Instructions** sheet, then one data sheet per target locale, named for its locale (`de`, `fr`, ...). Because the locale round-trips through the sheet name, a locale that cannot be an Excel worksheet name is rejected before the workbook is built: longer than 31 characters, containing any of `: \ / ? * [ ]`, equal to `Instructions` in any case, or case-insensitively equal to another target locale.
+
+Every data sheet shares the same columns, in this order:
+
+| Column | Editable | Purpose |
+| --- | --- | --- |
+| `Key` | no | The dotted key path. The sole identity that maps a row back to a string. |
+| `Source` | no | The source-locale value, for reference. |
+| `Current translation` | no | The existing target value, if any. |
+| `Status` | no | `new` (no translation yet), `changed` (the source changed since last translated), or `unchanged` (already up to date, included only with `--include-unchanged`). |
+| `Translation` | **yes** | The only cell the translator fills. |
+| `Source hash` | no | Hidden. The source content hash captured at export, used to detect a source that changed after export. |
+| `Context` | no | Developer context, when the source format carries any (Flutter ARB's `@key.description`, XLIFF's `<note>`). Reference only, never imported. |
+| `Review status` | no | `ok` or `review`: whether verbatra's review heuristics flagged the current translation for a second look. Advisory, never a gate. |
+| `Review reasons` | no | Comma-separated reason labels explaining a `review` status (for example `length-ratio-outlier, equals-source`). |
+
+Rows are sorted by key, the header row is frozen, the `Source hash` column is hidden, and every column except `Translation` is locked behind sheet protection with a shaded background. The `Translation` column uses Excel's text format, so a value like `007` or one starting with `=` stays literal text instead of being coerced into a number or formula.
+
+## Handing off
+
+What a translator needs to know fits in three lines (and is repeated on the workbook's own Instructions sheet):
+
+- Fill the `Translation` column, nothing else. The sheet protection enforces this.
+- Sorting and filtering rows is fine: import maps rows by `Key`, never by position. Columns must stay where they are; import reads them by position and verifies the `Key` and `Source hash` headers.
+- An empty `Translation` cell means "not translated yet". Import skips it and never writes an empty string, so a half-filled workbook can come back now and the rest later.
+
+## What import accepts
+
+Import is not a blind paste. Every filled row is judged against the live project before anything is written:
+
+- **Source drift**: the hidden `Source hash` is compared to the current source. If the source string changed after export, the row is withheld, so you never overwrite a current source with a translation of an old one.
+- **Placeholder integrity**: the translation must carry exactly the same placeholders as its source. Drop `{name}` or invent `{total}` and the row is withheld.
+- **ICU validity**: an ICU message must stay structurally valid with the same argument names; only the human-readable text may change.
+- **Unknown keys**: a filled row whose key exists in neither the current source nor the current target file (say, one typed in by hand) fails that locale's whole sheet, since the round trip is broken. A filled row whose key exists only in the target (an orphaned key) is silently left unwritten.
+- **Context is never a translation source**: import ignores the `Context` column entirely, and a workbook exported before that column existed still imports normally.
+
+Withheld rows are reported in the run summary under the locale they belong to; accepted rows are written and their lock baseline advances. A withheld or blank row keeps its prior baseline, so the key keeps re-exporting until it is genuinely resolved. A blank row whose source drifted since export is additionally called out with a `BLANK_ROW_BASELINE_RETAINED` notice, so the drift stays visible.
+
+Each data sheet is one locale in the summary: a sheet failure (an invented key, a sheet for a locale not in your config) fails that locale and leaves the others untouched. Import shares the `translate` exit-code contract: `0` when every sheet succeeds, `1` when one fails, `2` when the run could not start. A manual handoff therefore drops into the same [CI checks](/docs/ci-and-exit-codes) as an automated run.
+
+### Dry-run first
+
+Validate a returned workbook and preview what would be written without touching a single file:
+
+```bash
+verbatra import verbatra-translations.xlsx --dry-run
+```
+
+## Selecting what to export
+
+By default, export includes only the missing and changed strings, the work that actually needs doing:
+
+```bash
+# Only the German and French sheets
+verbatra export --locales de,fr
+
+# Also include strings that are already up to date
+verbatra export --include-unchanged
+
+# Write to a specific path
+verbatra export --out handoff/round-2.xlsx
+```
+
+Reach for `--include-unchanged` when a translator wants the full context of a locale, not just the delta. See [`verbatra export`](/docs/cli/export) for every flag.
+
+## The review columns
+
+`Review status` and `Review reasons` are a non-gating layer on top of the checks above: verbatra's heuristics for spotting a translation that is structurally fine but worth a second look. They never withhold a row and import never reads them; the only way to clear a flag is to fix the translation. Both columns are computed fresh at export time from the source and current target values:
+
+- `length-ratio-outlier`: the translation is far shorter or longer than its source.
+- `equals-source`: the translation is identical to the source.
+- `glossary-term-missed`: a configured glossary term did not make it into the translation.
+- `integrity-reordered`: the placeholders match but landed in a different order than the source.
+
+A fifth reason, `provider-degraded`, exists only at translate time (a DeepL degradation notice on the batch a key came from); since export never calls a provider, it never appears on an exported row. A row with no translation yet always exports `ok`; there is nothing to review. See [Translation safety](/docs/translation-safety) for how these flags relate to the hard placeholder and ICU checks.
+
+## From the SDK
+
+The CLI commands wrap two SDK functions, `exportWorkbook` and `importWorkbook`:
+
+```ts
+import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Write a workbook of the strings that need translating
+await exportWorkbook({ config });
+
+// ...later, import the filled file back
+const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
+```
+
+Both take the validated config from [`loadConfig`](/docs/sdk), and `importWorkbook` returns the same `RunSummary` as `translate`. The workbook itself is built and parsed by `@verbatra/exchange`, an internal package you reach only through these two functions.
+
+## Next
+
+- [`verbatra export`](/docs/cli/export): every export flag and the report it prints.
+- [`verbatra import`](/docs/cli/import): every import flag, the run summary, and exit codes.
+- [Translation safety](/docs/translation-safety): the placeholder and ICU checks that guard every write, manual or automated.

@@ -125,9 +125,9 @@ interface NestedGitProject {
 /**
  * A real git repository rooted one directory above a nested "project root": the repository's
  * `.git` lives at `repoRoot`, while the verbatra project (and the locale files under it) lives at
- * `repoRoot/project`. Exercises the exact layout AC 2 requires: `git log` must resolve absolute
- * pathspecs correctly when invoked with `cwd` set to a subdirectory of the repository, not its
- * root. The git identity is set locally to this repository only, never touching global git config,
+ * `repoRoot/project`. Exercises the layout where `git log` must resolve absolute pathspecs
+ * correctly when invoked with `cwd` set to a subdirectory of the repository, not its root.
+ * The git identity is set locally to this repository only, never touching global git config,
  * so the fixture works in a sandbox with no configured git user.
  */
 async function makeNestedGitProject(): Promise<NestedGitProject> {

@@ -5,22 +5,23 @@ import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
   lockFilePath,
   readLockFile,
-  updateLockLocale,
-  writeLockFile,
+  updateLockFileLocale,
 } from "../../lock/lock-file.js";
 import type { LockFile } from "../../lock/types.js";
 import { localeFilePath } from "../../paths.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
+import { readTarget } from "../diff-locales.js";
 import { failureSummary, partition } from "../locale-failure.js";
 import { readSource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
 import { type ImportLocaleResult, importLocale } from "./import-locale.js";
 
-// On-disk cap enforced before the untrusted workbook bytes reach @verbatra/exchange.
+/** On-disk size cap enforced before the untrusted workbook bytes reach `@verbatra/exchange`. */
 const MAX_WORKBOOK_FILE_BYTES = 64 * 1024 * 1024;
 
 /** Input for {@link importWorkbook}: the validated config, the workbook path, and run options. */
@@ -53,21 +54,6 @@ async function readWorkbookBytes(path: string, fs: SdkFs): Promise<Uint8Array> {
     );
   }
   return read.bytes;
-}
-
-/** Read a locale's existing target resource, or an empty resource when the file does not exist. */
-async function readTarget(
-  cwd: string,
-  config: VerbatraConfig,
-  adapter: FormatAdapter,
-  fs: SdkFs,
-  locale: string,
-): Promise<LocaleResource> {
-  const path = localeFilePath(cwd, config.files.pattern, locale);
-  if (!(await fs.fileExists(path))) {
-    return { locale, namespace: "", format: config.format, entries: new Map() };
-  }
-  return (await adapter.read(path, locale)).resource;
 }
 
 function mergeAccepted(
@@ -120,6 +106,12 @@ interface SheetContext {
   readonly dryRun: boolean;
 }
 
+/**
+ * Run one data sheet: judge its rows with {@link importLocale}, and on a non-dry-run write the merged
+ * target file when anything was accepted. The file write is skipped when nothing was accepted, but the
+ * lock entries are still recomputed so the locale's existing baseline is never wiped just because this
+ * run wrote nothing. Throws `CONFIG_INVALID` for a sheet whose locale is not a configured target.
+ */
 async function runSheet(
   ctx: SheetContext,
   sheet: WorkbookSheet,
@@ -147,8 +139,6 @@ async function runSheet(
   }
 
   const merged = mergeAccepted(target, accepted);
-  // Skip the file write when nothing was accepted, but still recompute the lock so the locale's
-  // existing baseline is never wiped just because this run wrote nothing.
   if (accepted.size > 0) {
     const path = localeFilePath(ctx.cwd, ctx.config.files.pattern, sheet.locale);
     await ctx.adapter.write(
@@ -174,7 +164,11 @@ async function runSheet(
  * structured {@link SdkError}. A per-sheet failure (a locale not in config, a broken-round-trip key,
  * a write failure) is isolated as that locale's `status: "failed"`, not a throw; per-row rejections
  * are withheld and reported on the locale. Dry-run validates and reports without writing any locale or
- * lock file.
+ * lock file, and skips lock acquisition (there is nothing to protect).
+ *
+ * The lock-file is read once, up front, for every sheet's diff baseline. On a non-dry-run, each
+ * sheet's write-and-lock-update step then holds that locale's `withLocaleWriteLock` for its whole
+ * critical section, so a concurrent writer touching the same locale can never interleave with it.
  *
  * @param input - The validated config, the workbook path, and run options.
  * @param deps - Optional composition seams (registry, file system) for tests.
@@ -202,8 +196,7 @@ export async function importWorkbook(
     throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
   }
 
-  const lockPath = lockFilePath(cwd);
-  let lock = await readLockFile(lockPath, fs);
+  const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const ctx: SheetContext = {
     config,
@@ -218,10 +211,18 @@ export async function importWorkbook(
   const summaries: LocaleSummary[] = [];
   for (const sheet of data.sheets) {
     try {
-      const { summary, lockEntries } = await runSheet(ctx, sheet, lock);
-      if (!dryRun) {
-        lock = updateLockLocale(lock, sheet.locale, lockEntries);
-        await writeLockFile(lockPath, lock, fs);
+      let summary: LocaleSummary;
+      if (dryRun) {
+        summary = (await runSheet(ctx, sheet, lock)).summary;
+      } else {
+        summary = await withLocaleWriteLock(cwd, sheet.locale, fs, async () => {
+          const result = await runSheet(ctx, sheet, lock);
+          await updateLockFileLocale(cwd, fs, sheet.locale, {
+            mode: "replace",
+            entries: result.lockEntries,
+          });
+          return result.summary;
+        });
       }
       summaries.push(summary);
     } catch (error) {

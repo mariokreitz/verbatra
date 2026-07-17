@@ -1,0 +1,71 @@
+---
+title: Die Lock-Datei
+description: Was verbatra.lock.json festhält, wie Drift erkannt wird, wie parallele Läufe serialisiert werden und warum du die Datei committest.
+---
+Die Lock-Datei, `verbatra.lock.json`, existiert, damit ein Lauf erkennen kann, was schon übersetzt
+wurde, und es überspringt. Diese Datei ist die Baseline, mit der jeder Lauf vergleicht, und sie
+macht verbatra inkrementell. Diese Seite behandelt, was sie speichert, wie sie sich ändert und was
+passiert, wenn sie umkämpft, fehlend oder beschädigt ist.
+
+## Was sie festhält
+
+Für jede Ziel-Locale speichert die Lock-Datei einen Content-Hash pro übersetztem Key, berechnet
+aus dem Quellwert, aus dem die bestehende Übersetzung entstanden ist. Die Datei enthält keine
+Übersetzungen und keine Geheimnisse: nur ein `version`-Feld und Hashes. Der Hash normalisiert
+Unicode zu NFC und Zeilenenden zu LF, sodass das erneute Speichern einer Quelldatei mit anderer
+Normalisierung oder mit CRLF-Enden nichts als geändert markiert.
+
+## Wie Drift erkannt wird
+
+Wenn ein Lauf eine Ziel-Locale vergleicht, gilt ein Quell-Key, der im Ziel nicht vorkommt, als
+fehlend. Für einen Key, den das Ziel hat, wird der aktuelle Quell-Hash mit dem Hash verglichen,
+den die Lock-Datei aufgezeichnet hat: Ein Unterschied bedeutet, dass die Quelle seit der letzten
+Übersetzung des Keys gedriftet ist, er gilt also als geändert und wird neu übersetzt; eine
+Übereinstimmung bedeutet, dass er unverändert ist und nie an den Provider geht. Deshalb ruft ein
+zweiter Lauf ohne Quelländerungen den Provider für nichts auf, und deshalb können sich veraltete
+Übersetzungen nicht hinter einem Key verstecken, der bloß existiert. Die vollständige Pipeline
+steht auf [Wie es funktioniert](/docs/how-it-works).
+
+## Wie sie aktualisiert wird
+
+Die Lock-Datei wird pro Locale aktualisiert, und wie, hängt davon ab, was gelaufen ist:
+
+- Ein vollständiger Lauf (translate, watch oder ein Arbeitsmappen-Import) ersetzt die Einträge
+  dieser Locale im Ganzen durch das maßgebliche Ergebnis des Laufs.
+- Eine Einzel-Key-Aktion (etwa ein Retranslate aus Studio) mergt nur den Eintrag dieses Keys und
+  lässt jeden anderen aufgezeichneten Key unangetastet.
+
+In beiden Fällen gilt eine Ausnahme: Ein in diesem Lauf zurückgehaltener Key (eine fehlgeschlagene
+Integritätsprüfung, ein fehlgeschlagener Provider-Aufruf oder eine Quelle mit ungültigem ICU)
+behält seinen vorherigen Hash, damit der nächste Lauf ihn weiterhin als arbeitsbedürftig sieht und
+erneut versucht, statt ihn als erledigt zu verbuchen. Verwaiste Keys bekommen keinen Eintrag. Die
+Datei wird mit sortierten Keys serialisiert, damit ihre Diffs stabil und gut zu reviewen bleiben.
+
+## Die Schreibsperre
+
+Zwei Läufe, die gleichzeitig dieselbe Locale anfassen (ein zweites Terminal, ein CI-Job, eine
+Studio-Aktion), könnten sonst beide mit einer veralteten Baseline vergleichen und beide denselben
+Provider-Aufruf bezahlen. Um das zu verhindern, passiert jeder Schreibvorgang an einer Locale und
+ihren Lock-Einträgen unter einer prozessübergreifenden Schreibsperre für genau diese eine Locale;
+ein zweiter Schreiber für dieselbe Locale wartet, liest die Lock-Datei dann frisch neu ein und
+vergleicht mit einer Baseline, die das Ergebnis des ersten Schreibers schon enthält. Verschiedene
+Locales blockieren einander nicht.
+
+Kann eine Sperre nicht erworben werden, schlägt der Lauf mit `LOCK_CONTENDED` fehl und nennt den
+Pfad der Sperrdatei (im gitignorierten Verzeichnis `.verbatra-local/`). Läuft gerade kein
+verbatra-Prozess, wurde diese Datei von einem abgeschossenen Prozess zurückgelassen: Lösche sie
+und versuche es erneut.
+
+## Fehlend oder beschädigt
+
+Eine fehlende Lock-Datei ist kein Fehler: Das zählt als erster Lauf, bei dem jeder Quell-Key
+fehlend ist. Eine Lock-Datei, die vorhanden, aber nicht parsebar, strukturell falsch, zu groß oder
+auf einer nicht unterstützten Version ist, lässt den Lauf mit `LOCK_FILE_INVALID` fehlschlagen,
+statt still überschrieben zu werden, damit du sie untersuchen oder wiederherstellen kannst, statt
+die Baseline zu verlieren.
+
+## Committe sie
+
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Diese Datei ist die gemeinsame
+Baseline, mit der deine Teamkollegen und deine CI vergleichen; sie in der Versionskontrolle zu
+halten macht inkrementelle Läufe über Maschinen hinweg reproduzierbar. Bearbeite sie nie von Hand.

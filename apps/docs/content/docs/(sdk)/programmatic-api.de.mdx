@@ -1,12 +1,22 @@
 ---
 title: SDK-Rezepte
-description: Copy-paste-Rezepte, um verbatra aus deinen eigenen Skripten, Build-Schritten und CI-Jobs auszuführen.
+description: Vollständige, lauffähige Muster, um verbatra aus deinen eigenen Skripten, CI-Jobs und Tools anzusteuern.
 ---
-Die [SDK-Referenz](/docs/sdk) deckt jede Funktion und jeden Typ ab. Diese Seite ist der praktische Begleiter: eine Handvoll End-to-End-Muster, um verbatra in Code einzubinden. Greif zum SDK, wenn du Übersetzung in einem Skript, einem Build-Schritt oder einem CI-Job möchtest, mit voller Kontrolle über alles drumherum.
+Die [SDK-Referenz](/docs/sdk) katalogisiert jeden Einstiegspunkt. Diese Seite ist der praktische
+Begleiter: End-to-End-Rezepte, die du in ein Skript kopieren und ausführen kannst. Eine Sache
+vorab: das SDK lädt keine `.env`-Dateien (das macht die CLI), stelle also sicher, dass die
+Umgebungsvariable des Providers gesetzt ist, bevor dein Skript läuft, zum Beispiel:
 
-## In einem Skript übersetzen
+```bash
+node --env-file=.env translate.mjs
+```
 
-Lade die Konfiguration, führe eine Übersetzung aus, gib die Schlagzeile aus. Gesamtlauf-Probleme werfen einen `SdkError`; Ergebnisse pro Locale sind Daten in der Zusammenfassung.
+## Einmal übersetzen in einem Skript
+
+Lade die Konfiguration, führe den Flow aus, dann lies die Zusammenfassung: die Schlagzeile aus
+`succeeded` und `failed`, den Token-Verbrauch aus `usage` und die Keys, die einen menschlichen
+Blick verdienen, aus dem `needsReview` jedes Locales. Probleme des gesamten Laufs werfen einen
+`SdkError`; Ergebnisse pro Locale sind Daten auf der Zusammenfassung.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -14,21 +24,19 @@ import { loadConfig, translate } from "@verbatra/sdk";
 const config = await loadConfig();
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
-```
+console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
 
-## Einen Build- oder CI-Schritt am Ergebnis ausrichten
-
-Die Zusammenfassung sagt dir, was sich geändert hat und was fehlgeschlagen ist, kein Ausgabe-Parsen nötig. Lass den Schritt fehlschlagen, wenn eine Locale fehlgeschlagen ist, und sieh dir das Detail pro Locale genauer an, um zu protokollieren, warum.
-
-```ts
-import { loadConfig, translate } from "@verbatra/sdk";
-
-const summary = await translate({ config: await loadConfig() });
+if (summary.usage !== undefined) {
+  console.log(`tokens: ${summary.usage.inputTokens} in, ${summary.usage.outputTokens} out`);
+}
 
 for (const locale of summary.locales) {
   if (locale.status === "failed") {
     console.error(`${locale.locale}: ${locale.error?.code} ${locale.error?.message}`);
+    continue;
+  }
+  for (const entry of locale.needsReview) {
+    console.warn(`review ${locale.locale}/${entry.key}: ${entry.reasons.join(", ")}`);
   }
 }
 
@@ -37,9 +45,15 @@ if (summary.failed.length > 0) {
 }
 ```
 
-## Prüfen ohne zu schreiben
+Übergib `dryRun: true`, um ohne Provider-Aufruf und ohne Schreiben eine Vorschau zu bekommen, und
+`prune: true` oder `generatePlurals: true`, um diese Konfigurationsoptionen für einen Lauf zu
+übersteuern.
 
-`check` liest und vergleicht, ohne einen Provider aufzurufen oder Dateien zu schreiben, und meldet die Abweichung pro Locale, aufgeteilt in fehlende, veraltete und aktuelle Anzahlen. Sein `inSync`-Flag ist genau dann true, wenn nichts fehlend oder veraltet ist, was es zu deinem natürlichen CI-Gate macht.
+## In CI prüfen, ohne zu schreiben
+
+`check` liest und vergleicht, ohne einen Provider aufzurufen oder irgendeine Datei anzufassen, und
+sein `inSync`-Flag ist genau dann true, wenn nichts fehlt und nichts veraltet ist. Das macht es
+zum natürlichen CI-Gate.
 
 ```ts
 import { check, loadConfig } from "@verbatra/sdk";
@@ -47,73 +61,126 @@ import { check, loadConfig } from "@verbatra/sdk";
 const summary = await check({ config: await loadConfig() });
 
 if (!summary.inSync) {
-  const drifted = summary.locales.filter((locale) => !locale.inSync).map((locale) => locale.locale);
-  console.error(`Out of sync: ${drifted.join(", ")}. Run verbatra translate.`);
-  process.exitCode = 1;
-}
-```
-
-Willst du die vollständige Lauf-Zusammenfassung (die Keys, die übersetzt würden) statt nur der Abweichungs-Anzahlen? Nutze `translate({ dryRun: true })`.
-
-`diff` ist das schreibgeschützte Geschwister von `check`: dieselbe Berechnung, aber es gibt die tatsächlichen Key-Listen (`missing`, `changed`, `orphaned`) pro Locale statt Anzahlen zurück, mit demselben `hasPendingChanges`-Gate. Greif dazu, wenn du wissen musst, welche Keys, nicht nur wie viele.
-
-```ts
-import { diff, loadConfig } from "@verbatra/sdk";
-
-const summary = await diff({ config: await loadConfig() });
-
-if (summary.hasPendingChanges) {
   for (const locale of summary.locales) {
-    if (locale.hasPendingChanges) {
-      console.log(`${locale.locale}: add ${locale.missing.join(", ")}; re-translate ${locale.changed.join(", ")}`);
+    if (!locale.inSync) {
+      console.error(`${locale.locale}: ${locale.missing} missing, ${locale.stale} stale`);
     }
   }
   process.exitCode = 1;
 }
 ```
 
-## Strings an einen menschlichen Übersetzer übergeben
+Du brauchst die Key-Namen statt Zähler? Tausche `diff` ein, das die Key-Listen `missing`,
+`changed` und `orphaned` pro Locale zurückgibt, mit demselben `hasPendingChanges`-Gate. Du führst
+stattdessen die CLI in CI aus? Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes).
 
-Exportiere die Strings, die übersetzt werden müssen, in eine Excel-Arbeitsmappe, dann importiere die ausgefüllte Datei zurück. `importWorkbook` gibt dieselbe `RunSummary` zurück wie `translate` und führt dieselben Platzhalter- und ICU-Prüfungen aus, sodass eine manuelle Übergabe genau in das Reporting und Gating passt, das du für einen automatisierten Lauf nutzt. Siehe [Menschliche Übersetzung](/docs/manual-translation).
+## Beobachten in einem langlaufenden Prozess
+
+`watch` feuert beim Start sofort einen Lauf, danach einen pro entprellter Quelländerung, und
+meldet jeden über `onRun`. Für ein sauberes Herunterfahren warte auf `controller.stop()`: es
+schließt den Watcher und wartet auf den laufenden Lauf, bevor dein Prozess endet.
+
+```ts
+import { loadConfig, watch } from "@verbatra/sdk";
+
+const config = await loadConfig();
+const controller = await watch({
+  config,
+  onRun: (result) => {
+    if (result.status === "succeeded") {
+      console.log(`ran: ${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
+    } else {
+      console.error(`run failed: ${result.error.code} ${result.error.message}`);
+    }
+  },
+});
+
+process.on("SIGINT", () => {
+  void controller.stop().then(() => {
+    process.exit(0);
+  });
+});
+```
+
+Ein Lauf-Fehlschlag nach dem Start wirft nie; er kommt als `{ status: "failed" }` an, und das
+Beobachten geht weiter.
+
+## Einen einzelnen Key bearbeiten und neu übersetzen
+
+Das sind die Nahtstellen, die Verbatra Studio antreibt; nutze sie, um deinen eigenen Review-Flow
+zu bauen. Lies die aktuellen Werte mit `keyValue`, speichere eine menschliche Korrektur mit
+`editEntry` oder lass den Provider für einen Key mit `retranslateEntry` neu laufen. Beide
+Schreiber schicken den Kandidatenwert durch dieselben Platzhalter- und ICU-Prüfungen wie ein
+voller Lauf und geben ein zweiarmiges Ergebnis zurück, statt bei einem abgelehnten Wert zu werfen.
+
+```ts
+import { editEntry, keyValue, loadConfig, retranslateEntry } from "@verbatra/sdk";
+
+const config = await loadConfig();
+
+// Read the live values feeding your edit UI.
+const current = await keyValue({ config, locale: "de", key: "checkout.title" });
+console.log(`source: ${current.source}, target: ${current.target ?? "(not yet translated)"}`);
+
+// Save a human-typed correction. No provider call.
+const edit = await editEntry({
+  config,
+  locale: "de",
+  key: "checkout.title",
+  value: "Zur Kasse",
+});
+if (!edit.accepted) {
+  console.error(`rejected (${edit.reason} check failed), nothing written`);
+}
+
+// Or ask the provider for a fresh translation of just this key.
+const retry = await retranslateEntry({ config, locale: "de", key: "checkout.title" });
+if (retry.accepted) {
+  console.log(`wrote: ${retry.value}`);
+  if (retry.reviewReasons.length > 0) {
+    console.warn(`flagged for review: ${retry.reviewReasons.join(", ")}`);
+  }
+}
+```
+
+Ein unbekanntes Locale oder ein unbekannter Key wirft `UNKNOWN_LOCALE` oder `UNKNOWN_KEY`, und
+`retranslateEntry` wirft den eigenen `ProviderError` des Providers (zum Beispiel `RATE_LIMITED`),
+wenn der Aufruf selbst fehlschlägt. Dieselben Nahtstellen hinter einer Oberfläche zeigt
+[Review in Studio](/docs/review-in-studio).
+
+## Der Arbeitsmappen-Roundtrip
+
+Exportiere die zu übersetzenden Strings in eine Excel-Arbeitsmappe, gib sie an eine Übersetzerin,
+dann importiere die ausgefüllte Datei zurück. `importWorkbook` führt dieselben Drift-,
+Platzhalter- und ICU-Prüfungen aus wie `translate` und gibt dieselbe `RunSummary`-Form zurück; eine
+manuelle Übergabe fügt sich also in exakt das Reporting ein, das du für einen automatischen Lauf
+nutzt.
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
 
 const config = await loadConfig();
 
-// Write a workbook of the strings that need translating.
+// Write a workbook of the missing and changed strings.
 const exported = await exportWorkbook({ config });
-console.log(`Wrote ${exported.path}`);
+for (const sheet of exported.locales) {
+  console.log(`${sheet.locale}: ${sheet.rows} rows`);
+}
+console.log(`wrote ${exported.path}`);
 
-// ...later, after a translator fills and returns the file, import it back.
+// ...later, after the translator returns the file, import it back.
 const summary = await importWorkbook({ config, workbook: exported.path });
-console.log(`${summary.succeeded.length} ok, ${summary.failed.length} failed`);
+console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
 ```
 
-## Neu übersetzen, während sich die Quelle ändert
-
-`watch` feuert dein `onRun` einmal pro entprellter Änderung und gibt einen Controller zurück, den du sauber stoppst.
-
-```ts
-import { loadConfig, watch } from "@verbatra/sdk";
-
-const controller = await watch({
-  config: await loadConfig(),
-  onRun: (result) => {
-    if (result.status === "failed") {
-      console.error(`run failed: ${result.error.code}`);
-    }
-  },
-});
-
-process.on("SIGINT", () => {
-  void controller.stop();
-});
-```
+Übergib `dryRun: true` an `importWorkbook`, um eine zurückgekommene Datei zu validieren, ohne
+etwas zu schreiben. Was Übersetzerinnen bearbeiten dürfen und wie Zeilen validiert werden, steht
+in [Menschliche Übersetzung](/docs/manual-translation).
 
 ## Eine Konfiguration ohne Datei
 
-`loadConfig` nimmt ein In-Memory-`configOverride`, sodass du verbatra vollständig aus dem Code steuern kannst, ganz ohne `verbatra.config.ts` auf der Festplatte.
+`loadConfig` akzeptiert ein `configOverride` im Speicher, validiert genau wie eine geladene Datei;
+du kannst verbatra also komplett aus Code heraus fahren, ohne Konfigurationsdatei auf der Platte.
 
 ```ts
 import { loadConfig, translate } from "@verbatra/sdk";
@@ -124,11 +191,12 @@ const config = await loadConfig({
     targetLocales: ["de", "fr"],
     format: "i18next-json",
     files: { pattern: "locales/{locale}.json" },
-    provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } },
+    provider: { id: "gemini", options: { model: "gemini-2.5-flash", maxOutputTokens: 4096 } },
   },
 });
 
 await translate({ config });
 ```
 
-Für die vollständige Liste der Funktionen, die `RunSummary`- und `LocaleSummary`-Strukturen und jeden `SdkError`-Code siehe die [SDK-Referenz](/docs/sdk). Führst du stattdessen die CLI in CI aus? Siehe den Exit-Code-Vertrag in [CI und Exit-Codes](/docs/ci-and-exit-codes).
+Jede Eingabeform, die vollständige `RunSummary`-Anatomie und die `SdkError`-Code-Tabelle stehen in
+der [SDK-Referenz](/docs/sdk).

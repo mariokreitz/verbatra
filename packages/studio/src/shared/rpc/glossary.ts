@@ -6,6 +6,7 @@ export const GLOSSARY_GET_METHOD = "glossary.get";
 /** Takes no parameters: the glossary always reflects the single loaded project. */
 export const glossaryGetParamsSchema = z.strictObject({});
 
+/** Parsed `glossary.get` params. */
 export type GlossaryGetParams = z.infer<typeof glossaryGetParamsSchema>;
 
 /**

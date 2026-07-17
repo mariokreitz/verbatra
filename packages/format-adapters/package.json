@@ -40,8 +40,7 @@
     "@formatjs/icu-messageformat-parser": "catalog:bundled",
     "@verbatra/core": "workspace:*",
     "@xmldom/xmldom": "catalog:bundled",
-    "yaml": "catalog:bundled",
-    "zod": "catalog:"
+    "yaml": "catalog:bundled"
   },
   "devDependencies": {
     "@types/node": "catalog:",

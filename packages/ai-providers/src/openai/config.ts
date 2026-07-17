@@ -9,4 +9,5 @@ export const openAiConfigSchema = z.object({
   maxOutputTokens: z.number().int().positive(),
 });
 
+/** The validated OpenAI provider configuration, inferred from {@link openAiConfigSchema}. */
 export type OpenAiConfig = z.infer<typeof openAiConfigSchema>;

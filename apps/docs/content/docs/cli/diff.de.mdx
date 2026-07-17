@@ -1,0 +1,46 @@
+---
+title: verbatra diff
+description: Zeige die Keys, die pro Locale hinzugefügt oder neu übersetzt würden oder verwaist sind, ohne Dateien zu schreiben.
+---
+Liste pro Ziel-Locale die genauen ausstehenden Keys: die, die ein Lauf hinzufügen würde (im Ziel fehlend), die, die er neu übersetzen würde (Quelle seit der letzten Übersetzung geändert), und die inzwischen verwaisten (im Ziel, aber aus der Quelle verschwunden). `diff` führt dasselbe Lesen und Diffen aus, das [`verbatra translate`](/docs/cli/translate) direkt vor dem Provider-Aufruf ausführen würde, und hört dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, keine Aktualisierung der [Lock-Datei](/docs/the-lock-file) und kein API-Key nötig.
+
+## Synopsis
+
+```bash
+verbatra diff [flags]
+```
+
+## Flags
+
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die verglichen wird |
+| `--json` | keins | aus | die Diff-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben; Fehler gehen weiter auf stderr |
+
+Ein Locale hat ausstehende Änderungen, wenn es mindestens einen Key zum Hinzufügen oder Neuübersetzen hat. Verwaiste Keys werden gemeldet, zählen aber nie als ausstehend, weil ein Standardlauf sie nicht entfernt (das tut nur [`verbatra translate --prune`](/docs/cli/translate)). Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu vergleichen. Wo [`verbatra check`](/docs/cli/check) mit Zählern beantwortet, "wie viel gedriftet ist", beantwortet `diff` mit den Listen, "welche Keys".
+
+## Beispiele
+
+```bash
+# list the pending keys per locale (exit 1 if any are pending)
+verbatra diff
+
+# machine-readable key lists for tooling or a PR comment
+verbatra diff --json
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | keine ausstehenden Änderungen: kein Locale hat einen Key zum Hinzufügen oder Neuübersetzen |
+| `1` | ausstehende Änderungen: mindestens ein Locale hat einen fehlenden oder geänderten Key (verwaiste Keys allein erzeugen nie `1`) |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
+
+## Siehe auch
+
+- [`verbatra check`](/docs/cli/check) liefert die Zähler pro Locale hinter diesen Listen.
+- [`verbatra translate`](/docs/cli/translate) wendet die ausstehenden Änderungen an; `--prune` entfernt die verwaisten Keys.
+- [CI und Exit-Codes](/docs/ci-and-exit-codes) zeigt diff in einer Pipeline.

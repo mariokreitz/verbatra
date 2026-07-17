@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { entry } from "../testing/factories.js";
 import { contentHash } from "./content-hash.js";
 
-// The same grapheme in two byte-distinct normalization forms: precomposed NFC vs decomposed NFD.
 const NFC = "caf\u00e9";
 const NFD = "cafe\u0301";
 

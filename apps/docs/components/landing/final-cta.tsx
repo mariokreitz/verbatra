@@ -6,8 +6,6 @@ import { GithubIcon } from "./github-icon";
 import { GITHUB_URL } from "./links";
 import { SectionHead } from "./section-head";
 
-// Server shell: the heading, lead, and CTAs render on the server; only the decorative
-// Backdrop (grid/beams/sparkles) is a client leaf.
 export async function FinalCta(): Promise<ReactNode> {
   const t = await getTranslations("landing.finalClose");
   const tHero = await getTranslations("landing.hero");

@@ -1,15 +1,15 @@
 ---
 title: Add a language
-description: Add a new target locale to an existing verbatra setup with a one-line config change and a run.
+description: Add a new target locale to an existing verbatra project with a one-line config change and one translate run, while your existing locales stay untouched.
 ---
-Adding a language is a one-line config change plus a translation run. verbatra sees the new locale as missing everything, so the first run fills it completely, and every run after that stays incremental.
+Adding a language is a one-line config change plus a run. verbatra sees the new locale as missing everything and fills it completely; your existing locales cost nothing, because the lock file still has them on record as current.
 
 ## Add the locale to your config
 
-Add it to `targetLocales` in `verbatra.config.ts`. It just cannot be your `sourceLocale`:
+Add it to `targetLocales` in `verbatra.config.ts`:
 
 ```ts
-import { defineConfig } from "@verbatra/sdk";
+import { defineConfig } from "@verbatra/cli";
 
 export default defineConfig({
   sourceLocale: "en",
@@ -28,27 +28,33 @@ export default defineConfig({
 });
 ```
 
-## Translate
+Two rules, both enforced when the config loads: a target locale must not be the `sourceLocale`, and two entries must not collide case-insensitively (no `de` and `DE` in the same list).
 
-Run it:
+## Preview the work
+
+Before spending a token, see what a run would do. `diff` is read-only and lists the pending keys per locale:
+
+```bash
+verbatra diff
+```
+
+The new locale has no target file yet, so verbatra treats it as empty and every source key shows up as missing; your existing locales list nothing, assuming their source strings have not changed. `diff` exits `1` while changes are pending, `0` once there are none. `verbatra translate --dry-run` gives you the same preview shaped as a run summary, with no provider call and no writes.
+
+## Translate
 
 ```bash
 verbatra translate
 ```
 
-The new locale has no target file yet, so verbatra treats it as empty and translates every source key into it, writing the file from `files.pattern` (here `locales/fr.json`). Your existing locales stay untouched unless their source strings changed, because the lock file still has them on record as current.
+The run translates every source key into the new locale and writes the file at your `files.pattern` (here `locales/fr.json`). A large source is split into sub-batches of at most 50 keys per provider request (configurable with `maxBatchSize`), so one oversized request cannot sink the whole locale.
 
-Want to look before you leap? Preview the new locale's keys first:
-
-```bash
-verbatra translate --dry-run
-```
+This is the incremental behavior at work: only the new locale triggers provider calls. For each existing locale, verbatra diffs the source against that locale's baseline in `verbatra.lock.json`, finds no missing or changed keys, and sends nothing. Afterwards, `verbatra check` exits `0`: every locale, including the new one, is in sync.
 
 ## Languages with more plural categories
 
-Some languages need more CLDR plural categories than your source has. English has two (`one` and `other`); Polish, Arabic, and Russian have more. By default verbatra translates the plural forms it finds in the source and does not invent the extras: the run still succeeds and emits a per-locale plural-category warning (notice code `PLURAL_CATEGORIES_INCOMPLETE`) naming the locale and the missing categories.
+Some languages need more CLDR plural categories than your source has. English has two (`one` and `other`); Polish, Arabic, and Russian have more. By default verbatra translates the plural forms it finds in the source and does not invent the extras: the run still succeeds and emits a per-locale notice (code `PLURAL_CATEGORIES_INCOMPLETE`) naming the missing categories.
 
-To have verbatra synthesize the missing forms instead, set `generatePlurals: true` in your config (or pass a per-run `generatePlurals` override):
+To have verbatra synthesize the missing forms instead, set `generatePlurals: true` in your config:
 
 ```ts
 export default defineConfig({
@@ -57,7 +63,7 @@ export default defineConfig({
 });
 ```
 
-Generation is supported for i18next-JSON projects translated by an LLM provider only. DeepL, the other formats, and unknown target languages fall back to the warning and never fail. Generated forms are integrity-checked like any translation and reported separately from translated keys in the run summary.
+Generation is supported for i18next-JSON projects translated by an LLM provider only; DeepL, the other formats, and unknown target languages fall back to the notice and never fail the run. Generated forms are integrity-checked like any translation and reported separately from translated keys in the run summary.
 
 ## Maintaining the source locale
 
@@ -65,5 +71,6 @@ You only ever hand-maintain the source locale. To add strings, put them in the s
 
 ## Next
 
+- [The lock file](/docs/the-lock-file): why re-runs are cheap and what to commit.
 - [Configuration](/docs/config-file): the full config schema, including `glossary` and `tone`.
 - [Providers](/docs/providers): provider options and where to get a key.

@@ -3,9 +3,6 @@ import type { ReactNode } from "react";
 import { PackageInstall } from "@/components/landing/package-install";
 import { Terminal } from "@/components/landing/terminal";
 
-// The docs home reuses the marketing hero's terminal script: the real v1 commands with
-// outputs consistent with the documented RunSummary fields. CLI is verbatim English and is
-// never localized, so it lives in the component rather than in the localized MDX.
 const HERO_COMMANDS = [
   "verbatra init",
   "verbatra translate",
@@ -41,10 +38,6 @@ const HERO_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   ],
 };
 
-// A static, server-rendered backdrop for the docs home: a faint grid fading out at the edges
-// and a soft violet wash. No canvas, no perpetual animation, and no next/dynamic(ssr:false),
-// so it adds nothing to hydrate and never keeps a reading page busy. The landing keeps the
-// animated Backdrop; the docs home stays calm.
 function StaticBackdrop(): ReactNode {
   const fade = "radial-gradient(ellipse 75% 65% at 50% 0%, #000 35%, transparent 80%)";
   return (
@@ -72,11 +65,6 @@ function StaticBackdrop(): ReactNode {
   );
 }
 
-// Full-bleed docs-home hero. The home page renders with a full-width article (page.tsx passes
-// max-w-none / px-0 for the home), so this section fills the whole content area between the
-// sidebar and the viewport edge, then centers its own content. It mirrors the landing hero:
-// static backdrop, gradient headline, the tabbed install card, two CTAs, and the one-shot CLI
-// terminal. Localized copy arrives as props from the per-locale MDX.
 export function DocsHomeHero({
   eyebrow,
   headline,
@@ -152,7 +140,6 @@ export function DocsHomeHero({
           </Link>
         </div>
 
-        {/* The one-shot terminal, framed with a soft wash behind it, mirrors the landing. */}
         <div className="relative mx-auto mt-12 max-w-[44rem]">
           <div
             aria-hidden="true"
@@ -173,8 +160,6 @@ export function DocsHomeHero({
   );
 }
 
-// Wraps the below-hero home content in a centered, readable column. The home article runs full
-// width (for the hero), so everything after the hero lives inside this container instead.
 export function DocsHomeBody({ children }: { children: ReactNode }): ReactNode {
   return <div className="mx-auto w-full max-w-4xl px-6 pt-4 pb-16">{children}</div>;
 }
@@ -187,8 +172,6 @@ type PathCard = {
   primary?: boolean;
 };
 
-// The three entry lanes on the docs home, phrased by where the reader already is.
-// One primary (filled) card leads; the rest are outlined and share the hover accent.
 export function DocsHomePaths({ cards }: { cards: ReadonlyArray<PathCard> }): ReactNode {
   return (
     <div className="not-prose my-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -237,7 +220,6 @@ export function DocsHomePaths({ cards }: { cards: ReadonlyArray<PathCard> }): Re
   );
 }
 
-// A compact feature card grid summarizing what verbatra does, used below the quick start.
 export function DocsHomeFeatures({
   features,
 }: {

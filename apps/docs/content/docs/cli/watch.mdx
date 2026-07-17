@@ -1,0 +1,50 @@
+---
+title: verbatra watch
+description: Re-translate on every source change until interrupted.
+---
+Watch the source locale file and re-run a translation on each debounced change, until you interrupt it. `watch` runs an initial translation at startup, then keeps your target locales current as you save. Before it runs, it loads `.env.local` and then `.env` from the working directory; a variable already set in the real environment wins.
+
+## Synopsis
+
+```bash
+verbatra watch [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--debounce` | `<ms>` | `300` | wait this many milliseconds after the last change before translating; must be a bare positive integer (a value like `250ms`, `0`, or `-1` is a usage error, exit `2`) |
+| `--json` | none | off | print each run as one NDJSON record (one JSON object per line) on stdout |
+
+With `--json`, each run emits one [`WatchRunResult`](/docs/sdk) record: a success carrying the run summary, or a failure carrying an error code and message. The startup line and the stopping notice go to stderr, so the stdout stream stays clean NDJSON. A failed run is just a record on the stream: it neither stops the watcher nor changes the exit code.
+
+## Stopping
+
+The first interrupt (Ctrl-C, or SIGTERM) lets the current run finish, stops the watcher cleanly, and exits `0`. A second interrupt while that shutdown is still in flight force-stops with exit `130`.
+
+## Examples
+
+```bash
+# watch and re-translate on each change
+verbatra watch
+
+# calmer in a busy editor: wait 1s after the last change, stream NDJSON
+verbatra watch --debounce 1000 --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | stopped cleanly by a single interrupt |
+| `2` | could not start or stop: a config error, a startup or shutdown failure, or a usage error (including an invalid `--debounce`) |
+| `130` | force-stopped by a second interrupt |
+
+## Related
+
+- [`verbatra translate`](/docs/cli/translate) is the one-shot run `watch` repeats.
+- [How it works](/docs/how-it-works) explains what each run does.
+- [The SDK reference](/docs/sdk) documents the `WatchRunResult` and `RunSummary` shapes.

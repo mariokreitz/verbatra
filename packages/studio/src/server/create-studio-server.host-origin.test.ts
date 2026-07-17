@@ -97,11 +97,6 @@ describe("Host and Origin gate", () => {
   });
 
   it("rejects a request with no Host header at all", async () => {
-    // An HTTP/1.1 request with no Host header at all never reaches this server's own request
-    // handling: Node's http server enforces the mandatory Host header itself and answers with its
-    // own 400 before any application code, including this gate, runs. That still satisfies the
-    // requirement that such a request is never routed; it is simply rejected one layer earlier
-    // than every other disallowed Host, which this server does control and answers with 403.
     server = await startStudioServer({ port: 0, loader: stubLoader() });
 
     const response = await rawRequest(server.port, "GET / HTTP/1.1", []);

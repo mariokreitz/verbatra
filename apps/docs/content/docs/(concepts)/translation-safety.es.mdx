@@ -1,0 +1,108 @@
+---
+title: Seguridad de la traducción
+description: "El modelo de seguridad: cadenas no de fiar, la puerta de integridad, las señales de revisión, el presupuesto de tokens y errores que nunca filtran nada."
+---
+verbatra no se fía de la salida de la máquina, y tampoco se fía de las cadenas que traduce. Cada
+resultado pasa una puerta de integridad antes de poder escribirse, todo lo que la puerta rechaza
+aflora como datos en lugar de hacer fallar la ejecución, y los secretos se mantienen fuera de cada
+ruta de error. Esta página cubre cada capa de ese modelo.
+
+## Cadenas no de fiar y la frontera contra la inyección de prompts
+
+Una cadena traducible puede contener texto que parece una instrucción (una cadena de UI que dice
+literalmente "ignora tus instrucciones"), así que verbatra trata cada una como entrada no de fiar.
+Las reglas de sistema enviadas a un proveedor LLM son constantes de tiempo de compilación. Toda la
+entrada variable, las entradas a traducir junto con tu glosario y tono, viaja solo en la carga JSON
+de datos del turno de usuario, nunca empalmada en el canal de instrucciones. La salida del
+proveedor está restringida a un esquema y se valida como datos: una respuesta malformada falla, y
+una respuesta que contiene una clave que nunca se pidió hace fallar el sublote entero, porque no
+hay una aceptación parcial segura alrededor de contenido inventado.
+
+## La puerta de integridad
+
+Una traducción válida según el esquema todavía puede estar rota, así que una única puerta recalcula
+la decisión de aceptar o rechazar directamente a partir del valor candidato; el informe de
+integridad del propio proveedor nunca se toma por bueno. La misma puerta corre en cada ruta de
+escritura: una traducción venida del proveedor, una fila importada de un libro y una edición
+tecleada por una persona en Studio.
+
+- Integridad de los marcadores de posición: el valor traducido debe llevar los mismos marcadores de
+  posición que su origen, comparados como multiconjunto (las cantidades importan, el orden no).
+  Elimina, añade o altera uno y la candidata se rechaza. Qué cuenta como marcador de posición se
+  define por formato; consulta [Formatos](/docs/formats).
+- Integridad ICU: para los formatos ICU (next-intl y ARB), el valor traducido debe seguir
+  parseándose como un mensaje válido. Una candidata que conserva todos los marcadores de posición
+  pero rompe la estructura de plural o de select también se rechaza. Para estos formatos la
+  comparación de marcadores de posición además distingue ramas: un marcador de posición fabricado
+  dentro de una rama de plural se detecta aunque exista legítimamente en otra.
+
+Una candidata rechazada se retiene como datos, nunca se escribe: aparece en el resumen de la
+ejecución como una discordancia de integridad, conserva su hash anterior en
+[el archivo de bloqueo](/docs/the-lock-file) y se reintenta en la siguiente ejecución. Retenida
+también se mantiene separada de fallida: una clave para la que no se tradujo nada (la llamada al
+proveedor lanzó un error, o la clave seguía faltando tras la ronda acotada de reparación) se
+informa como un fallo de proveedor, no como una discordancia de integridad. Ambas se reintentan de
+la misma manera.
+
+Del lado del origen, una clave de origen cuyo propio valor es ICU inválido se aparta antes de la
+traducción y se informa, en lugar de enviarse al proveedor en un estado roto.
+
+## Señales de revisión
+
+Pasar la puerta demuestra que una traducción es estructuralmente segura, no que sea buena, así que
+una segunda capa, consultiva, marca los resultados sospechosos para una persona. Una señal de
+revisión nunca retiene una clave y lleva uno o más códigos de motivo:
+
+- `LENGTH_RATIO_OUTLIER`: la traducción es mucho más corta o larga que su origen (por debajo de
+  0.35x o por encima de 3.0x de longitud recortada; los orígenes muy cortos se omiten). Un aviso
+  para mirar, no un veredicto.
+- `EQUALS_SOURCE`: la traducción es idéntica al origen en un locale de destino distinto, y el
+  origen sí tenía texto traducible.
+- `GLOSSARY_TERM_MISSED`: un término del glosario configurado aparece en el origen pero su término
+  de destino asignado está ausente de la traducción.
+- `INTEGRITY_REORDERED`: el conjunto de marcadores de posición coincidió exactamente pero quedó en
+  un orden distinto al del origen. Solo se dispara sobre una traducción que la puerta ya aceptó.
+- `PROVIDER_DEGRADED`: el lote del que salió esta clave fue degradado con elegancia por el
+  proveedor (una rebaja de formalidad o un glosario ignorado; en el conjunto actual de proveedores,
+  solo DeepL).
+
+Las claves marcadas afloran por locale como `needsReview` en el resumen de la ejecución, y
+alimentan la cola de revisión: la CLI imprime el recuento, el libro de Excel lleva la misma señal
+en sus columnas de revisión, y la página Review de Studio lista las claves marcadas para irlas
+trabajando; consulta [Revisión en Studio](/docs/review-in-studio). La única forma de limpiar una
+señal es corregir la traducción subyacente.
+
+## El presupuesto de tokens
+
+El gasto de proveedor debería tener un techo que fijas tú, no uno que descubres en la factura. Con
+`maxTokens` configurado, verbatra rastrea el uso acumulado de tokens a lo largo de toda la
+ejecución y lo comprueba después de cada sublote completado. Lo que pasa al llegar al techo es
+`budgetBehavior`:
+
+- `warn` (el valor por defecto): la ejecución continúa y el resumen señala que el presupuesto se
+  superó.
+- `stop`: no se hacen más llamadas al proveedor; cada candidata restante se retiene como
+  `budgetWithheld`, conserva su hash anterior en el bloqueo y se reintenta en la siguiente
+  ejecución.
+
+El sublote que cruza el techo nunca se deshace, y el presupuesto nunca cambia el código de salida
+del comando. Con un proveedor que no informa del uso de tokens (DeepL), la salvaguarda es
+honestamente inerte: el resumen la marca como no soportada en lugar de fingir un recuento.
+
+## Los errores nunca filtran nada
+
+Las claves de API vienen solo de variables de entorno, nunca de la configuración ni de argumentos,
+así que no hay ninguna clave en ningún valor que verbatra maneje. Cuando una llamada al SDK de un
+proveedor falla, el error crudo (que puede llevar cabeceras de la solicitud o credenciales) se
+descarta, nunca se guarda, registra ni relanza; en su lugar verbatra levanta un error estructurado
+con un código estable (como `RATE_LIMITED`, `TIMEOUT` o `AUTH_FAILED`) y un mensaje estático y sin
+secretos. La misma regla rige toda la ejecución: los avisos y los resúmenes llevan códigos y
+recuentos, no secretos.
+
+## Dónde lo ves
+
+Todo esto son datos en el resumen de la ejecución, por locale: claves traducidas, discordancias de
+integridad, fallos de proveedor, claves retenidas por presupuesto, claves de origen con ICU
+inválido, señales de revisión y avisos. Nada se oculta, y el fallo de un locale nunca detiene a los
+demás. Consulta [Cómo funciona](/docs/how-it-works) para ver dónde se sitúa cada comprobación en la
+canalización.

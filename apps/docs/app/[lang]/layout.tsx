@@ -1,5 +1,5 @@
 import "../global.css";
-import { RootProvider } from "fumadocs-ui/provider/next";
+import { RootProvider } from "fumadocs-ui/provider/base";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -7,9 +7,12 @@ import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
+import { JsonLd } from "@/components/json-ld";
+import { LocaleAwareFrameworkProvider } from "@/lib/framework-provider";
 import { i18n, type Locale } from "@/lib/i18n";
 import { i18nConfig } from "@/lib/layout.shared";
 import { SITE_URL } from "@/lib/site";
+import { websiteLd } from "@/lib/structured-data";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -89,10 +92,13 @@ export default async function Layout({
         <link rel="dns-prefetch" href="https://umami.kreitz-webdev.de" />
       </head>
       <body className="flex flex-col min-h-screen">
+        <JsonLd data={websiteLd({ lang: locale })} />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <RootProvider theme={{ enabled: false }} i18n={i18nConfig(locale)}>
-            {children}
-          </RootProvider>
+          <LocaleAwareFrameworkProvider>
+            <RootProvider theme={{ enabled: false }} i18n={i18nConfig(locale)}>
+              {children}
+            </RootProvider>
+          </LocaleAwareFrameworkProvider>
         </NextIntlClientProvider>
         <Script
           defer

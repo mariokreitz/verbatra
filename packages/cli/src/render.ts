@@ -18,7 +18,7 @@ export interface RenderableError {
 }
 
 /**
- * Project an unknown thrown value to a structured, secret-free `{ code, message }`. Never a stack.
+ * Projects an unknown thrown value to a structured, secret-free `{ code, message }`. Never a stack.
  *
  * @param error - The caught value (an `Error`, an SDK error, or anything thrown).
  * @returns The projection; `code` is the error's string `code` or `"CLI_ERROR"` when it has none.
@@ -32,7 +32,8 @@ export function toRenderableError(error: unknown): RenderableError {
 }
 
 /**
- * Human-readable run summary: one line per locale, then an aggregate.
+ * Renders a run summary human-readably: a header, one line per locale, optional usage and budget
+ * lines, then an aggregate.
  *
  * @param summary - The SDK run summary to render.
  * @param command - The command label for the header (defaults to "translate"); `import` reuses it.
@@ -69,12 +70,12 @@ function renderBudgetLine(budget: RunBudget): string {
   return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
+/** One locale line: the failure code and message, or the counts (translated and unchanged always, the rest only when non-zero). */
 function renderLocaleLine(locale: LocaleSummary): string {
   if (locale.status === "failed") {
     const suffix = locale.error ? ` [${locale.error.code}] ${locale.error.message}` : "";
     return `  ${locale.locale}: failed${suffix}`;
   }
-  // translated and unchanged are always shown; the rest only when non-zero, to keep lines terse.
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
     [locale.unchanged.length, "unchanged", true],

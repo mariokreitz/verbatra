@@ -224,7 +224,6 @@ describe("run watch: shutdown and exit codes", () => {
 
     expect(await done).toBe(2);
     expect(cap.err()).toContain("[SOURCE_UNREADABLE] missing source");
-    // A SIGINT after the startup error must be a harmless no-op.
     expect(() => session.requestStop()).not.toThrow();
   });
 
@@ -258,7 +257,6 @@ describe("run watch: shutdown and exit codes", () => {
     });
     await flush();
 
-    // The controller is not ready yet, so the stop is deferred until watch() resolves.
     session?.requestStop();
     resolveWatch({
       stop: () =>

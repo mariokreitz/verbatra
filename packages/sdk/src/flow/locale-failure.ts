@@ -1,6 +1,9 @@
 import type { LocaleSummary } from "./summary.js";
 
-/** Project a caught value to a structured, secret-free `{ code, message }`. */
+/**
+ * Projects a caught value to a structured `{ code, message }`. An `Error` carrying a string `code`
+ * keeps it; anything else falls back to the `LOCALE_FAILED` code with the stringified value.
+ */
 export function describeError(error: unknown): { code: string; message: string } {
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;
@@ -9,7 +12,7 @@ export function describeError(error: unknown): { code: string; message: string }
   return { code: "LOCALE_FAILED", message: String(error) };
 }
 
-/** A failed {@link LocaleSummary}: empty lists, `notices: []`, and the structured error. */
+/** Builds a failed {@link LocaleSummary}: every list empty, plus the structured error. */
 export function failureSummary(locale: string, error: unknown): LocaleSummary {
   return {
     locale,
@@ -29,7 +32,7 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
   };
 }
 
-/** Partition locale summaries into the succeeded/failed locale-name lists of a RunSummary. */
+/** Partitions locale summaries into the succeeded and failed locale-name lists of a run summary. */
 export function partition(locales: readonly LocaleSummary[]): {
   succeeded: readonly string[];
   failed: readonly string[];

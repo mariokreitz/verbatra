@@ -35,6 +35,23 @@ export function coveragePercent(counts: LocaleCoverageCounts): number {
   return Math.round((counts.upToDate / total) * 100);
 }
 
+/**
+ * Mean coverage across every locale row, rounded to the nearest whole percent, for the Status
+ * panel's summary tile. An empty row list (a project with no target locales) reads 100, matching
+ * {@link coveragePercent}'s own zero-denominator convention: nothing exists to be behind.
+ */
+export function averageCoverage(rows: readonly StatusRow[]): number {
+  if (rows.length === 0) {
+    return 100;
+  }
+  return Math.round(rows.reduce((sum, row) => sum + row.percent, 0) / rows.length);
+}
+
+/** How many locale rows are currently out of sync, for the Status panel's summary tile. */
+export function outOfSyncCount(rows: readonly StatusRow[]): number {
+  return rows.filter((row) => !row.inSync).length;
+}
+
 /** Maps a successful `status.check` result to {@link StatusData}: each locale gets its computed percentage. */
 export function toStatusData(result: RpcResultFor<"status.check">): StatusData {
   const rows = result.locales.map((locale) => ({ ...locale, percent: coveragePercent(locale) }));

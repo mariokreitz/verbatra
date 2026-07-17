@@ -1,15 +1,8 @@
-/**
- * The SSE hub: tracks every currently connected `GET /events` client and writes payload-free
- * refresh events, periodic heartbeats, and the final shutdown frame to all of them. A client is
- * deregistered the moment its response emits "close" or "error", or the moment a write to it
- * fails (for example a destroyed socket); no error from any of that ever escapes as an uncaught
- * exception or an unhandled rejection, since every write goes through {@link tryWrite}.
- */
 import type { RefreshEvent, ShutdownEvent } from "../shared/sse-events.js";
 import { SSE_EVENT_REFRESH, SSE_EVENT_SHUTDOWN } from "../shared/sse-events.js";
 import { redact } from "./redaction.js";
 
-/** Default interval between heartbeat frames; overridden by {@link StudioServerDeps.heartbeatIntervalMs} in tests. */
+/** Default interval between heartbeat frames when {@link SseHubOptions.heartbeatIntervalMs} is not given. */
 const DEFAULT_HEARTBEAT_MS = 15_000;
 
 /**
@@ -24,19 +17,24 @@ export interface SseClientResponse {
   once(event: "close" | "error", listener: (...args: unknown[]) => void): void;
 }
 
-/** The live-refresh SSE hub: register clients, broadcast refresh events, and shut down cleanly. */
+/**
+ * The SSE hub over the GET /events clients: registers connected responses, broadcasts refresh
+ * events, writes periodic heartbeats, and shuts every stream down cleanly. A client is
+ * deregistered the moment its response emits "close" or "error", or the moment a write to it
+ * fails; no error from any of that escapes as an uncaught exception or an unhandled rejection.
+ */
 export interface SseHub {
   /** Registers one client's response, writing nothing itself; the caller writes the initial headers. */
   register(response: SseClientResponse): void;
-  /** Writes a refresh event to every currently registered client; a failed write deregisters it. */
+  /** Writes a refresh event to every currently registered client; a failed write deregisters that client. */
   broadcastRefresh(event: RefreshEvent): void;
-  /** Writes a final shutdown frame to every client, ends each response, and stops the heartbeat. */
+  /** Writes a final shutdown frame to every client, ends each response, and stops the heartbeat timer. */
   closeAll(): void;
   /** The number of currently registered clients. */
   readonly size: number;
 }
 
-/** Writes one SSE frame, redacted as a defense-in-depth backstop; never throws. */
+/** Writes one SSE frame, redacted as a defense-in-depth backstop; returns false instead of throwing. */
 function tryWrite(response: SseClientResponse, event: string, data: unknown): boolean {
   const frame = redact(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   try {
@@ -59,9 +57,7 @@ function tryWriteHeartbeat(response: SseClientResponse): boolean {
 function tryEnd(response: SseClientResponse): void {
   try {
     response.end();
-  } catch {
-    // Already torn down; there is nothing left to end.
-  }
+  } catch {}
 }
 
 /** Options for {@link createSseHub}. */

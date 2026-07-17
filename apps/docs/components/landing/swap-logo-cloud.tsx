@@ -1,15 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// Aceternity-style "logo cloud with swap animation": a grid of logo slots fed from a larger
-// pool. Every `intervalMs` the visible logos swap to others from the pool, entering from the
-// right and exiting to the left with a blur that clears, staggered per slot for a wave. When
-// the pool is not larger than the visible slots (or reduced motion is requested) it renders a
-// static set with a single reveal and no swapping. The animated grid is aria-hidden; an
-// sr-only list names every logo in the pool.
 export type SwapLogo = { key: string; name: string; icon: ReactNode };
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -28,16 +22,31 @@ export function SwapLogoCloud({
   intervalMs?: number;
 }): ReactNode {
   const reduced = useReducedMotion() ?? false;
+  const rootRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
+  const [inView, setInView] = useState(false);
   const canSwap = !reduced && logos.length > visibleCount;
 
   useEffect(() => {
-    if (!canSwap) return;
+    const node = rootRef.current;
+    if (!node || !canSwap) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) setInView(entry.isIntersecting);
+      },
+      { threshold: 0.2 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canSwap]);
+
+  useEffect(() => {
+    if (!canSwap || !inView) return;
     const id = setInterval(() => {
       setOffset((current) => (current + visibleCount) % logos.length);
     }, intervalMs);
     return () => clearInterval(id);
-  }, [canSwap, visibleCount, logos.length, intervalMs]);
+  }, [canSwap, inView, visibleCount, logos.length, intervalMs]);
 
   if (logos.length === 0) return null;
 
@@ -48,8 +57,7 @@ export function SwapLogoCloud({
   }
 
   return (
-    <div>
-      {/* The full supported set for assistive tech, regardless of what is visually rotating. */}
+    <div ref={rootRef}>
       <ul className="sr-only">
         <li>{label}:</li>
         {logos.map((logo) => (

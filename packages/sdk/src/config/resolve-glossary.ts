@@ -8,7 +8,7 @@ export const MAX_GLOSSARY_FILE_BYTES = 1024 * 1024;
 
 const glossaryRecordSchema = z.record(z.string(), z.string());
 
-/** Where a config's resolved glossary came from, recorded for later Studio consumption. */
+/** Where a config's resolved glossary came from: absent, inline, or a file at the recorded path. */
 export type GlossaryProvenance =
   | { readonly source: "none" }
   | { readonly source: "inline" }
@@ -28,12 +28,19 @@ function stripBom(content: string): string {
   return content.startsWith(BOM) ? content.slice(BOM.length) : content;
 }
 
-// A file decoded as UTF-8 that was not actually UTF-8 (for example UTF-16) either starts with the
-// decoder's replacement character or carries embedded NUL bytes from interleaved zero code units.
+/**
+ * Whether the decoded content betrays a non-UTF-8 source file: a file decoded as UTF-8 that was not
+ * actually UTF-8 (for example UTF-16) either starts with the decoder's replacement character or
+ * carries embedded NUL bytes from interleaved zero code units.
+ */
 function looksLikeInvalidEncoding(content: string): boolean {
   return content.startsWith(REPLACEMENT_CHARACTER) || content.includes(NUL);
 }
 
+/**
+ * Read and validate one glossary JSON file through the bounded fs seam. Duplicate JSON keys resolve
+ * last-wins, as `JSON.parse` leaves them. Every failure is a `CONFIG_INVALID` naming the path.
+ */
 async function readGlossaryFile(
   resolvedPath: string,
   fs: SdkFs,
@@ -74,8 +81,6 @@ async function readGlossaryFile(
       `The glossary file at ${resolvedPath} must contain a flat object of string keys to string values.`,
     );
   }
-  // JSON.parse resolves duplicate keys last-wins, and safeParse carries that resolution through
-  // unchanged; no separate duplicate-key handling is needed here.
   return result.data;
 }
 

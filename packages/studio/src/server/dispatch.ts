@@ -3,9 +3,11 @@ import { BODY_CAP_BYTES, PayloadTooLargeError, readBodyWithCap } from "./body-re
 import { contentTypeFor } from "./content-type.js";
 import { buildSetCookieHeader, readCookieValue } from "./cookie.js";
 import { isAllowedHost, isAllowedOrigin } from "./host-origin.js";
+import type { RpcInFlightGuard } from "./in-flight-guard.js";
+import type { RpcRateLimiter } from "./rate-limiter.js";
 import { isJsonRequestContentType } from "./request-content-type.js";
 import { formatRequestLog } from "./request-log.js";
-import type { RpcHandlerDeps } from "./rpc.js";
+import type { HandlersRegistry, RpcHandlerDeps } from "./rpc.js";
 import { handleRpcBody } from "./rpc-gate.js";
 import { applyNoStore, applySecurityHeaders } from "./security-headers.js";
 import type { SseHub } from "./sse.js";
@@ -28,8 +30,17 @@ export interface DispatchContext {
   readonly cookieName: string;
   readonly assetsRootPath: string;
   readonly log: (line: string) => void;
-  /** Resolved once at startup (G11); every POST /rpc call reuses this same value, never re-loading it. */
+  /** Resolved once at startup; every POST /rpc call reuses this same value, never re-loading it. */
   readonly rpcDeps: RpcHandlerDeps;
+  /**
+   * The capability-gated handlers registry `createRpcHandlers` built once at startup, before
+   * `listen()`; a sibling to `rpcDeps`, never rebuilt for the life of the process.
+   */
+  readonly handlers: HandlersRegistry;
+  /** Process-scoped rate limiter applied to POST /rpc before a handler is invoked. */
+  readonly rateLimiter: RpcRateLimiter;
+  /** Process-scoped in-flight guard applied to POST /rpc before a handler is invoked. */
+  readonly inFlightGuard: RpcInFlightGuard;
   /** The live-refresh SSE hub every `GET /events` connection registers with. */
   readonly sseHub: SseHub;
 }
@@ -92,8 +103,6 @@ function handleBootstrap(
     finishConstant(context, response, method, path, 401, UNAUTHORIZED_BODY);
     return;
   }
-  // Idempotent by construction: a valid token always re-sets the cookie and redirects, whatever
-  // cookie (missing, stale, or already valid) the request arrived with.
   response.setHeader("Set-Cookie", buildSetCookieHeader(context.cookieName, context.token));
   sendRedirectToRoot(context, response, method, path);
 }
@@ -152,8 +161,6 @@ async function handleGet(
     handleBootstrap(context, response, method, path, bootstrapToken);
     return;
   }
-  // Every other GET, including the bare "/" with no token query, requires the session cookie:
-  // the printed, token-bearing URL is the only entry point into an authenticated session.
   if (!isAuthenticated(context, request)) {
     finishConstant(context, response, method, path, 401, UNAUTHORIZED_BODY);
     return;
@@ -210,9 +217,13 @@ async function handlePost(
   if (body === undefined) {
     return;
   }
-  // Method dispatch, parameter validation, and the RPC response envelope are a separate concern
-  // that plugs in through handleRpcBody; this only gates transport-level access to it.
-  const result = await handleRpcBody(body, context.rpcDeps);
+  const result = await handleRpcBody(
+    body,
+    context.rpcDeps,
+    context.handlers,
+    context.rateLimiter,
+    context.inFlightGuard,
+  );
   applyNoStore(response);
   response.statusCode = result.statusCode;
   response.setHeader("Content-Type", "application/json; charset=utf-8");

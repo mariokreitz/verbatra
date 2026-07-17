@@ -137,8 +137,6 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
   });
 
   it("retries a missing key once, then withholds it rather than throwing when it stays missing", async () => {
-    // The stub always answers with the same fixed response, so the bounded repair round finds the
-    // key missing again: it is withheld from the result instead of failing the whole call.
     const missing = openAiStubClient(fencedCompletion([]));
     const result = await createOpenAiCompatibleProvider(config, {
       client: missing.client,

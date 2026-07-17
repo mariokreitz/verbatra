@@ -151,7 +151,6 @@ describe("translate: integrity withholding", () => {
     const priorA = lock0.locales.de?.a;
     const priorC = lock0.locales.de?.c;
 
-    // change both source values; a will fail integrity, c will succeed
     await writeJsonFile(join(dir, "locales", "en.json"), { a: "A1", c: "C1" });
     const failingA = makeStubProvider({ failIntegrity: new Set(["a"]) });
     const run1 = await translate(
@@ -161,7 +160,7 @@ describe("translate: integrity withholding", () => {
 
     expect(run1.locales[0]?.integrityMismatches).toEqual(["a"]);
     const de1 = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
-    expect(de1.a).toBe("[de] A0"); // prior translation retained, not the mangled new value
+    expect(de1.a).toBe("[de] A0");
     expect(de1.c).toBe("[de] C1");
     const lock1 = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
@@ -169,7 +168,6 @@ describe("translate: integrity withholding", () => {
     expect(lock1.locales.de?.a).toBe(priorA);
     expect(lock1.locales.de?.c).not.toBe(priorC);
 
-    // a is still source != lock-hash -> retried and now succeeds
     const passing = makeStubProvider();
     const run2 = await translate(
       { config: cfg(), cwd: dir },
@@ -235,14 +233,13 @@ describe("translate: per-locale isolation", () => {
       { createProvider: () => stub.provider },
     );
 
-    // A chunk-level provider throw does not sink the locale: it stays succeeded with keys withheld for retry, and the run continues.
     expect([...summary.succeeded].sort()).toEqual(["de", "es", "fr"]);
     expect(summary.failed).toEqual([]);
     const fr = summary.locales.find((s) => s.locale === "fr");
     expect(fr?.status).toBe("succeeded");
     expect(fr?.translated).toEqual([]);
     expect(fr?.providerFailures).toEqual(["a"]);
-    expect(fr?.integrityMismatches).toEqual([]); // a provider-call failure is not an integrity mismatch
+    expect(fr?.integrityMismatches).toEqual([]);
     expect(fr?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
 
     expect(await exists(targetPath(dir, "de"))).toBe(true);
@@ -251,7 +248,6 @@ describe("translate: per-locale isolation", () => {
     const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
       locales: Record<string, Record<string, string>>;
     };
-    // fr's withheld key is not locked, so it retries next run; de and es are locked.
     expect(lock.locales.fr?.a).toBeUndefined();
     expect(lock.locales.de?.a).toBeDefined();
     expect(lock.locales.es?.a).toBeDefined();
@@ -260,7 +256,6 @@ describe("translate: per-locale isolation", () => {
   it("isolates a non-provider per-locale failure (lock write) as a failed locale; the run continues", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
     const stub = makeStubProvider();
-    // Throwing the per-locale lock write only for fr yields a genuine failed-locale summary.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -309,7 +304,6 @@ describe("translate: error shapes and orphaned keys", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => provider },
     );
-    // The raw provider error is caught and never surfaced: no provider code or message leaks onto the summary.
     expect(summary.succeeded).toEqual(["de"]);
     expect(summary.locales[0]?.status).toBe("succeeded");
     expect(summary.locales[0]?.providerFailures).toEqual(["a"]);
@@ -322,7 +316,6 @@ describe("translate: error shapes and orphaned keys", () => {
   it("captures a non-Error throw on a non-provider path as a structured LOCALE_FAILED summary", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const stub = makeStubProvider();
-    // A non-Error thrown on a non-provider path still falls back to the LOCALE_FAILED code.
     const fs = makeFakeFs({
       fileExists: (path: string) =>
         access(path)
@@ -378,7 +371,6 @@ describe("translate: glossary routing and notices", () => {
       { config: cfg({ glossary: { hello: "hallo" } }), cwd: dir },
       { createProvider: () => stub.provider },
     );
-    // the SDK still passes the term-map; DeepL ignores it and emits the notice
     expect(stub.calls[0]?.request.glossary).toEqual({ hello: "hallo" });
     expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("GLOSSARY_IGNORED");
   });
@@ -397,7 +389,7 @@ describe("translate: plural-category warning (B4)", () => {
     );
 
     const arabic = summary.locales.find((s) => s.locale === "ar");
-    expect(arabic?.status).toBe("succeeded"); // the warning does not fail the run
+    expect(arabic?.status).toBe("succeeded");
     expect(arabic?.notices.map((n) => n.code)).toContain("PLURAL_CATEGORIES_INCOMPLETE");
   });
 
@@ -433,11 +425,10 @@ describe("translate: round-trip fidelity and dry-run", () => {
 
   it("dry-run reads + diffs + reports but calls no provider and writes nothing", async () => {
     const dir = await project({ a: "A", b: "B" }, { de: { a: "da" } });
-    // no createProvider and no env key: proves the provider is not even constructed in dry-run
     const summary = await translate({ config: cfg(), cwd: dir, dryRun: true });
 
     expect(summary.dryRun).toBe(true);
-    expect(summary.locales[0]?.translated).toEqual(["b"]); // what would be translated
+    expect(summary.locales[0]?.translated).toEqual(["b"]);
     const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
     expect(de).toEqual({ a: "da" });
     expect(await exists(join(dir, "verbatra.lock.json"))).toBe(false);

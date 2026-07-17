@@ -196,7 +196,6 @@ describe("createAnthropicProvider: output truncation", () => {
   });
 
   it("reports truncation before reconciliation even when the truncated body is valid JSON", async () => {
-    // The extra key would normally fail reconciliation, but truncation is detected first and must win.
     const { client } = stubClient(
       truncatedToolMessage([
         { key: "greeting", value: "Hallo {{name}}" },

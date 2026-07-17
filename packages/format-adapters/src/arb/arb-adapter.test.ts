@@ -114,7 +114,6 @@ describe("createArbAdapter read", () => {
   });
 
   it("reads metadata that carries numeric and nested leaves without rejecting it", async () => {
-    // Real Flutter metadata holds non-string, deeply nested leaves, so a valid ARB file must not be rejected.
     const withRichMetadata = {
       "@@locale": "en",
       count: "{count, plural, one {# item} other {# items}}",
@@ -188,6 +187,33 @@ describe("createArbAdapter write (round-trip fidelity)", () => {
     await adapter.write(resource, path);
     const written = JSON.parse(await readFile(path, "utf8"));
     expect(written).toEqual({ "page.title": "Welcome" });
+  });
+
+  it("round-trips mixed integer-like and named keys byte-identically, including integer-named placeholder metadata", async () => {
+    const original = [
+      "{",
+      '  "zebra": "Z",',
+      '  "10": "ten",',
+      '  "count": "{1} of {0}",',
+      '  "@count": {',
+      '    "placeholders": {',
+      '      "1": {',
+      '        "type": "int"',
+      "      },",
+      '      "0": {',
+      '        "type": "int"',
+      "      }",
+      "    }",
+      "  },",
+      '  "2": "two"',
+      "}",
+      "",
+    ].join("\n");
+    const path = await rawArbFile("app_en.arb", original);
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["zebra", "10", "count", "2"]);
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe(original);
   });
 });
 

@@ -41,9 +41,6 @@ describe("lockState", () => {
   });
 
   it("reports exists: false without reading the source file when the source is also absent", async () => {
-    // No project() call: the directory has no locales/ folder and no source file at all. If
-    // lockState read the source before probing the lock, this would throw SOURCE_UNREADABLE
-    // instead of degrading cleanly.
     const dir = await makeTempDir();
     const result = await lockState({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
     expect(result).toEqual({ exists: false });
@@ -78,7 +75,6 @@ describe("lockState", () => {
     if (!result.exists) {
       throw new Error("expected exists: true");
     }
-    // keyCount (1) reflects the lock's recorded baseline, not the target file's two keys.
     expect(result.locales).toEqual([
       { locale: "de", keyCount: 1, missing: 0, stale: 0, upToDate: 2 },
     ]);
@@ -141,7 +137,6 @@ describe("lockState", () => {
 
   it("writes nothing and never mutates the lock (read-only)", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" } });
-    // A real fs would be fine, but assert the write paths are never reached even when stubbed.
     const fs = makeFakeFs({
       fileExists: async () => true,
       readFileBounded: async () => ({ kind: "ok", content: '{"version":1,"locales":{}}' }),
@@ -152,7 +147,6 @@ describe("lockState", () => {
         throw new Error("lockState must not write bytes");
       },
     });
-    // The adapter still reads real files; only the fs seam (existence/lock/write) is faked.
     const result = await lockState({ config: cfg({ targetLocales: ["de"] }), cwd: dir }, { fs });
     expect(result).toEqual({
       exists: true,

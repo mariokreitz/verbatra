@@ -1,5 +1,0 @@
-{
-  "title": "Automatisieren",
-  "defaultOpen": true,
-  "pages": ["github-action", "ci-and-exit-codes", "manual-translation"]
-}

@@ -2,13 +2,18 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo, Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import type { LoadedConfig } from "@verbatra/sdk";
+import { EDIT_ENTRY_METHOD } from "../shared/rpc/edit-entry.js";
+import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
+import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
 import { buildBanner } from "./banner.js";
 import { cookieName } from "./cookie.js";
 import { resolvePort } from "./default-port.js";
 import { type DispatchContext, handleRequest } from "./dispatch.js";
 import { StudioServerStartError } from "./errors.js";
+import { createRpcInFlightGuard, type RpcInFlightGuard } from "./in-flight-guard.js";
+import { createRpcRateLimiter, type RpcRateLimiter } from "./rate-limiter.js";
 import { resolveBoundAddress } from "./resolve-bound-port.js";
-import type { RpcHandlerDeps } from "./rpc.js";
+import { createRpcHandlers, type RpcHandlerDeps, type StudioCapabilities } from "./rpc.js";
 import { createSseHub, type SseHub } from "./sse.js";
 import { generateToken } from "./token.js";
 import { FORBIDDEN_BODY } from "./transport-responses.js";
@@ -18,6 +23,46 @@ import {
   defaultCreateStudioWatcher,
   type ProjectWatcher,
 } from "./watcher.js";
+
+/** Production default: 20 calls per rolling minute, generous for a human clicking one action repeatedly. */
+const DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_RETRANSLATE_RATE_LIMIT_MAX = 20;
+/** Same production default as retranslate: 20 calls per rolling minute. */
+const DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX = 20;
+/**
+ * Sized more conservatively than the single-key actions above: every call translates every
+ * configured target locale in one shot, the same blast radius as a whole-project translate run.
+ */
+const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX = 5;
+
+function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
+  return createRpcRateLimiter({
+    [RETRANSLATE_ENTRY_METHOD]: {
+      windowMs: options.retranslateRateLimitWindowMs ?? DEFAULT_RETRANSLATE_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.retranslateRateLimitMax ?? DEFAULT_RETRANSLATE_RATE_LIMIT_MAX,
+    },
+    [EDIT_ENTRY_METHOD]: {
+      windowMs: options.editEntryRateLimitWindowMs ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.editEntryRateLimitMax ?? DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX,
+    },
+    [TRANSLATE_PENDING_METHOD]: {
+      windowMs:
+        options.translatePendingRateLimitWindowMs ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.translatePendingRateLimitMax ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX,
+    },
+  });
+}
+
+/**
+ * Builds the in-flight guard that blocks a second concurrent translatePending call: a resource
+ * and UX control only, not a correctness mechanism (see `in-flight-guard.ts`). Built fresh per
+ * server instance, mirroring {@link buildRateLimiter}.
+ */
+function buildInFlightGuard(): RpcInFlightGuard {
+  return createRpcInFlightGuard(new Set([TRANSLATE_PENDING_METHOD]));
+}
 
 const RAW_FORBIDDEN_RESPONSE = [
   "HTTP/1.1 403 Forbidden",
@@ -29,15 +74,11 @@ const RAW_FORBIDDEN_RESPONSE = [
 ].join("\r\n");
 
 /**
- * Handles a request the HTTP parser itself rejects, for example a garbled request line. Node's
- * default behavior for these is to write its own generic 400 response before the request listener
- * ever runs; this replaces that with the same constant 403 body every other transport rejection
- * gets. This does not cover a genuinely missing Host header: an HTTP/1.1 request with no Host
- * header at all is intercepted by Node's own HTTP server at the protocol level, answered with
- * Node's own 400, and never reaches this handler or the request listener. The request listener's
- * own Host check only ever sees a Host header that is present but wrong, for example
- * "localhost:1234" or an explicitly empty value, and answers those with the same constant 403
- * body.
+ * Handles a request the HTTP parser itself rejects, for example a garbled request line. Node
+ * would otherwise write its own generic 400 before the request listener ever runs; this replaces
+ * that with the same constant 403 body every other transport rejection gets. It does not cover an
+ * HTTP/1.1 request with no Host header at all: Node answers that with its own 400 at the protocol
+ * level, so neither this handler nor the request listener ever sees it.
  */
 function handleClientError(_error: Error, socket: Socket): void {
   if (socket.writable) {
@@ -56,18 +97,23 @@ function defaultOutput(line: string): void {
 }
 
 /**
- * Builds the deps every RPC handler receives, resolved once here (see the `loader` call in
- * {@link startStudioServer}, before listen) and reused for the life of the process (G11/G12): no
- * handler re-loads the config, and the server otherwise caches no project data between requests.
+ * Builds the deps every RPC handler receives. Called once in {@link startStudioServer} with the
+ * config that was resolved before listen, and reused for the life of the process: no handler
+ * re-loads the config. `spend` is threaded through unchanged so the snapshot handler can project
+ * the same resolved boolean `createRpcHandlers` used to build the registry (`writeToDisk` is
+ * always true and needs no threading). Optional test seams from `options` are forwarded only when
+ * set.
  */
 function buildRpcHandlerDeps(
   config: LoadedConfig,
   projectRoot: string,
+  capabilities: StudioCapabilities,
   options: StudioServerOptions,
 ): RpcHandlerDeps {
   return {
     config,
     projectRoot,
+    spend: capabilities.spend,
     ...(options.fs !== undefined ? { fs: options.fs } : {}),
     ...(options.adapterRegistry !== undefined ? { adapterRegistry: options.adapterRegistry } : {}),
     ...(options.execFileImpl !== undefined ? { execFileImpl: options.execFileImpl } : {}),
@@ -75,6 +121,7 @@ function buildRpcHandlerDeps(
     ...(options.heartbeatIntervalMs !== undefined
       ? { heartbeatIntervalMs: options.heartbeatIntervalMs }
       : {}),
+    ...(options.createProvider !== undefined ? { createProvider: options.createProvider } : {}),
   };
 }
 
@@ -115,19 +162,30 @@ function listen(server: Server, port: number): Promise<AddressInfo> {
 }
 
 /**
- * Shuts the server down in the pinned order (G23): the SSE hub's close, which writes a final
- * shutdown frame to every open connection and ends each response, runs first, so in-flight
- * streams end cleanly instead of being cut off mid-frame by `closeAllConnections` below. The
- * project watcher is stopped concurrently with the HTTP server's own close; neither depends on
- * the other, but both must settle before this resolves, so no chokidar handle outlives the server.
+ * How long a graceful close waits for the final SSE shutdown frames to flush before destroying
+ * the remaining sockets. Loopback flushes within a tick or two; 50ms is comfortably above that
+ * while keeping shutdown effectively instant for a human.
  */
-function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): Promise<void> {
+const SHUTDOWN_FLUSH_GRACE_MS = 50;
+
+/**
+ * Shuts the server down in a pinned order. The SSE hub closes first, writing a final shutdown
+ * frame to every open connection and ending each response, so in-flight streams end cleanly
+ * instead of being cut off mid-frame by `closeAllConnections`. A short grace period follows:
+ * destroying every connection in the same tick would discard the just-written shutdown frames
+ * from the ended sockets' write buffers, and a browser would then see only a dropped connection
+ * and reconnect forever instead of showing the session-expired notice. The project watcher is
+ * stopped concurrently with the HTTP server's own close; both must settle before this resolves,
+ * so no watcher handle outlives the server.
+ */
+async function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): Promise<void> {
   sseHub.closeAll();
+  await new Promise((resolve) => setTimeout(resolve, SHUTDOWN_FLUSH_GRACE_MS));
   const serverClosed = new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
     server.closeAllConnections();
   });
-  return Promise.all([serverClosed, watcher.close()]).then(() => undefined);
+  await Promise.all([serverClosed, watcher.close()]);
 }
 
 /**
@@ -136,9 +194,11 @@ function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatcher): P
  * cookie. There is no host option and no relaxed mode; the printed loopback URL, shown once at
  * startup, is the only supported entry point.
  *
- * `options.loader` is resolved exactly once here, before the server starts listening (G11): every
- * RPC handler for the life of this process receives that same resolved config, and it is never
- * re-invoked on a later request, whatever the request does.
+ * `options.loader` is resolved exactly once here, before the server starts listening: every RPC
+ * handler for the life of this process receives that same resolved config, and the loader is
+ * never re-invoked on a later request. Capabilities are fixed even earlier, before the loader
+ * runs: `writeToDisk` is always true, and `spend` is granted only when `options.spend` is set, so
+ * nothing the loader does can change what this process was granted.
  *
  * Every RPC handler resolves relative paths against `options.cwd` when given, or `process.cwd()`
  * otherwise; see {@link StudioServerOptions.cwd}.
@@ -147,12 +207,22 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
   const assetsRootPath = fileURLToPath(options.assetsRoot ?? defaultAssetsRoot());
   const output = options.output ?? defaultOutput;
   const token = options.token ?? generateToken();
+  const capabilities: StudioCapabilities = {
+    spend: options.spend ?? false,
+    writeToDisk: true,
+  };
   const config = await options.loader();
   const projectRoot = options.cwd ?? process.cwd();
 
-  const watcher = createProjectWatcher(
+  const watcher = await createProjectWatcher(
     { config: config.config, projectRoot },
-    { createWatcher: options.createWatcher ?? defaultCreateStudioWatcher },
+    {
+      createWatcher: options.createWatcher ?? defaultCreateStudioWatcher,
+      ...(options.fs !== undefined ? { fs: options.fs } : {}),
+      ...(options.adapterRegistry !== undefined
+        ? { adapterRegistry: options.adapterRegistry }
+        : {}),
+    },
   );
   const sseHub = createSseHub(
     options.heartbeatIntervalMs !== undefined
@@ -160,6 +230,10 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
       : {},
   );
   watcher.onRefresh((event) => sseHub.broadcastRefresh(event));
+
+  const handlers = createRpcHandlers(capabilities);
+  const rateLimiter = buildRateLimiter(options);
+  const inFlightGuard = buildInFlightGuard();
 
   const server = createServer();
   server.on("clientError", handleClientError);
@@ -173,14 +247,14 @@ export async function startStudioServer(options: StudioServerOptions): Promise<S
     cookieName: cookieName(port),
     assetsRootPath,
     log: output,
-    rpcDeps: buildRpcHandlerDeps(config, projectRoot, options),
+    rpcDeps: buildRpcHandlerDeps(config, projectRoot, capabilities, options),
+    handlers,
+    rateLimiter,
+    inFlightGuard,
     sseHub,
   };
   server.on("request", (request, response) => {
     handleRequest(context, request, response).catch(() => {
-      // A genuine transport failure, such as the client aborting an upload mid-body, has already
-      // left the connection unusable; there is nothing safe left to write, so it is torn down
-      // without leaking anything about the failure.
       request.destroy();
       response.destroy();
     });

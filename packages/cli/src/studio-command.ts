@@ -8,18 +8,21 @@ import type { CliDeps, Streams, StudioSession } from "./types.js";
 const TOKEN_BYTES = 32;
 
 /**
- * The exact, ruled install hint: printed only when `@verbatra/studio` itself, not one of its own
- * dependencies, fails to resolve.
+ * The install hint, printed only when `@verbatra/studio` itself, not one of its own dependencies,
+ * fails to resolve.
  */
 const NOT_INSTALLED_HINT =
   "Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio";
 
-// Matches the bare specifier "@verbatra/studio" quoted (Node quotes it with single quotes in
-// practice; either quote character is accepted). Deliberately anchored on the quote characters so a
-// message naming a transitive dependency of @verbatra/studio (which appears unquoted, as part of a
-// file path like ".../node_modules/@verbatra/studio/dist/index.js") never matches.
+/**
+ * Matches the bare specifier "@verbatra/studio" quoted (Node quotes it with single quotes in
+ * practice; either quote character is accepted). Deliberately anchored on the quote characters so a
+ * message naming a transitive dependency of @verbatra/studio (which appears unquoted, as part of a
+ * file path like ".../node_modules/@verbatra/studio/dist/index.js") never matches.
+ */
 const STUDIO_SPECIFIER_PATTERN = /['"]@verbatra\/studio['"]/;
 
+/** Whether the error means @verbatra/studio itself (not one of its own dependencies) failed to resolve. */
 function isStudioPackageMissing(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -32,9 +35,35 @@ const studioOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   port: z.coerce.number().int().min(1).max(65535).optional(),
+  allowSpend: z.boolean().optional(),
 });
 
 type StudioOpts = z.infer<typeof studioOptsSchema>;
+
+/** Environment variable fallback for the spend capability flag, read only when the CLI flag itself is absent. */
+const ALLOW_SPEND_ENV_VAR = "VERBATRA_STUDIO_ALLOW_SPEND";
+
+/** Env-var values that count as "on"; anything else (including unset) is "off". Case-insensitive. */
+const TRUTHY_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
+
+function isEnvValueTruthy(value: string | undefined): boolean {
+  return value !== undefined && TRUTHY_ENV_VALUES.has(value.trim().toLowerCase());
+}
+
+/**
+ * Resolves the spend capability flag: the CLI flag wins when given; otherwise its environment
+ * variable fallback; otherwise off. Never re-read after this call: the caller resolves the flag
+ * once, before the config loader ever runs (G1-style ordering: the config loader executes the
+ * project's own config module in-process, so nothing that module does can influence which
+ * capabilities this process was granted), and passes the plain boolean through unchanged.
+ * Spend is the only capability flag: local file editing is always on and needs no flag.
+ */
+function resolveSpendCapability(opts: StudioOpts): boolean {
+  if (opts.allowSpend !== undefined) {
+    return opts.allowSpend;
+  }
+  return isEnvValueTruthy(process.env[ALLOW_SPEND_ENV_VAR]);
+}
 
 /** A CLI-local usage error for a malformed `--port` value; routed to exit 2 like an `SdkError`. */
 class InvalidPortError extends Error {
@@ -47,6 +76,10 @@ class InvalidPortError extends Error {
   }
 }
 
+/**
+ * Parses the `studio` options. Any schema failure maps to {@link InvalidPortError}: `--port` is the
+ * only field real commander argv can fail on (the rest are optional strings and booleans).
+ */
 function parseStudioOpts(rawOpts: unknown): StudioOpts {
   const result = studioOptsSchema.safeParse(rawOpts);
   if (!result.success) {
@@ -108,14 +141,21 @@ function watchForStop(
 }
 
 /**
- * Run the `studio` command: start Verbatra Studio, a local, read-only translation dashboard. A thin
- * sequence with no server or view logic of its own: load env, load the config, dynamically import
- * `@verbatra/studio`, start the server, print the ruled banner, then wire shutdown to `requestStop`.
+ * Runs the `studio` command: starts Verbatra Studio, a local translation dashboard that can always
+ * edit the project's own locale files but never calls a provider without `--allow-spend`. A thin
+ * sequence with no server or view logic of its own: load env, resolve the spend capability, load
+ * the config, dynamically import `@verbatra/studio`, start the server, print the banner, then wire
+ * shutdown to `requestStop`. The command prints the one banner itself and silences the studio
+ * server's own output sink, so the server never prints a second, differently worded banner or
+ * per-request log lines.
  *
- * Ordering: env and config load before `@verbatra/studio` is ever imported, so a config error never
- * reaches the dynamic import or `startStudioServer`.
+ * Ordering: env loads, then the spend flag is resolved, before the config ever loads and before
+ * `@verbatra/studio` is ever imported. `spend` is therefore fixed before `loadConfigWithMeta`
+ * (and, with it, the project's own config module) ever executes, so nothing that module does can
+ * influence which capabilities this process was granted; a config error never reaches the dynamic
+ * import or `startStudioServer` either.
  *
- * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`).
+ * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`).
  * @param deps - The injected `loadConfigWithMeta` and `importStudio` seams.
  * @param streams - The stdout/stderr sink.
  * @returns A {@link StudioSession}: `done` resolves the exit code; `requestStop` is wired to SIGINT/SIGTERM
@@ -136,6 +176,7 @@ export async function runStudio(
 
   const cwd = opts.cwd ?? process.cwd();
   loadEnvFiles(cwd);
+  const spend = resolveSpendCapability(opts);
 
   const config = await step(
     () =>
@@ -166,10 +207,8 @@ export async function runStudio(
         loader: () => Promise.resolve(config),
         token,
         cwd,
-        // The command owns the one printed banner (the ruled string below); the studio server's own
-        // default output sink would otherwise also print its own differently-worded banner, and
-        // per-request log lines are not needed by this thin wrapper.
         output: () => {},
+        spend,
         ...(opts.port !== undefined ? { port: opts.port } : {}),
       }),
     streams,

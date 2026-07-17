@@ -1,0 +1,64 @@
+---
+title: verbatra studio
+description: Arranca Verbatra Studio, el panel local de traducción.
+---
+Arranca Verbatra Studio, un panel web local sobre tu proyecto de verbatra: estado de las traducciones, la cola de revisión, la actividad de las ejecuciones y tus ajustes resueltos, todo en vivo sobre los archivos en disco. Editar tus propios archivos de locale funciona de serie; solo el gasto en proveedor es opcional, detrás de `--allow-spend`. Antes de arrancar, `studio` carga `.env.local` y luego `.env` desde el directorio de trabajo y resuelve tu configuración una vez; un error de configuración sale con `2` antes de que arranque ningún servidor.
+
+## Sinopsis
+
+```bash
+verbatra studio [flags]
+```
+
+## Flags
+
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--port` | `<n>` | `5849` | escucha en este puerto; debe ser un entero entre 1 y 65535 |
+| `--allow-spend` | ninguno | desactivado | permite a Studio llamar a un proveedor de traducción (retraducir una clave, traducir los cambios pendientes) |
+
+Cuando el flag `--allow-spend` está ausente, Studio lee en su lugar la variable de entorno `VERBATRA_STUDIO_ALLOW_SPEND`: `1`, `true`, `yes` u `on` (sin distinguir mayúsculas) cuenta como activado. El flag de la CLI siempre gana sobre la variable de entorno. Sin ninguno de los dos, Studio nunca contacta con un proveedor; la edición local no necesita ningún flag.
+
+## La URL impresa
+
+Studio solo escucha en `127.0.0.1`. En cuanto está escuchando, imprime una línea en stdout:
+
+```
+Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
+```
+
+Abre esa URL exacta: el token de la cadena de consulta inicia tu sesión de navegador, y toda petición sin él se rechaza. No se imprime nada antes de que el puerto quede enlazado con éxito, así que un arranque fallido nunca filtra una URL ni un token.
+
+## Instalación
+
+`@verbatra/studio` es su propio paquete, alcanzado mediante un import dinámico para que el resto de la CLI funcione sin él. Si no está instalado, `verbatra studio` sale con `2` con:
+
+```
+Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
+```
+
+## Ejemplos
+
+```bash
+# start Verbatra Studio on the default port
+verbatra studio
+
+# enable the provider-calling actions, on a specific port
+verbatra studio --allow-spend --port 6000
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | detenido limpiamente por una sola interrupción (Ctrl-C, o SIGTERM) |
+| `1` | la parada falló: cerrar el servidor lanzó un error durante el apagado |
+| `2` | no se pudo arrancar: un error de configuración, `@verbatra/studio` no instalado, el puerto en uso, o un error de uso (un `--port` fuera de rango o no entero) |
+| `130` | detenido a la fuerza por una segunda interrupción mientras el apagado estaba en curso |
+
+## Relacionado
+
+- [Revisión en Studio](/docs/review-in-studio) recorre la página Traducciones, la cola de revisión y la retraducción con `--allow-spend`.
+- [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff) son los mismos cálculos que Studio muestra en vivo.

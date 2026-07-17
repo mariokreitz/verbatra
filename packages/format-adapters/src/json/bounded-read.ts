@@ -13,7 +13,7 @@ function stripLeadingBom(content: string): string {
   return content.charCodeAt(0) === 0xfeff ? content.slice(1) : content;
 }
 
-// The read never advances past `size`, so a file growing after it was sized stays bounded.
+/** Read at most `size` bytes from the handle as UTF-8. The read never advances past `size`, so a file growing after it was sized stays bounded. */
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
   const buffer = Buffer.allocUnsafe(size);
   let offset = 0;

@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join, normalize, sep } from "node:path";
 import { withoutTrailingSep } from "./path-normalize.js";
 
-/** A static asset read from the assets root, keyed by its resolved absolute path. */
+/** A static asset read from the assets root: its resolved absolute path and its raw bytes. */
 export interface ResolvedAsset {
   readonly path: string;
   readonly body: Buffer;
@@ -16,7 +16,7 @@ function decodeRequestPath(requestPath: string): string {
   }
 }
 
-/** True when any path segment starts with a dot, for example ".env" or ".git". The root request ("") never matches. */
+/** True when any path segment starts with a dot, for example ".env" or ".git". An empty path never matches. */
 function hasDotSegment(pathWithoutLeadingSlash: string): boolean {
   return pathWithoutLeadingSlash.split("/").some((segment) => segment.startsWith("."));
 }
@@ -28,9 +28,10 @@ function stripQuery(requestPath: string): string {
 
 /**
  * Resolves a request path to an absolute path inside the assets root, or `undefined` when the
- * request would escape the root or names a dotfile. The path is percent-decoded exactly once,
- * then normalized and checked for containment; there is never a directory listing since only
- * `readFile` is used, never a directory read.
+ * request would escape the root or names a dot segment. The query string is stripped, the path
+ * is percent-decoded exactly once (falling back to the raw path when decoding fails), and the
+ * joined candidate is normalized and checked for containment. The root request maps to
+ * index.html.
  */
 export function resolveAssetPath(assetsRootPath: string, requestPath: string): string | undefined {
   const root = withoutTrailingSep(normalize(assetsRootPath));
@@ -43,7 +44,7 @@ export function resolveAssetPath(assetsRootPath: string, requestPath: string): s
   return candidate.startsWith(root + sep) ? candidate : undefined;
 }
 
-/** Reads the asset a request path resolves to, or `undefined` if it does not exist or escapes the root. */
+/** Reads the asset a request path resolves to, or `undefined` when it is unreadable, missing, or rejected by {@link resolveAssetPath}. */
 export async function readAsset(
   assetsRootPath: string,
   requestPath: string,

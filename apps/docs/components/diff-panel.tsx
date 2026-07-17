@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Live diff demonstrating "translate only what changed"; renders the final state on the server and honors prefers-reduced-motion.
 type Row = {
   key: string;
   source: string;
@@ -30,7 +29,6 @@ export function DiffPanel({
   const changed = rows.find((r) => r.changed);
   const full = changed?.target ?? "";
 
-  // Start fully shown so the server render and no-JS users see the final, correct state.
   const [count, setCount] = useState(full.length);
   const [settled, setSettled] = useState(true);
   const ref = useRef<HTMLElement>(null);

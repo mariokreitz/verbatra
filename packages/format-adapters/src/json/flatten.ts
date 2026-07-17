@@ -58,7 +58,7 @@ function addLeaf(
 }
 
 function addEntries(ctx: FlattenContext, prefix: readonly string[], node: JsonRecord): void {
-  for (const [key, value] of Object.entries(node)) {
+  for (const [key, value] of node) {
     const segments = [...prefix, key];
     if (isJsonNode(value)) {
       addEntries(ctx, segments, value);
@@ -88,7 +88,7 @@ function addPathEntries(
   claimedPaths: Set<string>,
   excluded: string[],
 ): void {
-  for (const [key, value] of Object.entries(node)) {
+  for (const [key, value] of node) {
     const path = prefix === "" ? key : `${prefix}.${key}`;
     if (claimedPaths.has(path)) {
       throw new AdapterError(

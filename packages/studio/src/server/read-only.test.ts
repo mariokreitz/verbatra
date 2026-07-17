@@ -32,20 +32,19 @@ function collectSourceFiles(root: string): string[] {
 }
 
 describe("static proof: no write-capable sdk call is ever referenced", () => {
-  it("never calls translate(, watch(, importWorkbook(, or exportWorkbook( anywhere in studio's own source", () => {
-    // Built via concatenation so this file's own source text never contains the literal
-    // call-shaped substring it searches for. Each pattern requires the call to be unqualified (not
-    // preceded by "." or a word character), so it matches only a bare call to the sdk's own
-    // imported function (for example `watch(...)`) and not a qualified call on some other object
-    // that merely shares the method name, such as a future chokidar `.watch(...)` call once the
-    // live-refresh watcher lands.
-    const forbidden = ["translate", "watch", "importWorkbook", "exportWorkbook"].map(
-      (name) => new RegExp(`(?<![.\\w])${name}\\(`),
-    );
+  it("never calls watch(, importWorkbook(, or exportWorkbook( anywhere in studio's own source, and calls translate( only from the one handler that is meant to", () => {
+    const forbidden = ["watch", "importWorkbook", "exportWorkbook", "translate"].map((name) => ({
+      name,
+      pattern: new RegExp(`(?<![.\\w])${name}\\(`),
+    }));
+    const allowedTranslateCaller = join(SRC_ROOT, "server", "methods", "translate-pending.ts");
     const offenders: string[] = [];
     for (const file of collectSourceFiles(SRC_ROOT)) {
+      if (file === allowedTranslateCaller) {
+        continue;
+      }
       const content = readFileSync(file, "utf8");
-      for (const pattern of forbidden) {
+      for (const { pattern } of forbidden) {
         if (pattern.test(content)) {
           offenders.push(`${relative(SRC_ROOT, file)}: ${pattern.source}`);
         }
@@ -76,7 +75,7 @@ async function hashTree(root: string): Promise<string> {
 }
 
 describe("read-only proof: the fixture project's file tree is untouched", () => {
-  it("hashes identically before and after driving every registered method through the server", async () => {
+  it("hashes identically after driving the read views, and a default server answers METHOD_UNKNOWN for both spend methods", async () => {
     const project = await makeFixtureProject();
     try {
       const before = await hashTree(project.root);
@@ -84,7 +83,22 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
       await withServer(
         async (server) => {
           const cookie = await authenticatedCookie(server.url, "read-only-proof-token");
-          const methods = [
+          const postMethod = async (
+            method: string,
+            params: Record<string, unknown> = {},
+          ): Promise<{ error?: { code?: string } }> => {
+            const response = await fetch(new URL("/rpc", server.url), {
+              method: "POST",
+              headers: {
+                Cookie: cookie,
+                "Content-Type": "application/json",
+                Origin: server.url.replace(/\/$/, ""),
+              },
+              body: JSON.stringify({ method, params }),
+            });
+            return (await response.json()) as { error?: { code?: string } };
+          };
+          const readMethods = [
             "project.snapshot",
             "status.check",
             "status.diff",
@@ -92,17 +106,16 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
             "lock.state",
             "history.list",
           ];
-          for (const method of methods) {
-            await fetch(new URL("/rpc", server.url), {
-              method: "POST",
-              headers: {
-                Cookie: cookie,
-                "Content-Type": "application/json",
-                Origin: server.url.replace(/\/$/, ""),
-              },
-              body: JSON.stringify({ method, params: {} }),
-            });
+          for (const method of readMethods) {
+            await postMethod(method);
           }
+          const retranslate = await postMethod("translation.retranslateEntry", {
+            locale: "de",
+            key: "greeting",
+          });
+          expect(retranslate.error?.code).toBe("METHOD_UNKNOWN");
+          const translatePending = await postMethod("translation.translatePending");
+          expect(translatePending.error?.code).toBe("METHOD_UNKNOWN");
         },
         {
           token: "read-only-proof-token",
@@ -115,5 +128,29 @@ describe("read-only proof: the fixture project's file tree is untouched", () => 
     } finally {
       await project.cleanup();
     }
+  });
+});
+
+describe("static proof: the retranslateEntry handler never reads a provider's environment directly", () => {
+  it("never references process.env, the PROVIDER_ENV table, or a raw provider construction call", () => {
+    const path = join(SRC_ROOT, "server", "methods", "retranslate-entry.ts");
+    const content = readFileSync(path, "utf8");
+
+    expect(content).not.toContain("process.env");
+    expect(content).not.toContain("PROVIDER_ENV");
+    expect(content).not.toMatch(/(?<![.\w])buildProvider\(/);
+    expect(content).not.toMatch(/(?<![.\w])selectProvider\(/);
+  });
+});
+
+describe("static proof: the translatePending handler never reads a provider's environment directly", () => {
+  it("never references process.env, the PROVIDER_ENV table, or a raw provider construction call", () => {
+    const path = join(SRC_ROOT, "server", "methods", "translate-pending.ts");
+    const content = readFileSync(path, "utf8");
+
+    expect(content).not.toContain("process.env");
+    expect(content).not.toContain("PROVIDER_ENV");
+    expect(content).not.toMatch(/(?<![.\w])buildProvider\(/);
+    expect(content).not.toMatch(/(?<![.\w])selectProvider\(/);
   });
 });

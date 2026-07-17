@@ -1,9 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-// A soft elliptical sweep that fades in over a section. Pure markup with a CSS animation
-// class (.vk-spot), so it needs no client JS and renders meaningfully on the server. The
-// sweep is disabled under prefers-reduced-motion by the .vk-spot rule in global.css.
 export function Spotlight({
   fill = "var(--v-violet)",
   className,

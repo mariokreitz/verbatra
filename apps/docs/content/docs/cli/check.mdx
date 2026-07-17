@@ -1,0 +1,48 @@
+---
+title: verbatra check
+description: Report which keys are missing or stale per locale without writing files.
+---
+Report, per target locale, how many keys are missing, stale, or up to date, then exit with a code a CI step can branch on. `check` runs the same read and diff that [`verbatra translate`](/docs/cli/translate) performs right before it would call a provider, then stops: no provider call, no files written, no [lock file](/docs/the-lock-file) update, and no API key needed.
+
+## Synopsis
+
+```bash
+verbatra check [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--locales` | `<list>` | all configured targets | comma-separated subset of target locales to check |
+| `--json` | none | off | print the check summary as one JSON object on stdout; errors still go to stderr |
+
+A key is missing when the source has it and the target does not; stale when the source string changed since it was last translated. A locale is in sync when it has neither. An empty or unknown `--locales` value is rejected with exit `2` rather than silently checking nothing, so a typo in a locale name never lets a CI gate pass. Want the actual key lists behind the counts? That is [`verbatra diff`](/docs/cli/diff).
+
+## Examples
+
+```bash
+# fail the build when translations drifted
+verbatra check
+
+# machine-readable status for two locales
+verbatra check --locales de,fr --json
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | in sync: no locale has a missing or stale key |
+| `1` | out of sync: at least one locale has a missing or stale key (the report is still printed) |
+| `2` | could not run: a whole-run error, or a usage error (including an empty or unknown `--locales` value) |
+
+Exit `1` means "out of sync", not a failure: the run itself succeeded, the result just is not all green.
+
+## Related
+
+- [`verbatra diff`](/docs/cli/diff) lists the exact keys behind these counts.
+- [CI and exit codes](/docs/ci-and-exit-codes) shows check as a drift gate.
+- [The lock file](/docs/the-lock-file) explains how staleness is detected.

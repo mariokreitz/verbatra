@@ -16,6 +16,7 @@ import { atomicWriteFile } from "./atomic-write.js";
 import { readFileContent } from "./bounded-read.js";
 import { type DeriveEntry, type FlattenResult, flattenTree, type KeyMode } from "./flatten.js";
 import type { JsonRecord } from "./json-tree.js";
+import type { OrderedRecord } from "./ordered-json.js";
 import { unflattenEntries } from "./unflatten.js";
 
 /** Per-value placeholder extraction, exposed on the adapter for consumers. */
@@ -33,11 +34,11 @@ type ComparePlaceholders = (sourceValue: string, targetValue: string) => Placeho
 /** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
 type ValidateTree = (tree: JsonRecord) => void;
 
-/** Optional builder for the object to write, allowing formats to control on-disk structure. */
+/** Optional builder for the ordered tree to write, allowing formats to control on-disk structure. */
 type BuildWriteTree = (
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
-) => unknown | Promise<unknown>;
+) => OrderedRecord | Promise<OrderedRecord>;
 
 /**
  * Optional whole-file post-flatten hook: extract a `description` per flattened entry key straight
@@ -48,6 +49,7 @@ type BuildWriteTree = (
  */
 type DeriveDescriptions = (content: string) => ReadonlyMap<string, string>;
 
+/** The format-specific behavior {@link createTreeFileAdapter} builds an adapter from. */
 export interface TreeFileAdapterOptions {
   readonly format: SupportedFormat;
   /** Accepted file extensions, lower-cased and dot-prefixed (for example `[".yaml", ".yml"]`). */
@@ -56,8 +58,8 @@ export interface TreeFileAdapterOptions {
   readonly sniff?: Sniff;
   /** Parse file content into a validated tree; throws a structured AdapterError on bad syntax or shape. */
   readonly parse: (content: string) => JsonRecord;
-  /** Serialize the write tree to file content, owning the trailing-newline policy. */
-  readonly serialize: (tree: unknown) => string;
+  /** Serialize the ordered write tree to file content in Map iteration order, owning the trailing-newline policy. */
+  readonly serialize: (tree: OrderedRecord) => string;
   readonly deriveEntry: DeriveEntry;
   readonly extractPlaceholders: ExtractPlaceholders;
   /** Optional; formats without ICU (i18next, vue-i18n, YAML) omit it and report none. */

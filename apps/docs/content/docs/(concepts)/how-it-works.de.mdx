@@ -1,0 +1,97 @@
+---
+title: Wie es funktioniert
+description: Die Übersetzungs-Pipeline von Anfang bis Ende, vom Lesen der Quell-Locale bis zum Aktualisieren der Lock-Datei.
+---
+Ein Lauf ist eine Pipeline: die Quell-Locale lesen, jedes Ziel mit der Lock-Datei vergleichen, nur
+das an den Provider senden, was Arbeit braucht, das Ergebnis prüfen, schreiben und das Resultat
+festhalten. Diese Seite geht die Pipeline durch, damit du genau weißt, was bei
+`verbatra translate` passiert.
+
+<DiffPanel />
+
+Ein Lauf startet mit deiner validierten Konfiguration; siehe [Konfigurationsdatei](/docs/config-file)
+dafür, wo sie gefunden wird und was sie enthält. Alles Folgende ist gleich, egal ob der Lauf aus
+der CLI, dem SDK oder `watch` kam.
+
+## Die Quell-Locale lesen
+
+Der Format-Adapter liest die Quell-Locale-Datei in eine neutrale Menge von Einträgen mit Keys,
+damit der Rest der Pipeline für jedes Format gleich funktioniert. Eine fehlende Quelldatei lässt
+den Lauf mit `SOURCE_UNREADABLE` fehlschlagen; eine Datei, die der Adapter nicht parsen kann, mit
+`SOURCE_INVALID`. Beim Lesen markiert der Adapter außerdem Quell-Keys, deren Werte für die
+Nachrichtensyntax des Formats ungültig sind (ungültiges ICU): Diese Keys laufen mit, werden aber
+beiseitegelegt, statt in kaputtem Zustand an den Provider zu gehen.
+
+## Mit der Lock-Baseline vergleichen
+
+Dieser Vergleich existiert, damit ein Lauf inkrementell ist: Der Provider wird nur für Strings
+aufgerufen, die wirklich Arbeit brauchen. verbatra liest die bestehende Ziel-Locale-Datei (eine
+fehlende Datei zählt als leer) und vergleicht die Quelle mit ihr, mit
+[der Lock-Datei](/docs/the-lock-file) als Baseline dessen, was zuvor übersetzt wurde. Jeder
+Quell-Key landet in einer von vier Kategorien:
+
+- fehlend (missing): das Ziel hat den Key noch nicht.
+- geändert (changed): der Quellwert passt nicht mehr zum Hash in der Lock-Datei.
+- unverändert (unchanged): der Quellwert passt noch zum aufgezeichneten Hash.
+- verwaist (orphaned): der Key steht im Ziel, aber nicht mehr in der Quelle.
+
+Nur fehlende und geänderte Keys werden Übersetzungskandidaten. Unveränderte Keys bleiben
+unangetastet. Verwaiste Keys werden gemeldet und standardmäßig belassen; mit `--prune` (oder
+`prune: true` in der Konfiguration) werden genau diese Keys aus der Zieldatei und der Lock-Datei
+entfernt, und nichts anderes.
+
+## In Batches an den Provider
+
+Kandidaten gehen in sequenziellen Sub-Batches von höchstens `maxBatchSize` Einträgen (Default 50)
+an deinen konfigurierten Provider, damit eine überdimensionierte Anfrage nicht eine ganze Locale
+mitreißt. Jeder Sub-Batch trägt die Einträge plus dein optionales `glossary` und `tone`. Schlägt
+ein Sub-Batch-Aufruf fehl (ein Rate-Limit, ein Timeout, ein widerrufener Schlüssel), werden seine
+Keys für diesen Lauf zurückgehalten und beim nächsten Lauf wieder aufgegriffen, während die
+anderen Sub-Batches weiter Fortschritt machen. Siehe [Provider](/docs/providers) dafür, wie jeder
+Provider die Eingaben anwendet.
+
+## Die Antwort validieren
+
+verbatra behandelt die Antwort des Providers nie als vertrauenswürdigen Freitext. Bei den LLM-Providern (Anthropic, OpenAI,
+Gemini und openai-compatible) ist die Antwort schemagebundene Daten, validiert, bevor irgendetwas
+anderes passiert: Eine Antwort, die fehlerhaft ist oder einen Key enthält, der nie angefragt
+wurde, lässt den Sub-Batch fehlschlagen, und ein angefragter Key, der fehlend oder doppelt
+zurückkommt, wird einmal erneut angefragt; ist er danach immer noch ungeklärt, gilt der Key in
+diesem Lauf als nicht übersetzt und wird beim nächsten erneut versucht. DeepL ist eine
+Maschinenübersetzungs-API ohne diese Antwortschicht, aber seine Ergebnisse durchlaufen dieselben
+Integritätsprüfungen unten.
+
+## Platzhalter- und ICU-Integrität prüfen
+
+Eine Übersetzung, die die Schemavalidierung bestanden hat, kann trotzdem kaputt sein, deshalb
+berechnet verbatra die Entscheidung über Annehmen oder Ablehnen selbst aus dem Kandidatenwert: Es
+vertraut nie dem Bericht des Providers. Jeder akzeptierte Kandidat muss dieselben Platzhalter
+tragen wie seine Quelle, und für die ICU-Formate muss er weiterhin eine gültige Nachricht sein.
+Ein Kandidat, der eine der beiden Prüfungen nicht besteht, wird zurückgehalten statt geschrieben,
+taucht in der Lauf-Zusammenfassung auf und wird beim nächsten Lauf erneut versucht. Siehe
+[Übersetzungssicherheit](/docs/translation-safety) für das vollständige Sicherheitsmodell.
+
+## Über den Adapter schreiben
+
+Akzeptierte Übersetzungen werden ins Ziel gemergt und vom Format-Adapter geschrieben, atomar und
+in der Dokumentreihenfolge der Keys: Ein Key, der schon im Ziel steht, behält seine Position, und
+ein neuer Key wird dort angehängt, wo die Quelle ihn hinsetzt. Ein unterbrochener Schreibvorgang
+hinterlässt nie eine halbfertige Locale-Datei, und ein Formatter oder Code-Reviewer sieht stabile,
+minimale Diffs.
+
+## Die Lock-Datei aktualisieren
+
+Nachdem eine Locale geschrieben wurde, werden ihre Lock-Einträge mit den aktuellen Quell-Hashes
+aufgefrischt, mit einer bewussten Ausnahme: Ein in diesem Lauf zurückgehaltener Key behält seinen
+vorherigen Hash, damit der nächste Lauf ihn weiterhin als arbeitsbedürftig sieht. Der
+Schreibvorgang jeder Locale passiert unter einer prozessübergreifenden Schreibsperre, damit zwei
+überlappende Läufe nie mit einer veralteten Baseline vergleichen oder denselben Provider-Aufruf
+doppelt bezahlen. Die Details stehen in [Die Lock-Datei](/docs/the-lock-file).
+
+## Eine Locale nach der anderen, Fehlschläge als Daten
+
+Jede Ziel-Locale läuft für sich: Scheitert eine Locale, stoppt das die anderen nicht. Der Lauf
+gibt eine Zusammenfassung pro Locale zurück (übersetzt, unverändert, verwaist, zurückgehalten,
+zum Review markiert, Hinweise), und ein Dry-Run (`--dry-run`) erzeugt dieselbe
+Zusammenfassungsform nach dem Vergleichsschritt, ohne einen Provider zu konstruieren oder
+irgendetwas zu schreiben.

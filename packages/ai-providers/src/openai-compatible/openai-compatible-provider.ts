@@ -38,7 +38,8 @@ export interface OpenAiCompatibleDeps {
  *   value.
  * @param deps - Optional injected client; when omitted, the production client is built.
  * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED`, `PROVIDER_REFUSED`, or `PROVIDER_ERROR`.
+ *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED`, `PROVIDER_REFUSED`, or (via the
+ *   shared guard) `RATE_LIMITED`, `TIMEOUT`, `AUTH_FAILED`, or `PROVIDER_ERROR`.
  * @throws A `ZodError` if `config` is invalid, including a malformed or non-http(s) `baseUrl`, or an
  *   `apiKeyEnvVar` naming a hosted provider's environment variable.
  * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected,

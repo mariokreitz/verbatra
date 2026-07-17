@@ -7,8 +7,6 @@ import { type SwapLogo, SwapLogoCloud } from "./swap-logo-cloud";
 
 const ICON_SIZE = 28;
 
-// Only four providers, which is the exact number of visible slots, so the swap cloud renders
-// them statically (with the one-time staggered reveal) rather than inventing fake providers.
 const PROVIDERS: ReadonlyArray<SwapLogo> = [
   {
     key: "anthropic",
@@ -28,7 +26,6 @@ const PROVIDERS: ReadonlyArray<SwapLogo> = [
   },
 ];
 
-// Server shell: the centered heading renders on the server; the swap cloud is the client leaf.
 export async function ProvidersCloud(): Promise<ReactNode> {
   const t = await getTranslations("landing.providers");
   return (

@@ -1,11 +1,8 @@
 ---
-title: Référence du SDK
-description: Pilote verbatra depuis tes propres scripts, tâches CI et outils avec l'API @verbatra/sdk.
+title: Référence SDK
+description: Chaque point d'entrée de @verbatra/sdk, groupé par tâche, avec le modèle d'erreur et l'anatomie du RunSummary.
 ---
-`@verbatra/sdk` est le moteur sur lequel tourne la commande `verbatra`. La CLI est un mince wrapper, donc tout ce que
-fait la ligne de commande, tu peux le faire en code : charger et valider une config, exécuter une traduction unique, ou
-surveiller la source et retraduire à chaque changement. Tourne-toi vers le SDK quand tu veux de la traduction à l'intérieur
-d'un script, d'une tâche CI ou de tes propres outils.
+`@verbatra/sdk` est le moteur sur lequel tourne la commande `verbatra`. La CLI est une surcouche légère, donc tout ce que la ligne de commande fait, tu peux le faire en code. Cette page catalogue toute la surface publique, groupée par la tâche de chaque point d'entrée. Pour des exemples de bout en bout, voir [Recettes SDK](/docs/programmatic-api).
 
 ## Installation
 
@@ -17,52 +14,155 @@ npm install -D @verbatra/sdk
 yarn add -D @verbatra/sdk
 ```
 
-Nécessite Node.js `>=22.14.0`.
+Requiert Node.js `>=22.14.0`.
 
-## La surface publique
+<Callout title="Clés d'API et environnement">
+Le SDK ne lit, ne détient ni n'accepte jamais de clé d'API. Le fournisseur lit sa clé depuis l'environnement (par exemple `ANTHROPIC_API_KEY`) au moment de sa construction. Contrairement à la CLI, le SDK ne charge pas les fichiers `.env` : dans ton propre script, définis la variable toi-même, par exemple avec `node --env-file=.env script.js`.
+</Callout>
 
-Huit fonctions, plus les types que tu manipules quand tu les appelles.
+Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `config` validée (issue de `loadConfig`), sauf mention contraire. La plupart acceptent aussi un second argument optionnel `deps` qui injecte un registre, un constructeur de fournisseur ou un système de fichiers pour les tests ; tu peux l'ignorer en usage normal.
 
-- `defineConfig(config): VerbatraConfig` te renvoie ton argument tel quel, inchangé. Son seul rôle est
-  l'inférence de type et l'autocomplétion quand tu rédiges une config en TypeScript. Le champ `model` est restreint
-  aux modèles connus du provider choisi, de sorte que le modèle d'un autre provider est une erreur de type.
-- `loadConfig(options?: LoadConfigOptions): Promise<VerbatraConfig>` découvre et valide la config.
-  `LoadConfigOptions` accepte `cwd`, un `configPath` explicite, ou un `configOverride` en mémoire. Elle
-  lève une `SdkError` quand il n'y a aucune config à trouver ou que la validation échoue.
-- `translate(input: TranslateInput): Promise<RunSummary>` exécute le flux lire, comparer, traduire, écrire
-  sur chaque locale cible. `TranslateInput` est `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
-  `prune` (désactivé par défaut) supprime les clés orphelines du fichier écrit et du verrouillage. `generatePlurals`
-  (désactivé par défaut) synthétise les formes plurielles CLDR dont une langue cible a besoin mais que la source ne fournit pas
-  (i18next-JSON avec un provider LLM uniquement). Définis l'un ou l'autre de ces flags par exécution et il remplace l'option
-  de config correspondante pour cette exécution. Tu récupères un `RunSummary` : les problèmes sur toute l'exécution lèvent une `SdkError`,
-  les résultats par locale sont transportés sur le résumé.
-- `watch(input: WatchInput): Promise<WatchController>` surveille le fichier source et se réexécute à chaque
-  changement temporisé. `WatchInput` est `{ config, cwd?, debounceMs?, onRun }`, et `onRun` se déclenche une fois par
-  exécution avec un `WatchRunResult`. Le `WatchController` renvoyé a une seule méthode, `stop()`, qui ferme
-  le surveillant et attend l'exécution en cours.
-- `exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>` écrit les chaînes qui
-  ont encore besoin d'être traduites dans un classeur Excel stylisé pour un traducteur humain. `ExportWorkbookInput` est
-  `{ config, cwd?, out?, locales?, includeUnchanged? }`, et tu récupères un `ExportWorkbookResult` :
-  le `path` absolu écrit plus les comptes de `rows` par locale. Aucun appel de provider, aucun fichier de verrouillage. Voir
-  [Traduction humaine](/docs/manual-translation).
-- `importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>` relit un classeur rempli dans les
-  fichiers de locale, en exécutant les mêmes vérifications de placeholders et d'ICU que `translate`. `ImportWorkbookInput`
-  est `{ config, workbook, cwd?, dryRun? }`, et elle se résout en le même `RunSummary` que `translate`,
-  de sorte qu'un échec par locale est une donnée sur le résumé, pas une exception. `DEFAULT_WORKBOOK_PATH` est le chemin
-  d'export par défaut (`verbatra-translations.xlsx`).
-- `check(input: CheckInput): Promise<CheckSummary>` exécute la même lecture et le même diff que `translate`, puis
-  s'arrête avant tout appel de provider : il signale la dérive par locale et n'écrit rien. `CheckInput` est
-  `{ config, cwd?, locales? }`, et son `CheckSummary` définit `inSync` à vrai exactement quand chaque locale vérifiée
-  n'a aucune clé manquante ni obsolète. Aucun provider, aucune écriture de fichier, aucune touche au verrouillage. Voir
-  [`verbatra check`](/docs/cli/check). Tu veux les clés derrière les décomptes ? Utilise `diff`, ci-dessous.
-- `diff(input: DiffInput): Promise<DiffSummary>` est la fonction sœur en lecture seule de `check` : même lecture et
-  même diff, mais elle te donne des listes de clés au lieu de décomptes. `DiffInput` est `{ config, cwd?, locales? }`. Le
-  `DiffSummary` donne à chaque locale `missing` (clés qui seraient ajoutées), `changed` (clés qui seraient
-  retraduites), et `orphaned` (clés dans la cible mais pas dans la source, seulement signalées). Son
-  `hasPendingChanges` est vrai exactement quand une locale a une clé manquante ou modifiée ; les clés orphelines
-  seules ne le déclenchent jamais. Aucun provider, aucune écriture de fichier, aucune touche au verrouillage. Voir [`verbatra diff`](/docs/cli/diff).
+## Lancer des traductions
 
-Les types de résultat :
+### translate
+
+Le flux en une passe : lire la source, comparer chaque locale cible à la ligne de base du verrou, envoyer les clés manquantes et modifiées au fournisseur, exécuter les vérifications d'intégrité des placeholders et d'ICU, écrire les fichiers de locale et mettre à jour le verrou. Utilise-le pour les scripts, les étapes de build et les jobs CI.
+
+Entrée : `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+
+- `dryRun` lit, compare et rapporte sans construire ni appeler le fournisseur et sans rien écrire.
+- `prune` supprime les clés orphelines (clés cibles absentes de la source) du fichier écrit et du verrou. `generatePlurals` synthétise les formes plurielles CLDR manquantes (i18next-JSON avec un fournisseur LLM uniquement). Les deux sont désactivés par défaut ; quand ils sont définis, chacun remplace l'option de config correspondante pour cette exécution.
+- `maxBatchSize`, `maxTokens` et `budgetBehavior` sont réservés à la config ; il n'y a pas de surcharge par exécution.
+
+Renvoie un `RunSummary` (voir [son anatomie plus bas](#anatomie-du-runsummary)). Les problèmes globaux lèvent une `SdkError` ; une locale seule qui échoue ne lève jamais et atterrit comme `status: "failed"` sur l'entrée de cette locale pendant que l'exécution continue.
+
+### watch
+
+Surveille le fichier de la locale source et relance `translate` à chaque changement temporisé. Il déclenche une exécution initiale immédiatement au démarrage, puis une exécution par changement stabilisé. Les exécutions sont sérialisées : les changements survenus pendant une exécution se regroupent en une seule exécution de suivi.
+
+Entrée : `{ config, cwd?, debounceMs?, onRun }`. `debounceMs` vaut 300 par défaut. `onRun` est appelé une fois par exécution avec un `WatchRunResult` : `{ status: "succeeded", summary }` ou `{ status: "failed", error: { code, message } }`. Le SDK n'écrit aucun log ; `onRun` est la seule sortie.
+
+Renvoie un `WatchController` avec une seule méthode, `stop()`, qui ferme la surveillance et attend l'exécution en cours. Un fichier source manquant lève `SOURCE_UNREADABLE` au démarrage ; tout échec ultérieur remonte via `onRun` et la surveillance continue.
+
+## Inspecter l'état sans écrire
+
+Aucune de ces fonctions n'appelle de fournisseur, n'écrit de fichier ni ne modifie le verrou.
+
+### check
+
+Rapporte la dérive par locale sous forme de comptes : `missing` (dans la source, absent de la cible), `stale` (source modifiée depuis la dernière traduction) et `upToDate`. Utilise-le comme contrôle CI.
+
+Entrée : `{ config, cwd?, locales? }`. Renvoie un `CheckSummary` dont `inSync` est vrai exactement quand chaque locale vérifiée n'a rien de manquant ni d'obsolète.
+
+### diff
+
+Le frère détaillé de `check` : le même calcul, mais il renvoie les listes de clés par locale (`missing`, `changed`, `orphaned`) au lieu de comptes. Les clés orphelines sont rapportées seulement et ne font jamais basculer `hasPendingChanges`, puisqu'une exécution par défaut ne les supprime pas.
+
+Entrée : `{ config, cwd?, locales? }`. Renvoie un `DiffSummary`.
+
+### keyIntegrity
+
+Rapporte, pour les clés modifiées de chaque locale, si la valeur cible actuelle correspond toujours aux placeholders de la source et si elle est de l'ICU valide. Chaque entrée porte `key`, `hasPlaceholders`, `matches`, les jetons de placeholder `missing` et `extra` en cas de discordance, et `icuValid`. Les entrées ne portent jamais de valeur de chaîne source ou cible. C'est le rapport d'intégrité par clé que Studio affiche.
+
+Entrée : `{ config, cwd?, locales?, keys? }`. `keys` restreint la vérification ; seules les clés "modifiées" pour une locale sont vérifiées. Renvoie un `LocaleKeyIntegrity` par locale vérifiée.
+
+### lockState
+
+Rapporte l'existence du fichier de verrouillage, sa version et la dérive par locale (nombre de clés de la ligne de base, plus les comptes manquants, obsolètes et à jour). `exists` vient d'une sonde explicite, donc "pas encore de fichier de verrouillage" et "un fichier de verrouillage présent mais vide" restent distinguables. Quand le fichier est absent, le résultat est `{ exists: false }` et rien d'autre n'est lu.
+
+Entrée : `{ config, cwd?, locales? }`. Renvoie un `LockStateResult`.
+
+### loadLockFile
+
+Lit le fichier de verrouillage lui-même (`verbatra.lock.json`, aussi exporté sous `LOCK_FILE_NAME`) et renvoie sa forme parsée : `{ version, locales }`, où chaque locale associe les clés au hash du contenu source depuis lequel elles ont été traduites pour la dernière fois. Un fichier manquant se dégrade en verrou vide, le même comportement de première exécution sur lequel `translate` s'appuie ; utilise `lockState` quand tu dois distinguer l'absence.
+
+Entrée : `{ cwd? }`. Aucune config requise. Renvoie un `LockFile`.
+
+### runStatus
+
+Lit l'instantané des signalements de révision et de la consommation de tokens que la dernière exécution `translate` ou `watch` hors dry run a persisté dans `.verbatra-local/run-status.json`. Ne lève jamais : un fichier manquant, corrompu ou non reconnu se dégrade en `{ available: false }`. Ce fichier est de la télémétrie au mieux, pas une source de vérité.
+
+Entrée : `{ cwd? }`. Aucune config requise. Renvoie `{ available: false }` ou `{ available: true, version, generatedAt, usage?, budget?, locales }`.
+
+## Opérations sur une seule clé
+
+Ce sont les interfaces que Verbatra Studio pilote ; utilise-les pour construire ton propre outillage de révision. Toutes les trois résolvent `locale` et `key` à neuf à chaque appel et lèvent `UNKNOWN_LOCALE` ou `UNKNOWN_KEY` quand l'un des deux n'existe pas.
+
+### keyValue
+
+Lit la valeur source actuelle d'une clé et, quand elle existe, sa valeur cible actuelle pour une locale. En lecture seule.
+
+Entrée : `{ config, cwd?, locale, key }`. Renvoie `{ source, target? }` ; `target` est absent exactement quand la clé n'existe pas encore dans cette locale.
+
+### editEntry
+
+Écrit une correction saisie par un humain pour une clé et une locale. La valeur candidate passe le même contrôle de placeholders et d'ICU qu'une traduction de fournisseur avant que quoi que ce soit n'atteigne le disque ; à l'acceptation, le fichier de locale et l'entrée de verrou de cette clé sont mis à jour sous le verrou d'écriture de la locale. N'appelle jamais de fournisseur.
+
+Entrée : `{ config, cwd?, locale, key, value }`. Renvoie un résultat à deux branches : `{ accepted: true, value }`, ou `{ accepted: false, reason: "placeholder" | "icu", value }` sans rien écrire.
+
+### retranslateEntry
+
+Relance le fournisseur pour exactement une clé et une locale : un appel à entrée unique via le même registre de fournisseurs que `translate`, passé par les mêmes vérifications d'intégrité. À l'acceptation, il écrit le fichier de locale et l'entrée de verrou pour cette clé seulement.
+
+Entrée : `{ config, cwd?, locale, key }`. Renvoie `{ accepted: true, value, reviewReasons }` (les codes de raison de révision, s'il y en a, qui s'appliquent à la nouvelle valeur) ou `{ accepted: false, reason: "placeholder" | "icu", value }`. Contrairement à `translate`, un échec de fournisseur lève ici : une `ProviderError` de `@verbatra/ai-providers` avec un code stable comme `RATE_LIMITED` ou `AUTH_FAILED`.
+
+## Instantanés de fichiers de locale
+
+Les briques d'un observateur à rafraîchissement en direct comme celui de Studio : capture l'état d'un fichier de locale, puis compte ce qui a changé depuis.
+
+### readLocaleFileSnapshot
+
+Lit un fichier de locale (la locale source ou n'importe quelle locale cible) et le réduit à un hash de contenu par clé. Un fichier qui n'existe pas encore se lit comme un instantané vide plutôt que de lever.
+
+Entrée : `{ config, locale, cwd? }`. Renvoie `{ locale, hashes }`.
+
+### diffLocaleSnapshots
+
+Compare deux instantanés du même fichier, pris à des moments différents, et compte les clés ajoutées, modifiées et supprimées entre les deux. Une fonction synchrone ordinaire : `diffLocaleSnapshots(previous, current)` renvoie `{ added, changed, removed }`. Des comptes seulement, jamais de noms de clés.
+
+## La paire classeur
+
+La passation Excel pour les traducteurs humains ; voir [Traduction humaine](/docs/manual-translation).
+
+### exportWorkbook
+
+Écrit les chaînes encore à traduire (clés manquantes et modifiées par locale ; ajoute les inchangées avec `includeUnchanged`) dans un classeur `.xlsx` stylisé. Les lignes portent le même signal de révision qu'une exécution translate calcule. Aucun appel de fournisseur, aucune écriture du verrou.
+
+Entrée : `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` vaut par défaut `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`), exporté comme constante. Renvoie `{ path, locales }` : le chemin absolu écrit et un compte de lignes par locale.
+
+### importWorkbook
+
+Relit un classeur rempli dans les fichiers de locale, en exécutant les mêmes vérifications de dérive de source, de placeholders et d'ICU que `translate`. Seules les lignes acceptées font avancer leur ligne de base du verrou ; une ligne vide ou rejetée continue de se réexporter jusqu'à sa vraie résolution.
+
+Entrée : `{ config, workbook, cwd?, dryRun? }`. Renvoie la même forme `RunSummary` que `translate` (avec `needsReview` toujours vide, puisqu'aucun fournisseur n'intervient). Une feuille pour une locale qui n'est pas une cible configurée fait échouer cette locale avec `CONFIG_INVALID` comme donnée sur le résumé, pas comme exception.
+
+## Config
+
+### loadConfig
+
+Trouve, charge et valide la config du projet, en renvoyant une `VerbatraConfig`. Options : `{ cwd?, configPath?, configOverride? }`, avec la précédence `configOverride` (valider un objet en mémoire) sur `configPath` (charger un fichier explicite) sur la recherche. La recherche démarre à `cwd` et couvre `verbatra.config.ts` (aussi `.js`/`.cjs`), la famille `.verbatrarc` (`.json`, `.yaml`, `.yml`, `.js`, `.cjs`, `.ts`) et une propriété `"verbatra"` dans `package.json`. Un `glossary` donné comme chemin de fichier est lu et validé ici, donc le code en aval voit toujours un simple enregistrement.
+
+Lève `CONFIG_NOT_FOUND` quand rien n'est trouvé, `CONFIG_INVALID` quand une config est trouvée mais invalide. Voir [Le fichier de configuration](/docs/config-file) pour le schéma.
+
+### loadConfigWithMeta
+
+Le même chargement, plus la provenance : renvoie `{ config, source, glossary }`, où `source` dit si la config vient d'une recherche, d'un chemin explicite ou d'une surcharge en mémoire (avec le `filepath` absolu quand il y en a un), et `glossary` note si le glossaire était absent, inline ou résolu depuis un fichier. Utilise-le quand tu dois afficher d'où vient la config.
+
+### defineConfig
+
+Un assistant identité pour écrire un `verbatra.config.ts` typé : il renvoie son argument inchangé et n'existe que pour l'inférence de types et l'autocomplétion de l'éditeur, y compris la complétion des IDs de modèles connus du fournisseur sélectionné. La restriction de modèle ne vaut qu'à l'écriture ; à l'exécution, toute chaîne non vide passe la validation.
+
+### verbatraConfigSchema
+
+Le schéma zod avec lequel `loadConfig` valide, exporté pour que ton propre outillage puisse valider un objet de config de la même façon que le SDK. Les clés de premier niveau inconnues sont rejetées, donc un secret égaré ne peut pas se cacher dans la config.
+
+### scaffoldingMetadata
+
+Métadonnées en lecture seule dont la commande `init` de la CLI dérive ses questions : `providerEnv` (id de fournisseur vers la variable d'environnement où sa clé est lue), `scaffoldModels` (un modèle d'échafaudage par défaut par fournisseur LLM) et `supportedFormats` (l'ensemble fermé des ids de format). Le type `ScaffoldableProviderId` couvre les quatre fournisseurs hébergés ; `openai-compatible` en est exclu parce qu'il n'a pas de variable d'environnement unique requise.
+
+## Anatomie du RunSummary
+
+`translate`, `importWorkbook` et chaque exécution `watch` réussie se résolvent en un `RunSummary` :
 
 ```ts
 interface RunSummary {
@@ -70,7 +170,7 @@ interface RunSummary {
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
   failed: string[];         // locales whose run failed
-  usage?: UsageSummary;     // summed input/output tokens across every locale; absent if none reported usage
+  usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
   budget?: RunBudget;       // present only when maxTokens is configured
 }
 
@@ -79,209 +179,44 @@ interface LocaleSummary {
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   unchanged: string[];           // keys already up to date
-  orphaned: string[];            // target keys with no matching source key (reported regardless of pruning)
-  pruned: string[];              // orphaned keys removed this run; empty unless pruning is on (subset of orphaned)
+  orphaned: string[];            // target keys with no matching source key (always reported)
+  pruned: string[];              // orphaned keys removed this run; empty unless pruning is on
   invalidIcuSource: string[];    // source keys skipped for invalid ICU
-  integrityMismatches: string[]; // translations withheld for a placeholder mismatch, never a provider failure
-  providerFailures: string[];    // keys withheld because the provider call itself failed (see the notices for why)
-  budgetWithheld: string[];      // keys never sent because a maxTokens budget already tripped in "stop" mode
-  generated: string[];           // CLDR plural forms synthesized this run; empty unless generation is on
-  notices: LocaleNotice[];       // provider notices (e.g. DeepL degradation) and SDK notices (e.g. PLURAL_CATEGORIES_INCOMPLETE)
-  needsReview: { key: string; reasons: string[] }[]; // accepted keys the review heuristics flagged for a second look, sorted by key; empty when nothing was flagged
-  usage?: UsageSummary;          // summed input/output tokens for this locale; absent if nothing reported usage
+  integrityMismatches: string[]; // translations withheld for a placeholder mismatch
+  providerFailures: string[];    // keys withheld because nothing was translated for them
+  budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
+  generated: string[];           // CLDR plural forms synthesized this run
+  notices: LocaleNotice[];       // provider notices and SDK notices for this locale
+  needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
+  usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
   error?: { code: string; message: string }; // present only when status is "failed"
-}
-
-interface UsageSummary {
-  inputTokens: number;
-  outputTokens: number;
-}
-
-interface RunBudget {
-  maxTokens: number;             // the configured ceiling
-  behavior: "warn" | "stop";     // the configured behavior once the ceiling is reached
-  supported: boolean;            // false when the configured provider never reported usage this run
-  tokensUsed: number;            // cumulative input plus output tokens across the run so far
-  exceeded: boolean;             // true once tokensUsed reached or passed maxTokens
-}
-
-// A notice is either a provider-emitted notice or an SDK-emitted one.
-type LocaleNotice = ProviderNotice | SdkNotice;
-
-type WatchRunResult =
-  | { status: "succeeded"; summary: RunSummary }
-  | { status: "failed"; error: { code: string; message: string } };
-
-interface CheckSummary {
-  inSync: boolean;                 // true exactly when every locale is in sync
-  locales: LocaleCheckSummary[];   // one entry per checked locale, in config order
-}
-
-interface LocaleCheckSummary {
-  locale: string;
-  missing: number;                 // in source, absent from target
-  stale: number;                   // source changed since last translated
-  upToDate: number;                // target matches the current source
-  inSync: boolean;                 // missing === 0 && stale === 0
-}
-
-interface DiffSummary {
-  hasPendingChanges: boolean;      // true when some locale has a missing or changed key
-  locales: LocaleDiff[];           // one entry per checked locale, in config order
-}
-
-interface LocaleDiff {
-  locale: string;
-  missing: string[];               // in source, absent from target: would be added
-  changed: string[];               // source changed since last translated: would be re-translated
-  orphaned: string[];              // in target, absent from source: reported only
-  hasPendingChanges: boolean;      // missing.length > 0 || changed.length > 0
 }
 ```
 
-Les notifications sont par locale, sur `LocaleSummary.notices`. Elles couvrent les notifications du provider (par exemple une
-dégradation gracieuse de DeepL) et les notifications du SDK (par exemple une langue cible qui a besoin de plus de catégories de pluriel CLDR
-que la source n'en fournit, code `PLURAL_CATEGORIES_INCOMPLETE`, ou un budget de tokens dépassé, code
-`BUDGET_TOKENS_EXCEEDED`). Il n'y a pas de liste de notifications de niveau supérieur sur
-`RunSummary`, donc lis-les toujours sur la locale.
+Les parties à connaître :
 
-`needsReview` liste chaque clé acceptée que les heuristiques de révision ont signalée pour un second
-regard, chacune avec les codes de motif qui s'appliquent : `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`,
-`GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` et `PROVIDER_DEGRADED`. C'est un signal distinct et non
-bloquant, séparé du verrou d'intégrité des placeholders et de l'ICU : un signal de révision ne retient
-jamais une clé, il la signale seulement comme digne d'être regardée, de sorte qu'une clé n'apparaît
-jamais à la fois dans `needsReview` et dans `integrityMismatches` pour le même motif. Il est toujours
-vide sur la `RunSummary` renvoyée par `importWorkbook`, puisqu'un import de classeur n'appelle jamais de
-provider ni ne recalcule de signaux sur son propre chemin. Voir [Sûreté de la traduction](/docs/translation-safety)
-pour ce que signifie chaque code, et [Traduction humaine](/docs/manual-translation) pour le même signal
-dans les colonnes `Review status` / `Review reasons` du classeur.
+- **needsReview** liste les clés acceptées et écrites que les heuristiques de révision ont signalées, chacune avec ses codes de raison : `LENGTH_RATIO_OUTLIER`, `EQUALS_SOURCE`, `GLOSSARY_TERM_MISSED`, `INTEGRITY_REORDERED` et `PROVIDER_DEGRADED`. Un signalement de révision est consultatif et ne retient jamais une clé, donc une clé n'apparaît jamais à la fois dans `needsReview` et `integrityMismatches`. Voir [Sûreté de la traduction](/docs/translation-safety) pour la signification de chaque code et [Réviser les traductions dans Studio](/docs/review-in-studio) pour traiter la file.
+- **notices** vivent par locale, jamais au premier niveau. Ils couvrent les avis de fournisseur (par exemple une dégradation DeepL) et les avis du SDK avec les codes `PLURAL_CATEGORIES_INCOMPLETE`, `SUB_BATCH_FAILED`, `BLANK_ROW_BASELINE_RETAINED` et `BUDGET_TOKENS_EXCEEDED`.
+- **usage** est `undefined`, jamais un zéro fabriqué, dès que rien dans ce périmètre n'a rapporté d'usage : un dry run n'appelle jamais de fournisseur, et DeepL ne rapporte jamais de tokens. `RunSummary.usage` est la somme sur les locales.
+- **budget** n'apparaît que quand `maxTokens` est configuré : `{ maxTokens, behavior, supported, tokensUsed, exceeded }`. Face à un fournisseur sans tokens ou à un dry run, il est quand même présent avec `supported: false`, donc le garde-fou est visiblement inerte plutôt que faussement déclenché.
+- **error.code** sur une locale échouée est une chaîne préservée (le code du fournisseur ou de l'adaptateur sous-jacent, avec `LOCALE_FAILED` seulement en dernier recours), donc ne le traite pas comme un ensemble fermé.
 
-`usage` vaut `undefined`, jamais un `{ inputTokens: 0, outputTokens: 0 }` inventé, dès que rien dans cette
-portée n'a signalé d'usage : un dry-run n'appelle jamais de provider, et un provider sans tokens (DeepL)
-n'en signale jamais. `RunSummary.usage` est la somme du `LocaleSummary.usage` de chaque locale.
-`RunSummary.budget` n'est présent que quand `maxTokens` est configuré ; face à un provider sans tokens ou
-à un dry-run, il est tout de même présent, avec `supported: false`, `tokensUsed: 0` et `exceeded: false`,
-de sorte que la protection reste visiblement et honnêtement inactive plutôt que d'être omise en silence
-ou de se déclencher faussement.
+## Le modèle d'erreur
 
-`SdkError` est le type d'erreur unique que le SDK lève pour les échecs sur toute l'exécution. Il porte un `code` stable
-et un `message` sans secret. Les codes :
+Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable et un `message` sans secret. Branche-toi sur le code, pas sur le message. Les échecs par locale, les avis de fournisseur et les constats d'intégrité remontent comme données sur le `RunSummary`, jamais comme exceptions.
 
 | Code | Quand |
 | --- | --- |
-| `CONFIG_NOT_FOUND` | aucune config n'a été trouvée, ou un `configPath` explicite n'existe pas |
-| `CONFIG_INVALID` | une config a été trouvée mais est non analysable ou échoue à la validation |
-| `UNKNOWN_FORMAT` | aucun adaptateur n'est enregistré pour le format configuré |
-| `PROVIDER_CONSTRUCTION_FAILED` | le provider n'a pas pu être construit (inclut une clé API manquante) |
-| `SOURCE_UNREADABLE` | le fichier de locale source n'existe pas |
-| `SOURCE_INVALID` | le fichier de locale source n'a pas pu être lu ou analysé |
-| `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu ou trop volumineux |
-| `LOCALE_FAILED` | non levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |
+| `CONFIG_NOT_FOUND` | aucune config trouvée par la recherche, ou un `configPath` explicite n'existe pas (levé par `loadConfig`) |
+| `CONFIG_INVALID` | une config a été trouvée mais est imparsable ou échoue la validation, ou son fichier de glossaire n'a pas pu être résolu |
+| `UNKNOWN_FORMAT` | aucun adaptateur n'est enregistré pour le format configuré ; levé avant toute lecture de fichier |
+| `UNKNOWN_LOCALE` | une locale demandée n'est pas parmi les locales cibles configurées |
+| `UNKNOWN_KEY` | une clé demandée n'est pas dans la ressource source (`keyValue`, `editEntry`, `retranslateEntry`) |
+| `PROVIDER_CONSTRUCTION_FAILED` | le fournisseur n'a pas pu être construit ; enveloppe l'erreur du fournisseur lui-même, y compris une clé d'API manquante |
+| `SOURCE_UNREADABLE` | le fichier de la locale source n'existe pas |
+| `SOURCE_INVALID` | le fichier de la locale source n'a pas pu être lu ou parsé ; enveloppe l'erreur de lecture de l'adaptateur |
+| `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu, trop volumineux ou à une version non prise en charge |
+| `LOCK_CONTENDED` | le verrou d'écriture d'une locale n'a pas pu être acquis avant son délai ; le message nomme le chemin du fichier de verrou |
+| `LOCALE_FAILED` | jamais levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |
 
-L'échec d'une seule locale ne lève jamais d'erreur. Il atterrit sur le `LocaleSummary` de cette locale avec `status:
-"failed"` et une `error`, et l'exécution continue.
-
-## Définir une config
-
-Rédige la config en TypeScript et laisse `defineConfig` la vérifier au fur et à mesure.
-
-```ts
-import { defineConfig } from "@verbatra/sdk";
-
-export default defineConfig({
-  sourceLocale: "en",
-  targetLocales: ["de", "fr"],
-  format: "i18next-json",
-  files: {
-    pattern: "locales/{locale}.json",
-  },
-  provider: {
-    id: "anthropic",
-    options: {
-      model: "claude-sonnet-4-6",
-      maxTokens: 4096,
-    },
-  },
-});
-```
-
-## Exécuter une traduction unique
-
-`translate` se résout en le résumé de l'exécution. Lis `succeeded` et `failed` pour l'essentiel, puis parcours
-`locales` pour le détail et toute notification (du provider ou du SDK).
-
-```ts
-import { loadConfig, translate } from "@verbatra/sdk";
-
-const config = await loadConfig();
-const summary = await translate({ config });
-
-console.log(`${summary.succeeded.length} succeeded, ${summary.failed.length} failed`);
-
-for (const locale of summary.locales) {
-  for (const notice of locale.notices) {
-    console.warn(`${locale.locale}: ${notice.code} ${notice.message}`);
-  }
-}
-```
-
-Passe `dryRun: true` pour lire et comparer sans appeler de provider ni écrire de fichiers. Passe `prune: true`
-pour supprimer les clés orphelines, ou `generatePlurals: true` pour synthétiser les catégories de pluriel manquantes
-(i18next-JSON avec un provider LLM uniquement). Chacun de ces flags remplace l'option de config correspondante pour cette
-exécution. `maxBatchSize` est l'exception : elle est réservée à la config (définis-la sur l'objet de config, par défaut 50),
-sans surcharge par exécution dans `translate()`.
-
-## Mode surveillance
-
-`watch` déclenche ton `onRun` une fois par exécution avec un `WatchRunResult` discriminé, et le `stop()` du contrôleur
-démonte tout proprement.
-
-```ts
-import { loadConfig, watch } from "@verbatra/sdk";
-
-const config = await loadConfig();
-const controller = await watch({
-  config,
-  onRun: (result) => {
-    if (result.status === "succeeded") {
-      console.log(`${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
-    } else {
-      console.error(`run failed: ${result.error.code} ${result.error.message}`);
-    }
-  },
-});
-
-// Stop cleanly on Ctrl-C.
-process.on("SIGINT", () => {
-  void controller.stop();
-});
-```
-
-## Gérer les erreurs
-
-Les échecs sur toute l'exécution lèvent une `SdkError`. Branche-toi sur son `code` pour gérer chaque cas à sa façon.
-
-```ts
-import { loadConfig, SdkError, translate } from "@verbatra/sdk";
-
-try {
-  const config = await loadConfig();
-  await translate({ config });
-} catch (error) {
-  if (error instanceof SdkError) {
-    switch (error.code) {
-      case "CONFIG_NOT_FOUND":
-        console.error("No verbatra config found. Run `verbatra init` to scaffold one.");
-        break;
-      case "SOURCE_UNREADABLE":
-      case "SOURCE_INVALID":
-        console.error(`Could not read the source locale: ${error.message}`);
-        break;
-      default:
-        console.error(`${error.code}: ${error.message}`);
-    }
-  } else {
-    throw error;
-  }
-}
-```
+Deux exceptions à la règle de la classe d'erreur unique : `retranslateEntry` relance la `ProviderError` du fournisseur quand l'appel unique échoue, et `runStatus` ne lève jamais. Pour la correspondance entre ces codes et les codes de sortie de la CLI, voir [CI et codes de sortie](/docs/ci-and-exit-codes) ; pour de l'aide par symptôme, voir [Dépannage](/docs/troubleshooting).

@@ -59,9 +59,6 @@ describe("startStudioServer: cwd option", () => {
     );
     const body = (await response.json()) as RpcEnvelope;
 
-    // No fixture is passed in this case: the default loader's config points at a "locales/"
-    // directory that does not exist relative to this test process's own working directory, so
-    // the handler surfaces the same domain error a real project without that directory would.
     expect(body.ok).toBe(false);
     expect(body.error?.code).toBe("SOURCE_UNREADABLE");
   });

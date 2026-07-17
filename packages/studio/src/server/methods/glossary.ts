@@ -3,11 +3,7 @@ import { projectGlossaryIndicator } from "../projection.js";
 import { redact } from "../redaction.js";
 import type { RpcHandler } from "../rpc.js";
 
-/**
- * Redacts every glossary value before it leaves the server (G16); keys are not free-form user
- * input in the same sense (they are config-authored terms) but are left untouched here since only
- * values are documented as passing through the redaction backstop.
- */
+/** Redacts every glossary value before it leaves the server; keys are config-authored terms and pass through untouched. */
 function redactGlossaryEntries(
   glossary: VerbatraConfig["glossary"],
 ): Readonly<Record<string, string>> {
@@ -22,10 +18,9 @@ function redactGlossaryEntries(
 }
 
 /**
- * Wraps the loaded config's resolved glossary: the entries (every value redacted) plus the
- * inline-vs-file indicator read from the loader's own provenance (`deps.config.glossary`),
- * reusing the exact projection helper `project.snapshot` uses for the same field. Strictly
- * read-only; there is no write, edit, or save path anywhere in this handler.
+ * Handles `glossary.get`: returns the loaded config's glossary entries with every value redacted,
+ * plus the inline-vs-file indicator projected from the loader's own provenance
+ * (`deps.config.glossary`) via the same helper the project snapshot uses. Strictly read-only.
  */
 export const glossaryGetHandler: RpcHandler<"glossary.get"> = async (_params, deps) => ({
   indicator: projectGlossaryIndicator(deps.config.glossary, deps.projectRoot),

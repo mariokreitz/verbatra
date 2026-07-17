@@ -142,7 +142,7 @@ describe("atomicWriteFile", () => {
   it("default ops clean up the temp when the rename fails (target is a directory)", async () => {
     const dir = await makeDir();
     const target = join(dir, "subdir");
-    await mkdir(target); // a directory at the target path makes the rename fail
+    await mkdir(target);
     await expect(atomicWriteFile(target, "X\n")).rejects.toThrow();
     const leftovers = (await readdir(dir)).filter((name) => name.startsWith("."));
     expect(leftovers).toEqual([]);

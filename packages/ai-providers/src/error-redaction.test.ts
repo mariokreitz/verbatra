@@ -5,7 +5,6 @@ import { ProviderError } from "./errors.js";
 import type { TranslateRequest } from "./provider.js";
 import { entry, regexExtractor, stubClient, toolMessage } from "./test-support.js";
 
-// Sentinels that must never surface in any thrown error's message or stack.
 const FAKE_KEY = "sk-ant-SENTINELKEY123";
 const CONTENT = "TRANSLATABLE-CONTENT-SENTINEL";
 const SENTINELS = [FAKE_KEY, CONTENT, "x-api-key", "Bearer"];

@@ -64,7 +64,6 @@ describe("buildWorkbook + readWorkbook round trip", () => {
     expect(de?.rows[1]?.currentTarget).toBe("Tschuss");
     expect(de?.rows[2]?.status).toBe("unchanged");
     expect(de?.rows[2]?.currentTarget).toBe("Willkommen");
-    // Empty translations stay empty on read.
     expect(de?.rows.every((r) => r.translation === "")).toBe(true);
     expect(de?.rows[0]?.context).toBe("A friendly greeting");
     expect(de?.rows[1]?.context).toBe("");
@@ -135,8 +134,6 @@ describe("buildWorkbook + readWorkbook round trip", () => {
   });
 
   it("imports every row of a legacy workbook built with no Review columns at all", async () => {
-    // A workbook built entirely by hand, mirroring a real .xlsx exported before this change: no
-    // Review status / Review reasons columns exist at all, unlike buildWorkbook's current output.
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("de");
     [

@@ -1,11 +1,11 @@
 ---
 title: Konfigurationsdatei
-description: Das verbatra-Konfigurationsschema, die Erkennungsreihenfolge und wie das Arbeitsverzeichnis alles miteinander verbindet.
+description: Jeder Konfigurations-Key mit Typ, Default und Einschränkungen, dazu die Suchreihenfolge und was passiert, wenn die Validierung fehlschlägt.
 ---
-verbatra liest ein kleines, nicht geheimes Konfigurationsobjekt und validiert es, bevor es irgendeine Arbeit verrichtet. Hier ist kein API-Schlüssel enthalten: Der Provider liest seinen Schlüssel aus der Umgebung, sodass diese Datei sicher zu committen ist.
+verbatra liest ein kleines, geheimnisfreies Konfigurationsobjekt und validiert es, bevor es irgendetwas tut. Diese Seite ist die vollständige Referenz: jeder Key, wo die Datei liegen kann und wie eine kaputte Konfiguration fehlschlägt.
 
 <Callout title="Schlüssel kommen aus der Umgebung">
-Aus dieser Datei wird niemals ein API-Schlüssel gelesen. Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable, sodass die Konfiguration sicher zu committen bleibt. Siehe [Provider](/docs/providers).
+Kein API-Schlüssel wird je aus dieser Datei gelesen. Jeder Provider liest seinen Schlüssel aus einer Umgebungsvariable, die Konfiguration bleibt also gefahrlos committbar. Siehe [Provider](/docs/providers).
 </Callout>
 
 ## Eine minimale Konfiguration
@@ -23,79 +23,99 @@ export default defineConfig({
   provider: {
     id: "gemini",
     options: {
-      model: "gemini-2.5-flash", // replace with your provider's model id
+      model: "gemini-2.5-flash", // example model id; use your provider's current one
       maxOutputTokens: 4096,
     },
   },
 });
 ```
 
-`defineConfig` ist ein Identitäts-Helfer aus `@verbatra/sdk`. Es gibt sein Argument unverändert zurück und existiert nur, um dir Typinferenz und Editor-Autovervollständigung zu geben.
+`defineConfig` ist ein Identitätshelfer aus `@verbatra/sdk`. Er gibt sein Argument unverändert zurück und existiert nur, um dir Typinferenz und Autovervollständigung im Editor zu geben.
 
 <Callout title="Modell-Autovervollständigung in TypeScript">
-Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor die bekannten Modell-IDs des gewählten Providers für `options.model` an, eingegrenzt durch die `id` des Providers, den du gewählt hast. Die Liste stammt aus dem eigenen SDK des Providers (`@anthropic-ai/sdk`, `openai`, `@google/genai`), sodass sie mit der installierten SDK-Version aktuell bleibt. Das Feld ist auf die Modelle dieses Providers beschränkt: Ein Modell eines anderen Providers (zum Beispiel ein Claude-Modell unter `id: "gemini"`) ist ein Typfehler. Die Laufzeit validiert `model` nur als nicht-leeren String, sodass ein brandneues Modell, das das SDK noch nicht gelistet hat, zur Laufzeit trotzdem funktioniert, auch wenn der Editor es markiert.
+Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor für `options.model` die bekannten Modell-IDs des gewählten Providers an, eingegrenzt durch die Provider-`id`, die du gewählt hast. Die Liste kommt aus dem eigenen SDK dieses Providers, sie bleibt also mit der installierten SDK-Version aktuell, und ein Modell eines anderen Providers (zum Beispiel ein Claude-Modell unter `id: "gemini"`) ist ein Typfehler. Das ist nur eine Schreibhilfe: Zur Laufzeit wird `model` als nicht-leerer String validiert, ein brandneues Modell, das das SDK noch nicht listet, funktioniert also trotzdem, auch wenn der Editor es anstreicht. DeepL hat kein `model`-Feld, und bei openai-compatible ist `model`, was auch immer dein Server anbietet, also ist keins von beiden eingeschränkt.
 </Callout>
 
-## Felder
+## Jeder Key
 
-- **`sourceLocale`** (string): das Locale, in dem deine Quell-Strings geschrieben sind.
-- **`targetLocales`** (String-Array): die Locales, in die übersetzt werden soll. Es darf `sourceLocale` nicht enthalten, und keine zwei Einträge dürfen sich nur in Groß-/Kleinschreibung unterscheiden (zum Beispiel wird `["de", "DE"]` abgelehnt), da jedes Locale beim Export zum Namen eines eigenen Excel-Arbeitsblatts wird.
-- **`format`** (string): eines von `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `arb`, `yaml` oder `xliff`. Siehe [Formate](/docs/formats) dafür, was jedes erkennt und wie es mit Platzhaltern umgeht.
-- **`files.pattern`** (string): der Pfad zu jeder Locale-Datei. Er muss das `{locale}`-Token enthalten, das verbatra durch jedes Locale ersetzt (zum Beispiel wird `locales/{locale}.json` zu `locales/de.json` aufgelöst).
-- **`provider`** (object): der Übersetzungs-Provider, ausgewählt über `id`. Jeder Provider nimmt seine eigenen `options`, und in TypeScript ist das `model`-Feld auf die bekannten Modell-IDs des gewählten Providers beschränkt (ein Modell eines anderen Providers ist ein Typfehler). Siehe [Provider](/docs/providers).
-- **`glossary`** (optional, object oder string): eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen, oder ein Pfad zu einer JSON-Datei mit derselben Zuordnung. Ein relativer Pfad wird relativ zum Verzeichnis der geladenen Konfigurationsdatei aufgelöst (oder relativ zum Arbeitsverzeichnis, wenn die Konfiguration als In-Memory-Override übergeben wird). Die LLM-Provider (Anthropic, OpenAI, Gemini und openai-compatible) erhalten die aufgelöste Zuordnung mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln. DeepL wendet diese Begriffszuordnung nicht an; es vermerkt einen Hinweis und wendet stattdessen ein über die ID konfiguriertes Glossar an (siehe [Provider](/docs/providers)).
-- **`tone`** (optional): eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten es und werden angewiesen, es zu berücksichtigen. DeepL ordnet es der Formalität zu: `formal` wird formeller, `informal` wird weniger formell, und `neutral` oder ein fehlender Ton wird weggelassen. Bei einem DeepL-Schlüssel der kostenlosen Stufe wird ein nicht-standardmäßiger Ton nicht unterstützt und mit einem Hinweis auf den Standardwert herabgestuft.
-- **`prune`** (optional, boolean, Standard `false`): wenn wahr, werden Schlüssel, die in einer Zieldatei vorhanden, aber nicht in der Quelle vorhanden sind (die verwaisten Schlüssel des Diffs), aus der geschriebenen Datei und der Lock-Datei entfernt. Eine Pro-Lauf-`prune`-Option bei `translate` (das CLI-Flag `--prune`) überschreibt dies. Es werden immer nur verwaiste Schlüssel entfernt.
-- **`generatePlurals`** (optional, boolean, Standard `false`): wenn wahr, synthetisiert verbatra die CLDR-Pluralformen, die eine Zielsprache benötigt, die Quelle aber nicht liefert (zum Beispiel Polnisch few/many). Wird nur für i18next-JSON-Projekte unterstützt, die von einem LLM-Provider übersetzt werden; DeepL, Nicht-i18next-Formate und unbekannte Zielsprachen fallen auf die Plural-Warnung pro Locale zurück. Anders als bei `prune` gibt es kein `--generate-plurals`-CLI-Flag, also setze dies in der Konfiguration; die SDK-`translate()`-Eingabe akzeptiert jedoch eine Pro-Lauf-`generatePlurals`-Überschreibung, die Vorrang hat.
-- **`maxBatchSize`** (optional, positive Ganzzahl, Standard `50`): die fehlend-plus-geänderten Einträge eines Locales werden in sequenzielle Teil-Batches aufgeteilt, die nicht größer als dieser Wert sind, sodass eine einzige übergroße Provider-Anfrage nicht das gesamte Locale fehlschlagen lassen kann. Ein fehlgeschlagener Teil-Batch wird zurückgehalten und beim nächsten Lauf erneut versucht, während die anderen weiterhin Fortschritt machen. Dies ist nur über die Konfiguration möglich: Es gibt kein CLI-Flag und keine Pro-Lauf-`translate()`-Überschreibung, also setze es in der Konfiguration.
-- **`maxTokens`** (optional, positive Ganzzahl): ein Token-Budget für den gesamten Lauf, das nach jedem abgeschlossenen Provider-Teil-Batch geprüft wird (sowohl bei der Haupt-Übersetzung als auch bei der Plural-Generierung, über alle Ziel-Locales hinweg). Dies ist ein Schlüssel auf oberster Ebene, nur über die Konfiguration setzbar, getrennt von den eigenen `options.maxTokens` eines Providers, und fügt niemals ein CLI-Flag hinzu. Die Prüfung ist eine nachträgliche weiche Obergrenze, keine harte Vorprüfung: Sie läuft zwischen Teil-Batches, niemals innerhalb eines Teil-Batches, sodass der Teil-Batch, dessen Abschluss die Obergrenze überschreitet, bereits gesendet wurde, normal akzeptiert wird und seine Tokens weiterhin gezählt werden. Eine ausgelöste Budgetgrenze ändert niemals den Exit-Code von `translate`, `watch` oder `import`, bei keinem der beiden Verhalten.
-- **`budgetBehavior`** (optional, `"warn"` oder `"stop"`, Standard `"warn"`): was passiert, sobald `maxTokens` erreicht ist. `"warn"` markiert es und lässt den Lauf genau so weiterlaufen, als wäre kein Budget konfiguriert. `"stop"` hält alle noch nicht versuchten Schlüssel für den Rest des Laufs zurück: die verbleibenden Kandidaten des aktuellen Locales und die Kandidaten jedes späteren Ziel-Locales vollständig (deren Diff- und Waisen-Berichterstattung läuft weiterhin; nur der Provider-Aufruf wird übersprungen). Zurückgehaltene Schlüssel behalten ihren vorherigen Lock-Hash und werden beim nächsten Lauf automatisch erneut versucht, genauso wie es bei einem fehlgeschlagenen Provider-Aufruf bereits der Fall ist. Ohne `maxTokens` vorhanden zu sein, wird es akzeptiert und hat keine Wirkung. Gegenüber einem token-losen Provider (zum Beispiel DeepL) meldet sich die Schutzfunktion selbst als inaktiv (`supported: false` in `budget` der Laufzusammenfassung), statt einen falschen Auslöser zu erzeugen.
+| Key | Typ | Default | Zweck |
+| --- | --- | --- | --- |
+| `sourceLocale` | String | erforderlich | Die Locale, in der deine Quellstrings geschrieben sind. |
+| `targetLocales` | String-Array | erforderlich | Die Locales, in die übersetzt wird. |
+| `format` | String | erforderlich | Der Format-Adapter für deine Locale-Dateien. |
+| `files.pattern` | String | erforderlich | Der Pfad zu jeder Locale-Datei, mit einem `{locale}`-Token. |
+| `provider` | Objekt | erforderlich | Der Übersetzungs-Provider, ausgewählt über `id`. |
+| `glossary` | Objekt oder String | keiner | Quellbegriffe zu bevorzugten Zielbegriffen, inline oder als Pfad zu einer JSON-Datei. |
+| `tone` | `"formal"`, `"informal"` oder `"neutral"` | keiner | Das Register, das Übersetzungen verwenden sollen. |
+| `prune` | Boolean | `false` | Entfernt verwaiste Keys aus Zieldateien und der Lock-Datei. |
+| `generatePlurals` | Boolean | `false` | Synthetisiert die CLDR-Pluralformen, die eine Zielsprache braucht. |
+| `maxBatchSize` | positive Ganzzahl | `50` | Die maximale Zahl von Einträgen in einer einzelnen Provider-Anfrage. |
+| `maxTokens` | positive Ganzzahl | keiner | Ein Token-Budget für den ganzen Lauf über alle Provider-Aufrufe. |
+| `budgetBehavior` | `"warn"` oder `"stop"` | `"warn"` | Was passiert, sobald `maxTokens` erreicht ist. |
 
-Unbekannte Schlüssel auf oberster Ebene werden abgelehnt. Das ist auch der Grund, warum ein API-Schlüssel nicht in der Konfiguration leben kann: Schlüssel kommen aus der Umgebung, nicht aus der Datei.
+Unbekannte Top-Level-Keys werden abgelehnt. Genau deshalb kann auch kein API-Schlüssel in der Konfiguration leben: Schlüssel kommen aus der Umgebung, nicht aus der Datei.
 
-Eine Konfiguration, die die optionalen Felder verwendet:
+### Locales und Dateien
 
-```ts
-import { defineConfig } from "@verbatra/sdk";
+- **`sourceLocale`** muss ein nicht-leerer String sein.
+- **`targetLocales`** muss mindestens eine Locale enthalten, darf `sourceLocale` nicht einschließen, und keine zwei Einträge dürfen case-insensitiv gleich sein (zum Beispiel wird `["de", "DE"]` abgelehnt), da jede Locale beim Export der Name ihres eigenen Excel-Arbeitsblatts wird.
+- **`format`** ist eines von `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml` oder `arb`. Siehe [Formate](/docs/formats).
+- **`files.pattern`** muss das `{locale}`-Token enthalten, das verbatra durch jede Locale ersetzt: `locales/{locale}.json` wird zu `locales/de.json`. Pfade werden gegen das Arbeitsverzeichnis aufgelöst.
 
-export default defineConfig({
-  sourceLocale: "en",
-  targetLocales: ["de", "fr"],
-  format: "i18next-json",
-  files: {
-    pattern: "locales/{locale}.json",
-  },
-  glossary: {
-    "Sign in": "Anmelden",
-  },
-  tone: "formal",
-  maxBatchSize: 25,
-  maxTokens: 200000,
-  budgetBehavior: "warn",
-  provider: {
-    id: "anthropic",
-    options: {
-      model: "claude-sonnet-4-6",
-      maxTokens: 4096,
-    },
-  },
-});
-```
+### provider
 
-<Callout title="Glossar als Dateipfad">
-`glossary` akzeptiert statt des Inline-Objekts auch einen String-Pfad zu einer JSON-Datei mit derselben Form (ein flaches Objekt aus String-Schlüsseln zu String-Werten):
+Ein Objekt, ausgewählt über `id`: `anthropic`, `openai`, `gemini`, `deepl` oder `openai-compatible`. Jeder Provider nimmt seine eigenen `options` (Modell, Token-Limit und provider-spezifische Felder), und unbekannte Options-Keys werden abgelehnt. Die Optionen pro Provider sind auf [Provider](/docs/providers) dokumentiert.
+
+### glossary
+
+Eine Zuordnung von Quellbegriffen zu bevorzugten Zielbegriffen, entweder inline oder als Pfad zu einer JSON-Datei mit derselben Form (ein flaches Objekt aus String-Keys zu String-Werten):
 
 ```ts
 export default defineConfig({
   // ...
-  glossary: "glossary.json",
+  glossary: {
+    "Sign in": "Anmelden",
+  },
+  // or: glossary: "glossary.json",
 });
 ```
 
-Die Datei muss UTF-8-kodiert sein und darf nicht größer als 1 MiB sein. Sie wird einmal beim Laden der Konfiguration gelesen; verbatra beobachtet sie nicht auf Änderungen, also bearbeite sie und starte neu, um ein Update zu übernehmen. Eine fehlende Datei, ungültiges JSON oder ein Wert, der keine flache String-Zuordnung ist, ist ein Konfigurationsfehler, der den aufgelösten Pfad nennt.
+Die beiden Formen schließen einander aus; es gibt keinen Merge zwischen ihnen. Ein relativer Dateipfad wird gegen das Verzeichnis der geladenen Konfigurationsdatei aufgelöst, oder gegen das Arbeitsverzeichnis, wenn die Konfiguration als In-Memory-Override übergeben wird. Die Datei muss UTF-8-kodiert und höchstens 1 MiB groß sein, und sie wird einmal beim Laden der Konfiguration gelesen: verbatra beobachtet sie nicht auf Änderungen, also bearbeite sie und starte neu, damit ein Update greift. Eine fehlende Datei, ungültiges JSON oder ein Wert, der keine flache String-Zuordnung ist, lässt das Laden der Konfiguration mit `CONFIG_INVALID` fehlschlagen und nennt den aufgelösten Pfad.
+
+Wie das Glossar angewendet wird, hängt vom Provider ab: Die LLM-Provider erhalten die aufgelöste Zuordnung mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln, während DeepL eine Begriffszuordnung ignoriert und stattdessen ein per Id konfiguriertes Glossar anwendet. Siehe [Provider](/docs/providers).
+
+### tone
+
+Eines von `"formal"`, `"informal"` oder `"neutral"`. Die LLM-Provider erhalten den Wert mit der Anfrage und werden angewiesen, ihn einzuhalten; DeepL bildet ihn auf seine Formalitätseinstellung ab. Siehe [Provider](/docs/providers) für die Details pro Provider, einschließlich der Herabstufung im kostenlosen Kontingent von DeepL.
+
+### prune
+
+Standardmäßig aus. Wenn true, werden Keys, die in einer Zieldatei stehen, aber in der Quelle fehlen (die verwaisten Keys des Vergleichs), aus der geschriebenen Datei und [der Lock-Datei](/docs/the-lock-file) entfernt. Es werden nur verwaiste Keys entfernt, nie andere. Eine `prune`-Option pro Lauf auf `translate` (das CLI-Flag `--prune`) überschreibt den Konfigurationswert.
+
+### generatePlurals
+
+Standardmäßig aus. Wenn true, synthetisiert verbatra die CLDR-Pluralformen, die eine Zielsprache verlangt, die Quelle aber nicht liefert (zum Beispiel few und many im Polnischen). Nur für i18next-JSON-Projekte unterstützt, die ein LLM-Provider übersetzt; DeepL, Nicht-i18next-Formate und unbekannte Zielsprachen fallen auf die Plural-Warnung pro Locale zurück. Es gibt kein CLI-Flag, setze das also in der Konfiguration; die `translate()`-Eingabe des SDK akzeptiert einen `generatePlurals`-Override pro Lauf, der Vorrang hat.
+
+### maxBatchSize
+
+Default `50`. Die fehlenden plus geänderten Einträge einer Locale werden in sequenzielle Sub-Batches höchstens dieser Größe aufgeteilt, damit eine überdimensionierte Provider-Anfrage nicht die ganze Locale fehlschlagen lässt. Ein fehlgeschlagener Sub-Batch wird zurückgehalten und beim nächsten Lauf erneut versucht, während die anderen weiter Fortschritt machen. Muss eine positive Ganzzahl sein; null, negative oder gebrochene Werte werden abgelehnt. Nur Konfiguration: Es gibt kein CLI-Flag und keinen Override pro Lauf.
+
+### maxTokens und budgetBehavior
+
+`maxTokens` ist ein Token-Budget für den ganzen Lauf: Eingabe- plus Ausgabe-Tokens, summiert über jeden Provider-Aufruf (Hauptübersetzung wie Pluralgenerierung) und über jede Ziel-Locale. Es wird nach jedem abgeschlossenen Sub-Batch geprüft, nie mittendrin, der Sub-Batch, dessen Abschluss die Obergrenze überschreitet, wurde also schon gesendet, wird normal akzeptiert, und seine Tokens zählen trotzdem: eine nachträgliche weiche Obergrenze, keine harte Vorabprüfung. Nur Konfiguration, kein CLI-Flag.
+
+`budgetBehavior` entscheidet, was passiert, sobald die Obergrenze erreicht ist:
+
+- `"warn"` (der Default) vermerkt die Überschreitung und lässt den Lauf genau so weiterlaufen, als wäre kein Budget konfiguriert.
+- `"stop"` hält jeden noch nicht versuchten Key für den Rest des Laufs zurück: die verbleibenden Kandidaten der aktuellen Locale und die Kandidaten jeder späteren Ziel-Locale komplett (deren Vergleich und Verwaisten-Meldung laufen trotzdem; nur der Provider-Aufruf wird übersprungen). Zurückgehaltene Keys behalten ihren vorherigen Lock-Hash und werden beim nächsten Lauf automatisch erneut versucht, genauso wie ein fehlgeschlagener Provider-Aufruf schon heute.
+
+Ein ausgelöstes Budget ändert nie den Exit-Code des Befehls, in keinem der beiden Verhalten. `budgetBehavior` ohne `maxTokens` wird akzeptiert und hat keine Wirkung. Gegen einen Provider ohne Token-Zahlen (DeepL, das keinen Verbrauch meldet) meldet sich der Schutzmechanismus als wirkungslos (`supported: false` im `budget` der Lauf-Zusammenfassung), statt eine falsche Auslösung zu produzieren.
+
+<Callout title="Zwei verschiedene maxTokens">
+Das Top-Level-`maxTokens` ist das hier beschriebene Budget für den ganzen Lauf. Der Anthropic-Provider hat zusätzlich sein eigenes `options.maxTokens`, das eine einzelne Antwort begrenzt. Die beiden haben nichts miteinander zu tun; siehe [Provider](/docs/providers).
 </Callout>
 
-## Erkennungsreihenfolge
+## Suchreihenfolge
 
 verbatra sucht vom Arbeitsverzeichnis aus aufwärts und verwendet die erste Quelle, die es findet. Mehrere vorhandene Quellen sind kein Fehler; der erste Treffer gewinnt. Die Suchreihenfolge ist:
 
@@ -111,10 +131,19 @@ verbatra sucht vom Arbeitsverzeichnis aus aufwärts und verwendet die erste Quel
 10. `verbatra.config.cjs`
 11. `verbatra.config.ts`
 
-Um eine explizite Datei zu laden, anstatt zu suchen, übergib `--config <path>`.
+Um stattdessen genau eine Datei zu laden, übergib `--config <path>`; ein relativer Pfad wird gegen das Arbeitsverzeichnis aufgelöst. Im SDK hat ein In-Memory-`configOverride` Vorrang vor einem expliziten `configPath`, das Vorrang vor der Suche hat. Siehe [Programmatische API](/docs/programmatic-api).
 
 ## Das Arbeitsverzeichnis und .env
 
-Führe verbatra aus deinem Projekt-Stammverzeichnis aus, oder übergib `--cwd`, das darauf zeigt. Das Arbeitsverzeichnis ist der einzige Anker für alles, was verbatra auflöst: Die Konfigurationssuche beginnt dort und läuft aufwärts, `.env.local` und `.env` werden von dort geladen, und jeder Locale-Dateipfad wird dagegen aufgelöst. Alle drei am selben Ort zu halten, ist das, was ein einfaches `verbatra translate` funktionieren lässt.
+Führe verbatra aus deinem Projektstamm aus, oder lass `--cwd` darauf zeigen. Das Arbeitsverzeichnis ist der eine Anker für alles, was verbatra auflöst: Die Konfigurationssuche startet dort und läuft aufwärts, `.env.local` und `.env` werden von dort geladen, und jeder Locale-Dateipfad wird dagegen aufgelöst. Alle drei am selben Ort zu halten ist es, was ein schlichtes `verbatra translate` funktionieren lässt.
 
-Die Umgebungspräzedenz ist, höchste zuerst: eine Variable, die bereits in deiner echten Umgebung gesetzt ist, dann `.env.local`, dann `.env`. Eine bereits vorhandene Variable wird niemals überschrieben.
+Die Präzedenz der Umgebung ist, höchste zuerst: eine Variable, die schon in deiner echten Umgebung gesetzt ist, dann `.env.local`, dann `.env`. Eine bereits vorhandene Variable wird nie überschrieben.
+
+## Wenn das Laden fehlschlägt
+
+Das Laden der Konfiguration schlägt mit einem von zwei strukturierten Fehlercodes fehl:
+
+- **`CONFIG_NOT_FOUND`**: Die Suche hat an keinem der Orte oben eine Konfiguration gefunden, oder der explizite `--config`-Pfad existiert nicht.
+- **`CONFIG_INVALID`**: Eine Konfiguration wurde gefunden, konnte aber nicht verwendet werden. Das deckt eine Datei ab, die nicht parst, eine Konfiguration, die die Schemavalidierung nicht besteht, und einen Glossar-Dateipfad, der sich nicht auflösen ließ. Die Meldung listet jedes Validierungsproblem mit seinem Key-Pfad, und ein unbekannter Top-Level-Key bekommt den Hinweis, dass API-Schlüssel aus der Umgebung gelesen werden, nicht aus der Konfiguration. Ein roher Parser- oder Dateisystemfehler dringt nie nach außen.
+
+Die CLI meldet beide Fehlschläge und endet mit Exit-Code `2`, dem Exit-Code für Boundary-Fehler. Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes).
