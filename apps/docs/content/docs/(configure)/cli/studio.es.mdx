@@ -8,10 +8,6 @@ Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en v
 verbatra studio
 ```
 
-<Callout title="Solo disponible como prerelease">
-Verbatra Studio por ahora solo está disponible como prerelease, todavía no hay una versión estable. Para usarlo, instala `@verbatra/cli` explícitamente bajo la etiqueta `next`: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` en sí todavía no ha tenido una versión estable, así que su propia etiqueta `latest` ya trae el build de prerelease actual, sin necesidad de etiqueta. Un simple `pnpm add -D @verbatra/cli` (sin etiqueta) resuelve a la versión estable actual y no incluye este comando.
-</Callout>
-
 ## Solo local, y sin llamadas al proveedor por defecto
 
 Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff), o de datos que una ejecución previa de `translate`/`watch` ya dejó guardados en disco. La única superficie de escritura integrada es la edición local: la acción de edición de la cola de revisión actualiza una sola clave marcada en tus propios archivos de locale y su entrada de bloqueo, detrás de la misma sesión de loopback, con la misma comprobación de integridad de marcadores de posición e ICU por la que pasa toda escritura; no necesita ningún flag y nunca llama a un proveedor. Por defecto Studio nunca gasta: nunca llama a `translate`, nunca ejecuta `watch` y nunca invoca a un proveedor de traducción. Pasa `--allow-spend` al iniciar y gana además la acción de retraducir descrita en "Volver a traducir una clave que falla" más abajo y la acción de traducir pendientes descrita en "Traducir cambios pendientes desde un toast" más abajo; déjalo sin activar y nunca se contacta con ningún proveedor.
@@ -96,7 +92,7 @@ Approve y Reject descartan una fila solo durante el resto de la sesión de esa p
 
 ## Instalación
 
-`@verbatra/studio` es el paquete propio de Studio. Todavía no ha tenido una versión estable, así que una instalación simple ya trae el build de prerelease actual, sin necesidad de etiqueta. Si no está instalado, `verbatra studio` sale con `2` y:
+`@verbatra/studio` es el paquete propio de Studio. Instálalo como dependencia de desarrollo junto a `@verbatra/cli`: `pnpm add -D @verbatra/studio`. Si no está instalado, `verbatra studio` sale con `2` y:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio

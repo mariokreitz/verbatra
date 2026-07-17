@@ -8,10 +8,6 @@ Verbatra Studio ist ein lokales Web-Dashboard über dein verbatra-Projekt: eine 
 verbatra studio
 ```
 
-<Callout title="Nur als Prerelease verfügbar">
-Verbatra Studio ist aktuell nur als Prerelease verfügbar, noch nicht als stabile Version. Um es zu nutzen, installiere `@verbatra/cli` explizit unter dem `next`-Tag: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` selbst hatte noch keine stabile Version, daher liefert schon sein eigener `latest`-Tag den aktuellen Prerelease-Build, kein Tag nötig. Ein einfaches `pnpm add -D @verbatra/cli` (ohne Tag) löst die aktuelle stabile Version auf und enthält diesen Befehl nicht.
-</Callout>
-
 ## Nur lokal, und standardmäßig keine Provider-Aufrufe
 
 Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen Rechner erreichbar, und es gibt keine Option, das zu ändern. Jede Anfrage wird gegen eine strikte Host- und Origin-Allowlist geprüft, und jede Seite und jeder API-Aufruf benötigt das im Start-URL ausgegebene Session-Token, das zeitkonstant verglichen wird, sodass ein falscher Versuch nicht per Timing erraten werden kann. Studio sendet keine CORS-Header, sodass ein Browser-Tab auf einem anderen Origin es nicht lesen könnte, selbst wenn er es versuchen würde. Alles, was du siehst, stammt aus denselben schreibgeschützten Berechnungen wie [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff), oder aus Daten, die ein vorheriger `translate`-/`watch`-Lauf bereits auf der Festplatte hinterlassen hat. Die einzige eingebaute Schreibfläche ist das lokale Bearbeiten: Die Bearbeitungsaktion der Review-Warteschlange aktualisiert einen markierten Schlüssel in deinen eigenen Locale-Dateien und seinen Lock-Eintrag, hinter derselben Loopback-Sitzung, mit derselben Platzhalter- und ICU-Integritätsprüfung, die jeder Schreibvorgang durchläuft; sie braucht kein Flag und ruft niemals einen Provider auf. Standardmäßig verursacht Studio niemals Kosten: Es ruft niemals `translate` auf, führt niemals `watch` aus und ruft niemals einen Übersetzungs-Provider auf. Übergibst du beim Start `--allow-spend`, erhält es zusätzlich die in "Einen fehlschlagenden Schlüssel erneut übersetzen" weiter unten beschriebene Retranslate-Aktion sowie die in "Ausstehende Änderungen aus einem Toast übersetzen" weiter unten beschriebene Aktion zum Übersetzen ausstehender Änderungen; lässt du es weg, wird niemals ein Provider kontaktiert.
@@ -96,7 +92,7 @@ Approve und Reject verwerfen eine Zeile nur für den Rest der Sitzung dieses Bro
 
 ## Installation
 
-`@verbatra/studio` ist das eigene Paket von Studio. Es hatte noch keine stabile Version, daher liefert eine einfache Installation schon den aktuellen Prerelease-Build, kein Dist-Tag nötig. Wenn es nicht installiert ist, beendet sich `verbatra studio` mit `2` und:
+`@verbatra/studio` ist das eigene Paket von Studio. Installiere es als Dev-Abhängigkeit neben `@verbatra/cli`: `pnpm add -D @verbatra/studio`. Wenn es nicht installiert ist, beendet sich `verbatra studio` mit `2` und:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio

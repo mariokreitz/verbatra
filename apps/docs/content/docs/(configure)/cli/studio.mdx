@@ -8,10 +8,6 @@ Verbatra Studio is a local web dashboard over your verbatra project: a live view
 verbatra studio
 ```
 
-<Callout title="Prerelease only">
-Verbatra Studio is currently available only as a prerelease, not yet a stable release. To use it, install `@verbatra/cli` explicitly under the `next` tag: `pnpm add -D @verbatra/cli@next @verbatra/studio`. `@verbatra/studio` itself has not had a stable release yet, so its own `latest` tag already carries the current prerelease build, no tag needed. A plain `pnpm add -D @verbatra/cli` (no tag) resolves to the current stable release and does not include this command.
-</Callout>
-
 ## Local-only, and no provider calls by default
 
 Studio binds to `127.0.0.1` only: it is never reachable from another machine, and there is no option to change that. Every request is checked against a strict Host and Origin allowlist, and every page and API call requires the per-session token printed in the startup URL, compared in constant time so a wrong guess cannot be timed. Studio sends no CORS headers, so a browser tab on another origin cannot read it even if it tried. Everything you see comes from the same read-only computations as [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff), or from data a prior `translate`/`watch` run already persisted to disk. The one built-in write surface is local editing: the needs-review queue's edit action updates one flagged key in your own locale files and its lock entry, behind the same loopback session, with the same placeholder and ICU integrity check every write goes through; it needs no flag, and it never calls a provider. By default Studio never spends: it never calls `translate`, never runs `watch`, and never invokes a translation provider. Pass `--allow-spend` at startup and it also gains the retranslate action described in "Retranslate a failing key" below and the translate-pending action described in "Translate pending changes from a toast" below; leave it off and no provider is ever contacted.
@@ -96,7 +92,7 @@ Approve and Reject dismiss a row for the rest of the browser tab's session: neit
 
 ## Installation
 
-`@verbatra/studio` is Studio's own package. It has not had a stable release yet, so a plain install already gets the current prerelease build, no dist-tag needed. If it is not installed, `verbatra studio` exits `2` with:
+`@verbatra/studio` is Studio's own package. Install it as a dev dependency next to `@verbatra/cli`: `pnpm add -D @verbatra/studio`. If it is not installed, `verbatra studio` exits `2` with:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio

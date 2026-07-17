@@ -142,13 +142,11 @@ Run `verbatra <command> --help` for the full option list. The complete command r
 verbatra studio
 ```
 
-Verbatra Studio is currently available only as a prerelease. `@verbatra/cli` needs the `next` tag explicitly; `@verbatra/studio` has not had a stable release yet, so its own `latest` tag already carries the current prerelease build:
+Studio ships with the regular packages; install both as dev dependencies:
 
 ```bash
-pnpm add -D @verbatra/cli@next @verbatra/studio
+pnpm add -D @verbatra/cli @verbatra/studio
 ```
-
-A plain `pnpm add -D @verbatra/cli` (no tag) resolves to the current stable release, which does not include the `studio` command.
 
 See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio) for the full command reference and security model.
 
