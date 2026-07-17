@@ -253,6 +253,7 @@ figure.shiki {
 }
 
 .shiki span[style*="#6A737D" i] {
+  /* biome-ignore lint/complexity/noImportantStyles: shiki sets token colors through inline custom properties; only an important declaration outranks them, raising comment tokens to WCAG AA. */
   color: #8b949e !important;
 }
 
