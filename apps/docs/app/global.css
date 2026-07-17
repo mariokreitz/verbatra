@@ -162,7 +162,7 @@ h6 {
   --text-strong: var(--color-fd-foreground);
   --text-body: var(--color-fd-foreground);
   --text-muted: var(--color-fd-muted-foreground);
-  --text-faint: color-mix(in srgb, var(--color-fd-muted-foreground) 70%, transparent);
+  --text-faint: hsl(240 13% 58%);
   --text-link: var(--color-fd-primary);
   --accent: var(--v-glow);
   --accent-fill: var(--v-purple);

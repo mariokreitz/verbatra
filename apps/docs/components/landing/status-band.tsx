@@ -7,6 +7,8 @@ type StatusBadge = {
   src: string;
   href: string;
   altKey: string;
+  /** Intrinsic badge width in px at the 20px badge height, so layout is reserved before the SVG loads. */
+  width: number;
 };
 
 const SHIELDS_BASE = "style=flat&labelColor=1b1b2b";
@@ -18,36 +20,42 @@ const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
     src: `https://img.shields.io/npm/v/@verbatra/cli?label=%40verbatra%2Fcli&${SHIELDS_NPM}`,
     href: NPM_CLI,
     altKey: "cliVersionAlt",
+    width: 147,
   },
   {
     key: "sdk",
     src: `https://img.shields.io/npm/v/@verbatra/sdk?label=%40verbatra%2Fsdk&${SHIELDS_NPM}`,
     href: NPM_SDK,
     altKey: "sdkVersionAlt",
+    width: 153,
   },
   {
     key: "build",
     src: `${GITHUB_URL}/actions/workflows/ci.yml/badge.svg?branch=main`,
     href: `${GITHUB_URL}/actions/workflows/ci.yml`,
     altKey: "buildAlt",
+    width: 90,
   },
   {
     key: "coverage",
     src: "https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg",
     href: "https://codecov.io/gh/mariokreitz/verbatra",
     altKey: "coverageAlt",
+    width: 112,
   },
   {
     key: "downloads",
     src: `https://img.shields.io/npm/dm/@verbatra/cli?label=downloads%2Fmonth&${SHIELDS_NPM}`,
     href: NPM_CLI,
     altKey: "downloadsAlt",
+    width: 201,
   },
   {
     key: "license",
     src: `https://img.shields.io/badge/license-MIT-9c27b0?${SHIELDS_BASE}`,
     href: `${GITHUB_URL}/blob/main/LICENSE`,
     altKey: "licenseAlt",
+    width: 78,
   },
 ];
 
@@ -82,6 +90,7 @@ export async function StatusBand({
               <img
                 src={badge.src}
                 alt={t(badge.altKey)}
+                width={badge.width}
                 height={20}
                 className="block h-5 w-auto"
                 loading="lazy"
