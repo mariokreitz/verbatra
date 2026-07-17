@@ -3,7 +3,14 @@ import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { VMark } from "@/components/landing";
 import { GithubIcon } from "./github-icon";
-import { CODE_OF_CONDUCT_URL, GITHUB_URL, NPM_CLI, NPM_SDK, SECURITY_URL } from "./links";
+import {
+  CODE_OF_CONDUCT_URL,
+  GITHUB_URL,
+  NPM_CLI,
+  NPM_SDK,
+  NPM_STUDIO,
+  SECURITY_URL,
+} from "./links";
 
 type FooterLink = { labelKey?: string; literal?: string; href: string; external?: boolean };
 type FooterCol = { col: string; titleKey: string; links: ReadonlyArray<FooterLink> };
@@ -16,6 +23,7 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { labelKey: "cols.product.documentation", href: "/docs" },
       { labelKey: "cols.product.cliReference", href: "/docs/cli" },
       { labelKey: "cols.product.sdk", href: "/docs/sdk" },
+      { labelKey: "cols.product.studio", href: "/docs/cli/studio" },
       { labelKey: "cols.product.githubAction", href: "/docs/github-action" },
     ],
   },
@@ -41,6 +49,7 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { literal: "GitHub", href: GITHUB_URL, external: true },
       { literal: "@verbatra/cli", href: NPM_CLI, external: true },
       { literal: "@verbatra/sdk", href: NPM_SDK, external: true },
+      { literal: "@verbatra/studio", href: NPM_STUDIO, external: true },
     ],
   },
   {

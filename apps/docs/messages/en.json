@@ -29,7 +29,7 @@
       "lead": "verbatra is more than AI translation. It covers machine translation you control, a clean Excel handoff for human translators, and the automation to keep every locale in sync.",
       "ai": {
         "title": "AI translation",
-        "body": "Translate only what changed through your choice of provider: Anthropic, OpenAI, Gemini, or DeepL. A committed lock file keeps every run incremental, and placeholder and ICU integrity is checked before anything is written."
+        "body": "Translate only what changed through your choice of provider: Anthropic, OpenAI, Gemini, DeepL, or any OpenAI-compatible server you run yourself. A committed lock file keeps every run incremental, and placeholder and ICU integrity is checked before anything is written."
       },
       "excel": {
         "title": "Excel handoff",
@@ -57,12 +57,12 @@
     },
     "compat": {
       "heading": "One tool, every framework.",
-      "body": "verbatra reads the JSON locale formats your framework already uses, and fills them through the provider you choose.",
+      "body": "verbatra reads the locale files your stack already uses: JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, and Flutter ARB. It fills them through the provider you choose, no new format to adopt.",
       "labelFrameworks": "Frameworks and formats"
     },
     "providers": {
       "heading": "Translate through the model you trust.",
-      "lead": "Anthropic, OpenAI, Gemini, or DeepL. Pick one in a single line of config and switch providers without touching your locale files.",
+      "lead": "Anthropic, OpenAI, Gemini, DeepL, or any OpenAI-compatible server you host yourself. Pick one in a single line of config and switch providers without touching your locale files.",
       "marqueeLabel": "Translation providers"
     },
     "how": {
@@ -97,7 +97,7 @@
         },
         "provider": {
           "title": "Your choice of provider",
-          "body": "Anthropic, OpenAI, Gemini, or DeepL, chosen in one line of config. Switch providers without touching your locale files."
+          "body": "Anthropic, OpenAI, Gemini, DeepL, or a local OpenAI-compatible model, chosen in one line of config. Switch providers without touching your locale files."
         },
         "safety": {
           "title": "Safe by construction",
@@ -123,33 +123,45 @@
       "ctaDocs": "Read the docs",
       "ctaIssue": "open an issue",
       "items": {
-        "avoidRetranslate": {
-          "question": "How does verbatra avoid re-translating everything on each run?",
-          "answer": "verbatra keeps a committed lock file that records what was already translated. On each run it diffs your source locale against that lock and sends only the new or changed keys to your provider; unchanged keys are left untouched."
+        "incremental": {
+          "question": "How does verbatra avoid re-translating everything on every run?",
+          "answer": "It keeps a committed lock file that records what was already translated. Each run diffs your source locale against that lock and sends only the new or changed keys to your provider. Unchanged keys are never touched, so a typical run costs a handful of strings, not your whole catalog."
         },
         "providers": {
-          "question": "Which translation providers does verbatra support?",
-          "answer": "Anthropic, OpenAI, Gemini, and DeepL. You choose one in a single line of config, and the API key is read from an environment variable, never from the config file."
-        },
-        "icu": {
-          "question": "How does verbatra handle ICU placeholders and message formats?",
-          "answer": "It checks placeholder and ICU integrity after every translation. If a returned translation breaks a placeholder or produces invalid ICU, that result is withheld rather than written to your locale file."
+          "question": "Which translation providers can I use?",
+          "answer": "Five, behind one interface: Anthropic, OpenAI, and Gemini (LLMs), DeepL (machine translation), and openai-compatible, which points verbatra at a local or self-hosted server like Ollama, LM Studio, or vLLM. You pick one by id in your config and can switch later by editing that one line. Gemini has a real free tier, and a local model costs nothing per call."
         },
         "formats": {
-          "question": "Which i18n file formats can verbatra read?",
-          "answer": "JSON formats for i18next, vue-i18n, next-intl, and ngx-translate, covering React, Vue, Next.js, Nuxt, Angular, and Node.js projects."
+          "question": "Which formats and frameworks does verbatra support?",
+          "answer": "JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, and Flutter ARB. That covers React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, and Flutter. verbatra reads the files you already have; there is no verbatra-specific format to migrate to."
         },
-        "openSource": {
+        "studio": {
+          "question": "What is Verbatra Studio?",
+          "answer": "A local web dashboard over your project that shows every locale's status live, surfaces a review queue of flagged entries, and lets you fix translations in place. Start it with verbatra studio (install @verbatra/studio first). Editing your own locale files works out of the box; calling a provider from the UI is opt-in behind --allow-spend. It runs on 127.0.0.1 only and never leaves your machine."
+        },
+        "safety": {
+          "question": "What stops a bad translation from breaking my app?",
+          "answer": "Every result passes a placeholder and ICU integrity check before it is written. A translation that drops, invents, or reorders a placeholder, or produces invalid ICU message syntax, is withheld rather than saved to your locale file. The same gate applies to edits and retranslations made in Verbatra Studio."
+        },
+        "keys": {
+          "question": "Where do my API keys live, and is my content sent anywhere I do not control?",
+          "answer": "Keys are read only from environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, DEEPL_API_KEY), never from the config file, CLI arguments, or logs. Only the strings you are translating are sent, and only to the provider you chose. If you use the openai-compatible provider with a local model, nothing leaves your machine or network at all."
+        },
+        "preview": {
           "question": "Can I preview a run before it writes anything?",
-          "answer": "Yes. A dry run reports exactly which keys would be sent and written without touching your locale files, and watch mode keeps translating as your source locale changes."
+          "answer": "Yes. A dry run reports exactly which keys would be sent and written without touching your files, and verbatra check and verbatra diff report per-locale drift without calling a provider. Watch mode does the opposite: it keeps translating as your source locale changes."
         },
-        "ci": {
-          "question": "Is there an SDK as well as a CLI?",
-          "answer": "Yes. The verbatra command is a thin wrapper over @verbatra/sdk, which exposes the same translate and watch operations for scripts, CI, and your own tooling."
+        "automation": {
+          "question": "Can I use verbatra in scripts, CI, and GitHub Actions?",
+          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, and diff operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
+        },
+        "cost": {
+          "question": "What does verbatra cost?",
+          "answer": "verbatra itself is free and open source under the MIT license. The only cost is your provider's usage, which you control: it translates only what changed, and you can run it for free on Gemini's free tier or a local OpenAI-compatible model."
         },
         "production": {
           "question": "Is verbatra production-ready?",
-          "answer": "verbatra is young and actively developed, so its API may still change between releases; pin a version and read the changelog when you upgrade. What is already solid is the safety model: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks a placeholder rather than writing it to your locale file. Many teams run it in CI today; treat that as a signal to pin versions, not as a warning that results are unsafe."
+          "answer": "It is young and actively developed, so pin a version and read the changelog when you upgrade. The safety model is already solid: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks rather than writing it. Teams run it in CI today; pin versions and you are on stable ground."
         }
       }
     },
@@ -165,6 +177,7 @@
           "documentation": "Documentation",
           "cliReference": "CLI reference",
           "sdk": "SDK",
+          "studio": "Studio",
           "githubAction": "GitHub Action"
         },
         "learn": {
