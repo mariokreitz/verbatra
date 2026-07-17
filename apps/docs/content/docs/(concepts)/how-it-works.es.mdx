@@ -1,57 +1,94 @@
 ---
 title: Cómo funciona
-description: Lo que hace una ejecución de verbatra de principio a fin, desde el descubrimiento de la configuración hasta el resumen de la ejecución.
+description: La canalización de traducción de principio a fin, desde leer el locale de origen hasta actualizar el archivo de bloqueo.
 ---
-Una ejecución es una canalización corta. Carga la configuración, lee el locale de origen, luego para cada locale de destino: compara con lo que tradujiste la última vez, envía al proveedor solo lo que cambió, comprueba el resultado y escribe. Eso es todo. Esta página recorre cada paso para que sepas exactamente qué pasa cuando ejecutas `verbatra translate`.
+Una ejecución es una canalización: leer el locale de origen, hacer diff de cada destino contra el
+archivo de bloqueo, enviar al proveedor solo lo que necesita trabajo, comprobar lo que vuelve,
+escribir y registrar el resultado. Esta página recorre esa canalización para que sepas exactamente
+qué pasa cuando ejecutas `verbatra translate`.
 
 <DiffPanel />
 
-## Descubrimiento y carga de la configuración
+Una ejecución parte de tu configuración validada; consulta [Archivo de configuración](/docs/config-file)
+para saber dónde se encuentra y qué contiene. Todo lo de abajo es igual tanto si la ejecución vino
+de la CLI, del SDK o de `watch`.
 
-Primero verbatra carga tu configuración. Busca hacia arriba desde el directorio de trabajo y toma la primera fuente que encuentra: una clave `"verbatra"` en `package.json`, luego uno de los archivos `.verbatrarc.*`, luego un archivo `verbatra.config.*`. Valida la configuración antes de hacer cualquier trabajo. Si no encuentra nada, la ejecución falla con `CONFIG_NOT_FOUND`; si encuentra algo no válido, falla con `CONFIG_INVALID`. La configuración nunca lleva una clave de API: el proveedor lee su clave del entorno.
+## Lee el locale de origen
 
-## Leer el locale de origen
+El adaptador de formato lee el archivo del locale de origen y lo convierte en un conjunto neutral de
+entradas con clave, para que el resto de la canalización funcione igual con cualquier formato. Un
+archivo de origen ausente hace fallar la ejecución con `SOURCE_UNREADABLE`; un archivo que el
+adaptador no puede parsear falla con `SOURCE_INVALID`. Mientras lee, el adaptador también marca las
+claves de origen cuyos valores son inválidos para la sintaxis de mensajes del formato (ICU
+inválido): esas claves siguen el viaje pero se apartan en lugar de enviarse al proveedor en un
+estado roto.
 
-verbatra resuelve el archivo de origen a partir de `files.pattern`, sustituyendo el token `{locale}` por `sourceLocale`, en relación con el directorio de trabajo. Así que `locales/{locale}.json` con `sourceLocale: "en"` lee `locales/en.json`. Si el archivo falta, la ejecución falla con `SOURCE_UNREADABLE`; si no se puede analizar, falla con `SOURCE_INVALID`. Mientras lee, el adaptador de formato también marca cualquier clave de origen cuyos valores no sean válidos para la sintaxis de mensajes del formato (ICU no válido). Esas claves se arrastran pero se omiten para la traducción en lugar de enviarse en un estado roto.
+## Haz diff contra la línea base del bloqueo
 
-## La ejecución por locale
+Este diff existe para que una ejecución sea incremental: al proveedor solo se le llama por cadenas
+que de verdad necesitan trabajo. verbatra lee el archivo del locale de destino existente (un archivo
+ausente cuenta como vacío) y hace diff del origen contra él, usando [el archivo de bloqueo](/docs/the-lock-file)
+como línea base de lo que se tradujo antes. Cada clave de origen cae en uno de cuatro grupos:
 
-Cada locale de destino se ejecuta por su cuenta. Si un locale revienta, los demás siguen adelante.
+- faltante: el destino todavía no tiene la clave.
+- modificada: el valor de origen ya no coincide con el hash registrado en el bloqueo.
+- sin cambios: el valor de origen sigue coincidiendo con el hash registrado.
+- huérfana: la clave está en el destino pero ya no en el origen.
 
-### Comparar con la línea base del bloqueo
+Solo las claves faltantes y modificadas se convierten en candidatas a traducción. Las claves sin
+cambios se dejan en paz. Las claves huérfanas se informan y, por defecto, se dejan donde están; con
+`--prune` (o `prune: true` en la configuración) se eliminan exactamente esas claves del archivo de
+destino y del bloqueo, y nada más.
 
-verbatra lee el archivo de destino existente (un archivo ausente cuenta como vacío) y compara el origen con él, usando el archivo de bloqueo como línea base de lo que se tradujo antes. El diff clasifica cada clave de origen en uno de cuatro grupos:
+## Envía lotes al proveedor
 
-- claves nuevas que el destino aún no tiene,
-- claves modificadas cuyo texto de origen difiere de la línea base registrada,
-- claves sin cambios que ya están actualizadas,
-- claves huérfanas presentes en el destino pero que ya no están en el origen.
+Las candidatas van a tu proveedor configurado en sublotes secuenciales de como mucho `maxBatchSize`
+(por defecto 50), así que una solicitud sobredimensionada no puede tumbar un locale entero. Cada
+sublote lleva las entradas más tus `glossary` y `tone` opcionales. Si la llamada de un sublote falla
+(un límite de tasa, un tiempo de espera agotado, una clave revocada), sus claves se retienen en esta
+ejecución y se recogen de nuevo en la siguiente mientras los demás sublotes siguen avanzando.
+Consulta [Proveedores](/docs/providers) para ver cómo aplica cada proveedor estas entradas.
 
-Solo las claves nuevas y modificadas son candidatas para la traducción. Las claves sin cambios se dejan en paz, y las claves huérfanas se informan y, por defecto, se dejan en su lugar. ¿Quieres que desaparezcan? Pasa `--prune` (o establece `prune: true` en la configuración): verbatra elimina entonces exactamente las claves huérfanas del archivo de destino y del bloqueo, y nada más. Cualquier candidata marcada como ICU no válido también se deja de lado. Esto es lo que mantiene una ejecución incremental: se llama al proveedor solo para las cadenas que realmente cambiaron.
+## Valida la respuesta
 
-### Llamar al proveedor
+La salida del proveedor nunca se trata como texto libre de confianza. Para los proveedores LLM
+(Anthropic, OpenAI, Gemini y openai-compatible), la respuesta son datos ligados a un esquema,
+validados antes de cualquier otra cosa: una respuesta malformada, o que contiene una clave que nunca
+se pidió, hace fallar el sublote, y una clave solicitada que vuelve ausente o duplicada se vuelve a
+pedir una vez; si tras eso sigue sin resolverse, la clave se trata como no traducida en esta
+ejecución y se reintenta en la siguiente. DeepL es una API de traducción automática sin esta capa de
+respuesta, pero sus resultados pasan por las mismas comprobaciones de integridad de abajo.
 
-Las entradas candidatas van a tu proveedor configurado, junto con el `glossary` y el `tone` opcionales de tu configuración. verbatra las divide en sublotes secuenciales de como máximo `maxBatchSize` (por defecto `50`, consulta [Archivo de configuración](/docs/config-file)), así que una solicitud sobredimensionada no puede tumbar todo el locale. Si la llamada de un sublote falla, se retiene y se reintenta en la siguiente ejecución mientras los demás siguen avanzando. Cómo se aplican las entradas depende del proveedor.
+## Comprueba la integridad de marcadores de posición e ICU
 
-- Los proveedores de LLM (Anthropic, OpenAI, Gemini y openai-compatible) reciben las entradas, el glosario y el tono en una carga de datos estructurada, con instrucciones de tratar los términos del glosario como vinculantes y de respetar el tono. El modelo está restringido a devolver un valor por cada clave solicitada.
-- DeepL es un servicio de traducción automática, así que mapea las mismas entradas a sus propias opciones. El tono se convierte en formalidad: `formal` pide un resultado más formal, `informal` uno menos formal, y `neutral` o un tono ausente se omite. Un `glossaryId` configurado se pasa de forma nativa.
+Una traducción que pasó la validación de esquema todavía puede estar rota, así que verbatra recalcula
+su propia decisión de aceptar o rechazar a partir del propio valor candidato: nunca se fía del
+informe del proveedor. Cada candidata aceptada debe llevar los mismos marcadores de posición que su
+origen, y para los formatos ICU debe seguir siendo un mensaje válido. Una candidata que falla
+cualquiera de las dos comprobaciones se retiene en lugar de escribirse, aparece en el resumen de la
+ejecución y se reintenta en la siguiente. Consulta
+[Seguridad de la traducción](/docs/translation-safety) para el modelo de seguridad completo.
 
-DeepL también informa avisos cuando se degrada de forma elegante. Con una clave de nivel gratuito no admite un tono no predeterminado, así que recurre al predeterminado y emite un aviso `FORMALITY_DOWNGRADED`. Tampoco aplica un mapa de términos `glossary` genérico (usa un glosario por id en su lugar), así que emite un aviso `GLOSSARY_IGNORED`. Estos son datos en el resultado, no errores. Los proveedores de LLM no emiten avisos.
+## Escribe a través del adaptador
 
-### Comprobar marcadores de posición y escribir
+Las traducciones aceptadas se fusionan en el destino y las escribe el adaptador de formato, de forma
+atómica y en el orden de claves del documento: una clave que ya está en el destino conserva su
+posición, y una clave nueva se añade donde la coloca el origen. Una escritura interrumpida nunca
+deja un archivo de locale a medias, y un formateador o un revisor de código ve diffs estables y
+mínimos.
 
-Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada valor traducido con su origen, y, para los formatos ICU (next-intl y ARB), también valida el valor traducido frente a la sintaxis del formato. Una traducción que elimina o altera un marcador de posición, o que rompe la estructura de plural o select de ICU, falla esta comprobación de integridad y se retiene en lugar de escribirse. Las traducciones aceptadas se fusionan en el locale de destino y se escriben de forma atómica, así que una escritura interrumpida nunca te deja con un archivo a medio terminar.
+## Actualiza el bloqueo
 
-## El archivo de bloqueo y el trabajo incremental
+Después de escribir un locale, sus entradas del bloqueo se refrescan con los hashes de origen
+actuales, con una excepción deliberada: una clave retenida en esta ejecución conserva su hash
+anterior, para que la siguiente ejecución siga viéndola como pendiente de trabajo. La escritura de
+cada locale ocurre bajo un bloqueo de escritura entre procesos, así que dos ejecuciones solapadas
+nunca hacen diff contra una línea base obsoleta ni pagan dos veces la misma llamada al proveedor.
+Los detalles están en [El archivo de bloqueo](/docs/the-lock-file).
 
-verbatra mantiene un archivo de bloqueo confirmado (`verbatra.lock.json`) que registra, por locale, un hash de contenido para cada clave de origen traducida. Ese registro es la línea base con la que compara la siguiente ejecución. Después de escribir un locale, el bloqueo se actualiza con los hashes de origen actuales, con una excepción deliberada: las claves retenidas en esta ejecución (una discrepancia de marcador de posición o un ICU no válido) conservan su hash anterior, así que la siguiente ejecución las sigue viendo como que necesitan trabajo y las reintenta. Las claves huérfanas no obtienen entrada. Un archivo de bloqueo ausente cuenta como una primera ejecución; uno corrupto falla con `LOCK_FILE_INVALID` en lugar de sobrescribirse silenciosamente.
+## Un locale cada vez, los fallos como datos
 
-## El resumen de la ejecución
-
-Una ejecución devuelve un resumen de todos los locales de destino: los que tuvieron éxito, los que fallaron y un desglose por locale. Cada entrada de locale informa las claves traducidas, las claves dejadas sin cambios, las claves huérfanas, las claves huérfanas realmente podadas en esta ejecución (vacías a menos que la poda esté activada), cualquier clave de origen omitida por ICU no válido, cualquier traducción retenida por una discrepancia de marcador de posición, cualquier forma plural generada en esta ejecución (vacías a menos que la generación de plurales esté activada) y cualquier aviso. Los avisos cubren tanto los avisos del proveedor (como los casos de DeepL anteriores) como los avisos del SDK, incluida una advertencia de categoría plural (código `PLURAL_CATEGORIES_INCOMPLETE`) cuando una lengua de destino necesita más categorías plurales CLDR de las que aporta el origen. Una ejecución de prueba te da la misma forma de resumen, listando las claves que se traducirían, sin llamar a un proveedor ni escribir nada.
-
-## Errores
-
-verbatra traza una línea clara entre dos tipos de fallo. Un problema de toda la ejecución (una configuración ausente o no válida, un origen ilegible, un formato desconocido, un proveedor que no se puede construir incluida una clave de API ausente, o un archivo de bloqueo corrupto) detiene la ejecución con un error estructurado. Que un solo locale falle no es fatal: cae en la entrada de ese locale con un código y un mensaje, y el resto de los locales siguen ejecutándose.
-
-Cuando un proveedor de LLM (Anthropic, OpenAI, Gemini u openai-compatible) se detiene porque alcanzó el límite de tokens de salida, ese sublote falla con un error distintivo `OUTPUT_TRUNCATED` que te dice que uses un tamaño de lote menor o un máximo de tokens de salida mayor. Esto no se aplica a DeepL. Consulta [Proveedores](/docs/providers).
+Cada locale de destino corre por su cuenta: que un locale falle no detiene a los demás. La ejecución
+devuelve un resumen por locale (traducidas, sin cambios, huérfanas, retenidas, marcadas para
+revisión, avisos), y una ejecución en seco (`--dry-run`) produce la misma forma de resumen después
+del paso de diff, sin construir un proveedor ni escribir nada.

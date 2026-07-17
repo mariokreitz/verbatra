@@ -1,30 +1,26 @@
 ---
 title: verbatra translate
-description: Traduce cada locale de destino una vez y luego sale.
+description: Traduce cada locale de destino una vez y luego termina.
 ---
-Ejecuta el flujo de leer, comparar, traducir y escribir sobre cada locale de destino una vez, y luego sale. verbatra lee el locale de origen, lo compara con lo que tradujo la última vez y envía al proveedor solo las cadenas nuevas o modificadas. Todo lo que sigue vigente queda intacto, así que nunca pagas por volver a traducir lo que no se ha movido.
+Ejecuta una pasada de traducción sobre cada locale de destino y luego sal. `translate` lee el locale de origen, lo compara con [el archivo de bloqueo](/docs/the-lock-file), envía al proveedor solo las cadenas nuevas o modificadas, ejecuta las [comprobaciones de integridad](/docs/translation-safety), escribe los archivos de locale y actualiza el bloqueo. Lo que sigue al día nunca se reenvía, así que nunca pagas dos veces por una cadena sin cambios.
+
+## Sinopsis
 
 ```bash
-verbatra translate
+verbatra translate [flags]
 ```
 
-## Opciones
+## Flags
 
-| Opción | Descripción |
-| --- | --- |
-| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
-| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--dry-run` | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
-| `--prune` | elimina las claves huérfanas (en un archivo de destino pero ausentes del origen) del archivo escrito y del bloqueo |
-| `--json` | imprime el resumen de la ejecución como JSON |
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--dry-run` | ninguno | desactivado | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
+| `--prune` | ninguno | la opción `prune` de la configuración, si no, desactivado | elimina del archivo escrito y del bloqueo las claves huérfanas (en un archivo de destino pero ausentes del origen) |
+| `--json` | ninguno | desactivado | imprime el resumen de la ejecución como un objeto JSON en stdout (la [forma `RunSummary`](/docs/sdk)); los errores siguen yendo a stderr |
 
-Por defecto, una ejecución no elimina nada. Las claves huérfanas (presentes en un archivo de destino pero ya no en el origen) se informan y se dejan en su lugar. Pasa `--prune` para eliminar exactamente esas claves del archivo escrito y del bloqueo, y nada más. Este flag por ejecución anula la opción `prune` de tu [configuración](/docs/config-file); combínalo con `--dry-run` para previsualizar las claves que se irían. ¿Quieres ver qué claves están huérfanas antes de una ejecución? Usa [`verbatra diff`](/docs/cli/diff).
-
-## Salida
-
-Sin `--json`, `translate` imprime un resumen de la ejecución legible para humanos. Con `--json`, imprime el resumen de la ejecución como un único objeto JSON en stdout: consulta la [forma de `RunSummary` en la referencia del SDK](/docs/sdk). Un error de toda la ejecución va a stderr, así que stdout queda limpio y canalizable con `--json`.
-
-Una línea de locale muestra un contador `needs-review` solo cuando es mayor que cero: las propias heurísticas de verbatra que marcan una clave traducida digna de una segunda mirada (una salida sospechosamente corta o larga, un valor idéntico al origen, un término de glosario que se perdió, o un conjunto de marcadores de posición reordenado). No retiene nada por sí mismo; consulta [Seguridad de la traducción](/docs/translation-safety) para saber qué significa cada motivo. La salida `--json` siempre lleva el detalle completo como `needsReview` en cada locale.
+Por defecto una ejecución no borra nada: las claves huérfanas se informan y se dejan en su sitio. `--prune` elimina exactamente esas claves y nada más, y anula la opción `prune` de la configuración para esta ejecución. Antes de ejecutarse, `translate` carga `.env.local` y luego `.env` desde el directorio de trabajo; una variable ya definida en el entorno real gana.
 
 ## Ejemplos
 
@@ -32,31 +28,23 @@ Una línea de locale muestra un contador `needs-review` solo cuando es mayor que
 # translate once using the config it finds
 verbatra translate
 
-# preview changes without calling a provider or writing files
-verbatra translate --dry-run
-
-# also remove orphaned keys from target files
-verbatra translate --prune
-
-# preview the keys that would be pruned
+# preview the keys that would be pruned, spending nothing
 verbatra translate --prune --dry-run
-
-# run against a project in another directory
-verbatra translate --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra translate --config config/verbatra.config.ts
-
-# machine-readable summary on stdout
-verbatra translate --json
 ```
 
 ## Códigos de salida
 
 | Código | Significado |
 | --- | --- |
-| `0` | cada locale de destino tuvo éxito |
+| `0` | todos los locales de destino tuvieron éxito |
 | `1` | la ejecución terminó pero uno o más locales fallaron |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un proveedor que no se pudo construir incluyendo una clave de API ausente, o un archivo de bloqueo corrupto), o un error de uso |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración, origen, formato, proveedor o bloqueo) o un error de uso |
 
-Que un solo locale falle no es fatal: produce el código de salida `1`, y el detalle por locale está en el resumen. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
+Que falle un locale no es fatal: la ejecución termina, sale con `1` y el detalle por locale queda en el resumen.
+
+## Relacionado
+
+- [Cómo funciona](/docs/how-it-works) explica la canalización de leer, comparar, traducir y escribir.
+- [Seguridad de la traducción](/docs/translation-safety) cubre las comprobaciones de integridad y la cola de revisión.
+- [`verbatra diff`](/docs/cli/diff) previsualiza las mismas claves pendientes en modo de solo lectura.
+- [CI y códigos de salida](/docs/ci-and-exit-codes) muestra cómo ramificar sobre estos códigos.

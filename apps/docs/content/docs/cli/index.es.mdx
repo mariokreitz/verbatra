@@ -1,51 +1,51 @@
 ---
 title: Vista general
-description: "El comando verbatra: sus ocho subcomandos, las opciones globales, cómo lee tu entorno y el contrato del código de salida."
+description: "El comando verbatra: sus ocho subcomandos, los flags compartidos, cómo lee tu entorno y el contrato de códigos de salida."
 ---
-`@verbatra/cli` te da el binario `verbatra`, un envoltorio ligero sobre [`@verbatra/sdk`](/docs/sdk). Ocho comandos hacen el trabajo:
+`@verbatra/cli` incluye el binario `verbatra`, una envoltura fina sobre [`@verbatra/sdk`](/docs/sdk). Ocho comandos hacen el trabajo:
 
-- [`init`](/docs/cli/init): genera una configuración y un `.env.example`.
-- [`translate`](/docs/cli/translate): traduce cada locale de destino una vez y luego sale.
-- [`watch`](/docs/cli/watch): vuelve a traducir con cada cambio del origen hasta que lo interrumpes.
-- [`check`](/docs/cli/check): informa qué locales tienen cadenas faltantes o desactualizadas, de solo lectura, sin llamar a un proveedor.
-- [`diff`](/docs/cli/diff): lista las claves exactas que se añadirían, se volverían a traducir o están huérfanas por locale, de solo lectura.
-- [`export`](/docs/cli/export): vuelca las cadenas sin traducir a un libro de Excel para un traductor humano.
-- [`import`](/docs/cli/import): lee un libro rellenado de vuelta a tus archivos de locale.
-- [`studio`](/docs/cli/studio): inicia Verbatra Studio, un panel de traducción local y en vivo con edición integrada.
+| Comando | Qué hace |
+| --- | --- |
+| [`init`](/docs/cli/init) | crea una configuración de verbatra y un `.env.example` para este proyecto |
+| [`translate`](/docs/cli/translate) | traduce cada locale de destino una vez y luego sale |
+| [`watch`](/docs/cli/watch) | retraduce en cada cambio del origen hasta que lo interrumpas |
+| [`check`](/docs/cli/check) | informa qué claves faltan o están obsoletas por locale, solo lectura |
+| [`diff`](/docs/cli/diff) | lista las claves exactas que se añadirían, se retraducirían o están huérfanas por locale, solo lectura |
+| [`export`](/docs/cli/export) | exporta las cadenas sin traducir a un libro de Excel para un traductor humano |
+| [`import`](/docs/cli/import) | importa un libro rellenado de vuelta a los archivos de locale |
+| [`studio`](/docs/cli/studio) | arranca Verbatra Studio, el panel local de traducción |
 
-## Instalar e invocar
+## Instala e invoca
 
-Instala verbatra como dependencia de desarrollo y luego ejecuta el binario a través de tu gestor de paquetes:
+Instala `@verbatra/cli` como dependencia de desarrollo y ejecuta el binario a través de tu gestor de paquetes:
 
 ```bash
 pnpm add -D @verbatra/cli
-# pnpm verbatra ..., npx verbatra ..., or yarn verbatra ...
+pnpm verbatra translate      # or: npx verbatra translate, yarn verbatra translate
 ```
 
 Necesitas Node.js `>=22.14.0`.
 
-## Opciones globales
+## Convenciones compartidas
 
-| Opción | Qué hace |
-| --- | --- |
-| `--help` | imprime el uso del programa o de un comando, luego sale con `0` |
-| `--version` | imprime la versión instalada de `@verbatra/cli`, luego sale con `0` |
+- `--cwd <path>` resuelve la configuración y los archivos de locale desde ese directorio en lugar del actual. Todos los comandos lo aceptan.
+- `--config <path>` carga ese archivo de configuración en lugar de buscar uno. Todos los comandos excepto `init` lo aceptan; el orden de búsqueda se describe en [Archivo de configuración](/docs/config-file).
+- `--json` imprime un resultado legible por máquina en stdout, manteniendo stdout limpio para encadenar: los errores van a stderr. Lo admiten `translate`, `watch`, `check`, `diff`, `export` e `import`; `init` y `studio` no.
+- `--help` y `--version` imprimen y salen con `0`. Un comando o flag desconocido sale con `2`.
 
-Ejecuta `verbatra <command> --help` para ver la lista completa de opciones y ejemplos de un comando: la misma referencia que estas páginas.
+## Archivos de entorno
 
-## El directorio de trabajo y .env
-
-Antes de ejecutarse, `translate` y `watch` cargan `.env.local` y luego `.env` del directorio de trabajo. Una variable ya definida en tu entorno real siempre gana. ¿Invocas verbatra desde otro lugar que no sea la raíz de tu proyecto? Pasa `--cwd` para apuntar a ella. Las claves de API se leen solo del entorno, nunca de la configuración ni de una opción: consulta [Proveedores](/docs/providers).
+`translate`, `watch` y `studio` cargan `.env.local` y luego `.env` desde el directorio de trabajo antes de ejecutarse. Una variable ya definida en tu entorno real siempre gana. Las claves API se leen solo del entorno, nunca del archivo de configuración ni de un flag: consulta [Proveedores](/docs/providers). Los comandos de solo lectura (`check`, `diff`) y los comandos de libro (`export`, `import`) nunca llaman a un proveedor y no cargan archivos `.env`.
 
 ## Códigos de salida
 
-El código de salida de verbatra es el contrato sobre el que bifurca un paso de CI o un script:
+El código de salida es el contrato sobre el que ramifica un paso de CI o un script:
 
 | Código | Significado |
 | --- | --- |
 | `0` | éxito (también `--help` y `--version`) |
-| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale fuera de sincronización, o `diff` encontró cambios pendientes |
-| `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso |
+| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale desincronizado, o `diff` encontró cambios pendientes |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración, origen, proveedor, bloqueo) o un error de uso |
 | `130` | `watch` o `studio` fue detenido a la fuerza por una segunda interrupción |
 
-Un fallo por ejecución en `watch` aparece como un registro de flujo, no como un código de salida. La página de cada comando detalla cómo se aplican estos códigos en él, y [CI y automatización](/docs/ci-and-exit-codes) cubre cómo conectarlos a una canalización.
+La página de cada comando detalla cómo se le aplican estos códigos. Consulta [CI y códigos de salida](/docs/ci-and-exit-codes) para conectarlos a una canalización.

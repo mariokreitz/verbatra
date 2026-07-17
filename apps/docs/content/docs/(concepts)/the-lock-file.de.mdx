@@ -1,49 +1,71 @@
 ---
 title: Die Lock-Datei
-description: Was verbatra.lock.json aufzeichnet, warum sie die Baseline für inkrementelle Läufe ist und warum du sie committest.
+description: Was verbatra.lock.json festhält, wie Drift erkannt wird, wie parallele Läufe serialisiert werden und warum du die Datei committest.
 ---
-verbatra hält eine committete Datei, `verbatra.lock.json`, in deinem Projekt. Sie ist die Aufzeichnung dessen, was
-verbatra bereits übersetzt hat, und sie ist es, die einen Lauf inkrementell macht: jeder Lauf vergleicht deine Quelle
-mit dieser Baseline und ruft den Provider nur für die Keys auf, die sich tatsächlich geändert haben.
+Die Lock-Datei, `verbatra.lock.json`, existiert, damit ein Lauf erkennen kann, was schon übersetzt
+wurde, und es überspringt. Diese Datei ist die Baseline, mit der jeder Lauf vergleicht, und sie
+macht verbatra inkrementell. Diese Seite behandelt, was sie speichert, wie sie sich ändert und was
+passiert, wenn sie umkämpft, fehlend oder beschädigt ist.
 
-## Was sie aufzeichnet
+## Was sie festhält
 
-Für jede Ziel-Locale speichert die Lock-Datei einen Inhalts-Hash für jeden übersetzten Quell-Key. Der Hash
-kommt aus dem Quellwert, sodass er genau den Text erfasst, der die vorhandene Übersetzung erzeugt hat.
-Keine Übersetzungen, keine API-Schlüssel. Nur Hashes.
+Für jede Ziel-Locale speichert die Lock-Datei einen Content-Hash pro übersetztem Key, berechnet
+aus dem Quellwert, aus dem die bestehende Übersetzung entstanden ist. Die Datei enthält keine
+Übersetzungen und keine Geheimnisse: nur ein `version`-Feld und Hashes. Der Hash normalisiert
+Unicode zu NFC und Zeilenenden zu LF, sodass das erneute Speichern einer Quelldatei mit anderer
+Normalisierung oder mit CRLF-Enden nichts als geändert markiert.
 
-## Wie ein Lauf sie nutzt
+## Wie Drift erkannt wird
 
-Wenn verbatra eine Ziel-Locale liest, vergleicht es die Quelle mit dieser Locale, wobei die Lock-Datei als
-Baseline dessen dient, was zuvor übersetzt wurde. Jeder Quell-Key sortiert sich in einen von vier Eimern:
-
-- neu: das Ziel hat den Key noch nicht.
-- geändert: der Quellwert weicht von dem im Lock aufgezeichneten Hash ab.
-- unverändert: der Quellwert stimmt noch mit dem aufgezeichneten Hash überein.
-- verwaist: der Key ist im Ziel, aber nicht mehr in der Quelle.
-
-Nur neue und geänderte Keys gehen an den Provider. Unveränderte Keys bleiben unberührt, weshalb ein zweiter
-Lauf ohne Quellbearbeitungen den Provider für nichts aufruft.
-
-Der Inhalts-Hash behandelt kanonisch gleichwertiges Unicode (NFC) und unterschiedliche Zeilenenden (CRLF gegen LF)
-als denselben Inhalt. Ein erneutes Speichern einer Quelldatei mit einer anderen Normalisierungsform oder anderen Zeilenenden
-markiert also einen Key nicht als geändert und löst keine Neuübersetzung aus.
+Wenn ein Lauf eine Ziel-Locale vergleicht, gilt ein Quell-Key, der im Ziel nicht vorkommt, als
+fehlend. Für einen Key, den das Ziel hat, wird der aktuelle Quell-Hash mit dem Hash verglichen,
+den die Lock-Datei aufgezeichnet hat: Ein Unterschied bedeutet, dass die Quelle seit der letzten
+Übersetzung des Keys gedriftet ist, er gilt also als geändert und wird neu übersetzt; eine
+Übereinstimmung bedeutet, dass er unverändert ist und nie an den Provider geht. Deshalb ruft ein
+zweiter Lauf ohne Quelländerungen den Provider für nichts auf, und deshalb können sich veraltete
+Übersetzungen nicht hinter einem Key verstecken, der bloß existiert. Die vollständige Pipeline
+steht auf [Wie es funktioniert](/docs/how-it-works).
 
 ## Wie sie aktualisiert wird
 
-Nachdem eine Locale geschrieben wurde, aktualisiert verbatra den Lock mit den aktuellen Quell-Hashes, mit einer
-bewussten Ausnahme. Ein in diesem Lauf zurückgehaltener Key (weil sein übersetztes Ergebnis die Platzhalter- oder
-Nachrichten-Syntax-Prüfung nicht bestand, oder sein Quell-ICU ungültig war) behält seinen vorherigen Hash. Der nächste Lauf sieht ihn dann weiterhin als arbeitsbedürftig und
-versucht ihn erneut, statt ihn als erledigt aufzuzeichnen. Verwaiste Keys bekommen keinen Eintrag.
+Die Lock-Datei wird pro Locale aktualisiert, und wie, hängt davon ab, was gelaufen ist:
 
-## Erster Lauf, fehlende Lock-Datei, korrupte Lock-Datei
+- Ein vollständiger Lauf (translate, watch oder ein Arbeitsmappen-Import) ersetzt die Einträge
+  dieser Locale im Ganzen durch das maßgebliche Ergebnis des Laufs.
+- Eine Einzel-Key-Aktion (etwa ein Retranslate aus Studio) mergt nur den Eintrag dieses Keys und
+  lässt jeden anderen aufgezeichneten Key unangetastet.
 
-Eine fehlende Lock-Datei zählt als erster Lauf: jeder Ziel-Key ist neu. Ein Lock, das vorhanden, aber korrupt
-oder größer als die Größenobergrenze ist, wird nicht stillschweigend überschrieben. Der Lauf scheitert mit `LOCK_FILE_INVALID`, sodass du
-ihn inspizieren kannst, statt die Baseline zu verlieren.
+In beiden Fällen gilt eine Ausnahme: Ein in diesem Lauf zurückgehaltener Key (eine fehlgeschlagene
+Integritätsprüfung, ein fehlgeschlagener Provider-Aufruf oder eine Quelle mit ungültigem ICU)
+behält seinen vorherigen Hash, damit der nächste Lauf ihn weiterhin als arbeitsbedürftig sieht und
+erneut versucht, statt ihn als erledigt zu verbuchen. Verwaiste Keys bekommen keinen Eintrag. Die
+Datei wird mit sortierten Keys serialisiert, damit ihre Diffs stabil und gut zu reviewen bleiben.
+
+## Die Schreibsperre
+
+Zwei Läufe, die gleichzeitig dieselbe Locale anfassen (ein zweites Terminal, ein CI-Job, eine
+Studio-Aktion), könnten sonst beide mit einer veralteten Baseline vergleichen und beide denselben
+Provider-Aufruf bezahlen. Um das zu verhindern, passiert jeder Schreibvorgang an einer Locale und
+ihren Lock-Einträgen unter einer prozessübergreifenden Schreibsperre für genau diese eine Locale;
+ein zweiter Schreiber für dieselbe Locale wartet, liest die Lock-Datei dann frisch neu ein und
+vergleicht mit einer Baseline, die das Ergebnis des ersten Schreibers schon enthält. Verschiedene
+Locales blockieren einander nicht.
+
+Kann eine Sperre nicht erworben werden, schlägt der Lauf mit `LOCK_CONTENDED` fehl und nennt den
+Pfad der Sperrdatei (im gitignorierten Verzeichnis `.verbatra-local/`). Läuft gerade kein
+verbatra-Prozess, wurde diese Datei von einem abgeschossenen Prozess zurückgelassen: Lösche sie
+und versuche es erneut.
+
+## Fehlend oder beschädigt
+
+Eine fehlende Lock-Datei ist kein Fehler: Das zählt als erster Lauf, bei dem jeder Quell-Key
+fehlend ist. Eine Lock-Datei, die vorhanden, aber nicht parsebar, strukturell falsch, zu groß oder
+auf einer nicht unterstützten Version ist, lässt den Lauf mit `LOCK_FILE_INVALID` fehlschlagen,
+statt still überschrieben zu werden, damit du sie untersuchen oder wiederherstellen kannst, statt
+die Baseline zu verlieren.
 
 ## Committe sie
 
-Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Sie ist die gemeinsame Baseline, mit der dein Team und deine
-CI vergleichen, sodass sie in der Versionskontrolle zu halten das ist, was inkrementelle Läufe maschinenübergreifend reproduzierbar macht. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Lauf-Pipeline und
-[Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen, die entscheiden, was zurückgehalten wird.
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Diese Datei ist die gemeinsame
+Baseline, mit der deine Teamkollegen und deine CI vergleichen; sie in der Versionskontrolle zu
+halten macht inkrementelle Läufe über Maschinen hinweg reproduzierbar. Bearbeite sie nie von Hand.

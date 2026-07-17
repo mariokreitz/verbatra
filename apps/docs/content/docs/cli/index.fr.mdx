@@ -1,51 +1,51 @@
 ---
 title: Aperçu
-description: "La commande verbatra : ses huit sous-commandes, ses options globales, comment elle lit ton environnement, et le contrat des codes de sortie."
+description: "La commande verbatra : ses huit sous-commandes, les options partagées, la lecture de l'environnement et le contrat des codes de sortie."
 ---
-`@verbatra/cli` te fournit le binaire `verbatra`, un mince wrapper autour de [`@verbatra/sdk`](/docs/sdk). Huit commandes font le travail :
+`@verbatra/cli` fournit le binaire `verbatra`, une surcouche légère de [`@verbatra/sdk`](/docs/sdk). Huit commandes font le travail :
 
-- [`init`](/docs/cli/init) : échafaude une configuration et un `.env.example`.
-- [`translate`](/docs/cli/translate) : traduis chaque locale cible une fois, puis quitte.
-- [`watch`](/docs/cli/watch) : retraduis à chaque modification de la source jusqu'à interruption.
-- [`check`](/docs/cli/check) : signale quelles locales ont des chaînes manquantes ou obsolètes, en lecture seule, sans appeler de fournisseur.
-- [`diff`](/docs/cli/diff) : liste les clés exactes qui seraient ajoutées, retraduites ou sont orphelines par locale, en lecture seule.
-- [`export`](/docs/cli/export) : exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain.
-- [`import`](/docs/cli/import) : relit un classeur rempli dans tes fichiers de locale.
-- [`studio`](/docs/cli/studio) : démarre Verbatra Studio, un tableau de bord de traduction local et en direct avec la modification intégrée.
+| Commande | Rôle |
+| --- | --- |
+| [`init`](/docs/cli/init) | crée une config verbatra et un `.env.example` pour ce projet |
+| [`translate`](/docs/cli/translate) | traduit chaque locale cible une fois, puis termine |
+| [`watch`](/docs/cli/watch) | retraduit à chaque changement de la source jusqu'à interruption |
+| [`check`](/docs/cli/check) | signale les clés manquantes ou obsolètes par locale, en lecture seule |
+| [`diff`](/docs/cli/diff) | liste les clés exactes qui seraient ajoutées, retraduites ou orphelines par locale, en lecture seule |
+| [`export`](/docs/cli/export) | exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain |
+| [`import`](/docs/cli/import) | réimporte un classeur rempli dans les fichiers de locale |
+| [`studio`](/docs/cli/studio) | démarre Verbatra Studio, le tableau de bord local de traduction |
 
-## Installer et invoquer
+## Installation et invocation
 
-Installe verbatra comme dépendance de développement, puis exécute le binaire via ton gestionnaire de paquets :
+Installe `@verbatra/cli` comme dépendance de développement et lance le binaire via ton gestionnaire de paquets :
 
 ```bash
 pnpm add -D @verbatra/cli
-# pnpm verbatra ..., npx verbatra ..., ou yarn verbatra ...
+pnpm verbatra translate      # or: npx verbatra translate, yarn verbatra translate
 ```
 
-Tu as besoin de Node.js `>=22.14.0`.
+Il te faut Node.js `>=22.14.0`.
 
-## Options globales
+## Conventions partagées
 
-| Option | Ce qu'elle fait |
-| --- | --- |
-| `--help` | affiche l'usage du programme ou d'une commande, puis quitte avec `0` |
-| `--version` | affiche la version installée de `@verbatra/cli`, puis quitte avec `0` |
+- `--cwd <path>` résout la config et les fichiers de locale depuis ce répertoire au lieu du répertoire courant. Toutes les commandes l'acceptent.
+- `--config <path>` charge ce fichier de config au lieu d'en chercher un. Toutes les commandes sauf `init` l'acceptent ; l'ordre de recherche est décrit dans [Le fichier de configuration](/docs/config-file).
+- `--json` affiche un résultat lisible par machine sur stdout et garde stdout propre pour le piping : les erreurs vont sur stderr. `translate`, `watch`, `check`, `diff`, `export` et `import` le prennent en charge ; `init` et `studio` non.
+- `--help` et `--version` affichent leur sortie et terminent avec `0`. Une commande ou une option inconnue termine avec `2`.
 
-Exécute `verbatra <command> --help` pour la liste complète des options et des exemples d'une commande : la même référence que ces pages.
+## Fichiers d'environnement
 
-## Le répertoire de travail et .env
-
-Avant de s'exécuter, `translate` et `watch` chargent `.env.local` puis `.env` depuis le répertoire de travail. Une variable déjà définie dans ton environnement réel l'emporte toujours. Tu invoques verbatra depuis un autre endroit que la racine de ton projet ? Passe `--cwd` pour la désigner. Les clés API ne sont lues que depuis l'environnement, jamais depuis la configuration ni une option : voir [Fournisseurs](/docs/providers).
+`translate`, `watch` et `studio` chargent `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter. Une variable déjà définie dans ton environnement réel l'emporte toujours. Les clés d'API sont lues uniquement depuis l'environnement, jamais depuis le fichier de config ni une option : voir [Fournisseurs](/docs/providers). Les commandes en lecture seule (`check`, `diff`) et les commandes de classeur (`export`, `import`) n'appellent jamais de fournisseur et ne chargent aucun fichier `.env`.
 
 ## Codes de sortie
 
-Le code de sortie de verbatra est le contrat sur lequel une étape de CI ou un script s'embranche :
+Le code de sortie est le contrat sur lequel une étape CI ou un script se branche :
 
 | Code | Signification |
 | --- | --- |
-| `0` | succès (également `--help` et `--version`) |
-| `1` | `translate` ou `import` s'est terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
-| `2` | impossible de s'exécuter : une erreur d'exécution globale, ou une erreur d'usage |
+| `0` | succès (aussi `--help` et `--version`) |
+| `1` | `translate` ou `import` a terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
+| `2` | impossible de s'exécuter : une erreur globale (config, source, fournisseur, verrou) ou une erreur d'utilisation |
 | `130` | `watch` ou `studio` a été arrêté de force par une seconde interruption |
 
-L'échec d'une exécution dans `watch` est signalé comme un enregistrement de flux, pas comme un code de sortie. Chaque page de commande précise comment ces codes s'y appliquent, et [CI et automatisation](/docs/ci-and-exit-codes) couvre leur utilisation dans un pipeline.
+Chaque page de commande détaille comment ces codes s'y appliquent. Voir [CI et codes de sortie](/docs/ci-and-exit-codes) pour les brancher dans un pipeline.

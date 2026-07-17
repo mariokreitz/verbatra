@@ -1,6 +1,184 @@
 ---
-title: Troubleshooting
-description: Symptoms, causes, and fixes for common verbatra errors.
+title: Fehlerbehebung
+description: Symptome, Ursachen und Lösungen für die Fehler, die verbatra tatsächlich erzeugt.
 ---
+Jeder Eintrag unten entspricht einem echten Fehlercode oder einer echten Meldung. Fehlschläge des
+ganzen Laufs tragen einen stabilen Code (`SdkError`); verzweige oder suche über den Code, nicht
+über den Meldungstext. Wie Fehlschläge auf CLI-Exit-Codes abgebildet werden, steht in
+[CI und Exit-Codes](/docs/ci-and-exit-codes); die vollständige Code-Tabelle in der
+[SDK-Referenz](/docs/sdk).
 
-Content forthcoming.
+## Die Konfiguration ist ungültig (CONFIG_INVALID)
+
+**Symptom**: `The verbatra configuration is invalid: ...`, mit einem Problem pro Feld.
+
+**Ursache**: Die Konfiguration wurde gefunden, besteht aber die Schemavalidierung nicht: ein
+fehlendes Pflichtfeld, ein `files.pattern` ohne das `{locale}`-Token, eine Quell-Locale in
+`targetLocales` oder ein unbekannter Top-Level-Key. Ein unbekannter Key bekommt den Hinweis
+`API keys are read from the environment, not the config`: Das Schema ist genau deshalb strikt,
+damit sich kein Geheimnis in einer committeten Datei verstecken kann.
+
+**Lösung**: Korrigiere das Feld, das die Meldung nennt. Siehe
+[Konfigurationsdatei](/docs/config-file) für das vollständige Schema. Lautet die Meldung
+`No verbatra configuration found...` (`CONFIG_NOT_FOUND`), führe `verbatra init` aus oder übergib
+`--config <path>`.
+
+## Kein Adapter für das Format (UNKNOWN_FORMAT)
+
+**Symptom**: `No adapter is registered for format "..."`, gefolgt von der Liste der unterstützten
+Formate.
+
+**Ursache**: Das `format` der Konfiguration ist keine der sieben registrierten Format-Ids. Das
+wird geprüft, bevor irgendeine Datei gelesen wird.
+
+**Lösung**: Verwende eine der Ids aus [Formate](/docs/formats), zum Beispiel `i18next-json` oder
+`xliff`.
+
+## Die angeforderte Locale ist nicht konfiguriert (UNKNOWN_LOCALE)
+
+**Symptom**: `Requested locale not in the configured target locales: ... Configured targets: ...`
+
+**Ursache**: Ein `--locales`-Wert (oder eine SDK-Eingabe `locales`/`locale`) nennt eine Locale,
+die nicht in `targetLocales` steht. Locale-Filter wählen aus der konfigurierten Liste aus; sie
+erweitern sie nie.
+
+**Lösung**: Füge die Locale in der Konfiguration zu `targetLocales` hinzu, oder korrigiere den
+Tippfehler im Filter.
+
+## Die Quelldatei fehlt oder ist nicht parsebar (SOURCE_UNREADABLE, SOURCE_INVALID)
+
+**Symptom**: `The source locale file was not found at <path>.` oder `The source locale file at
+<path> could not be read: ...`
+
+**Ursache**: `files.pattern` mit eingesetzter Quell-Locale zeigt auf keine existierende Datei
+(`SOURCE_UNREADABLE`), oder die Datei existiert, aber der Adapter lehnt sie ab, zum Beispiel wegen
+ungültigem JSON oder einem Strukturproblem (`SOURCE_INVALID`, das die Meldung des Adapters
+umhüllt).
+
+**Lösung**: Prüfe den Pfad, den die Meldung ausgibt; es ist das gegen das Arbeitsverzeichnis
+aufgelöste Muster, ein falsches `--cwd` ist also eine häufige Ursache. Für strukturelle
+Ablehnungen siehe den `INVALID_STRUCTURE`-Eintrag unten.
+
+## Fehlender API-Schlüssel (PROVIDER_CONSTRUCTION_FAILED)
+
+**Symptom**: `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable
+is not set.` (oder die passende Variable deines Providers).
+
+**Ursache**: Der Provider liest seinen Schlüssel beim Konstruieren aus der Umgebung, und die
+genannte Variable ist ungesetzt oder leer. Fehlermeldungen nennen die Variable, enthalten aber nie
+einen Schlüsselwert, und Schlüssel werden nie aus der Konfiguration oder aus CLI-Argumenten
+gelesen.
+
+**Lösung**: Setze die Variable, die die Meldung nennt. Die CLI lädt `.env` und `.env.local` aus
+dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen Skript also
+`node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
+nur, wenn die Konfiguration ein `apiKeyEnvVar` nennt, das ungesetzt ist; ohne eines fällt es für
+lokale Server auf einen schlüssellosen Platzhalter zurück.
+
+## Rate-Limits, Timeouts und Auth-Fehlschläge mitten im Lauf (RATE_LIMITED, TIMEOUT, AUTH_FAILED)
+
+**Symptom**: Der Lauf wird abgeschlossen, aber einige Keys wurden nicht übersetzt: Diese erscheinen
+unter den `providerFailures` einer Locale, mit einem `SUB_BATCH_FAILED`-Hinweis, der den
+Provider-Code trägt. Die Locale zählt trotzdem als erfolgreich, der Exit-Code bleibt also 0.
+
+**Ursache**: Ein Provider-Aufruf schlug nach der Konstruktion fehl: HTTP 429 (`RATE_LIMITED`),
+ein Netzwerk- oder Anfrage-Timeout (`TIMEOUT`) oder HTTP 401/403 (`AUTH_FAILED`, ein ungültiger
+oder widerrufener Schlüssel).
+
+**Lösung**: Nichts ist verloren. Die betroffenen Keys behalten ihre vorherige Lock-Baseline und
+werden beim nächsten Lauf wieder aufgegriffen; bei `RATE_LIMITED` oder `TIMEOUT` lass den Lauf
+also einfach später erneut laufen. `AUTH_FAILED` löst sich durch Wiederholen nicht: Tausche den
+Schlüssel hinter der Umgebungsvariable aus. Ein kleineres `maxBatchSize` verringert außerdem den
+Wirkungsradius einer einzelnen fehlgeschlagenen Anfrage.
+
+## Die Lock-Datei ist beschädigt (LOCK_FILE_INVALID)
+
+**Symptom**: `The lock-file at <path> is not valid JSON.`, `... has an unexpected shape.`,
+`... has version N, but this version of verbatra supports version 1.` oder `... exceeds the
+maximum allowed size ...`
+
+**Ursache**: `verbatra.lock.json` wurde von Hand bearbeitet, abgeschnitten, von einer
+inkompatiblen Version erzeugt oder in einem Merge beschädigt.
+
+**Lösung**: Stelle die Datei aus der Versionskontrolle wieder her; das hält jede Baseline intakt.
+Die Datei zu löschen beseitigt den Fehler auch, verliert aber die Aufzeichnung, aus welcher
+Quellversion jede Übersetzung stammt, Quelländerungen vor dem Löschen werden also nicht mehr als
+veraltet erkannt. Siehe [Die Lock-Datei](/docs/the-lock-file).
+
+## Ein anderer Prozess hält die Schreibsperre (LOCK_CONTENDED)
+
+**Symptom**: `Could not acquire the write lock at <path>: another process may be holding it. If no
+verbatra process is currently running, this lock file was likely left behind by one that was
+killed; delete it and retry.`
+
+**Ursache**: Schreibvorgänge an einer Locale werden über eine Sperrdatei pro Locale serialisiert.
+Ein gleichzeitiges `translate`, `watch`, `import` oder ein Studio-Schreibvorgang hält sie, oder
+ein abgeschossener Prozess hat die Sperrdatei zurückgelassen.
+
+**Lösung**: Genau, was die Meldung sagt: Warte, bis der andere Lauf fertig ist, oder, wenn keiner
+läuft, lösche die Sperrdatei am ausgegebenen Pfad und versuche es erneut.
+
+## Gepunktete Keys oder YAML-Keys kollidieren (INVALID_STRUCTURE)
+
+**Symptom**: `A dotted key and a nested key path resolve to the same path.` (oder die Variante
+für wörtliche Blätter), oder für YAML: `A mapping key is a map or sequence (expected scalar
+keys).`
+
+**Ursache**: Zwei Einträge in einer Datei lösen zum selben effektiven Key auf, zum Beispiel ein
+wörtlicher `"a.b"`-Key neben einem verschachtelten `a: { b: ... }`, was verbatra ablehnt, statt
+still einen fallen zu lassen; oder eine YAML-Datei verwendet einen zusammengesetzten Mapping-Key,
+der keine treue String-Form hat.
+
+**Lösung**: Benenne einen der kollidierenden Keys um, oder ersetze den zusammengesetzten YAML-Key
+durch einen Skalar. Ist die Datei deine Quell-Locale, erscheint der Fehler umhüllt in
+`SOURCE_INVALID`. Siehe [Formate](/docs/formats) für die Key-Regeln jedes Formats.
+
+## Der Lauf hat einige Keys ausgelassen (Token-Budget)
+
+**Symptom**: Ein `BUDGET_TOKENS_EXCEEDED`-Hinweis: `The run's cumulative token usage (N) reached
+the configured budget of M tokens (behavior: ...)`; mit `budgetBehavior: "stop"` erscheinen Keys
+außerdem unter `budgetWithheld`.
+
+**Ursache**: Die konfigurierte `maxTokens`-Obergrenze wurde überschritten. Mit `"warn"` (dem
+Default) läuft der Lauf unverändert weiter; mit `"stop"` wird jeder noch nicht versuchte Key für
+den Rest des Laufs zurückgehalten. Das Budget ändert nie den Exit-Code.
+
+**Lösung**: Das ist der Schutzmechanismus bei der Arbeit. Zurückgehaltene Keys behalten ihre
+Baselines und werden beim nächsten Lauf übersetzt; erhöhe `maxTokens` oder wechsle zu `"warn"`,
+wenn du den Abschluss in einem einzigen Lauf willst. Ein Budget gegen DeepL oder einen Dry-Run
+meldet `supported: false` und löst nie aus, weil kein Token-Verbrauch zum Messen existiert.
+
+## Studio: Der Port ist schon belegt
+
+**Symptom**: `port 5849 is already in use` (oder dein `--port`-Wert).
+
+**Ursache**: Ein anderer Prozess, oft eine frühere Studio-Instanz, ist an den Port gebunden.
+Studio nutzt standardmäßig 5849 auf 127.0.0.1.
+
+**Lösung**: Beende den anderen Prozess, oder starte Studio auf einem anderen Port:
+`verbatra studio --port 6000`.
+
+## Studio: @verbatra/studio ist nicht installiert
+
+**Symptom**: `Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D
+@verbatra/studio`
+
+**Ursache**: `@verbatra/studio` ist ein separates Paket, das der `studio`-Befehl dynamisch lädt,
+der Rest der CLI funktioniert also ohne es.
+
+**Lösung**: Installiere es, wie der Hinweis sagt, und führe `verbatra studio` erneut aus.
+
+## Studio: Retranslate- und Translate-Aktionen fehlen
+
+**Symptom**: Übersetzungen bearbeiten funktioniert, aber die Retranslate- und
+Translate-Pending-Aktionen erscheinen nicht.
+
+**Ursache**: Kostenpflichtige Provider-Aufrufe sind eine Fähigkeit, die du beim Start gewährst.
+Ohne sie werden die kostenpflichtigen Methoden gar nicht erst registriert; das lokale Bearbeiten
+von Dateien ist immer an und braucht kein Flag.
+
+**Lösung**: Starte Studio neu mit `verbatra studio --allow-spend`, oder setze
+`VERBATRA_STUDIO_ALLOW_SPEND=1` (auch `true`, `yes` oder `on`). Schnelle wiederholte Aktionen
+können außerdem Studios eigene Drossel treffen, `METHOD_RATE_LIMITED: Too many calls to this
+method; wait before retrying.`; das löst sich von selbst. Siehe
+[Review in Studio](/docs/review-in-studio).

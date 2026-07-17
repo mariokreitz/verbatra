@@ -1,31 +1,27 @@
 ---
 title: verbatra export
-description: Exportiert unübersetzte Strings in eine gestylte Excel-Arbeitsmappe für einen menschlichen Übersetzer.
+description: Exportiere unübersetzte Strings in eine formatierte Excel-Arbeitsmappe für eine menschliche Übersetzerin.
 ---
-Schreibt die Strings, die übersetzt werden müssen, in eine gestylte Excel-Arbeitsmappe, die ein Mensch ausfüllen und dann für [`verbatra import`](/docs/cli/import) zurücksenden kann. Die Arbeitsmappe hat ein Blatt pro Ziel-Locale plus ein Anweisungsblatt. Der Übersetzer bearbeitet eine einzige Spalte; alles andere ist gesperrt.
+Schreibe die zu übersetzenden Strings in eine formatierte Excel-Arbeitsmappe, die ein Mensch ausfüllen und für [`verbatra import`](/docs/cli/import) zurückschicken kann. Standardmäßig enthält die Arbeitsmappe nur die fehlenden und geänderten Strings: dieselben Keys, die ein automatischer Lauf an einen Provider schicken würde. `export` ruft nie einen Provider auf und braucht keinen API-Key.
+
+## Synopsis
 
 ```bash
-verbatra export
+verbatra export [flags]
 ```
 
-Standardmäßig schreibt dies `verbatra-translations.xlsx` in das Arbeitsverzeichnis und enthält nur die **fehlenden und geänderten** Strings: dieselben Schlüssel, die ein automatischer `translate`-Lauf an einen Provider senden würde. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+## Flags
 
-Jede Zeile mit einer aktuellen Übersetzung trägt auch ein nur lesbares Paar `Review status` / `Review reasons`: verbatras eigene beratende Heuristiken, um eine Übersetzung zu erkennen, die einen zweiten Blick wert ist, frisch aus den aktuellen Quell- und Zielwerten zum Exportzeitpunkt neu berechnet. Sie beeinflussen nie, was `import` akzeptiert. Siehe [Menschliche Übersetzung](/docs/manual-translation) für die Spalten und [Übersetzungssicherheit](/docs/translation-safety) für die Grund-Codes.
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--out` | `<path>` | `verbatra-translations.xlsx` | die Arbeitsmappe an diesen Pfad schreiben |
+| `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die exportiert wird |
+| `--include-unchanged` | keins | aus | auch bereits aktuelle Strings exportieren |
+| `--json` | keins | aus | das Export-Ergebnis (Pfad und Zeilenzahlen pro Locale) als ein JSON-Objekt auf stdout ausgeben; Fehler gehen weiter auf stderr |
 
-## Optionen
-
-| Option | Beschreibung |
-| --- | --- |
-| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
-| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--out <path>` | schreibt die Arbeitsmappe an diesen Pfad (Standard `verbatra-translations.xlsx`) |
-| `--locales <list>` | kommagetrennte Teilmenge der Ziel-Locales (Standard alle konfigurierten) |
-| `--include-unchanged` | exportiert auch bereits aktuelle Strings (standardmäßig aus) |
-| `--json` | gibt das Export-Ergebnis als JSON aus |
-
-## Ausgabe
-
-Ohne `--json` gibt `export` den Ausgabepfad und eine Zeile pro Locale mit dessen Zeilenanzahl aus. Mit `--json` gibt es das Export-Ergebnis (den geschriebenen Pfad und die Zeilenanzahlen pro Locale) als ein JSON-Objekt auf stdout aus. Ein Fehler des gesamten Laufs wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
+Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu exportieren.
 
 ## Beispiele
 
@@ -33,23 +29,8 @@ Ohne `--json` gibt `export` den Ausgabepfad und eine Zeile pro Locale mit dessen
 # write the workbook with missing and changed strings
 verbatra export
 
-# only the German and French sheets
-verbatra export --locales de,fr
-
-# include already up-to-date strings for full context
-verbatra export --include-unchanged
-
-# write to a specific path
-verbatra export --out handoff/round-2.xlsx
-
-# export a project in another directory
-verbatra export --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra export --config config/verbatra.config.ts
-
-# machine-readable result on stdout
-verbatra export --json
+# only the German and French sheets, to a specific path
+verbatra export --locales de,fr --out handoff/round-2.xlsx
 ```
 
 ## Exit-Codes
@@ -57,6 +38,11 @@ verbatra export --json
 | Code | Bedeutung |
 | --- | --- |
 | `0` | die Arbeitsmappe wurde geschrieben |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, eine beschädigte Lock-Datei oder eine angeforderte Locale, die nicht unter den konfigurierten Ziel-Locales ist) oder ein Nutzungsfehler (einschließlich einer leeren `--locales`-Liste) |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
 
-`export` ruft niemals einen Provider auf und benötigt keinen API-Schlüssel. Ein unbekannter oder leerer `--locales`-Wert lässt den Lauf mit Exit `2` fehlschlagen, statt still nichts zu exportieren, sodass ein Tippfehler in einem Locale-Namen abgefangen wird, statt durchzugehen. Siehe [`verbatra import`](/docs/cli/import) für das Zurücklesen der ausgefüllten Arbeitsmappe.
+`export` hat keinen Fehlermodus pro Locale und endet deshalb nie mit `1`.
+
+## Siehe auch
+
+- [Menschliche Übersetzung](/docs/manual-translation) behandelt den Aufbau der Arbeitsmappe, die Review-Spalten und den vollständigen Roundtrip.
+- [`verbatra import`](/docs/cli/import) liest die ausgefüllte Arbeitsmappe zurück.

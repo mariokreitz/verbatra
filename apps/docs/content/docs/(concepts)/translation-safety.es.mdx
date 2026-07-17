@@ -1,57 +1,108 @@
 ---
 title: Seguridad de la traducción
-description: Las comprobaciones de integridad y los límites de seguridad que deciden qué escribe verbatra y qué retiene.
+description: "El modelo de seguridad: cadenas no de fiar, la puerta de integridad, las señales de revisión, el presupuesto de tokens y errores que nunca filtran nada."
 ---
-verbatra no se fía de la salida de la máquina por defecto. Pasa cada traducción por comprobaciones de integridad antes de escribir, y mantiene el texto no de fiar lejos de las instrucciones que envía al proveedor. Esta página cubre cuáles son esas comprobaciones y qué protegen.
+verbatra no se fía de la salida de la máquina, y tampoco se fía de las cadenas que traduce. Cada
+resultado pasa una puerta de integridad antes de poder escribirse, todo lo que la puerta rechaza
+aflora como datos en lugar de hacer fallar la ejecución, y los secretos se mantienen fuera de cada
+ruta de error. Esta página cubre cada capa de ese modelo.
 
-## Integridad de los marcadores de posición
+## Cadenas no de fiar y la frontera contra la inyección de prompts
 
-Un valor traducido tiene que llevar los mismos marcadores de posición que su origen. Después de la traducción, verbatra compara el conjunto de marcadores de posición de cada resultado con el valor de origen. Elimina, añade o altera un marcador de posición y la traducción falla la comprobación y se retiene en lugar de escribirse. La clave retenida conserva su hash de bloqueo anterior, así que la siguiente ejecución la reintenta, y aparece por locale como una discrepancia de integridad en el resumen de la ejecución.
+Una cadena traducible puede contener texto que parece una instrucción (una cadena de UI que dice
+literalmente "ignora tus instrucciones"), así que verbatra trata cada una como entrada no de fiar.
+Las reglas de sistema enviadas a un proveedor LLM son constantes de tiempo de compilación. Toda la
+entrada variable, las entradas a traducir junto con tu glosario y tono, viaja solo en la carga JSON
+de datos del turno de usuario, nunca empalmada en el canal de instrucciones. La salida del
+proveedor está restringida a un esquema y se valida como datos: una respuesta malformada falla, y
+una respuesta que contiene una clave que nunca se pidió hace fallar el sublote entero, porque no
+hay una aceptación parcial segura alrededor de contenido inventado.
 
-Lo que cuenta como marcador de posición depende del formato: tokens `{{double-brace}}` para i18next, ngx-translate y YAML, `{name}` y `{0}` de llave simple para vue-i18n, nombres de argumento y de etiqueta ICU para next-intl y ARB, e ids de marcador de posición en línea para XLIFF. Para i18next, las referencias de anidamiento `$t(...)` también se protegen: elimina, altera o traduce una referencia `$t(...)` y la traducción falla la comprobación y se retiene. Así que si el origen es `Welcome, {{name}}` y el modelo devuelve `Bienvenido` con el `{{name}}` desaparecido, verbatra lo retiene en lugar de enviar una cadena rota. Consulta [Formatos](/docs/formats) para la sintaxis de cada uno.
+## La puerta de integridad
 
-Para next-intl y ARB, la comparación es consciente de las ramas: un argumento de plural o de
-selección se comprueba categoría por categoría contra su rama de origen correspondiente, en lugar
-de aplanar primero todo el mensaje en un único conjunto. Un marcador de posición fabricado dentro
-de una sola rama del destino se detecta aunque ese mismo marcador exista legítimamente en otra
-rama del origen.
+Una traducción válida según el esquema todavía puede estar rota, así que una única puerta recalcula
+la decisión de aceptar o rechazar directamente a partir del valor candidato; el informe de
+integridad del propio proveedor nunca se toma por bueno. La misma puerta corre en cada ruta de
+escritura: una traducción venida del proveedor, una fila importada de un libro y una edición
+tecleada por una persona en Studio.
 
-## Validez de ICU
+- Integridad de los marcadores de posición: el valor traducido debe llevar los mismos marcadores de
+  posición que su origen, comparados como multiconjunto (las cantidades importan, el orden no).
+  Elimina, añade o altera uno y la candidata se rechaza. Qué cuenta como marcador de posición se
+  define por formato; consulta [Formatos](/docs/formats).
+- Integridad ICU: para los formatos ICU (next-intl y ARB), el valor traducido debe seguir
+  parseándose como un mensaje válido. Una candidata que conserva todos los marcadores de posición
+  pero rompe la estructura de plural o de select también se rechaza. Para estos formatos la
+  comparación de marcadores de posición además distingue ramas: un marcador de posición fabricado
+  dentro de una rama de plural se detecta aunque exista legítimamente en otra.
 
-Para los formatos ICU, next-intl y ARB, verbatra analiza cada valor de origen. Una clave de origen cuyo valor no es ICU válido se aparta y se omite para la traducción en lugar de enviarse en un estado roto, y se informa como ICU no válido en el resumen. El cuerpo ICU se mantiene literal a lo largo de la canalización: nada se resuelve ni se reescribe.
+Una candidata rechazada se retiene como datos, nunca se escribe: aparece en el resumen de la
+ejecución como una discordancia de integridad, conserva su hash anterior en
+[el archivo de bloqueo](/docs/the-lock-file) y se reintenta en la siguiente ejecución. Retenida
+también se mantiene separada de fallida: una clave para la que no se tradujo nada (la llamada al
+proveedor lanzó un error, o la clave seguía faltando tras la ronda acotada de reparación) se
+informa como un fallo de proveedor, no como una discordancia de integridad. Ambas se reintentan de
+la misma manera.
 
-El mismo analizador también comprueba el otro lado de la ejecución: en cuanto vuelve una traducción,
-verbatra valida el propio valor resultante frente a la sintaxis del formato, no solo su conjunto de
-marcadores de posición. Un resultado que mantiene intacto cada marcador de posición pero rompe la
-estructura de plural o select de ICU sigue sin pasar la comprobación y se retiene igual que un fallo
-de marcadores de posición, informado de la misma manera en el resumen de la ejecución. Esto se aplica a
-`translate`, `watch`, la importación de workbooks y la [acción de retraducción](/docs/cli/studio) de
-Studio.
+Del lado del origen, una clave de origen cuyo propio valor es ICU inválido se aparta antes de la
+traducción y se informa, en lugar de enviarse al proveedor en un estado roto.
 
 ## Señales de revisión
 
-Superar las comprobaciones de arriba solo demuestra que una traducción es estructuralmente segura: nada está roto, pero aun así podría ser incorrecta. verbatra ejecuta una segunda capa, no bloqueante, encima de esa: una heurística pura que marca una clave para revisión humana sin retenerla jamás. Una señal de revisión es solo consultiva. Nunca retiene una clave, y nada en el libro ni en el resumen de la ejecución se puede editar para limpiarla; la única forma de limpiar una señal es corregir la traducción subyacente.
+Pasar la puerta demuestra que una traducción es estructuralmente segura, no que sea buena, así que
+una segunda capa, consultiva, marca los resultados sospechosos para una persona. Una señal de
+revisión nunca retiene una clave y lleva uno o más códigos de motivo:
 
-Cinco códigos de motivo, y una clave marcada puede llevar más de uno:
+- `LENGTH_RATIO_OUTLIER`: la traducción es mucho más corta o larga que su origen (por debajo de
+  0.35x o por encima de 3.0x de longitud recortada; los orígenes muy cortos se omiten). Un aviso
+  para mirar, no un veredicto.
+- `EQUALS_SOURCE`: la traducción es idéntica al origen en un locale de destino distinto, y el
+  origen sí tenía texto traducible.
+- `GLOSSARY_TERM_MISSED`: un término del glosario configurado aparece en el origen pero su término
+  de destino asignado está ausente de la traducción.
+- `INTEGRITY_REORDERED`: el conjunto de marcadores de posición coincidió exactamente pero quedó en
+  un orden distinto al del origen. Solo se dispara sobre una traducción que la puerta ya aceptó.
+- `PROVIDER_DEGRADED`: el lote del que salió esta clave fue degradado con elegancia por el
+  proveedor (una rebaja de formalidad o un glosario ignorado; en el conjunto actual de proveedores,
+  solo DeepL).
 
-- `LENGTH_RATIO_OUTLIER`: la longitud recortada del valor traducido es mucho más corta o más larga que la del origen (por debajo de 0,35x o por encima de 3,0x, se omite cuando el origen recortado tiene menos de 12 unidades de código UTF-16). Es una comprobación de ratio de longitud en bruto sobre la longitud UTF-16, así que puede sobremarcar un idioma de destino legítimamente extenso (el alemán) o un destino CJK denso; trátalo como un aviso para mirar, no como un veredicto.
-- `EQUALS_SOURCE`: el valor traducido es idéntico al valor de origen palabra por palabra, en un locale de destino distinto del locale de origen, y el origen realmente tenía algo traducible (al menos una letra Unicode). Un origen que solo tiene marcadores de posición, números o puntuación nunca se marca así.
-- `GLOSSARY_TERM_MISSED`: un término de origen de glosario configurado aparece en el valor de origen pero su término de destino asociado no aparece en la traducción. Solo se evalúa cuando hay un glosario configurado.
-- `INTEGRITY_REORDERED`: el conjunto de marcadores de posición coincidió exactamente (la comprobación de integridad de marcadores de posición de arriba ya aceptó la traducción) pero quedó en un orden distinto al del origen. Esta señal nunca se solapa con un fallo de integridad de marcadores de posición: solo se activa en una traducción que ya pasó.
-- `PROVIDER_DEGRADED`: el lote del que viene esta clave llevaba un aviso `FORMALITY_DOWNGRADED` o `GLOSSARY_IGNORED`. En el conjunto de proveedores actual esto es exclusivo de DeepL, ya que ningún proveedor LLM emite hoy ninguno de los dos avisos.
+Las claves marcadas afloran por locale como `needsReview` en el resumen de la ejecución, y
+alimentan la cola de revisión: la CLI imprime el recuento, el libro de Excel lleva la misma señal
+en sus columnas de revisión, y la página Review de Studio lista las claves marcadas para irlas
+trabajando; consulta [Revisión en Studio](/docs/review-in-studio). La única forma de limpiar una
+señal es corregir la traducción subyacente.
 
-Dónde lo ves: `translate` y `watch` lo informan por locale como `needsReview` en el resumen de la ejecución, restringido a las claves realmente aceptadas y escritas en esa ejecución, y la CLI imprime un contador `needs-review` cuando es mayor que cero; consulta [`verbatra translate`](/docs/cli/translate) y la [referencia del SDK](/docs/sdk). El libro de Excel lleva la misma señal en sus columnas `Review status` y `Review reasons`, recalculadas de nuevo en cada exportación; consulta [Traducción humana](/docs/manual-translation). La cola de revisión de [Verbatra Studio](/docs/cli/studio) muestra las mismas claves marcadas, leídas en vivo desde la instantánea persistida que dejó la última ejecución de `translate`/`watch`.
+## El presupuesto de tokens
 
-`PROVIDER_DEGRADED` es exclusivo del momento de traducir. Viene de un aviso de proveedor que solo existe en memoria durante la ejecución que lo produjo: nada en disco lo registra, ya que arreglarlo significaría persistir hechos del momento del proveedor en el [archivo de bloqueo](/docs/the-lock-file), algo que esta funcionalidad deliberadamente no hace. Así que un libro exportado más tarde desde el mismo archivo de destino en disco nunca mostrará `PROVIDER_DEGRADED` para esa clave, aunque la clave en sí siga ahí: exporta `ok`, salvo que la clave también dispare de forma independiente uno de los cuatro códigos de motivo recalculables de arriba, en cuyo caso la fila exportada lleva ese motivo en su lugar.
+El gasto de proveedor debería tener un techo que fijas tú, no uno que descubres en la factura. Con
+`maxTokens` configurado, verbatra rastrea el uso acumulado de tokens a lo largo de toda la
+ejecución y lo comprueba después de cada sublote completado. Lo que pasa al llegar al techo es
+`budgetBehavior`:
 
-## El límite de inyección de prompts
+- `warn` (el valor por defecto): la ejecución continúa y el resumen señala que el presupuesto se
+  superó.
+- `stop`: no se hacen más llamadas al proveedor; cada candidata restante se retiene como
+  `budgetWithheld`, conserva su hash anterior en el bloqueo y se reintenta en la siguiente
+  ejecución.
 
-Las cadenas que traduces no son de fiar: pueden contener texto que parece una instrucción (piensa en una cadena de interfaz que literalmente dice "ignora tus instrucciones"). verbatra las trata de esa forma. Las reglas del sistema que envía a un proveedor son constantes de tiempo de compilación. Toda la entrada variable, las entradas a traducir junto con tu glosario y tu tono, viaja solo en la carga de datos del turno del usuario, nunca insertada en el canal de instrucciones. La salida del proveedor está restringida a un esquema y validada, y la comprobación de marcadores de posición se ejecuta sobre lo que sea que vuelva. Una cadena que intenta redirigir el modelo no puede llegar a las reglas, y un resultado que rompe un marcador de posición se retiene.
+El sublote que cruza el techo nunca se deshace, y el presupuesto nunca cambia el código de salida
+del comando. Con un proveedor que no informa del uso de tokens (DeepL), la salvaguarda es
+honestamente inerte: el resumen la marca como no soportada en lugar de fingir un recuento.
 
-## Los secretos nunca se filtran
+## Los errores nunca filtran nada
 
-Los proveedores leen las claves de API solo del entorno, nunca de tu configuración ni de los argumentos. Cuando una llamada al SDK de un proveedor falla, su error crudo (que puede llevar encabezados de solicitud o una clave) se descarta, nunca se vincula, registra ni se relanza. En su lugar, verbatra lanza su propio error estructurado con un mensaje estático y sin secretos. Las claves están libres de secretos por construcción: nada sensible llega nunca a una cadena que necesitaría depurarse. Una clave no puede aparecer en los registros, en los mensajes de error ni en la salida.
+Las claves de API vienen solo de variables de entorno, nunca de la configuración ni de argumentos,
+así que no hay ninguna clave en ningún valor que verbatra maneje. Cuando una llamada al SDK de un
+proveedor falla, el error crudo (que puede llevar cabeceras de la solicitud o credenciales) se
+descarta, nunca se guarda, registra ni relanza; en su lugar verbatra levanta un error estructurado
+con un código estable (como `RATE_LIMITED`, `TIMEOUT` o `AUTH_FAILED`) y un mensaje estático y sin
+secretos. La misma regla rige toda la ejecución: los avisos y los resúmenes llevan códigos y
+recuentos, no secretos.
 
-## Lo que ves
+## Dónde lo ves
 
-Cada uno de estos resultados es un dato en el resumen de la ejecución, por locale: las claves traducidas, las retenidas por una discrepancia de marcador de posición, las claves de origen omitidas por ICU no válido, las claves marcadas para revisión y cualquier aviso. Los avisos incluyen avisos del proveedor y avisos del SDK, como una advertencia de categoría plural (código `PLURAL_CATEGORIES_INCOMPLETE`) cuando una lengua de destino necesita más categorías plurales de las que aporta el origen; consulta [Añadir un idioma](/docs/add-a-language) para saber cómo sintetizar esas formas en su lugar. Nada se oculta, y el fallo de un solo locale no detiene a los demás. Consulta [Cómo funciona](/docs/how-it-works) para ver dónde se sitúa cada comprobación en la ejecución.
+Todo esto son datos en el resumen de la ejecución, por locale: claves traducidas, discordancias de
+integridad, fallos de proveedor, claves retenidas por presupuesto, claves de origen con ICU
+inválido, señales de revisión y avisos. Nada se oculta, y el fallo de un locale nunca detiene a los
+demás. Consulta [Cómo funciona](/docs/how-it-works) para ver dónde se sitúa cada comprobación en la
+canalización.

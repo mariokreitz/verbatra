@@ -1,92 +1,33 @@
 ---
 title: verbatra diff
-description: Lista las claves exactas que se añadirían, se volverían a traducir o están huérfanas por locale, de solo lectura, sin llamar a un proveedor ni escribir archivos.
+description: Muestra las claves que se añadirían, se retraducirían o están huérfanas por locale sin escribir archivos.
 ---
-Muestra, por cada locale de destino, los cambios de traducción pendientes reales como listas de claves: las claves que se añadirían, las claves que se volverían a traducir y las claves ahora huérfanas en el destino. `diff` ejecuta la misma lectura y el mismo diff que [`verbatra translate`](/docs/cli/translate) hace justo antes de llamar a un proveedor, y luego se detiene: no llama a ningún proveedor, no escribe archivos y nunca toca el [archivo de bloqueo](/docs/the-lock-file).
+Lista, por locale de destino, las claves pendientes exactas: las que una ejecución añadiría (faltan en el destino), las que retraduciría (el origen cambió desde la última traducción) y las que ahora están huérfanas (en el destino pero desaparecidas del origen). `diff` ejecuta la misma lectura y el mismo diff que [`verbatra translate`](/docs/cli/translate) hace justo antes de llamar a un proveedor, y luego se detiene: sin llamada al proveedor, sin archivos escritos, sin actualización de [el archivo de bloqueo](/docs/the-lock-file) y sin necesidad de clave API.
+
+## Sinopsis
 
 ```bash
-verbatra diff
+verbatra diff [flags]
 ```
 
-`diff` es el hermano detallado de [`verbatra check`](/docs/cli/check). Donde `check` responde "cuánto se ha desviado" con recuentos por locale, `diff` responde "qué claves" con las listas explícitas. Ambos ejecutan el mismo cálculo de solo lectura.
+## Flags
 
-## Las tres listas de claves
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--locales` | `<list>` | todos los destinos configurados | subconjunto de locales de destino separado por comas sobre el que hacer el diff |
+| `--json` | ninguno | desactivado | imprime el resumen del diff como un objeto JSON en stdout; los errores siguen yendo a stderr |
 
-Para cada locale de destino, `diff` informa tres grupos:
-
-- **add** (`missing`): claves presentes en el locale de origen pero ausentes del destino. Una ejecución las añadiría.
-- **re-translate** (`changed`): claves presentes en ambos, donde la cadena de origen cambió desde la última vez que se tradujo. Una ejecución las volvería a traducir.
-- **orphaned**: claves presentes en el destino pero ausentes del origen. Solo se informan. Una ejecución `translate` por defecto no las elimina, por lo que las claves huérfanas por sí solas no cuentan como trabajo pendiente (solo [`verbatra translate --prune`](/docs/cli/translate) las elimina).
-
-Un locale tiene cambios pendientes cuando tiene al menos una clave para añadir o volver a traducir. Las claves huérfanas por sí solas nunca hacen que un locale esté pendiente.
-
-## Opciones
-
-| Opción | Descripción |
-| --- | --- |
-| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
-| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--locales <list>` | subconjunto de locales de destino separados por comas (por defecto todos los configurados) |
-| `--json` | imprime el resumen de diff como JSON |
-
-No hay `--dry-run`: `diff` ya es una lectura en seco. No necesita ninguna clave de API.
-
-## Salida
-
-Sin `--json`, `diff` imprime un encabezado de recuento por locale y luego las claves agrupadas bajo add, re-translate y orphaned. Un locale sin nada que añadir, volver a traducir o sin huérfanas se reduce a una sola línea. Cada clave se lista, sin truncamiento; canaliza a un paginador si la lista es larga.
-
-```
-verbatra diff
-  de: 3 to add, 1 to re-translate, 2 orphaned
-    add:          app.title, nav.home, nav.about
-    re-translate: footer.copyright
-    orphaned:     legacy.banner, legacy.promo
-  fr: no pending changes
-2 locales, pending changes
-```
-
-Con `--json`, imprime el resumen como un único objeto JSON en stdout. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos un locale tiene una clave para añadir o volver a traducir (y exactamente cuando el comando sale con `1`):
-
-```json
-{
-  "hasPendingChanges": true,
-  "locales": [
-    {
-      "locale": "de",
-      "missing": ["app.title", "nav.home", "nav.about"],
-      "changed": ["footer.copyright"],
-      "orphaned": ["legacy.banner", "legacy.promo"],
-      "hasPendingChanges": true
-    },
-    {
-      "locale": "fr",
-      "missing": [],
-      "changed": [],
-      "orphaned": [],
-      "hasPendingChanges": false
-    }
-  ]
-}
-```
-
-El `hasPendingChanges` de cada locale es `missing.length > 0 || changed.length > 0`; `orphaned` queda excluido. Un error de toda la ejecución va a stderr, así que stdout queda limpio y canalizable con `--json`.
+Un locale tiene cambios pendientes cuando tiene al menos una clave que añadir o retraducir. Las claves huérfanas se informan pero nunca cuentan como pendientes, porque una ejecución por defecto no las elimina (solo lo hace [`verbatra translate --prune`](/docs/cli/translate)). Un valor `--locales` vacío o desconocido se rechaza con salida `2` en lugar de comparar nada en silencio. Donde [`verbatra check`](/docs/cli/check) responde "cuánto se ha desfasado" con contadores, `diff` responde "qué claves" con las listas.
 
 ## Ejemplos
 
 ```bash
-# list the keys that would be added, re-translated, or are orphaned (exit 1 if pending)
+# list the pending keys per locale (exit 1 if any are pending)
 verbatra diff
 
-# only diff the German and French locales
-verbatra diff --locales de,fr
-
-# diff a project in another directory
-verbatra diff --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra diff --config config/verbatra.config.ts
-
-# machine-readable key lists on stdout for tooling or a PR comment
+# machine-readable key lists for tooling or a PR comment
 verbatra diff --json
 ```
 
@@ -94,8 +35,12 @@ verbatra diff --json
 
 | Código | Significado |
 | --- | --- |
-| `0` | sin cambios pendientes: ningún locale tiene una clave para añadir o volver a traducir |
-| `1` | cambios pendientes: al menos un locale tiene una clave faltante o modificada (el informe completo se sigue imprimiendo) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, origen ilegible, formato desconocido, un archivo de bloqueo corrupto o un locale solicitado que no está entre los locales de destino configurados), o un error de uso (incluida una lista `--locales` vacía) |
+| `0` | sin cambios pendientes: ningún locale tiene una clave que añadir o retraducir |
+| `1` | cambios pendientes: al menos un locale tiene una clave faltante o modificada (las claves huérfanas por sí solas nunca producen `1`) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso (incluido un valor `--locales` vacío o desconocido) |
 
-Las claves huérfanas por sí solas nunca producen el código de salida `1`, porque una ejecución por defecto no las elimina. Para `diff`, el código de salida `1` significa "hay trabajo pendiente", no un fallo por locale: la ejecución en sí tuvo éxito. Un valor `--locales` desconocido o vacío hace que la ejecución falle con el código de salida `2` en lugar de no hacer diff de nada en silencio, así que un error tipográfico en un nombre de locale se detecta en lugar de pasar. Consulta [CI y automatización](/docs/ci-and-exit-codes) para bifurcar sobre estos códigos.
+## Relacionado
+
+- [`verbatra check`](/docs/cli/check) da los contadores por locale detrás de estas listas.
+- [`verbatra translate`](/docs/cli/translate) aplica los cambios pendientes; `--prune` elimina las claves huérfanas.
+- [CI y códigos de salida](/docs/ci-and-exit-codes) muestra diff en una canalización.

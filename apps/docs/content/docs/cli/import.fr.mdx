@@ -1,37 +1,25 @@
 ---
 title: verbatra import
-description: Importe un classeur rempli dans tes fichiers de locale, en exécutant les mêmes vérifications de sécurité qu'une exécution automatisée.
+description: Réimporte un classeur rempli dans les fichiers de locale, avec les mêmes vérifications de sûreté.
 ---
-Relis dans tes fichiers de locale un classeur qu'un traducteur a rempli. `import` exécute les mêmes vérifications d'espaces réservés et d'ICU que [`verbatra translate`](/docs/cli/translate) : chaque valeur est validée, celles qui passent sont écrites et le [fichier de verrouillage](/docs/the-lock-file) est mis à jour, et toute valeur qui échoue à une vérification est retenue et signalée plutôt qu'écrite.
+Relis dans tes fichiers de locale un classeur rempli par un traducteur. Chaque valeur passe par les mêmes vérifications d'intégrité des placeholders et d'intégrité ICU qu'une exécution automatisée : les valeurs qui passent sont écrites et [le fichier de verrouillage](/docs/the-lock-file) est mis à jour ; les valeurs qui échouent sont retenues et signalées au lieu d'être écrites, donc une cellule défectueuse n'atterrit jamais dans un fichier de locale.
+
+## Synopsis
 
 ```bash
-verbatra import verbatra-translations.xlsx
+verbatra import <workbook> [flags]
 ```
 
-L'argument est le chemin vers le classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur. Seule la colonne `Translation` est lue ; les cellules vides sont ignorées, jamais écrites comme des chaînes vides. Voir [Traduction humaine](/docs/manual-translation) pour l'aller-retour complet.
-
-## Arguments
-
-| Argument | Description |
-| --- | --- |
-| `<workbook>` | chemin vers le classeur rempli à importer |
+`<workbook>` est le chemin du classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur.
 
 ## Options
 
-| Option | Description |
-| --- | --- |
-| `--cwd <path>` | résoudre la configuration et les fichiers de locale depuis ce répertoire |
-| `--config <path>` | charger ce fichier de configuration au lieu d'en rechercher un |
-| `--dry-run` | valider et signaler sans écrire les fichiers de locale ni mettre à jour le verrouillage |
-| `--json` | afficher le résumé de l'exécution au format JSON |
-
-## Sortie
-
-`import` réutilise le résumé d'exécution de `translate` tel quel. Sans `--json`, il affiche un résumé lisible par un humain : une ligne par locale, puis un agrégat. Chaque ligne de locale indique combien de valeurs étaient `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` et `integrity-withheld`. Avec `--json`, il affiche la même [structure `RunSummary`](/docs/sdk) sous forme d'un seul objet JSON sur stdout.
-
-Une valeur est **retenue** lorsqu'elle casse un espace réservé, qu'elle est de l'ICU invalide, ou que sa source a changé depuis l'export du classeur (détecté via la colonne cachée de hachage de source). Une valeur retenue laisse le fichier de locale intact afin que tu puisses la corriger et la réimporter. Voir [Sûreté de la traduction](/docs/translation-safety) pour les vérifications.
-
-Les colonnes `Review status` et `Review reasons` d'un classeur, quand elles sont présentes, sont en lecture seule et consultatives : elles ne conditionnent jamais `import`. Une ligne marquée `review` avec un `Translation` rempli est acceptée ou retenue selon exactement les mêmes règles que n'importe quelle autre ligne. Un classeur exporté avant l'existence de ces deux colonnes continue d'importer chaque ligne sans changement. Voir [Traduction humaine](/docs/manual-translation) pour ce que signifient les colonnes.
+| Option | Argument | Défaut | Effet |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
+| `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
+| `--dry-run` | aucun | désactivé | valide et rapporte sans écrire les fichiers de locale ni mettre à jour le verrou |
+| `--json` | aucun | désactivé | affiche le résumé d'exécution comme un seul objet JSON sur stdout (la même [forme `RunSummary`](/docs/sdk) que `translate`) ; les erreurs vont toujours sur stderr |
 
 ## Exemples
 
@@ -41,15 +29,6 @@ verbatra import verbatra-translations.xlsx
 
 # validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
-
-# import against a project in another directory
-verbatra import verbatra-translations.xlsx --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra import verbatra-translations.xlsx --config config/verbatra.config.ts
-
-# machine-readable summary on stdout
-verbatra import verbatra-translations.xlsx --json
 ```
 
 ## Codes de sortie
@@ -57,7 +36,13 @@ verbatra import verbatra-translations.xlsx --json
 | Code | Signification |
 | --- | --- |
 | `0` | chaque locale cible a réussi |
-| `1` | l'exécution s'est terminée mais une ou plusieurs locales ont échoué |
-| `2` | impossible de s'exécuter : une erreur d'exécution globale (configuration manquante ou invalide, un classeur illisible ou invalide, format inconnu, ou un fichier de verrouillage corrompu), ou une erreur d'usage |
+| `1` | l'exécution a terminé mais une ou plusieurs locales ont échoué |
+| `2` | impossible de s'exécuter : une erreur globale (config, classeur, format ou verrou) ou une erreur d'utilisation |
 
-Le contrat des codes de sortie correspond à celui de [`verbatra translate`](/docs/cli/translate), de sorte qu'un transfert manuel s'embranche de la même manière en CI : voir [CI et automatisation](/docs/ci-and-exit-codes).
+Le contrat correspond à [`verbatra translate`](/docs/cli/translate), donc une passation manuelle se branche de la même façon en CI.
+
+## Voir aussi
+
+- [Traduction humaine](/docs/manual-translation) couvre l'aller-retour complet export, remplissage, import et ce qu'un traducteur peut modifier.
+- [Sûreté de la traduction](/docs/translation-safety) explique les vérifications qui peuvent retenir une valeur.
+- [`verbatra export`](/docs/cli/export) produit le classeur que cette commande lit.

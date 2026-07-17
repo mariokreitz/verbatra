@@ -1,37 +1,25 @@
 ---
 title: verbatra import
-description: Importiert eine ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien und führt dieselben Sicherheitsprüfungen wie ein automatischer Lauf aus.
+description: Importiere eine ausgefüllte Arbeitsmappe zurück in die Locale-Dateien, mit denselben Sicherheitsprüfungen.
 ---
-Liest eine von einem Übersetzer ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien. `import` führt dieselben Platzhalter- und ICU-Prüfungen aus wie [`verbatra translate`](/docs/cli/translate): jeder Wert wird validiert, die bestandenen werden geschrieben und die [Lock-Datei](/docs/the-lock-file) wird aktualisiert, und jeder Wert, der eine Prüfung nicht besteht, wird zurückgehalten und gemeldet, anstatt geschrieben zu werden.
+Lies eine von einer Übersetzerin ausgefüllte Arbeitsmappe zurück in deine Locale-Dateien. Jeder Wert läuft durch dieselben Prüfungen auf Platzhalter-Integrität und ICU-Integrität wie ein automatischer Lauf: Werte, die bestehen, werden geschrieben, und die [Lock-Datei](/docs/the-lock-file) wird aktualisiert; Werte, die durchfallen, werden zurückgehalten und gemeldet statt geschrieben. Eine kaputte Zelle landet also nie in einer Locale-Datei.
+
+## Synopsis
 
 ```bash
-verbatra import verbatra-translations.xlsx
+verbatra import <workbook> [flags]
 ```
 
-Das Argument ist der Pfad zu der Arbeitsmappe, die von [`verbatra export`](/docs/cli/export) erzeugt und vom Übersetzer ausgefüllt wurde. Nur die `Translation`-Spalte wird gelesen; leere Zellen werden übersprungen, niemals als leere Strings geschrieben. Siehe [Menschliche Übersetzung](/docs/manual-translation) für den vollständigen Hin- und Rückweg.
+`<workbook>` ist der Pfad zur Arbeitsmappe, die [`verbatra export`](/docs/cli/export) erzeugt und die Übersetzerin ausgefüllt hat.
 
-## Argumente
+## Flags
 
-| Argument | Beschreibung |
-| --- | --- |
-| `<workbook>` | Pfad zur ausgefüllten Arbeitsmappe, die importiert werden soll |
-
-## Optionen
-
-| Option | Beschreibung |
-| --- | --- |
-| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
-| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--dry-run` | validiert und meldet, ohne Locale-Dateien zu schreiben oder die Lock-Datei zu aktualisieren |
-| `--json` | gibt die Lauf-Zusammenfassung als JSON aus |
-
-## Ausgabe
-
-`import` verwendet die `translate`-Lauf-Zusammenfassung unverändert wieder. Ohne `--json` gibt es eine menschenlesbare Zusammenfassung aus: eine Zeile pro Locale, dann eine Aggregation. Jede Locale-Zeile meldet, wie viele Werte `translated`, `unchanged`, `orphaned`, `invalid-ICU skipped` und `integrity-withheld` waren. Mit `--json` gibt es dieselbe [`RunSummary`-Struktur](/docs/sdk) als ein JSON-Objekt auf stdout aus.
-
-Ein Wert wird **zurückgehalten**, wenn er einen Platzhalter zerbricht, ungültiges ICU ist oder sich seine Quelle geändert hat, seit die Arbeitsmappe exportiert wurde (erkannt über die verborgene Quell-Hash-Spalte). Ein zurückgehaltener Wert lässt die Locale-Datei unberührt, sodass du ihn korrigieren und erneut importieren kannst. Siehe [Übersetzungssicherheit](/docs/translation-safety) für die Prüfungen.
-
-Die Spalten `Review status` und `Review reasons` einer Arbeitsmappe sind, wenn vorhanden, nur lesbar und beratend: sie sperren `import` niemals. Eine Zeile, die als `review` markiert ist und ein ausgefülltes `Translation` hat, wird nach genau denselben Regeln akzeptiert oder zurückgehalten wie jede andere Zeile. Eine Arbeitsmappe, die vor diesen beiden Spalten exportiert wurde, importiert weiterhin jede Zeile unverändert. Siehe [Menschliche Übersetzung](/docs/manual-translation) dafür, was die Spalten bedeuten.
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--dry-run` | keins | aus | validieren und melden, ohne Locale-Dateien zu schreiben oder das Lock zu aktualisieren |
+| `--json` | keins | aus | die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben (dieselbe [`RunSummary`-Form](/docs/sdk) wie bei `translate`); Fehler gehen weiter auf stderr |
 
 ## Beispiele
 
@@ -41,15 +29,6 @@ verbatra import verbatra-translations.xlsx
 
 # validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
-
-# import against a project in another directory
-verbatra import verbatra-translations.xlsx --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra import verbatra-translations.xlsx --config config/verbatra.config.ts
-
-# machine-readable summary on stdout
-verbatra import verbatra-translations.xlsx --json
 ```
 
 ## Exit-Codes
@@ -57,7 +36,13 @@ verbatra import verbatra-translations.xlsx --json
 | Code | Bedeutung |
 | --- | --- |
 | `0` | jedes Ziel-Locale war erfolgreich |
-| `1` | der Lauf wurde beendet, aber ein oder mehrere Locales sind fehlgeschlagen |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, eine nicht lesbare oder ungültige Arbeitsmappe, unbekanntes Format oder eine beschädigte Lock-Datei) oder ein Nutzungsfehler |
+| `1` | der Lauf lief durch, aber ein oder mehrere Locales schlugen fehl |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (Konfiguration, Arbeitsmappe, Format oder Lock) oder ein Verwendungsfehler |
 
-Der Exit-Code-Vertrag entspricht dem von [`verbatra translate`](/docs/cli/translate), sodass eine manuelle Übergabe in CI auf dieselbe Weise verzweigt: siehe [CI und Automatisierung](/docs/ci-and-exit-codes).
+Der Vertrag entspricht [`verbatra translate`](/docs/cli/translate); eine manuelle Übergabe verzweigt in CI also genauso.
+
+## Siehe auch
+
+- [Menschliche Übersetzung](/docs/manual-translation) behandelt den vollständigen Roundtrip aus Export, Ausfüllen und Import und was eine Übersetzerin bearbeiten darf.
+- [Übersetzungssicherheit](/docs/translation-safety) erklärt die Prüfungen, die einen Wert zurückhalten können.
+- [`verbatra export`](/docs/cli/export) erzeugt die Arbeitsmappe, die dieser Befehl liest.

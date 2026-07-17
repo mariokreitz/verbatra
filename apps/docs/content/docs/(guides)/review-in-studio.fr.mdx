@@ -1,6 +1,93 @@
 ---
-title: Review translations in Studio
-description: Work the needs-review queue, fix entries in place, and retranslate flagged keys from the Verbatra Studio dashboard.
+title: Réviser les traductions dans Studio
+description: Démarre Verbatra Studio, traite la file de révision, corrige les entrées sur place et retraduis les clés signalées depuis le tableau de bord local.
 ---
+Verbatra Studio est un tableau de bord local au-dessus de ton projet verbatra : il montre l'état de chaque locale en direct, te laisse corriger des traductions à la main et peut retraduire des clés individuelles quand tu l'y autorises. Ce guide déroule le flux de révision de bout en bout.
 
-Content forthcoming.
+La posture à garder en tête tout du long : **la modification locale est toujours active**, gardée seulement par les mêmes vérifications de placeholders et d'ICU que toute autre écriture. **La dépense fournisseur n'est jamais active par défaut** ; les actions de retraduction et de traduction des changements en attente n'existent que si tu démarres Studio avec `--allow-spend`.
+
+## Démarrer Studio
+
+Studio est livré comme paquet à part, atteint via la CLI :
+
+```bash
+pnpm add -D @verbatra/studio
+verbatra studio
+```
+
+La commande affiche une ligne et continue de tourner :
+
+```text
+Verbatra Studio running at http://127.0.0.1:5849/?token=...
+```
+
+Ouvre cette URL, token compris ; le token est généré à neuf à chaque démarrage et c'est ainsi que le navigateur s'authentifie. Le serveur n'écoute que sur `127.0.0.1` (jamais ton réseau), utilise le port `5849` par défaut sans repli s'il est occupé, et accepte `--port` pour en changer. Arrête-le avec Ctrl+C ; une seconde interruption le force à s'arrêter avec le code de sortie `130`. Voir [`verbatra studio`](/docs/cli/studio) pour toutes les options.
+
+La barre latérale a quatre pages : **Traductions**, **Révision**, **Activité** et **Paramètres**.
+
+## Lire la page Traductions
+
+Traductions est la vue de travail : tout ce qui est en attente sur tes locales cibles, et l'avancement de chaque locale.
+
+- **Le bandeau de statistiques** répond d'un coup d'œil à la première question : combien de clés demandent de l'attention, la couverture moyenne, combien de locales sont synchronisées et la consommation de tokens de la dernière exécution. Quand rien n'est en attente, une bannière tout-au-vert remplace l'explorateur de clés.
+- **L'explorateur de clés** liste chaque clé manquante, modifiée et orpheline, sous forme de grille clé par locale ou de listes par locale avec un filtre de clés.
+- **Le tableau des locales** montre la couverture par locale (manquant, obsolète, à jour) fusionnée avec l'état du [fichier de verrouillage](/docs/the-lock-file), pour voir si l'entrée de verrou de chaque locale concorde avec ses fichiers.
+
+Clique sur n'importe quelle clé pour ouvrir sa vue détaillée : les valeurs par locale, le statut de synchronisation de chaque locale et un indicateur d'intégrité par traduction (placeholders concordants, discordance de placeholders avec les jetons manquants et en trop nommés, ou syntaxe de message invalide). De là, **Edit** ouvre l'éditeur pour la valeur d'une locale.
+
+### Modifier avec le contrôle d'intégrité
+
+L'éditeur montre la chaîne source et une zone de texte préremplie avec la traduction actuelle. Enregistrer soumet la valeur au même contrôle que toute autre écriture verbatra : une valeur qui supprime ou invente un placeholder, ou casse la structure d'un message ICU, est rejetée avec la raison nommée et **rien n'est écrit**. Une modification acceptée écrit le fichier de locale et fait avancer l'entrée de verrou de la clé, exactement comme une ligne d'import acceptée.
+
+Modifier n'exige aucune option. Ça ne touche que tes fichiers locaux et n'appelle jamais de fournisseur.
+
+## Traiter la file de révision
+
+La page Révision liste chaque entrée que les heuristiques de révision ont signalée lors de la dernière exécution `translate` ou `watch` : une ligne par locale et clé, avec un indicateur par raison (traduction bien plus courte ou plus longue que la source, identique à la source, terme de glossaire manqué, placeholders réordonnés, ou lot fournisseur dégradé). Tant qu'aucune exécution n'a été enregistrée, la page le dit et reste vide ; lance `verbatra translate` ou `verbatra watch` pour la remplir.
+
+Filtre par locale ou par sous-chaîne de clé, puis traite les lignes :
+
+- **Edit** ouvre le même éditeur à contrôle d'intégrité que la page Traductions. Une modification acceptée retire la ligne de la file.
+- **Approve** écarte la ligne comme "vue, très bien telle quelle".
+- **Reject** écarte la ligne aussi ; associe-le à une modification ou une retraduction quand la valeur doit vraiment changer.
+
+Approve et Reject ne valent que pour la session : ils masquent la ligne pour le reste de cette session de navigateur (y compris à travers les rafraîchissements en direct) mais n'écrivent rien sur le disque. Les façons durables d'effacer un signalement sont de corriger la valeur ou de relancer une traduction.
+
+Les signalements de révision sont consultatifs, distincts du contrôle d'intégrité strict ; voir [Sûreté de la traduction](/docs/translation-safety) pour la signification de chaque raison.
+
+## Retraduire une clé signalée
+
+Démarre Studio avec la dépense autorisée :
+
+```bash
+verbatra studio --allow-spend
+```
+
+(Ou définis `VERBATRA_STUDIO_ALLOW_SPEND=1` ; l'option l'emporte quand les deux sont donnés. La clé d'API du fournisseur vient de l'environnement comme toujours, jamais de Studio.)
+
+Désormais, une clé dont l'indicateur d'intégrité montre un vrai défaut (une discordance de placeholders ou une syntaxe de message invalide) reçoit un bouton **Retranslate** dans sa vue détaillée sur la page Traductions. Il fait un seul appel de fournisseur pour exactement cette locale et cette clé, passe le résultat par le contrôle d'intégrité avant que quoi que ce soit n'atteigne le disque, et rapporte le résultat à côté du bouton. La valeur rafraîchie remonte ensuite dans l'interface via la boucle de rafraîchissement en direct.
+
+Sans `--allow-spend`, le bouton est complètement absent, et le serveur n'enregistre même jamais le point de terminaison de retraduction : une dépense que tu n'as pas accordée au démarrage ne peut pas être activée depuis le navigateur.
+
+## Traduire les changements en attente
+
+Studio surveille ton fichier source, chaque fichier de locale cible et le fichier de verrouillage pendant qu'il tourne. Quand l'un change, chaque page ouverte se rafraîchit et un toast nomme ce qui a changé, avec un delta de clés ajoutées/modifiées/supprimées.
+
+Quand le fichier **source** change et que Studio tourne avec `--allow-spend`, ce toast propose aussi **Translate pending changes across all locales** : une exécution translate complète sur tout ce qui est en attente, le même travail que ferait `verbatra translate`. Le bouton rapporte le succès, les échecs par locale ou l'erreur, sur place.
+
+Cette boucle en direct fait aussi que Studio se marie bien avec une session d'éditeur : change une chaîne source, regarde le toast apparaître, traduis, et regarde les grilles passer au vert sans toucher le terminal.
+
+## Constater les dégâts sur Activité
+
+La page Activité met deux vues de référence côte à côte :
+
+- **Historique des fichiers de locale** : le fil des commits git de tes fichiers de locale source et cibles (affiché comme indisponible quand le projet n'a pas d'historique git).
+- **Dernière exécution** : les comptes de tokens d'entrée et de sortie de l'exécution la plus récente et, quand un budget de tokens est configuré, la jauge de budget et si le plafond a été atteint. C'est un instantané de la dernière exécution enregistrée, horodaté, jamais un compteur en direct ; un fournisseur qui ne rapporte pas d'usage (DeepL) est affiché comme "non rapporté" plutôt qu'un zéro fabriqué.
+
+Paramètres, la quatrième page, montre la configuration résolue et le glossaire avec lesquels cette session a démarré ; redémarre Studio après avoir modifié le fichier de config.
+
+## Et ensuite
+
+- [`verbatra studio`](/docs/cli/studio) : toutes les options et le contrat de démarrage.
+- [Sûreté de la traduction](/docs/translation-safety) : le contrôle d'intégrité et les raisons de révision.
+- [CI et codes de sortie](/docs/ci-and-exit-codes) : contrôle en CI la même dérive que Studio te montre en local.

@@ -1,27 +1,29 @@
 ---
 title: verbatra watch
-description: Vuelve a traducir con cada cambio del origen hasta que se interrumpe.
+description: Retraduce en cada cambio del origen hasta que lo interrumpas.
 ---
-Observa el archivo de origen y vuelve a ejecutar una traducción con cada cambio con anti-rebote, hasta que lo interrumpas. Déjalo corriendo mientras trabajas y las cadenas nuevas o modificadas se traducen a medida que guardas.
+Vigila el archivo del locale de origen y vuelve a ejecutar una traducción en cada cambio asentado por el anti-rebote, hasta que lo interrumpas. `watch` ejecuta una traducción inicial al arrancar y luego mantiene al día tus locales de destino mientras guardas. Antes de ejecutarse, carga `.env.local` y luego `.env` desde el directorio de trabajo; una variable ya definida en el entorno real gana.
+
+## Sinopsis
 
 ```bash
-verbatra watch
+verbatra watch [flags]
 ```
 
-`watch` sigue ejecutándose hasta que lo detienes. Una sola interrupción (Ctrl-C) lo detiene de forma ordenada y sale con `0`; una segunda interrupción lo detiene a la fuerza y sale con `130`.
+## Flags
 
-## Opciones
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--debounce` | `<ms>` | `300` | espera estos milisegundos tras el último cambio antes de traducir; debe ser un entero positivo sin sufijo (un valor como `250ms`, `0` o `-1` es un error de uso, salida `2`) |
+| `--json` | ninguno | desactivado | imprime cada ejecución como un registro NDJSON (un objeto JSON por línea) en stdout |
 
-| Opción | Descripción |
-| --- | --- |
-| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
-| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--debounce <ms>` | espera esta cantidad de milisegundos tras un cambio antes de traducir (por defecto `300`); debe ser un número entero positivo |
-| `--json` | imprime cada ejecución como un registro NDJSON |
+Con `--json`, cada ejecución emite un registro [`WatchRunResult`](/docs/sdk): un éxito que lleva el resumen de la ejecución, o un fallo que lleva un código de error y un mensaje. La línea de arranque y el aviso de parada van a stderr, así que el flujo de stdout se mantiene como NDJSON limpio. Una ejecución fallida es solo un registro en el flujo: ni detiene el watcher ni cambia el código de salida.
 
-## Salida
+## Detener
 
-Sin `--json`, `watch` imprime un resumen legible para humanos por ejecución. Con `--json`, imprime un registro NDJSON por ejecución (un objeto JSON por línea): ya sea un éxito que lleva el resumen de la ejecución, o un fallo que lleva un código de error y un mensaje. Una ejecución fallida es solo uno de esos registros en el flujo: no detiene al observador y no establece un código de salida distinto de cero. Consulta la [forma de `WatchRunResult` en la referencia del SDK](/docs/sdk).
+La primera interrupción (Ctrl-C, o SIGTERM) deja terminar la ejecución en curso, detiene el watcher limpiamente y sale con `0`. Una segunda interrupción mientras esa parada sigue en curso fuerza la detención con salida `130`.
 
 ## Ejemplos
 
@@ -29,25 +31,20 @@ Sin `--json`, `watch` imprime un resumen legible para humanos por ejecución. Co
 # watch and re-translate on each change
 verbatra watch
 
-# wait 1s after a change before translating
-verbatra watch --debounce 1000
-
-# watch a project in another directory
-verbatra watch --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra watch --config config/verbatra.config.ts
-
-# stream one NDJSON record per run
-verbatra watch --json
+# calmer in a busy editor: wait 1s after the last change, stream NDJSON
+verbatra watch --debounce 1000 --json
 ```
 
 ## Códigos de salida
 
 | Código | Significado |
 | --- | --- |
-| `0` | detenido de forma ordenada por una sola interrupción |
-| `2` | no se pudo ejecutar: la configuración no se pudo cargar, o un error de uso (incluido un `--debounce` no válido, como un valor que no es entero, cero, negativo o con un sufijo de unidad como `250ms`) |
+| `0` | detenido limpiamente por una sola interrupción |
+| `2` | no se pudo arrancar o detener: un error de configuración, un fallo de arranque o de parada, o un error de uso (incluido un `--debounce` inválido) |
 | `130` | detenido a la fuerza por una segunda interrupción |
 
-A diferencia de [`translate`](/docs/cli/translate), un fallo por ejecución no cambia el código de salida: se informa como un registro de flujo. El código de salida refleja únicamente cómo se detuvo el observador.
+## Relacionado
+
+- [`verbatra translate`](/docs/cli/translate) es la ejecución única que `watch` repite.
+- [Cómo funciona](/docs/how-it-works) explica qué hace cada ejecución.
+- [La referencia del SDK](/docs/sdk) documenta las formas `WatchRunResult` y `RunSummary`.

@@ -1,62 +1,126 @@
 ---
 title: Deine erste Übersetzung
-description: Führe verbatra zum ersten Mal aus, lies die Lauf-Zusammenfassung und sieh, warum erneute Läufe nur das anfassen, was sich geändert hat.
+description: Installiere die CLI, erzeuge mit verbatra init eine Konfiguration, setze deinen API-Schlüssel und starte deinen ersten translate-Lauf. In unter zehn Minuten von null zur übersetzten Locale-Datei.
 ---
-Die CLI ist installiert, die Konfiguration ist angelegt und dein Provider-Schlüssel liegt in der Umgebung (falls nicht, beginne mit dem [Schnellstart](/docs)). Zeit zu übersetzen.
+Vier Schritte führen dich vom leeren Projekt zur übersetzten Locale-Datei. Alles, was du brauchst, sind Node.js `>=22.14.0` und ein API-Schlüssel für einen Provider.
 
-## Führe es aus
+## 1. Installiere die CLI
 
-Ein Befehl übersetzt jedes Ziel-Locale und beendet sich:
+verbatra ist eine Dev-Dependency:
+
+```bash
+pnpm add -D @verbatra/cli
+```
+
+npm und yarn funktionieren auch. Das Paket liefert das `verbatra`-Binary; führe es über deinen Paketmanager aus (`pnpm verbatra ...`, `npx verbatra ...` oder `yarn verbatra ...`). Die Codeblöcke unten verwenden den bloßen Namen.
+
+## 2. Erzeuge eine Konfiguration
+
+```bash
+verbatra init --provider gemini
+```
+
+Mit angeschlossenem Terminal fragt `init` alles ab, was du nicht als Flag übergeben hast, jeweils mit einem Default:
+
+- den Provider: einer von `anthropic`, `openai`, `gemini` oder `deepl` (Flag `--provider`, die einzige Eingabe ohne Default)
+- die Quell-Locale, Default `en` (`--source`)
+- die Ziel-Locales, kommagetrennt, Default `de` (`--targets`)
+- das Muster der Locale-Dateien, Default `locales/{locale}.json` (`--path`)
+
+Übergib `--yes`, um die Abfragen zu überspringen und die Defaults zu nehmen. Ohne Terminal (zum Beispiel in CI) fragt `init` nie nach; es verwendet die Defaults und verlangt nur `--provider`.
+
+`init` schreibt drei Dinge:
+
+- `verbatra.config.ts`: deine Projektkonfiguration, vor dem Schreiben gegen das echte Schema validiert
+- `.env.example`: nennt die Schlüsselvariable des Providers, nie einen Schlüsselwert
+- `.gitignore`-Einträge für `.env`, `.env.local` und `.verbatra-local/`, angelegt oder ergänzt, damit ein echter Schlüssel oder lokaler Zustand nie in einem Commit landet
+
+Ein erneutes `init` überspringt Dateien, die schon existieren; `--force` überschreibt sie. Es füllt außerdem `format` anhand deiner Dependencies vor: Ein Projekt mit i18next, vue-i18n, next-intl oder `@ngx-translate/core` bekommt das passende JSON-Format, alles andere fällt auf `i18next-json` mit einem TODO-Kommentar zum Ändern zurück. Für Gemini sieht das Gerüst so aus:
+
+```ts
+import { defineConfig } from "@verbatra/cli";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "gemini",
+    options: {
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
+    },
+  },
+});
+```
+
+## 3. Setze deinen API-Schlüssel
+
+Schlüssel kommen aus der Umgebung, nie aus der Konfigurationsdatei. Jeder gehostete Provider liest genau eine Variable; für Gemini ist das `GEMINI_API_KEY`. Kopiere das erzeugte Beispiel und trage deinen Schlüssel ein:
+
+```bash
+cp .env.example .env
+```
+
+Öffne dann `.env` und füge deinen Schlüssel nach `GEMINI_API_KEY=` ein. verbatra lädt vor einem Lauf `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die schon in deiner Shell gesetzt ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
+
+<Callout title="Noch kein Schlüssel? Gemini hat ein kostenloses Kontingent.">
+Geminis API hat ein wirklich kostenloses Kontingent und ist damit der günstigste Weg, verbatra auszuprobieren. Hol dir einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Das kostenlose Kontingent hat Anfragelimits pro Minute und pro Tag, verteile eine große Erstübersetzung also über die Zeit.
+</Callout>
+
+## 4. Übersetze
+
+Wenn du noch keine Quelldatei hast, lege eine unter dem konfigurierten Muster an, zum Beispiel `locales/en.json`:
+
+```json
+{
+  "greeting": "Hello, {{name}}!",
+  "cart": {
+    "empty": "Your cart is empty."
+  }
+}
+```
+
+Dann führe aus:
 
 ```bash
 verbatra translate
 ```
 
-Das passiert unter der Haube: verbatra liest dein Quell-Locale, vergleicht es per Diff mit dem, was es zuletzt übersetzt hat, und sendet nur die neuen und geänderten Strings an deinen Provider. Alles, was noch aktuell ist, bleibt unberührt. Jede Zieldatei wird an Ort und Stelle geschrieben, sodass `locales/de.json` und Konsorten direkt neben deiner Quelldatei erscheinen (oder aktualisiert werden).
+verbatra liest die Quell-Locale, sieht, dass jeder Key in `de` fehlt, sendet sie in Batches an den Provider, prüft jedes Ergebnis auf Platzhalter- und ICU-Integrität und schreibt `locales/de.json`. Der Lauf endet mit einer Zusammenfassung pro Locale: übersetzte Keys, unveränderte Keys, verwaiste Keys und etwaige Hinweise. Der Exit-Code ist `0`, wenn jede Locale erfolgreich war, und `1`, wenn eine fehlgeschlagen ist; ergänze `--json` für eine maschinenlesbare Zusammenfassung.
 
-## Lies die Lauf-Zusammenfassung
+## Was gerade passiert ist
 
-Jeder Lauf endet mit einer Zusammenfassung. Du bekommst die Schlagzeile (welche Locales erfolgreich waren, welche fehlgeschlagen sind) und eine Aufschlüsselung pro Locale: übersetzte Schlüssel, unverändert gebliebene Schlüssel, verwaiste Schlüssel (in einem Ziel vorhanden, aber aus der Quelle verschwunden) und alle Provider-Hinweise. Ein fehlgeschlagenes Locale stoppt die anderen nicht; es erscheint in der Zeile dieses Locales mit einem Code und einer Meldung.
+Drei Dinge liegen jetzt auf der Platte:
 
-Du willst es maschinenlesbar? Füge `--json` hinzu und verbatra gibt die gesamte Zusammenfassung als ein JSON-Objekt aus:
+- `locales/de.json`: die Ziel-Locale-Datei. Die Datei hat dieselben Keys wie deine Quelle, in derselben Dokumentreihenfolge, und `{{name}}` hat die Übersetzung intakt überstanden; ein Ergebnis, das den Platzhalter verworfen hätte, wäre zurückgehalten und nicht geschrieben worden.
+- `verbatra.lock.json`: die Lock-Datei. Für jede Ziel-Locale bildet sie jeden übersetzten Key auf einen Hash des Quellstrings ab, aus dem die Übersetzung entstanden ist:
 
-```bash
-verbatra translate --json
-```
+  ```json
+  {
+    "version": 1,
+    "locales": {
+      "de": {
+        "cart.empty": "<source content hash>",
+        "greeting": "<source content hash>"
+      }
+    }
+  }
+  ```
 
-Siehe [CI und Exit-Codes](/docs/ci-and-exit-codes) für die JSON-Form und den Exit-Code-Vertrag.
+- `.verbatra-local/`: prozesslokaler Zustand (der Run-Status-Schnappschuss und die Schreibsperren pro Locale). `init` hat das Verzeichnis in `.gitignore` eingetragen; committe es nie.
 
-## Vorschau, bevor du ein Token ausgibst
-
-Um genau zu sehen, was ein Lauf tun würde, ohne einen Provider aufzurufen oder eine einzige Datei zu schreiben, mach einen Dry-Run:
-
-```bash
-verbatra translate --dry-run
-```
-
-Du bekommst dieselbe Zusammenfassung mit den Schlüsseln, die übersetzt würden, aber es wird nichts gesendet und nichts geschrieben. Es ist der sichere Weg, einen Lauf zu prüfen, bevor er dich etwas kostet, was besonders bei einem Free-Tier-Schlüssel praktisch ist.
-
-## Erneute Läufe fassen nur das an, was sich geändert hat
-
-Das ist der Teil, der verbatra günstig macht, um es oft laufen zu lassen. Führe `verbatra translate` erneut aus, ohne deine Quelle zu bearbeiten, und nichts geht an den Provider: Jeder Schlüssel ist bereits aktuell. Ändere einen Quell-String und nur dieser eine Schlüssel wird beim nächsten Lauf neu übersetzt.
-
-Der Trick ist eine eingecheckte Lock-Datei (`verbatra.lock.json`), die aufzeichnet, was übersetzt wurde. Jeder Lauf vergleicht per Diff dagegen, sodass der Provider nur für das aufgerufen wird, was sich tatsächlich geändert hat. Siehe [Wie es funktioniert](/docs/how-it-works) für die vollständige Pipeline.
+Die Lock-Datei ist die Baseline für jeden künftigen Lauf. Führe `verbatra translate` erneut aus, ohne etwas zu bearbeiten, und nichts wird gesendet: Jeder Key ist bereits aktuell. Ändere einen einzigen Quellstring, und nur dieser Key wird neu übersetzt. Um einen Lauf ohne Provider-Aufruf und ohne einen einzigen Schreibvorgang in der Vorschau zu sehen, verwende `verbatra translate --dry-run`.
 
 <Callout title="Committe die Lock-Datei">
-verbatra schreibt `verbatra.lock.json` beim ersten Lauf. Committe sie zusammen mit deinen Locale-Dateien, damit jede Maschine und deine CI gegen dieselbe Basislinie vergleichen. Siehe [Die Lock-Datei](/docs/the-lock-file).
+Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien, damit jede Maschine und deine CI mit derselben Baseline vergleichen. Siehe [Die Lock-Datei](/docs/the-lock-file).
 </Callout>
 
-## Übersetze, während du arbeitest
+## Nächste Schritte
 
-Du willst nicht von Hand erneut ausführen? Überwache die Quelle und lass verbatra bei jeder Änderung neu übersetzen:
-
-```bash
-verbatra watch
-```
-
-Es läuft weiter, bis du es mit Strg-C stoppst.
-
-## Weiter
-
-- [Eine Sprache hinzufügen](/docs/add-a-language): wirf ein neues Ziel-Locale in ein bestehendes Setup.
-- [Wie es funktioniert](/docs/how-it-works): was ein Lauf von Anfang bis Ende tut.
+- [Eine Sprache hinzufügen](/docs/add-a-language): nimm eine neue Ziel-Locale in dieses Setup auf.
+- [Wie es funktioniert](/docs/how-it-works): die komplette Pipeline hinter einem Lauf.
+- [Konfigurationsdatei](/docs/config-file): alles, was `verbatra.config.ts` enthalten kann.

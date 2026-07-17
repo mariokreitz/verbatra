@@ -1,15 +1,15 @@
 ---
 title: Añade un idioma
-description: Añade un nuevo locale de destino a una configuración de verbatra existente con un cambio de una línea en la configuración y una ejecución.
+description: Añade un nuevo locale de destino a un proyecto verbatra existente con un cambio de una línea en la configuración y una ejecución de translate, mientras tus locales existentes quedan intactos.
 ---
-Añadir un idioma es un cambio de una línea en la configuración más una ejecución de traducción. verbatra ve el nuevo locale como si le faltara todo, así que la primera ejecución lo completa por entero, y cada ejecución posterior sigue siendo incremental.
+Añadir un idioma es un cambio de una línea en la configuración más una ejecución. verbatra ve el nuevo locale como si le faltara todo y lo completa entero; tus locales existentes no cuestan nada, porque el archivo de bloqueo todavía los tiene registrados como vigentes.
 
 ## Añade el locale a tu configuración
 
-Añádelo a `targetLocales` en `verbatra.config.ts`. Lo único que no puede ser es tu `sourceLocale`:
+Añádelo a `targetLocales` en `verbatra.config.ts`:
 
 ```ts
-import { defineConfig } from "@verbatra/sdk";
+import { defineConfig } from "@verbatra/cli";
 
 export default defineConfig({
   sourceLocale: "en",
@@ -28,27 +28,33 @@ export default defineConfig({
 });
 ```
 
-## Traduce
+Dos reglas, ambas aplicadas al cargar la configuración: un locale de destino no puede ser el `sourceLocale`, y dos entradas no pueden colisionar sin distinguir mayúsculas de minúsculas (nada de `de` y `DE` en la misma lista).
 
-Ejecútalo:
+## Previsualiza el trabajo
+
+Antes de gastar un token, mira qué haría una ejecución. `diff` es de solo lectura y lista las claves pendientes por locale:
+
+```bash
+verbatra diff
+```
+
+El nuevo locale aún no tiene archivo de destino, así que verbatra lo trata como vacío y cada clave de origen aparece como faltante; tus locales existentes no listan nada, suponiendo que sus cadenas de origen no han cambiado. `diff` sale con `1` mientras hay cambios pendientes y con `0` cuando ya no queda ninguno. `verbatra translate --dry-run` te da la misma vista previa con la forma de un resumen de ejecución, sin llamada al proveedor y sin escrituras.
+
+## Traduce
 
 ```bash
 verbatra translate
 ```
 
-El nuevo locale todavía no tiene archivo de destino, así que verbatra lo trata como vacío y traduce en él cada clave de origen, escribiendo el archivo a partir de `files.pattern` (aquí `locales/fr.json`). Tus locales existentes quedan intactos a menos que sus cadenas de origen hayan cambiado, porque el archivo de bloqueo sigue teniéndolos registrados como vigentes.
+La ejecución traduce cada clave de origen al nuevo locale y escribe el archivo en tu `files.pattern` (aquí `locales/fr.json`). Un origen grande se divide en sublotes de como mucho 50 claves por solicitud al proveedor (configurable con `maxBatchSize`), así que una solicitud sobredimensionada no puede hundir el locale entero.
 
-¿Quieres mirar antes de saltar? Previsualiza primero las claves del nuevo locale:
-
-```bash
-verbatra translate --dry-run
-```
+Este es el comportamiento incremental en acción: solo el nuevo locale dispara llamadas al proveedor. Para cada locale existente, verbatra hace diff del origen contra la línea base de ese locale en `verbatra.lock.json`, no encuentra claves faltantes ni modificadas, y no envía nada. Después, `verbatra check` sale con `0`: todos los locales, incluido el nuevo, están sincronizados.
 
 ## Idiomas con más categorías de plural
 
-Algunos idiomas necesitan más categorías de plural CLDR que las que tiene tu origen. El inglés tiene dos (`one` y `other`); el polaco, el árabe y el ruso tienen más. Por defecto verbatra traduce las formas de plural que encuentra en el origen y no inventa las adicionales: la ejecución igualmente tiene éxito y emite una advertencia de categoría de plural por locale (código de aviso `PLURAL_CATEGORIES_INCOMPLETE`) que nombra el locale y las categorías que faltan.
+Algunos idiomas necesitan más categorías de plural CLDR que tu origen. El inglés tiene dos (`one` y `other`); el polaco, el árabe y el ruso tienen más. Por defecto verbatra traduce las formas plurales que encuentra en el origen y no inventa las extra: la ejecución sigue teniendo éxito y emite un aviso por locale (código `PLURAL_CATEGORIES_INCOMPLETE`) que nombra las categorías que faltan.
 
-Para que verbatra sintetice en su lugar las formas que faltan, define `generatePlurals: true` en tu configuración (o pasa una anulación `generatePlurals` por ejecución):
+Para que verbatra sintetice en su lugar las formas que faltan, define `generatePlurals: true` en tu configuración:
 
 ```ts
 export default defineConfig({
@@ -57,13 +63,14 @@ export default defineConfig({
 });
 ```
 
-La generación solo se admite en proyectos i18next-JSON traducidos por un proveedor LLM. DeepL, los demás formatos y los idiomas de destino desconocidos recurren a la advertencia y nunca fallan. Las formas generadas se verifican en integridad como cualquier traducción y se informan por separado de las claves traducidas en el resumen de la ejecución.
+La generación solo está soportada para proyectos i18next-JSON traducidos por un proveedor LLM; DeepL, los otros formatos y los idiomas de destino desconocidos recurren al aviso y nunca hacen fallar la ejecución. Las formas generadas pasan las comprobaciones de integridad como cualquier traducción y se informan por separado de las claves traducidas en el resumen de la ejecución.
 
-## Mantenimiento del locale de origen
+## Mantén el locale de origen
 
-Solo mantienes a mano el locale de origen. Para añadir cadenas, ponlas en el archivo de origen y ejecuta `translate` de nuevo: verbatra las rellena en cada destino, incluido el que acabas de añadir.
+Solo mantienes a mano el locale de origen. Para añadir cadenas, ponlas en el archivo de origen y ejecuta `translate` de nuevo: verbatra las completa en todos los destinos, incluido el que acabas de añadir.
 
 ## Siguiente
 
-- [Configuración](/docs/config-file): el esquema completo de configuración, incluidos `glossary` y `tone`.
-- [Proveedores](/docs/providers): opciones de proveedor y dónde conseguir una clave.
+- [El archivo de bloqueo](/docs/the-lock-file): por qué repetir ejecuciones sale barato y qué confirmar.
+- [Archivo de configuración](/docs/config-file): el esquema completo de configuración, incluidos `glossary` y `tone`.
+- [Proveedores](/docs/providers): las opciones de cada proveedor y dónde conseguir una clave.

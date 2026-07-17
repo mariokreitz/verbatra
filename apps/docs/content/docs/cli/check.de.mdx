@@ -1,78 +1,48 @@
 ---
 title: verbatra check
-description: Meldet, welche Locales fehlende oder veraltete Strings haben, schreibgeschützt, ohne einen Provider aufzurufen oder Dateien zu schreiben.
+description: Melde, welche Keys pro Locale fehlen oder veraltet sind, ohne Dateien zu schreiben.
 ---
-Meldet pro Ziel-Locale, wie viele Strings fehlend, veraltet oder aktuell sind, und beendet sich dann mit einem Code, auf den ein CI-Schritt verzweigen kann. `check` führt dieselbe Lese- und Diff-Operation aus, die [`verbatra translate`](/docs/cli/translate) direkt macht, bevor es einen Provider aufrufen würde, hört aber dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, und es berührt niemals die [Lock-Datei](/docs/the-lock-file). Es ist der günstige, schreibgeschützte Weg, um zu fragen "sind meine Übersetzungen synchron?", bevor jemand für einen Provider zahlt.
+Melde pro Ziel-Locale, wie viele Keys fehlen, veraltet oder aktuell sind, und beende dich mit einem Code, auf den ein CI-Schritt verzweigen kann. `check` führt dasselbe Lesen und Diffen aus, das [`verbatra translate`](/docs/cli/translate) direkt vor dem Provider-Aufruf ausführen würde, und hört dann auf: kein Provider-Aufruf, keine geschriebenen Dateien, keine Aktualisierung der [Lock-Datei](/docs/the-lock-file) und kein API-Key nötig.
+
+## Synopsis
 
 ```bash
-verbatra check
+verbatra check [flags]
 ```
 
-Ein Schlüssel ist **fehlend**, wenn er im Quell-Locale vorhanden, aber im Ziel nicht vorhanden ist. Ein Schlüssel ist **veraltet**, wenn das Ziel ihn hat, aber sich der Quell-String geändert hat, seit er zuletzt übersetzt wurde. Ein Schlüssel ist **aktuell**, wenn das Ziel der aktuellen Quelle entspricht. Ein Locale ist synchron, wenn es keine fehlenden und keine veralteten Schlüssel hat.
+## Flags
 
-`check` gibt dir Anzahlen. Du willst die tatsächlichen Schlüssel hinter diesen Anzahlen (welche hinzugefügt, neu übersetzt oder verwaist würden)? Greif zu [`verbatra diff`](/docs/cli/diff), seinem detaillierten Geschwister, das dieselbe schreibgeschützte Berechnung ausführt.
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die geprüft wird |
+| `--json` | keins | aus | die Prüf-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben; Fehler gehen weiter auf stderr |
 
-## Optionen
-
-| Option | Beschreibung |
-| --- | --- |
-| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
-| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--locales <list>` | kommagetrennte Teilmenge der Ziel-Locales (Standard alle konfigurierten) |
-| `--json` | gibt die Check-Zusammenfassung als JSON aus |
-
-Es gibt kein `--dry-run`: `check` ist von Natur aus schon ein trockener Lesevorgang. Es benötigt keinen API-Schlüssel.
-
-## Ausgabe
-
-Ohne `--json` gibt `check` eine Zeile pro Locale mit seinen Anzahlen und einer Synchron-Markierung aus, dann eine Gesamtzeile:
-
-```
-verbatra check
-  de: 3 missing, 1 stale, 120 up-to-date (out of sync)
-  fr: 0 missing, 0 stale, 124 up-to-date (in sync)
-out of sync (run verbatra translate to update)
-```
-
-Mit `--json` gibt es den Status als ein JSON-Objekt auf stdout aus. Das oberste `inSync` ist genau dann wahr, wenn jedes Locale synchron ist (und genau dann, wenn sich der Befehl mit `0` beendet):
-
-```json
-{
-  "inSync": false,
-  "locales": [
-    { "locale": "de", "missing": 3, "stale": 1, "upToDate": 120, "inSync": false },
-    { "locale": "fr", "missing": 0, "stale": 0, "upToDate": 124, "inSync": true }
-  ]
-}
-```
-
-Ein Fehler des gesamten Laufs wird auf stderr geschrieben, sodass stdout sauber und unter `--json` pipebar bleibt.
+Ein Key fehlt, wenn die Quelle ihn hat und das Ziel nicht; er ist veraltet, wenn sich der Quellstring seit der letzten Übersetzung geändert hat. Ein Locale ist synchron, wenn es keines von beidem hat. Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu prüfen; ein Tippfehler in einem Locale-Namen lässt ein CI-Gate also nie durch. Du willst die konkreten Key-Listen hinter den Zählern? Das ist [`verbatra diff`](/docs/cli/diff).
 
 ## Beispiele
 
 ```bash
-# report missing and stale keys per locale (exit 1 if drifted)
+# fail the build when translations drifted
 verbatra check
 
-# only check the German and French locales
-verbatra check --locales de,fr
-
-# check a project in another directory
-verbatra check --cwd packages/app
-
-# load a specific config instead of searching for one
-verbatra check --config config/verbatra.config.ts
-
-# machine-readable status on stdout for CI
-verbatra check --json
+# machine-readable status for two locales
+verbatra check --locales de,fr --json
 ```
 
 ## Exit-Codes
 
 | Code | Bedeutung |
 | --- | --- |
-| `0` | synchron: jedes Ziel-Locale hat keine fehlenden und keine veralteten Schlüssel |
-| `1` | nicht synchron: mindestens ein Locale hat einen fehlenden oder veralteten Schlüssel (der vollständige Bericht wird trotzdem ausgegeben) |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, nicht lesbare Quelle, unbekanntes Format, eine beschädigte Lock-Datei oder eine angeforderte Locale, die nicht unter den konfigurierten Ziel-Locales ist) oder ein Nutzungsfehler (einschließlich einer leeren `--locales`-Liste) |
+| `0` | synchron: kein Locale hat einen fehlenden oder veralteten Key |
+| `1` | nicht synchron: mindestens ein Locale hat einen fehlenden oder veralteten Key (der Bericht wird trotzdem ausgegeben) |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
 
-Bei `check` bedeutet Exit `1` "nicht synchron", nicht einen Fehlschlag eines einzelnen Locales: Der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht durchgehend grün. Das macht `check` zu einem einzeiligen CI-Gate, das fehlschlägt, wenn Übersetzungen abgewichen sind. Ein unbekannter oder leerer `--locales`-Wert lässt den Lauf mit Exit `2` fehlschlagen, statt still nichts zu prüfen, sodass ein Tippfehler in einem Locale-Namen abgefangen wird, statt durchzugehen. Siehe [CI und Automatisierung](/docs/ci-and-exit-codes) für das Verzweigen auf diese Codes.
+Exit `1` heißt "nicht synchron", nicht Fehlschlag: der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht komplett grün.
+
+## Siehe auch
+
+- [`verbatra diff`](/docs/cli/diff) listet die genauen Keys hinter diesen Zählern.
+- [CI und Exit-Codes](/docs/ci-and-exit-codes) zeigt check als Drift-Gate.
+- [Die Lock-Datei](/docs/the-lock-file) erklärt, wie Veraltung erkannt wird.

@@ -1,6 +1,96 @@
 ---
 title: FAQ
-description: Frequently asked questions about verbatra.
+description: Kurze Antworten auf die Fragen, die beim Einsatz von verbatra am häufigsten aufkommen.
 ---
+Schnelle Antworten, jede darin verankert, wie verbatra sich tatsächlich verhält. Für
+symptomorientierte Hilfe bei Fehlermeldungen siehe [Fehlerbehebung](/docs/troubleshooting).
 
-Content forthcoming.
+## Wie kontrolliere ich die Kosten?
+
+Vier Hebel, alle ohne Provider-Aufruf, bis du dich anders entscheidest:
+
+- Läufe sind standardmäßig inkrementell: Nur Keys, die fehlen oder deren Quelle sich seit der
+  Lock-Baseline geändert hat, gehen an den Provider. Ein unverändertes Projekt kostet beim
+  erneuten Lauf nichts.
+- `--dry-run` (oder `translate({ config, dryRun: true })`) zeigt exakt, was gesendet würde, ohne
+  Provider-Aufruf und ohne Schreibvorgänge.
+- `maxTokens` in der Konfiguration setzt eine Token-Obergrenze für den ganzen Lauf, und
+  `budgetBehavior` entscheidet, was bei Erreichen passiert: `"warn"` (Default) vermerkt es und
+  macht weiter, `"stop"` hält jeden noch nicht versuchten Key zurück; zurückgehaltene Keys werden
+  beim nächsten Lauf automatisch erneut versucht.
+- Gemini hat ein echtes kostenloses API-Kontingent, und der `openai-compatible`-Provider läuft
+  gegen ein lokales Modell ganz ohne API-Kosten.
+
+## Mit welchem Provider soll ich anfangen?
+
+Gemini: Es hat ein kostenloses API-Kontingent, du kannst also ein ganzes Projekt kostenlos
+übersetzen, und ein späterer Wechsel heißt, eine `id` in der Konfiguration zu ändern. Anthropic
+und OpenAI sind die Qualitätswahl unter den bezahlten LLMs, DeepL ist die dedizierte
+Maschinenübersetzungsoption, und `openai-compatible` behält alles auf deiner eigenen Hardware.
+Siehe [Provider](/docs/providers) für den vollständigen Vergleich.
+
+## Kann ich ein lokales Modell verwenden?
+
+Ja. Der `openai-compatible`-Provider richtet verbatra über seine `baseUrl`-Option auf jeden
+Server, der die OpenAI-Chat-API spricht, etwa LM Studio, Ollama oder vLLM. Die meisten lokalen
+Server brauchen keinen API-Schlüssel: Wenn weder eine über `apiKeyEnvVar` benannte Variable noch
+`OPENAI_COMPATIBLE_API_KEY` gesetzt ist, sendet verbatra den festen Platzhalter `"local"`. Braucht
+dein Server doch einen Schlüssel, benenne seine Umgebungsvariable mit `apiKeyEnvVar`.
+
+## Wie behalten Keys ihre Reihenfolge?
+
+Die Adapter der JSON-Familie, von YAML und von ARB tragen Dateien exakt in Dokumentreihenfolge
+durch den Roundtrip: Bestehende Keys behalten ihre Positionen (auch ganzzahlartige Keys), und
+neue Keys werden in Quellreihenfolge angehängt. Eine übersetzte Datei ergibt einen sauberen Diff
+gegenüber ihrer vorherigen Version. Siehe [Formate](/docs/formats).
+
+## Warum wurde eine Übersetzung zum Review markiert?
+
+Akzeptierte Übersetzungen durchlaufen Review-Heuristiken, die verdächtige Ergebnisse markieren,
+ohne sie zurückzuhalten: eine Länge weit außer Verhältnis zur Quelle (`LENGTH_RATIO_OUTLIER`),
+eine Übersetzung identisch zur Quelle (`EQUALS_SOURCE`), ein verfehlter Glossarbegriff
+(`GLOSSARY_TERM_MISSED`), umsortierte Platzhalter (`INTEGRITY_REORDERED`) oder ein herabgestufter
+Provider-Pfad (`PROVIDER_DEGRADED`). Die Flags landen in der `needsReview`-Liste der
+Lauf-Zusammenfassung und in Studios Review-Warteschlange. Siehe
+[Übersetzungssicherheit](/docs/translation-safety).
+
+## Funktioniert verbatra in einem Monorepo?
+
+Ja. Die Konfigurationssuche startet im aktuellen Arbeitsverzeichnis und läuft aufwärts, ein Lauf
+aus einem Paketverzeichnis findet also die Konfiguration dieses Pakets. Von überall sonst übergib
+`--cwd <dir>` (jeder Befehl unterstützt es) oder zeige mit `--config <path>` auf eine bestimmte
+Datei. Im SDK heißen dieselben Stellschrauben `cwd` und `configPath` auf `loadConfig`. Das
+`files.pattern` und die Lock-Datei werden gegen das Arbeitsverzeichnis aufgelöst.
+
+## Was soll ich committen?
+
+Committe deine Locale-Dateien und `verbatra.lock.json`: Die Lock-Datei hält pro Key den
+Quell-Content-Hash fest, aus dem jede Übersetzung entstanden ist, und sie zu committen ist es, was
+Läufe überall inkrementell macht und die Drift-Erkennung funktionieren lässt, auch in CI. Committe
+nicht `.env`, `.env.local` oder `.verbatra-local/`; `verbatra init` trägt alle drei in
+`.gitignore` ein. Siehe [Die Lock-Datei](/docs/the-lock-file).
+
+## Wie übersetze ich alles neu?
+
+Die Lock-Datei zu löschen tut es nicht: Ohne Baseline zählen Keys, die in Quelle und Ziel
+existieren, als aktuell, ein Lauf nach dem Löschen der Lock-Datei übersetzt also nichts. Um eine
+Locale von Grund auf neu aufzubauen, lösche die Datei dieser Locale und führe `verbatra translate`
+aus: Jeder Key ist dann fehlend und wird frisch übersetzt. Für einen einzelnen Key nutze Studios
+Retranslate-Aktion oder das `retranslateEntry` des SDK. Um Keys neu zu übersetzen, deren Quelltext
+sich geändert hat, führe einfach `translate` aus: Das ist der normale inkrementelle Weg.
+
+## Heißt die CLI zu benutzen, das SDK zu installieren?
+
+`@verbatra/cli` hängt von `@verbatra/sdk` ab, die Installation der CLI bringt das SDK also
+automatisch mit; es gibt nichts extra zu installieren. Umgekehrt gilt es auch: Das SDK
+funktioniert eigenständig in deinen eigenen Skripten ohne CLI. Nur `@verbatra/studio` ist eine
+separate, optionale Installation, dynamisch geladen vom `studio`-Befehl.
+
+## Wo leben API-Schlüssel?
+
+Nur in Umgebungsvariablen: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder
+`DEEPL_API_KEY`, plus die Variable, die du für `openai-compatible` benennst. Die CLI lädt `.env`
+und `.env.local` aus dem Arbeitsverzeichnis (echte Umgebungsvariablen gewinnen). Das
+Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis nicht in einer
+committeten Datei landen kann, und Fehlermeldungen nennen die Variable, aber nie einen Wert. Siehe
+[Provider](/docs/providers).

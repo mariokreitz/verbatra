@@ -1,107 +1,64 @@
 ---
-title: Verbatra Studio (verbatra studio)
-description: Inicia Verbatra Studio, un panel de traducción local y en vivo sobre tu proyecto, con edición integrada y llamadas al proveedor solo si las habilitas.
+title: verbatra studio
+description: Arranca Verbatra Studio, el panel local de traducción.
 ---
-Verbatra Studio es un panel web local sobre tu proyecto verbatra: una vista en vivo del estado de traducción, los cambios pendientes, las revisiones marcadas, la configuración, la desviación del archivo de bloqueo y el historial. Por defecto nunca llama a un proveedor de traducción. Revisar y editar tus propios archivos de locale funciona desde el primer momento: la cola de revisión lleva sus acciones de editar, aprobar y rechazar desde el inicio (mira "Cola de revisión" más abajo). Inícialo con `--allow-spend` y gana también las acciones que llaman al proveedor: volver a traducir una clave que falla y traducir de una vez todos los cambios pendientes en todos los locales desde un toast de actualización en vivo (mira "Volver a traducir una clave que falla" y "Traducir cambios pendientes desde un toast" más abajo). Inícialo con:
+Arranca Verbatra Studio, un panel web local sobre tu proyecto de verbatra: estado de las traducciones, la cola de revisión, la actividad de las ejecuciones y tus ajustes resueltos, todo en vivo sobre los archivos en disco. Editar tus propios archivos de locale funciona de serie; solo el gasto en proveedor es opcional, detrás de `--allow-spend`. Antes de arrancar, `studio` carga `.env.local` y luego `.env` desde el directorio de trabajo y resuelve tu configuración una vez; un error de configuración sale con `2` antes de que arranque ningún servidor.
+
+## Sinopsis
 
 ```bash
-verbatra studio
+verbatra studio [flags]
 ```
 
-## Solo local, y sin llamadas al proveedor por defecto
+## Flags
 
-Studio se vincula únicamente a `127.0.0.1`: nunca es accesible desde otra máquina, y no hay ninguna opción para cambiar eso. Cada solicitud se comprueba contra una lista estricta de Host y Origin permitidos, y cada página y cada llamada a la API requiere el token de sesión impreso en la URL de inicio, comparado en tiempo constante para que un intento incorrecto no pueda adivinarse por temporización. Studio no envía cabeceras CORS, así que una pestaña del navegador en otro origen no podría leerlo aunque lo intentara. Todo lo que ves proviene de los mismos cálculos de solo lectura que [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff), o de datos que una ejecución previa de `translate`/`watch` ya dejó guardados en disco. La única superficie de escritura integrada es la edición local: la acción de edición de la cola de revisión actualiza una sola clave marcada en tus propios archivos de locale y su entrada de bloqueo, detrás de la misma sesión de loopback, con la misma comprobación de integridad de marcadores de posición e ICU por la que pasa toda escritura; no necesita ningún flag y nunca llama a un proveedor. Por defecto Studio nunca gasta: nunca llama a `translate`, nunca ejecuta `watch` y nunca invoca a un proveedor de traducción. Pasa `--allow-spend` al iniciar y gana además la acción de retraducir descrita en "Volver a traducir una clave que falla" más abajo y la acción de traducir pendientes descrita en "Traducir cambios pendientes desde un toast" más abajo; déjalo sin activar y nunca se contacta con ningún proveedor.
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
+| `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--port` | `<n>` | `5849` | escucha en este puerto; debe ser un entero entre 1 y 65535 |
+| `--allow-spend` | ninguno | desactivado | permite a Studio llamar a un proveedor de traducción (retraducir una clave, traducir los cambios pendientes) |
 
-## Referencia de comandos
-
-| Opción | Descripción |
-| --- | --- |
-| `--cwd <path>` | resuelve la configuración y los archivos de locale desde este directorio |
-| `--config <path>` | carga este archivo de configuración en lugar de buscar uno |
-| `--port <n>` | sobrescribe el puerto por defecto de Studio (debe ser un entero de 1 a 65535) |
-| `--allow-spend` | permite que Studio llame a un proveedor de traducción (también: `VERBATRA_STUDIO_ALLOW_SPEND`) |
-
-`--allow-spend` está desactivado por defecto. También lee su variable de entorno equivalente cuando el flag mismo está ausente (`"1"`, `"true"`, `"yes"` o `"on"`, sin distinguir mayúsculas y minúsculas, cuenta como activado); un flag explícito de la CLI siempre gana sobre la variable de entorno.
-
-`verbatra studio` carga `.env.local` y `.env` igual que cualquier otro comando, luego resuelve tu configuración una vez, antes de tocar siquiera la red. Una configuración ausente o no válida sale con `2` y el mismo error renderizado que cualquier otro comando; Studio en sí nunca llega a iniciarse.
+Cuando el flag `--allow-spend` está ausente, Studio lee en su lugar la variable de entorno `VERBATRA_STUDIO_ALLOW_SPEND`: `1`, `true`, `yes` u `on` (sin distinguir mayúsculas) cuenta como activado. El flag de la CLI siempre gana sobre la variable de entorno. Sin ninguno de los dos, Studio nunca contacta con un proveedor; la edición local no necesita ningún flag.
 
 ## La URL impresa
 
-Una vez que Studio está escuchando, imprime una línea en stdout:
+Studio solo escucha en `127.0.0.1`. En cuanto está escuchando, imprime una línea en stdout:
 
 ```
 Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
 ```
 
-Abre exactamente esa URL. El token en la cadena de consulta arranca una cookie de sesión para la pestaña del navegador; sin él (o con uno incorrecto) toda solicitud es rechazada. Nunca se imprime nada antes de que el servidor haya vinculado su puerto con éxito, así que un inicio fallido nunca filtra una URL ni un token.
-
-## Reinicio ante un cambio de configuración
-
-La configuración se resuelve una vez, al iniciar, y cada vista, durante toda la vida de ese proceso, se construye a partir de esa misma configuración resuelta. Si cambias `verbatra.config.ts` (un nuevo locale de destino, un proveedor distinto, un patrón de archivo distinto), detén Studio e inícialo de nuevo para aplicar el cambio. Los archivos del proyecto son distintos: Studio vigila tu archivo de locale de origen, cada archivo de locale de destino y el archivo de bloqueo, y envía una señal de actualización en vivo a tu pestaña del navegador abierta en cuanto uno de ellos cambia en disco (las escrituras sucesivas rápidas se agrupan en una sola señal). La pestaña vuelve a cargar automáticamente la vista que estás mirando en ese momento, sin necesidad de recargar la página. Si una recarga falla, la vista sigue mostrando sus últimos datos válidos con un indicador discreto de datos desactualizados en lugar de quedar en blanco, y lo intenta de nuevo en la siguiente señal. Una conexión caída se reconecta sola con espera creciente; si Studio mismo se apaga, la pestaña muestra un aviso a pantalla completa para reiniciarlo desde la terminal.
-
-Un cambio que añade, modifica o elimina al menos una clave también muestra un toast descartable que resume lo que cambió, por ejemplo "1 added, 3 changed"; un cambio solo del archivo de bloqueo, o un cambio sin efecto neto sobre ninguna clave, no muestra ningún toast. Mira "Traducir cambios pendientes desde un toast" más abajo para la acción que puede llevar un toast de cambio de origen.
-
-## Traducir cambios pendientes desde un toast
-
-Cuando tu archivo de locale de origen cambia en disco, su toast (mira "Reinicio ante un cambio de configuración" arriba) puede llevar una acción "Translate pending changes across all locales", protegida igual que volver a traducir una clave que falla: `--allow-spend` (o su variable de entorno equivalente). Deja el flag sin activar y el toast sigue apareciendo, solo que sin esa acción, no simplemente desactivada.
-
-```bash
-verbatra studio --allow-spend
-```
-
-Al hacer clic se realiza exactamente la misma llamada de todo el proyecto que hace [`verbatra translate`](/docs/cli/translate) por sí mismo: cada locale de destino configurado se pone al día frente al origen, al mismo costo de proveedor. Un toast por un cambio de contenido propio de un locale de destino nunca lleva esta acción: el diff de `translate` no puede ver en su mayor parte que el contenido propio de un archivo de destino ha cambiado, así que la acción no haría nada o gastaría en una desviación no relacionada; usa en su lugar la acción Retranslate limitada a una clave para un valor de destino incorrecto.
-
-El toast informa del resultado: "Translated" con éxito total, "Failed for" seguido de los locales que fallaron mientras otros tuvieron éxito, o "Failed: ..." para cualquier otro caso, por ejemplo si la llamada completa en sí falla. Una segunda llamada superpuesta, por ejemplo desde otra pestaña abierta, se rechaza de inmediato en lugar de esperar, así que nunca desencadenas dos ejecuciones de todo el proyecto a la vez.
-
-## Mensajes de error
-
-Cuando algo sale mal, por ejemplo si no se puede leer el archivo de locale de origen, un archivo de locale de destino no se puede analizar para su formato configurado, o tu sesión ha caducado, Studio muestra una descripción concreta y útil de lo que ha pasado en lugar de un único mensaje genérico. Un error que Studio no reconoce específicamente sigue mostrándose con el mismo mensaje genérico de siempre; nunca ves una traza de pila en bruto ni un objeto de error interno.
-
-## Las páginas
-
-Studio tiene cuatro páginas: dos espacios de trabajo (Traducciones y Revisión) y dos páginas de consulta (Actividad y Ajustes). Las cuatro son accesibles desde la barra lateral y mediante un hash de URL como `#/review`, que sobrevive a una recarga y funciona con los botones de avance y retroceso del navegador. Cada página vuelve a obtener sus datos con la señal de actualización en vivo, así que lo que ves sigue a los archivos en disco; la barra superior muestra siempre si ese flujo en vivo está conectado.
-
-- **Traducciones**: el espacio de trabajo diario; todo lo que la pregunta de sincronización necesita, en una sola página. Un banner de estado indica cuántas claves necesitan atención. La sección de claves muestra las claves exactas que se añadirían, se volverían a traducir o quedarían huérfanas por locale, el mismo cálculo que `verbatra diff`, como una cuadrícula de clave por locale o como listas por locale. Las listas de claves largas están limitadas en la vista de lista (con una nota "mostrando N de total") para que un catálogo muy grande siga siendo responsivo; el filtrado sigue buscando en la lista completa. Un botón "Copiar como informe de revisión" convierte el diff completo, incluido todo lo que queda más allá del límite, en un resumen en Markdown en tu portapapeles, con una breve confirmación "Copiado" - listo para pegar en la descripción de un pull request o en un mensaje de chat. La sección de locales muestra los recuentos de claves faltantes, desactualizadas y al día por locale, el mismo cálculo que `verbatra check`, junto con si la entrada de bloqueo de cada locale concuerda; un desplegable contraído "Detalles del archivo de bloqueo" lleva el registro propio del archivo de bloqueo (su versión y su desviación por locale frente a los archivos de origen y destino actuales), sin escribir en él.
-- **Revisión**: cada par de clave y locale que la última ejecución de `translate` o `watch` marcó para una segunda mirada, con una etiqueta por motivo. La cola se puede acotar por locale y con un filtro de clave; el acotado es puramente visual y nunca cambia lo que la ejecución marcó. Antes de que se haya registrado alguna ejecución, muestra un mensaje para ejecutar primero `translate` o `watch`, nunca un error; si ya existe una ejecución pero nada está marcado, muestra que no hay nada que revisar. Cada fila lleva sus propias acciones de editar, aprobar y rechazar; mira "Cola de revisión" más abajo.
-- **Actividad**: qué hizo la última ejecución y cómo han cambiado los archivos de locale, en una sola página. El panel de la última ejecución muestra los totales de tokens de la última ejecución de `translate` o `watch` guardada y, cuando se configuró un presupuesto para esa ejecución, su límite, su comportamiento y si se alcanzó, junto con la marca de tiempo de esa ejecución. Antes de que se haya registrado alguna ejecución, muestra un mensaje para ejecutar primero `translate` o `watch`, nunca un error. Un proveedor que no informa el uso de tokens muestra un estado explícito de no informado en lugar de un `0` inventado; un presupuesto configurado frente a un proveedor sin tokens de ese tipo sigue mostrando su límite, pero solo con la nota "no rastreado para este proveedor", sin comportamiento ni estado de alcance. Una ejecución sin presupuesto configurado muestra solo los totales de tokens, sin ninguna sección de presupuesto. El feed de historial es el historial de commits de tus archivos de locale vigilados, leído mediante `git log` con un número de commits acotado y sin `--follow`. Un proyecto sin repositorio git, o con git no disponible, muestra el historial como no disponible en lugar de un error. El historial truncado de un clon superficial tampoco es un error: simplemente muestra lo que tiene el clon.
-- **Ajustes**: qué puede hacer esta sesión (si las acciones de proveedor están habilitadas y el estado del flujo de actualización en vivo), más una proyección redactada de tu configuración resuelta (locales de origen y destino, formato, patrón de archivo, id del proveedor y las opciones escalares seguras) y tus términos de glosario, si los hay. Los valores de texto libre que podrían contener un secreto pegado nunca se incluyen.
-
-## Apariencia
-
-Studio incluye un tema oscuro y uno claro. El selector de la barra superior ofrece Sistema, Claro y Oscuro; la elección persiste entre recargas, y Sistema sigue en vivo la preferencia de tu sistema operativo.
-
-## Vista de detalle de una clave
-
-En la sección de claves de Traducciones, haz clic en una clave para abrir su vista de detalle: el valor de origen actual de la clave, luego un bloque por locale de destino con el estado, la integridad y el valor de traducción actual de ese locale, todo actualizándose con la señal de actualización en vivo. Cada fila también muestra un indicador de integridad de marcadores de posición e ICU: verde significa que la traducción de ese locale todavía tiene los mismos marcadores de posición que el origen (cosas como `{name}` o `{{count}}`, según tu formato); rojo significa que falta un marcador de posición o que se añadió uno inesperado, y nombra el token concreto para que sepas qué corregir. Un indicador neutro y sin etiqueta significa que el formato no tiene marcadores de posición que comprobar, o que la comprobación todavía no se ha cargado, ya que se obtiene solo al abrir la vista de detalle, no de forma anticipada. Esto solo se aplica a las claves modificadas: una clave faltante todavía no tiene un valor de destino, y una clave huérfana no tiene un valor de origen actual, así que ninguna de las dos tiene un segundo valor que comparar.
-
-## Volver a traducir una clave que falla
-
-Inicia Studio con `--allow-spend` (o su variable de entorno equivalente) y la vista de detalle de la clave gana una acción de escritura: un botón "Retranslate" junto a cualquier fila de locale cuyo indicador de integridad esté en rojo. Deja el flag sin activar y el botón está ausente del panel, no simplemente desactivado.
-
-```bash
-verbatra studio --allow-spend
-```
-
-Al hacer clic se realiza una única llamada en vivo a tu proveedor de traducción configurado para exactamente esa clave y ese locale, el mismo costo de proveedor que volver a traducir una clave con [`verbatra translate`](/docs/cli/translate). El resultado que devuelve pasa por la misma comprobación de integridad de marcadores de posición e ICU antes de escribir nada: un resultado aceptado actualiza el archivo de locale de destino y la entrada de bloqueo para esa única clave, dejando intactas todas las demás claves y locales; un resultado rechazado no escribe nada. El botón informa del resultado: "Retranslated" si tiene éxito, "Rejected: placeholder mismatch" o "Rejected: invalid message syntax" cuando el nuevo resultado en sí falla la comprobación, o "Failed: ..." para cualquier otro caso, por ejemplo si la propia llamada al proveedor falla. Una retraducción exitosa llega a tu pestaña del navegador mediante la misma señal de actualización en vivo que un cambio hecho fuera de Studio.
-
-## Cola de revisión
-
-Cada fila de la vista Revisión lleva tres acciones desde el inicio: "Edit", "Approve" y "Reject". Ninguna necesita un flag; a diferencia de volver a traducir una clave más arriba, `--allow-spend` no tiene ningún efecto sobre ellas, ya que editar un valor nunca llama a un proveedor de traducción.
-
-Approve y Reject descartan una fila solo durante el resto de la sesión de esa pestaña del navegador: ninguna de las dos hace nunca una solicitud de red, escribe un archivo ni toca el archivo de bloqueo. Una fila descartada sigue descartada a través de una actualización en vivo y solo vuelve si recargas la página. Edit abre un diálogo prellenado con el valor actual de origen y destino de la clave, obtenido en vivo, para que siempre partas de lo que realmente hay en disco, nunca de una copia desactualizada. Escribe una corrección y haz clic en "Save": pasa por la misma comprobación de integridad de marcadores de posición e ICU que atraviesa cualquier escritura en Studio, y nunca llama a un proveedor. Una corrección aceptada actualiza el archivo de locale de destino y la entrada de bloqueo para esa única clave, dejando intactas todas las demás claves y locales, y descarta la fila del mismo modo que Approve. El diálogo informa del resultado: "Saved" si tiene éxito, "Rejected: placeholder mismatch" o "Rejected: invalid message syntax" cuando la corrección en sí falla la comprobación, o "Failed: ..." para cualquier otro caso.
+Abre esa URL exacta: el token de la cadena de consulta inicia tu sesión de navegador, y toda petición sin él se rechaza. No se imprime nada antes de que el puerto quede enlazado con éxito, así que un arranque fallido nunca filtra una URL ni un token.
 
 ## Instalación
 
-`@verbatra/studio` es el paquete propio de Studio. Instálalo como dependencia de desarrollo junto a `@verbatra/cli`: `pnpm add -D @verbatra/studio`. Si no está instalado, `verbatra studio` sale con `2` y:
+`@verbatra/studio` es su propio paquete, alcanzado mediante un import dinámico para que el resto de la CLI funcione sin él. Si no está instalado, `verbatra studio` sale con `2` con:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
+```
+
+## Ejemplos
+
+```bash
+# start Verbatra Studio on the default port
+verbatra studio
+
+# enable the provider-calling actions, on a specific port
+verbatra studio --allow-spend --port 6000
 ```
 
 ## Códigos de salida
 
 | Código | Significado |
 | --- | --- |
-| `0` | Studio se detuvo limpiamente con un solo interrupt (Ctrl-C) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración ausente o no válida, `@verbatra/studio` no instalado, o el puerto ya está en uso), o un error de uso (un `--port` fuera de rango o que no es un entero) |
-| `130` | detenido a la fuerza por un segundo interrupt |
+| `0` | detenido limpiamente por una sola interrupción (Ctrl-C, o SIGTERM) |
+| `1` | la parada falló: cerrar el servidor lanzó un error durante el apagado |
+| `2` | no se pudo arrancar: un error de configuración, `@verbatra/studio` no instalado, el puerto en uso, o un error de uso (un `--port` fuera de rango o no entero) |
+| `130` | detenido a la fuerza por una segunda interrupción mientras el apagado estaba en curso |
+
+## Relacionado
+
+- [Revisión en Studio](/docs/review-in-studio) recorre la página Traducciones, la cola de revisión y la retraducción con `--allow-spend`.
+- [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff) son los mismos cálculos que Studio muestra en vivo.

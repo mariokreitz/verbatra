@@ -1,6 +1,93 @@
 ---
-title: Review translations in Studio
-description: Work the needs-review queue, fix entries in place, and retranslate flagged keys from the Verbatra Studio dashboard.
+title: Revisa traducciones en Studio
+description: Arranca Verbatra Studio, trabaja la cola de revisión, corrige entradas en el sitio y retraduce claves marcadas desde el panel local.
 ---
+Verbatra Studio es un panel local sobre tu proyecto de verbatra: muestra en vivo el estado de cada locale, te deja corregir traducciones a mano y puede retraducir claves sueltas cuando lo permites. Esta guía recorre el flujo de revisión de principio a fin.
 
-Content forthcoming.
+La postura a tener presente todo el tiempo: **la edición local está siempre activa**, protegida solo por las mismas comprobaciones de marcadores de posición e ICU que cualquier otra escritura. **El gasto en proveedor nunca está activo por defecto**; las acciones de retraducir y de traducir lo pendiente existen solo cuando arrancas Studio con `--allow-spend`.
+
+## Arranca Studio
+
+Studio se distribuye como su propio paquete, al que llegas a través de la CLI:
+
+```bash
+pnpm add -D @verbatra/studio
+verbatra studio
+```
+
+El comando imprime una línea y sigue en ejecución:
+
+```text
+Verbatra Studio running at http://127.0.0.1:5849/?token=...
+```
+
+Abre esa URL, token incluido; el token se genera nuevo en cada arranque y es como se autentica el navegador. El servidor solo escucha en `127.0.0.1` (nunca en tu red), usa por defecto el puerto `5849` sin alternativa si está ocupado, y acepta `--port` para moverse. Deténlo con Ctrl+C; una segunda interrupción lo fuerza a bajar con el código de salida `130`. Consulta [`verbatra studio`](/docs/cli/studio) para todos los flags.
+
+La barra lateral tiene cuatro páginas: **Traducciones**, **Revisión**, **Actividad** y **Ajustes**.
+
+## Lee la página Traducciones
+
+Traducciones es la vista de trabajo: todo lo pendiente en tus locales de destino y cuán avanzado va cada locale.
+
+- **La franja de estadísticas** responde la primera pregunta de un vistazo: cuántas claves necesitan atención, la cobertura media, cuántos locales están sincronizados y el uso de tokens de la última ejecución. Cuando no hay nada pendiente, un banner de todo en orden reemplaza al explorador de claves.
+- **El explorador de claves** lista cada clave faltante, modificada y huérfana, como una cuadrícula de clave por locale o como listas por locale con un filtro de claves.
+- **La tabla de locales** muestra la cobertura por locale (faltante, obsoleta, al día) combinada con el estado de [el archivo de bloqueo](/docs/the-lock-file), para que veas si la entrada del bloqueo de cada locale concuerda con sus archivos.
+
+Haz clic en cualquier clave para abrir su vista de detalle: los valores por locale, el estado de sincronización de cada locale y un indicador de integridad por traducción (los marcadores de posición coinciden, hay una discrepancia de marcadores con los tokens faltantes y sobrantes nombrados, o la sintaxis del mensaje es inválida). Desde ahí, **Edit** abre el editor para el valor de un locale.
+
+### Edita con la puerta de integridad
+
+El editor muestra la cadena de origen y un área de texto prellenada con la traducción actual. Guardar envía el valor por la misma puerta que cualquier otra escritura de verbatra: un valor que pierde o inventa un marcador de posición, o que rompe la estructura de un mensaje ICU, se rechaza con el motivo nombrado y **no se escribe nada**. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como una fila de importación aceptada.
+
+Editar no necesita ningún flag. Toca solo tus archivos locales y nunca llama a un proveedor.
+
+## Trabaja la cola de Revisión
+
+La página Revisión lista cada entrada que las heurísticas de revisión marcaron en la ejecución más reciente de `translate` o `watch`: una fila por locale y clave, con un indicador por motivo (traducción mucho más corta o más larga que el origen, idéntica al origen, un término del glosario omitido, marcadores de posición reordenados o un lote degradado del proveedor). Hasta que se haya registrado una ejecución, la página lo dice y se queda vacía; ejecuta `verbatra translate` o `verbatra watch` para poblarla.
+
+Filtra por locale o por subcadena de la clave, y luego trabaja las filas:
+
+- **Edit** abre el mismo editor con puerta de integridad que la página Traducciones. Una edición aceptada quita la fila de la cola.
+- **Aprobar** descarta la fila como "vista, está bien así".
+- **Rechazar** también descarta la fila; combínalo con una edición o una retraducción cuando el valor de verdad tenga que cambiar.
+
+Aprobar y Rechazar son solo de sesión: ocultan la fila durante el resto de esta sesión del navegador (incluso a través de las actualizaciones en vivo) pero no escriben nada en disco. Las formas duraderas de limpiar una señal son corregir el valor o volver a ejecutar una traducción.
+
+Las señales de revisión son consultivas, distintas de la puerta dura de integridad; consulta [Seguridad de la traducción](/docs/translation-safety) para saber qué significa cada motivo.
+
+## Retraduce una clave marcada
+
+Arranca Studio con el gasto permitido:
+
+```bash
+verbatra studio --allow-spend
+```
+
+(O define `VERBATRA_STUDIO_ALLOW_SPEND=1`; el flag gana cuando se dan ambos. La clave API del proveedor viene del entorno como siempre, nunca de Studio.)
+
+Ahora una clave cuyo indicador de integridad muestra un defecto real (una discrepancia de marcadores de posición o una sintaxis de mensaje inválida) recibe un botón **Retranslate** en su vista de detalle en la página Traducciones. Hace una sola llamada al proveedor exactamente para ese locale y esa clave, pasa el resultado por la puerta de integridad antes de que nada llegue al disco e informa del resultado junto al botón. El valor actualizado fluye después a la interfaz a través del ciclo de actualización en vivo.
+
+Sin `--allow-spend`, el botón está ausente por completo, y el servidor ni siquiera registra el endpoint de retraducción: un gasto que no concediste al arrancar no se puede activar desde el navegador.
+
+## Traduce los cambios pendientes
+
+Mientras se ejecuta, Studio vigila tu archivo de origen, cada archivo de locale de destino y el archivo de bloqueo. Cuando uno cambia, cada página abierta se actualiza sola y un aviso emergente nombra lo que cambió, con un delta de claves añadidas/modificadas/eliminadas.
+
+Cuando el archivo de **origen** cambia y Studio se ejecuta con `--allow-spend`, ese aviso también ofrece **Translate pending changes across all locales**: una ejecución completa de traducción sobre todo lo pendiente ahora mismo, el mismo trabajo que haría `verbatra translate`. El botón informa del éxito, de los fallos por locale o del error en línea.
+
+Este ciclo en vivo también hace que Studio combine bien con una sesión de editor: cambia una cadena de origen, mira aparecer el aviso, traduce y observa cómo las cuadrículas se ponen en verde sin tocar la terminal.
+
+## Evalúa los daños en Actividad
+
+La página Actividad pone dos vistas de referencia lado a lado:
+
+- **El historial de archivos de locale**: el flujo de commits de git de tus archivos de locale de origen y destino (se muestra como no disponible cuando el proyecto no tiene historial de git).
+- **La última ejecución**: los contadores de tokens de entrada y salida de la ejecución más reciente y, cuando hay un presupuesto de tokens configurado, el medidor del presupuesto y si se alcanzó el techo. Es una instantánea de la última ejecución registrada, con marca de tiempo, nunca un contador en vivo; un proveedor que no informa de uso (DeepL) se muestra como "no informado" en lugar de un cero inventado.
+
+Ajustes, la cuarta página, muestra la configuración y el glosario resueltos con los que arrancó esta sesión; reinicia Studio después de cambiar el archivo de configuración.
+
+## Siguientes pasos
+
+- [`verbatra studio`](/docs/cli/studio): todos los flags y el contrato de arranque.
+- [Seguridad de la traducción](/docs/translation-safety): la puerta de integridad y los motivos de revisión.
+- [CI y códigos de salida](/docs/ci-and-exit-codes): bloquea en CI el mismo desfase que Studio te muestra en local.

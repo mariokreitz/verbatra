@@ -1,47 +1,51 @@
 ---
 title: CI y códigos de salida
-description: Ejecuta verbatra en CI, lee sus códigos de salida y consume su salida JSON.
+description: Bloquea una canalización según el estado de las traducciones con check o diff, lee el contrato de códigos de salida y consume la salida JSON.
 ---
-verbatra es una dependencia de desarrollo, así que los comandos que ejecutas localmente se ejecutan igual en CI. Instálalo, pasa la clave del proveedor desde tu almacén de secretos de CI como la variable de entorno correspondiente y ejecuta `verbatra translate`.
+Esta guía muestra cómo hacer que CI falle cuando las traducciones se desincronizan, y cómo leer lo que verbatra informa cuando eso pasa. Las herramientas son el contrato de códigos de salida que sigue cada comando y la salida `--json` que tus scripts pueden analizar.
 
-```bash
-pnpm add -D @verbatra/cli
-# ANTHROPIC_API_KEY is provided by the CI secret store as an environment variable
-verbatra translate --json
-```
+verbatra es una dependencia de desarrollo, así que los comandos que ejecutas en local se ejecutan igual en CI. El reparto habitual:
 
-¿Quieres hacer fallar una canalización cuando las traducciones se han desviado, sin llamar a un proveedor ni siquiera necesitar una clave? Ejecuta [`verbatra check`](/docs/cli/check): sale con `1` cuando algún locale está fuera de sincronización.
+- **Bloquea un pull request** con [`verbatra check`](/docs/cli/check) o [`verbatra diff`](/docs/cli/diff). Ambos son de solo lectura: sin llamada al proveedor, sin clave API, salida `1` si hay desfase.
+- **Traduce en cada push** con [`verbatra translate`](/docs/cli/translate), ya sea directamente (esta página) o a través de la [GitHub Action](/docs/github-action).
 
-```bash
-# read-only gate: exit 1 if any locale is missing or stale
-verbatra check
-```
+## Los códigos de salida
 
-¿Necesitas las claves exactas detrás de esa desviación (por ejemplo, para publicarlas en un comentario de pull request)? Ejecuta [`verbatra diff`](/docs/cli/diff): la misma puerta de solo lectura, pero en lugar de solo contar, lista las claves que se añadirían, se volverían a traducir o están huérfanas.
-
-```bash
-# read-only gate with the key lists: exit 1 if any locale has pending changes
-verbatra diff
-```
-
-## Códigos de salida
-
-El código de salida es el contrato sobre el que se ramifica tu paso de CI:
+El código de salida es el contrato sobre el que ramifica tu paso de CI:
 
 | Código | Significado |
 | --- | --- |
-| `0` | éxito (para `check`, todos los locales están sincronizados; para `diff`, sin cambios pendientes) |
-| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale fuera de sincronización, o `diff` encontró cambios pendientes |
-| `2` | no se pudo ejecutar (un error de toda la ejecución o un error de uso, incluido un valor `--locales` desconocido o vacío, o un valor `--debounce` no válido) |
-| `130` | `watch` o `ui` fue detenido forzosamente por una segunda interrupción |
+| `0` | éxito: `translate` o `import` terminó bien para cada locale, `check` encontró todos los locales sincronizados, `diff` no encontró cambios pendientes |
+| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale desincronizado, o `diff` encontró cambios pendientes |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración mala, origen ilegible) o un error de uso (un valor `--locales` vacío o desconocido, un `--debounce` o `--port` inválido) |
+| `130` | `watch` o `studio` fue detenido a la fuerza por una segunda interrupción |
 
-`watch` es la excepción: un fallo por ejecución aparece como un registro de flujo, no como un código de salida, y una sola interrupción detiene `watch` de forma elegante y sale con `0`.
+Dos casos límite que conviene conocer:
+
+- `watch` trata una sola interrupción como una parada limpia y sale con `0`; una ejecución fallida durante watch aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
+- `export` no tiene modo de fallo por locale: sale con `0` o `2`, nunca con `1`.
+
+## check o diff: elegir la puerta
+
+`check` y `diff` ejecutan el mismo cálculo de solo lectura sobre tu origen, tus archivos de destino y [el archivo de bloqueo](/docs/the-lock-file). La diferencia está en lo que informan:
+
+```bash
+# counts per locale: exit 1 if any locale is missing or stale
+verbatra check
+
+# key lists per locale: exit 1 if any locale has keys to add or re-translate
+verbatra diff
+```
+
+Usa `check` cuando el código de salida es todo lo que necesitas. Usa `diff` cuando quieras las claves exactas detrás del desfase, por ejemplo, para publicarlas en un comentario del pull request. Las claves huérfanas (en un archivo de destino pero desaparecidas del origen) aparecen en la salida de `diff` pero nunca provocan por sí solas el código de salida `1`.
+
+Ambos aceptan `--locales de,fr` para bloquear un subconjunto. Pasar `--locales` sin ningún locale válido es un error de uso y sale con `2`, así que una errata nunca puede poner la puerta en verde.
 
 ## Salida JSON
 
-Cada comando (`translate`, `watch`, `check`, `diff`, `export` e `import`) acepta `--json` para una salida legible por máquina.
+Seis comandos aceptan `--json` para una salida legible por máquina en stdout: `translate`, `watch`, `check`, `diff`, `export` e `import`. Los errores van siempre a stderr como una línea estructurada (`verbatra: error [CODE] message`), así que stdout sigue siendo analizable.
 
-`verbatra translate --json` imprime el resumen de la ejecución como un único objeto JSON con esta forma:
+`verbatra translate --json` y `verbatra import --json` imprimen un objeto `RunSummary`:
 
 ```ts
 interface RunSummary {
@@ -49,10 +53,14 @@ interface RunSummary {
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
   failed: string[];         // locales whose run failed
+  usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
+  budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured
 }
 ```
 
-`verbatra watch --json` imprime un registro por ejecución como NDJSON (un objeto JSON por línea). Cada registro es un éxito o un fallo:
+Cada `LocaleSummary` lleva las listas de claves por locale (traducidas, sin cambios, huérfanas, retenidas, marcadas para revisión y más); consulta [la referencia del SDK](/docs/sdk) para la anatomía completa.
+
+`verbatra watch --json` imprime un registro por ejecución como NDJSON (un objeto JSON por línea):
 
 ```ts
 type WatchRunResult =
@@ -60,9 +68,7 @@ type WatchRunResult =
   | { status: "failed"; error: { code: string; message: string } };
 ```
 
-Una ejecución fallida durante `watch` cae como uno de estos registros en el flujo. No detiene el observador y no establece un código de salida distinto de cero.
-
-`verbatra check --json` imprime un documento de estado de solo lectura como un único objeto JSON. El `inSync` de nivel superior es true exactamente cuando todos los locales están sincronizados, que es exactamente cuando el comando sale con `0`:
+`verbatra check --json` imprime un documento de estado. El `inSync` de nivel superior es true exactamente cuando el comando sale con `0`:
 
 ```ts
 interface CheckSummary {
@@ -74,12 +80,12 @@ interface LocaleCheckSummary {
   locale: string;
   missing: number;             // in source, absent from target
   stale: number;               // source changed since last translated
-  upToDate: number;            // target matches the current source
+  upToDate: number;            // target matches the recorded baseline
   inSync: boolean;             // missing === 0 && stale === 0
 }
 ```
 
-`verbatra diff --json` ejecuta el mismo cálculo de solo lectura pero te da listas de claves en lugar de recuentos. El `hasPendingChanges` de nivel superior es true exactamente cuando al menos un locale tiene una clave para añadir o volver a traducir, que es exactamente cuando el comando sale con `1`. Las claves huérfanas aparecen en las listas pero nunca establecen `hasPendingChanges`:
+`verbatra diff --json` te da listas de claves en lugar de contadores. El `hasPendingChanges` de nivel superior es true exactamente cuando el comando sale con `1`:
 
 ```ts
 interface DiffSummary {
@@ -95,3 +101,54 @@ interface LocaleDiff {
   hasPendingChanges: boolean;  // missing.length > 0 || changed.length > 0
 }
 ```
+
+`verbatra export --json` imprime dónde quedó el libro y el número de filas por locale:
+
+```ts
+{
+  path: string;                // absolute path of the written workbook
+  locales: { locale: string; rows: number }[];
+}
+```
+
+## Un job de GitHub Actions con la CLI
+
+Una puerta contra el desfase en los pull requests, ejecutando la CLI directamente. `check` nunca llama a un proveedor, así que este job no necesita ninguna clave API:
+
+```yaml
+name: i18n
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  check-translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: pnpm/action-setup@<commit-sha>
+      - uses: actions/setup-node@<commit-sha>
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec verbatra check
+```
+
+Para traducir en CI en su lugar, cambia el último paso por `translate` y pasa la clave del proveedor desde tu almacén de secretos como la variable de entorno que tu proveedor espera (consulta [Proveedores](/docs/providers)):
+
+```yaml
+      - run: pnpm exec verbatra translate --json
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+Si prefieres no escribir este job tú mismo, la [GitHub Action](/docs/github-action) envuelve la variante de translate con anotaciones y un resumen del job.
+
+## Instalaciones congeladas y claves
+
+- **Instala desde el lockfile.** `pnpm install --frozen-lockfile` (o `npm ci`) fija la versión exacta de `@verbatra/cli` que registra tu lockfile, así que una ejecución de CI es reproducible y no puede traer en silencio una versión más nueva. La CLI requiere Node `>=22.14.0`.
+- **Las claves son variables de entorno, nunca flags.** La CLI no acepta ningún argumento de clave y no lee ninguna clave de la configuración; los proveedores leen solo su variable de entorno (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`). Guarda la clave en el almacén de secretos de tu CI y mapéala en `env`. Los mensajes de error nombran la variable pero nunca contienen el valor de una clave.
+- **Las puertas de solo lectura no necesitan clave.** `check`, `diff` y `export` nunca llaman a un proveedor, así que deja los secretos completamente fuera de esos jobs.
+
+verbatra también carga `.env.local` y `.env` desde el directorio de trabajo antes de ejecutarse, y las variables de entorno reales siempre ganan; en CI normalmente dependerás solo de `env:`.

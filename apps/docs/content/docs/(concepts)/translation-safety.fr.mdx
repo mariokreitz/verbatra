@@ -1,86 +1,108 @@
 ---
 title: Sûreté de la traduction
-description: Les vérifications d'intégrité et les limites de sécurité qui décident de ce que verbatra écrit et de ce qu'il retient.
+description: "Le modèle de sûreté : chaînes non fiables, barrière d'intégrité, signalements de révision, budget de tokens, et erreurs qui ne fuient jamais."
 ---
-verbatra ne fait pas confiance à la sortie de la machine par défaut. Il fait passer chaque traduction par des vérifications d'intégrité
-avant d'écrire, et il tient le texte non fiable à l'écart des instructions qu'il envoie au provider. Cette
-page couvre ce que sont ces vérifications et ce qu'elles protègent.
+verbatra ne fait pas confiance à la sortie machine, et il ne fait pas non plus confiance aux
+chaînes qu'il traduit. Chaque résultat passe une barrière d'intégrité avant de pouvoir être écrit,
+tout ce que la barrière rejette apparaît comme des données au lieu de faire échouer l'exécution, et
+les secrets sont tenus à l'écart de chaque chemin d'erreur. Cette page couvre chaque couche de ce
+modèle.
 
-## Intégrité des placeholders
+## Chaînes non fiables et frontière contre l'injection de prompt
 
-Une valeur traduite doit porter les mêmes placeholders que sa source. Après la traduction, verbatra
-compare l'ensemble des placeholders de chaque résultat à la valeur source. Supprime, ajoute ou altère un
-placeholder et la traduction échoue à la vérification et est retenue plutôt qu'écrite. La clé retenue
-conserve son hachage de verrouillage précédent, de sorte que l'exécution suivante la réessaie, et elle apparaît par locale comme une non-concordance
-d'intégrité sur le résumé de l'exécution.
+Une chaîne traduisible peut contenir du texte qui ressemble à une instruction (une chaîne d'UI qui
+dit littéralement "ignore your instructions"), donc verbatra traite chacune d'elles comme une
+entrée non fiable. Les règles système envoyées à un fournisseur LLM sont des constantes fixées à la
+compilation. Toute entrée variable, les entrées à traduire avec ton glossaire et le ton configuré, voyage
+uniquement dans la charge utile JSON du tour utilisateur, jamais insérée dans le canal
+d'instructions. La sortie du fournisseur est contrainte à un schéma et validée comme des données :
+une réponse malformée échoue, et une réponse contenant une clé jamais demandée fait échouer le
+sous-lot entier, parce qu'il n'existe pas d'acceptation partielle sûre autour de contenu inventé.
 
-Ce qui compte comme un placeholder dépend du format : les jetons `{{double-brace}}` pour i18next,
-ngx-translate et YAML, les accolades simples `{name}` et `{0}` pour vue-i18n, les noms d'argument et de balise ICU pour
-next-intl et ARB, et les identifiants de placeholder en ligne pour XLIFF. Pour i18next, les références d'imbrication `$t(...)` sont
-également protégées : supprime, altère ou traduis une référence `$t(...)` et la traduction échoue à la vérification et
-est retenue. Ainsi, si la source est `Welcome, {{name}}` et que le modèle renvoie `Bienvenido` avec le
-`{{name}}` disparu, verbatra le retient plutôt que d'expédier une chaîne cassée. Voir
-[Formats](/docs/formats) pour la syntaxe de chacun.
+## La barrière d'intégrité
 
-Pour next-intl et ARB, la comparaison tient compte des branches : un argument plural ou select est
-vérifié catégorie par catégorie contre sa branche source correspondante, au lieu d'aplatir d'abord
-tout le message en un seul ensemble. Un placeholder fabriqué dans une seule branche de la cible est
-détecté même quand ce même placeholder existe légitimement dans une autre branche de la source.
+Une traduction valide au schéma peut quand même être cassée, donc une barrière recalcule la
+décision d'acceptation ou de rejet directement à partir de la valeur candidate ; le rapport
+d'intégrité du fournisseur lui-même n'est jamais cru. La même barrière tourne sur chaque chemin
+d'écriture : une traduction issue d'un fournisseur, une ligne d'import de classeur, et une
+modification tapée à la main dans Studio.
 
-## Validité ICU
+- Intégrité des placeholders : la valeur traduite doit porter les mêmes placeholders que sa source,
+  comparés comme un multiensemble (les quantités comptent, l'ordre non). Perds-en un, ajoutes-en un
+  ou altères-en un et la candidate est rejetée. Ce qui compte comme placeholder est défini par
+  format ; voir [Formats](/docs/formats).
+- Intégrité ICU : pour les formats ICU (next-intl et ARB), la valeur traduite doit toujours
+  s'analyser comme un message valide. Une candidate qui garde chaque placeholder mais casse la
+  structure plural ou select est rejetée aussi. Pour ces formats, la comparaison des placeholders
+  tient aussi compte des branches : un placeholder fabriqué dans une branche plurielle est attrapé
+  même s'il existe légitimement dans une autre.
 
-Pour les formats ICU, next-intl et ARB, verbatra analyse chaque valeur source. Une clé source dont la valeur
-n'est pas un ICU valide est mise de côté et ignorée pour la traduction plutôt qu'envoyée dans un état défectueux,
-et elle est signalée comme ICU invalide sur le résumé. Le corps ICU reste tel quel tout au long du pipeline :
-rien n'est résolu ni réécrit.
+Une candidate rejetée est retenue comme donnée, jamais écrite : elle apparaît sur le résumé
+d'exécution comme un défaut d'intégrité, garde son hash précédent dans
+[le fichier de verrouillage](/docs/the-lock-file), et est retentée à l'exécution suivante. Retenue
+reste aussi distinct d'échouée : une clé pour laquelle rien n'a été traduit (l'appel fournisseur a
+levé une erreur, ou la clé manquait encore après le tour de réparation borné) est rapportée comme
+un échec fournisseur, pas comme un défaut d'intégrité. Les deux se retentent de la même façon.
 
-Le même analyseur vérifie aussi l'autre côté de l'exécution : dès qu'une traduction revient, verbatra
-valide la valeur du résultat elle-même par rapport à la syntaxe du format, pas seulement son ensemble de
-placeholders. Un résultat qui garde chaque placeholder intact mais casse la structure plural ou select ICU
-échoue quand même à la vérification et est retenu exactement comme un mismatch de placeholder, signalé de
-la même façon sur le résumé de l'exécution. Cela s'applique à `translate`, `watch`, l'import de classeur, et
-à l'[action de retraduction](/docs/cli/studio) de Studio.
+Côté source, une clé source dont la propre valeur est de l'ICU invalide est mise de côté avant la
+traduction et rapportée, au lieu d'être envoyée au fournisseur dans un état cassé.
 
-## Signaux de révision
+## Signalements de révision
 
-Réussir les vérifications ci-dessus prouve seulement qu'une traduction est structurellement sûre : rien n'est cassé, mais elle pourrait quand même être fausse. verbatra fait tourner une seconde couche, non bloquante, par-dessus : une heuristique pure qui signale une clé pour une révision humaine sans jamais la retenir. Un signal de révision est purement consultatif. Il ne retient jamais une clé, et rien dans le classeur ni dans le résumé de l'exécution ne peut être modifié pour l'effacer ; le seul moyen d'effacer un signal est de corriger la traduction sous-jacente.
+Passer la barrière prouve qu'une traduction est structurellement sûre, pas qu'elle est bonne, donc
+une seconde couche, consultative, signale les résultats suspects à un humain. Un signalement de
+révision ne retient jamais une clé et porte un ou plusieurs codes de raison :
 
-Cinq codes de motif, et une clé signalée peut en porter plus d'un :
+- `LENGTH_RATIO_OUTLIER` : la traduction est bien plus courte ou plus longue que sa source (en
+  dessous de 0.35x ou au-dessus de 3.0x en longueur après retrait des espaces ; les sources très courtes sont
+  ignorées). Une invitation à regarder, pas un verdict.
+- `EQUALS_SOURCE` : la traduction est identique mot pour mot à la source dans une locale cible
+  différente, et la source avait réellement du texte traduisible.
+- `GLOSSARY_TERM_MISSED` : un terme de glossaire configuré apparaît dans la source mais son terme
+  cible associé est absent de la traduction.
+- `INTEGRITY_REORDERED` : l'ensemble des placeholders correspondait exactement mais est arrivé dans
+  un ordre différent de la source. Ne se déclenche que sur une traduction que la barrière a déjà
+  acceptée.
+- `PROVIDER_DEGRADED` : le lot dont cette clé provient a été dégradé en douceur par le fournisseur
+  (un abaissement de formalité ou un glossaire ignoré ; dans l'ensemble actuel de fournisseurs,
+  DeepL uniquement).
 
-- `LENGTH_RATIO_OUTLIER` : la longueur réduite de la valeur traduite est nettement plus courte ou plus longue que celle de la source (en dessous de 0,35x ou au-dessus de 3,0x, ignoré quand la source réduite fait moins de 12 unités de code UTF-16). C'est une vérification brute de ratio de longueur sur la longueur UTF-16, elle peut donc sursignaler une langue cible légitimement verbeuse (l'allemand) ou une cible CJK dense ; traite-la comme une invitation à regarder, pas comme un verdict.
-- `EQUALS_SOURCE` : la valeur traduite est identique mot pour mot à la valeur source, dans une locale cible différente de la locale source, et la source avait effectivement quelque chose de traduisible (au moins une lettre Unicode). Une source qui ne contient que des placeholders, des chiffres ou de la ponctuation n'est jamais signalée ainsi.
-- `GLOSSARY_TERM_MISSED` : un terme source de glossaire configuré apparaît dans la valeur source mais son terme cible associé n'apparaît pas dans la traduction. Évalué seulement quand un glossaire est configuré.
-- `INTEGRITY_REORDERED` : l'ensemble des placeholders correspondait exactement (la vérification d'intégrité des placeholders ci-dessus a déjà accepté la traduction) mais est arrivé dans un ordre différent de celui de la source. Ce signal ne chevauche jamais un échec d'intégrité des placeholders : il ne se déclenche que sur une traduction déjà acceptée.
-- `PROVIDER_DEGRADED` : le lot dont vient cette clé portait un avis `FORMALITY_DOWNGRADED` ou `GLOSSARY_IGNORED`. Dans l'ensemble de providers actuel, c'est exclusif à DeepL, aucun provider LLM n'émettant aujourd'hui l'un ou l'autre de ces avis.
+Les clés signalées apparaissent par locale comme `needsReview` sur le résumé d'exécution, et elles
+alimentent la file de révision : la CLI affiche le compte, le classeur Excel porte le même signal
+dans ses colonnes de révision, et la page Révision de Studio liste les clés signalées pour les
+traiter ; voir [Réviser les traductions dans Studio](/docs/review-in-studio). La seule façon d'effacer un
+signalement est de corriger la traduction sous-jacente.
 
-Où tu vois ça : `translate` et `watch` le rapportent par locale comme `needsReview` sur le résumé de l'exécution, restreint aux clés effectivement acceptées et écrites cette exécution, et la CLI affiche un compteur `needs-review` quand il est supérieur à zéro ; voir [`verbatra translate`](/docs/cli/translate) et la [référence du SDK](/docs/sdk). Le classeur Excel porte le même signal dans ses colonnes `Review status` et `Review reasons`, recalculées à chaque export ; voir [Traduction humaine](/docs/manual-translation). La file de révision de [Verbatra Studio](/docs/cli/studio) affiche les mêmes clés signalées, lues en direct depuis l'instantané persistant que la dernière exécution de `translate`/`watch` a laissé derrière elle.
+## Le budget de tokens
 
-`PROVIDER_DEGRADED` n'existe qu'au moment de la traduction. Il vient d'un avis de provider qui n'existe qu'en mémoire pendant l'exécution qui l'a produit : rien sur le disque ne l'enregistre, car y remédier signifierait persister des faits du moment du provider dans le [fichier de verrouillage](/docs/the-lock-file), ce que cette fonctionnalité ne fait délibérément pas. Un classeur exporté plus tard depuis le même fichier cible sur disque ne montre donc jamais `PROVIDER_DEGRADED` pour cette clé, même si la clé elle-même est toujours là : il exporte `ok`, sauf si la clé déclenche aussi indépendamment l'un des quatre codes de motif recalculables ci-dessus, auquel cas la ligne exportée porte ce motif à la place.
+La dépense fournisseur devrait avoir un plafond que tu fixes, pas un que tu découvres sur la
+facture. Avec `maxTokens` configuré, verbatra suit l'usage cumulé de tokens sur toute l'exécution
+et le vérifie après chaque sous-lot terminé. Ce qui se passe au plafond est `budgetBehavior` :
 
-## La limite d'injection de prompt
+- `warn` (le défaut) : l'exécution continue et le résumé signale que le budget a été dépassé.
+- `stop` : plus aucun appel fournisseur n'est fait ; chaque candidate restante est retenue comme
+  `budgetWithheld`, garde son hash de verrouillage précédent, et est retentée à l'exécution
+  suivante.
 
-Les chaînes que tu traduis ne sont pas dignes de confiance : elles peuvent contenir du texte qui ressemble à une instruction
-(pense à une chaîne d'UI qui dit littéralement « ignore tes instructions »). verbatra les traite ainsi.
-Les règles système qu'il envoie à un provider sont des constantes de compilation. Toutes les entrées variables, les entrées à
-traduire ainsi que ton glossaire et ta tonalité, circulent uniquement dans la charge utile de données du tour utilisateur, jamais insérées
-dans le canal d'instructions. La sortie du provider est contrainte à un schéma et validée, et la
-vérification de placeholder s'exécute sur tout ce qui revient. Une chaîne qui tente de rediriger le modèle ne peut pas atteindre les
-règles, et un résultat qui casse un placeholder est retenu.
+Le sous-lot qui franchit le plafond n'est jamais annulé, et le budget ne change jamais le code de
+sortie de la commande. Avec un fournisseur qui ne rapporte pas d'usage de tokens (DeepL), le
+garde-fou est honnêtement inerte : le résumé le marque comme non pris en charge au lieu de
+fabriquer un compte.
 
-## Les secrets ne fuient jamais
+## Les erreurs ne fuient jamais
 
-Les providers lisent les clés API uniquement depuis l'environnement, jamais depuis ta config ni tes arguments. Quand un
-appel au SDK d'un provider échoue, son erreur brute (qui peut porter des en-têtes de requête ou une clé) est jetée, jamais
-liée, journalisée ni relancée. À sa place, verbatra lève sa propre erreur structurée avec un message statique et
-sans secret. Les clés sont sans secret par construction : rien de sensible n'atteint jamais une chaîne qui aurait besoin
-d'être expurgée. Une clé ne peut pas apparaître dans les journaux, dans les messages d'erreur, ni dans la sortie.
+Les clés d'API viennent uniquement de variables d'environnement, jamais de la configuration ni des
+arguments, donc il n'y a de clé dans aucune valeur que verbatra manipule. Quand un appel au SDK
+d'un fournisseur échoue, l'erreur brute (qui peut porter des en-têtes de requête ou des
+identifiants) est jetée, jamais conservée, journalisée ni relancée ; à sa place, verbatra lève une
+erreur structurée avec un code stable (comme `RATE_LIMITED`, `TIMEOUT` ou `AUTH_FAILED`) et un
+message statique sans secret. La même règle tient sur toute l'exécution : les avis et les résumés
+portent des codes et des comptes, pas des secrets.
 
-## Ce que tu vois
+## Où tu vois tout ça
 
-Chacun de ces résultats est une donnée sur le résumé de l'exécution, par locale : les clés traduites, celles
-retenues pour une non-concordance de placeholder, les clés source ignorées pour ICU invalide, les clés signalées pour révision, et toute notification. Les notifications
-incluent les notifications du provider et les notifications du SDK, telles qu'un avertissement de catégorie de pluriel (code
-`PLURAL_CATEGORIES_INCOMPLETE`) quand une langue cible a besoin de plus de catégories de pluriel que la source
-n'en fournit ; voir [Ajouter une langue](/docs/add-a-language) pour savoir comment synthétiser ces formes à la place.
-Rien n'est caché, et l'échec d'une seule locale n'arrête pas les autres. Voir
-[Comment ça marche](/docs/how-it-works) pour savoir où se situe chaque vérification dans l'exécution.
+Tout ceci est de la donnée sur le résumé d'exécution, par locale : clés traduites, défauts
+d'intégrité, échecs fournisseur, clés retenues par le budget, clés source à l'ICU invalide,
+signalements de révision, et avis. Rien n'est caché, et l'échec d'une locale n'arrête jamais les
+autres. Voir [Comment ça marche](/docs/how-it-works) pour la place de chaque contrôle dans le
+pipeline.

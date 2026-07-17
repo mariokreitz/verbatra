@@ -1,32 +1,28 @@
 ---
 title: verbatra init
-description: Genera una configuración de verbatra y un ejemplo de .env para tu proyecto.
+description: Crea una configuración de verbatra y un ejemplo de .env para este proyecto.
 ---
-Genera un `verbatra.config.ts` y un `.env.example`, y añade `.env`, `.env.local` y `.verbatra-local/` a tu `.gitignore`, para que una clave real nunca aterrice en un commit y los datos locales de ejecución que `translate` y `watch` escriben ahí (como `run-status.json`) tampoco queden dentro. Con un terminal conectado y sin `--yes`, `init` solicita los valores que no puede establecer por defecto; de lo contrario, se ejecuta de forma no interactiva y toma los valores por defecto.
+Prepara un proyecto: `init` escribe un `verbatra.config.ts` y un `.env.example` que nombra la variable de la clave API de tu proveedor (nunca el valor de una clave), y se asegura de que `.gitignore` cubra `.env`, `.env.local` y `.verbatra-local/`. Cuando stdin es una terminal y `--yes` está ausente, pregunta por todo lo que no pasaste como flag; si no, toma los valores por defecto, así que corre desatendido en CI.
 
-¿Empiezas un proyecto pequeño? Gemini tiene un nivel gratuito, así que es un buen valor por defecto con el que generar:
+## Sinopsis
 
 ```bash
-verbatra init --provider gemini
+verbatra init [flags]
 ```
 
-## Opciones
+## Flags
 
-| Opción | Descripción |
-| --- | --- |
-| `--cwd <path>` | escribe los archivos de configuración y de entorno en este directorio |
-| `--provider <id>` | proveedor de traducción: `anthropic`, `openai`, `gemini` o `deepl` (obligatorio salvo que se solicite) |
-| `--source <locale>` | locale en el que están escritas tus cadenas de origen (por defecto `en`) |
-| `--targets <locales>` | locales a los que traducir, separados por comas (por defecto `de`) |
-| `--path <pattern>` | patrón de archivo de locale que contiene el token `{locale}` (por defecto `locales/{locale}.json`) |
-| `--yes` | omite las solicitudes y acepta los valores por defecto |
-| `--force` | sobrescribe una configuración o un `.env.example` existente |
+| Flag | Argumento | Por defecto | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | escribe la configuración y los archivos de entorno en este directorio |
+| `--provider` | `<id>` | ninguno (obligatorio) | proveedor a preparar: `anthropic`, `openai`, `gemini` o `deepl`; se pregunta cuando se omite en modo interactivo |
+| `--source` | `<locale>` | `en` | el locale de origen en el que están escritas tus cadenas |
+| `--targets` | `<locales>` | `de` | locales de destino separados por comas a los que traducir |
+| `--path` | `<pattern>` | `locales/{locale}.json` | patrón de los archivos de locale; debe contener el token `{locale}` |
+| `--yes` | ninguno | desactivado | omite las preguntas y acepta los valores por defecto |
+| `--force` | ninguno | desactivado | sobrescribe un `verbatra.config.ts` o `.env.example` existente |
 
-El proveedor es el único valor que `init` no puede adivinar. Sin un terminal para solicitar (en CI, o con `--yes`), pasa `--provider`. Todo lo demás recurre a su valor por defecto cuando lo omites.
-
-## Archivos existentes
-
-Por defecto, `init` nunca sobrescribe. Si ya hay un `verbatra.config.ts` o un `.env.example`, se deja intacto y el comando aun así tiene éxito. Pasa `--force` cuando realmente quieras sobrescribir.
+El formato no es un flag: `init` lo detecta a partir de tus dependencias (`i18next`, `vue-i18n`, `next-intl` o `@ngx-translate/core`). Sin una única coincidencia inequívoca recurre a `i18next-json` y deja un comentario TODO que lista todos los formatos admitidos. Sin `--force`, un `verbatra.config.ts` o `.env.example` existente se omite, nunca se sobrescribe, y el comando aun así termina con éxito.
 
 ## Ejemplos
 
@@ -36,25 +32,17 @@ verbatra init --provider gemini
 
 # non-interactive, accept all defaults
 verbatra init --provider deepl --yes
-
-# set the source and target locales up front
-verbatra init --provider gemini --source en --targets de,es,fr
-
-# point at a non-default locale file layout
-verbatra init --provider gemini --path src/locales/{locale}.json
-
-# scaffold into another directory
-verbatra init --provider gemini --cwd packages/app
-
-# overwrite an existing config and .env example
-verbatra init --provider gemini --force
 ```
 
 ## Códigos de salida
 
 | Código | Significado |
 | --- | --- |
-| `0` | los archivos se escribieron, o se omitieron de forma segura porque ya existen (sin `--force`) |
-| `2` | un error de uso: no se dio ningún `--provider` sin un terminal para solicitar, o la configuración ensamblada no superó la validación |
+| `0` | archivos escritos, u omitidos con seguridad porque ya existen |
+| `2` | un `--provider` faltante o desconocido, un scaffold inválido o un error de uso |
 
-Una vez que `init` termina, establece la clave de API del proveedor y ejecuta [`verbatra translate`](/docs/cli/translate). Consulta [la guía rápida](/docs) para ver el recorrido completo.
+## Relacionado
+
+- [Tu primera traducción](/docs/your-first-translation) va desde init hasta la primera ejecución.
+- [Archivo de configuración](/docs/config-file) documenta cada clave que define el scaffold.
+- [Proveedores](/docs/providers) cubre las opciones de proveedor y las variables de clave API.

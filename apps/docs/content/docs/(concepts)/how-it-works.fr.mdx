@@ -1,112 +1,95 @@
 ---
 title: Comment ça marche
-description: Ce qu'une exécution de verbatra fait de bout en bout, de la découverte de la config au résumé de l'exécution.
+description: Le pipeline de traduction de bout en bout, de la lecture de la locale source à la mise à jour du fichier de verrouillage.
 ---
-Une exécution est un court pipeline. Charger la config, lire la locale source, puis pour chaque locale cible :
-comparer à ce que tu as traduit la dernière fois, n'envoyer au provider que ce qui a changé, vérifier le
-résultat, et écrire. C'est tout. Cette page parcourt chaque étape pour que tu saches exactement ce qui
-se passe quand tu lances `verbatra translate`.
+Une exécution est un pipeline : lire la locale source, comparer chaque cible avec le fichier de
+verrouillage, n'envoyer au fournisseur que ce qui demande du travail, vérifier ce qui revient,
+écrire, et enregistrer le résultat. Cette page parcourt ce pipeline pour que tu saches exactement
+ce qui se passe quand tu lances `verbatra translate`.
 
 <DiffPanel />
 
-## Découverte et chargement de la config
+Une exécution part de ta configuration validée ; voir [Fichier de configuration](/docs/config-file)
+pour savoir où elle est trouvée et ce qu'elle contient. Tout ce qui suit est identique que
+l'exécution vienne de la CLI, du SDK ou de `watch`.
 
-D'abord verbatra charge ta config. Il cherche vers le haut à partir du répertoire de travail et prend la première
-source qu'il trouve : une clé `"verbatra"` dans `package.json`, puis l'un des fichiers `.verbatrarc.*`, puis un
-fichier `verbatra.config.*`. Il valide la config avant de faire le moindre travail. Ne trouve rien et l'exécution
-échoue avec `CONFIG_NOT_FOUND` ; trouve quelque chose d'invalide et elle échoue avec `CONFIG_INVALID`. La config
-ne porte jamais de clé API : le provider lit sa clé depuis l'environnement.
+## Lire la locale source
 
-## Lecture de la locale source
+L'adaptateur de format lit le fichier de la locale source en un ensemble neutre d'entrées à clés,
+pour que le reste du pipeline fonctionne pareil pour chaque format. Un fichier source absent fait
+échouer l'exécution avec `SOURCE_UNREADABLE` ; un fichier que l'adaptateur ne peut pas analyser
+échoue avec `SOURCE_INVALID`. Pendant la lecture, l'adaptateur signale aussi les clés source dont
+les valeurs sont invalides pour la syntaxe de message du format (ICU invalide) : ces clés suivent
+le mouvement mais sont mises de côté au lieu d'être envoyées au fournisseur dans un état cassé.
 
-verbatra résout le fichier source à partir de `files.pattern`, en substituant le jeton `{locale}` par
-`sourceLocale` relativement au répertoire de travail. Ainsi `locales/{locale}.json` avec `sourceLocale: "en"`
-lit `locales/en.json`. Fichier manquant, et l'exécution échoue avec `SOURCE_UNREADABLE` ; fichier non analysable,
-et elle échoue avec `SOURCE_INVALID`. Pendant la lecture, l'adaptateur de format signale aussi toute clé source dont les
-valeurs sont invalides pour la syntaxe de message du format (ICU invalide). Ces clés sont transportées mais
-ignorées pour la traduction plutôt qu'envoyées dans un état défectueux.
+## Comparer avec la référence du fichier de verrouillage
 
-## L'exécution par locale
+Cette comparaison existe pour qu'une exécution soit incrémentale : le fournisseur n'est appelé que
+pour les chaînes qui demandent vraiment du travail. verbatra lit le fichier de la locale cible
+existant (un fichier absent compte comme vide) et compare la source avec lui, en utilisant
+[le fichier de verrouillage](/docs/the-lock-file) comme référence de ce qui a déjà été traduit.
+Chaque clé source atterrit dans l'un de quatre paniers :
 
-Chaque locale cible est traitée séparément. Si une locale explose, les autres continuent.
+- manquante : la cible n'a pas encore la clé.
+- modifiée : la valeur source ne correspond plus au hash enregistré dans le fichier de verrouillage.
+- inchangée : la valeur source correspond toujours au hash enregistré.
+- orpheline : la clé est dans la cible mais plus dans la source.
 
-### Diff par rapport à la base de référence du verrouillage
+Seules les clés manquantes et modifiées deviennent des candidates à la traduction. Les clés
+inchangées sont laissées tranquilles. Les clés orphelines sont rapportées et, par défaut, laissées
+en place ; avec `--prune` (ou `prune: true` dans la configuration) exactement ces clés sont
+supprimées du fichier cible et du fichier de verrouillage, et rien d'autre.
 
-verbatra lit le fichier cible existant (un fichier absent compte comme vide) et compare la source
-à ce fichier, en utilisant le fichier de verrouillage comme base de référence de ce qui a été traduit auparavant. Le diff trie chaque
-clé source dans l'un de quatre paniers :
+## Envoyer par lots au fournisseur
 
-- les nouvelles clés que la cible n'a pas encore,
-- les clés modifiées dont le texte source diffère de la base de référence enregistrée,
-- les clés inchangées qui sont déjà à jour,
-- les clés orphelines présentes dans la cible mais qui ne sont plus dans la source.
+Les candidates partent vers ton fournisseur configuré en sous-lots séquentiels d'au plus
+`maxBatchSize` entrées (50 par défaut), pour qu'une requête trop grosse ne puisse pas emporter
+toute une locale. Chaque sous-lot transporte les entrées plus tes `glossary` et `tone` optionnels.
+Si l'appel d'un sous-lot échoue (une limite de débit, un délai dépassé, une clé révoquée), ses clés
+sont retenues pour cette exécution et reprises à la suivante, pendant que les autres sous-lots
+continuent d'avancer. Voir [Fournisseurs](/docs/providers) pour la façon dont chaque fournisseur
+applique ces entrées.
 
-Seules les clés nouvelles et modifiées sont candidates à la traduction. Les clés inchangées sont laissées tranquilles, et
-les clés orphelines sont signalées et, par défaut, laissées en place. Tu les veux disparues ? Passe `--prune` (ou définis
-`prune: true` dans la config) : verbatra supprime alors exactement les clés orphelines du fichier cible et
-du verrouillage, et rien d'autre. Toute candidate marquée ICU invalide est également mise de côté. C'est ce qui maintient une
-exécution incrémentielle : le provider n'est appelé que pour les chaînes qui ont réellement changé.
+## Valider la réponse
 
-### Appel du provider
+La sortie du fournisseur n'est jamais traitée comme du texte libre. Pour les fournisseurs LLM
+(Anthropic, OpenAI, Gemini et openai-compatible), la réponse est une donnée liée à un schéma,
+validée avant toute autre chose : une réponse malformée, ou qui contient une clé jamais demandée,
+fait échouer le sous-lot, et une clé demandée qui revient manquante ou dupliquée est redemandée une
+fois ; si elle reste non résolue après ça, la clé est traitée comme non traduite pour cette
+exécution et retentée à la suivante. DeepL est une API de traduction automatique sans cette couche
+de réponse, mais ses résultats passent par les mêmes contrôles d'intégrité ci-dessous.
 
-Les entrées candidates vont à ton provider configuré, avec le `glossary` et le `tone` facultatifs
-de ta config. verbatra les répartit en sous-lots séquentiels d'au plus `maxBatchSize` (par défaut
-`50`, voir [Fichier de configuration](/docs/config-file)) pour qu'une requête surdimensionnée ne puisse pas faire échouer toute la locale.
-Si l'appel d'un sous-lot échoue, il est retenu et réessayé à la prochaine exécution pendant que les autres continuent de
-progresser. La façon dont les entrées sont appliquées dépend du provider.
+## Vérifier l'intégrité des placeholders et l'intégrité ICU
 
-- Les providers LLM (Anthropic, OpenAI, Gemini et openai-compatible) reçoivent les entrées, le glossaire et la tonalité dans une
-  charge utile de données structurée, avec instruction de traiter les termes du glossaire comme contraignants et de respecter la
-  tonalité. Le modèle est contraint de renvoyer une valeur par clé demandée.
-- DeepL est un service de traduction automatique, donc il mappe les mêmes entrées sur ses propres options. La tonalité devient
-  formalité : `formal` demande un résultat plus formel, `informal` un résultat moins formel, et `neutral`
-  ou une tonalité absente est omise. Un `glossaryId` configuré est passé nativement.
+Une traduction qui a passé la validation de schéma peut quand même être cassée, donc verbatra
+recalcule sa propre décision d'acceptation ou de rejet à partir de la valeur candidate elle-même :
+il ne fait jamais confiance au rapport du fournisseur. Chaque candidate acceptée doit porter les
+mêmes placeholders que sa source, et pour les formats ICU elle doit rester un message valide. Une
+candidate qui échoue à l'un ou l'autre contrôle est retenue au lieu d'être écrite, apparaît sur le
+résumé d'exécution, et est retentée à l'exécution suivante. Voir
+[Sûreté de la traduction](/docs/translation-safety) pour le modèle de sûreté complet.
 
-DeepL signale aussi des notifications quand il se dégrade gracieusement. Avec une clé de niveau gratuit, il ne prend pas en charge une
-tonalité non par défaut, donc il revient à la valeur par défaut et émet une notification `FORMALITY_DOWNGRADED`. Il n'applique pas
-non plus une carte de termes `glossary` générique (il utilise plutôt un glossaire par id), donc il émet une notification
-`GLOSSARY_IGNORED`. Ce sont des données sur le résultat, pas des erreurs. Les providers LLM n'émettent aucune
-notification.
+## Écrire via l'adaptateur
 
-### Vérification des placeholders et écriture
+Les traductions acceptées sont fusionnées dans la cible et écrites par l'adaptateur de format, de
+façon atomique, dans l'ordre des clés du document : une clé déjà dans la cible garde sa position,
+et une nouvelle clé s'ajoute là où la source la place. Une écriture interrompue ne laisse jamais un
+fichier de locale à moitié fini, et un formateur ou un relecteur de code voit des diffs stables et
+minimaux.
 
-Après la traduction, verbatra compare l'ensemble des placeholders de chaque valeur traduite à sa source, et,
-pour les formats ICU (next-intl et ARB), valide aussi la valeur traduite par rapport à la syntaxe du format.
-Une traduction qui supprime ou altère un placeholder, ou qui casse la structure plural ou select ICU, échoue
-à cette vérification d'intégrité et est retenue plutôt qu'écrite. Les traductions acceptées sont fusionnées
-dans la locale cible et écrites de façon atomique, de sorte qu'une écriture interrompue ne te laisse jamais
-avec un fichier à moitié terminé.
+## Mettre à jour le fichier de verrouillage
 
-## Le fichier de verrouillage et le travail incrémentiel
+Après l'écriture d'une locale, ses entrées de verrouillage sont rafraîchies avec les hashs source
+actuels, avec une exception délibérée : une clé retenue pendant cette exécution garde son hash
+précédent, pour que l'exécution suivante la voie toujours comme demandant du travail. L'écriture de
+chaque locale se fait sous un verrou d'écriture inter-processus, pour que deux exécutions qui se
+chevauchent ne comparent jamais avec une référence périmée ni ne paient deux fois le même appel
+fournisseur. Les détails sont dans [Le fichier de verrouillage](/docs/the-lock-file).
 
-verbatra conserve un fichier de verrouillage commité (`verbatra.lock.json`) qui enregistre, par locale, un hachage de contenu
-pour chaque clé source traduite. Cet enregistrement est la base de référence à laquelle l'exécution suivante se compare. Après qu'une
-locale est écrite, le verrouillage se rafraîchit avec les hachages source actuels, avec une exception délibérée :
-les clés retenues lors de cette exécution (une non-concordance de placeholder ou un ICU invalide) conservent leur hachage
-précédent, de sorte que l'exécution suivante les voit toujours comme nécessitant du travail et les réessaie. Les clés orphelines n'obtiennent aucune
-entrée. Un fichier de verrouillage manquant compte comme une première exécution ; un fichier corrompu échoue avec `LOCK_FILE_INVALID` plutôt
-que d'être silencieusement écrasé.
+## Une locale à la fois, les échecs comme des données
 
-## Le résumé de l'exécution
-
-Une exécution renvoie un résumé pour toutes les locales cibles : lesquelles ont réussi, lesquelles ont échoué,
-et une ventilation par locale. Chaque entrée de locale signale les clés traduites, les clés laissées inchangées,
-les clés orphelines, les clés orphelines réellement élaguées lors de cette exécution (vide sauf si l'élagage est activé), toute clé source
-ignorée pour ICU invalide, toute traduction retenue pour une non-concordance de placeholder, toute forme plurielle
-générée lors de cette exécution (vide sauf si la génération de pluriels est activée), et toute notification. Les notifications couvrent à la fois les notifications
-du provider (comme les cas DeepL ci-dessus) et les notifications du SDK, y compris un avertissement de catégorie de pluriel (code
-`PLURAL_CATEGORIES_INCOMPLETE`) quand une langue cible a besoin de plus de catégories de pluriel CLDR que la source
-n'en fournit. Une exécution à blanc te donne le même type de résumé, listant les clés qui seraient traduites,
-sans appeler de provider ni écrire quoi que ce soit.
-
-## Erreurs
-
-verbatra trace une ligne claire entre deux types d'échec. Un problème sur toute l'exécution (une config manquante ou
-invalide, une source illisible, un format inconnu, un provider qui ne peut pas être construit y compris une
-clé API manquante, ou un fichier de verrouillage corrompu) arrête l'exécution avec une erreur structurée. L'échec
-d'une seule locale n'est pas fatal : il atterrit sur l'entrée de cette locale avec un code et un message, et le reste des
-locales s'exécute quand même.
-
-Quand un provider LLM (Anthropic, OpenAI, Gemini ou openai-compatible) s'arrête parce qu'il a atteint la limite de jetons de sortie, ce
-sous-lot échoue avec une erreur distincte `OUTPUT_TRUNCATED` qui te dit d'utiliser une taille de lot plus petite ou un
-nombre maximal de jetons de sortie plus élevé. Cela ne s'applique pas à DeepL. Voir [Fournisseurs](/docs/providers).
+Chaque locale cible s'exécute pour elle-même : une locale qui échoue n'arrête pas les autres.
+L'exécution renvoie un résumé par locale (traduites, inchangées, orphelines, retenues, signalées
+pour révision, avis), et un dry run (`--dry-run`) produit la même forme de résumé après l'étape de
+comparaison, sans construire de fournisseur ni rien écrire.

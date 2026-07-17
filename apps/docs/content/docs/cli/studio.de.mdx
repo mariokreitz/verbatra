@@ -1,107 +1,64 @@
 ---
-title: Verbatra Studio (verbatra studio)
-description: Starte Verbatra Studio, ein lokales Live-Übersetzungs-Dashboard über dein Projekt, mit eingebautem Bearbeiten und Provider-Aufrufen nur nach Freigabe.
+title: verbatra studio
+description: Starte Verbatra Studio, das lokale Übersetzungs-Dashboard.
 ---
-Verbatra Studio ist ein lokales Web-Dashboard über dein verbatra-Projekt: eine Live-Ansicht des Übersetzungsstatus, ausstehender Änderungen, markierter Reviews, der Konfiguration, der Lock-Datei-Abweichung und der Historie. Standardmäßig ruft es niemals einen Übersetzungs-Provider auf. Das Prüfen und Bearbeiten deiner eigenen Locale-Dateien funktioniert von Haus aus: Die Review-Warteschlange bringt ihre Aktionen zum Bearbeiten, Genehmigen und Ablehnen von Anfang an mit (siehe "Review-Warteschlange" weiter unten). Startest du es mit `--allow-spend`, erhält es zusätzlich die Provider-aufrufenden Aktionen: das erneute Übersetzen eines fehlschlagenden Schlüssels und das Übersetzen aller ausstehenden Änderungen über alle Locales hinweg auf einmal aus einem Live-Aktualisierungs-Toast heraus (siehe "Einen fehlschlagenden Schlüssel erneut übersetzen" und "Ausstehende Änderungen aus einem Toast übersetzen" weiter unten). Starte es mit:
+Starte Verbatra Studio, ein lokales Web-Dashboard über deinem verbatra-Projekt: Übersetzungsstatus, die Review-Warteschlange, Lauf-Aktivität und deine aufgelösten Einstellungen, alles live über den Dateien auf der Platte. Das Bearbeiten deiner eigenen Locale-Dateien funktioniert von Haus aus; nur kostenpflichtige Provider-Aufrufe sind Opt-in, hinter `--allow-spend`. Vor dem Start lädt `studio` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis und löst deine Konfiguration einmal auf; ein Konfigurationsfehler endet mit `2`, bevor irgendein Server startet.
+
+## Synopsis
 
 ```bash
-verbatra studio
+verbatra studio [flags]
 ```
 
-## Nur lokal, und standardmäßig keine Provider-Aufrufe
+## Flags
 
-Studio bindet sich ausschließlich an `127.0.0.1`: Es ist nie von einem anderen Rechner erreichbar, und es gibt keine Option, das zu ändern. Jede Anfrage wird gegen eine strikte Host- und Origin-Allowlist geprüft, und jede Seite und jeder API-Aufruf benötigt das im Start-URL ausgegebene Session-Token, das zeitkonstant verglichen wird, sodass ein falscher Versuch nicht per Timing erraten werden kann. Studio sendet keine CORS-Header, sodass ein Browser-Tab auf einem anderen Origin es nicht lesen könnte, selbst wenn er es versuchen würde. Alles, was du siehst, stammt aus denselben schreibgeschützten Berechnungen wie [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff), oder aus Daten, die ein vorheriger `translate`-/`watch`-Lauf bereits auf der Festplatte hinterlassen hat. Die einzige eingebaute Schreibfläche ist das lokale Bearbeiten: Die Bearbeitungsaktion der Review-Warteschlange aktualisiert einen markierten Schlüssel in deinen eigenen Locale-Dateien und seinen Lock-Eintrag, hinter derselben Loopback-Sitzung, mit derselben Platzhalter- und ICU-Integritätsprüfung, die jeder Schreibvorgang durchläuft; sie braucht kein Flag und ruft niemals einen Provider auf. Standardmäßig verursacht Studio niemals Kosten: Es ruft niemals `translate` auf, führt niemals `watch` aus und ruft niemals einen Übersetzungs-Provider auf. Übergibst du beim Start `--allow-spend`, erhält es zusätzlich die in "Einen fehlschlagenden Schlüssel erneut übersetzen" weiter unten beschriebene Retranslate-Aktion sowie die in "Ausstehende Änderungen aus einem Toast übersetzen" weiter unten beschriebene Aktion zum Übersetzen ausstehender Änderungen; lässt du es weg, wird niemals ein Provider kontaktiert.
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--port` | `<n>` | `5849` | auf diesem Port lauschen; muss eine Ganzzahl von 1 bis 65535 sein |
+| `--allow-spend` | keins | aus | Studio erlauben, einen Übersetzungs-Provider aufzurufen (einen Key neu übersetzen, ausstehende Änderungen übersetzen) |
 
-## Befehlsreferenz
+Wenn das Flag `--allow-spend` fehlt, liest Studio stattdessen die Umgebungsvariable `VERBATRA_STUDIO_ALLOW_SPEND`: `1`, `true`, `yes` oder `on` (Groß- und Kleinschreibung egal) zählt als an. Das CLI-Flag gewinnt immer über die Umgebungsvariable. Ohne beides kontaktiert Studio nie einen Provider; lokales Bearbeiten braucht kein Flag.
 
-| Option | Beschreibung |
-| --- | --- |
-| `--cwd <path>` | löst Konfigurations- und Locale-Dateien aus diesem Verzeichnis auf |
-| `--config <path>` | lädt diese Konfigurationsdatei, anstatt nach einer zu suchen |
-| `--port <n>` | überschreibt den Standard-Port von Studio (muss eine Ganzzahl von 1 bis 65535 sein) |
-| `--allow-spend` | erlaubt Studio, einen Übersetzungs-Provider aufzurufen (auch: `VERBATRA_STUDIO_ALLOW_SPEND`) |
+## Die ausgegebene URL
 
-`--allow-spend` ist standardmäßig aus. Es liest zusätzlich seine entsprechende Umgebungsvariable, wenn das Flag selbst fehlt (`"1"`, `"true"`, `"yes"` oder `"on"`, ohne Groß- und Kleinschreibung, zählt als an); ein explizites CLI-Flag gewinnt immer gegenüber der Umgebungsvariable.
-
-`verbatra studio` lädt `.env.local` und `.env` genau wie jeder andere Befehl, löst dann deine Konfiguration einmal auf, bevor es überhaupt das Netzwerk berührt. Eine fehlende oder ungültige Konfiguration beendet sich mit `2` und demselben gerenderten Fehler wie jeder andere Befehl; Studio selbst wird nie gestartet.
-
-## Der ausgegebene URL
-
-Sobald Studio lauscht, gibt es eine Zeile auf stdout aus:
+Studio bindet sich nur an `127.0.0.1`. Sobald es lauscht, gibt es eine Zeile auf stdout aus:
 
 ```
 Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
 ```
 
-Öffne genau diesen URL. Das Token im Query-String bootstrapt ein Session-Cookie für den Browser-Tab; ohne es (oder mit dem falschen) wird jede Anfrage abgelehnt. Es wird niemals etwas ausgegeben, bevor der Server seinen Port erfolgreich gebunden hat, sodass ein fehlgeschlagener Start nie einen URL oder ein Token preisgibt.
-
-## Neustart bei Konfigurationsänderung
-
-Die Konfiguration wird einmal beim Start aufgelöst, und jede Ansicht für die Lebensdauer dieses Prozesses baut auf derselben aufgelösten Konfiguration auf. Wenn du `verbatra.config.ts` änderst (ein neues Ziel-Locale, ein anderer Provider, ein anderes Datei-Muster), stoppe Studio und starte es erneut, um die Änderung zu übernehmen. Bei Projektdateien ist das anders: Studio beobachtet deine Quell-Locale-Datei, jede Ziel-Locale-Datei und die Lock-Datei und pusht ein Live-Aktualisierungssignal an deinen offenen Browser-Tab, sobald sich eine davon auf der Festplatte ändert (schnell aufeinanderfolgende Schreibvorgänge werden zu einem einzigen Signal zusammengefasst). Der Tab lädt die gerade angezeigte Ansicht automatisch neu, kein Neuladen der Seite nötig. Schlägt ein Nachladen fehl, zeigt die Ansicht weiterhin ihre letzten guten Daten mit einem dezenten Hinweis auf veraltete Daten, statt leer zu werden, und versucht es beim nächsten Signal erneut. Eine unterbrochene Verbindung verbindet sich von selbst mit Backoff neu; fährt Studio selbst herunter, zeigt der Tab einen Vollbild-Hinweis, es vom Terminal aus neu zu starten.
-
-Eine Änderung, die mindestens einen Schlüssel hinzufügt, ändert oder entfernt, zeigt außerdem einen schließbaren Toast, der zusammenfasst, was sich geändert hat, zum Beispiel "1 added, 3 changed"; eine reine Lock-Datei-Änderung oder eine Änderung ohne Nettoeffekt auf irgendeinen Schlüssel zeigt keinen Toast. Siehe "Ausstehende Änderungen aus einem Toast übersetzen" weiter unten für die Aktion, die ein Toast zu einer Quelländerung tragen kann.
-
-## Ausstehende Änderungen aus einem Toast übersetzen
-
-Ändert sich deine Quell-Locale-Datei auf der Festplatte, kann ihr Toast (siehe "Neustart bei Konfigurationsänderung" oben) eine Aktion "Translate pending changes across all locales" tragen, gesperrt genauso wie das erneute Übersetzen eines fehlschlagenden Schlüssels: `--allow-spend` (oder seine Umgebungsvariablen-Entsprechung). Lässt du das Flag weg, erscheint der Toast trotzdem, nur ohne diese Aktion, nicht nur deaktiviert.
-
-```bash
-verbatra studio --allow-spend
-```
-
-Ein Klick darauf löst genau denselben projektweiten Aufruf aus, den auch [`verbatra translate`](/docs/cli/translate) selbst macht: jedes konfigurierte Ziel-Locale wird gegenüber der Quelle aktuell gebracht, zu denselben Provider-Kosten. Ein Toast zu einer eigenen Inhaltsänderung eines Ziel-Locales trägt diese Aktion nie: Der Diff von `translate` kann eine eigene Inhaltsänderung einer Zieldatei größtenteils nicht sehen, sodass die Aktion entweder nichts täte oder für unabhängige Abweichungen Kosten verursachen würde; nutze für einen fehlerhaften Zielwert stattdessen die schlüsselbezogene Retranslate-Aktion.
-
-Der Toast zeigt das Ergebnis an: "Translated" bei vollständigem Erfolg, "Failed for" gefolgt von den Locales, die fehlgeschlagen sind, während andere erfolgreich waren, oder "Failed: ..." für alles andere, zum Beispiel wenn schon der gesamte Aufruf fehlschlägt. Ein zweiter, sich überschneidender Aufruf, zum Beispiel aus einem anderen offenen Tab, wird sofort abgelehnt, statt zu warten, sodass du nie zwei projektweite Läufe gleichzeitig auslöst.
-
-## Fehlermeldungen
-
-Wenn etwas schiefgeht, zum Beispiel wenn sich die Quell-Locale-Datei nicht lesen lässt, sich eine Ziel-Locale-Datei nicht für ihr konfiguriertes Format parsen lässt oder deine Sitzung abgelaufen ist, zeigt Studio eine konkrete, hilfreiche Beschreibung dessen, was passiert ist, statt einer einzigen allgemeinen Meldung. Einen Fehler, den Studio nicht eigens erkennt, zeigt es weiterhin mit derselben allgemeinen Meldung wie bisher; du siehst dabei nie einen rohen Stack-Trace oder ein internes Fehlerobjekt.
-
-## Die Seiten
-
-Studio hat vier Seiten: zwei Arbeitsbereiche (Übersetzungen und Review) und zwei Nachschlageseiten (Aktivität und Einstellungen). Alle vier sind über die Seitenleiste und einen URL-Hash wie `#/review` erreichbar, der ein Neuladen übersteht und mit den Vor- und Zurück-Schaltflächen des Browsers funktioniert. Jede Seite lädt ihre Daten beim Live-Aktualisierungssignal neu, sodass das, was du siehst, den Dateien auf der Festplatte folgt; die obere Leiste zeigt immer an, ob dieser Live-Stream verbunden ist.
-
-- **Übersetzungen**: der tägliche Arbeitsbereich; alles, was die Sync-Frage braucht, auf einer Seite. Ein Status-Banner nennt, wie viele Schlüssel Aufmerksamkeit brauchen. Der Schlüssel-Abschnitt zeigt die genauen Schlüssel, die pro Locale hinzugefügt, neu übersetzt oder verwaist wären, dieselbe Berechnung wie `verbatra diff`, als Schlüssel-mal-Locale-Raster oder als Listen pro Locale. Lange Schlüssellisten sind in der Listenansicht begrenzt (mit einem Hinweis "zeige N von insgesamt"), damit ein sehr großer Katalog reaktionsfähig bleibt; das Filtern durchsucht weiterhin die vollständige Liste. Eine Schaltfläche "Als Prüfbericht kopieren" verwandelt den vollständigen Diff, einschließlich allem, was über die Begrenzung hinausgeht, in eine Markdown-Zusammenfassung in deiner Zwischenablage, mit einer kurzen Bestätigung "Kopiert" - bereit zum Einfügen in eine Pull-Request-Beschreibung oder eine Chat-Nachricht. Der Locale-Abschnitt zeigt pro Locale die Anzahl fehlender, veralteter und aktueller Schlüssel, dieselbe Berechnung wie `verbatra check`, zusammen mit der Angabe, ob der Lock-Eintrag des jeweiligen Locales übereinstimmt; ein eingeklappter Bereich "Lock-Datei-Details" trägt die eigene Aufzeichnung der Lock-Datei (ihre Version und ihre Abweichung pro Locale gegenüber den aktuellen Quell- und Zieldateien), ohne sie zu schreiben.
-- **Review**: jedes Schlüssel-Locale-Paar, das der letzte `translate`- oder `watch`-Lauf zur erneuten Prüfung markiert hat, mit einer Beschriftung pro Grund. Die Warteschlange lässt sich nach Locale und über einen Schlüsselfilter eingrenzen; die Eingrenzung ist rein visuell und ändert nie, was der Lauf markiert hat. Bevor ein Lauf aufgezeichnet wurde, zeigt es einen Hinweis, zuerst `translate` oder `watch` auszuführen, nie einen Fehler; gibt es zwar einen Lauf, aber nichts ist markiert, zeigt es, dass es nichts zu prüfen gibt. Jede Zeile trägt eigene Aktionen zum Bearbeiten, Genehmigen und Ablehnen; siehe "Review-Warteschlange" weiter unten.
-- **Aktivität**: was der letzte Lauf getan hat und wie sich die Locale-Dateien verändert haben, auf einer Seite. Die Spalte zum letzten Lauf zeigt die Token-Summen des zuletzt gespeicherten `translate`- oder `watch`-Laufs und, falls für diesen Lauf ein Budget konfiguriert war, dessen Obergrenze, Verhalten und ob sie erreicht wurde, zusammen mit dem Zeitstempel dieses Laufs. Bevor ein Lauf aufgezeichnet wurde, zeigt sie einen Hinweis, zuerst `translate` oder `watch` auszuführen, nie einen Fehler. Ein Provider, der keine Token-Nutzung meldet, zeigt einen ausdrücklichen Nicht-gemeldet-Zustand statt einer erfundenen `0`; ein Budget gegenüber einem solchen token-losen Provider zeigt weiterhin seine Obergrenze, aber nur den Hinweis "für diesen Provider nicht erfasst", kein Verhalten und keinen Erreichungsstatus. Ein Lauf ohne konfiguriertes Budget zeigt nur die Token-Summen, ganz ohne Budget-Abschnitt. Der Verlaufs-Feed ist die Commit-Historie für deine beobachteten Locale-Dateien, gelesen über `git log` mit einer begrenzten Commit-Anzahl und ohne `--follow`. Ein Projekt ohne Git-Repository oder mit nicht verfügbarem Git zeigt die Historie als nicht verfügbar an, statt eines Fehlers. Die abgeschnittene Historie eines Shallow-Clones ist ebenfalls kein Fehler: Sie zeigt einfach, was der Clone hat.
-- **Einstellungen**: was diese Sitzung kann (ob Provider-Aktionen aktiviert sind und in welchem Zustand der Live-Update-Stream ist), dazu eine geschwärzte Projektion deiner aufgelösten Konfiguration (Quell- und Ziel-Locales, Format, Datei-Muster, Provider-ID und die sicheren skalaren Optionen) sowie deine Glossar-Begriffe, falls vorhanden. Freitext-Werte, die ein eingefügtes Geheimnis enthalten könnten, sind niemals enthalten.
-
-## Darstellung
-
-Studio bringt ein dunkles und ein helles Theme mit. Der Umschalter in der oberen Leiste bietet System, Hell und Dunkel; die Wahl bleibt über Neuladen hinweg erhalten, und System folgt live der Einstellung deines Betriebssystems.
-
-## Detailansicht eines Schlüssels
-
-Klicke im Schlüssel-Abschnitt der Seite Übersetzungen auf einen Schlüssel, um seine Detailansicht zu öffnen: den aktuellen Quellwert des Schlüssels, dann einen Block pro Ziel-Locale mit dem Status, der Integrität und dem aktuellen Übersetzungswert dieses Locales, alles über das Live-Aktualisierungssignal aktualisiert. Jede Zeile zeigt außerdem einen Hinweis zur Platzhalter- und ICU-Integrität: Grün bedeutet, dass die Übersetzung dieses Locales weiterhin dieselben Platzhalter wie die Quelle hat (etwa `{name}` oder `{{count}}`, je nach Format); Rot bedeutet, dass ein Platzhalter fehlt oder ein unerwarteter hinzugekommen ist, und nennt den genauen Token, damit du weißt, was zu beheben ist. Ein neutraler, unbeschrifteter Hinweis bedeutet entweder, dass das Format keine Platzhalter zu prüfen hat, oder dass die Prüfung noch nicht geladen ist, da sie erst beim Öffnen der Detailansicht abgerufen wird, nicht im Voraus. Das gilt nur für geänderte Schlüssel: Ein fehlender Schlüssel hat noch keinen Zielwert, und ein verwaister Schlüssel hat keinen aktuellen Quellwert, sodass keiner von beiden einen zweiten Wert zum Vergleichen hat.
-
-## Einen fehlschlagenden Schlüssel erneut übersetzen
-
-Startest du Studio mit `--allow-spend` (oder seiner Umgebungsvariablen-Entsprechung), erhält die Detailansicht eines Schlüssels eine Schreibaktion: eine Schaltfläche "Retranslate" neben jeder Locale-Zeile, deren Integritätsanzeige rot ist. Lässt du das Flag weg, fehlt die Schaltfläche im Dashboard vollständig, statt nur deaktiviert zu sein.
-
-```bash
-verbatra studio --allow-spend
-```
-
-Ein Klick darauf löst genau einen Live-Aufruf an deinen konfigurierten Übersetzungs-Provider für exakt diesen Schlüssel und dieses Locale aus, mit denselben Provider-Kosten wie das erneute Übersetzen eines Schlüssels mit [`verbatra translate`](/docs/cli/translate). Das zurückgegebene Ergebnis durchläuft dieselbe Platzhalter- und ICU-Integritätsprüfung, bevor irgendetwas geschrieben wird: Ein akzeptiertes Ergebnis aktualisiert die Ziel-Locale-Datei und den Lock-Eintrag für genau diesen einen Schlüssel, alle anderen Schlüssel und Locales bleiben unberührt; ein abgelehntes Ergebnis schreibt nichts. Die Schaltfläche zeigt das Ergebnis an: "Retranslated" bei Erfolg, "Rejected: placeholder mismatch" oder "Rejected: invalid message syntax", wenn das neue Ergebnis selbst die Prüfung nicht besteht, oder "Failed: ..." für alles andere, zum Beispiel wenn schon der Provider-Aufruf selbst fehlschlägt. Ein erfolgreiches erneutes Übersetzen erreicht deinen Browser-Tab über dasselbe Live-Aktualisierungssignal wie eine Änderung außerhalb von Studio.
-
-## Review-Warteschlange
-
-Jede Zeile in der Review-Ansicht trägt von Anfang an drei Aktionen: "Edit", "Approve" und "Reject". Keine davon braucht ein Flag; anders als beim erneuten Übersetzen eines Schlüssels oben hat `--allow-spend` auf sie keine Wirkung, da das Bearbeiten eines Werts niemals einen Übersetzungs-Provider aufruft.
-
-Approve und Reject verwerfen eine Zeile nur für den Rest der Sitzung dieses Browser-Tabs: Keine der beiden Aktionen löst jemals eine Netzwerkanfrage, einen Dateischreibvorgang oder einen Provider-Aufruf aus. Eine verworfene Zeile bleibt über eine Live-Aktualisierung hinweg verworfen und kehrt erst zurück, wenn du die Seite neu lädst. Edit öffnet einen Dialog, der mit dem aktuellen Quell- und Zielwert des Schlüssels vorausgefüllt ist, live abgerufen, sodass du immer von dem ausgehst, was tatsächlich auf der Festplatte steht, nie von einer veralteten Kopie. Tippe eine Korrektur ein und klicke auf "Save": Sie durchläuft dieselbe Platzhalter- und ICU-Integritätsprüfung wie jeder Schreibvorgang in Studio und ruft niemals einen Provider auf. Eine akzeptierte Korrektur aktualisiert die Ziel-Locale-Datei und den Lock-Eintrag für genau diesen einen Schlüssel, alle anderen Schlüssel und Locales bleiben unberührt, und verwirft die Zeile auf dieselbe Weise wie Approve. Der Dialog zeigt das Ergebnis an: "Saved" bei Erfolg, "Rejected: placeholder mismatch" oder "Rejected: invalid message syntax", wenn die Korrektur selbst die Prüfung nicht besteht, oder "Failed: ..." für alles andere.
+Öffne genau diese URL: das Token im Query-String startet deine Browser-Sitzung, und jede Anfrage ohne Token wird abgelehnt. Vor dem erfolgreichen Binden des Ports wird nichts ausgegeben; ein fehlgeschlagener Start leakt also nie eine URL oder ein Token.
 
 ## Installation
 
-`@verbatra/studio` ist das eigene Paket von Studio. Installiere es als Dev-Abhängigkeit neben `@verbatra/cli`: `pnpm add -D @verbatra/studio`. Wenn es nicht installiert ist, beendet sich `verbatra studio` mit `2` und:
+`@verbatra/studio` ist ein eigenes Paket, erreicht über einen dynamischen Import, damit der Rest der CLI auch ohne es funktioniert. Ist es nicht installiert, endet `verbatra studio` mit `2` und:
 
 ```
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
+```
+
+## Beispiele
+
+```bash
+# start Verbatra Studio on the default port
+verbatra studio
+
+# enable the provider-calling actions, on a specific port
+verbatra studio --allow-spend --port 6000
 ```
 
 ## Exit-Codes
 
 | Code | Bedeutung |
 | --- | --- |
-| `0` | Studio wurde sauber durch einen einzelnen Interrupt (Ctrl-C) gestoppt |
-| `2` | konnte nicht ausgeführt werden: ein Fehler des gesamten Laufs (fehlende oder ungültige Konfiguration, `@verbatra/studio` nicht installiert, oder der Port ist bereits belegt) oder ein Nutzungsfehler (ein `--port` außerhalb des Bereichs oder keine Ganzzahl) |
-| `130` | durch einen zweiten Interrupt zwangsweise gestoppt |
+| `0` | sauber gestoppt durch einen einzelnen Interrupt (Ctrl-C oder SIGTERM) |
+| `1` | Stoppen fehlgeschlagen: das Schließen des Servers warf beim Herunterfahren einen Fehler |
+| `2` | konnte nicht starten: ein Konfigurationsfehler, `@verbatra/studio` nicht installiert, der Port belegt oder ein Verwendungsfehler (ein `--port` außerhalb des Bereichs oder keine Ganzzahl) |
+| `130` | zwangsbeendet durch einen zweiten Interrupt, während das Herunterfahren noch lief |
+
+## Siehe auch
+
+- [Review in Studio](/docs/review-in-studio) führt durch die Seite Übersetzungen, die Review-Warteschlange und das Neuübersetzen mit `--allow-spend`.
+- [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff) sind dieselben Berechnungen, die Studio live zeigt.
