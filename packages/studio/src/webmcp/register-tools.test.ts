@@ -104,6 +104,11 @@ function toolByName(tools: readonly WebMcpTool[], name: string): WebMcpTool {
   return tool;
 }
 
+/** The MCP-safe tool name a raw RPC method is expected to register under. */
+function expectedName(method: string): string {
+  return `verbatra_${method.replaceAll(".", "_")}`;
+}
+
 async function registerWith(
   snapshot: RpcCallResult<"project.snapshot">,
 ): Promise<{ tools: WebMcpTool[]; calls: RecordedCall[] }> {
@@ -164,11 +169,11 @@ describe("registerAgentTools registration set", () => {
 
     expect(tools).toHaveLength(11);
     for (const name of READ_TOOLS) {
-      expect(names).toContain(name);
+      expect(names).toContain(expectedName(name));
     }
-    expect(names).toContain("translation.editEntry");
+    expect(names).toContain(expectedName("translation.editEntry"));
     for (const name of SPEND_TOOLS) {
-      expect(names).not.toContain(name);
+      expect(names).not.toContain(expectedName(name));
     }
   });
 
@@ -178,7 +183,20 @@ describe("registerAgentTools registration set", () => {
 
     expect(tools).toHaveLength(13);
     for (const name of [...READ_TOOLS, ...WRITE_AND_SPEND_TOOLS]) {
-      expect(names).toContain(name);
+      expect(names).toContain(expectedName(name));
+    }
+  });
+
+  it("names every tool with the MCP-safe verbatra_ prefix and no dot", async () => {
+    const { tools } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
+    const names = tools.map((tool) => tool.name);
+
+    expect(names).toContain("verbatra_project_snapshot");
+    expect(names).toContain("verbatra_key_value");
+    expect(names).toContain("verbatra_translation_editEntry");
+    expect(names).toContain("verbatra_translation_retranslateEntry");
+    for (const name of names) {
+      expect(name).toMatch(/^[a-zA-Z0-9_-]{1,64}$/);
     }
   });
 });
@@ -188,26 +206,28 @@ describe("registerAgentTools annotations and input schema", () => {
     const { tools } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
 
     for (const name of READ_TOOLS) {
-      expect(toolByName(tools, name).annotations?.readOnlyHint).toBe(true);
+      expect(toolByName(tools, expectedName(name)).annotations?.readOnlyHint).toBe(true);
     }
     for (const name of WRITE_AND_SPEND_TOOLS) {
-      expect(toolByName(tools, name).annotations?.readOnlyHint).toBe(false);
+      expect(toolByName(tools, expectedName(name)).annotations?.readOnlyHint).toBe(false);
     }
     for (const name of UNTRUSTED_TOOLS) {
-      expect(toolByName(tools, name).annotations?.untrustedContentHint).toBe(true);
+      expect(toolByName(tools, expectedName(name)).annotations?.untrustedContentHint).toBe(true);
     }
     for (const name of TEXT_FREE_TOOLS) {
-      expect(toolByName(tools, name).annotations?.untrustedContentHint).toBeUndefined();
+      expect(
+        toolByName(tools, expectedName(name)).annotations?.untrustedContentHint,
+      ).toBeUndefined();
     }
   });
 
   it("derives each tool's inputSchema from the injected params schema", async () => {
     const { tools } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
 
-    expect(toolByName(tools, "translation.editEntry").inputSchema).toEqual(
+    expect(toolByName(tools, expectedName("translation.editEntry")).inputSchema).toEqual(
       z.toJSONSchema(rpcParamsSchemas["translation.editEntry"]),
     );
-    expect(toolByName(tools, "project.snapshot").inputSchema).toEqual(
+    expect(toolByName(tools, expectedName("project.snapshot")).inputSchema).toEqual(
       z.toJSONSchema(rpcParamsSchemas["project.snapshot"]),
     );
   });
@@ -227,7 +247,7 @@ describe("registerAgentTools execute delegation", () => {
     ];
 
     for (const { method, params } of cases) {
-      const output = await toolByName(tools, method).execute(params);
+      const output = await toolByName(tools, expectedName(method)).execute(params);
       const forMethod = calls.filter((call) => call.method === method);
 
       expect(forMethod).toHaveLength(1);

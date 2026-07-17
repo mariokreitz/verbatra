@@ -166,6 +166,17 @@ const TOOL_DESCRIPTORS: Record<RpcMethodName, ToolDescriptor> = {
   },
 };
 
+/**
+ * Maps an RPC method name to an MCP-safe tool name. WebMCP `registerTool` and the model tool-use
+ * pipeline enforce the `^[a-zA-Z0-9_-]{1,64}$` charset, which excludes the dot in the method names,
+ * so the dot is replaced with an underscore and the shared `verbatra_` prefix namespaces the tools.
+ * The mapping is stable and collision-free over the fixed thirteen-method set. The raw method name
+ * is still what every `rpcClient.call` uses; only the advertised tool name is sanitized.
+ */
+function toToolName(method: RpcMethodName): string {
+  return `verbatra_${method.replaceAll(".", "_")}`;
+}
+
 function buildAnnotations(descriptor: ToolDescriptor): WebMcpToolAnnotations {
   return {
     readOnlyHint: descriptor.readOnlyHint,
@@ -185,7 +196,7 @@ function buildTool<M extends RpcMethodName>(
   deps: RegisterAgentToolsDeps,
 ): WebMcpTool {
   return {
-    name: method,
+    name: toToolName(method),
     description: descriptor.description,
     inputSchema: z.toJSONSchema(deps.schemas[method]),
     annotations: buildAnnotations(descriptor),
