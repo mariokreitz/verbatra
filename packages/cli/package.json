@@ -1,6 +1,6 @@
 {
   "name": "@verbatra/cli",
-  "version": "0.5.0-next.4",
+  "version": "0.5.0",
   "type": "module",
   "description": "Command-line tool to automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.",
   "keywords": [
