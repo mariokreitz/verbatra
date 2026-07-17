@@ -11,4 +11,5 @@ the same read, edit, and (with `--allow-spend`) provider actions the dashboard a
 Each tool is a 1:1 wrapper over the same authenticated server call, validation, and capability gate;
 registration grants no authority the tab did not already hold. Enable it with the new
 `verbatra studio --expose-agent-tools` flag or the `VERBATRA_STUDIO_AGENT_TOOLS` environment
-variable; both default to off. The two spend tools register only when `--allow-spend` is also set.
+variable; both default to off. The two spend tools require both flags: `--expose-agent-tools` to
+expose the surface and `--allow-spend` to enable them.

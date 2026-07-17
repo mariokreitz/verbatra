@@ -1,5 +1,11 @@
 {
   "title": "Guides",
   "defaultOpen": true,
-  "pages": ["ci-and-exit-codes", "github-action", "manual-translation", "review-in-studio"]
+  "pages": [
+    "ci-and-exit-codes",
+    "github-action",
+    "manual-translation",
+    "review-in-studio",
+    "agent-tools-in-studio"
+  ]
 }
