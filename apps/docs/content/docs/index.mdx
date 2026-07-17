@@ -1,101 +1,60 @@
 ---
 title: Introduction
-description: Keep your i18n locale files in sync. verbatra translates only the keys that changed, through the AI or machine-translation provider you pick. Start with the CLI in five minutes.
+description: What verbatra is, the problem it solves, and how the CLI, SDK, and Studio fit together. Translate only the keys that changed, with integrity checks on every result.
 ---
 
 <DocsHomeHero
   eyebrow="Documentation"
-  headline="Translate your locale files, only what changed."
-  lead="verbatra is a CLI and SDK that keeps your i18n locale files in sync. You own the source locale; it sends only the new and changed strings to your provider, checks every result, and writes the rest back."
+  headline="Keep every locale file in step with your source."
+  lead="verbatra translates your i18n locale files incrementally: it sends only the new and changed strings to the provider you configure, checks every result, and writes the files back in place."
   primary={{ label: "Quick start", href: "/docs/your-first-translation" }}
-  secondary={{ label: "Read the CLI reference", href: "/docs/cli" }}
+  secondary={{ label: "CLI reference", href: "/docs/cli" }}
 />
 
 <DocsHomeBody>
+
+## The problem
+
+You hand-maintain one source locale. Every other locale file drifts as that source evolves: new keys are missing from the targets, edited source strings leave stale translations behind, and deleted keys linger as orphans. Catching up by hand does not scale, and retranslating everything on every change is slow, costs provider tokens for strings that were already fine, and churns text your team has reviewed.
+
+## How verbatra solves it
+
+A committed lock file, `verbatra.lock.json`, records for every translated key the hash of the source string its translation came from. Each run reads the source locale, diffs every target against it and against that baseline, and sends only the missing and changed keys to the provider. Keys that are still current are left alone: run `translate` twice in a row and the second run makes no provider call at all.
+
+Every string the provider returns is checked before it is written: placeholder integrity and ICU integrity are enforced, and a translation that breaks either is withheld instead of shipped, then retried on the next run. The read-only `check` and `diff` commands report drift without writing anything, so CI can gate on their exit codes.
+
+verbatra reads and writes seven formats (i18next, vue-i18n, next-intl, and ngx-translate JSON, XLIFF, YAML, and Flutter ARB) and translates through five providers (Anthropic, OpenAI, Gemini, DeepL, and any OpenAI-compatible server, including local ones) behind one interface. See [Formats](/docs/formats) and [Providers](/docs/providers).
+
+## The packages
+
+verbatra ships as three npm packages:
+
+- **@verbatra/cli** provides the `verbatra` binary with eight commands: `init`, `translate`, `watch`, `check`, `diff`, `export`, `import`, and `studio`. It is a thin wrapper over the SDK, so everything it does is available programmatically too. Start here.
+- **@verbatra/sdk** is the engine underneath: one-shot `translate()`, long-running `watch()`, read-only `check()` and `diff()`, the Excel workbook round-trip for human translators, and config loading. Use it directly from scripts, build tools, or CI. See [the SDK](/docs/sdk).
+- **@verbatra/studio** is Verbatra Studio, a local dashboard over your project with built-in editing and a review queue. The CLI starts it with `verbatra studio`; provider spend from Studio stays off unless you pass `--allow-spend`. See [Review in Studio](/docs/review-in-studio).
+
+## Where to go next
 
 <DocsHomePaths
   cards={[
     {
       tag: "New here",
-      label: "Start in 5 minutes",
-      body: "Install the CLI, scaffold a config, run your first translation.",
+      label: "Your first translation",
+      body: "Install the CLI, scaffold a config, set your key, and translate.",
       href: "/docs/your-first-translation",
       primary: true,
     },
     {
-      tag: "Already installed",
+      tag: "Already set up",
       label: "Add a language",
-      body: "Drop a locale into your config and let a run fill it in.",
+      body: "Drop a locale into your config and let one run fill it in.",
       href: "/docs/add-a-language",
     },
     {
-      tag: "Going to prod",
-      label: "Wire up CI",
-      body: "Gate merges on the exit codes and the GitHub Action.",
-      href: "/docs/ci-and-exit-codes",
-    },
-  ]}
-/>
-
-## Quick start
-
-Four steps take you from an empty project to translated locale files. The CLI is the fast path; everything it does is also available from [the SDK](/docs/sdk).
-
-### 1. Install
-
-verbatra is a dev dependency (grab it with the install card above, or `pnpm add -D @verbatra/cli`). It needs Node.js `>=22.14.0`, and you run the binary through your package manager: `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
-
-### 2. Scaffold a config
-
-`init` writes a `verbatra.config.ts`, a `.env.example`, and gitignores your `.env` so a real key never lands in a commit.
-
-```bash
-verbatra init --provider gemini
-```
-
-With a terminal attached it prompts for anything it cannot default; add `--yes` to take the defaults (source `en`, target `de`, files `locales/{locale}.json`) and skip the prompts.
-
-### 3. Set your API key
-
-Keys come from the environment, never the config. Each provider reads exactly one variable. For Gemini that is `GEMINI_API_KEY`.
-
-```bash
-export GEMINI_API_KEY=your-key-here
-```
-
-verbatra loads `.env.local` then `.env` from the working directory before it runs, and a variable already in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
-
-<Callout title="Small project or side project? Use Gemini for free.">
-Gemini has a genuinely free API tier, which makes it the easiest way to start with zero cost. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey), set `GEMINI_API_KEY`, and run `verbatra init --provider gemini`. The free tier has per-minute and per-day request limits, so pace a large first-time translation (one locale at a time is plenty). See [Providers](/docs/providers) for the trade-offs against Anthropic, OpenAI, and DeepL.
-</Callout>
-
-### 4. Translate
-
-```bash
-verbatra translate
-```
-
-verbatra reads the source locale, diffs it against what it translated last time, and sends only the new and changed strings to Gemini. Each target file is written in place, next to your source. Run it again without editing anything and nothing is sent: every key is already current.
-
-## What verbatra does
-
-<DocsHomeFeatures
-  features={[
-    {
-      title: "Only what changed",
-      body: "A committed lock file records what was translated. Each run diffs against it, so a provider is called only for the strings that actually changed.",
-    },
-    {
-      title: "Never breaks a string",
-      body: "Every translation is checked for placeholder and ICU integrity before it is written. A translation that drops a placeholder is withheld, not shipped.",
-    },
-    {
-      title: "Your formats and providers",
-      body: "i18next, vue-i18n, next-intl, ngx-translate, XLIFF, YAML, and Flutter ARB. Anthropic, OpenAI, Gemini, DeepL, and openai-compatible behind one interface.",
-    },
-    {
-      title: "CLI-first, SDK underneath",
-      body: "Eight commands cover init, translate, watch, check, diff, export, import, and studio. Need it in code or CI? The SDK is the same engine.",
+      tag: "Under the hood",
+      label: "How it works",
+      body: "The pipeline: diff against the lock baseline, translate, verify, write.",
+      href: "/docs/how-it-works",
     },
   ]}
 />

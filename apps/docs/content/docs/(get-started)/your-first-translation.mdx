@@ -1,62 +1,126 @@
 ---
 title: Your first translation
-description: Run verbatra for the first time, read the run summary, and see why re-runs only touch what changed.
+description: Install the CLI, scaffold a config with verbatra init, set your API key, and run your first translate. Under ten minutes from nothing to a translated locale file.
 ---
-The CLI is installed, the config is scaffolded, and your provider key is in the environment (if not, start with the [quick start](/docs)). Time to translate.
+Four steps take you from an empty project to a translated locale file. All you need is Node.js `>=22.14.0` and an API key for one provider.
 
-## Run it
+## 1. Install
 
-One command translates every target locale and exits:
+verbatra is a dev dependency:
+
+```bash
+pnpm add -D @verbatra/cli
+```
+
+npm and yarn work too. The package ships the `verbatra` binary; run it through your package manager (`pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`). The code blocks below use the bare name.
+
+## 2. Scaffold a config
+
+```bash
+verbatra init --provider gemini
+```
+
+With a terminal attached, `init` prompts for anything you did not pass as a flag, each with a default:
+
+- the provider: one of `anthropic`, `openai`, `gemini`, or `deepl` (flag `--provider`, the only input without a default)
+- the source locale, default `en` (`--source`)
+- the target locales, comma-separated, default `de` (`--targets`)
+- the locale file pattern, default `locales/{locale}.json` (`--path`)
+
+Pass `--yes` to skip the prompts and take the defaults. Without a terminal (in CI, for example) `init` never prompts; it uses the defaults and only requires `--provider`.
+
+`init` writes three things:
+
+- `verbatra.config.ts`: your project config, validated against the real schema before it is written
+- `.env.example`: names the provider's key variable, never a key value
+- `.gitignore` entries for `.env`, `.env.local`, and `.verbatra-local/`, created or appended so a real key or local state never lands in a commit
+
+Re-running `init` skips files that already exist; `--force` overwrites them. It also pre-fills `format` by looking at your dependencies: a project using i18next, vue-i18n, next-intl, or `@ngx-translate/core` gets the matching JSON format, anything else defaults to `i18next-json` with a TODO comment to change it. For Gemini the scaffold looks like this:
+
+```ts
+import { defineConfig } from "@verbatra/cli";
+
+export default defineConfig({
+  sourceLocale: "en",
+  targetLocales: ["de"],
+  format: "i18next-json",
+  files: {
+    pattern: "locales/{locale}.json",
+  },
+  provider: {
+    id: "gemini",
+    options: {
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 4096,
+    },
+  },
+});
+```
+
+## 3. Set your API key
+
+Keys come from the environment, never from the config file. Each hosted provider reads exactly one variable; for Gemini that is `GEMINI_API_KEY`. Copy the scaffolded example and fill in your key:
+
+```bash
+cp .env.example .env
+```
+
+Then open `.env` and paste your key after `GEMINI_API_KEY=`. verbatra loads `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
+
+<Callout title="No key yet? Gemini has a free tier.">
+Gemini's API has a genuinely free tier, which makes it the cheapest way to try verbatra. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier has per-minute and per-day request limits, so pace a large first-time translation.
+</Callout>
+
+## 4. Translate
+
+If you do not have a source file yet, create one at the configured pattern, for example `locales/en.json`:
+
+```json
+{
+  "greeting": "Hello, {{name}}!",
+  "cart": {
+    "empty": "Your cart is empty."
+  }
+}
+```
+
+Then run:
 
 ```bash
 verbatra translate
 ```
 
-Here is what happens under the hood: verbatra reads your source locale, diffs it against what it translated last time, and sends only the new and changed strings to your provider. Anything still current is left alone. Each target file is written in place, so `locales/de.json` and friends appear (or update) right next to your source file.
+verbatra reads the source locale, sees that every key is missing from `de`, sends them to the provider in batches, checks each result for placeholder and ICU integrity, and writes `locales/de.json`. The run ends with a per-locale summary: keys translated, keys unchanged, orphaned keys, and any notices. The exit code is `0` when every locale succeeded and `1` when one failed; add `--json` for a machine-readable summary.
 
-## Read the run summary
+## What just happened
 
-Every run ends with a summary. You get the headline (which locales succeeded, which failed) and a per-locale breakdown: keys translated, keys left unchanged, orphaned keys (present in a target but gone from the source), and any provider notices. One locale failing does not stop the rest; it shows up on that locale's line with a code and a message.
+Three things are now on disk:
 
-Want it machine-readable? Add `--json` and verbatra prints the whole summary as one JSON object:
+- `locales/de.json`: the target locale file. It has the same keys as your source, in the same document order, and `{{name}}` survived translation intact; a result that dropped it would have been withheld, not written.
+- `verbatra.lock.json`: the lock file. For each target locale it maps every translated key to a hash of the source string that translation came from:
 
-```bash
-verbatra translate --json
-```
+  ```json
+  {
+    "version": 1,
+    "locales": {
+      "de": {
+        "cart.empty": "<source content hash>",
+        "greeting": "<source content hash>"
+      }
+    }
+  }
+  ```
 
-See [CI and exit codes](/docs/ci-and-exit-codes) for the JSON shape and the exit-code contract.
+- `.verbatra-local/`: process-local state (the run-status snapshot and per-locale write locks). `init` gitignored it; never commit it.
 
-## Preview before you spend a token
-
-To see exactly what a run would do without calling a provider or writing a single file, do a dry run:
-
-```bash
-verbatra translate --dry-run
-```
-
-You get the same summary, listing the keys that would be translated, but nothing is sent and nothing is written. It is the safe way to check a run before it costs you anything, which is especially handy on a free-tier key.
-
-## Re-runs only touch what changed
-
-This is the part that makes verbatra cheap to run often. Run `verbatra translate` again without editing your source and nothing goes to the provider: every key is already current. Change one source string and only that one key gets re-translated next run.
-
-The trick is a committed lock file (`verbatra.lock.json`) that records what was translated. Each run diffs against it, so the provider is called only for what actually changed. See [How it works](/docs/how-it-works) for the full pipeline.
+The lock file is the baseline for every future run. Run `verbatra translate` again without editing anything and nothing is sent: every key is already current. Edit one source string and only that key is retranslated. To preview any run without a provider call or a single write, use `verbatra translate --dry-run`.
 
 <Callout title="Commit the lock file">
-verbatra writes `verbatra.lock.json` on the first run. Commit it alongside your locale files so every machine, and your CI, diffs against the same baseline. See [The lock file](/docs/the-lock-file).
+Commit `verbatra.lock.json` alongside your locale files, so every machine and your CI diff against the same baseline. See [The lock file](/docs/the-lock-file).
 </Callout>
-
-## Translate while you work
-
-Do not want to re-run by hand? Watch the source and let verbatra re-translate on every change:
-
-```bash
-verbatra watch
-```
-
-It keeps running until you stop it with Ctrl-C.
 
 ## Next
 
-- [Add a language](/docs/add-a-language): drop a new target locale into an existing setup.
-- [How it works](/docs/how-it-works): what a run does, end to end.
+- [Add a language](/docs/add-a-language): drop a new target locale into this setup.
+- [How it works](/docs/how-it-works): the full pipeline behind a run.
+- [Configuration](/docs/config-file): everything `verbatra.config.ts` can hold.

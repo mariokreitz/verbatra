@@ -1,0 +1,48 @@
+---
+title: verbatra init
+description: Create a verbatra config and .env example for this project.
+---
+Scaffold a project: `init` writes a `verbatra.config.ts` and a `.env.example` naming your provider's API key variable (never a key value), and makes sure `.gitignore` covers `.env`, `.env.local`, and `.verbatra-local/`. When stdin is a terminal and `--yes` is absent, it prompts for anything you did not pass as a flag; otherwise it takes the defaults, so it runs unattended in CI.
+
+## Synopsis
+
+```bash
+verbatra init [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | write the config and env files to this directory |
+| `--provider` | `<id>` | none (required) | provider to scaffold: `anthropic`, `openai`, `gemini`, or `deepl`; prompted for when omitted interactively |
+| `--source` | `<locale>` | `en` | the source locale your strings are written in |
+| `--targets` | `<locales>` | `de` | comma-separated target locales to translate into |
+| `--path` | `<pattern>` | `locales/{locale}.json` | locale file pattern; must contain the `{locale}` token |
+| `--yes` | none | off | skip prompts and accept the defaults |
+| `--force` | none | off | overwrite an existing `verbatra.config.ts` or `.env.example` |
+
+The format is not a flag: `init` detects it from your dependencies (`i18next`, `vue-i18n`, `next-intl`, or `@ngx-translate/core`). With no single unambiguous match it falls back to `i18next-json` and leaves a TODO comment listing every supported format. Without `--force`, an existing `verbatra.config.ts` or `.env.example` is skipped, never overwritten, and the command still succeeds.
+
+## Examples
+
+```bash
+# create config + .env example, prompting for the rest
+verbatra init --provider gemini
+
+# non-interactive, accept all defaults
+verbatra init --provider deepl --yes
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | files written, or safely skipped because they already exist |
+| `2` | a missing or unknown `--provider`, an invalid scaffold, or a usage error |
+
+## Related
+
+- [Your first translation](/docs/your-first-translation) walks from init to the first run.
+- [The config file](/docs/config-file) documents every key the scaffold sets.
+- [Providers](/docs/providers) covers the provider options and API key variables.

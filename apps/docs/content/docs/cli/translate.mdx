@@ -1,0 +1,50 @@
+---
+title: verbatra translate
+description: Translate every target locale once, then exit.
+---
+Run one translation pass over every target locale, then exit. `translate` reads the source locale, diffs it against [the lock file](/docs/the-lock-file), sends only the new or changed strings to the provider, runs the [integrity checks](/docs/translation-safety), writes the locale files, and updates the lock. Anything still current is never re-sent, so you never pay twice for an unchanged string.
+
+## Synopsis
+
+```bash
+verbatra translate [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--dry-run` | none | off | preview changes without calling a provider or writing files |
+| `--prune` | none | the config's `prune` option, otherwise off | remove orphaned keys (in a target file but absent from source) from the written file and the lock |
+| `--json` | none | off | print the run summary as one JSON object on stdout (the [`RunSummary` shape](/docs/sdk)); errors still go to stderr |
+
+By default a run deletes nothing: orphaned keys are reported and left in place. `--prune` removes exactly those keys and nothing else, and overrides the config's `prune` option for this run. Before it runs, `translate` loads `.env.local` and then `.env` from the working directory; a variable already set in the real environment wins.
+
+## Examples
+
+```bash
+# translate once using the config it finds
+verbatra translate
+
+# preview the keys that would be pruned, spending nothing
+verbatra translate --prune --dry-run
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | every target locale succeeded |
+| `1` | the run finished but one or more locales failed |
+| `2` | could not run: a whole-run error (config, source, format, provider, or lock), or a usage error |
+
+One locale failing is not fatal: the run finishes, exits `1`, and the per-locale detail sits in the summary.
+
+## Related
+
+- [How it works](/docs/how-it-works) explains the read, diff, translate, write pipeline.
+- [Translation safety](/docs/translation-safety) covers the integrity checks and the needs-review queue.
+- [`verbatra diff`](/docs/cli/diff) previews the same pending keys read-only.
+- [CI and exit codes](/docs/ci-and-exit-codes) shows how to branch on these codes.

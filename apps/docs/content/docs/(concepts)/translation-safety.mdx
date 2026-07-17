@@ -1,0 +1,97 @@
+---
+title: Translation safety
+description: "The safety model: untrusted strings, the integrity gate, review flags, the token budget, and errors that never leak."
+---
+verbatra does not trust machine output, and it does not trust the strings it translates either.
+Every result passes an integrity gate before it can be written, everything the gate rejects
+surfaces as data instead of failing the run, and secrets are kept out of every error path. This
+page covers each layer of that model.
+
+## Untrusted strings and the prompt-injection boundary
+
+A translatable string can contain text that looks like an instruction (a UI string that literally
+reads "ignore your instructions"), so verbatra treats every one as untrusted input. The system
+rules sent to an LLM provider are compile-time constants. All variable input, the entries to
+translate along with your glossary and tone, travels only in the user-turn JSON data payload,
+never spliced into the instruction channel. Provider output is constrained to a schema and
+validated as data: a malformed response fails, and a response containing a key that was never
+requested fails the whole sub-batch, because there is no safe partial accept around invented
+content.
+
+## The integrity gate
+
+A schema-valid translation can still be broken, so one gate recomputes the accept-or-reject
+decision directly from the candidate value; the provider's own integrity report is never trusted.
+The same gate runs on every write path: a provider-sourced translation, a workbook import row, and
+a human-typed edit in Studio.
+
+- Placeholder integrity: the translated value must carry the same placeholders as its source,
+  compared as a multiset (counts matter, order does not). Drop, add, or alter one and the candidate
+  is rejected. What counts as a placeholder is defined per format; see [Formats](/docs/formats).
+- ICU integrity: for the ICU formats (next-intl and ARB), the translated value must still parse as
+  a valid message. A candidate that keeps every placeholder but breaks the plural or select
+  structure is rejected too. For these formats the placeholder comparison is also branch-aware: a
+  placeholder fabricated inside one plural branch is caught even if it legitimately exists in
+  another.
+
+A rejected candidate is withheld as data, never written: it appears on the run summary as an
+integrity mismatch, keeps its prior hash in [the lock file](/docs/the-lock-file), and is retried
+next run. Withheld is also kept distinct from failed: a key nothing was translated for (the
+provider call threw, or the key was still missing after the bounded repair round) is reported as a
+provider failure, not an integrity mismatch. Both retry the same way.
+
+On the source side, a source key whose own value is invalid ICU is set aside before translation
+and reported, instead of being sent to the provider in a broken state.
+
+## Review flags
+
+Passing the gate proves a translation is structurally safe, not that it is good, so a second,
+advisory layer flags suspicious results for a human. A review flag never withholds a key and
+carries one or more reason codes:
+
+- `LENGTH_RATIO_OUTLIER`: the translation is far shorter or longer than its source (below 0.35x or
+  above 3.0x trimmed length; very short sources are skipped). A nudge to look, not a verdict.
+- `EQUALS_SOURCE`: the translation equals the source verbatim in a different target locale, and
+  the source actually had translatable text.
+- `GLOSSARY_TERM_MISSED`: a configured glossary term occurs in the source but its mapped target
+  term is absent from the translation.
+- `INTEGRITY_REORDERED`: the placeholder set matched exactly but landed in a different order than
+  the source. Only ever fires on a translation the gate already accepted.
+- `PROVIDER_DEGRADED`: the batch this key came from was gracefully degraded by the provider (a
+  formality downgrade or an ignored glossary; in the current provider set, DeepL only).
+
+Flagged keys surface per locale as `needsReview` on the run summary, and they feed the
+needs-review queue: the CLI prints the count, the Excel workbook carries the same signal in its
+review columns, and Studio's Review page lists the flagged keys for working through; see
+[Review in Studio](/docs/review-in-studio). The only way to clear a flag is to fix the underlying
+translation.
+
+## The token budget
+
+Provider spend should have a ceiling you set, not one you discover on the invoice. With
+`maxTokens` configured, verbatra tracks cumulative token usage across the whole run and checks it
+after each completed sub-batch. What happens at the ceiling is `budgetBehavior`:
+
+- `warn` (the default): the run continues and the summary flags that the budget was exceeded.
+- `stop`: no further provider calls are made; every remaining candidate is withheld as
+  `budgetWithheld`, keeps its prior lock hash, and is retried next run.
+
+The sub-batch that crosses the ceiling is never undone, and the budget never changes the command's
+exit code. With a provider that does not report token usage (DeepL), the guardrail is honestly
+inert: the summary marks it unsupported instead of faking a count.
+
+## Errors never leak
+
+API keys come only from environment variables, never from config or arguments, so there is no key
+in any value verbatra handles. When a provider SDK call fails, the raw error (which can carry
+request headers or credentials) is discarded, never bound, logged, or re-thrown; in its place
+verbatra raises a structured error with a stable code (such as `RATE_LIMITED`, `TIMEOUT`, or
+`AUTH_FAILED`) and a static, secret-free message. The same rule holds across the run: notices and
+summaries carry codes and counts, not secrets.
+
+## Where you see it
+
+All of this is data on the run summary, per locale: translated keys, integrity mismatches,
+provider failures, budget-withheld keys, invalid-ICU source keys, review flags, and notices.
+Nothing is hidden, and one locale's failure never stops the others. See
+[How it works](/docs/how-it-works) for where each check sits in the pipeline.

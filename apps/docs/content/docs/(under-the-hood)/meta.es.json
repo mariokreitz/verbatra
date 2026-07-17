@@ -1,5 +1,0 @@
-{
-  "title": "Bajo el capó",
-  "defaultOpen": true,
-  "pages": ["how-it-works", "the-lock-file", "translation-safety", "testing"]
-}

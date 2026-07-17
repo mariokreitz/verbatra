@@ -1,5 +1,0 @@
-{
-  "title": "Unter der Haube",
-  "defaultOpen": true,
-  "pages": ["how-it-works", "the-lock-file", "translation-safety", "testing"]
-}

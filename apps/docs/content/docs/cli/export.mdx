@@ -1,0 +1,48 @@
+---
+title: verbatra export
+description: Export untranslated strings into a styled Excel workbook for a human translator.
+---
+Write the strings that need translating into a styled Excel workbook a human can fill in and send back for [`verbatra import`](/docs/cli/import). By default the workbook carries only the missing and changed strings: the same keys an automated run would send to a provider. `export` never calls a provider and needs no API key.
+
+## Synopsis
+
+```bash
+verbatra export [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--out` | `<path>` | `verbatra-translations.xlsx` | write the workbook to this path |
+| `--locales` | `<list>` | all configured targets | comma-separated subset of target locales to export |
+| `--include-unchanged` | none | off | also export already up-to-date strings |
+| `--json` | none | off | print the export result (path and per-locale row counts) as one JSON object on stdout; errors still go to stderr |
+
+An empty or unknown `--locales` value is rejected with exit `2` rather than silently exporting nothing.
+
+## Examples
+
+```bash
+# write the workbook with missing and changed strings
+verbatra export
+
+# only the German and French sheets, to a specific path
+verbatra export --locales de,fr --out handoff/round-2.xlsx
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | the workbook was written |
+| `2` | could not run: a whole-run error, or a usage error (including an empty or unknown `--locales` value) |
+
+`export` has no per-locale failure mode, so it never exits `1`.
+
+## Related
+
+- [Manual translation](/docs/manual-translation) covers the workbook layout, the review columns, and the full round-trip.
+- [`verbatra import`](/docs/cli/import) reads the filled workbook back.

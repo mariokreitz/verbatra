@@ -1,0 +1,65 @@
+---
+title: The lock file
+description: What verbatra.lock.json records, how drift is detected, how concurrent runs are serialized, and why you commit it.
+---
+The lock file, `verbatra.lock.json`, exists so a run can tell what already got translated and skip
+it: it is the baseline every run diffs against, and it is what makes verbatra incremental. This
+page covers what it stores, how it changes, and what happens when it is contended, missing, or
+corrupt.
+
+## What it records
+
+For every target locale, the lock file stores one content hash per translated key, computed from
+the source value that produced the existing translation. It contains no translations and no
+secrets: just a `version` field and hashes. The hash normalizes Unicode to NFC and line endings to
+LF, so re-saving a source file with different normalization or CRLF endings does not mark anything
+as changed.
+
+## How drift is detected
+
+When a run diffs a target locale, a source key absent from the target is missing. For a key the
+target does have, the current source hash is compared against the hash the lock recorded: a
+difference means the source drifted since the key was last translated, so it is changed and gets
+retranslated; a match means it is unchanged and never sent to the provider. That is why a second
+run with no source edits calls the provider for nothing, and why stale translations cannot hide
+behind a key that merely exists. The full pipeline is on [How it works](/docs/how-it-works).
+
+## How it is updated
+
+The lock is updated per locale, and how depends on what ran:
+
+- A full run (translate, watch, or a workbook import) replaces that locale's entries wholesale with
+  the run's authoritative result.
+- A single-key action (such as a retranslate from Studio) merges only that key's entry, leaving
+  every other recorded key untouched.
+
+In both cases one exception applies: a key withheld this run (a failed integrity check, a failed
+provider call, or an invalid-ICU source) keeps its prior hash, so the next run still sees it as
+needing work and retries it instead of recording it as done. Orphaned keys get no entry. The file
+is serialized with sorted keys, so its diffs stay stable and reviewable.
+
+## The write lock
+
+Two runs touching the same locale at the same time (a second terminal, a CI job, a Studio action)
+could otherwise both diff a stale baseline and both pay for the same provider call. To prevent
+that, every write to a locale and its lock entries happens under a cross-process write lock scoped
+to that one locale; a second writer for the same locale waits, then re-reads the lock file fresh
+and diffs against a baseline that already includes the first writer's result. Different locales do
+not block each other.
+
+If a lock cannot be acquired, the run fails with `LOCK_CONTENDED` and names the lock file's path
+(under the gitignored `.verbatra-local/` directory). If no verbatra process is running, that file
+was left behind by a killed one: delete it and retry.
+
+## Missing or corrupt
+
+A missing lock file is not an error: it counts as a first run, where every source key is missing.
+A lock file that is present but unparseable, structurally wrong, oversized, or at an unsupported
+version fails the run with `LOCK_FILE_INVALID` instead of being silently overwritten, so you can
+inspect or restore it rather than losing the baseline.
+
+## Commit it
+
+Commit `verbatra.lock.json` alongside your locale files. It is the shared baseline your teammates
+and your CI diff against; keeping it in version control is what makes incremental runs reproducible
+across machines. Never hand-edit it.

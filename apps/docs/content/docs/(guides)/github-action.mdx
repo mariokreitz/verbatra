@@ -1,0 +1,78 @@
+---
+title: GitHub Action
+description: "Run verbatra translate in GitHub Actions with the composite action: inputs, secret wiring, annotations, and the job summary."
+---
+verbatra ships a composite GitHub Action that runs `verbatra translate --json` in CI, turns failures into annotations on the run, writes a job summary table, and exits with the CLI's exit code. This page covers wiring it in and what it shows you.
+
+## When to use it over a raw CLI step
+
+The action is the translate step with the reporting already built: per-locale error annotations, a summary table on the run page, and exit-code propagation that never swallows a failure. Prefer it when your job is "translate on push and show me what happened".
+
+Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything else: a read-only `check` or `diff` gate, custom flags such as `--prune`, or your own handling of the JSON output. The action always runs `translate --json` and nothing else; it never runs `init`, `watch`, or `check`.
+
+## Availability
+
+The action lives in the verbatra repository and is referenced by path, pinned to a commit SHA:
+
+```text
+uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+```
+
+There is no npm package, no Marketplace listing, and no versioned action tag. The SHA-pinned path reference is the only supported way to consume it.
+
+## Usage
+
+```yaml
+name: translate
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verbatra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<commit-sha>
+      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+        with:
+          version: 0.5.0 # pin @verbatra/cli to an exact version
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the workflow needs no install step for verbatra itself.
+
+### Secret wiring
+
+The action runs the CLI, and the CLI reads the provider's API key only from the environment. Pass the key from your repository secrets under the variable your provider expects (see [Providers](/docs/providers)): `ANTHROPIC_API_KEY` above, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPL_API_KEY`. There is no key input; a key never travels as an action input or CLI argument.
+
+## Inputs
+
+| Input | Required | Default | Description |
+| --- | --- | --- | --- |
+| `version` | yes | - | the `@verbatra/cli` version to run. Must be an exact semver version such as `0.5.0` or `0.5.1-next.0`; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix |
+| `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
+| `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
+| `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |
+| `node-version` | no | `"24"` | Node.js version to set up for running the CLI |
+
+The action defines no outputs. Its results are the annotations, the job summary, and the exit code.
+
+## What a run shows you
+
+**Annotations.** When the CLI exits `1` (some locales failed), each failed locale becomes one error annotation titled `verbatra: <locale>`, carrying that locale's structured `[CODE] message`. When the whole run fails before producing a summary (exit `2`), a single `verbatra` annotation carries the CLI's error line instead.
+
+**Job summary.** Every run appends a Markdown summary to the job page: a table with one row per locale (status, translated, unchanged, orphaned, invalid ICU, integrity withheld, provider failures, notices), an aggregate line, and a list of failed locales with their error codes. A dry run is labeled as such. A whole-run failure gets a short failure summary with the exit code and error detail.
+
+**Exit behavior.** The action captures the CLI's stdout and exit code without bailing early, emits the annotations and summary, and only then exits with the CLI's own code. So the step fails on `1` or `2`, but never before you can see why. The [exit codes](/docs/ci-and-exit-codes) page spells out what each code means. If the internal exit-code wiring ever breaks, the action fails with `2` rather than reporting a false success.
+
+## Persisting translations
+
+Without `dry-run`, `translate` writes updated locale files into the runner's checkout, and the action stops there: it does not commit. To keep the changes, add your own step that commits and pushes or opens a pull request. When you only want CI to flag missing or stale translations without writing anything, set `dry-run: "true"` (or gate with `verbatra check` and skip the action entirely).
+
+## Security
+
+Pin both references exactly: the `uses:` line to a commit SHA and the `version` input to an exact `@verbatra/cli` release. The action enforces the second one itself by rejecting anything that is not an exact semver version, so a run can never silently resolve `latest`. Give the workflow only the privilege it needs: `contents: read` for a report, plus `contents: write` or `pull-requests: write` only when a later step commits or opens a pull request. Inputs reach the CLI through the environment as data and are expanded into a quoted argument array, never spliced into shell text, so a crafted input value stays an argument and never becomes executable code.

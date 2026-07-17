@@ -1,0 +1,168 @@
+---
+title: Troubleshooting
+description: Symptoms, causes, and fixes for the errors verbatra actually raises.
+---
+Each entry below matches a real error code or message. Whole-run failures carry a stable code
+(`SdkError`); branch or search on the code, not the message text. For how failures map to CLI exit
+codes, see [CI and exit codes](/docs/ci-and-exit-codes); for the full code table, see the
+[SDK reference](/docs/sdk).
+
+## The configuration is invalid (CONFIG_INVALID)
+
+**Symptom**: `The verbatra configuration is invalid: ...`, listing one issue per field.
+
+**Cause**: the config was found but fails schema validation: a missing required field, a
+`files.pattern` without the `{locale}` token, a source locale listed in `targetLocales`, or an
+unrecognized top-level key. An unrecognized key gains the hint `API keys are read from the
+environment, not the config`: the schema is strict precisely so a secret cannot hide in a
+committed file.
+
+**Fix**: correct the field the message names. See [The config file](/docs/config-file) for the
+full schema. If the message is `No verbatra configuration found...` (`CONFIG_NOT_FOUND`), run
+`verbatra init` or pass `--config <path>`.
+
+## No adapter for the format (UNKNOWN_FORMAT)
+
+**Symptom**: `No adapter is registered for format "..."` followed by the supported list.
+
+**Cause**: the config's `format` is not one of the seven registered format ids. This is checked
+before any file is read.
+
+**Fix**: use one of the ids from [Formats](/docs/formats), for example `i18next-json` or `xliff`.
+
+## Requested locale is not configured (UNKNOWN_LOCALE)
+
+**Symptom**: `Requested locale not in the configured target locales: ... Configured targets: ...`
+
+**Cause**: a `--locales` value (or an SDK `locales`/`locale` input) names a locale that is not in
+`targetLocales`. Locale filters select from the configured list; they never add to it.
+
+**Fix**: add the locale to `targetLocales` in the config, or fix the typo in the filter.
+
+## The source file is missing or unparseable (SOURCE_UNREADABLE, SOURCE_INVALID)
+
+**Symptom**: `The source locale file was not found at <path>.` or `The source locale file at
+<path> could not be read: ...`
+
+**Cause**: `files.pattern` with the source locale substituted does not point at an existing file
+(`SOURCE_UNREADABLE`), or the file exists but the adapter rejects it, for example invalid JSON or
+a structural problem (`SOURCE_INVALID`, wrapping the adapter's message).
+
+**Fix**: check the path the message prints; it is the pattern resolved against the working
+directory, so a wrong `--cwd` is a common cause. For structural rejections, see the
+`INVALID_STRUCTURE` entry below.
+
+## Missing API key (PROVIDER_CONSTRUCTION_FAILED)
+
+**Symptom**: `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable
+is not set.` (or the matching variable for your provider).
+
+**Cause**: the provider reads its key from the environment when it is constructed, and the named
+variable is unset or empty. Error messages name the variable but never contain a key value, and
+keys are never read from the config or CLI arguments.
+
+**Fix**: set the variable the message names. The CLI loads `.env` and `.env.local` from the
+working directory; the SDK does not, so in your own script use `node --env-file=.env` or export
+the variable. `openai-compatible` only raises this when the config names an `apiKeyEnvVar` that is
+unset; without one it falls back to a keyless placeholder for local servers.
+
+## Rate limits, timeouts, and auth failures mid-run (RATE_LIMITED, TIMEOUT, AUTH_FAILED)
+
+**Symptom**: the run completes, but some keys were not translated: they appear under a locale's
+`providerFailures`, with a `SUB_BATCH_FAILED` notice carrying the provider code. The locale still
+counts as succeeded, so the exit code stays 0.
+
+**Cause**: a provider call failed after construction: HTTP 429 (`RATE_LIMITED`), a network or
+request timeout (`TIMEOUT`), or HTTP 401/403 (`AUTH_FAILED`, an invalid or revoked key).
+
+**Fix**: nothing is lost. The affected keys keep their prior lock baseline and are picked up again
+on the next run, so for `RATE_LIMITED` or `TIMEOUT` simply re-run later. `AUTH_FAILED` does not
+resolve by retrying: replace the key behind the environment variable. A smaller `maxBatchSize`
+also reduces the blast radius of a single failed request.
+
+## The lock file is corrupt (LOCK_FILE_INVALID)
+
+**Symptom**: `The lock-file at <path> is not valid JSON.`, `... has an unexpected shape.`,
+`... has version N, but this version of verbatra supports version 1.`, or `... exceeds the maximum
+allowed size ...`
+
+**Cause**: `verbatra.lock.json` was hand-edited, truncated, produced by an incompatible version,
+or damaged in a merge.
+
+**Fix**: restore the file from version control; that keeps every baseline intact. Deleting it also
+clears the error, but loses the record of which source version each translation came from, so
+source edits made before the deletion are no longer detected as stale. See
+[The lock file](/docs/the-lock-file).
+
+## Another process holds the write lock (LOCK_CONTENDED)
+
+**Symptom**: `Could not acquire the write lock at <path>: another process may be holding it. If no
+verbatra process is currently running, this lock file was likely left behind by one that was
+killed; delete it and retry.`
+
+**Cause**: writes to a locale are serialized through a per-locale lock file. A concurrent
+`translate`, `watch`, `import`, or Studio write is holding it, or a killed process left the lock
+file behind.
+
+**Fix**: exactly what the message says: wait for the other run to finish, or, if none is running,
+delete the lock file at the printed path and retry.
+
+## Dotted keys or YAML keys collide (INVALID_STRUCTURE)
+
+**Symptom**: `A dotted key and a nested key path resolve to the same path.` (or the literal-leaf
+variant), or for YAML: `A mapping key is a map or sequence (expected scalar keys).`
+
+**Cause**: two entries in one file resolve to the same effective key, for example a literal
+`"a.b"` key next to a nested `a: { b: ... }`, which verbatra rejects rather than silently dropping
+one; or a YAML file uses a composite mapping key, which has no faithful string form.
+
+**Fix**: rename one of the colliding keys, or replace the composite YAML key with a scalar. When
+the file is your source locale, this surfaces wrapped in `SOURCE_INVALID`. See
+[Formats](/docs/formats) for each format's key rules.
+
+## The run stopped short of some keys (token budget)
+
+**Symptom**: a `BUDGET_TOKENS_EXCEEDED` notice: `The run's cumulative token usage (N) reached the
+configured budget of M tokens (behavior: ...)`; with `budgetBehavior: "stop"`, keys also appear
+under `budgetWithheld`.
+
+**Cause**: the configured `maxTokens` ceiling was crossed. With `"warn"` (the default) the run
+continues unchanged; with `"stop"` every key not yet attempted is withheld for the rest of the
+run. The budget never changes the exit code.
+
+**Fix**: this is the guardrail working. Withheld keys keep their baselines and are translated on
+the next run; raise `maxTokens` or switch to `"warn"` if you want single-run completion. A budget
+against DeepL or a dry run reports `supported: false` and never trips, because no token usage
+exists to measure.
+
+## Studio: the port is already in use
+
+**Symptom**: `port 5849 is already in use` (or your `--port` value).
+
+**Cause**: another process, often an earlier Studio instance, is bound to the port. Studio
+defaults to 5849 on 127.0.0.1.
+
+**Fix**: stop the other process, or start Studio on another port: `verbatra studio --port 6000`.
+
+## Studio: @verbatra/studio is not installed
+
+**Symptom**: `Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D
+@verbatra/studio`
+
+**Cause**: `@verbatra/studio` is a separate package the `studio` command loads dynamically, so the
+rest of the CLI works without it.
+
+**Fix**: install it as the hint says, then re-run `verbatra studio`.
+
+## Studio: retranslate and translate actions are missing
+
+**Symptom**: editing translations works, but the retranslate and translate-pending actions do not
+appear.
+
+**Cause**: provider spend is a capability you grant at startup. Without it, the spend-gated
+methods are not registered at all; local file editing is always on and needs no flag.
+
+**Fix**: restart Studio with `verbatra studio --allow-spend`, or set
+`VERBATRA_STUDIO_ALLOW_SPEND=1` (also `true`, `yes`, or `on`). Rapid repeated actions can also hit
+Studio's own throttle, `METHOD_RATE_LIMITED: Too many calls to this method; wait before
+retrying.`; that clears on its own. See [Review in Studio](/docs/review-in-studio).
