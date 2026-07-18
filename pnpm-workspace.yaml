@@ -53,8 +53,10 @@ overrides:
   # Vulnerable <11.1.1; lifts the copy exceljs pulls (uuid 8.3.2) on the published sdk/exchange path.
   uuid@<11.1.1: ">=11.1.1"
   # GHSA-h67p-54hq-rp68: quadratic-complexity DoS in js-yaml merge-key handling (dev-only, via @changesets/cli).
-  # Vulnerable <3.15.0; lifts the v3 copy (3.14.2) to the patched v3 line without forcing the v4 major.
-  js-yaml@<3.15.0: ">=3.15.0"
+  # Vulnerable <3.15.0; lifts the v3 copy (3.14.2) to the patched v3 line (3.15.0). The upper bound is
+  # required: read-yaml-file@1.1.0 (used by changesets) calls the v3-only yaml.safeLoad, so an unbounded
+  # ">=3.15.0" would resolve v4/v5 and break `changeset version`.
+  js-yaml@<3.15.0: ">=3.15.0 <4"
   # GHSA-g7r4-m6w7-qqqr: esbuild dev-server arbitrary file read on Windows (dev-only, via vitest and tsup).
   # Vulnerable >=0.27.3 <0.28.1; lifts the 0.27.7 copy.
   esbuild@<0.28.1: ">=0.28.1"
