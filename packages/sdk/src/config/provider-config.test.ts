@@ -5,7 +5,7 @@ const validOpenAiCompatible = {
   id: "openai-compatible" as const,
   options: {
     baseUrl: "http://192.168.178.74:1234",
-    model: "google/gemma-4-26b-a4b-qat",
+    model: "qwen2.5-14b-instruct",
     maxOutputTokens: 1024,
   },
 };

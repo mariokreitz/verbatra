@@ -114,7 +114,7 @@ provider: {
   id: "openai-compatible",
   options: {
     baseUrl: "http://192.168.178.74:1234/v1",
-    model: "google/gemma-4-26b-a4b-qat", // example: whatever your server exposes
+    model: "qwen2.5-14b-instruct", // example: whatever your server exposes
     maxOutputTokens: 1024,
   },
 }
@@ -155,6 +155,16 @@ verbatra autorise le `http://` en clair vers n'importe quel hôte, y compris une
 
 C'est un vrai risque seulement quand tu configures aussi une clé (via `apiKeyEnvVar` ou `OPENAI_COMPATIBLE_API_KEY`) **et** que `baseUrl` est du `http://` en clair vers un hôte non loopback : cette clé voyage alors sur ton réseau sans chiffrement. Si ton serveur exige une vraie clé et est joignable au-delà de localhost, utilise `https://` pour lui. verbatra ne détecte pas cette combinaison et n'avertit pas à son sujet aujourd'hui ; traite-la comme ta propre responsabilité.
 </Callout>
+
+### Choisir un modèle local
+
+Préfère un modèle ajusté par instructions, sans raisonnement et avec une bonne couverture multilingue. verbatra demande un unique objet JSON strict et le valide, donc tu veux un modèle qui suit de façon fiable les consignes de format. `qwen2.5-14b-instruct` est un choix par défaut raisonnable ; prends le plus grand modèle de ce type que ton matériel exécute bien.
+
+<Callout type="warn" title="Évite les modèles de raisonnement et fortement quantifiés">
+Les modèles de raisonnement (thinking) et les builds fortement quantifiés (qat ou à faible nombre de bits) sont ici les sources d'échec habituelles : ils ont tendance à émettre de la prose de raisonnement autour de la réponse ou à renvoyer du JSON tronqué, et l'un comme l'autre fait échouer les contrôles de schéma et d'intégrité de verbatra. Si un modèle capable de raisonnement est inévitable, donne-lui de la place pour raisonner et répondre : voir [Limites de tokens de sortie](#limites-de-tokens-de-sortie) pour l'ajustement de `maxOutputTokens` et `maxBatchSize`.
+</Callout>
+
+Un mauvais modèle local échoue bruyamment, pas en silence : verbatra valide chaque réponse du fournisseur contre un schéma canonique ainsi que l'intégrité des placeholders et ICU, donc un modèle qui émet de la prose de raisonnement ou du JSON tronqué est rejeté avec une erreur `INVALID_RESPONSE` ou `OUTPUT_TRUNCATED` au lieu d'écrire une traduction corrompue.
 
 ### Analyse tolérante pour les modèles locaux et plus petits
 

@@ -51,7 +51,7 @@ export interface OpenAiCompatibleDeps {
  * // their OpenAI-compatible routes under /v1, the same convention the openai SDK itself expects).
  * const provider = createOpenAiCompatibleProvider({
  *   baseUrl: "http://192.168.178.74:1234/v1",
- *   model: "google/gemma-4-26b-a4b-qat",
+ *   model: "qwen2.5-14b-instruct",
  *   maxOutputTokens: 1024,
  * });
  * const result = await provider.translateBatch(request);

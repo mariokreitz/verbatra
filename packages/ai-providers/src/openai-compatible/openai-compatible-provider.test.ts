@@ -16,7 +16,7 @@ import { createOpenAiCompatibleProvider } from "./openai-compatible-provider.js"
 
 const config = {
   baseUrl: "http://192.168.178.74:1234/v1",
-  model: "google/gemma-4-26b-a4b-qat",
+  model: "qwen2.5-14b-instruct",
   maxOutputTokens: 1024,
 };
 
@@ -53,7 +53,7 @@ describe("createOpenAiCompatibleProvider: request building", () => {
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
-    expect(calls[0]?.model).toBe("google/gemma-4-26b-a4b-qat");
+    expect(calls[0]?.model).toBe("qwen2.5-14b-instruct");
     expect(calls[0]).toMatchObject({ max_tokens: 1024 });
   });
 

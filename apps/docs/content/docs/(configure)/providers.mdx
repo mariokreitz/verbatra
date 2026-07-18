@@ -114,7 +114,7 @@ provider: {
   id: "openai-compatible",
   options: {
     baseUrl: "http://192.168.178.74:1234/v1",
-    model: "google/gemma-4-26b-a4b-qat", // example: whatever your server exposes
+    model: "qwen2.5-14b-instruct", // example: whatever your server exposes
     maxOutputTokens: 1024,
   },
 }
@@ -155,6 +155,16 @@ verbatra allows plaintext `http://` to any host, including a LAN address, with n
 
 It is a real risk only when you also configure a key (via `apiKeyEnvVar` or `OPENAI_COMPATIBLE_API_KEY`) **and** `baseUrl` is plaintext `http://` to a non-loopback host: that key then travels over your network unencrypted. If your server requires a real key and is reachable beyond localhost, use `https://` for it. verbatra does not detect or warn about this combination today; treat it as your own responsibility.
 </Callout>
+
+### Choosing a local model
+
+Prefer an instruction-tuned model without reasoning and with strong multilingual coverage. verbatra asks for a single strict JSON object and validates it, so a model that reliably follows format instructions is what you want. `qwen2.5-14b-instruct` is a reasonable default; pick the largest such model your hardware runs well.
+
+<Callout type="warn" title="Avoid reasoning and heavily quantized models">
+Reasoning ("thinking") models and heavily quantized (qat or low-bit) builds are the usual sources of failure here: they tend to emit reasoning prose around the answer or return truncated JSON, and either one fails verbatra's schema and integrity checks. If a reasoning-capable model is unavoidable, give it room to both think and answer: see [Output-token limits](#output-token-limits) for the `maxOutputTokens` and `maxBatchSize` tuning.
+</Callout>
+
+A bad local model fails loudly, not silently: verbatra validates every provider response against a canonical schema plus placeholder and ICU integrity, so a model that emits reasoning prose or truncated JSON is rejected with an `INVALID_RESPONSE` or `OUTPUT_TRUNCATED` error instead of writing a corrupt translation.
 
 ### Tolerant parsing for local and smaller models
 
