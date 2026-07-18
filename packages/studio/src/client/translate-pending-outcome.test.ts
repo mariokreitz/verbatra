@@ -2,13 +2,20 @@ import { describe, expect, it } from "vitest";
 import type { RpcCallResult } from "./rpc-client.js";
 import { deriveTranslatePendingOutcome } from "./translate-pending-outcome.js";
 
-function ok(overrides: Partial<{ succeeded: readonly string[]; failed: readonly string[] }> = {}) {
+function ok(
+  overrides: Partial<{
+    succeeded: readonly string[];
+    partial: readonly string[];
+    failed: readonly string[];
+  }> = {},
+) {
   return {
     ok: true as const,
     result: {
       dryRun: false,
       locales: [],
       succeeded: overrides.succeeded ?? ["de", "fr"],
+      partial: overrides.partial ?? [],
       failed: overrides.failed ?? [],
     },
   };

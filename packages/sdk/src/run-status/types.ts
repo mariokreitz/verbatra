@@ -2,12 +2,12 @@ import type { NeedsReviewEntry, RunBudget, UsageSummary } from "../flow/summary.
 
 /**
  * One target locale's snapshot inside the persisted run-status file. `status` is carried over from
- * `LocaleSummary.status` unchanged, so an empty `needsReview` on a failed locale is never misread as
- * "this locale ran clean with nothing to review".
+ * `LocaleSummary.status` unchanged, so an empty `needsReview` on a failed or partial locale is never
+ * misread as "this locale ran clean with nothing to review".
  */
 export interface RunStatusLocale {
   readonly locale: string;
-  readonly status: "succeeded" | "failed";
+  readonly status: "succeeded" | "partial" | "failed";
   /** The full, unmodified list from `LocaleSummary.needsReview`; already bounded and content-free. */
   readonly needsReview: readonly NeedsReviewEntry[];
   /** Absent exactly when the source `LocaleSummary.usage` was absent; never a fabricated zero. */

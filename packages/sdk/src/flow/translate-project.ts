@@ -241,7 +241,7 @@ async function runAllLocalesLive(
  *
  * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
  * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
- * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/failed locale lists.
+ * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/partial/failed locale lists.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
  * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw (this wraps the
  *   provider's own error, including a missing `*_API_KEY` reported as `MISSING_API_KEY`); only on a
@@ -308,7 +308,7 @@ export async function translate(
     ? await runAllLocalesDry(context, config.targetLocales)
     : await runAllLocalesLive(context, config.targetLocales);
 
-  const { succeeded, failed } = partition(summaries);
+  const { succeeded, partial, failed } = partition(summaries);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
     (total, summary) => combineUsage(total, summary.usage),
     undefined,
@@ -318,6 +318,7 @@ export async function translate(
     dryRun,
     locales: summaries,
     succeeded,
+    partial,
     failed,
     ...(usage !== undefined ? { usage } : {}),
     ...(budgetSummary !== undefined ? { budget: budgetSummary } : {}),

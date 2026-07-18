@@ -62,8 +62,17 @@ export interface NeedsReviewEntry {
 export interface LocaleSummary {
   /** The target locale this summary is for. */
   readonly locale: string;
-  /** Whether this locale's run succeeded or failed (a failure does not abort the run). */
-  readonly status: "succeeded" | "failed";
+  /**
+   * This locale's honest run status (a non-success does not abort the run). `"succeeded"` when
+   * nothing was withheld, including a genuine no-op with no candidate keys at all. `"partial"` when
+   * at least one key was accepted and written (a {@link LocaleSummary.translated} key or a
+   * {@link LocaleSummary.generated} plural form) but at least one was withheld (any of
+   * {@link LocaleSummary.integrityMismatches}, {@link LocaleSummary.providerFailures}, or
+   * {@link LocaleSummary.budgetWithheld} non-empty). `"failed"` when the locale had candidate keys
+   * but accepted nothing at all (neither translated nor generated) while withholding at least one.
+   * Withheld keys keep their prior lock hash and retry next run.
+   */
+  readonly status: "succeeded" | "partial" | "failed";
   /**
    * Keys translated and written this run. In dry-run, the keys that would be translated
    * (the provider is not called and nothing is written).
@@ -133,9 +142,13 @@ export interface LocaleSummary {
    */
   readonly needsReview: readonly NeedsReviewEntry[];
   /**
-   * Present only when status is "failed": a structured, secret-free error. `code` is a preserved string
-   * (the underlying provider/adapter error's `code`, or `"LOCALE_FAILED"` as a fallback), intentionally
-   * wider than {@link SdkErrorCode}, so do not treat it as a closed set.
+   * A structured, secret-free error for a locale that threw (an adapter/lock/provider-construction
+   * failure isolated as data): present only on a "failed" locale, and only that throw path sets it.
+   * A locale that is "failed" because every candidate key was withheld (all under `providerFailures`,
+   * `integrityMismatches`, or `budgetWithheld`) carries those lists and any notices instead, and has
+   * no `error`. `code` is a preserved string (the underlying provider/adapter error's `code`, or
+   * `"LOCALE_FAILED"` as a fallback), intentionally wider than {@link SdkErrorCode}, so do not treat
+   * it as a closed set.
    */
   readonly error?: { readonly code: string; readonly message: string };
 }
@@ -146,9 +159,15 @@ export interface RunSummary {
   readonly dryRun: boolean;
   /** One {@link LocaleSummary} per target locale, in config order. */
   readonly locales: readonly LocaleSummary[];
-  /** Locales whose run succeeded. */
+  /** Locales whose run succeeded with nothing withheld (status `"succeeded"`). */
   readonly succeeded: readonly string[];
-  /** Locales whose run failed (see each locale's `error`). */
+  /**
+   * Locales that wrote at least one translation but withheld at least one candidate key (status
+   * `"partial"`). A partial locale still exits the CLI `0`: it made progress, and its withheld keys
+   * retry next run. Never overlaps `succeeded` or `failed`.
+   */
+  readonly partial: readonly string[];
+  /** Locales whose run failed, having accepted nothing (status `"failed"`; see each locale's `error`). */
   readonly failed: readonly string[];
   /**
    * Summed token usage across every locale's {@link LocaleSummary.usage}. Absent when no locale in the

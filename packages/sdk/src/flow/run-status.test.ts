@@ -32,6 +32,7 @@ function runSummary(): RunSummary {
       },
     ],
     succeeded: ["de"],
+    partial: [],
     failed: [],
   };
 }

@@ -42,7 +42,7 @@ export function toRenderableError(error: unknown): RenderableError {
 export function renderHuman(summary: RunSummary, command = "translate"): string {
   const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
   const localeLines = summary.locales.map(renderLocaleLine);
-  const aggregate = `${summary.succeeded.length} succeeded, ${summary.failed.length} failed${
+  const aggregate = `${summary.succeeded.length} succeeded, ${summary.partial.length} partial, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
   }`;
   const usageLine = summary.usage !== undefined ? [`  total: ${renderTokens(summary.usage)}`] : [];

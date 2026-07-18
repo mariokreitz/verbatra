@@ -662,9 +662,11 @@ function buildProgram(
  * @param streams - The stdout/stderr sink the CLI writes through.
  * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
  * @returns The process exit code: `0` success (or `--help`/`--version`); `1` `translate`/`import`
- *   finished but some locales failed, or `check`/`diff` found drift/pending changes; `2` could not run
- *   (a whole-run `SdkError`, a CLI usage error, or a commander usage error); `130` `watch` or `studio`
- *   force-stopped by a second interrupt.
+ *   finished but some locales failed (produced nothing), or `check`/`diff` found drift/pending
+ *   changes; `2` could not run (a whole-run `SdkError`, a CLI usage error, or a commander usage
+ *   error); `130` `watch` or `studio` force-stopped by a second interrupt. A `partial` locale (it
+ *   wrote translations but withheld some keys, which retry next run) does not fail the run: it is not
+ *   in `summary.failed`, so it exits `0`.
  * @throws Re-throws a non-`CommanderError` thrown during parsing; commander usage errors are mapped to
  *   an exit code, not thrown.
  */

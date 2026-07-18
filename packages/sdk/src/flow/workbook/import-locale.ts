@@ -7,6 +7,7 @@ import {
 import type { WorkbookRow, WorkbookSheet } from "@verbatra/exchange";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { gateCandidateValue, type IntegrityGateReason } from "../integrity-gate.js";
+import { deriveLocaleStatus } from "../locale-failure.js";
 import type { LocaleSummary, SdkNotice } from "../summary.js";
 
 /** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
@@ -160,15 +161,23 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     .filter((key) => rowKeys.has(key))
     .sort();
 
+  const translated = [...buckets.accepted.keys()].sort();
+  const integrityMismatches = [...buckets.mismatches].sort();
   const summary: LocaleSummary = {
     locale: params.sheet.locale,
-    status: "succeeded",
-    translated: [...buckets.accepted.keys()].sort(),
+    status: deriveLocaleStatus({
+      translated,
+      generated: [],
+      integrityMismatches,
+      providerFailures: [],
+      budgetWithheld: [],
+    }),
+    translated,
     unchanged: diff.unchanged,
     orphaned: diff.orphaned,
     pruned: [],
     invalidIcuSource,
-    integrityMismatches: [...buckets.mismatches].sort(),
+    integrityMismatches,
     providerFailures: [],
     budgetWithheld: [],
     generated: [],

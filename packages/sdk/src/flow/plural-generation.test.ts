@@ -697,7 +697,9 @@ describe("translate: plural generation and the token budget", () => {
     expect([...(locale?.generated ?? [])].sort()).toEqual(["items_two", "items_zero"]);
     expect([...(locale?.budgetWithheld ?? [])].sort()).toEqual(["items_few", "items_many"]);
     expect(locale?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
-    expect(locale?.status).toBe("succeeded");
+    expect(locale?.status).toBe("partial");
+    expect(summary.partial).toEqual(["ar"]);
+    expect(summary.failed).toEqual([]);
   });
 });
 
@@ -711,7 +713,7 @@ describe("translate: a failed plural-generation sub-batch does not discard accep
       { createProvider: () => provider },
     );
 
-    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.locales[0]?.status).toBe("partial");
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual([
       "items_one",
       "items_other",

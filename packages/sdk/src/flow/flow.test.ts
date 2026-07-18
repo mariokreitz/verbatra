@@ -224,7 +224,7 @@ describe("translate: change detection and first run", () => {
 });
 
 describe("translate: per-locale isolation", () => {
-  it("isolates a locale whose only sub-batch throws as succeeded-with-withheld; others are written and locked", async () => {
+  it("marks a locale whose only sub-batch throws as failed-with-withheld data (not a throw); others are written and locked", async () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined, es: undefined });
     const stub = makeStubProvider({ throwForLocales: new Set(["fr"]) });
 
@@ -233,10 +233,10 @@ describe("translate: per-locale isolation", () => {
       { createProvider: () => stub.provider },
     );
 
-    expect([...summary.succeeded].sort()).toEqual(["de", "es", "fr"]);
-    expect(summary.failed).toEqual([]);
+    expect([...summary.succeeded].sort()).toEqual(["de", "es"]);
+    expect(summary.failed).toEqual(["fr"]);
     const fr = summary.locales.find((s) => s.locale === "fr");
-    expect(fr?.status).toBe("succeeded");
+    expect(fr?.status).toBe("failed");
     expect(fr?.translated).toEqual([]);
     expect(fr?.providerFailures).toEqual(["a"]);
     expect(fr?.integrityMismatches).toEqual([]);
@@ -289,7 +289,7 @@ describe("translate: error shapes and orphaned keys", () => {
     ).rejects.toMatchObject({ code: "SOURCE_INVALID" });
   });
 
-  it("withholds the keys of a throwing sub-batch and surfaces a notice instead of failing the locale", async () => {
+  it("withholds the keys of a throwing sub-batch as a failed locale with a notice, not a throw", async () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const coded = Object.assign(new Error("provider blew up"), { code: "PROVIDER_ERROR" });
     const provider: TranslationProvider = {
@@ -304,8 +304,9 @@ describe("translate: error shapes and orphaned keys", () => {
       { config: cfg(), cwd: dir },
       { createProvider: () => provider },
     );
-    expect(summary.succeeded).toEqual(["de"]);
-    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.succeeded).toEqual([]);
+    expect(summary.failed).toEqual(["de"]);
+    expect(summary.locales[0]?.status).toBe("failed");
     expect(summary.locales[0]?.providerFailures).toEqual(["a"]);
     expect(summary.locales[0]?.integrityMismatches).toEqual([]);
     expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");

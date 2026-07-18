@@ -172,7 +172,7 @@ describe("render: human run summary", () => {
     });
     const text = renderHuman(summary);
     expect(text).toContain("de: 2 translated, 1 unchanged");
-    expect(text).toContain("1 succeeded, 0 failed");
+    expect(text).toContain("1 succeeded, 0 partial, 0 failed");
     expect(text).not.toContain("dry run");
   });
 

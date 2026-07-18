@@ -50,7 +50,13 @@ function runHarness() {
   let active = 0;
   let maxActive = 0;
   const inputs: TranslateInput[] = [];
-  const summary: RunSummary = { dryRun: false, locales: [], succeeded: [], failed: [] };
+  const summary: RunSummary = {
+    dryRun: false,
+    locales: [],
+    succeeded: [],
+    partial: [],
+    failed: [],
+  };
   let blocker: Promise<void> | undefined;
   let releaseFn: (() => void) | undefined;
   let nextThrow: unknown;

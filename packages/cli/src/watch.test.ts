@@ -84,7 +84,7 @@ describe("run watch: wiring and rendering", () => {
     const { done, session } = await startWatch(["watch"], deps, cap.streams);
 
     h.fire({ status: "succeeded", summary: makeSummary({ succeeded: ["de"] }) });
-    expect(cap.out()).toContain("1 succeeded, 0 failed");
+    expect(cap.out()).toContain("1 succeeded, 0 partial, 0 failed");
 
     session.requestStop();
     h.finishStop();

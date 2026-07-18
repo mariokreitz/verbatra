@@ -1,9 +1,10 @@
-import type {
-  ReviewFlag,
-  Tone,
-  TranslateRequest,
-  TranslateResult,
-  TranslationProvider,
+import {
+  ProviderError,
+  type ReviewFlag,
+  type Tone,
+  type TranslateRequest,
+  type TranslateResult,
+  type TranslationProvider,
 } from "@verbatra/ai-providers";
 import {
   contentHash,
@@ -23,6 +24,7 @@ import {
   foldTrackerUsage,
 } from "./budget.js";
 import { gateCandidateValue } from "./integrity-gate.js";
+import { deriveLocaleStatus } from "./locale-failure.js";
 import { readNotices } from "./notices.js";
 import {
   detectMissingPluralCategories,
@@ -324,7 +326,7 @@ interface SummaryParts {
 function baseSummary(parts: SummaryParts): LocaleSummary {
   return {
     locale: parts.locale,
-    status: "succeeded",
+    status: deriveLocaleStatus(parts),
     translated: parts.translated,
     unchanged: parts.unchanged,
     orphaned: parts.orphaned,
@@ -420,7 +422,8 @@ interface SubBatchResult {
  * carrying the failure's code and message is returned. The same `providerFailures` bucket also
  * collects a key the provider call returned no value for at all: a key still absent from
  * `result.values` here means nothing was ever translated for it, exactly like a thrown call, and
- * not a placeholder mismatch.
+ * not a placeholder mismatch. An `OUTPUT_TRUNCATED` failure is the one exception: rather than
+ * withhold the whole batch, {@link handleSubBatchFailure} re-splits it and retries the halves.
  */
 async function runSubBatch(
   provider: TranslationProvider,
@@ -435,10 +438,16 @@ async function runSubBatch(
   try {
     result = await provider.translateBatch(buildRequest(params, batch));
   } catch (error) {
-    for (const entry of batch) {
-      providerFailures.push(entry.key);
-    }
-    return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
+    return handleSubBatchFailure(
+      error,
+      provider,
+      params,
+      batch,
+      accepted,
+      integrityMismatches,
+      providerFailures,
+      reviewFlags,
+    );
   }
   for (const entry of batch) {
     foldEntryResult(entry, result, params.adapter, accepted, integrityMismatches, providerFailures);
@@ -449,6 +458,80 @@ async function runSubBatch(
     }
   }
   return { notices: readNotices(result), usage: result.usage };
+}
+
+/** True only for a genuine {@link ProviderError} whose code is `OUTPUT_TRUNCATED`. */
+function isOutputTruncated(error: unknown): boolean {
+  return error instanceof ProviderError && error.code === "OUTPUT_TRUNCATED";
+}
+
+/**
+ * Handles a thrown sub-batch call. Only an `OUTPUT_TRUNCATED` error on a multi-entry batch (a
+ * response whose hidden reasoning or content tokens exhausted the output budget) is recoverable:
+ * {@link retryTruncatedSplit} re-splits the batch into halves and retries each on its own, down
+ * toward a single entry, so keys that fit a smaller request are still translated and retained in
+ * `accepted`. Every other thrown value (a revoked key, a rate limit, an auth failure), and a
+ * single-entry batch that still truncates, withholds the whole batch under `providerFailures` with
+ * a secret-free notice; those keys retry next run.
+ */
+async function handleSubBatchFailure(
+  error: unknown,
+  provider: TranslationProvider,
+  params: LocaleRunParams,
+  batch: readonly TranslationEntry[],
+  accepted: Map<string, Accepted>,
+  integrityMismatches: string[],
+  providerFailures: string[],
+  reviewFlags: Map<string, ReviewFlag>,
+): Promise<SubBatchResult> {
+  if (isOutputTruncated(error) && batch.length > 1) {
+    return retryTruncatedSplit(
+      provider,
+      params,
+      batch,
+      accepted,
+      integrityMismatches,
+      providerFailures,
+      reviewFlags,
+    );
+  }
+  for (const entry of batch) {
+    providerFailures.push(entry.key);
+  }
+  return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
+}
+
+/**
+ * Re-splits a truncated sub-batch into two halves (reusing {@link chunk}) and runs each through
+ * {@link runSubBatch} on its own, combining their notices and usage. Recursion is bounded: each
+ * half is strictly smaller than the batch, and a single entry that still truncates is recorded as a
+ * `providerFailure` by {@link handleSubBatchFailure} rather than split again.
+ */
+async function retryTruncatedSplit(
+  provider: TranslationProvider,
+  params: LocaleRunParams,
+  batch: readonly TranslationEntry[],
+  accepted: Map<string, Accepted>,
+  integrityMismatches: string[],
+  providerFailures: string[],
+  reviewFlags: Map<string, ReviewFlag>,
+): Promise<SubBatchResult> {
+  const notices: LocaleNotice[] = [];
+  let usage: TranslateResult["usage"];
+  for (const half of chunk(batch, Math.ceil(batch.length / 2))) {
+    const sub = await runSubBatch(
+      provider,
+      params,
+      half,
+      accepted,
+      integrityMismatches,
+      providerFailures,
+      reviewFlags,
+    );
+    notices.push(...sub.notices);
+    usage = combineUsage(usage, sub.usage);
+  }
+  return { notices, usage };
 }
 
 /**

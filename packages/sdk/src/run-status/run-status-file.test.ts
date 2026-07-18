@@ -35,6 +35,7 @@ function runSummary(overrides: Partial<RunSummary> = {}): RunSummary {
     dryRun: false,
     locales: [succeededLocale()],
     succeeded: ["de"],
+    partial: [],
     failed: [],
     ...overrides,
   };

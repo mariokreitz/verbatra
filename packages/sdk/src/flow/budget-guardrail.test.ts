@@ -215,17 +215,19 @@ describe("translate: budget crossed, stop behavior", () => {
     const de = summary.locales.find((l) => l.locale === "de");
     const fr = summary.locales.find((l) => l.locale === "fr");
 
-    expect(de?.status).toBe("succeeded");
+    expect(de?.status).toBe("partial");
     expect([...(de?.translated ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3"]);
     expect(de?.budgetWithheld).toEqual(["k4", "k5"]);
     expect(de?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
 
-    expect(fr?.status).toBe("succeeded");
+    expect(fr?.status).toBe("failed");
     expect(fr?.translated).toEqual([]);
     expect([...(fr?.budgetWithheld ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3", "k4", "k5"]);
     expect(fr?.notices.map((n) => n.code)).toContain("BUDGET_TOKENS_EXCEEDED");
 
-    expect(summary.failed).toEqual([]);
+    expect(summary.succeeded).toEqual([]);
+    expect(summary.partial).toEqual(["de"]);
+    expect(summary.failed).toEqual(["fr"]);
 
     expect(summary.budget).toEqual({
       maxTokens: 150,

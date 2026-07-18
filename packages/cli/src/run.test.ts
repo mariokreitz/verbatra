@@ -160,6 +160,26 @@ describe("run translate: exit codes", () => {
     expect(await run(["translate"], deps, captureStreams().streams)).toBe(1);
   });
 
+  it("an all-withheld locale (status failed, no error) -> 1", async () => {
+    const summary = makeSummary({
+      locales: [makeLocale({ status: "failed", providerFailures: ["greeting"] })],
+      failed: ["de"],
+    });
+    const { deps } = recordingDeps({ translate: async () => summary });
+    expect(await run(["translate"], deps, captureStreams().streams)).toBe(1);
+  });
+
+  it("a partial locale (wrote some, withheld some) -> 0", async () => {
+    const summary = makeSummary({
+      locales: [
+        makeLocale({ status: "partial", translated: ["greeting"], providerFailures: ["farewell"] }),
+      ],
+      partial: ["de"],
+    });
+    const { deps } = recordingDeps({ translate: async () => summary });
+    expect(await run(["translate"], deps, captureStreams().streams)).toBe(0);
+  });
+
   it("a whole-run SdkError -> 2, structured error on stderr, stdout empty", async () => {
     const { deps } = recordingDeps({
       translate: async () => {
