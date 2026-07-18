@@ -205,7 +205,11 @@ Les quatre fournisseurs LLM plafonnent le nombre de tokens qu'une seule réponse
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Chacun des deux leviers le résout : baisse `maxBatchSize` dans ta configuration pour que chaque requête produise une réponse plus petite, ou augmente le plafond par réponse du fournisseur (`maxTokens` pour Anthropic, `maxOutputTokens` pour OpenAI, Gemini et openai-compatible). DeepL n'est pas concerné : il n'a pas de cas de troncature de tokens de sortie.
+Chacun des deux leviers le résout : baisse `maxBatchSize` dans ta configuration pour que chaque requête produise une réponse plus petite, ou augmente le plafond par réponse du fournisseur (`maxTokens` pour Anthropic, `maxOutputTokens` pour OpenAI, Gemini et openai-compatible). DeepL n'est pas concerné : il n'a pas de cas de troncature de tokens de sortie. verbatra se rétablit aussi de lui-même : quand un sous-lot est tronqué, il le redivise en moitiés et réessaie, en descendant jusqu'à une seule entrée, de sorte que les clés qui tiennent dans une requête plus petite sont quand même traduites et que seule une entrée isolée qui déborde encore est retenue pour la prochaine exécution.
+
+<Callout title="Les modèles de raisonnement puisent dans le même budget">
+Un modèle de raisonnement (thinking) puise ses tokens de raisonnement cachés dans le même budget de tokens de sortie que celui qu'il utilise pour émettre les traductions JSON. Il peut épuiser ce budget rien qu'en raisonnant et s'arrêter avant d'écrire la moindre sortie, ce qui se manifeste par `OUTPUT_TRUNCATED`. Si tu utilises un modèle de raisonnement, donne-lui de la marge : préfère un `maxOutputTokens` plus élevé (`maxTokens` pour Anthropic) ou un `maxBatchSize` plus petit pour que chaque requête ait de la place à la fois pour le raisonnement et pour la réponse.
+</Callout>
 
 ### Signalements de révision
 
