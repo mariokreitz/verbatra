@@ -51,19 +51,22 @@ export interface LlmCompletionInput {
  *   user-turn data, never spliced into the instruction channel.
  * - Constrain the SDK via {@link deriveJsonSchema} over `translationsResultSchema` so the model constraint
  *   and the shared validation cannot drift.
- * - Read the key only from the environment, and wrap the SDK call with the guard so a raw SDK throw becomes
- *   a secret-free `PROVIDER_ERROR` and never leaks a key or headers.
+ * - Read the key only from the environment, and wrap the SDK call with `withRequestTimeout` (which guards
+ *   the call so a raw SDK throw becomes a secret-free `PROVIDER_ERROR`, and bounds it with the configured
+ *   per-request timeout) threading `input.signal` through, so a hung request can never leak a key or
+ *   hold the caller's lock open forever.
  *
  * @example
  * ```ts
- * function createMyLlmMechanism(client: MySdk): LlmMechanism {
+ * function createMyLlmMechanism(client: MySdk, timeoutMs: number): LlmMechanism {
  *   return {
- *     async translate({ payloadJson, requestedKeys }) {
- *       const response = await guardProviderCall(() =>
+ *     async translate({ payloadJson, requestedKeys, signal }) {
+ *       const response = await withRequestTimeout(timeoutMs, signal, (requestSignal) =>
  *         client.complete({
- *           system: SYSTEM_RULES, // compile-time constant instruction channel
- *           user: payloadJson, // untrusted data channel only
- *           responseSchema: deriveJsonSchema(translationsResultSchema), // single source of truth
+ *           system: SYSTEM_RULES,
+ *           user: payloadJson,
+ *           responseSchema: deriveJsonSchema(translationsResultSchema),
+ *           signal: requestSignal,
  *         }),
  *       );
  *       return { raw: extractJson(response, requestedKeys), usage: toUsage(response) };
@@ -78,8 +81,9 @@ export interface LlmMechanism {
    *
    * @param input - The serialized data payload and the keys the model must return.
    * @returns The model's raw per-key output (validated downstream) plus optional usage.
-   * @throws {@link ProviderError} (secret-free): `PROVIDER_ERROR` for an unbound SDK throw (via the guard),
-   *   and the provider's own code for a refusal, block, or truncation (`PROVIDER_REFUSED` on OpenAI,
+   * @throws {@link ProviderError} (secret-free): `PROVIDER_ERROR` for an unbound SDK throw and `TIMEOUT`
+   *   when the request exceeds the configured per-request bound (both via `withRequestTimeout`), and the
+   *   provider's own code for a refusal, block, or truncation (`PROVIDER_REFUSED` on OpenAI,
    *   `PROVIDER_BLOCKED` on Gemini, `OUTPUT_TRUNCATED` on an output-token truncation, `INVALID_RESPONSE`
    *   for unparseable output).
    */

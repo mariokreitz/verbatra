@@ -1,6 +1,6 @@
-import { guardProviderCall } from "../guard.js";
 import { type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider } from "../provider.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { createDefaultClient } from "./client.js";
 import { type OpenAiConfig, openAiConfigSchema } from "./config.js";
 import { buildOpenAiRequest, type OpenAiRequest } from "./request.js";
@@ -52,24 +52,28 @@ export function createOpenAiProvider(
 }
 
 function createMechanism(client: OpenAiClient, config: OpenAiConfig): LlmMechanism {
+  const timeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   return {
     translate: async ({ payloadJson, signal }): Promise<ReturnType<typeof extractOpenAiResult>> => {
       const body = buildOpenAiRequest(config, payloadJson);
-      const completion = await callClient(client, body, signal);
+      const completion = await callClient(client, body, timeoutMs, signal);
       return extractOpenAiResult(completion);
     },
   };
 }
 
-/** Call the provider through the shared guard so a raw SDK error never leaks; threads the signal
- * into both the guard's abort handling and the SDK call itself. */
+/**
+ * Call the provider through {@link withRequestTimeout} so the request is bounded by the configured
+ * timeout, a raw SDK error never leaks, and the composed (caller plus timeout) signal is threaded
+ * into the SDK call so a timeout really cancels it.
+ */
 function callClient(
   client: OpenAiClient,
   body: OpenAiRequest,
+  timeoutMs: number,
   signal: AbortSignal | undefined,
 ): Promise<OpenAiCompletion> {
-  return guardProviderCall(
-    () => client.chat.completions.create(body, signal !== undefined ? { signal } : undefined),
-    signal,
+  return withRequestTimeout(timeoutMs, signal, (requestSignal) =>
+    client.chat.completions.create(body, { signal: requestSignal }),
   );
 }
