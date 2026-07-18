@@ -76,6 +76,7 @@ overrides:
   uuid@<11.1.1: '>=11.1.1'
   js-yaml@<3.15.0: '>=3.15.0'
   esbuild@<0.28.1: '>=0.28.1'
+  adm-zip@<0.6.0: '>=0.6.0'
 
 importers:
 
@@ -2368,9 +2369,9 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  adm-zip@0.5.17:
-    resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
-    engines: {node: '>=12.0'}
+  adm-zip@0.6.0:
+    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
+    engines: {node: '>=14.0'}
 
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
@@ -6286,7 +6287,7 @@ snapshots:
 
   acorn@8.17.0: {}
 
-  adm-zip@0.5.17: {}
+  adm-zip@0.6.0: {}
 
   agent-base@6.0.2:
     dependencies:
@@ -6593,7 +6594,7 @@ snapshots:
   deepl-node@1.27.0:
     dependencies:
       '@types/node': 26.0.0
-      adm-zip: 0.5.17
+      adm-zip: 0.6.0
       axios: 1.17.0
       form-data: 3.0.5
       loglevel: 1.9.2
