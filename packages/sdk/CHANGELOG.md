@@ -1,5 +1,17 @@
 # @verbatra/sdk
 
+## 0.6.1
+
+### Patch Changes
+
+- 67f1768: Withhold degenerate machine translations at the write-path integrity gate. Output that is structurally corrupt (a repetition loop or runaway-length text) but carries no placeholders previously passed the placeholder and ICU checks and was written to disk. Such values are now detected and withheld as an integrity mismatch, so they are retried on the next run and never overwrite an existing good value. Studio surfaces the new rejection reason in its review actions.
+- a90bc7e: Report a locale honestly when its keys are withheld, and retry truncated batches. A run that withheld every key for a locale previously reported it as succeeded and exited 0, so a run that produced nothing looked like a clean success in CI. Such a locale is now reported as failed and the command exits non-zero. A locale that translated some keys but withheld others is reported as partial and still exits 0, because withheld keys keep their prior state and are retried next run. The run summary gains a partial list alongside succeeded and failed. This exit-code change applies to both translate and import.
+
+  On an OUTPUT_TRUNCATED provider error (common with reasoning models whose reasoning tokens consume the output budget), the failing sub-batch is now automatically re-split toward a single entry and retried before any key is withheld.
+
+- 720716c: Make a contended write-lock wait visible instead of silent. When a locale's write lock is held by another run, or was left behind by a killed process, translate and watch now report that they are waiting, naming the lock file and, when it can be read, the holding process id and how long it has been held, so a blocked run no longer looks hung. A new `--lock-timeout` flag adjusts how long to wait before giving up. Lock acquisition is otherwise unchanged.
+- adc9536: Bound every provider request with an abortable timeout so a hung-but-alive endpoint can no longer stall a run indefinitely. A stuck request previously held the per-locale write lock forever, blocking every later run for that locale. Requests now abort after a default of two minutes and surface a retriable timeout error, releasing the lock. Each provider accepts an optional `requestTimeoutMs` to tune the bound.
+
 ## 0.6.0
 
 ## 0.5.0

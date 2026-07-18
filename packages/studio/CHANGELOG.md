@@ -1,5 +1,17 @@
 # @verbatra/studio
 
+## 0.2.1
+
+### Patch Changes
+
+- 67f1768: Withhold degenerate machine translations at the write-path integrity gate. Output that is structurally corrupt (a repetition loop or runaway-length text) but carries no placeholders previously passed the placeholder and ICU checks and was written to disk. Such values are now detected and withheld as an integrity mismatch, so they are retried on the next run and never overwrite an existing good value. Studio surfaces the new rejection reason in its review actions.
+- 002248b: Show withheld keys after a translate-pending run instead of a blanket success. When a run keeps some translations but withholds others, Studio now reports how many keys were withheld and for which locales, rather than displaying "Translated".
+- Updated dependencies [67f1768]
+- Updated dependencies [a90bc7e]
+- Updated dependencies [720716c]
+- Updated dependencies [adc9536]
+  - @verbatra/sdk@0.6.1
+
 ## 0.2.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @verbatra/cli
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [67f1768]
+- Updated dependencies [a90bc7e]
+- Updated dependencies [720716c]
+- Updated dependencies [adc9536]
+  - @verbatra/sdk@0.6.1
+
 ## 0.6.0
 
 ### Minor Changes
