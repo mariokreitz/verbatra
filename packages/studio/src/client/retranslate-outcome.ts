@@ -1,9 +1,10 @@
+import type { IntegrityGateReason } from "@verbatra/sdk";
 import type { RpcCallResult } from "./rpc-client.js";
 
 /** The three outcomes a `translation.retranslateEntry` call can settle to, ready to render. */
 export type RetranslateOutcome =
   | { readonly kind: "success" }
-  | { readonly kind: "rejected"; readonly reason: "placeholder" | "icu" }
+  | { readonly kind: "rejected"; readonly reason: IntegrityGateReason }
   | { readonly kind: "error"; readonly message: string };
 
 /**

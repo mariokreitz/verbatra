@@ -287,6 +287,27 @@ describe("runLocale: withholding", () => {
     expect(summary.integrityMismatches).toEqual(["a"]);
     expect(lockEntries.a).toBe("stale-hash");
   });
+
+  it("withholds a degenerate provider value, keeps the prior good value on disk, and carries its lock hash", async () => {
+    const { dir, sourceResource } = await setup(
+      { greeting: "Something went wrong here", farewell: "See you soon everyone" },
+      { greeting: "[de] known good greeting" },
+    );
+    const degenerate = `//* ${"error: ".repeat(24)}[]`;
+    const provider = makeIntegrityProvider((value, key) =>
+      key === "greeting" ? degenerate : `[de] ${value}`,
+    );
+    const baseline = new Map([["greeting", "stale-hash"]]);
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider, baseline });
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.integrityMismatches).toEqual(["greeting"]);
+    expect(summary.translated).toEqual(["farewell"]);
+    const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect(de.greeting).toBe("[de] known good greeting");
+    expect(lockEntries.greeting).toBe("stale-hash");
+  });
 });
 
 describe("runLocale: reordered placeholders", () => {

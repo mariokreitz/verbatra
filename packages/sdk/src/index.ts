@@ -72,6 +72,7 @@ export {
   type EditEntryResult,
   editEntry,
 } from "./flow/edit-entry.js";
+export type { IntegrityGateReason } from "./flow/integrity-gate.js";
 export {
   type KeyIntegrityDeps,
   type KeyIntegrityEntry,

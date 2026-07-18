@@ -1,3 +1,4 @@
+import type { IntegrityGateReason } from "@verbatra/sdk";
 import type { RpcCallResult } from "./rpc-client.js";
 
 /**
@@ -8,7 +9,7 @@ import type { RpcCallResult } from "./rpc-client.js";
  */
 export type EditEntryOutcome =
   | { readonly kind: "success" }
-  | { readonly kind: "rejected"; readonly reason: "placeholder" | "icu" }
+  | { readonly kind: "rejected"; readonly reason: IntegrityGateReason }
   | { readonly kind: "error"; readonly message: string };
 
 /**

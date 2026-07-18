@@ -14,7 +14,7 @@ import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { type CreateProvider, selectProvider } from "../selection/select-provider.js";
 import { readTarget } from "./diff-locales.js";
-import { gateCandidateValue } from "./integrity-gate.js";
+import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
@@ -50,7 +50,7 @@ export type RetranslateEntryResult =
     }
   | {
       readonly accepted: false;
-      readonly reason: "placeholder" | "icu";
+      readonly reason: IntegrityGateReason;
       readonly value: string;
     };
 

@@ -36,6 +36,12 @@ describe("gateCandidateValue: placeholder-only formats", () => {
     const result = gateCandidateValue(entry("Hello", []), "anything { unbalanced", adapter);
     expect(result).toEqual({ accepted: true });
   });
+
+  it("rejects a placeholder-free, ICU-valid candidate that is a degenerate repetition loop", () => {
+    const candidate = `//* ${"error: ".repeat(24)}[]`;
+    const result = gateCandidateValue(entry("Something went wrong.", []), candidate, adapter);
+    expect(result).toEqual({ accepted: false, reason: "degenerate" });
+  });
 });
 
 describe("gateCandidateValue: ICU-capable formats (branch-aware comparePlaceholders + validateMessage)", () => {

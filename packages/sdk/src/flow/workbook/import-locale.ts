@@ -6,7 +6,7 @@ import {
 } from "@verbatra/core";
 import type { WorkbookRow, WorkbookSheet } from "@verbatra/exchange";
 import type { FormatAdapter } from "@verbatra/format-adapters";
-import { gateCandidateValue } from "../integrity-gate.js";
+import { gateCandidateValue, type IntegrityGateReason } from "../integrity-gate.js";
 import type { LocaleSummary, SdkNotice } from "../summary.js";
 
 /** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
@@ -52,13 +52,14 @@ function isUnknownKey(row: WorkbookRow, source: LocaleResource, target: LocaleRe
   return !source.entries.has(row.key) && !target.entries.has(row.key);
 }
 
-type Reason = "drift" | "placeholder" | "icu";
+type Reason = "drift" | IntegrityGateReason;
 
 /**
  * Judge one filled row against the live source. Returns `undefined` to accept, or the first failing
  * reason: `"drift"` when the row's export-time source hash no longer matches the current source
  * (the source changed since export, an import-specific check with no equivalent in a provider-sourced
- * translation), or the shared {@link gateCandidateValue}'s `"placeholder"`/`"icu"` reason.
+ * translation), or the shared {@link gateCandidateValue}'s `"placeholder"`, `"icu"`, or
+ * `"degenerate"` reason.
  */
 function judge(
   row: WorkbookRow,
