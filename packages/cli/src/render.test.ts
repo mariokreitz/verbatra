@@ -1,4 +1,4 @@
-import type { WatchRunResult } from "@verbatra/sdk";
+import type { LockWaitEvent, WatchRunResult } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import {
   renderCheckHuman,
@@ -10,6 +10,9 @@ import {
   renderExportJson,
   renderHuman,
   renderJson,
+  renderLockWait,
+  renderLockWaitHuman,
+  renderLockWaitJson,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -365,6 +368,57 @@ describe("render: json and errors", () => {
     expect(toRenderableError(coded)).toEqual({ code: "SOURCE_UNREADABLE", message: "m" });
     expect(toRenderableError(new Error("plain"))).toEqual({ code: "CLI_ERROR", message: "plain" });
     expect(toRenderableError("weird")).toEqual({ code: "CLI_ERROR", message: "weird" });
+  });
+});
+
+describe("render: lock-wait progress", () => {
+  it("human line names the path, holder pid and time, waited seconds, and the delete hint", () => {
+    const event: LockWaitEvent = {
+      lockPath: "/proj/.verbatra-local/locks/de.lock",
+      elapsedMs: 2_400,
+      holder: { pid: 4321, acquiredAt: "2026-07-18T00:00:00.000Z" },
+    };
+    const line = renderLockWaitHuman(event);
+    expect(line).toContain("/proj/.verbatra-local/locks/de.lock");
+    expect(line).toContain("held by pid 4321 since 2026-07-18T00:00:00.000Z");
+    expect(line).toContain("waited 2s");
+    expect(line).toContain("can be deleted");
+  });
+
+  it("human line omits the held-by clause when no holder is known", () => {
+    const line = renderLockWaitHuman({ lockPath: "/x/de.lock", elapsedMs: 0 });
+    expect(line).not.toContain("held");
+    expect(line).toContain("/x/de.lock");
+  });
+
+  it("human line shows only the pid, or only the time, when the holder is partial", () => {
+    const pidOnly = renderLockWaitHuman({
+      lockPath: "/x/de.lock",
+      elapsedMs: 0,
+      holder: { pid: 7 },
+    });
+    expect(pidOnly).toContain("held by pid 7)");
+    const timeOnly = renderLockWaitHuman({
+      lockPath: "/x/de.lock",
+      elapsedMs: 0,
+      holder: { acquiredAt: "2026-07-18T00:00:00.000Z" },
+    });
+    expect(timeOnly).toContain("held since 2026-07-18T00:00:00.000Z)");
+  });
+
+  it("json record is a single object tagged lock-wait carrying the event fields", () => {
+    const event: LockWaitEvent = {
+      lockPath: "/x/de.lock",
+      elapsedMs: 1_000,
+      holder: { pid: 9 },
+    };
+    expect(JSON.parse(renderLockWaitJson(event))).toEqual({ type: "lock-wait", ...event });
+  });
+
+  it("renderLockWait dispatches to JSON under json mode and to the human line otherwise", () => {
+    const event: LockWaitEvent = { lockPath: "/x/de.lock", elapsedMs: 0 };
+    expect(JSON.parse(renderLockWait(event, true))).toMatchObject({ type: "lock-wait" });
+    expect(renderLockWait(event, false)).toContain("waiting for the write lock");
   });
 });
 

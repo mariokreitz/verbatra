@@ -4,6 +4,7 @@ import { SdkError } from "../errors.js";
 import type { RunSummary } from "../flow/summary.js";
 import type { TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import type { LockWaitListener } from "../lock/locale-write-lock.js";
 import { localeFilePath } from "../paths.js";
 import type { CreateProvider } from "../selection/select-provider.js";
 import { defaultCreateWatcher, defaultRunTranslate } from "./wiring.js";
@@ -46,6 +47,14 @@ export interface WatchInput {
   readonly debounceMs?: number;
   /** Called once per run with its result. The SDK does no logging; this is the only output. */
   readonly onRun: (result: WatchRunResult) => void;
+  /**
+   * Passed through to every run's {@link TranslateInput.onLockWait}: called while a locale's write lock
+   * is blocked on another process, so a watch caller can surface the same "still waiting" progress a
+   * one-shot run does.
+   */
+  readonly onLockWait?: LockWaitListener;
+  /** Passed through to every run's {@link TranslateInput.lockAcquireTimeoutMs}; the lock's 10-minute default when unset. */
+  readonly lockAcquireTimeoutMs?: number;
 }
 
 /** Composition seam: inject the watcher and the run for deterministic, offline tests. */
@@ -126,7 +135,14 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   }
 
   const runTranslate = deps.runTranslate ?? defaultRunTranslate(deps);
-  const runInput: TranslateInput = { config: input.config, cwd };
+  const runInput: TranslateInput = {
+    config: input.config,
+    cwd,
+    ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
+    ...(input.lockAcquireTimeoutMs !== undefined
+      ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
+      : {}),
+  };
 
   let state: "idle" | "running" = "idle";
   let pending = false;

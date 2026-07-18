@@ -147,6 +147,11 @@ export {
   type LoadLockFileInput,
   loadLockFile,
 } from "./lock/load-lock-file.js";
+export type {
+  LockHolder,
+  LockWaitEvent,
+  LockWaitListener,
+} from "./lock/locale-write-lock.js";
 export { LOCK_FILE_NAME } from "./lock/lock-file.js";
 export type { LockFile } from "./lock/types.js";
 export type { RunStatusFile, RunStatusLocale } from "./run-status/types.js";

@@ -7,7 +7,11 @@ import {
 } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
-import { withLocaleWriteLock } from "../lock/locale-write-lock.js";
+import {
+  type LocaleWriteLockOptions,
+  type LockWaitListener,
+  withLocaleWriteLock,
+} from "../lock/locale-write-lock.js";
 import {
   baselineFor,
   lockFilePath,
@@ -51,6 +55,19 @@ export interface TranslateInput {
    * unset, the config's `generatePlurals` applies.
    */
   readonly generatePlurals?: boolean;
+  /**
+   * Called while a locale's write lock is blocked on another process holding it: once after the first
+   * failed acquire (with the holder's pid/acquiredAt when the lock file is readable), then periodically
+   * with the growing elapsed time. Never called for an uncontended run. The SDK writes no output; this
+   * is the only wait-progress signal (the CLI renders its "still waiting" line from it).
+   */
+  readonly onLockWait?: LockWaitListener;
+  /**
+   * Override how long a locale's write lock keeps retrying before failing with `LOCK_CONTENDED`, in
+   * milliseconds. Defaults to the lock's own 10-minute default when unset (surfaced to the CLI as
+   * `--lock-timeout`).
+   */
+  readonly lockAcquireTimeoutMs?: number;
 }
 
 /** Composition seam: inject a registry, a provider builder, and a file system for tests. */
@@ -97,6 +114,8 @@ interface LocaleRunContext {
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
   readonly budget: BudgetTracker;
+  readonly onLockWait?: LockWaitListener;
+  readonly lockAcquireTimeoutMs?: number;
 }
 
 function buildLocaleRunParams(
@@ -154,16 +173,28 @@ async function runLiveLocale(
   context: LocaleRunContext,
   targetLocale: string,
 ): Promise<LocaleSummary> {
-  return withLocaleWriteLock(context.cwd, targetLocale, context.fs, async () => {
-    const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
-    const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
-    const result = await runLocale(params);
-    await updateLockFileLocale(context.cwd, context.fs, targetLocale, {
-      mode: "replace",
-      entries: result.lockEntries,
-    });
-    return result.summary;
-  });
+  const lockOptions: LocaleWriteLockOptions = {
+    ...(context.onLockWait !== undefined ? { onWait: context.onLockWait } : {}),
+    ...(context.lockAcquireTimeoutMs !== undefined
+      ? { acquireTimeoutMs: context.lockAcquireTimeoutMs }
+      : {}),
+  };
+  return withLocaleWriteLock(
+    context.cwd,
+    targetLocale,
+    context.fs,
+    async () => {
+      const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
+      const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
+      const result = await runLocale(params);
+      await updateLockFileLocale(context.cwd, context.fs, targetLocale, {
+        mode: "replace",
+        entries: result.lockEntries,
+      });
+      return result.summary;
+    },
+    lockOptions,
+  );
 }
 
 /**
@@ -302,6 +333,10 @@ export async function translate(
     maxBatchSize,
     fs,
     budget,
+    ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
+    ...(input.lockAcquireTimeoutMs !== undefined
+      ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
+      : {}),
   };
 
   const summaries = dryRun

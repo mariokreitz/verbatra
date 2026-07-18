@@ -1,6 +1,7 @@
 import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
 import {
   renderError,
+  renderLockWait,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -15,6 +16,8 @@ export interface WatchOptions {
   readonly cwd: string;
   /** Debounce window in milliseconds; defaults to the SDK's 300ms. */
   readonly debounceMs?: number;
+  /** Write-lock acquire timeout in milliseconds; defaults to the SDK's 10-minute default. */
+  readonly lockAcquireTimeoutMs?: number;
   /** When true, emit NDJSON records; otherwise human-readable output. */
   readonly json: boolean;
 }
@@ -65,7 +68,13 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     config: options.config,
     onRun,
     cwd: options.cwd,
+    onLockWait: (event) => {
+      streams.err(`${renderLockWait(event, options.json)}\n`);
+    },
     ...(options.debounceMs !== undefined ? { debounceMs: options.debounceMs } : {}),
+    ...(options.lockAcquireTimeoutMs !== undefined
+      ? { lockAcquireTimeoutMs: options.lockAcquireTimeoutMs }
+      : {}),
   };
 
   deps

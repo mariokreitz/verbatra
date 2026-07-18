@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SdkError, type WatchController } from "@verbatra/sdk";
+import { type LockWaitEvent, SdkError, type WatchController } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run, runTranslate } from "./run.js";
 import {
@@ -32,7 +32,9 @@ describe("run translate: SDK delegation and rendering", () => {
 
     expect(code).toBe(0);
     expect(calls.translate).toHaveLength(1);
-    expect(calls.translate[0]).toEqual({ config: cfg, cwd: process.cwd() });
+    expect(calls.translate[0]).toMatchObject({ config: cfg, cwd: process.cwd() });
+    expect(typeof calls.translate[0]?.onLockWait).toBe("function");
+    expect(calls.translate[0]).not.toHaveProperty("lockAcquireTimeoutMs");
     expect(cap.out()).toContain("de: 1 translated");
     expect(cap.err()).toBe("");
   });
@@ -142,6 +144,84 @@ describe("run translate: SDK delegation and rendering", () => {
 
     expect(code).toBe(0);
     expect(JSON.parse(cap.out().trim())).toEqual(summary);
+  });
+});
+
+describe("run translate: lock-wait progress and --lock-timeout", () => {
+  const waitEvent: LockWaitEvent = {
+    lockPath: "/proj/.verbatra-local/locks/de.lock",
+    elapsedMs: 2_000,
+    holder: { pid: 4321, acquiredAt: "2026-07-18T00:00:00.000Z" },
+  };
+
+  it("renders the human waiting line to stderr, naming the path, holder pid, and delete hint", async () => {
+    const { deps } = recordingDeps({
+      translate: async (input) => {
+        input.onLockWait?.(waitEvent);
+        return makeSummary({ succeeded: ["de"] });
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["translate"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(cap.err()).toContain("waiting for the write lock");
+    expect(cap.err()).toContain("/proj/.verbatra-local/locks/de.lock");
+    expect(cap.err()).toContain("pid 4321");
+    expect(cap.err()).toContain("can be deleted");
+    expect(cap.out()).not.toContain("waiting for the write lock");
+  });
+
+  it("under --json, keeps stdout to the one summary object and emits the wait event as JSON on stderr", async () => {
+    const summary = makeSummary({ succeeded: ["de"] });
+    const { deps } = recordingDeps({
+      translate: async (input) => {
+        input.onLockWait?.(waitEvent);
+        return summary;
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--json"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(JSON.parse(cap.err().trim())).toMatchObject({
+      type: "lock-wait",
+      lockPath: waitEvent.lockPath,
+      holder: { pid: 4321 },
+    });
+  });
+
+  it("--lock-timeout passes the timeout to the SDK as milliseconds", async () => {
+    const { deps, calls } = recordingDeps();
+
+    const code = await run(["translate", "--lock-timeout", "45"], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.lockAcquireTimeoutMs).toBe(45_000);
+  });
+
+  it("a non-numeric --lock-timeout is a usage error (exit 2), stdout stays clean", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--lock-timeout", "abc"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("INVALID_LOCK_TIMEOUT");
+    expect(cap.out()).toBe("");
+  });
+
+  it("a zero or negative --lock-timeout is a usage error (exit 2)", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--lock-timeout", "0"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("INVALID_LOCK_TIMEOUT");
   });
 });
 

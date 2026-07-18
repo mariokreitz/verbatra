@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import type { LockWaitEvent } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
@@ -13,6 +14,7 @@ import {
   renderExportJson,
   renderHuman,
   renderJson,
+  renderLockWait,
   toRenderableError,
 } from "./render.js";
 import { runStudio } from "./studio-command.js";
@@ -54,6 +56,7 @@ const translateOptsSchema = z.object({
   config: z.string().optional(),
   dryRun: z.boolean().optional(),
   prune: z.boolean().optional(),
+  lockTimeout: z.string().optional(),
   json: z.boolean().optional(),
 });
 
@@ -61,6 +64,7 @@ const watchOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   debounce: z.string().optional(),
+  lockTimeout: z.string().optional(),
   json: z.boolean().optional(),
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
@@ -223,6 +227,53 @@ function parseDebounce(value: string | undefined): number | undefined {
 }
 
 /**
+ * Parses `--lock-timeout` (a whole number of seconds) into milliseconds. An omitted flag stays
+ * `undefined` (the SDK applies the lock's own 10-minute default). A given value must be a bare positive
+ * integer string; anything else (non-numeric, zero, negative, or a suffix like "60s") is a usage error,
+ * never a silent fallback to the default.
+ *
+ * @throws {@link UsageError} `INVALID_LOCK_TIMEOUT` when `value` is not a positive integer string.
+ */
+function parseLockTimeout(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
+    throw new UsageError(
+      "INVALID_LOCK_TIMEOUT",
+      `The --lock-timeout option must be a positive whole number of seconds, got "${value}".`,
+    );
+  }
+  return Number.parseInt(value, 10) * 1000;
+}
+
+/** `translateOptsSchema`'s shape plus the lock timeout already parsed to milliseconds. */
+interface ParsedTranslateOpts extends z.infer<typeof translateOptsSchema> {
+  readonly lockAcquireTimeoutMs?: number;
+}
+
+/**
+ * Parses and validates the `translate` command's options: the zod schema shape, then `--lock-timeout`
+ * on top, so a single {@link withParsedOpts} call covers either failure.
+ */
+function parseTranslateCommandOpts(rawOpts: unknown): ParsedTranslateOpts {
+  const opts = translateOptsSchema.parse(rawOpts);
+  const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
+  return { ...opts, ...(lockAcquireTimeoutMs !== undefined ? { lockAcquireTimeoutMs } : {}) };
+}
+
+/**
+ * Builds the `onLockWait` callback the CLI hands to a run: it renders each wait-progress event to
+ * stderr, never stdout, so a `--json` run's stdout (the run summary or NDJSON stream) is never
+ * corrupted by progress output.
+ */
+function lockWaitReporter(streams: Streams, json: boolean): (event: LockWaitEvent) => void {
+  return (event) => {
+    streams.err(`${renderLockWait(event, json)}\n`);
+  };
+}
+
+/**
  * Runs the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
  * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
  * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
@@ -233,7 +284,7 @@ export async function runTranslate(
   streams: Streams,
 ): Promise<number> {
   return withParsedOpts(
-    () => translateOptsSchema.parse(rawOpts),
+    () => parseTranslateCommandOpts(rawOpts),
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
@@ -245,8 +296,12 @@ export async function runTranslate(
           const summary = await deps.translate({
             config,
             cwd,
+            onLockWait: lockWaitReporter(streams, opts.json === true),
             ...(opts.dryRun === true ? { dryRun: true } : {}),
             ...(opts.prune === true ? { prune: true } : {}),
+            ...(opts.lockAcquireTimeoutMs !== undefined
+              ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
+              : {}),
           });
           streams.out(
             opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`,
@@ -259,19 +314,25 @@ export async function runTranslate(
   );
 }
 
-/** `watchOptsSchema`'s shape plus the debounce value already parsed to milliseconds. */
+/** `watchOptsSchema`'s shape plus the debounce and lock-timeout values already parsed to milliseconds. */
 interface ParsedWatchOpts extends WatchOpts {
   readonly debounceMs?: number;
+  readonly lockAcquireTimeoutMs?: number;
 }
 
 /**
- * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce` on
- * top. Both run here so a single {@link withParsedOpts} call covers either failure.
+ * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce` and
+ * `--lock-timeout` on top. All run here so a single {@link withParsedOpts} call covers any failure.
  */
 function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
   const opts = watchOptsSchema.parse(rawOpts);
   const debounceMs = parseDebounce(opts.debounce);
-  return { ...opts, ...(debounceMs !== undefined ? { debounceMs } : {}) };
+  const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
+  return {
+    ...opts,
+    ...(debounceMs !== undefined ? { debounceMs } : {}),
+    ...(lockAcquireTimeoutMs !== undefined ? { lockAcquireTimeoutMs } : {}),
+  };
 }
 
 async function runWatchCommand(
@@ -300,6 +361,9 @@ async function runWatchCommand(
           json: opts.json === true,
           cwd,
           ...(opts.debounceMs !== undefined ? { debounceMs: opts.debounceMs } : {}),
+          ...(opts.lockAcquireTimeoutMs !== undefined
+            ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
+            : {}),
         },
         deps,
         streams,
@@ -471,6 +535,10 @@ function buildProgram(
       "--prune",
       "remove orphaned keys (in a target file but absent from source) from the written file",
     )
+    .option(
+      "--lock-timeout <seconds>",
+      "how long to wait for a held per-locale write lock before failing (default 600)",
+    )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: unknown) => {
       setCode(await runTranslate(opts, deps, streams));
@@ -496,6 +564,10 @@ function buildProgram(
     .option(
       "--debounce <ms>",
       "wait this many milliseconds after a change before translating (default 300)",
+    )
+    .option(
+      "--lock-timeout <seconds>",
+      "how long to wait for a held per-locale write lock before failing (default 600)",
     )
     .option("--json", "print each run as one NDJSON record")
     .action(async (opts: unknown) => {
