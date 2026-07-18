@@ -335,7 +335,24 @@ describe("importWorkbook", () => {
     const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
     expect(summary.locales[0]?.integrityMismatches).toEqual(["greet"]);
     expect(summary.locales[0]?.translated).toEqual([]);
+    expect(summary.locales[0]?.status).toBe("failed");
+    expect(summary.succeeded).toEqual([]);
+    expect(summary.failed).toEqual(["de"]);
     await expect(readJsonFile(join(dir, "locales", "de.json"))).rejects.toThrow();
+  });
+
+  it("reports an import that accepts one row and withholds another as partial", async () => {
+    const dir = await project({ ok: "Plain", greet: "Hi {{name}}" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { ok: "Klar", greet: "Hallo" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["ok"]);
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["greet"]);
+    expect(summary.locales[0]?.status).toBe("partial");
+    expect(summary.partial).toEqual(["de"]);
+    expect(summary.succeeded).toEqual([]);
   });
 
   it("withholds invalid ICU for an ICU format", async () => {

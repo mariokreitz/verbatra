@@ -8,7 +8,7 @@ import { updateLockFileLocale } from "../lock/lock-file.js";
 import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { readTarget } from "./diff-locales.js";
-import { gateCandidateValue } from "./integrity-gate.js";
+import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
@@ -45,7 +45,7 @@ export type EditEntryResult =
     }
   | {
       readonly accepted: false;
-      readonly reason: "placeholder" | "icu";
+      readonly reason: IntegrityGateReason;
       readonly value: string;
     };
 

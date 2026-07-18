@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { describeError, failureSummary, partition } from "./locale-failure.js";
+import { deriveLocaleStatus, describeError, failureSummary, partition } from "./locale-failure.js";
 import type { LocaleSummary } from "./summary.js";
 
-/** A minimal succeeded summary for partition tests; only `locale` and `status` are read there. */
-function succeeded(locale: string): LocaleSummary {
+/** A minimal summary carrying only the fields partition reads (`locale` and `status`). */
+function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSummary {
   return {
     locale,
-    status: "succeeded",
+    status,
     translated: [],
     unchanged: [],
     orphaned: [],
@@ -20,6 +20,15 @@ function succeeded(locale: string): LocaleSummary {
     needsReview: [],
   };
 }
+
+/** Empty status parts; each test overrides only the lists it exercises. */
+const NO_STATUS_PARTS = {
+  translated: [] as readonly string[],
+  generated: [] as readonly string[],
+  integrityMismatches: [] as readonly string[],
+  providerFailures: [] as readonly string[],
+  budgetWithheld: [] as readonly string[],
+};
 
 describe("describeError", () => {
   it("preserves a string code carried on an Error", () => {
@@ -67,21 +76,69 @@ describe("failureSummary", () => {
   });
 });
 
+describe("deriveLocaleStatus", () => {
+  it("is succeeded when nothing was withheld and something was accepted", () => {
+    expect(deriveLocaleStatus({ ...NO_STATUS_PARTS, translated: ["a", "b"] })).toBe("succeeded");
+  });
+
+  it("is succeeded for a genuine no-op: no candidate keys, nothing accepted, nothing withheld", () => {
+    expect(deriveLocaleStatus(NO_STATUS_PARTS)).toBe("succeeded");
+  });
+
+  it("is partial when at least one key was accepted and at least one was withheld", () => {
+    expect(
+      deriveLocaleStatus({ ...NO_STATUS_PARTS, translated: ["a"], providerFailures: ["b"] }),
+    ).toBe("partial");
+    expect(
+      deriveLocaleStatus({ ...NO_STATUS_PARTS, translated: ["a"], integrityMismatches: ["b"] }),
+    ).toBe("partial");
+    expect(
+      deriveLocaleStatus({ ...NO_STATUS_PARTS, translated: ["a"], budgetWithheld: ["b"] }),
+    ).toBe("partial");
+  });
+
+  it("is partial when only generated plural forms were accepted (translated empty) and something was withheld", () => {
+    expect(
+      deriveLocaleStatus({
+        ...NO_STATUS_PARTS,
+        generated: ["items_two"],
+        budgetWithheld: ["items_few"],
+      }),
+    ).toBe("partial");
+  });
+
+  it("is failed when candidate keys were withheld and none were accepted", () => {
+    expect(deriveLocaleStatus({ ...NO_STATUS_PARTS, providerFailures: ["a", "b"] })).toBe("failed");
+    expect(deriveLocaleStatus({ ...NO_STATUS_PARTS, integrityMismatches: ["a"] })).toBe("failed");
+    expect(deriveLocaleStatus({ ...NO_STATUS_PARTS, budgetWithheld: ["a"] })).toBe("failed");
+  });
+});
+
 describe("partition", () => {
-  it("splits a mixed list into the succeeded and failed locale-name lists", () => {
+  it("splits a mixed list into the succeeded, partial, and failed locale-name lists", () => {
     const summaries: readonly LocaleSummary[] = [
-      succeeded("de"),
-      failureSummary("fr", new Error("x")),
-      succeeded("es"),
+      summaryWith("de", "succeeded"),
+      summaryWith("fr", "partial"),
       failureSummary("it", "raw"),
+      summaryWith("es", "succeeded"),
+      summaryWith("pt", "partial"),
     ];
     expect(partition(summaries)).toEqual({
       succeeded: ["de", "es"],
-      failed: ["fr", "it"],
+      partial: ["fr", "pt"],
+      failed: ["it"],
     });
   });
 
+  it("never reports a partial or failed locale as succeeded", () => {
+    const summaries: readonly LocaleSummary[] = [
+      summaryWith("fr", "partial"),
+      summaryWith("it", "failed"),
+    ];
+    expect(partition(summaries).succeeded).toEqual([]);
+  });
+
   it("returns empty lists for an empty input", () => {
-    expect(partition([])).toEqual({ succeeded: [], failed: [] });
+    expect(partition([])).toEqual({ succeeded: [], partial: [], failed: [] });
   });
 });

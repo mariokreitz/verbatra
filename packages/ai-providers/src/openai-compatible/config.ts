@@ -53,6 +53,12 @@ export const openAiCompatibleConfigSchema = z.object({
       message: "apiKeyEnvVar must not name a hosted provider's environment variable.",
     })
     .optional(),
+  /**
+   * Optional verbatra-imposed per-request timeout in milliseconds. A positive integer; when absent,
+   * the shared default request timeout applies. Bounds each outbound request so a hung-but-alive local
+   * server (the reported stuck-LM-Studio case) cannot hold a locale's write lock open forever.
+   */
+  requestTimeoutMs: z.number().int().positive().optional(),
 });
 
 /**

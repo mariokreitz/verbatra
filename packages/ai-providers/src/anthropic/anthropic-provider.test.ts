@@ -266,7 +266,7 @@ describe("createAnthropicProvider: provider error handling", () => {
 });
 
 describe("createAnthropicProvider: cancellation", () => {
-  it("forwards the request's signal to the SDK call options", async () => {
+  it("passes a composed signal that aborts when the caller aborts", async () => {
     const controller = new AbortController();
     const seen: Array<AbortSignal | undefined> = [];
     const client: MessagesClient = {
@@ -280,21 +280,62 @@ describe("createAnthropicProvider: cancellation", () => {
     await createAnthropicProvider(config, { client }).translateBatch(
       request({ signal: controller.signal }),
     );
-    expect(seen[0]).toBe(controller.signal);
+    const composed = seen[0];
+    expect(composed).toBeInstanceOf(AbortSignal);
+    expect(composed?.aborted).toBe(false);
+    controller.abort();
+    expect(composed?.aborted).toBe(true);
   });
 
-  it("calls the SDK with no options object when the request carries no signal", async () => {
-    const seen: unknown[] = [];
+  it("still passes a live, unaborted signal to the SDK when the request carries none", async () => {
+    const seen: Array<AbortSignal | undefined> = [];
     const client: MessagesClient = {
       messages: {
         create: async (_body, options) => {
-          seen.push(options);
+          seen.push(options?.signal);
           return toolMessage([{ key: "greeting", value: "Hallo {{name}}" }]);
         },
       },
     };
     await createAnthropicProvider(config, { client }).translateBatch(request());
-    expect(seen[0]).toBeUndefined();
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+    expect(seen[0]?.aborted).toBe(false);
+  });
+
+  it("rejects with a retriable TIMEOUT ProviderError when the configured timeout elapses", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: MessagesClient = {
+        messages: { create: () => new Promise<never>(() => {}) },
+      };
+      const provider = createAnthropicProvider({ ...config, requestTimeoutMs: 5000 }, { client });
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(5000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("5000");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies the shared default timeout when the config omits requestTimeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: MessagesClient = {
+        messages: { create: () => new Promise<never>(() => {}) },
+      };
+      const provider = createAnthropicProvider(config, { client });
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(120_000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("120000");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("re-throws an abort unwrapped instead of a ProviderError", async () => {

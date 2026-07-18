@@ -1,5 +1,4 @@
 import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
-import { guardProviderCall } from "../guard.js";
 import { checkBatchIntegrity } from "../integrity.js";
 import {
   type PlaceholderComparator,
@@ -10,6 +9,7 @@ import {
   type ValidatedRequestData,
   validateRequest,
 } from "../provider.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { applyProviderDegraded, computeReviewFlags } from "../review-flags.js";
 import { createDefaultClient } from "./client.js";
 import { type DeepLConfig, deepLConfigSchema } from "./config.js";
@@ -121,6 +121,7 @@ async function translate(
     options,
     request.extractPlaceholders,
     request.comparePlaceholders,
+    config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     request.signal,
   );
   if (unprotectable.length > 0) {
@@ -175,6 +176,7 @@ async function translateProtectable(
   options: DeepLTranslateOptions,
   extract: PlaceholderExtractor,
   compare: PlaceholderComparator | undefined,
+  timeoutMs: number,
   signal: AbortSignal | undefined,
 ): Promise<{
   values: Map<string, string>;
@@ -190,6 +192,7 @@ async function translateProtectable(
     data.sourceLocale,
     data.targetLocale,
     options,
+    timeoutMs,
     signal,
   );
   const { values, integrityInputs } = zipResults(protectable, results);
@@ -198,12 +201,15 @@ async function translateProtectable(
 }
 
 /**
- * Call DeepL through the shared guard so a raw SDK/axios error (auth header) never leaks.
+ * Call DeepL through {@link withRequestTimeout} so a raw SDK/axios error (auth header) never leaks
+ * and the request is bounded by the configured timeout.
  *
- * deepl-node's `translateText` accepts no cancellation signal, so `signal` cannot be threaded into
- * the network call itself; passing it to the guard still gives a caller-initiated abort a preflight
- * check (an already-aborted signal rejects before any request is sent) and correct abort-vs-failure
- * classification, but an abort cannot interrupt a DeepL call already in flight.
+ * deepl-node's `translateText` accepts no cancellation signal, so the composed signal cannot be
+ * threaded into the network call itself and an in-flight DeepL call cannot be interrupted. The
+ * timeout still bounds verbatra's own await: on timeout the await rejects with a `TIMEOUT`
+ * {@link ProviderError}, releasing the caller's lock, while the underlying request is left to settle.
+ * A caller-initiated abort still gets its preflight check (an already-aborted signal rejects before
+ * any request is sent) and correct abort-vs-failure classification.
  */
 function callClient(
   client: DeepLTranslateClient,
@@ -211,11 +217,11 @@ function callClient(
   sourceLang: string,
   targetLang: string,
   options: DeepLTranslateOptions,
+  timeoutMs: number,
   signal: AbortSignal | undefined,
 ): Promise<DeepLTextResult[]> {
-  return guardProviderCall(
-    () => client.translateText(texts, sourceLang, targetLang, options),
-    signal,
+  return withRequestTimeout(timeoutMs, signal, () =>
+    client.translateText(texts, sourceLang, targetLang, options),
   );
 }
 
@@ -233,11 +239,20 @@ async function callClientChunked(
   sourceLang: string,
   targetLang: string,
   options: DeepLTranslateOptions,
+  timeoutMs: number,
   signal: AbortSignal | undefined,
 ): Promise<DeepLTextResult[]> {
   const results: DeepLTextResult[] = [];
   for (const chunk of chunkTextsForDeepL(texts)) {
-    const chunkResults = await callClient(client, chunk, sourceLang, targetLang, options, signal);
+    const chunkResults = await callClient(
+      client,
+      chunk,
+      sourceLang,
+      targetLang,
+      options,
+      timeoutMs,
+      signal,
+    );
     results.push(...chunkResults);
   }
   return results;

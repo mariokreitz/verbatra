@@ -28,6 +28,10 @@ function actionStatusLabel(state: ActionState): string {
     if (state.outcome.kind === "partial-failure") {
       return `Failed for ${state.outcome.failedLocales.join(", ")}`;
     }
+    if (state.outcome.kind === "withheld") {
+      const keys = state.outcome.withheldCount === 1 ? "key" : "keys";
+      return `Withheld ${state.outcome.withheldCount} ${keys} for ${state.outcome.partialLocales.join(", ")}`;
+    }
     return `Failed: ${state.outcome.message}`;
   }
   return "";

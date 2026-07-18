@@ -408,6 +408,46 @@ describe("createDeepLProvider: cancellation (best-effort, preflight only)", () =
     );
     expect(result.values.get("k")).toBe("Frei");
   });
+
+  it("bounds a hung request with a retriable TIMEOUT ProviderError even though deepl-node cannot be cancelled", async () => {
+    vi.useFakeTimers();
+    try {
+      const translateText = vi.fn(() => new Promise<never>(() => {}));
+      const client: DeepLTranslateClient = { translateText };
+      const provider = createDeepLProvider({ requestTimeoutMs: 5000 }, { client });
+      const rejection = provider
+        .translateBatch(request({ entries: [entry("k", "Free")] }))
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(5000);
+      const error = await rejection;
+      expect(translateText).toHaveBeenCalledTimes(1);
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("5000");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies the shared default timeout when the config omits requestTimeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const translateText = vi.fn(() => new Promise<never>(() => {}));
+      const client: DeepLTranslateClient = { translateText };
+      const provider = createDeepLProvider(config, { client });
+      const rejection = provider
+        .translateBatch(request({ entries: [entry("k", "Free")] }))
+        .catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(120_000);
+      const error = await rejection;
+      expect(translateText).toHaveBeenCalledTimes(1);
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("120000");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("createDeepLProvider: key from env only", () => {

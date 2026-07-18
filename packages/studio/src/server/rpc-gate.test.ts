@@ -329,7 +329,7 @@ describe("dispatchRpc envelope", () => {
       {
         "translation.translatePending": async () => {
           calls += 1;
-          return { dryRun: false, locales: [], succeeded: [], failed: [] };
+          return { dryRun: false, locales: [], succeeded: [], partial: [], failed: [] };
         },
       },
       undefined,
@@ -390,6 +390,7 @@ describe("dispatchRpc envelope", () => {
           dryRun: false,
           locales: [],
           succeeded: [],
+          partial: [],
           failed: [],
         }),
       },

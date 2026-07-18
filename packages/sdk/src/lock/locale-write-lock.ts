@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { SdkError } from "../errors.js";
-import type { SdkFs } from "../fs.js";
+import type { BoundedFileRead, SdkFs } from "../fs.js";
 
 /** The private, non-exported local-state directory name; see `packages/cli/src/init.ts`'s `ensureGitignore`. */
 const LOCAL_DIR_NAME = ".verbatra-local";
@@ -12,16 +12,54 @@ const LOCAL_DIR_NAME = ".verbatra-local";
  */
 const LOCK_FILE_GUARD_STEM = "_lockfile";
 
+/** Diagnostic details, read leniently from a held lock file, about the process currently holding it. */
+export interface LockHolder {
+  /** The holder's process id, when the lock file could be read and carried a numeric `pid`. */
+  readonly pid?: number;
+  /** The holder's acquire time as an ISO-8601 string, when the lock file carried a string `acquiredAt`. */
+  readonly acquiredAt?: string;
+}
+
+/** One wait-progress notification emitted while an acquire is blocked on a held lock. */
+export interface LockWaitEvent {
+  /** The on-disk path of the contended lock file, the exact path a person can delete if it is orphaned. */
+  readonly lockPath: string;
+  /** Milliseconds elapsed since this acquire started waiting, for a "still waiting" progress line. */
+  readonly elapsedMs: number;
+  /**
+   * Diagnostics about the holding process, present only when the lock file could be read and parsed.
+   * Purely for messaging; never consulted for any acquire decision.
+   */
+  readonly holder?: LockHolder;
+}
+
+/** Called while an acquire is blocked, to surface wait progress; the lock module itself writes no output. */
+export type LockWaitListener = (event: LockWaitEvent) => void;
+
 /** Options shared by {@link withLocaleWriteLock} and {@link withLockFileGuard}. */
 export interface LocaleWriteLockOptions {
   /** Base delay between acquire attempts in milliseconds, jittered on each retry. Defaults to 100. */
   readonly pollIntervalMs?: number;
   /** How long to keep retrying before throwing `LOCK_CONTENDED`. Defaults to 10 minutes. */
   readonly acquireTimeoutMs?: number;
+  /**
+   * Invoked while an acquire is blocked on a lock another process holds: once right after the first
+   * failed attempt (carrying the holder diagnostics when the lock file is readable), then at most once
+   * per {@link WAIT_NOTICE_INTERVAL_MS} of continued waiting (carrying the growing elapsed time). Never
+   * called for an uncontended acquire. The lock module emits no output of its own; a caller (the CLI)
+   * uses this to render a "still waiting" line.
+   */
+  readonly onWait?: LockWaitListener;
 }
 
 const DEFAULT_POLL_INTERVAL_MS = 100;
 const DEFAULT_ACQUIRE_TIMEOUT_MS = 10 * 60_000;
+
+/** Smallest gap between successive {@link LockWaitListener} notifications after the first, to avoid spam. */
+const WAIT_NOTICE_INTERVAL_MS = 1_000;
+
+/** Upper bound on the tiny diagnostic lock payload read for {@link LockHolder}; a real payload is well under this. */
+const MAX_LOCK_PAYLOAD_BYTES = 64 * 1_024;
 
 function lockPath(cwd: string, stem: string): string {
   return resolve(cwd, LOCAL_DIR_NAME, "locks", `${stem}.lock`);
@@ -43,20 +81,83 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/** Diagnostic-only payload written into a held lock file; never read back for correctness. */
+/**
+ * Diagnostic-only payload written into a held lock file. Parsed back leniently by {@link parseHolder}
+ * to describe the holder in wait messaging; never read back for an acquire decision or any correctness.
+ */
 function lockPayload(): string {
   return JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() });
 }
 
 /**
+ * Parse a held lock file's diagnostic payload leniently into a {@link LockHolder}. Returns `undefined`
+ * when the file is unreadable or not valid JSON; a valid-but-partial payload yields a holder with only
+ * the fields whose types matched. Never throws: the payload is for messaging only, never correctness.
+ */
+function parseHolder(read: BoundedFileRead): LockHolder | undefined {
+  if (read.kind !== "ok") {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(read.content);
+  } catch {
+    return undefined;
+  }
+  if (typeof parsed !== "object" || parsed === null) {
+    return undefined;
+  }
+  const record = parsed as Record<string, unknown>;
+  const holder: { pid?: number; acquiredAt?: string } = {};
+  if (typeof record.pid === "number") {
+    holder.pid = record.pid;
+  }
+  if (typeof record.acquiredAt === "string") {
+    holder.acquiredAt = record.acquiredAt;
+  }
+  return holder;
+}
+
+/**
+ * Build the per-acquire wait notifier: reads the holder diagnostics once (lazily, on the first failed
+ * attempt) and caches them, then emits an event on that first call and thereafter only once the elapsed
+ * wait has grown by at least {@link WAIT_NOTICE_INTERVAL_MS}, so a long wait produces a steady, low-rate
+ * progress stream rather than one event per poll.
+ */
+function makeWaitNotifier(
+  path: string,
+  fs: SdkFs,
+  onWait: LockWaitListener,
+  start: number,
+): () => Promise<void> {
+  let holder: LockHolder | undefined;
+  let holderRead = false;
+  let lastEmit: number | undefined;
+  return async (): Promise<void> => {
+    if (!holderRead) {
+      holderRead = true;
+      holder = parseHolder(await fs.readFileBounded(path, MAX_LOCK_PAYLOAD_BYTES));
+    }
+    const elapsedMs = Date.now() - start;
+    if (lastEmit !== undefined && elapsedMs - lastEmit < WAIT_NOTICE_INTERVAL_MS) {
+      return;
+    }
+    lastEmit = elapsedMs;
+    onWait({ lockPath: path, elapsedMs, ...(holder !== undefined ? { holder } : {}) });
+  };
+}
+
+/**
  * Repeatedly attempt `fs.createExclusive(path, ...)` until it succeeds, sleeping a jittered
  * `pollIntervalMs` between attempts, until `deadline` (a `Date.now()`-comparable timestamp) passes.
+ * When `notify` is supplied, it runs after each failed attempt to surface wait progress.
  */
 async function acquireLock(
   path: string,
   fs: SdkFs,
   pollIntervalMs: number,
   deadline: number,
+  notify?: () => Promise<void>,
 ): Promise<void> {
   for (;;) {
     if (await fs.createExclusive(path, lockPayload())) {
@@ -69,6 +170,9 @@ async function acquireLock(
           "verbatra process is currently running, this lock file was likely left behind by one " +
           "that was killed; delete it and retry.",
       );
+    }
+    if (notify !== undefined) {
+      await notify();
     }
     const jitter = Math.random() * pollIntervalMs;
     await sleep(pollIntervalMs + jitter);
@@ -102,8 +206,11 @@ async function withFileLock<T>(
 ): Promise<T> {
   const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
   const acquireTimeoutMs = options.acquireTimeoutMs ?? DEFAULT_ACQUIRE_TIMEOUT_MS;
+  const start = Date.now();
+  const notify =
+    options.onWait !== undefined ? makeWaitNotifier(path, fs, options.onWait, start) : undefined;
 
-  await acquireLock(path, fs, pollIntervalMs, Date.now() + acquireTimeoutMs);
+  await acquireLock(path, fs, pollIntervalMs, start + acquireTimeoutMs, notify);
   try {
     return await fn();
   } finally {
@@ -129,7 +236,8 @@ async function withFileLock<T>(
  *   (never nested) to avoid a lock-ordering deadlock.
  * @param fs - The file system seam.
  * @param fn - The critical section to run while the lock is held.
- * @param options - Optional poll interval and acquire timeout overrides, for tests.
+ * @param options - Optional poll interval, acquire-timeout override (surfaced to the CLI as
+ *   `--lock-timeout`), and an `onWait` wait-progress listener (the CLI's "still waiting" line).
  * @returns Whatever `fn` resolves to.
  * @throws {@link SdkError} `LOCK_CONTENDED`: the lock could not be acquired before the timeout.
  */
@@ -162,7 +270,7 @@ export async function withLocaleWriteLock<T>(
  * @param cwd - Directory the lock resolves against.
  * @param fs - The file system seam.
  * @param fn - The critical section to run while the guard is held (the lock-file's own read-write).
- * @param options - Optional poll interval and acquire timeout overrides, for tests.
+ * @param options - Optional poll interval, acquire-timeout, and `onWait` wait-progress overrides.
  * @returns Whatever `fn` resolves to.
  * @throws {@link SdkError} `LOCK_CONTENDED`: the guard could not be acquired before the timeout.
  */

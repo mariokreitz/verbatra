@@ -1,9 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type {
-  TranslateRequest,
-  TranslateResult,
-  TranslationProvider,
+import {
+  ProviderError,
+  type ProviderErrorCode,
+  type TranslateRequest,
+  type TranslateResult,
+  type TranslationProvider,
 } from "@verbatra/ai-providers";
 import type { PlaceholderIntegrityResult } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
@@ -179,7 +181,7 @@ function throwingBatchProvider(throwKey: string): {
 }
 
 describe("translate: sub-batch chunking, failure isolation", () => {
-  it("keeps the locale succeeded when one sub-batch throws; others are written, only the failed keys withheld", async () => {
+  it("marks the locale partial when one sub-batch throws; others are written, only the failed keys withheld", async () => {
     const dir = await project(keyedSource(4), { de: undefined });
     const { provider } = throwingBatchProvider("k2");
 
@@ -188,7 +190,9 @@ describe("translate: sub-batch chunking, failure isolation", () => {
       { createProvider: () => provider },
     );
 
-    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.locales[0]?.status).toBe("partial");
+    expect(summary.partial).toEqual(["de"]);
+    expect(summary.succeeded).toEqual([]);
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["k0", "k1"]);
     expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual(["k2", "k3"]);
     expect(summary.locales[0]?.integrityMismatches).toEqual([]);
@@ -266,6 +270,121 @@ describe("translate: sub-batch chunking, forward progress", () => {
     expect(de.k2).toBe("[de] v2");
     expect(de.k3).toBe("[de] v3");
     expect(Object.keys((await readLock(dir)).de ?? {}).sort()).toEqual(["k0", "k1", "k2", "k3"]);
+  });
+});
+
+function acceptEntries(request: TranslateRequest): TranslateResult {
+  const values = new Map<string, string>();
+  const integrity = new Map<string, PlaceholderIntegrityResult>();
+  for (const entry of request.entries) {
+    values.set(entry.key, `[${request.targetLocale}] ${entry.value}`);
+    integrity.set(entry.key, PASS);
+  }
+  return { values, integrity };
+}
+
+/**
+ * A provider that raises `OUTPUT_TRUNCATED` for any request larger than `acceptFrom`, or for any
+ * request containing an `alwaysTruncate` key regardless of size, and otherwise translates normally.
+ * It records the size of every attempted request so a test can assert the split behavior.
+ */
+function truncatingProvider(opts: { acceptFrom: number; alwaysTruncate?: readonly string[] }): {
+  provider: TranslationProvider;
+  sizes: number[];
+} {
+  const sizes: number[] = [];
+  const always = new Set(opts.alwaysTruncate ?? []);
+  const provider: TranslationProvider = {
+    id: "truncating",
+    kind: "llm",
+    supportsGlossary: true,
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      sizes.push(request.entries.length);
+      const forced = request.entries.some((e) => always.has(e.key));
+      if (forced || request.entries.length > opts.acceptFrom) {
+        throw new ProviderError("OUTPUT_TRUNCATED", "output-token limit reached");
+      }
+      return acceptEntries(request);
+    },
+  };
+  return { provider, sizes };
+}
+
+/** A provider that raises a fixed non-truncation `ProviderError` code for a request containing `throwKey`. */
+function codedThrowProvider(
+  code: ProviderErrorCode,
+  throwKey: string,
+): { provider: TranslationProvider; sizes: number[] } {
+  const sizes: number[] = [];
+  const provider: TranslationProvider = {
+    id: "coded",
+    kind: "llm",
+    supportsGlossary: true,
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      sizes.push(request.entries.length);
+      if (request.entries.some((e) => e.key === throwKey)) {
+        throw new ProviderError(code, "provider rejected the request");
+      }
+      return acceptEntries(request);
+    },
+  };
+  return { provider, sizes };
+}
+
+describe("translate: OUTPUT_TRUNCATED auto-shrink", () => {
+  it("re-splits a truncated sub-batch down toward size 1 and keeps every key that fits a smaller request", async () => {
+    const dir = await project(keyedSource(4), { de: undefined });
+    const { provider, sizes } = truncatingProvider({ acceptFrom: 1 });
+
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 4 }), cwd: dir },
+      { createProvider: () => provider },
+    );
+
+    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["k0", "k1", "k2", "k3"]);
+    expect(summary.locales[0]?.providerFailures).toEqual([]);
+    expect(sizes[0]).toBe(4);
+    expect(Math.min(...sizes)).toBe(1);
+    expect(sizes.filter((n) => n === 1)).toHaveLength(4);
+
+    const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect([de.k0, de.k1, de.k2, de.k3]).toEqual(["[de] v0", "[de] v1", "[de] v2", "[de] v3"]);
+  });
+
+  it("records a single entry that still truncates as a providerFailure, retaining the keys that split successfully", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+    const { provider, sizes } = truncatingProvider({ acceptFrom: 100, alwaysTruncate: ["k1"] });
+
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 2 }), cwd: dir },
+      { createProvider: () => provider },
+    );
+
+    expect(summary.locales[0]?.status).toBe("partial");
+    expect(summary.locales[0]?.translated).toEqual(["k0"]);
+    expect(summary.locales[0]?.providerFailures).toEqual(["k1"]);
+    expect(summary.locales[0]?.notices.map((n) => n.code)).toContain("SUB_BATCH_FAILED");
+    expect(Math.min(...sizes)).toBe(1);
+
+    const de = (await readJsonFile(targetPath(dir, "de"))) as Record<string, string>;
+    expect(de.k0).toBe("[de] v0");
+    expect(de.k1).toBeUndefined();
+    expect(Object.keys((await readLock(dir)).de ?? {})).toEqual(["k0"]);
+  });
+
+  it("does not re-split a non-truncation ProviderError: the whole sub-batch is withheld in one attempt", async () => {
+    const dir = await project(keyedSource(2), { de: undefined });
+    const { provider, sizes } = codedThrowProvider("RATE_LIMITED", "k0");
+
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 2 }), cwd: dir },
+      { createProvider: () => provider },
+    );
+
+    expect(summary.locales[0]?.status).toBe("failed");
+    expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual(["k0", "k1"]);
+    expect(sizes).toEqual([2]);
   });
 });
 

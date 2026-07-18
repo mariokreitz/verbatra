@@ -230,6 +230,6 @@ export async function importWorkbook(
     }
   }
 
-  const { succeeded, failed } = partition(summaries);
-  return { dryRun, locales: summaries, succeeded, failed };
+  const { succeeded, partial, failed } = partition(summaries);
+  return { dryRun, locales: summaries, succeeded, partial, failed };
 }

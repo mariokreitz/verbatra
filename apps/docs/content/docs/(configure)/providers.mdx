@@ -114,7 +114,7 @@ provider: {
   id: "openai-compatible",
   options: {
     baseUrl: "http://192.168.178.74:1234/v1",
-    model: "google/gemma-4-26b-a4b-qat", // example: whatever your server exposes
+    model: "qwen2.5-14b-instruct", // example: whatever your server exposes
     maxOutputTokens: 1024,
   },
 }
@@ -155,6 +155,16 @@ verbatra allows plaintext `http://` to any host, including a LAN address, with n
 
 It is a real risk only when you also configure a key (via `apiKeyEnvVar` or `OPENAI_COMPATIBLE_API_KEY`) **and** `baseUrl` is plaintext `http://` to a non-loopback host: that key then travels over your network unencrypted. If your server requires a real key and is reachable beyond localhost, use `https://` for it. verbatra does not detect or warn about this combination today; treat it as your own responsibility.
 </Callout>
+
+### Choosing a local model
+
+Prefer an instruction-tuned model without reasoning and with strong multilingual coverage. verbatra asks for a single strict JSON object and validates it, so a model that reliably follows format instructions is what you want. `qwen2.5-14b-instruct` is a reasonable default; pick the largest such model your hardware runs well.
+
+<Callout type="warn" title="Avoid reasoning and heavily quantized models">
+Reasoning ("thinking") models and heavily quantized (qat or low-bit) builds are the usual sources of failure here: they tend to emit reasoning prose around the answer or return truncated JSON, and either one fails verbatra's schema and integrity checks. If a reasoning-capable model is unavoidable, give it room to both think and answer: see [Output-token limits](#output-token-limits) for the `maxOutputTokens` and `maxBatchSize` tuning.
+</Callout>
+
+A bad local model fails loudly, not silently: verbatra validates every provider response against a canonical schema plus placeholder and ICU integrity, so a model that emits reasoning prose or truncated JSON is rejected with an `INVALID_RESPONSE` or `OUTPUT_TRUNCATED` error instead of writing a corrupt translation.
 
 ### Tolerant parsing for local and smaller models
 
@@ -205,7 +215,11 @@ The four LLM providers cap how many tokens a single response may produce. When a
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Either lever resolves it: lower `maxBatchSize` in your config so each request produces a smaller response, or raise the per-response cap on the provider (`maxTokens` for Anthropic, `maxOutputTokens` for OpenAI, Gemini, and openai-compatible). DeepL is not affected: it has no output-token truncation case.
+Either lever resolves it: lower `maxBatchSize` in your config so each request produces a smaller response, or raise the per-response cap on the provider (`maxTokens` for Anthropic, `maxOutputTokens` for OpenAI, Gemini, and openai-compatible). DeepL is not affected: it has no output-token truncation case. verbatra also recovers on its own: when a sub-batch is truncated it re-splits that sub-batch into halves and retries, down toward a single entry, so the keys that fit a smaller request still get translated and only a lone entry that still overflows is withheld for the next run.
+
+<Callout title="Reasoning models spend the same budget">
+A reasoning (thinking) model spends its hidden reasoning tokens from the same output-token budget it uses to emit the JSON translations. It can exhaust that budget on reasoning alone and stop before writing any output, which surfaces as `OUTPUT_TRUNCATED`. If you use a reasoning model, give it plenty of headroom: prefer a higher `maxOutputTokens` (`maxTokens` for Anthropic) or a smaller `maxBatchSize` so each request has room for both the reasoning and the response.
+</Callout>
 
 ### Review flags
 

@@ -3,6 +3,7 @@ import type {
   DiffSummary,
   LocaleDiff,
   LocaleSummary,
+  LockWaitEvent,
   RunBudget,
   RunSummary,
   UsageSummary,
@@ -42,7 +43,7 @@ export function toRenderableError(error: unknown): RenderableError {
 export function renderHuman(summary: RunSummary, command = "translate"): string {
   const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
   const localeLines = summary.locales.map(renderLocaleLine);
-  const aggregate = `${summary.succeeded.length} succeeded, ${summary.failed.length} failed${
+  const aggregate = `${summary.succeeded.length} succeeded, ${summary.partial.length} partial, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
   }`;
   const usageLine = summary.usage !== undefined ? [`  total: ${renderTokens(summary.usage)}`] : [];
@@ -223,6 +224,56 @@ export function renderDiffHuman(summary: DiffSummary): string {
 /** The `diff --json` contract: the SDK diff summary as one compact JSON object on one line. */
 export function renderDiffJson(summary: DiffSummary): string {
   return JSON.stringify(summary);
+}
+
+/** The "held by pid X since T" fragment of the human waiting line, or empty when the holder is unknown. */
+function renderLockHolder(event: LockWaitEvent): string {
+  const holder = event.holder;
+  if (holder?.pid === undefined && holder?.acquiredAt === undefined) {
+    return "";
+  }
+  const pid = holder.pid !== undefined ? ` by pid ${holder.pid}` : "";
+  const since = holder.acquiredAt !== undefined ? ` since ${holder.acquiredAt}` : "";
+  return ` (held${pid}${since})`;
+}
+
+/**
+ * Human-readable wait-progress line for a contended write lock: names the lock path, the holder when
+ * known, and how long we have waited, plus the hint that a truly orphaned lock can be deleted. Meant
+ * for stderr, so it never mixes with `--json` stdout.
+ *
+ * @param event - One wait-progress event from the SDK's `onLockWait`.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderLockWaitHuman(event: LockWaitEvent): string {
+  const waitedSeconds = Math.round(event.elapsedMs / 1000);
+  return (
+    `verbatra: waiting for the write lock at ${event.lockPath}${renderLockHolder(event)}; ` +
+    `waited ${waitedSeconds}s. If no verbatra process is running, this lock is orphaned and can be deleted.`
+  );
+}
+
+/**
+ * The `--json` wait-progress contract: one structured lock-wait record. Written to stderr, never
+ * stdout, so it never corrupts the run summary or NDJSON stream a `--json` run emits on stdout.
+ *
+ * @param event - One wait-progress event from the SDK's `onLockWait`.
+ * @returns A single-line JSON record string.
+ */
+export function renderLockWaitJson(event: LockWaitEvent): string {
+  return JSON.stringify({ type: "lock-wait", ...event });
+}
+
+/**
+ * One wait-progress line for the active output mode: a structured JSON record under `--json`, the
+ * human line otherwise. Callers write it to stderr, keeping stdout clean in both modes.
+ *
+ * @param event - One wait-progress event from the SDK's `onLockWait`.
+ * @param json - Whether the command is in `--json` mode.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderLockWait(event: LockWaitEvent, json: boolean): string {
+  return json ? renderLockWaitJson(event) : renderLockWaitHuman(event);
 }
 
 /**

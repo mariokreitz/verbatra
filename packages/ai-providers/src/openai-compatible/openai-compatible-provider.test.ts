@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
 import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
 import type { OpenAiClient } from "../openai/types.js";
@@ -16,7 +16,7 @@ import { createOpenAiCompatibleProvider } from "./openai-compatible-provider.js"
 
 const config = {
   baseUrl: "http://192.168.178.74:1234/v1",
-  model: "google/gemma-4-26b-a4b-qat",
+  model: "qwen2.5-14b-instruct",
   maxOutputTokens: 1024,
 };
 
@@ -53,7 +53,7 @@ describe("createOpenAiCompatibleProvider: request building", () => {
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
-    expect(calls[0]?.model).toBe("google/gemma-4-26b-a4b-qat");
+    expect(calls[0]?.model).toBe("qwen2.5-14b-instruct");
     expect(calls[0]).toMatchObject({ max_tokens: 1024 });
   });
 
@@ -220,7 +220,7 @@ describe("createOpenAiCompatibleProvider: apiKeyEnvVar", () => {
 });
 
 describe("createOpenAiCompatibleProvider: cancellation", () => {
-  it("forwards the request's signal to the SDK call options", async () => {
+  it("passes a composed signal that aborts when the caller aborts", async () => {
     const controller = new AbortController();
     const seen: Array<AbortSignal | undefined> = [];
     const client: OpenAiClient = {
@@ -236,23 +236,67 @@ describe("createOpenAiCompatibleProvider: cancellation", () => {
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(
       request({ signal: controller.signal }),
     );
-    expect(seen[0]).toBe(controller.signal);
+    const composed = seen[0];
+    expect(composed).toBeInstanceOf(AbortSignal);
+    expect(composed?.aborted).toBe(false);
+    controller.abort();
+    expect(composed?.aborted).toBe(true);
   });
 
-  it("calls the SDK with no options object when the request carries no signal", async () => {
-    const seen: unknown[] = [];
+  it("still passes a live, unaborted signal to the SDK when the request carries none", async () => {
+    const seen: Array<AbortSignal | undefined> = [];
     const client: OpenAiClient = {
       chat: {
         completions: {
           create: async (_body, options) => {
-            seen.push(options);
+            seen.push(options?.signal);
             return openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]);
           },
         },
       },
     };
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
-    expect(seen[0]).toBeUndefined();
+    expect(seen[0]).toBeInstanceOf(AbortSignal);
+    expect(seen[0]?.aborted).toBe(false);
+  });
+
+  it("rejects with a retriable TIMEOUT ProviderError when a hung-but-alive local server exceeds the timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: OpenAiClient = {
+        chat: { completions: { create: () => new Promise<never>(() => {}) } },
+      };
+      const provider = createOpenAiCompatibleProvider(
+        { ...config, requestTimeoutMs: 5000 },
+        { client },
+      );
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(5000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("5000");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies the shared default timeout when the config omits requestTimeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: OpenAiClient = {
+        chat: { completions: { create: () => new Promise<never>(() => {}) } },
+      };
+      const provider = createOpenAiCompatibleProvider(config, { client });
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(120_000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("120000");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

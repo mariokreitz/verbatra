@@ -19,6 +19,12 @@ describe("settledActionStatusLabel", () => {
     );
   });
 
+  it("reports the degenerate rejection reason", () => {
+    expect(settledActionStatusLabel({ kind: "rejected", reason: "degenerate" }, "Saved")).toBe(
+      "Rejected: degenerate translation",
+    );
+  });
+
   it("prefixes an error outcome's message", () => {
     expect(
       settledActionStatusLabel({ kind: "error", message: "The key was not found." }, "Saved"),

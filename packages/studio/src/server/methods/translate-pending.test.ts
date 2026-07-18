@@ -96,7 +96,7 @@ describe("translatePendingHandler", () => {
     }
   });
 
-  it("surfaces a thrown provider call as providerFailures data on a succeeded locale, not a throw", async () => {
+  it("surfaces a thrown provider call as providerFailures data on a failed locale, not a throw", async () => {
     const project = await makeFixtureProject({ targetLocales: ["de"] }, { greeting: "hello" });
     try {
       const throwingProvider: CreateProvider = () => ({
@@ -110,7 +110,9 @@ describe("translatePendingHandler", () => {
 
       const result = await translatePendingHandler({}, deps(project, throwingProvider));
 
-      expect(result.succeeded).toEqual(["de"]);
+      expect(result.succeeded).toEqual([]);
+      expect(result.failed).toEqual(["de"]);
+      expect(result.locales[0]?.status).toBe("failed");
       expect(result.locales[0]?.providerFailures).toEqual(["greeting"]);
     } finally {
       await project.cleanup();

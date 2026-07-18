@@ -34,3 +34,7 @@ export type {
   ValidationReport,
 } from "./validation/types.js";
 export { validate } from "./validation/validate.js";
+export {
+  assessValueDegeneracy,
+  type ValueDegeneracyAssessment,
+} from "./validation/value-degeneracy.js";

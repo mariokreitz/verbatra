@@ -42,7 +42,7 @@ const runBudgetSchema = z.object({
 
 const runStatusLocaleSchema = z.object({
   locale: z.string(),
-  status: z.enum(["succeeded", "failed"]),
+  status: z.enum(["succeeded", "partial", "failed"]),
   needsReview: z.array(needsReviewEntrySchema),
   usage: usageSummarySchema.optional(),
 });

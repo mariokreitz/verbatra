@@ -58,6 +58,9 @@ overrides:
   # GHSA-g7r4-m6w7-qqqr: esbuild dev-server arbitrary file read on Windows (dev-only, via vitest and tsup).
   # Vulnerable >=0.27.3 <0.28.1; lifts the 0.27.7 copy.
   esbuild@<0.28.1: ">=0.28.1"
+  # GHSA-xcpc-8h2w-3j85 (CVE-2026-39244): a crafted ZIP uncompressed-size header forces a ~4GB allocation.
+  # Vulnerable <0.6.0; lifts the 0.5.17 copy adm-zip is pulled through (deepl-node) to the patched line.
+  adm-zip@<0.6.0: ">=0.6.0"
 
 allowBuilds:
   '@google/genai': false

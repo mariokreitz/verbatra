@@ -50,7 +50,13 @@ function runHarness() {
   let active = 0;
   let maxActive = 0;
   const inputs: TranslateInput[] = [];
-  const summary: RunSummary = { dryRun: false, locales: [], succeeded: [], failed: [] };
+  const summary: RunSummary = {
+    dryRun: false,
+    locales: [],
+    succeeded: [],
+    partial: [],
+    failed: [],
+  };
   let blocker: Promise<void> | undefined;
   let releaseFn: (() => void) | undefined;
   let nextThrow: unknown;
@@ -136,6 +142,19 @@ describe("watch: startup and wiring", () => {
     await settle();
     expect(r.inputs[0]).toEqual({ config, cwd: CWD });
     expect((r.inputs[0] as { dryRun?: boolean }).dryRun).toBeUndefined();
+  });
+
+  it("threads onLockWait and lockAcquireTimeoutMs through to each run's translate input", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    const onLockWait = (): void => {};
+    await watch(
+      { config: baseConfig(), cwd: CWD, onRun: () => {}, onLockWait, lockAcquireTimeoutMs: 1_234 },
+      { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+    );
+    await settle();
+    expect(r.inputs[0]?.onLockWait).toBe(onLockWait);
+    expect(r.inputs[0]?.lockAcquireTimeoutMs).toBe(1_234);
   });
 
   it("a missing source path at startup is a hard SOURCE_UNREADABLE error, no watcher or run", async () => {

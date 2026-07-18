@@ -1,8 +1,8 @@
-import { checkPlaceholders, type TranslationEntry } from "@verbatra/core";
+import { assessValueDegeneracy, checkPlaceholders, type TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 
 /** Why {@link gateCandidateValue} rejected a candidate value. */
-export type IntegrityGateReason = "placeholder" | "icu";
+export type IntegrityGateReason = "placeholder" | "icu" | "degenerate";
 
 /** The accept/reject decision {@link gateCandidateValue} returns. Never throws. */
 export type IntegrityGateResult =
@@ -19,7 +19,9 @@ export type IntegrityGateResult =
  * Runs the placeholder check first (the adapter's branch-aware `comparePlaceholders` when present,
  * otherwise `extractPlaceholders` plus core's `checkPlaceholders`), then `adapter.validateMessage`.
  * A non-ICU adapter's `validateMessage` returns true unconditionally, so the second check is only
- * ever observable for ICU-capable formats.
+ * ever observable for ICU-capable formats. Last, core's `assessValueDegeneracy` rejects a
+ * structurally degenerate value (a repetition loop, or a length that has run away from the source)
+ * that the first two checks would otherwise wave through.
  *
  * @param sourceEntry - The source entry the candidate is a translation of.
  * @param candidateValue - The candidate translated value to check.
@@ -39,6 +41,9 @@ export function gateCandidateValue(
   }
   if (!adapter.validateMessage(candidateValue)) {
     return { accepted: false, reason: "icu" };
+  }
+  if (assessValueDegeneracy(sourceEntry.value, candidateValue).degenerate) {
+    return { accepted: false, reason: "degenerate" };
   }
   return { accepted: true };
 }

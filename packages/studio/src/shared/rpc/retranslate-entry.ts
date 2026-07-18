@@ -1,4 +1,4 @@
-import type { ReviewReasonCode } from "@verbatra/sdk";
+import type { IntegrityGateReason, ReviewReasonCode } from "@verbatra/sdk";
 import { z } from "zod";
 
 /** The RPC method name for retranslating exactly one key into exactly one target locale. */
@@ -33,6 +33,6 @@ export type RetranslateEntryResult =
     }
   | {
       readonly accepted: false;
-      readonly reason: "placeholder" | "icu";
+      readonly reason: IntegrityGateReason;
       readonly value: string;
     };

@@ -1,4 +1,4 @@
-import type { WatchController } from "@verbatra/sdk";
+import type { LockWaitEvent, WatchController } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { captureStreams, flush, makeConfig, recordingDeps } from "./test-support.js";
 import type { WatchOptions } from "./watch-session.js";
@@ -101,5 +101,49 @@ describe("runWatch: stop handling", () => {
     const code = await session.done;
 
     expect(code).toBe(130);
+  });
+});
+
+describe("runWatch: lock-wait progress and timeout threading", () => {
+  const waitEvent: LockWaitEvent = {
+    lockPath: "/proj/.verbatra-local/locks/de.lock",
+    elapsedMs: 3_000,
+    holder: { pid: 77, acquiredAt: "2026-07-18T00:00:00.000Z" },
+  };
+  const idleController = async (): Promise<WatchController> => ({ stop: async () => {} });
+
+  it("threads lockAcquireTimeoutMs into the SDK watch input", async () => {
+    const { streams } = captureStreams();
+    const { deps, calls } = recordingDeps({ watch: idleController });
+
+    runWatch({ ...options(), lockAcquireTimeoutMs: 5_000 }, deps, streams);
+    await flush();
+
+    expect(calls.watch[0]?.lockAcquireTimeoutMs).toBe(5_000);
+  });
+
+  it("passes an onLockWait that renders the human waiting line to stderr", async () => {
+    const { streams, err } = captureStreams();
+    const { deps, calls } = recordingDeps({ watch: idleController });
+
+    runWatch(options(), deps, streams);
+    await flush();
+    calls.watch[0]?.onLockWait?.(waitEvent);
+
+    expect(err()).toContain("waiting for the write lock");
+    expect(err()).toContain("pid 77");
+  });
+
+  it("passes an onLockWait that emits a structured JSON record to stderr under --json", async () => {
+    const { streams, err } = captureStreams();
+    const { deps, calls } = recordingDeps({ watch: idleController });
+
+    runWatch({ ...options(), json: true }, deps, streams);
+    await flush();
+    calls.watch[0]?.onLockWait?.(waitEvent);
+
+    const lines = err().trim().split("\n");
+    const lastLine = lines.at(-1) ?? "";
+    expect(JSON.parse(lastLine)).toMatchObject({ type: "lock-wait", holder: { pid: 77 } });
   });
 });

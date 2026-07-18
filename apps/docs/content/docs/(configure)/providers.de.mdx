@@ -114,7 +114,7 @@ provider: {
   id: "openai-compatible",
   options: {
     baseUrl: "http://192.168.178.74:1234/v1",
-    model: "google/gemma-4-26b-a4b-qat", // example: whatever your server exposes
+    model: "qwen2.5-14b-instruct", // example: whatever your server exposes
     maxOutputTokens: 1024,
   },
 }
@@ -155,6 +155,16 @@ verbatra erlaubt Klartext-`http://` zu jedem Host, auch zu einer LAN-Adresse, oh
 
 Ein echtes Risiko ist es nur, wenn du zusätzlich einen Schlüssel konfigurierst (über `apiKeyEnvVar` oder `OPENAI_COMPATIBLE_API_KEY`) **und** `baseUrl` Klartext-`http://` zu einem Nicht-Loopback-Host ist: Dieser Schlüssel reist dann unverschlüsselt durch dein Netzwerk. Wenn dein Server einen echten Schlüssel verlangt und über localhost hinaus erreichbar ist, verwende `https://` für ihn. verbatra erkennt diese Kombination heute nicht und warnt nicht davor; behandle sie als deine eigene Verantwortung.
 </Callout>
+
+### Ein lokales Modell wählen
+
+Bevorzuge ein instruktionsoptimiertes Modell ohne Reasoning und mit guter mehrsprachiger Abdeckung. verbatra fordert ein einzelnes striktes JSON-Objekt an und validiert es, du willst also ein Modell, das Formatvorgaben zuverlässig befolgt. `qwen2.5-14b-instruct` ist ein sinnvoller Standard; wähle das größte solche Modell, das deine Hardware gut ausführt.
+
+<Callout type="warn" title="Meide Reasoning-Modelle und stark quantisierte Builds">
+Reasoning-Modelle (Thinking-Modelle) und stark quantisierte Builds (qat oder Low-Bit) sind hier die üblichen Fehlerquellen: Sie neigen dazu, Reasoning-Prosa um die Antwort herum auszugeben oder abgeschnittenes JSON zurückzugeben, und beides lässt verbatras Schema- und Integritätsprüfungen fehlschlagen. Falls ein reasoning-fähiges Modell unvermeidlich ist, gib ihm Platz zum Nachdenken und Antworten: siehe [Ausgabe-Token-Limits](#ausgabe-token-limits) für die Abstimmung von `maxOutputTokens` und `maxBatchSize`.
+</Callout>
+
+Ein schlechtes lokales Modell schlägt laut fehl, nicht still: verbatra validiert jede Provider-Antwort gegen ein kanonisches Schema sowie Platzhalter- und ICU-Integrität, ein Modell, das Reasoning-Prosa oder abgeschnittenes JSON ausgibt, wird also mit einem `INVALID_RESPONSE`- oder `OUTPUT_TRUNCATED`-Fehler abgelehnt, statt eine korrupte Übersetzung zu schreiben.
 
 ### Tolerantes Parsen für lokale und kleinere Modelle
 
@@ -205,7 +215,11 @@ Die vier LLM-Provider begrenzen, wie viele Tokens eine einzelne Antwort erzeugen
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Beide Hebel lösen das Problem: Senke `maxBatchSize` in deiner Konfiguration, damit jede Anfrage eine kleinere Antwort erzeugt, oder erhöhe die Grenze pro Antwort am Provider (`maxTokens` für Anthropic, `maxOutputTokens` für OpenAI, Gemini und openai-compatible). DeepL ist nicht betroffen: Es hat keinen Abschneidefall bei Ausgabe-Tokens.
+Beide Hebel lösen das Problem: Senke `maxBatchSize` in deiner Konfiguration, damit jede Anfrage eine kleinere Antwort erzeugt, oder erhöhe die Grenze pro Antwort am Provider (`maxTokens` für Anthropic, `maxOutputTokens` für OpenAI, Gemini und openai-compatible). DeepL ist nicht betroffen: Es hat keinen Abschneidefall bei Ausgabe-Tokens. verbatra erholt sich außerdem von selbst: Wird ein Sub-Batch abgeschnitten, teilt verbatra ihn in Hälften und versucht es erneut, bis hinunter zu einem einzelnen Eintrag, sodass die Schlüssel, die in eine kleinere Anfrage passen, trotzdem übersetzt werden und nur ein einzelner Eintrag, der weiterhin überläuft, für den nächsten Lauf zurückgehalten wird.
+
+<Callout title="Reasoning-Modelle verbrauchen dasselbe Budget">
+Ein Reasoning-Modell (Thinking-Modell) verbraucht seine verborgenen Reasoning-Tokens aus demselben Ausgabe-Token-Budget, aus dem es die JSON-Übersetzungen ausgibt. Es kann dieses Budget allein durch das Nachdenken erschöpfen und stoppen, bevor es überhaupt Ausgabe schreibt, was sich als `OUTPUT_TRUNCATED` zeigt. Wenn du ein Reasoning-Modell nutzt, gib ihm reichlich Spielraum: Bevorzuge ein höheres `maxOutputTokens` (`maxTokens` für Anthropic) oder ein kleineres `maxBatchSize`, damit jede Anfrage Platz für das Nachdenken und die Antwort hat.
+</Callout>
 
 ### Review-Flags
 

@@ -114,7 +114,7 @@ provider: {
   id: "openai-compatible",
   options: {
     baseUrl: "http://192.168.178.74:1234/v1",
-    model: "google/gemma-4-26b-a4b-qat", // example: whatever your server exposes
+    model: "qwen2.5-14b-instruct", // example: whatever your server exposes
     maxOutputTokens: 1024,
   },
 }
@@ -155,6 +155,16 @@ verbatra permite `http://` en claro hacia cualquier host, incluida una direcció
 
 Es un riesgo real solo cuando además configuras una clave (vía `apiKeyEnvVar` u `OPENAI_COMPATIBLE_API_KEY`) **y** `baseUrl` es `http://` en claro hacia un host que no es loopback: esa clave entonces viaja por tu red sin cifrar. Si tu servidor requiere una clave real y es accesible más allá de localhost, usa `https://` para él. verbatra hoy no detecta esta combinación ni avisa de ella; trátala como tu propia responsabilidad.
 </Callout>
+
+### Elegir un modelo local
+
+Prefiere un modelo ajustado por instrucciones, sin razonamiento y con buena cobertura multilingüe. verbatra pide un único objeto JSON estricto y lo valida, así que quieres un modelo que siga de forma fiable las indicaciones de formato. `qwen2.5-14b-instruct` es un valor por defecto razonable; elige el mayor modelo de ese tipo que tu hardware ejecute bien.
+
+<Callout type="warn" title="Evita los modelos de razonamiento y muy cuantizados">
+Los modelos de razonamiento (thinking) y los builds muy cuantizados (qat o de pocos bits) son aquí las fuentes de fallo habituales: tienden a emitir prosa de razonamiento alrededor de la respuesta o a devolver JSON truncado, y cualquiera de las dos cosas hace fallar las comprobaciones de esquema e integridad de verbatra. Si un modelo con razonamiento es inevitable, dale espacio para razonar y responder: consulta [Límites de tokens de salida](#límites-de-tokens-de-salida) para el ajuste de `maxOutputTokens` y `maxBatchSize`.
+</Callout>
+
+Un modelo local malo falla de forma ruidosa, no en silencio: verbatra valida cada respuesta del proveedor contra un esquema canónico más la integridad de marcadores de posición e ICU, así que un modelo que emite prosa de razonamiento o JSON truncado se rechaza con un error `INVALID_RESPONSE` u `OUTPUT_TRUNCATED` en lugar de escribir una traducción corrupta.
 
 ### Parseo tolerante para modelos locales y más pequeños
 
@@ -205,7 +215,11 @@ Los cuatro proveedores LLM limitan cuántos tokens puede producir una sola respu
 
 > The provider stopped because the output-token limit was reached. Reduce the batch size or raise the configured max output tokens.
 
-Cualquiera de las dos palancas lo resuelve: baja `maxBatchSize` en tu configuración para que cada solicitud produzca una respuesta más pequeña, o sube el tope por respuesta del proveedor (`maxTokens` para Anthropic, `maxOutputTokens` para OpenAI, Gemini y openai-compatible). DeepL no se ve afectado: no tiene caso de truncado por tokens de salida.
+Cualquiera de las dos palancas lo resuelve: baja `maxBatchSize` en tu configuración para que cada solicitud produzca una respuesta más pequeña, o sube el tope por respuesta del proveedor (`maxTokens` para Anthropic, `maxOutputTokens` para OpenAI, Gemini y openai-compatible). DeepL no se ve afectado: no tiene caso de truncado por tokens de salida. verbatra también se recupera por sí solo: cuando un sub-lote se trunca, lo divide en mitades y lo reintenta, bajando hasta una sola entrada, de modo que las claves que caben en una solicitud más pequeña se traducen igualmente y solo una entrada aislada que sigue desbordándose se retiene para la siguiente ejecución.
+
+<Callout title="Los modelos de razonamiento gastan el mismo presupuesto">
+Un modelo de razonamiento (thinking) gasta sus tokens de razonamiento ocultos del mismo presupuesto de tokens de salida que usa para emitir las traducciones JSON. Puede agotar ese presupuesto solo razonando y detenerse antes de escribir ninguna salida, lo que aparece como `OUTPUT_TRUNCATED`. Si usas un modelo de razonamiento, dale margen de sobra: prefiere un `maxOutputTokens` más alto (`maxTokens` para Anthropic) o un `maxBatchSize` más pequeño para que cada solicitud tenga espacio tanto para el razonamiento como para la respuesta.
+</Callout>
 
 ### Señales de revisión
 

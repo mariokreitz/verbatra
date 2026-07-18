@@ -1,3 +1,4 @@
+import type { IntegrityGateReason } from "@verbatra/sdk";
 import { z } from "zod";
 
 /** The RPC method name for writing exactly one human-typed correction into exactly one target locale. */
@@ -34,6 +35,6 @@ export type EditEntryResult =
     }
   | {
       readonly accepted: false;
-      readonly reason: "placeholder" | "icu";
+      readonly reason: IntegrityGateReason;
       readonly value: string;
     };

@@ -1,11 +1,11 @@
-import { guardProviderCall } from "../guard.js";
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider } from "../provider.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { createDefaultClient } from "./client.js";
 import { type GeminiConfig, geminiConfigSchema } from "./config.js";
-import { buildGeminiRequest, type GeminiRequest } from "./request.js";
+import { buildGeminiRequest } from "./request.js";
 import { extractGeminiResult } from "./response.js";
-import type { GeminiClient, GeminiResponse } from "./types.js";
+import type { GeminiClient } from "./types.js";
 
 const PROVIDER_ID = "gemini";
 
@@ -51,22 +51,13 @@ export function createGeminiProvider(
 }
 
 function createMechanism(client: GeminiClient, config: GeminiConfig): LlmMechanism {
+  const timeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   return {
     translate: async ({ payloadJson, signal }): Promise<LlmCompletion> => {
-      const request = buildGeminiRequest(config, payloadJson, signal);
-      const response = await callClient(client, request, signal);
+      const response = await withRequestTimeout(timeoutMs, signal, (requestSignal) =>
+        client.models.generateContent(buildGeminiRequest(config, payloadJson, requestSignal)),
+      );
       return extractGeminiResult(response);
     },
   };
-}
-
-/** Call the provider through the shared guard so a raw SDK error never leaks. The signal already
- * rides inside `request.config.abortSignal` (see {@link buildGeminiRequest}); it is also passed to
- * the guard so an abort mid-flight is re-thrown unchanged instead of becoming a ProviderError. */
-function callClient(
-  client: GeminiClient,
-  request: GeminiRequest,
-  signal: AbortSignal | undefined,
-): Promise<GeminiResponse> {
-  return guardProviderCall(() => client.models.generateContent(request), signal);
 }

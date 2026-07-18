@@ -53,7 +53,7 @@ export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummar
 
 /** An empty non-dry-run summary; override any field. */
 export function makeSummary(overrides: Partial<RunSummary> = {}): RunSummary {
-  return { dryRun: false, locales: [], succeeded: [], failed: [], ...overrides };
+  return { dryRun: false, locales: [], succeeded: [], partial: [], failed: [], ...overrides };
 }
 
 /** An export result with a fixed workbook path and no locales; override any field. */

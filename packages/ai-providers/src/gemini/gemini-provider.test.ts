@@ -352,7 +352,7 @@ describe("createGeminiProvider: secrets and errors", () => {
 });
 
 describe("createGeminiProvider: cancellation", () => {
-  it("carries the request's signal in config.abortSignal, the shape @google/genai expects it in", async () => {
+  it("carries a composed signal in config.abortSignal that aborts when the caller aborts", async () => {
     const controller = new AbortController();
     const { client, calls } = geminiStubClient(
       geminiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
@@ -360,15 +360,57 @@ describe("createGeminiProvider: cancellation", () => {
     await createGeminiProvider(config, { client }).translateBatch(
       request({ signal: controller.signal }),
     );
-    expect(firstGeminiCall(calls).config.abortSignal).toBe(controller.signal);
+    const composed = firstGeminiCall(calls).config.abortSignal;
+    expect(composed).toBeInstanceOf(AbortSignal);
+    expect(composed?.aborted).toBe(false);
+    controller.abort();
+    expect(composed?.aborted).toBe(true);
   });
 
-  it("omits config.abortSignal when the request carries no signal", async () => {
+  it("still carries a live, unaborted signal in config.abortSignal when the request carries none", async () => {
     const { client, calls } = geminiStubClient(
       geminiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createGeminiProvider(config, { client }).translateBatch(request());
-    expect(firstGeminiCall(calls).config).not.toHaveProperty("abortSignal");
+    const composed = firstGeminiCall(calls).config.abortSignal;
+    expect(composed).toBeInstanceOf(AbortSignal);
+    expect(composed?.aborted).toBe(false);
+  });
+
+  it("rejects with a retriable TIMEOUT ProviderError when the configured timeout elapses", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: GeminiClient = {
+        models: { generateContent: () => new Promise<never>(() => {}) },
+      };
+      const provider = createGeminiProvider({ ...config, requestTimeoutMs: 5000 }, { client });
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(5000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("5000");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("applies the shared default timeout when the config omits requestTimeoutMs", async () => {
+    vi.useFakeTimers();
+    try {
+      const client: GeminiClient = {
+        models: { generateContent: () => new Promise<never>(() => {}) },
+      };
+      const provider = createGeminiProvider(config, { client });
+      const rejection = provider.translateBatch(request()).catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(120_000);
+      const error = await rejection;
+      expect(error).toBeInstanceOf(ProviderError);
+      expect((error as ProviderError).code).toBe("TIMEOUT");
+      expect((error as ProviderError).message).toContain("120000");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("re-throws an abort unwrapped instead of a ProviderError", async () => {

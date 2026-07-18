@@ -1,7 +1,7 @@
-import { guardProviderCall } from "../guard.js";
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import { assertNotTruncated } from "../llm/truncation.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider, Usage } from "../provider.js";
+import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { createDefaultClient } from "./client.js";
 import { type AnthropicConfig, anthropicConfigSchema } from "./config.js";
 import { type BuiltRequest, buildRequest } from "./request.js";
@@ -57,10 +57,11 @@ export function createAnthropicProvider(
 }
 
 function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMechanism {
+  const timeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   return {
     translate: async ({ payloadJson, signal }): Promise<LlmCompletion> => {
       const body = buildRequest(config, payloadJson);
-      const message = await callClient(client, body, signal);
+      const message = await callClient(client, body, timeoutMs, signal);
       assertNotTruncated(message.stop_reason === "max_tokens");
       const raw = requireToolInput(message.content);
       const usage = toUsage(message.usage);
@@ -69,16 +70,19 @@ function createMechanism(client: MessagesClient, config: AnthropicConfig): LlmMe
   };
 }
 
-/** Call the provider through the shared guard so a raw SDK error never leaks; threads the signal
- * into both the guard's abort handling and the SDK call itself. */
+/**
+ * Call the provider through {@link withRequestTimeout} so the request is bounded by the configured
+ * timeout, a raw SDK error never leaks, and the composed (caller plus timeout) signal is threaded
+ * into the SDK call so a timeout really cancels it.
+ */
 function callClient(
   client: MessagesClient,
   body: BuiltRequest,
+  timeoutMs: number,
   signal: AbortSignal | undefined,
 ): Promise<AnthropicMessage> {
-  return guardProviderCall(
-    () => client.messages.create(body, signal !== undefined ? { signal } : undefined),
-    signal,
+  return withRequestTimeout(timeoutMs, signal, (requestSignal) =>
+    client.messages.create(body, { signal: requestSignal }),
   );
 }
 

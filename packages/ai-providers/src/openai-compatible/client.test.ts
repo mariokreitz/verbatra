@@ -48,7 +48,7 @@ describe("createDefaultClient: structural isolation from the hosted openai key p
     process.env.OPENAI_API_KEY = "hosted-key-should-never-reach-a-custom-baseUrl";
     createDefaultClient({
       baseUrl: "http://192.168.178.74:1234",
-      model: "google/gemma-4-26b-a4b-qat",
+      model: "qwen2.5-14b-instruct",
       maxOutputTokens: 1024,
     });
     expect(capturedOptions[0]).toMatchObject({
