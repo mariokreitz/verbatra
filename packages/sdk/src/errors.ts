@@ -29,6 +29,13 @@
  *   its timeout elapsed, because another process is holding it (or an orphaned lock file was left
  *   behind by a killed process); the message names the lock file's path (thrown by `translate`,
  *   `importWorkbook`, `editEntry`, and `retranslateEntry`).
+ * - `CONCURRENCY_INVALID`: the `concurrency` input is not an integer of at least 1 (thrown by
+ *   `translate` and, per run, by `watch`, before any locale runs).
+ * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested `concurrency` greater than 1 while a token
+ *   budget (`maxTokens`) is configured; the two are mutually exclusive because concurrency makes the
+ *   budget's stop guarantee nondeterministic (thrown by `translate` before any provider call; a dry
+ *   run is exempt, since it never folds usage into or consults the budget tracker, so the conflict
+ *   cannot arise).
  * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
  *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction
  *   on `translate`.
@@ -44,6 +51,8 @@ export type SdkErrorCode =
   | "SOURCE_INVALID"
   | "LOCK_FILE_INVALID"
   | "LOCK_CONTENDED"
+  | "CONCURRENCY_INVALID"
+  | "CONCURRENCY_BUDGET_CONFLICT"
   | "LOCALE_FAILED";
 
 /** The single structured error the SDK throws or records. Never carries a secret. */

@@ -1,4 +1,4 @@
-import type { LockWaitEvent, WatchRunResult } from "@verbatra/sdk";
+import type { LockWaitEvent, ProgressEvent, WatchRunResult } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import {
   renderCheckHuman,
@@ -13,6 +13,9 @@ import {
   renderLockWait,
   renderLockWaitHuman,
   renderLockWaitJson,
+  renderProgress,
+  renderProgressHuman,
+  renderProgressJson,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -216,6 +219,20 @@ describe("render: human run summary", () => {
     expect(text).not.toContain("needs-review");
   });
 
+  it("shows the from-cache count when keys were served from the translation memory", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ translated: ["a"], cacheHits: ["b", "c"] })],
+      }),
+    );
+    expect(text).toContain("2 from cache");
+  });
+
+  it("omits the from-cache count when nothing was served from the cache", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("from cache");
+  });
+
   it("shows the generated count when plural forms were synthesized", () => {
     const text = renderHuman(
       makeSummary({
@@ -238,6 +255,43 @@ describe("render: human run summary", () => {
     );
     expect(text).toContain("2 orphaned");
     expect(text).toContain("2 pruned");
+  });
+
+  it("shows an unfilled count and the key list for changed rows left blank on import", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ unfilled: ["greeting", "farewell"] })] }),
+      "import",
+    );
+    expect(text).toContain("2 unfilled");
+    expect(text).toContain("unfilled:");
+    expect(text).toContain("greeting, farewell");
+  });
+
+  it("shows a malformed-rows count and the row and column of each malformed row", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ malformedRows: [{ row: 7, column: "Status" }] })] }),
+      "import",
+    );
+    expect(text).toContain("1 malformed-rows");
+    expect(text).toContain("malformed:");
+    expect(text).toContain("row 7 (Status)");
+  });
+
+  it("shows a duplicate-keys count and the conflicting key with its losing row", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ duplicateKeys: [{ key: "greeting", row: 9 }] })] }),
+      "import",
+    );
+    expect(text).toContain("1 duplicate-keys");
+    expect(text).toContain("duplicates:");
+    expect(text).toContain("greeting (row 9)");
+  });
+
+  it("omits the import detail groups when nothing was unfilled, malformed, or duplicated", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("unfilled");
+    expect(text).not.toContain("malformed");
+    expect(text).not.toContain("duplicates");
   });
 
   it("renders a failed locale with its structured code and message", () => {
@@ -419,6 +473,38 @@ describe("render: lock-wait progress", () => {
     const event: LockWaitEvent = { lockPath: "/x/de.lock", elapsedMs: 0 };
     expect(JSON.parse(renderLockWait(event, true))).toMatchObject({ type: "lock-wait" });
     expect(renderLockWait(event, false)).toContain("waiting for the write lock");
+  });
+});
+
+describe("render: progress", () => {
+  const cases: ReadonlyArray<readonly [ProgressEvent, string]> = [
+    [
+      { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 3 },
+      "[1/3] translating de",
+    ],
+    [{ type: "sub-batch", locale: "de", batchIndex: 2, totalBatches: 4 }, "de batch 2/4"],
+    [{ type: "locale-finished", locale: "de", translated: 5 }, "de done, 5 translated"],
+    [{ type: "run-finished", localesCompleted: 3 }, "run finished, 3 locales processed"],
+  ];
+
+  it("renders every event type human-readably, prefixed with verbatra:", () => {
+    for (const [event, fragment] of cases) {
+      const line = renderProgressHuman(event);
+      expect(line.startsWith("verbatra:")).toBe(true);
+      expect(line).toContain(fragment);
+    }
+  });
+
+  it("renders every event type as its verbatim JSON record", () => {
+    for (const [event] of cases) {
+      expect(JSON.parse(renderProgressJson(event))).toEqual(event);
+    }
+  });
+
+  it("renderProgress dispatches to JSON under json mode and to the human line otherwise", () => {
+    const event: ProgressEvent = { type: "run-finished", localesCompleted: 1 };
+    expect(JSON.parse(renderProgress(event, true))).toEqual(event);
+    expect(renderProgress(event, false)).toContain("run finished");
   });
 });
 

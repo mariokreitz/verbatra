@@ -1,5 +1,39 @@
 # @verbatra/sdk
 
+## 0.6.2
+
+### Patch Changes
+
+- a6767a6: Harden the human-translator Excel round trip so a returned workbook is never silently misread. Import now reports the `changed` rows a translator left blank as pending (unfilled) work instead of quietly counting the locale as done, and a translation cell that holds only whitespace is treated exactly like an empty cell. A single malformed row no longer discards the rest of its sheet: the good rows still import and each bad row is reported by sheet, row number, and column (never any cell content). A duplicate key within a sheet is reported as a conflict, with the first occurrence winning deterministically. A translator can now deliberately unset a value by typing `[[CLEAR]]` in the Translation cell, which writes an empty value while keeping the key, still honoring the source-drift check. Exported workbooks lock their structure so the language tabs cannot be trivially renamed, deleted, or reordered, and on import a configured locale whose tab is missing or renamed is reported as a named, structured failure rather than silently dropped. The instructions sheet documents the new behavior, and the CLI prints the new counts and key lists.
+- 62dbc7e: Add optional locale-level concurrency to the translate flow. `translate()` and `watch()` now accept an optional `concurrency` (a positive integer, surfaced on the CLI as the `--concurrency <n>` flag on `translate` and `watch`), running up to that many target locales at once through a bounded worker pool. The default is 1, which stays strictly serial and byte-identical to before: same written files, same `RunSummary.locales` order, same lock-file content. Regardless of completion order, results are always collected back into source-locale order. Because a token budget's stop guarantee is order-dependent, a live run that sets `concurrency` greater than 1 while `maxTokens` is configured is refused up front with a `CONCURRENCY_BUDGET_CONFLICT` error (a dry run is exempt); an invalid value is rejected with `CONCURRENCY_INVALID`. No new locking is added: the per-locale write locks already isolate concurrent locales on disk.
+- 72bacc3: Add support for the Java/Spring `.properties` format. Files with the `.properties`
+  extension are now detected and translated: keys are read flat (never split into a
+  tree), the standard escapes and `\uXXXX` are decoded on read, and output is written
+  canonically with `=` separators and ASCII-safe `\uXXXX` escapes for every non-ASCII
+  character, so it loads under a legacy `Properties.load`. Comments, blank lines, and
+  key order in an existing target file are preserved on write.
+
+  Placeholder integrity understands the java.text.MessageFormat argument syntax these
+  files are consumed through, including the typed and styled forms (`{0,number,integer}`,
+  `{0,date,short}`) and the sub-message forms (`{count,plural, ...}`), so a translation
+  that drops or alters an argument is caught. MessageFormat single-quote quoting is not
+  interpreted: a quoted literal such as `'{0}'` is still treated as an argument. This is
+  deliberate, so that an ordinary apostrophe in translated text never swallows a
+  following placeholder.
+
+- b98d7f2: Report progress during translate and watch. `translate()` and `watch()` now accept an optional `onProgress` listener that fires as a run advances: once per locale before it starts and after it finishes, once per provider sub-batch within a locale, and once when the whole run ends. As with the existing lock-wait signal, the SDK writes nothing itself; the CLI renders these events to stderr in both human and `--json` mode, so stdout stays a clean summary or NDJSON stream. A dry-run makes no provider call and so emits no sub-batch events.
+- ca2d99a: Add a content-addressed translation-memory (TM) cache so a translation whose source content is unchanged is reused for free instead of being re-sent to the provider. A translation is reused even when its key was renamed, and identical source text shared across two keys is paid for once. The cache lives in a local, gitignored, regenerable `verbatra.cache.json` sibling to the lock file (scaffolded into `.gitignore` by `init`); it is never a field on the lock file and never committed.
+
+  Each entry is keyed by `(sourceContentHash, targetLocale, fingerprint)`, nested by fingerprint under a top-level `version`. The fingerprint is a stable hash over the provider id, model, tone, and sorted glossary; format is deliberately excluded because every reused value is re-checked by the placeholder/ICU integrity gate against the current source before it is applied, so a hit that no longer matches the target format is discarded and its key falls through to the provider. Reused hits apply silently (never flagged for review). A changed fingerprint (for example a different tone) never serves a stale value.
+
+  The cache is resilient by design: a missing, corrupt, oversized, or unrecognized-version file degrades to an empty cache and never fails a run (unlike the fatal lock-file). It is read once as an immutable snapshot at run start and written once at the end (best-effort, dry-run-skipped), which keeps it safe under locale concurrency. Values accepted by `importWorkbook`, `editEntry`, and `retranslateEntry` are also fed into the cache so a later run reuses them.
+
+  The cache is on by default. `translate()` and `watch()` accept an optional `cache` input (surfaced on the CLI as `--no-cache`) that bypasses both the read and the write for a run, making it behave exactly as if no cache existed and leaving any existing cache file untouched. To rebuild or discard the cache, delete `verbatra.cache.json`; it is regenerated naturally on the next run. `LocaleSummary` gains a `cacheHits` bucket (rendered as "from cache" in the CLI) reporting the keys served from cache as avoided provider usage.
+
+  Within a single run, byte-identical source text shared across two or more keys is translated once per target locale: the provider misses are deduplicated by source content hash, one representative is sent, and its accepted value is fanned out to every key that shares the content (and cached and lock-advanced identically). This holds even when the keys would otherwise fall into separate provider batches.
+
+  Known limitation: generated plural forms are out of v1 TM scope. A synthesized CLDR plural form is neither served from nor written to the cache; only main-path diff candidates participate.
+
 ## 0.6.1
 
 ### Patch Changes

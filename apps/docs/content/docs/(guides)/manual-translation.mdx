@@ -42,11 +42,12 @@ Rows are sorted by key, the header row is frozen, the `Source hash` column is hi
 
 ## Handing off
 
-What a translator needs to know fits in three lines (and is repeated on the workbook's own Instructions sheet):
+What a translator needs to know fits in a few lines (and is repeated on the workbook's own Instructions sheet):
 
 - Fill the `Translation` column, nothing else. The sheet protection enforces this.
+- Do not rename, delete, or reorder the language tabs. verbatra matches each tab to a locale by its exact name, so a renamed or missing tab is reported and that locale is not imported.
 - Sorting and filtering rows is fine: import maps rows by `Key`, never by position. Columns must stay where they are; import reads them by position and verifies the `Key` and `Source hash` headers.
-- An empty `Translation` cell means "not translated yet". Import skips it and never writes an empty string, so a half-filled workbook can come back now and the rest later.
+- An empty `Translation` cell means "not translated yet". Import skips it and never writes an empty string, so a half-filled workbook can come back now and the rest later. A cell holding only spaces counts as empty. To deliberately clear an existing value (set it to empty), type exactly `[[CLEAR]]` in the cell.
 
 ## What import accepts
 
@@ -60,7 +61,9 @@ Import is not a blind paste. Every filled row is judged against the live project
 
 Withheld rows are reported in the run summary under the locale they belong to; accepted rows are written and their lock baseline advances. A withheld or blank row keeps its prior baseline, so the key keeps re-exporting until it is genuinely resolved. A blank row whose source drifted since export is additionally called out with a `BLANK_ROW_BASELINE_RETAINED` notice, so the drift stays visible.
 
-Each data sheet is one locale in the summary: a sheet failure (an invented key, a sheet for a locale not in your config) fails that locale and leaves the others untouched. Import shares the `translate` exit-code contract: `0` when every sheet succeeds, `1` when one fails, `2` when the run could not start. A manual handoff therefore drops into the same [CI checks](/docs/ci-and-exit-codes) as an automated run.
+Import also surfaces structural findings per locale instead of aborting on them: a `changed` row the translator left blank (reported as unfilled, still pending), a workbook row the reader could not parse (reported by row and column), and a duplicated key (the first occurrence wins and is imported, each later one is reported). None of these fail the sheet on their own.
+
+Each data sheet is one locale in the summary: a sheet failure (an invented key, a sheet for a locale not in your config, or a configured locale whose tab is missing entirely because it was renamed, deleted, or reordered out) fails that locale and leaves the others untouched. Import shares the `translate` exit-code contract: `0` when every sheet succeeds, `1` when one fails, `2` when the run could not start. A manual handoff therefore drops into the same [CI checks](/docs/ci-and-exit-codes) as an automated run.
 
 ### Dry-run first
 

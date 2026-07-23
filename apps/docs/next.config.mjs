@@ -18,6 +18,18 @@ const config = {
         destination: "https://verbatra.kreitz-webdev.de/:path*",
         permanent: true,
       },
+      // The "testing" concept page was renamed to "translation-safety". Keep stale inbound links alive
+      // (English is unprefixed; de/es/fr carry a locale prefix).
+      {
+        source: "/docs/testing",
+        destination: "/docs/translation-safety",
+        permanent: true,
+      },
+      {
+        source: "/:locale(de|es|fr)/docs/testing",
+        destination: "/:locale/docs/translation-safety",
+        permanent: true,
+      },
     ];
   },
   // App-layer security headers for every route; CSP and HSTS are handled at the host/edge, not here.

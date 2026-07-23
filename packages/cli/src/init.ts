@@ -188,14 +188,16 @@ function writeFileIfAllowed(
 }
 
 /**
- * Ensures .env, .env.local, and .verbatra-local/ are gitignored: creates the file if absent,
- * otherwise appends only the entries not already present, so re-running init never duplicates
- * them. .verbatra-local/ holds process-local, never-committed state (the run-status snapshot
- * `translate`/`watch` write, and the per-locale write lock files under locks/).
+ * Ensures .env, .env.local, .verbatra-local/, and verbatra.cache.json are gitignored: creates the
+ * file if absent, otherwise appends only the entries not already present, so re-running init never
+ * duplicates them. .verbatra-local/ holds process-local, never-committed state (the run-status
+ * snapshot `translate`/`watch` write, and the per-locale write lock files under locks/).
+ * verbatra.cache.json is the local, regenerable translation-memory cache: safe to delete at any time,
+ * which rebuilds it naturally on the next run, and never committed.
  */
 function ensureGitignore(cwd: string, streams: Streams): void {
   const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".env", ".env.local", ".verbatra-local/"];
+  const entries = [".env", ".env.local", ".verbatra-local/", "verbatra.cache.json"];
   if (!existsSync(gitignorePath)) {
     writeFileSync(
       gitignorePath,

@@ -17,9 +17,13 @@ verbatra watch [flags]
 | `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
 | `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
 | `--debounce` | `<ms>` | `300` | attend ce nombre de millisecondes après le dernier changement avant de traduire ; doit être un entier positif nu (une valeur comme `250ms`, `0` ou `-1` est une erreur d'utilisation, sortie `2`) |
+| `--concurrency` | `<n>` | `1` | traduit jusqu'à `n` locales cibles à la fois par exécution ; doit être un entier positif |
+| `--no-cache` | aucun | désactivé (cache activé) | contourne le [cache de mémoire de traduction](/docs/the-cache) local (`verbatra.cache.json`) à chaque exécution |
 | `--json` | aucun | désactivé | affiche chaque exécution comme un enregistrement NDJSON (un objet JSON par ligne) sur stdout |
 
-Avec `--json`, chaque exécution émet un enregistrement [`WatchRunResult`](/docs/sdk) : un succès portant le résumé d'exécution, ou un échec portant un code d'erreur et un message. La ligne de démarrage et l'avis d'arrêt vont sur stderr, donc le flux stdout reste du NDJSON propre. Une exécution échouée n'est qu'un enregistrement sur le flux : elle n'arrête pas la surveillance et ne change pas le code de sortie.
+Avec `--json`, chaque exécution émet un enregistrement [`WatchRunResult`](/docs/sdk) : un succès portant le résumé d'exécution, ou un échec portant un code d'erreur et un message. La ligne de démarrage, l'avis d'arrêt et la progression de chaque exécution vont sur stderr, donc le flux stdout reste du NDJSON propre. Une exécution échouée n'est qu'un enregistrement sur le flux : elle n'arrête pas la surveillance et ne change pas le code de sortie.
+
+`--concurrency` s'applique à l'exécution de chaque cycle. Comme le budget de tokens de chaque exécution est neuf, un `--concurrency` supérieur à `1` échoue toujours à chaque exécution avec la sortie `2` quand la config fixe un budget `maxTokens`. `--no-cache` contourne le [cache de mémoire de traduction](/docs/the-cache) à chaque cycle.
 
 ## Arrêt
 
@@ -46,5 +50,6 @@ verbatra watch --debounce 1000 --json
 ## Voir aussi
 
 - [`verbatra translate`](/docs/cli/translate) est l'exécution unique que `watch` répète.
+- [Le cache](/docs/the-cache) explique ce que `--no-cache` contourne à chaque exécution.
 - [Comment ça marche](/docs/how-it-works) explique ce que fait chaque exécution.
 - [La référence SDK](/docs/sdk) documente les formes `WatchRunResult` et `RunSummary`.

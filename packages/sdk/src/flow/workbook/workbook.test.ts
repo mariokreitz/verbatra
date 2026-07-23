@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
-import { buildWorkbook, readWorkbook } from "@verbatra/exchange";
+import { buildWorkbook, type RowStatus, readWorkbook } from "@verbatra/exchange";
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../../config/schema.js";
@@ -593,5 +593,172 @@ describe("importWorkbook", () => {
         { fs },
       ),
     ).rejects.toMatchObject({ code: "SOURCE_INVALID" });
+  });
+
+  it("reports a changed row the translator left blank as unfilled", async () => {
+    const dir = await project({ greeting: "Hi there" }, { de: { greeting: "Hallo" } });
+    const config = cfg({ targetLocales: ["de"] });
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: { de: { greeting: contentHash(entry("Hello")) } },
+    });
+    const out = await exportWorkbook({ config, cwd: dir });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.unfilled).toEqual(["greeting"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+  });
+
+  it("treats a whitespace-only translation cell as empty: not written", async () => {
+    const dir = await project({ a: "A", b: "B" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { a: "Aa", b: "   " });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.b).toBeUndefined();
+  });
+
+  it("imports a sheet's good rows and reports a malformed row by row and column", async () => {
+    const dir = await project({ good: "A", bad: "B" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    const sheets = data.sheets.map((sheet) => ({
+      locale: sheet.locale,
+      rows: sheet.rows.map((r) =>
+        r.key === "good"
+          ? { ...r, translation: "Gut" }
+          : { ...r, translation: "Schlecht", status: "weird" as RowStatus },
+      ),
+    }));
+    await writeFile(out.path, await buildWorkbook({ sheets }));
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["good"]);
+    expect(summary.locales[0]?.malformedRows).toHaveLength(1);
+    expect(summary.locales[0]?.malformedRows[0]?.column).toBe("Status");
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.good).toBe("Gut");
+    expect(de.bad).toBeUndefined();
+  });
+
+  it("reports a duplicate key as a conflict and keeps the first occurrence", async () => {
+    const dir = await project({ a: "A" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    const sheets = data.sheets.map((sheet) => ({
+      locale: sheet.locale,
+      rows: [
+        ...sheet.rows.map((r) => ({ ...r, translation: "First" })),
+        ...sheet.rows.map((r) => ({ ...r, translation: "Second" })),
+      ],
+    }));
+    await writeFile(out.path, await buildWorkbook({ sheets }));
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.duplicateKeys).toHaveLength(1);
+    expect(summary.locales[0]?.duplicateKeys[0]?.key).toBe("a");
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.a).toBe("First");
+  });
+
+  it("reports a deleted locale tab as a WORKBOOK_SHEET_MISSING failure, not a silent drop", async () => {
+    const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
+    const config = cfg({ targetLocales: ["de", "fr"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    const deOnly = data.sheets.filter((sheet) => sheet.locale === "de");
+    await writeFile(out.path, await buildWorkbook({ sheets: deOnly }));
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    const fr = summary.locales.find((l) => l.locale === "fr");
+    expect(fr?.status).toBe("failed");
+    expect(fr?.error?.code).toBe("WORKBOOK_SHEET_MISSING");
+    expect(summary.failed).toContain("fr");
+  });
+
+  it("reports a renamed tab as an unexpected sheet and its original locale as missing", async () => {
+    const dir = await project({ a: "A" }, { de: undefined });
+    const out = await exportWorkbook({ config: cfg({ targetLocales: ["de"] }), cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    const renamed = data.sheets.map((sheet) => ({ locale: "german", rows: sheet.rows }));
+    await writeFile(out.path, await buildWorkbook({ sheets: renamed }));
+
+    const summary = await importWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      workbook: out.path,
+      cwd: dir,
+    });
+    const german = summary.locales.find((l) => l.locale === "german");
+    const de = summary.locales.find((l) => l.locale === "de");
+    expect(german?.error?.code).toBe("CONFIG_INVALID");
+    expect(de?.error?.code).toBe("WORKBOOK_SHEET_MISSING");
+  });
+
+  it("clears a value via [[CLEAR]]: written empty, key kept, lock baseline advanced", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+    await fillWorkbook(out.path, "de", { a: "[[CLEAR]]" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.a).toBe("");
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    expect(lock.locales.de?.a).toBe(contentHash(entry("A")));
+  });
+
+  it("round-trips a key with leading and trailing whitespace through export and import", async () => {
+    const dir = await project({ " spaced key ": "Hello" }, { de: undefined });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { " spaced key ": "Hallo" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.error).toBeUndefined();
+    expect(summary.locales[0]?.status).not.toBe("failed");
+    expect(summary.locales[0]?.translated).toEqual([" spaced key "]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de[" spaced key "]).toBe("Hallo");
+  });
+
+  it("reads and imports the exact exported, structure-locked bytes with no intermediate re-save", async () => {
+    const dir = await project({ a: "A", b: "B" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+
+    const readBack = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    expect(readBack.sheets[0]?.rows.map((r) => r.key).sort()).toEqual(["a", "b"]);
+
+    const direct = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(direct.locales[0]?.error).toBeUndefined();
+    expect(direct.locales[0]?.status).toBe("succeeded");
+
+    await fillWorkbook(out.path, "de", { b: "Bb" });
+    const filled = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(filled.locales[0]?.translated).toContain("b");
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.b).toBe("Bb");
+  });
+
+  it("withholds a [[CLEAR]] whose source drifted since export, like any drift", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" } });
+    const config = cfg({ targetLocales: ["de"] });
+    const out = await exportWorkbook({ config, cwd: dir, includeUnchanged: true });
+    await fillWorkbook(out.path, "de", { a: "[[CLEAR]]" });
+    await writeJsonFile(join(dir, "locales", "en.json"), { a: "A changed" });
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.a).toBe("Aa");
   });
 });

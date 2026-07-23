@@ -18,9 +18,13 @@ verbatra translate [flags]
 | `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
 | `--dry-run` | aucun | désactivé | prévisualise les changements sans appeler de fournisseur ni écrire de fichiers |
 | `--prune` | aucun | l'option `prune` de la config, sinon désactivé | supprime les clés orphelines (présentes dans un fichier cible mais absentes de la source) du fichier écrit et du verrou |
+| `--concurrency` | `<n>` | `1` | traduit jusqu'à `n` locales cibles à la fois ; doit être un entier positif |
+| `--no-cache` | aucun | désactivé (cache activé) | contourne le [cache de mémoire de traduction](/docs/the-cache) local (`verbatra.cache.json`) pour cette exécution |
 | `--json` | aucun | désactivé | affiche le résumé d'exécution comme un seul objet JSON sur stdout (la [forme `RunSummary`](/docs/sdk)) ; les erreurs vont toujours sur stderr |
 
 Par défaut, une exécution ne supprime rien : les clés orphelines sont signalées et laissées en place. `--prune` supprime exactement ces clés et rien d'autre, et remplace l'option `prune` de la config pour cette exécution. Avant de s'exécuter, `translate` charge `.env.local` puis `.env` depuis le répertoire de travail ; une variable déjà définie dans l'environnement réel l'emporte.
+
+`--concurrency` traduit plusieurs locales cibles en parallèle pour terminer plus vite un gros projet. Il est refusé avec le code `2` quand la config fixe un budget `maxTokens`, car des locales concurrentes ne peuvent pas respecter un plafond de tokens de façon déterministe (un dry-run est exempté). À mesure qu'une exécution avance, la progression est affichée sur stderr (une ligne par démarrage de locale, sous-lot du fournisseur et fin de locale), donc le stdout d'une exécution `--json` reste un unique résumé propre. `--no-cache` saute le [cache de mémoire de traduction](/docs/the-cache) pour l'exécution, en faisant exactement les appels au fournisseur qu'il ferait sans cache présent.
 
 ## Exemples
 
@@ -45,6 +49,7 @@ Une locale qui échoue n'est pas fatale : l'exécution se termine, sort avec `1`
 ## Voir aussi
 
 - [Comment ça marche](/docs/how-it-works) explique le pipeline lire, comparer, traduire, écrire.
+- [Le cache](/docs/the-cache) explique ce que `--no-cache` contourne et comment la réutilisation est délimitée.
 - [Sûreté de la traduction](/docs/translation-safety) couvre les vérifications d'intégrité et la file de révision.
 - [`verbatra diff`](/docs/cli/diff) prévisualise les mêmes clés en attente, en lecture seule.
 - [CI et codes de sortie](/docs/ci-and-exit-codes) montre comment te brancher sur ces codes.

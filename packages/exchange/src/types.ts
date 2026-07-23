@@ -62,8 +62,42 @@ export interface WorkbookModel {
   readonly sheets: readonly WorkbookSheet[];
 }
 
+/**
+ * One data row that failed the read-layer shape check. Reported as structured data rather than
+ * thrown, so one bad row never aborts the rest of its sheet. Carries only the sheet's locale, the
+ * 1-based worksheet row number, and the offending column's header label; never any cell content, so
+ * untrusted workbook text cannot leak through it.
+ */
+export interface WorkbookRowProblem {
+  /** The locale (data-sheet name) the malformed row was on. */
+  readonly locale: string;
+  /** The 1-based worksheet row number of the malformed row. */
+  readonly row: number;
+  /** The header label of the column the row was rejected on (for example "Status"). */
+  readonly column: string;
+}
+
+/**
+ * One occurrence of a key that already appeared earlier in the same sheet. The read layer keeps the
+ * first occurrence in {@link WorkbookSheet.rows} and reports every later occurrence here; the SDK
+ * import layer treats the first occurrence as the winner. Carries only the locale, the duplicated
+ * key, and the later occurrence's 1-based worksheet row number.
+ */
+export interface WorkbookDuplicateKey {
+  /** The locale (data-sheet name) the duplicate was on. */
+  readonly locale: string;
+  /** The key that occurred more than once in the sheet. */
+  readonly key: string;
+  /** The 1-based worksheet row number of this later (losing) occurrence. */
+  readonly row: number;
+}
+
 /** The parsed result of reading a returned workbook back into the neutral row model. */
 export interface WorkbookData {
-  /** One entry per recognized data sheet, in workbook order. */
+  /** One entry per recognized data sheet, in workbook order; each sheet's rows are unique by key. */
   readonly sheets: readonly WorkbookSheet[];
+  /** Every row across all data sheets that failed the shape check, in workbook then row order. */
+  readonly malformedRows: readonly WorkbookRowProblem[];
+  /** Every later occurrence of a key duplicated within a sheet, in workbook then row order. */
+  readonly duplicateKeys: readonly WorkbookDuplicateKey[];
 }

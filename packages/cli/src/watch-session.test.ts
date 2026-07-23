@@ -146,4 +146,33 @@ describe("runWatch: lock-wait progress and timeout threading", () => {
     const lastLine = lines.at(-1) ?? "";
     expect(JSON.parse(lastLine)).toMatchObject({ type: "lock-wait", holder: { pid: 77 } });
   });
+
+  it("passes an onProgress that renders the human progress line to stderr", async () => {
+    const { streams, err } = captureStreams();
+    const { deps, calls } = recordingDeps({ watch: idleController });
+
+    runWatch(options(), deps, streams);
+    await flush();
+    calls.watch[0]?.onProgress?.({
+      type: "locale-started",
+      locale: "de",
+      localeIndex: 0,
+      totalLocales: 2,
+    });
+
+    expect(err()).toContain("[1/2] translating de");
+  });
+
+  it("passes an onProgress that emits a structured JSON record to stderr under --json", async () => {
+    const { streams, err } = captureStreams();
+    const { deps, calls } = recordingDeps({ watch: idleController });
+
+    runWatch({ ...options(), json: true }, deps, streams);
+    await flush();
+    calls.watch[0]?.onProgress?.({ type: "run-finished", localesCompleted: 2 });
+
+    const lines = err().trim().split("\n");
+    const lastLine = lines.at(-1) ?? "";
+    expect(JSON.parse(lastLine)).toEqual({ type: "run-finished", localesCompleted: 2 });
+  });
 });

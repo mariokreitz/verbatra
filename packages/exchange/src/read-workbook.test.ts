@@ -219,19 +219,39 @@ describe("readWorkbook: structural rejection", () => {
     expect(data.sheets[0]?.rows[0]?.status).toBe("unchanged");
   });
 
-  it("rejects a row with an unrecognized status via the zod row check", async () => {
-    const bad: WorkbookModel = {
+  it("reports a row with an unrecognized status as a malformed row instead of throwing", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "good";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(3).getCell(1).value = "bad";
+    sheet.getRow(3).getCell(4).value = "weird";
+    const data = await readWorkbook(
+      new Uint8Array((await workbook.xlsx.writeBuffer()) as ArrayBuffer),
+    );
+
+    expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["good"]);
+    expect(data.malformedRows).toEqual([{ locale: "de", row: 3, column: "Status" }]);
+  });
+
+  it("reads the Key column verbatim, keeping legitimate surrounding whitespace", async () => {
+    const withSpacedKey: WorkbookModel = {
       sheets: [
         {
           locale: "de",
           rows: [
             {
-              key: "k1",
+              key: " spaced key ",
               source: "Hello",
               currentTarget: "",
-              status: "weird" as "new",
+              status: "new",
               sourceHash: "h1",
-              translation: "Hallo",
+              translation: "",
               context: "",
               reviewStatus: "ok",
               reviewReasons: "",
@@ -240,7 +260,66 @@ describe("readWorkbook: structural rejection", () => {
         },
       ],
     };
-    expect(await code(readWorkbook(await buildWorkbook(bad)))).toBe("WORKBOOK_INVALID");
+    const data = await readWorkbook(await buildWorkbook(withSpacedKey));
+    expect(data.sheets[0]?.rows[0]?.key).toBe(" spaced key ");
+  });
+
+  it("reads a whitespace-only translation cell back as an empty string", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "k1";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(5).value = "   ";
+    const data = await readWorkbook(
+      new Uint8Array((await workbook.xlsx.writeBuffer()) as ArrayBuffer),
+    );
+
+    expect(data.sheets[0]?.rows[0]?.translation).toBe("");
+  });
+
+  it("trims surrounding whitespace from a filled translation cell", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "k1";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(5).value = "  Hallo  ";
+    const data = await readWorkbook(
+      new Uint8Array((await workbook.xlsx.writeBuffer()) as ArrayBuffer),
+    );
+
+    expect(data.sheets[0]?.rows[0]?.translation).toBe("Hallo");
+  });
+
+  it("keeps the first occurrence of a duplicated key and reports every later one", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("de");
+    ["Key", "Source", "Current translation", "Status", "Translation", "Source hash"].forEach(
+      (label, index) => {
+        sheet.getRow(1).getCell(index + 1).value = label;
+      },
+    );
+    sheet.getRow(2).getCell(1).value = "dup";
+    sheet.getRow(2).getCell(4).value = "new";
+    sheet.getRow(2).getCell(5).value = "First";
+    sheet.getRow(3).getCell(1).value = "dup";
+    sheet.getRow(3).getCell(4).value = "new";
+    sheet.getRow(3).getCell(5).value = "Second";
+    const data = await readWorkbook(
+      new Uint8Array((await workbook.xlsx.writeBuffer()) as ArrayBuffer),
+    );
+
+    expect(data.sheets[0]?.rows.map((r) => r.translation)).toEqual(["First"]);
+    expect(data.duplicateKeys).toEqual([{ locale: "de", key: "dup", row: 3 }]);
   });
 });
 
