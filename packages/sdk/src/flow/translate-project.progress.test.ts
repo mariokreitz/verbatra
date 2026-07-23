@@ -1,9 +1,31 @@
-import { mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { localeLockPath } from "../lock/locale-write-lock.js";
 import type { ProgressEvent } from "../progress/types.js";
 import { baseConfig, makeStubProvider, makeTempDir, writeJsonFile } from "../test-support.js";
+import type { LocaleSummary } from "./summary.js";
 import { translate } from "./translate-project.js";
+
+/** Pre-create a held locale lock so a live run's own acquire contends and fails with LOCK_CONTENDED. */
+async function holdLock(dir: string, locale: string): Promise<void> {
+  const path = localeLockPath(dir, locale);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(
+    path,
+    JSON.stringify({ pid: 9999, acquiredAt: "2026-07-18T00:00:00.000Z" }),
+    "utf8",
+  );
+}
+
+/** Find one locale's summary by tag, failing loudly if it is absent. */
+function localeSummary(summaries: readonly LocaleSummary[], locale: string): LocaleSummary {
+  const summary = summaries.find((entry) => entry.locale === locale);
+  if (summary === undefined) {
+    throw new Error(`no summary for locale ${locale}`);
+  }
+  return summary;
+}
 
 /** A temp project whose source carries `keyCount` keys and no target files yet (all keys missing). */
 async function makeProject(keyCount: number): Promise<string> {
@@ -61,6 +83,25 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
       { type: "locale-finished", locale: "de", translated: 3 },
       { type: "run-finished", localesCompleted: 1 },
     ]);
+  });
+
+  it("counts a failed (isolated, not thrown) locale in run-finished and fires its locale-finished with 0", async () => {
+    const dir = await makeProject(1);
+    // "de" is locked so its live acquire times out (LOCK_CONTENDED), isolated as a failed summary;
+    // "fr" is free and succeeds. Both must still be counted and both must emit locale-finished.
+    await holdLock(dir, "de");
+    const config = baseConfig({ targetLocales: ["de", "fr"] });
+    const { provider } = makeStubProvider();
+    const events: ProgressEvent[] = [];
+
+    const summary = await translate(
+      { config, cwd: dir, lockAcquireTimeoutMs: 20, onProgress: (event) => events.push(event) },
+      { createProvider: () => provider },
+    );
+
+    expect(localeSummary(summary.locales, "de").status).toBe("failed");
+    expect(events).toContainEqual({ type: "locale-finished", locale: "de", translated: 0 });
+    expect(events).toContainEqual({ type: "run-finished", localesCompleted: 2 });
   });
 
   it("runs with no onProgress listener without error", async () => {

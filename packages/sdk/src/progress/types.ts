@@ -22,9 +22,11 @@ export interface LocaleStartedEvent {
 }
 
 /**
- * One provider sub-batch within a locale has been reached. Emitted once per sub-batch of the main
- * translation loop, in order, so a caller can render a "batch N of M" line. A dry-run makes no
- * provider call and so never emits this event.
+ * One sub-batch of a locale's main translation loop has been reached. Emitted once per loop
+ * iteration, in order, so a caller can render a "batch N of M" line. Fired at the top of the
+ * iteration regardless of whether the batch then makes a provider call: a budget-withheld batch
+ * (the run's token budget already tripped) still emits this event, which keeps `batchIndex` 1-based
+ * and contiguous against the total. A dry-run never reaches this loop and so never emits it.
  */
 export interface SubBatchProgressEvent {
   readonly type: "sub-batch";
@@ -41,14 +43,17 @@ export interface LocaleFinishedEvent {
   readonly type: "locale-finished";
   /** The target locale that finished. */
   readonly locale: string;
-  /** Number of keys accepted (translated) for this locale. */
+  /** Number of keys accepted (translated) for this locale. In a dry-run, the keys that would be translated. */
   readonly translated: number;
 }
 
 /** The run reached the end of its locale loop: how many locales it processed. */
 export interface RunFinishedEvent {
   readonly type: "run-finished";
-  /** Number of locales the run processed to completion. */
+  /**
+   * Number of locales the run processed (including failed locales: a per-locale failure is isolated
+   * as a summary rather than thrown, so it is still counted here).
+   */
   readonly localesCompleted: number;
 }
 

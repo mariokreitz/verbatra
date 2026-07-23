@@ -68,6 +68,12 @@ export interface TranslateInput {
    * per provider sub-batch within a locale, and once when the whole locale loop ends. Never fires a
    * sub-batch event on a dry-run (no provider call is made). The SDK writes no output; this is the
    * only progress signal (the CLI renders it to stderr, keeping stdout byte-identical).
+   *
+   * Pairing is not guaranteed when the run throws: a whole-run failure (for example a corrupt
+   * lock-file surfacing as `LOCK_FILE_INVALID`, which re-throws instead of being isolated per locale)
+   * can emit a `locale-started` event with no matching `locale-finished`, and no `run-finished` at
+   * all. A per-locale failure that is isolated (not re-thrown) still emits both, and is counted in
+   * `run-finished`.
    */
   readonly onProgress?: ProgressListener;
   /**
