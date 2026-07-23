@@ -18,9 +18,13 @@ verbatra translate [flags]
 | `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
 | `--dry-run` | keins | aus | Änderungen ansehen, ohne einen Provider aufzurufen oder Dateien zu schreiben |
 | `--prune` | keins | die `prune`-Option der Konfiguration, sonst aus | verwaiste Keys (in einer Zieldatei, aber nicht in der Quelle) aus der geschriebenen Datei und dem Lock entfernen |
+| `--concurrency` | `<n>` | `1` | bis zu `n` Ziel-Locales gleichzeitig übersetzen; muss eine positive Ganzzahl sein |
+| `--no-cache` | keins | aus (Cache an) | den lokalen [Translation-Memory-Cache](/docs/the-cache) (`verbatra.cache.json`) für diesen Lauf umgehen |
 | `--json` | keins | aus | die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben (die [`RunSummary`-Form](/docs/sdk)); Fehler gehen weiter auf stderr |
 
 Standardmäßig löscht ein Lauf nichts: verwaiste Keys werden gemeldet und bleiben stehen. `--prune` entfernt genau diese Keys und sonst nichts und übersteuert für diesen Lauf die `prune`-Option der Konfiguration. Vor dem Lauf lädt `translate` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis; eine bereits in der echten Umgebung gesetzte Variable gewinnt.
+
+`--concurrency` übersetzt mehrere Ziel-Locales parallel, um ein großes Projekt schneller abzuschließen. Es wird mit Exit `2` abgelehnt, wenn die Konfiguration ein `maxTokens`-Budget setzt, weil parallele Locales ein Token-Limit nicht deterministisch einhalten können (ein Dry-Run ist ausgenommen). Während ein Lauf fortschreitet, wird der Fortschritt auf stderr ausgegeben (eine Zeile pro Locale-Start, Provider-Sub-Batch und Locale-Ende), sodass der stdout eines `--json`-Laufs eine einzige saubere Zusammenfassung bleibt. `--no-cache` überspringt den [Translation-Memory-Cache](/docs/the-cache) für den Lauf und macht genau die Provider-Aufrufe, die es ohne vorhandenen Cache machen würde.
 
 ## Beispiele
 
@@ -45,6 +49,7 @@ Ein fehlschlagendes Locale ist nicht fatal: der Lauf läuft zu Ende, endet mit `
 ## Siehe auch
 
 - [Wie es funktioniert](/docs/how-it-works) erklärt die Pipeline aus Lesen, Diffen, Übersetzen, Schreiben.
+- [Der Cache](/docs/the-cache) erklärt, was `--no-cache` umgeht und wie die Wiederverwendung eingegrenzt ist.
 - [Übersetzungssicherheit](/docs/translation-safety) behandelt die Integritätsprüfungen und die Review-Warteschlange.
 - [`verbatra diff`](/docs/cli/diff) zeigt dieselben ausstehenden Keys schreibgeschützt an.
 - [CI und Exit-Codes](/docs/ci-and-exit-codes) zeigt, wie du auf diese Codes verzweigst.

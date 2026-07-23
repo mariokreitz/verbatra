@@ -18,9 +18,13 @@ verbatra translate [flags]
 | `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
 | `--dry-run` | ninguno | desactivado | previsualiza los cambios sin llamar a un proveedor ni escribir archivos |
 | `--prune` | ninguno | la opción `prune` de la configuración, si no, desactivado | elimina del archivo escrito y del bloqueo las claves huérfanas (en un archivo de destino pero ausentes del origen) |
+| `--concurrency` | `<n>` | `1` | traduce hasta `n` locales de destino a la vez; debe ser un entero positivo |
+| `--no-cache` | ninguno | desactivado (caché activada) | omite la [caché de memoria de traducción](/docs/the-cache) local (`verbatra.cache.json`) para esta ejecución |
 | `--json` | ninguno | desactivado | imprime el resumen de la ejecución como un objeto JSON en stdout (la [forma `RunSummary`](/docs/sdk)); los errores siguen yendo a stderr |
 
 Por defecto una ejecución no borra nada: las claves huérfanas se informan y se dejan en su sitio. `--prune` elimina exactamente esas claves y nada más, y anula la opción `prune` de la configuración para esta ejecución. Antes de ejecutarse, `translate` carga `.env.local` y luego `.env` desde el directorio de trabajo; una variable ya definida en el entorno real gana.
+
+`--concurrency` traduce varios locales de destino en paralelo para terminar antes un proyecto grande. Se rechaza con salida `2` cuando la configuración fija un presupuesto `maxTokens`, porque los locales concurrentes no pueden respetar un tope de tokens de forma determinista (un dry-run queda exento). A medida que avanza una ejecución, el progreso se imprime en stderr (una línea por inicio de locale, sub-lote del proveedor y fin de locale), así que el stdout de una ejecución con `--json` sigue siendo un único resumen limpio. `--no-cache` se salta la [caché de memoria de traducción](/docs/the-cache) para la ejecución, haciendo exactamente las llamadas al proveedor que haría sin caché presente.
 
 ## Ejemplos
 
@@ -45,6 +49,7 @@ Que falle un locale no es fatal: la ejecución termina, sale con `1` y el detall
 ## Relacionado
 
 - [Cómo funciona](/docs/how-it-works) explica la canalización de leer, comparar, traducir y escribir.
+- [La caché](/docs/the-cache) explica qué omite `--no-cache` y cómo se acota la reutilización.
 - [Seguridad de la traducción](/docs/translation-safety) cubre las comprobaciones de integridad y la cola de revisión.
 - [`verbatra diff`](/docs/cli/diff) previsualiza las mismas claves pendientes en modo de solo lectura.
 - [CI y códigos de salida](/docs/ci-and-exit-codes) muestra cómo ramificar sobre estos códigos.

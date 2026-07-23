@@ -50,6 +50,7 @@ describe("runInit", () => {
     expect(gitignore).toContain(".env");
     expect(gitignore).toContain(".env.local");
     expect(gitignore).toContain(".verbatra-local/");
+    expect(gitignore).toContain("verbatra.cache.json");
   });
 
   it("scaffolds an LLM provider with a default model and token limit", async () => {

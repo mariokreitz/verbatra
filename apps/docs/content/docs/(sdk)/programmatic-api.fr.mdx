@@ -39,7 +39,7 @@ if (summary.failed.length > 0) {
 }
 ```
 
-Passe `dryRun: true` pour prévisualiser sans appeler de fournisseur ni rien écrire, et `prune: true` ou `generatePlurals: true` pour surcharger ces options de config le temps d'une exécution.
+Passe `dryRun: true` pour prévisualiser sans appeler de fournisseur ni rien écrire, et `prune: true` ou `generatePlurals: true` pour surcharger ces options de config le temps d'une exécution. Mets `concurrency` au-dessus de 1 pour traduire les locales en parallèle (non autorisé avec un budget `maxTokens` sur une exécution réelle) et `cache: false` pour contourner le [cache de mémoire de traduction](/docs/the-cache).
 
 ## Vérifier en CI sans écrire
 

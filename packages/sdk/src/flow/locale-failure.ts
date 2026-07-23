@@ -22,12 +22,16 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
     orphaned: [],
     pruned: [],
     invalidIcuSource: [],
+    cacheHits: [],
     integrityMismatches: [],
     providerFailures: [],
     budgetWithheld: [],
     generated: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     error: describeError(error),
   };
 }
@@ -36,6 +40,8 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
 export interface LocaleStatusParts {
   /** Keys translated and written this run (a dry-run's would-be translations count here too). */
   readonly translated: readonly string[];
+  /** Keys served from the translation-memory cache and written; counts toward acceptance alongside `translated`. */
+  readonly cacheHits: readonly string[];
   /** Plural forms synthesized and written this run; counts toward acceptance alongside `translated`. */
   readonly generated: readonly string[];
   /** Keys withheld because the translation failed the placeholder-integrity check. */
@@ -50,9 +56,9 @@ export interface LocaleStatusParts {
  * Derives a locale's honest run status from what it accepted versus what it withheld. Accepted means
  * something was written to disk: a translated key or a generated plural form. `"succeeded"` when
  * nothing was withheld (including a genuine no-op with no candidate keys at all); `"partial"` when at
- * least one key was accepted (translated or generated) but at least one was withheld; `"failed"` when
- * candidate keys were withheld and nothing was accepted at all. Withholding means any of
- * `integrityMismatches`, `providerFailures`, or `budgetWithheld` is non-empty.
+ * least one key was accepted (translated, cache-served, or generated) but at least one was withheld;
+ * `"failed"` when candidate keys were withheld and nothing was accepted at all. Withholding means any
+ * of `integrityMismatches`, `providerFailures`, or `budgetWithheld` is non-empty.
  */
 export function deriveLocaleStatus(parts: LocaleStatusParts): LocaleSummary["status"] {
   const withheld =
@@ -62,7 +68,8 @@ export function deriveLocaleStatus(parts: LocaleStatusParts): LocaleSummary["sta
   if (!withheld) {
     return "succeeded";
   }
-  const accepted = parts.translated.length > 0 || parts.generated.length > 0;
+  const accepted =
+    parts.translated.length > 0 || parts.cacheHits.length > 0 || parts.generated.length > 0;
   return accepted ? "partial" : "failed";
 }
 

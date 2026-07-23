@@ -15,6 +15,7 @@ const SUPPORTED_FORMATS = [
   "ARB",
   "YAML",
   "XLIFF",
+  "Java/Spring properties",
 ];
 
 const AUTHOR = {
@@ -41,6 +42,7 @@ export function softwareApplicationLd(args: {
     programmingLanguage: "TypeScript",
     license: "https://opensource.org/licenses/MIT",
     codeRepository: GITHUB_URL,
+    downloadUrl: NPM_CLI_URL,
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     author: AUTHOR,

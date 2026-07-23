@@ -42,11 +42,12 @@ Die Zeilen sind nach Key sortiert, die Kopfzeile ist fixiert, die Spalte `Source
 
 ## Die Übergabe
 
-Was eine Übersetzerin wissen muss, passt in drei Zeilen (und steht noch einmal auf dem Instructions-Blatt der Arbeitsmappe):
+Was eine Übersetzerin wissen muss, passt in wenige Zeilen (und steht noch einmal auf dem Instructions-Blatt der Arbeitsmappe):
 
 - Fülle die Spalte `Translation`, sonst nichts. Der Blattschutz erzwingt das.
+- Benenne die Sprach-Tabs nicht um, lösche und ordne sie nicht neu. verbatra ordnet jedes Tab über seinen exakten Namen einem Locale zu, ein umbenanntes oder fehlendes Tab wird also gemeldet und dieses Locale nicht importiert.
 - Zeilen sortieren und filtern ist in Ordnung: Import ordnet Zeilen über `Key` zu, nie über die Position. Die Spalten müssen bleiben, wo sie sind; Import liest sie nach Position und verifiziert die Überschriften `Key` und `Source hash`.
-- Eine leere `Translation`-Zelle heißt "noch nicht übersetzt". Import überspringt sie und schreibt nie einen leeren String; eine halb ausgefüllte Arbeitsmappe kann also jetzt zurückkommen und der Rest später.
+- Eine leere `Translation`-Zelle heißt "noch nicht übersetzt". Import überspringt sie und schreibt nie einen leeren String; eine halb ausgefüllte Arbeitsmappe kann also jetzt zurückkommen und der Rest später. Eine Zelle, die nur Leerzeichen enthält, zählt als leer. Um einen bestehenden Wert bewusst zu leeren (auf leer zu setzen), tippe genau `[[CLEAR]]` in die Zelle.
 
 ## Was der Import akzeptiert
 
@@ -60,7 +61,9 @@ Import ist kein blindes Einfügen. Jede ausgefüllte Zeile wird gegen das laufen
 
 Zurückgehaltene Zeilen erscheinen in der Lauf-Zusammenfassung unter dem Locale, zu dem sie gehören; akzeptierte Zeilen werden geschrieben und ihre Lock-Baseline rückt vor. Eine zurückgehaltene oder leere Zeile behält ihre bisherige Baseline, der Key wird also weiter exportiert, bis er wirklich erledigt ist. Eine leere Zeile, deren Quelle seit dem Export gedriftet ist, wird zusätzlich mit einer `BLANK_ROW_BASELINE_RETAINED`-Notice gemeldet, damit die Drift sichtbar bleibt.
 
-Jedes Datenblatt ist ein Locale in der Zusammenfassung: ein Blattfehler (ein erfundener Key, ein Blatt für ein Locale, das nicht in deiner Konfiguration steht) lässt dieses Locale fehlschlagen und lässt die anderen unberührt. Import teilt den Exit-Code-Vertrag von `translate`: `0`, wenn jedes Blatt erfolgreich ist, `1`, wenn eines fehlschlägt, `2`, wenn der Lauf nicht starten konnte. Eine manuelle Übergabe fügt sich damit in dieselben [CI-Prüfungen](/docs/ci-and-exit-codes) ein wie ein automatischer Lauf.
+Import weist außerdem strukturelle Befunde pro Locale aus, statt an ihnen abzubrechen: eine `changed`-Zeile, die die Übersetzerin leer gelassen hat (als unfilled gemeldet, weiter ausstehend), eine Arbeitsmappen-Zeile, die der Reader nicht parsen konnte (nach Zeile und Spalte gemeldet), und ein doppelter Key (das erste Vorkommen gewinnt und wird importiert, jedes spätere wird gemeldet). Keiner dieser Befunde lässt das Blatt für sich allein fehlschlagen.
+
+Jedes Datenblatt ist ein Locale in der Zusammenfassung: ein Blattfehler (ein erfundener Key, ein Blatt für ein Locale, das nicht in deiner Konfiguration steht, oder ein konfiguriertes Locale, dessen Tab ganz fehlt, weil es umbenannt, gelöscht oder herausgeschoben wurde) lässt dieses Locale fehlschlagen und lässt die anderen unberührt. Import teilt den Exit-Code-Vertrag von `translate`: `0`, wenn jedes Blatt erfolgreich ist, `1`, wenn eines fehlschlägt, `2`, wenn der Lauf nicht starten konnte. Eine manuelle Übergabe fügt sich damit in dieselben [CI-Prüfungen](/docs/ci-and-exit-codes) ein wie ein automatischer Lauf.
 
 ### Erst der Dry-Run
 

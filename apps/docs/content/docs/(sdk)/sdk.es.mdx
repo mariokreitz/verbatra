@@ -40,13 +40,23 @@ bloqueo, enviar al proveedor las claves faltantes y modificadas, ejecutar las co
 integridad de marcadores de posición e ICU, escribir los archivos de locale y actualizar el bloqueo.
 Úsalo para scripts, pasos de build y jobs de CI.
 
-Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
 - `dryRun` lee, compara e informa sin construir ni llamar al proveedor y sin escribir nada.
 - `prune` elimina del archivo escrito y del bloqueo las claves huérfanas (claves de destino ausentes
   del origen). `generatePlurals` sintetiza las formas de plural CLDR que faltan (solo i18next-JSON con
   un proveedor LLM). Ambos están desactivados por defecto; cuando se definen, cada uno anula la opción
   de configuración correspondiente para esa ejecución.
+- `concurrency` traduce hasta ese número de locales de destino a la vez (por defecto 1, estrictamente
+  en serie). Un valor menor que 1 lanza `CONCURRENCY_INVALID`; en una ejecución real, un valor mayor
+  que 1 con `maxTokens` configurado lanza `CONCURRENCY_BUDGET_CONFLICT` (un dry-run queda exento).
+- `cache` está activado por defecto y reutiliza la [caché de memoria de traducción](/docs/the-cache)
+  local; ponlo en false para omitir la caché en la ejecución (el `--no-cache` de la CLI).
+- `onProgress` se llama a medida que avanza la ejecución (por inicio y fin de cada locale, y por
+  sub-lote del proveedor), y `onLockWait` se dispara mientras el bloqueo de escritura de un locale
+  está en disputa. Ambos son callbacks de notificación; el SDK no escribe nada por sí mismo.
+  `lockAcquireTimeoutMs` anula cuánto tiempo reintenta un bloqueo de escritura en disputa antes de
+  fallar con `LOCK_CONTENDED`.
 - `maxBatchSize`, `maxTokens` y `budgetBehavior` son solo de configuración; no hay anulación por
   ejecución.
 
@@ -61,9 +71,12 @@ anti-rebote. Dispara una ejecución inicial inmediatamente al arrancar, y luego 
 asentado. Las ejecuciones se serializan: los cambios durante una ejecución se colapsan en un único
 seguimiento.
 
-Entrada: `{ config, cwd?, debounceMs?, onRun }`. `debounceMs` es 300 por defecto. `onRun` se llama una
-vez por ejecución con un `WatchRunResult`: `{ status: "succeeded", summary }` o
-`{ status: "failed", error: { code, message } }`. El SDK no registra nada; `onRun` es la única salida.
+Entrada: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+`debounceMs` es 300 por defecto. `onRun` se llama una vez por ejecución con un `WatchRunResult`:
+`{ status: "succeeded", summary }` o `{ status: "failed", error: { code, message } }`. El SDK no
+registra nada; `onRun` es la única salida. `concurrency`, `cache`, `onProgress`, `onLockWait` y
+`lockAcquireTimeoutMs` se pasan a cada ejecución y se comportan igual que en `translate` (un watch con
+presupuesto y `concurrency` mayor que 1 falla en cada ejecución con `CONCURRENCY_BUDGET_CONFLICT`).
 
 Devuelve un `WatchController` con un solo método, `stop()`, que cierra el watcher y espera la ejecución
 en curso. Un archivo de origen ausente lanza `SOURCE_UNREADABLE` al arrancar; todo fallo posterior se
@@ -271,6 +284,7 @@ interface LocaleSummary {
   locale: string;
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
   orphaned: string[];            // target keys with no matching source key (always reported)
   pruned: string[];              // orphaned keys removed this run; empty unless pruning is on
@@ -279,6 +293,9 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
+  unfilled: string[];            // import only: changed rows the translator left blank
+  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -305,6 +322,10 @@ Las partes que conviene conocer:
   `supported: false`, así que la barrera es visiblemente inerte en lugar de dispararse en falso.
 - **error.code** en un locale fallido es una cadena preservada (el código subyacente del proveedor o del
   adaptador, con `LOCALE_FAILED` solo como reserva), así que no lo trates como un conjunto cerrado.
+- **cacheHits** lista las claves servidas desde la [caché de memoria de traducción](/docs/the-cache)
+  en lugar del proveedor. **unfilled**, **malformedRows** y **duplicateKeys** solo los rellena
+  `importWorkbook` (una ejecución de `translate` los deja vacíos): una fila `changed` en blanco, una
+  fila del libro que el lector no pudo parsear y una clave duplicada cuya primera aparición ganó.
 
 ## El modelo de errores
 
@@ -324,6 +345,8 @@ proveedor y los hallazgos de integridad se comunican como datos en el `RunSummar
 | `SOURCE_INVALID` | el archivo del locale de origen no se pudo leer o parsear; envuelve el error de lectura del adaptador |
 | `LOCK_FILE_INVALID` | el archivo de bloqueo está presente pero corrupto, sobredimensionado o en una versión no admitida |
 | `LOCK_CONTENDED` | el bloqueo de escritura de un locale no se pudo adquirir antes de su tiempo límite; el mensaje nombra la ruta del archivo de bloqueo |
+| `CONCURRENCY_INVALID` | se definió `concurrency` pero no es un entero de al menos 1; se lanza antes de que corra ningún locale |
+| `CONCURRENCY_BUDGET_CONFLICT` | una ejecución real fijó `concurrency` por encima de 1 con `maxTokens` configurado; se lanza antes de cualquier llamada al proveedor (un dry-run queda exento) |
 | `LOCALE_FAILED` | nunca se lanza: el `code` de reserva registrado en el `error` de un locale fallido |
 
 Dos excepciones a la regla de una sola clase de error: `retranslateEntry` relanza el `ProviderError`

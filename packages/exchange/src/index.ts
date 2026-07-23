@@ -20,7 +20,9 @@ export type {
   ReviewStatus,
   RowStatus,
   WorkbookData,
+  WorkbookDuplicateKey,
   WorkbookModel,
   WorkbookRow,
+  WorkbookRowProblem,
   WorkbookSheet,
 } from "./types.js";

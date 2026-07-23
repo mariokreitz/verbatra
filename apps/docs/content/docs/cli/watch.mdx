@@ -17,9 +17,13 @@ verbatra watch [flags]
 | `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
 | `--config` | `<path>` | search for one | load this config file instead of searching for one |
 | `--debounce` | `<ms>` | `300` | wait this many milliseconds after the last change before translating; must be a bare positive integer (a value like `250ms`, `0`, or `-1` is a usage error, exit `2`) |
+| `--concurrency` | `<n>` | `1` | translate up to `n` target locales at once per run; must be a positive integer |
+| `--no-cache` | none | off (cache on) | bypass the local [translation-memory cache](/docs/the-cache) (`verbatra.cache.json`) on every run |
 | `--json` | none | off | print each run as one NDJSON record (one JSON object per line) on stdout |
 
-With `--json`, each run emits one [`WatchRunResult`](/docs/sdk) record: a success carrying the run summary, or a failure carrying an error code and message. The startup line and the stopping notice go to stderr, so the stdout stream stays clean NDJSON. A failed run is just a record on the stream: it neither stops the watcher nor changes the exit code.
+With `--json`, each run emits one [`WatchRunResult`](/docs/sdk) record: a success carrying the run summary, or a failure carrying an error code and message. The startup line, the stopping notice, and per-run progress all go to stderr, so the stdout stream stays clean NDJSON. A failed run is just a record on the stream: it neither stops the watcher nor changes the exit code.
+
+`--concurrency` applies to each cycle's run. Because each run's token budget is fresh, a `--concurrency` above `1` still fails every run with exit `2` when the config sets a `maxTokens` budget. `--no-cache` bypasses the [translation-memory cache](/docs/the-cache) on every cycle.
 
 ## Stopping
 
@@ -46,5 +50,6 @@ verbatra watch --debounce 1000 --json
 ## Related
 
 - [`verbatra translate`](/docs/cli/translate) is the one-shot run `watch` repeats.
+- [The cache](/docs/the-cache) explains what `--no-cache` bypasses on each run.
 - [How it works](/docs/how-it-works) explains what each run does.
 - [The SDK reference](/docs/sdk) documents the `WatchRunResult` and `RunSummary` shapes.

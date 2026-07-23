@@ -37,13 +37,22 @@ The one-shot flow: read the source, diff each target locale against the lock bas
 missing and changed keys to the provider, run the placeholder and ICU integrity checks, write the
 locale files, and update the lock. Use it for scripts, build steps, and CI jobs.
 
-Input: `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+Input: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
 - `dryRun` reads, diffs, and reports without constructing or calling the provider and without
   writing anything.
 - `prune` removes orphaned keys (target keys absent from source) from the written file and the
   lock. `generatePlurals` synthesizes missing CLDR plural forms (i18next-JSON with an LLM provider
   only). Both default to off; when set, each overrides the matching config option for that run.
+- `concurrency` runs up to that many target locales at once (default 1, strictly serial). A value
+  below 1 throws `CONCURRENCY_INVALID`; on a live run a value above 1 with `maxTokens` configured
+  throws `CONCURRENCY_BUDGET_CONFLICT` (a dry run is exempt).
+- `cache` defaults to true and reuses the local [translation-memory cache](/docs/the-cache); set it
+  to false to bypass the cache for the run (the CLI's `--no-cache`).
+- `onProgress` is called as the run advances (per locale start and finish, and per provider
+  sub-batch), and `onLockWait` fires while a locale's write lock is contended. Both are
+  notification callbacks; the SDK writes no output itself. `lockAcquireTimeoutMs` overrides how long
+  a contended write lock retries before failing with `LOCK_CONTENDED`.
 - `maxBatchSize`, `maxTokens`, and `budgetBehavior` are config-only; there is no per-run override.
 
 Returns a `RunSummary` (see [its anatomy below](#the-runsummary-anatomy)). Whole-run problems throw
@@ -56,10 +65,12 @@ Watches the source locale file and re-runs `translate` on every debounced change
 initial run immediately at startup, then one run per settled change. Runs are serialized: changes
 during a run collapse into a single follow-up.
 
-Input: `{ config, cwd?, debounceMs?, onRun }`. `debounceMs` defaults to 300. `onRun` is called once
-per run with a `WatchRunResult`: `{ status: "succeeded", summary }` or
-`{ status: "failed", error: { code, message } }`. The SDK does no logging; `onRun` is the only
-output.
+Input: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+`debounceMs` defaults to 300. `onRun` is called once per run with a `WatchRunResult`:
+`{ status: "succeeded", summary }` or `{ status: "failed", error: { code, message } }`. The SDK does
+no logging; `onRun` is the only output. `concurrency`, `cache`, `onProgress`, `onLockWait`, and
+`lockAcquireTimeoutMs` are passed through to every run and behave exactly as on `translate` (a
+budgeted watch with `concurrency` above 1 fails each run with `CONCURRENCY_BUDGET_CONFLICT`).
 
 Returns a `WatchController` with one method, `stop()`, which closes the watcher and awaits the
 in-flight run. A missing source file throws `SOURCE_UNREADABLE` at startup; every failure after
@@ -262,6 +273,7 @@ interface LocaleSummary {
   locale: string;
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
   orphaned: string[];            // target keys with no matching source key (always reported)
   pruned: string[];              // orphaned keys removed this run; empty unless pruning is on
@@ -270,6 +282,9 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
+  unfilled: string[];            // import only: changed rows the translator left blank
+  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -296,6 +311,10 @@ The parts worth knowing:
   `supported: false`, so the guardrail is visibly inert rather than falsely tripped.
 - **error.code** on a failed locale is a preserved string (the underlying provider or adapter code,
   with `LOCALE_FAILED` only as a fallback), so do not treat it as a closed set.
+- **cacheHits** lists keys served from the [translation-memory cache](/docs/the-cache) rather than
+  the provider. **unfilled**, **malformedRows**, and **duplicateKeys** are populated only by
+  `importWorkbook` (a `translate` run leaves them empty): a blank `changed` row, a workbook row the
+  reader could not parse, and a duplicated key whose first occurrence won.
 
 ## The error model
 
@@ -315,6 +334,8 @@ are surfaced as data on the `RunSummary`, never thrown.
 | `SOURCE_INVALID` | the source locale file could not be read or parsed; wraps the adapter's read error |
 | `LOCK_FILE_INVALID` | the lock file is present but corrupt, oversized, or at an unsupported version |
 | `LOCK_CONTENDED` | a locale's write lock could not be acquired before its timeout; the message names the lock file's path |
+| `CONCURRENCY_INVALID` | `concurrency` was set but is not an integer of at least 1; raised before any locale runs |
+| `CONCURRENCY_BUDGET_CONFLICT` | a live run set `concurrency` above 1 while `maxTokens` is configured; raised before any provider call (a dry run is exempt) |
 | `LOCALE_FAILED` | never thrown: the fallback `code` recorded on a failed locale's `error` |
 
 Two exceptions to the one-error-class rule: `retranslateEntry` re-throws the provider's own

@@ -1,0 +1,30 @@
+---
+title: The cache
+description: What verbatra.cache.json reuses, how a fingerprint scopes it, and why it never fails a run.
+---
+verbatra keeps a local translation-memory cache, `verbatra.cache.json`, so a string it has already translated is never sent to a provider twice, even when its key changes. Where [the lock file](/docs/the-lock-file) tracks whether a key is up to date, the cache is keyed by content: it remembers the translation for a piece of source text, independent of which key holds it.
+
+## What it reuses
+
+On a run, before a key goes to the provider, verbatra looks it up in the cache by the hash of its current source content. A hit is served for free, so you never pay for it again. Because the lookup is by content, reuse survives cases the lock file cannot:
+
+- **A renamed key.** Move a string from `home.title` to `landing.title` and its translation is reused, not re-translated.
+- **Duplicate content.** Two keys with byte-identical source text share one translation; the second is a cache hit.
+
+A reused value is not trusted blindly. It still passes the same [placeholder and ICU integrity checks](/docs/translation-safety) against the current source before it is written, so a cached value that no longer fits its key is discarded and the key is translated fresh. Cache hits are reported per locale in the run summary, separate from the keys translated this run.
+
+## The fingerprint
+
+Every cached value is scoped to the translation context it was produced in: a short fingerprint over the provider, the model, the tone, and the glossary. Change any of them and prior entries stop matching, so a new tone or an edited glossary re-translates rather than serving a stale result. The format is deliberately not part of the fingerprint; a format change is caught by the integrity check on each hit instead.
+
+## The file
+
+`verbatra.cache.json` is a local, regenerable sidecar next to your lock file. `verbatra init` adds it to `.gitignore`, and you should keep it out of version control: unlike the lock file it is a cost optimization, not a shared baseline. It never fails a run. A missing, corrupt, oversized, or unrecognized-version file degrades to an empty cache and is simply rebuilt on the next run. To rebuild it from scratch, delete the file.
+
+## Bypassing it
+
+Pass `--no-cache` to [`translate`](/docs/cli/translate) or [`watch`](/docs/cli/watch) to skip the cache for a run: verbatra makes exactly the provider calls it would with no cache present, and leaves any existing cache file untouched. From the SDK, set `cache: false` on the `translate` or `watch` input. A dry run never reads or writes the cache regardless.
+
+## Limitation
+
+Synthesized plural forms are not cached. When `generatePlurals` fills in a CLDR plural category the source lacks, that generated value is not recorded for reuse, so whenever a run does synthesize it the value comes from the provider, never the cache.

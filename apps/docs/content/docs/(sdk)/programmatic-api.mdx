@@ -45,7 +45,9 @@ if (summary.failed.length > 0) {
 ```
 
 Pass `dryRun: true` to preview without calling a provider or writing anything, and `prune: true`
-or `generatePlurals: true` to override those config options for one run.
+or `generatePlurals: true` to override those config options for one run. Set `concurrency` above 1
+to translate locales in parallel (not allowed with a `maxTokens` budget on a live run) and
+`cache: false` to bypass the [translation-memory cache](/docs/the-cache).
 
 ## Check in CI without writing
 
