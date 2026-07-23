@@ -271,18 +271,25 @@ function formatEntry(key: string, value: string): string {
   return `${escapeString(key, true)}=${escapeString(value, false)}`;
 }
 
+function isFileNotFound(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
 /**
  * Read the destination's existing structure so a write preserves its comments, blank lines, and key
- * order. A missing destination yields an empty structure (the file is synthesized from entries
- * alone); a path that is not a regular file is `INVALID_STRUCTURE` and an oversized one is
- * `INPUT_TOO_LARGE`.
+ * order. A missing destination (`ENOENT`) yields an empty structure (the file is synthesized from
+ * entries alone); any other read failure, a path that is not a regular file, is `INVALID_STRUCTURE`,
+ * and an oversized one is `INPUT_TOO_LARGE`.
  */
 async function readStructure(filePath: string): Promise<ParsedItem[]> {
   let outcome: BoundedReadOutcome;
   try {
     outcome = await readBounded(filePath);
-  } catch {
-    return [];
+  } catch (error) {
+    if (isFileNotFound(error)) {
+      return [];
+    }
+    throw new AdapterError("INVALID_STRUCTURE", "The destination file could not be read.");
   }
   if (outcome.kind === "not-a-file") {
     throw new AdapterError("INVALID_STRUCTURE", "The destination path is not a regular file.");
@@ -313,7 +320,7 @@ export async function serializePropertiesEntries(
       continue;
     }
     const entry = entries.get(item.key);
-    if (entry !== undefined) {
+    if (entry !== undefined && !emitted.has(item.key)) {
       lines.push(formatEntry(item.key, entry.value));
       emitted.add(item.key);
     }

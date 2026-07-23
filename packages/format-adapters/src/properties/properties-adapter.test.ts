@@ -277,6 +277,25 @@ describe("createPropertiesAdapter write (round-trip fidelity)", () => {
     expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
   });
 
+  it("raises INVALID_STRUCTURE when the destination cannot be read for another reason", async () => {
+    const file = await tempFile("blocker.properties", "x=1\n");
+    const underAFile = join(file, "child.properties");
+    const entries = new Map([["a", entry("a", "one")]]);
+    const error = await readError(adapter.write(makeResource(entries), underAFile));
+    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
+  });
+
+  it("collapses a duplicate destination key to one line and stays stable across writes", async () => {
+    const path = await tempFile("m.properties", "k=first\nother=x\nk=second\n");
+    const first = await adapter.read(path, "de");
+    await adapter.write(first.resource, path);
+    const afterFirst = await readFile(path, "utf8");
+    expect(afterFirst).toBe("k=second\nother=x\n");
+    const second = await adapter.read(path, "de");
+    await adapter.write(second.resource, path);
+    expect(await readFile(path, "utf8")).toBe(afterFirst);
+  });
+
   it("escapes control characters and a backslash in a value on write", async () => {
     const path = join(await tempDir(), "m.properties");
     const value = `a\tb\nc\rd\fe\\f${String.fromCharCode(1)}g`;
