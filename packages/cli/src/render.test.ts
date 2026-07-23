@@ -1,4 +1,4 @@
-import type { LockWaitEvent, WatchRunResult } from "@verbatra/sdk";
+import type { LockWaitEvent, ProgressEvent, WatchRunResult } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import {
   renderCheckHuman,
@@ -13,6 +13,9 @@ import {
   renderLockWait,
   renderLockWaitHuman,
   renderLockWaitJson,
+  renderProgress,
+  renderProgressHuman,
+  renderProgressJson,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -419,6 +422,38 @@ describe("render: lock-wait progress", () => {
     const event: LockWaitEvent = { lockPath: "/x/de.lock", elapsedMs: 0 };
     expect(JSON.parse(renderLockWait(event, true))).toMatchObject({ type: "lock-wait" });
     expect(renderLockWait(event, false)).toContain("waiting for the write lock");
+  });
+});
+
+describe("render: progress", () => {
+  const cases: ReadonlyArray<readonly [ProgressEvent, string]> = [
+    [
+      { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 3 },
+      "[1/3] translating de",
+    ],
+    [{ type: "sub-batch", locale: "de", batchIndex: 2, totalBatches: 4 }, "de batch 2/4"],
+    [{ type: "locale-finished", locale: "de", translated: 5 }, "de done, 5 translated"],
+    [{ type: "run-finished", localesCompleted: 3 }, "run finished, 3 locales processed"],
+  ];
+
+  it("renders every event type human-readably, prefixed with verbatra:", () => {
+    for (const [event, fragment] of cases) {
+      const line = renderProgressHuman(event);
+      expect(line.startsWith("verbatra:")).toBe(true);
+      expect(line).toContain(fragment);
+    }
+  });
+
+  it("renders every event type as its verbatim JSON record", () => {
+    for (const [event] of cases) {
+      expect(JSON.parse(renderProgressJson(event))).toEqual(event);
+    }
+  });
+
+  it("renderProgress dispatches to JSON under json mode and to the human line otherwise", () => {
+    const event: ProgressEvent = { type: "run-finished", localesCompleted: 1 };
+    expect(JSON.parse(renderProgress(event, true))).toEqual(event);
+    expect(renderProgress(event, false)).toContain("run finished");
   });
 });
 

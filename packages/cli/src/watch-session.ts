@@ -2,6 +2,7 @@ import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
 import {
   renderError,
   renderLockWait,
+  renderProgress,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -70,6 +71,9 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     cwd: options.cwd,
     onLockWait: (event) => {
       streams.err(`${renderLockWait(event, options.json)}\n`);
+    },
+    onProgress: (event) => {
+      streams.err(`${renderProgress(event, options.json)}\n`);
     },
     ...(options.debounceMs !== undefined ? { debounceMs: options.debounceMs } : {}),
     ...(options.lockAcquireTimeoutMs !== undefined

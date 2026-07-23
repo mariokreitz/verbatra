@@ -154,6 +154,14 @@ export type {
 } from "./lock/locale-write-lock.js";
 export { LOCK_FILE_NAME } from "./lock/lock-file.js";
 export type { LockFile } from "./lock/types.js";
+export type {
+  LocaleFinishedEvent,
+  LocaleStartedEvent,
+  ProgressEvent,
+  ProgressListener,
+  RunFinishedEvent,
+  SubBatchProgressEvent,
+} from "./progress/types.js";
 export type { RunStatusFile, RunStatusLocale } from "./run-status/types.js";
 export { type ScaffoldableProviderId, scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";

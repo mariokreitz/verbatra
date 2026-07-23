@@ -19,6 +19,7 @@ import {
   updateLockFileLocale,
 } from "../lock/lock-file.js";
 import type { LockFile } from "../lock/types.js";
+import type { ProgressListener } from "../progress/types.js";
 import {
   buildRunStatusFile,
   runStatusFilePath,
@@ -62,6 +63,13 @@ export interface TranslateInput {
    * is the only wait-progress signal (the CLI renders its "still waiting" line from it).
    */
   readonly onLockWait?: LockWaitListener;
+  /**
+   * Called as the run advances: once per locale before it starts and once after it finishes, once
+   * per provider sub-batch within a locale, and once when the whole locale loop ends. Never fires a
+   * sub-batch event on a dry-run (no provider call is made). The SDK writes no output; this is the
+   * only progress signal (the CLI renders it to stderr, keeping stdout byte-identical).
+   */
+  readonly onProgress?: ProgressListener;
   /**
    * Override how long a locale's write lock keeps retrying before failing with `LOCK_CONTENDED`, in
    * milliseconds. Defaults to the lock's own 10-minute default when unset (surfaced to the CLI as
@@ -115,6 +123,7 @@ interface LocaleRunContext {
   readonly fs: SdkFs;
   readonly budget: BudgetTracker;
   readonly onLockWait?: LockWaitListener;
+  readonly onProgress?: ProgressListener;
   readonly lockAcquireTimeoutMs?: number;
 }
 
@@ -141,6 +150,7 @@ function buildLocaleRunParams(
     maxBatchSize: context.maxBatchSize,
     fs: context.fs,
     budget: context.budget,
+    ...(context.onProgress !== undefined ? { onProgress: context.onProgress } : {}),
   };
 }
 
@@ -220,29 +230,53 @@ async function runOneLocale(
   }
 }
 
+/**
+ * Runs each target locale in order through `runOne`, emitting a `locale-started` event before each
+ * and a `locale-finished` event after each (with that locale's accepted-key count). Shared by the
+ * dry and live paths; sub-batch events, which require a provider call, are emitted deeper in
+ * `runLocale` and so never fire on the dry path.
+ */
+async function runLocalesWithProgress(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+  runOne: (targetLocale: string) => Promise<LocaleSummary>,
+): Promise<LocaleSummary[]> {
+  const summaries: LocaleSummary[] = [];
+  for (const [localeIndex, targetLocale] of targetLocales.entries()) {
+    context.onProgress?.({
+      type: "locale-started",
+      locale: targetLocale,
+      localeIndex,
+      totalLocales: targetLocales.length,
+    });
+    const summary = await runOneLocale(targetLocale, () => runOne(targetLocale));
+    summaries.push(summary);
+    context.onProgress?.({
+      type: "locale-finished",
+      locale: targetLocale,
+      translated: summary.translated.length,
+    });
+  }
+  return summaries;
+}
+
 async function runAllLocalesDry(
   context: LocaleRunContext,
   targetLocales: readonly string[],
 ): Promise<LocaleSummary[]> {
   const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
-  const summaries: LocaleSummary[] = [];
-  for (const targetLocale of targetLocales) {
-    summaries.push(
-      await runOneLocale(targetLocale, () => runDryLocale(context, targetLocale, lock)),
-    );
-  }
-  return summaries;
+  return runLocalesWithProgress(context, targetLocales, (targetLocale) =>
+    runDryLocale(context, targetLocale, lock),
+  );
 }
 
 async function runAllLocalesLive(
   context: LocaleRunContext,
   targetLocales: readonly string[],
 ): Promise<LocaleSummary[]> {
-  const summaries: LocaleSummary[] = [];
-  for (const targetLocale of targetLocales) {
-    summaries.push(await runOneLocale(targetLocale, () => runLiveLocale(context, targetLocale)));
-  }
-  return summaries;
+  return runLocalesWithProgress(context, targetLocales, (targetLocale) =>
+    runLiveLocale(context, targetLocale),
+  );
 }
 
 /**
@@ -334,6 +368,7 @@ export async function translate(
     fs,
     budget,
     ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
+    ...(input.onProgress !== undefined ? { onProgress: input.onProgress } : {}),
     ...(input.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
       : {}),
@@ -342,6 +377,7 @@ export async function translate(
   const summaries = dryRun
     ? await runAllLocalesDry(context, config.targetLocales)
     : await runAllLocalesLive(context, config.targetLocales);
+  input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
   const { succeeded, partial, failed } = partition(summaries);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(

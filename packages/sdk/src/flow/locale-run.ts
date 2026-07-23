@@ -16,6 +16,7 @@ import {
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
+import type { ProgressListener } from "../progress/types.js";
 import { chunk, subBatchFailedNotice } from "./batching.js";
 import {
   type BudgetTracker,
@@ -72,6 +73,12 @@ export interface LocaleRunParams {
   readonly fs: SdkFs;
   /** The run-wide token-budget tracker, shared and mutated across every locale in the run. */
   readonly budget: BudgetTracker;
+  /**
+   * Optional progress listener: a `sub-batch` event is emitted once per main-translation sub-batch,
+   * in order, carrying this locale and the `batchIndex`/`totalBatches`. Never called on a dry-run,
+   * which reaches no sub-batch. Plural-form generation does not emit sub-batch events.
+   */
+  readonly onProgress?: ProgressListener;
 }
 
 /** One locale's outcome: the public summary and the lock entries to persist for it. */
@@ -383,7 +390,16 @@ async function translateAndCheck(
   const notices: LocaleNotice[] = [];
   const usage = createUsageAccumulator();
   let tripped = false;
-  for (const batch of chunk(entries, params.maxBatchSize)) {
+  const batches = chunk(entries, params.maxBatchSize);
+  let batchIndex = 0;
+  for (const batch of batches) {
+    batchIndex += 1;
+    params.onProgress?.({
+      type: "sub-batch",
+      locale: params.targetLocale,
+      batchIndex,
+      totalBatches: batches.length,
+    });
     if (params.budget.stopped) {
       for (const entry of batch) {
         budgetWithheld.push(entry.key);

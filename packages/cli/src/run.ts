@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { LockWaitEvent } from "@verbatra/sdk";
+import type { LockWaitEvent, ProgressEvent } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
@@ -15,6 +15,7 @@ import {
   renderHuman,
   renderJson,
   renderLockWait,
+  renderProgress,
   toRenderableError,
 } from "./render.js";
 import { runStudio } from "./studio-command.js";
@@ -274,6 +275,17 @@ function lockWaitReporter(streams: Streams, json: boolean): (event: LockWaitEven
 }
 
 /**
+ * Builds the `onProgress` callback the CLI hands to a run: it renders each progress event to stderr,
+ * never stdout, so a `--json` run's stdout (the run summary or NDJSON stream) is never corrupted by
+ * progress output. Mirrors {@link lockWaitReporter}.
+ */
+function progressReporter(streams: Streams, json: boolean): (event: ProgressEvent) => void {
+  return (event) => {
+    streams.err(`${renderProgress(event, json)}\n`);
+  };
+}
+
+/**
  * Runs the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
  * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
  * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
@@ -297,6 +309,7 @@ export async function runTranslate(
             config,
             cwd,
             onLockWait: lockWaitReporter(streams, opts.json === true),
+            onProgress: progressReporter(streams, opts.json === true),
             ...(opts.dryRun === true ? { dryRun: true } : {}),
             ...(opts.prune === true ? { prune: true } : {}),
             ...(opts.lockAcquireTimeoutMs !== undefined
