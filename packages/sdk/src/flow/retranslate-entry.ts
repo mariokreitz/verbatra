@@ -5,6 +5,8 @@ import {
 } from "@verbatra/ai-providers";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../cache/fingerprint.js";
+import { feedTranslationMemory } from "../cache/translation-memory.js";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
@@ -81,6 +83,9 @@ function buildSingleEntryRequest(
  * the lock entry for this key only (see {@link updateLockFileLocale}'s `"merge"` mode); on rejection,
  * writes nothing. Reuses exactly the building blocks `translate()` already uses
  * (`selectProvider`/`provider.translateBatch`) and nothing else: no bespoke per-provider plumbing.
+ * Always calls the provider (it never consults the cache for a hit, since its whole purpose is a
+ * fresh translation), then feeds the accepted value into the translation-memory cache best-effort so
+ * a later run can reuse it; a cache failure is swallowed and never fails the retranslate.
  *
  * `locale` and `key` are resolved fresh on every call, never cached: `locale` against
  * `config.targetLocales` (`UNKNOWN_LOCALE`), `key` against the source resource's own keys, read
@@ -174,6 +179,13 @@ export async function retranslateEntry(
       mode: "merge",
       entries: { [input.key]: contentHash(sourceEntry) },
     });
+
+    await feedTranslationMemory(
+      cwd,
+      fs,
+      computeFingerprint(config),
+      new Map([[locale, { [contentHash(sourceEntry)]: value }]]),
+    );
 
     const reviewReasons = result.reviewFlags?.get(input.key)?.reasons ?? [];
     return { accepted: true, value, reviewReasons };

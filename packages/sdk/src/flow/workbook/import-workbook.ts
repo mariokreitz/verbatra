@@ -7,6 +7,8 @@ import {
   type WorkbookSheet,
 } from "@verbatra/exchange";
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../../cache/fingerprint.js";
+import { feedTranslationMemory } from "../../cache/translation-memory.js";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
@@ -70,6 +72,27 @@ function mergeAccepted(
     merged.set(key, { ...source, value, namespace: target.namespace });
   }
   return merged;
+}
+
+/** The accepted values as a source-content-hash to value record, this sheet's contribution to the cache. */
+function sheetCacheAdditions(accepted: ImportLocaleResult["accepted"]): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const [, { value, source }] of accepted) {
+    record[contentHash(source)] = value;
+  }
+  return record;
+}
+
+/** Fold one sheet's additions into the run's per-locale map, merging when two sheets share a locale. */
+function collectSheetAdditions(
+  byLocale: Map<string, Record<string, string>>,
+  locale: string,
+  additions: Record<string, string>,
+): void {
+  if (Object.keys(additions).length === 0) {
+    return;
+  }
+  byLocale.set(locale, { ...byLocale.get(locale), ...additions });
 }
 
 /**
@@ -140,7 +163,11 @@ async function runSheet(
   ctx: SheetContext,
   sheet: WorkbookSheet,
   lock: LockFile,
-): Promise<{ summary: LocaleSummary; lockEntries: Record<string, string> }> {
+): Promise<{
+  summary: LocaleSummary;
+  lockEntries: Record<string, string>;
+  cacheAdditions: Record<string, string>;
+}> {
   if (!ctx.config.targetLocales.includes(sheet.locale)) {
     throw new SdkError(
       "CONFIG_INVALID",
@@ -166,7 +193,7 @@ async function runSheet(
   });
 
   if (ctx.dryRun) {
-    return { summary, lockEntries: {} };
+    return { summary, lockEntries: {}, cacheAdditions: {} };
   }
 
   const merged = mergeAccepted(target, accepted);
@@ -182,7 +209,11 @@ async function runSheet(
       path,
     );
   }
-  return { summary, lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted) };
+  return {
+    summary,
+    lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted),
+    cacheAdditions: sheetCacheAdditions(accepted),
+  };
 }
 
 /**
@@ -245,6 +276,7 @@ export async function importWorkbook(
   };
 
   const summaries: LocaleSummary[] = [];
+  const cacheAdditions = new Map<string, Record<string, string>>();
   for (const sheet of data.sheets) {
     try {
       let summary: LocaleSummary;
@@ -257,6 +289,7 @@ export async function importWorkbook(
             mode: "replace",
             entries: result.lockEntries,
           });
+          collectSheetAdditions(cacheAdditions, sheet.locale, result.cacheAdditions);
           return result.summary;
         });
       }
@@ -271,6 +304,10 @@ export async function importWorkbook(
     if (!presentLocales.has(locale)) {
       summaries.push(failureSummary(locale, new MissingSheetError(locale)));
     }
+  }
+
+  if (!dryRun) {
+    await feedTranslationMemory(cwd, fs, computeFingerprint(config), cacheAdditions);
   }
 
   const { succeeded, partial, failed } = partition(summaries);

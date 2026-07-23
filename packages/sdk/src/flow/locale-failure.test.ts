@@ -12,6 +12,7 @@ function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSum
     orphaned: [],
     pruned: [],
     invalidIcuSource: [],
+    cacheHits: [],
     integrityMismatches: [],
     providerFailures: [],
     budgetWithheld: [],
@@ -27,6 +28,7 @@ function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSum
 /** Empty status parts; each test overrides only the lists it exercises. */
 const NO_STATUS_PARTS = {
   translated: [] as readonly string[],
+  cacheHits: [] as readonly string[],
   generated: [] as readonly string[],
   integrityMismatches: [] as readonly string[],
   providerFailures: [] as readonly string[],
@@ -68,6 +70,7 @@ describe("failureSummary", () => {
       orphaned: [],
       pruned: [],
       invalidIcuSource: [],
+      cacheHits: [],
       integrityMismatches: [],
       providerFailures: [],
       budgetWithheld: [],
@@ -101,6 +104,16 @@ describe("deriveLocaleStatus", () => {
     expect(
       deriveLocaleStatus({ ...NO_STATUS_PARTS, translated: ["a"], budgetWithheld: ["b"] }),
     ).toBe("partial");
+  });
+
+  it("is partial when only cache hits were accepted (translated empty) and something was withheld", () => {
+    expect(
+      deriveLocaleStatus({ ...NO_STATUS_PARTS, cacheHits: ["a"], providerFailures: ["b"] }),
+    ).toBe("partial");
+  });
+
+  it("is succeeded when only cache hits were accepted and nothing was withheld", () => {
+    expect(deriveLocaleStatus({ ...NO_STATUS_PARTS, cacheHits: ["a", "b"] })).toBe("succeeded");
   });
 
   it("is partial when only generated plural forms were accepted (translated empty) and something was withheld", () => {

@@ -36,6 +36,8 @@
 
 export type { ReviewReasonCode } from "@verbatra/ai-providers";
 export type { SupportedFormat } from "@verbatra/core";
+export { CACHE_FILE_NAME } from "./cache/translation-memory.js";
+export type { TranslationMemory } from "./cache/types.js";
 export { defineConfig } from "./config/define-config.js";
 export {
   type ConfigSource,
@@ -156,6 +158,14 @@ export type {
 } from "./lock/locale-write-lock.js";
 export { LOCK_FILE_NAME } from "./lock/lock-file.js";
 export type { LockFile } from "./lock/types.js";
+export type {
+  LocaleFinishedEvent,
+  LocaleStartedEvent,
+  ProgressEvent,
+  ProgressListener,
+  RunFinishedEvent,
+  SubBatchProgressEvent,
+} from "./progress/types.js";
 export type { RunStatusFile, RunStatusLocale } from "./run-status/types.js";
 export { type ScaffoldableProviderId, scaffoldingMetadata } from "./scaffolding.js";
 export type { CreateProvider } from "./selection/select-provider.js";

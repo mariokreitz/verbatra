@@ -3,9 +3,11 @@ import type { BudgetBehavior, RunBudget, SdkNotice } from "./summary.js";
 
 /**
  * Mutable, run-wide token accounting shared across every locale in one `translate()` invocation.
- * Locales run strictly serially, so a single shared tracker needs no concurrency guard. An
- * undefined `maxTokens` means no budget is configured: {@link checkBudgetTrip} is then always a
- * no-op, `stopped` never becomes true, and {@link toBudgetSummary} returns `undefined`.
+ * A configured budget keeps its run strictly serial: `translate()` refuses concurrency greater than
+ * 1 on a live budgeted run (`CONCURRENCY_BUDGET_CONFLICT`), so this shared tracker is only ever
+ * folded one locale at a time and needs no concurrency guard. An undefined `maxTokens` means no
+ * budget is configured: {@link checkBudgetTrip} is then always a no-op, `stopped` never becomes
+ * true, and {@link toBudgetSummary} returns `undefined`.
  */
 export interface BudgetTracker {
   readonly maxTokens: number | undefined;

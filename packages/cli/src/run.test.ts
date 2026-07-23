@@ -1,7 +1,12 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type LockWaitEvent, SdkError, type WatchController } from "@verbatra/sdk";
+import {
+  type LockWaitEvent,
+  type ProgressEvent,
+  SdkError,
+  type WatchController,
+} from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { run, runTranslate } from "./run.js";
 import {
@@ -222,6 +227,171 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
 
     expect(code).toBe(2);
     expect(cap.err()).toContain("INVALID_LOCK_TIMEOUT");
+  });
+});
+
+describe("run translate: --concurrency", () => {
+  it("passes a valid --concurrency to the SDK translate() as a number", async () => {
+    const { deps, calls } = recordingDeps();
+
+    const code = await run(["translate", "--concurrency", "4"], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.concurrency).toBe(4);
+  });
+
+  it("omitting --concurrency leaves it unset (the SDK applies its serial default of 1)", async () => {
+    const { deps, calls } = recordingDeps();
+
+    await run(["translate"], deps, captureStreams().streams);
+
+    expect(calls.translate[0]).not.toHaveProperty("concurrency");
+  });
+
+  it.each([
+    "abc",
+    "0",
+    "-2",
+    "2.5",
+    "3ms",
+  ])("rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--concurrency", value], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
+    expect(cap.out()).toBe("");
+    expect(calls.translate).toHaveLength(0);
+  });
+});
+
+describe("run translate/watch: --no-cache", () => {
+  it("passes cache: false to the SDK translate() when --no-cache is set", async () => {
+    const { deps, calls } = recordingDeps();
+
+    const code = await run(["translate", "--no-cache"], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.cache).toBe(false);
+  });
+
+  it("omitting --no-cache leaves cache unset so the SDK default (on) applies", async () => {
+    const { deps, calls } = recordingDeps();
+
+    await run(["translate"], deps, captureStreams().streams);
+
+    expect(calls.translate[0]).not.toHaveProperty("cache");
+  });
+
+  it("passes cache: false through to every watch run when --no-cache is set", async () => {
+    let resolveStop: (() => void) | undefined;
+    const { deps, calls } = recordingDeps({
+      watch: () =>
+        Promise.resolve({
+          stop: () =>
+            new Promise<void>((resolve) => {
+              resolveStop = resolve;
+            }),
+        } satisfies WatchController),
+    });
+
+    let session: WatchSession | undefined;
+    const done = run(["watch", "--no-cache"], deps, captureStreams().streams, {
+      onWatchSession: (s) => {
+        session = s;
+      },
+    });
+    await flush();
+    session?.requestStop();
+    resolveStop?.();
+
+    expect(await done).toBe(0);
+    expect(calls.watch[0]?.cache).toBe(false);
+  });
+});
+
+describe("run translate: progress reporting", () => {
+  const events: readonly ProgressEvent[] = [
+    { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },
+    { type: "sub-batch", locale: "de", batchIndex: 1, totalBatches: 2 },
+    { type: "locale-finished", locale: "de", translated: 3 },
+    { type: "run-finished", localesCompleted: 2 },
+  ];
+
+  it("passes an onProgress function to the SDK translate call", async () => {
+    const { deps, calls } = recordingDeps();
+    await run(["translate"], deps, captureStreams().streams);
+    expect(typeof calls.translate[0]?.onProgress).toBe("function");
+  });
+
+  it("renders human progress lines to stderr, keeping stdout to the summary", async () => {
+    const summary = makeSummary({ succeeded: ["de"] });
+    const { deps } = recordingDeps({
+      translate: async (input) => {
+        for (const event of events) {
+          input.onProgress?.(event);
+        }
+        return summary;
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["translate"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(cap.err()).toContain("[1/2] translating de");
+    expect(cap.err()).toContain("de batch 1/2");
+    expect(cap.err()).toContain("de done, 3 translated");
+    expect(cap.err()).toContain("run finished, 2 locales processed");
+    expect(cap.out()).not.toContain("translating de");
+  });
+
+  it("under --json, emits one JSON record per event on stderr and keeps stdout the summary object", async () => {
+    const summary = makeSummary({ succeeded: ["de"] });
+    const { deps } = recordingDeps({
+      translate: async (input) => {
+        for (const event of events) {
+          input.onProgress?.(event);
+        }
+        return summary;
+      },
+    });
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--json"], deps, cap.streams);
+
+    expect(code).toBe(0);
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    const lines = cap.err().trim().split("\n");
+    expect(lines).toHaveLength(events.length);
+    expect(lines.map((line) => JSON.parse(line))).toEqual(events);
+  });
+
+  it("stdout is byte-identical whether or not progress events fire (human and --json)", async () => {
+    const summary = makeSummary({ succeeded: ["de"] });
+    const withEvents = recordingDeps({
+      translate: async (input) => {
+        for (const event of events) {
+          input.onProgress?.(event);
+        }
+        return summary;
+      },
+    });
+    const withoutEvents = recordingDeps({ translate: async () => summary });
+
+    const humanWith = captureStreams();
+    const humanWithout = captureStreams();
+    await run(["translate"], withEvents.deps, humanWith.streams);
+    await run(["translate"], withoutEvents.deps, humanWithout.streams);
+    expect(humanWith.out()).toBe(humanWithout.out());
+
+    const jsonWith = captureStreams();
+    const jsonWithout = captureStreams();
+    await run(["translate", "--json"], withEvents.deps, jsonWith.streams);
+    await run(["translate", "--json"], withoutEvents.deps, jsonWithout.streams);
+    expect(jsonWith.out()).toBe(jsonWithout.out());
   });
 });
 

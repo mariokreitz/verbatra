@@ -212,6 +212,7 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     locale: params.sheet.locale,
     status: deriveLocaleStatus({
       translated,
+      cacheHits: [],
       generated: [],
       integrityMismatches,
       providerFailures: [],
@@ -222,6 +223,7 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     orphaned: diff.orphaned,
     pruned: [],
     invalidIcuSource,
+    cacheHits: [],
     integrityMismatches,
     providerFailures: [],
     budgetWithheld: [],

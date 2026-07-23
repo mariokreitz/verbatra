@@ -23,6 +23,7 @@ function runSummary(): RunSummary {
         orphaned: [],
         pruned: [],
         invalidIcuSource: [],
+        cacheHits: [],
         integrityMismatches: [],
         providerFailures: [],
         generated: [],

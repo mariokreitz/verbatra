@@ -4,6 +4,7 @@ import type {
   LocaleDiff,
   LocaleSummary,
   LockWaitEvent,
+  ProgressEvent,
   RunBudget,
   RunSummary,
   UsageSummary,
@@ -113,6 +114,7 @@ function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   }
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
+    [locale.cacheHits.length, "from cache", false],
     [locale.unchanged.length, "unchanged", true],
     [locale.generated.length, "generated", false],
     [locale.orphaned.length, "orphaned", false],
@@ -311,6 +313,51 @@ export function renderLockWaitJson(event: LockWaitEvent): string {
  */
 export function renderLockWait(event: LockWaitEvent, json: boolean): string {
   return json ? renderLockWaitJson(event) : renderLockWaitHuman(event);
+}
+
+/**
+ * Human-readable progress line for one run event: the locale about to start (with its 1-based
+ * position), a provider sub-batch reached, a locale finished (with its translated count), or the
+ * whole run finished. Meant for stderr, so it never mixes with `--json` stdout.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderProgressHuman(event: ProgressEvent): string {
+  switch (event.type) {
+    case "locale-started":
+      return `verbatra: [${event.localeIndex + 1}/${event.totalLocales}] translating ${event.locale}`;
+    case "sub-batch":
+      return `verbatra: ${event.locale} batch ${event.batchIndex}/${event.totalBatches}`;
+    case "locale-finished":
+      return `verbatra: ${event.locale} done, ${event.translated} translated`;
+    case "run-finished":
+      return `verbatra: run finished, ${event.localesCompleted} locales processed`;
+  }
+}
+
+/**
+ * The `--json` progress contract: one structured record per event. The event already carries its own
+ * `type` discriminant, so it is emitted verbatim. Written to stderr, never stdout, so it never
+ * corrupts the run summary or NDJSON stream a `--json` run emits on stdout.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @returns A single-line JSON record string.
+ */
+export function renderProgressJson(event: ProgressEvent): string {
+  return JSON.stringify(event);
+}
+
+/**
+ * One progress line for the active output mode: a structured JSON record under `--json`, the human
+ * line otherwise. Callers write it to stderr, keeping stdout clean in both modes.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @param json - Whether the command is in `--json` mode.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderProgress(event: ProgressEvent, json: boolean): string {
+  return json ? renderProgressJson(event) : renderProgressHuman(event);
 }
 
 /**
