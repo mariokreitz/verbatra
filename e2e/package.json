@@ -6,7 +6,7 @@
   "description": "End-to-end tests that install the published @verbatra/cli and @verbatra/sdk tarballs and drive real usage of the package.",
   "scripts": {
     "test": "vitest run",
-    "test:nokey": "vitest run tests/read-only.e2e.test.ts",
+    "test:nokey": "vitest run tests/read-only.e2e.test.ts tests/structure-lock-import.e2e.test.ts tests/progress-flags.e2e.test.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
