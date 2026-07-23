@@ -230,6 +230,43 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
   });
 });
 
+describe("run translate: --concurrency", () => {
+  it("passes a valid --concurrency to the SDK translate() as a number", async () => {
+    const { deps, calls } = recordingDeps();
+
+    const code = await run(["translate", "--concurrency", "4"], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.concurrency).toBe(4);
+  });
+
+  it("omitting --concurrency leaves it unset (the SDK applies its serial default of 1)", async () => {
+    const { deps, calls } = recordingDeps();
+
+    await run(["translate"], deps, captureStreams().streams);
+
+    expect(calls.translate[0]).not.toHaveProperty("concurrency");
+  });
+
+  it.each([
+    "abc",
+    "0",
+    "-2",
+    "2.5",
+    "3ms",
+  ])("rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["translate", "--concurrency", value], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
+    expect(cap.out()).toBe("");
+    expect(calls.translate).toHaveLength(0);
+  });
+});
+
 describe("run translate: progress reporting", () => {
   const events: readonly ProgressEvent[] = [
     { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },

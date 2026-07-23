@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { LockWaitEvent, ProgressEvent } from "@verbatra/sdk";
+import type { LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
@@ -58,6 +58,7 @@ const translateOptsSchema = z.object({
   dryRun: z.boolean().optional(),
   prune: z.boolean().optional(),
   lockTimeout: z.string().optional(),
+  concurrency: z.string().optional(),
   json: z.boolean().optional(),
 });
 
@@ -66,6 +67,7 @@ const watchOptsSchema = z.object({
   config: z.string().optional(),
   debounce: z.string().optional(),
   lockTimeout: z.string().optional(),
+  concurrency: z.string().optional(),
   json: z.boolean().optional(),
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
@@ -248,19 +250,46 @@ function parseLockTimeout(value: string | undefined): number | undefined {
   return Number.parseInt(value, 10) * 1000;
 }
 
-/** `translateOptsSchema`'s shape plus the lock timeout already parsed to milliseconds. */
+/**
+ * Parses `--concurrency` (how many locales run at once) into a positive integer. An omitted flag
+ * stays `undefined` (the SDK applies its default of 1). A given value must be a bare positive integer
+ * string; anything else (non-numeric, zero, negative, or a decimal) is a usage error, never a silent
+ * fallback to the default.
+ *
+ * @throws {@link UsageError} `INVALID_CONCURRENCY` when `value` is not a positive integer string.
+ */
+function parseConcurrency(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) < 1) {
+    throw new UsageError(
+      "INVALID_CONCURRENCY",
+      `The --concurrency option must be a positive whole number, got "${value}".`,
+    );
+  }
+  return Number.parseInt(value, 10);
+}
+
+/** `translateOptsSchema`'s shape plus the lock timeout and concurrency already parsed to numbers. */
 interface ParsedTranslateOpts extends z.infer<typeof translateOptsSchema> {
   readonly lockAcquireTimeoutMs?: number;
+  readonly concurrencyValue?: number;
 }
 
 /**
  * Parses and validates the `translate` command's options: the zod schema shape, then `--lock-timeout`
- * on top, so a single {@link withParsedOpts} call covers either failure.
+ * and `--concurrency` on top, so a single {@link withParsedOpts} call covers any failure.
  */
 function parseTranslateCommandOpts(rawOpts: unknown): ParsedTranslateOpts {
   const opts = translateOptsSchema.parse(rawOpts);
   const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
-  return { ...opts, ...(lockAcquireTimeoutMs !== undefined ? { lockAcquireTimeoutMs } : {}) };
+  const concurrencyValue = parseConcurrency(opts.concurrency);
+  return {
+    ...opts,
+    ...(lockAcquireTimeoutMs !== undefined ? { lockAcquireTimeoutMs } : {}),
+    ...(concurrencyValue !== undefined ? { concurrencyValue } : {}),
+  };
 }
 
 /**
@@ -286,6 +315,33 @@ function progressReporter(streams: Streams, json: boolean): (event: ProgressEven
 }
 
 /**
+ * Assembles the {@link TranslateInput} for one `translate` run: the resolved config and cwd, the
+ * stderr progress reporters, and every optional flag conditionally spread so an unset flag stays
+ * absent (for `exactOptionalPropertyTypes`). Extracted from the run body to keep that body's
+ * cognitive complexity within budget.
+ */
+function buildTranslateInput(
+  opts: ParsedTranslateOpts,
+  config: TranslateInput["config"],
+  cwd: string,
+  streams: Streams,
+): TranslateInput {
+  const json = opts.json === true;
+  return {
+    config,
+    cwd,
+    onLockWait: lockWaitReporter(streams, json),
+    onProgress: progressReporter(streams, json),
+    ...(opts.dryRun === true ? { dryRun: true } : {}),
+    ...(opts.prune === true ? { prune: true } : {}),
+    ...(opts.lockAcquireTimeoutMs !== undefined
+      ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
+      : {}),
+    ...(opts.concurrencyValue !== undefined ? { concurrency: opts.concurrencyValue } : {}),
+  };
+}
+
+/**
  * Runs the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
  * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
  * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
@@ -305,17 +361,7 @@ export async function runTranslate(
         streams,
         loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
         async (config) => {
-          const summary = await deps.translate({
-            config,
-            cwd,
-            onLockWait: lockWaitReporter(streams, opts.json === true),
-            onProgress: progressReporter(streams, opts.json === true),
-            ...(opts.dryRun === true ? { dryRun: true } : {}),
-            ...(opts.prune === true ? { prune: true } : {}),
-            ...(opts.lockAcquireTimeoutMs !== undefined
-              ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
-              : {}),
-          });
+          const summary = await deps.translate(buildTranslateInput(opts, config, cwd, streams));
           streams.out(
             opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`,
           );
@@ -327,24 +373,28 @@ export async function runTranslate(
   );
 }
 
-/** `watchOptsSchema`'s shape plus the debounce and lock-timeout values already parsed to milliseconds. */
+/** `watchOptsSchema`'s shape plus the debounce, lock-timeout, and concurrency values already parsed. */
 interface ParsedWatchOpts extends WatchOpts {
   readonly debounceMs?: number;
   readonly lockAcquireTimeoutMs?: number;
+  readonly concurrencyValue?: number;
 }
 
 /**
- * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce` and
- * `--lock-timeout` on top. All run here so a single {@link withParsedOpts} call covers any failure.
+ * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce`,
+ * `--lock-timeout`, and `--concurrency` on top. All run here so a single {@link withParsedOpts} call
+ * covers any failure.
  */
 function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
   const opts = watchOptsSchema.parse(rawOpts);
   const debounceMs = parseDebounce(opts.debounce);
   const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
+  const concurrencyValue = parseConcurrency(opts.concurrency);
   return {
     ...opts,
     ...(debounceMs !== undefined ? { debounceMs } : {}),
     ...(lockAcquireTimeoutMs !== undefined ? { lockAcquireTimeoutMs } : {}),
+    ...(concurrencyValue !== undefined ? { concurrencyValue } : {}),
   };
 }
 
@@ -377,6 +427,7 @@ async function runWatchCommand(
           ...(opts.lockAcquireTimeoutMs !== undefined
             ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
             : {}),
+          ...(opts.concurrencyValue !== undefined ? { concurrency: opts.concurrencyValue } : {}),
         },
         deps,
         streams,
@@ -552,6 +603,10 @@ function buildProgram(
       "--lock-timeout <seconds>",
       "how long to wait for a held per-locale write lock before failing (default 600)",
     )
+    .option(
+      "--concurrency <n>",
+      "how many target locales to translate at once (default 1; not allowed with a maxTokens budget)",
+    )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: unknown) => {
       setCode(await runTranslate(opts, deps, streams));
@@ -581,6 +636,10 @@ function buildProgram(
     .option(
       "--lock-timeout <seconds>",
       "how long to wait for a held per-locale write lock before failing (default 600)",
+    )
+    .option(
+      "--concurrency <n>",
+      "how many target locales to translate at once per run (default 1; not allowed with a maxTokens budget)",
     )
     .option("--json", "print each run as one NDJSON record")
     .action(async (opts: unknown) => {

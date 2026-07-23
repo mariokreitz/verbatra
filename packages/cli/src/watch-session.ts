@@ -19,6 +19,8 @@ export interface WatchOptions {
   readonly debounceMs?: number;
   /** Write-lock acquire timeout in milliseconds; defaults to the SDK's 10-minute default. */
   readonly lockAcquireTimeoutMs?: number;
+  /** How many target locales each run may translate at once; defaults to the SDK's 1 (serial). */
+  readonly concurrency?: number;
   /** When true, emit NDJSON records; otherwise human-readable output. */
   readonly json: boolean;
 }
@@ -79,6 +81,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     ...(options.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: options.lockAcquireTimeoutMs }
       : {}),
+    ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
   };
 
   deps

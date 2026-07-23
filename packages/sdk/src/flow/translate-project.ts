@@ -82,6 +82,16 @@ export interface TranslateInput {
    * `--lock-timeout`).
    */
   readonly lockAcquireTimeoutMs?: number;
+  /**
+   * How many target locales may run at once, a positive integer (surfaced to the CLI as
+   * `--concurrency`). Defaults to 1, which runs locales strictly in sequence and is byte-identical
+   * to a run with this option unset. A value below 1 or a non-integer is rejected with a whole-run
+   * `CONCURRENCY_INVALID` error. On a live run, a value greater than 1 is rejected with a whole-run
+   * `CONCURRENCY_BUDGET_CONFLICT` error when the config sets a `maxTokens` budget, because
+   * concurrency would make the budget's stop guarantee nondeterministic; a dry run is exempt. The
+   * per-locale write locks already isolate concurrent locales on disk, so no extra locking is added.
+   */
+  readonly concurrency?: number;
 }
 
 /** Composition seam: inject a registry, a provider builder, and a file system for tests. */
@@ -237,52 +247,147 @@ async function runOneLocale(
 }
 
 /**
- * Runs each target locale in order through `runOne`, emitting a `locale-started` event before each
- * and a `locale-finished` event after each (with that locale's accepted-key count). Shared by the
- * dry and live paths; sub-batch events, which require a provider call, are emitted deeper in
- * `runLocale` and so never fire on the dry path.
+ * Runs one target locale at `localeIndex`: emits `locale-started`, runs it (isolating a per-locale
+ * failure), stores its summary at `localeIndex` so the collected array stays in `targetLocales`
+ * order regardless of completion order, then emits `locale-finished` with that locale's accepted-key
+ * count. Sub-batch events, which require a provider call, are emitted deeper in `runLocale` and so
+ * never fire on the dry path.
+ */
+async function runLocaleAt(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+  localeIndex: number,
+  runOne: (targetLocale: string) => Promise<LocaleSummary>,
+  results: (LocaleSummary | undefined)[],
+): Promise<void> {
+  const targetLocale = targetLocales[localeIndex];
+  if (targetLocale === undefined) {
+    return;
+  }
+  context.onProgress?.({
+    type: "locale-started",
+    locale: targetLocale,
+    localeIndex,
+    totalLocales: targetLocales.length,
+  });
+  const summary = await runOneLocale(targetLocale, () => runOne(targetLocale));
+  results[localeIndex] = summary;
+  context.onProgress?.({
+    type: "locale-finished",
+    locale: targetLocale,
+    translated: summary.translated.length,
+  });
+}
+
+/**
+ * Runs the target locales through a bounded worker pool of width `concurrency`, collecting each
+ * summary into its `targetLocales` slot so the returned array is always in source order, never
+ * completion order. With `concurrency` 1 (the default) a single worker drains the locales strictly
+ * in sequence, reproducing the serial behavior exactly: same event order, same summary order. Shared
+ * by the dry and live paths. A locale index is claimed synchronously (no `await` between the read and
+ * the increment), so two workers never claim the same locale.
  */
 async function runLocalesWithProgress(
   context: LocaleRunContext,
   targetLocales: readonly string[],
   runOne: (targetLocale: string) => Promise<LocaleSummary>,
+  concurrency: number,
 ): Promise<LocaleSummary[]> {
-  const summaries: LocaleSummary[] = [];
-  for (const [localeIndex, targetLocale] of targetLocales.entries()) {
-    context.onProgress?.({
-      type: "locale-started",
-      locale: targetLocale,
-      localeIndex,
-      totalLocales: targetLocales.length,
-    });
-    const summary = await runOneLocale(targetLocale, () => runOne(targetLocale));
-    summaries.push(summary);
-    context.onProgress?.({
-      type: "locale-finished",
-      locale: targetLocale,
-      translated: summary.translated.length,
-    });
+  const totalLocales = targetLocales.length;
+  const results: (LocaleSummary | undefined)[] = new Array<LocaleSummary | undefined>(totalLocales);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < totalLocales) {
+      const localeIndex = nextIndex;
+      nextIndex += 1;
+      await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+    }
   }
-  return summaries;
+
+  const workerCount = Math.min(concurrency, totalLocales);
+  const workers: Promise<void>[] = [];
+  for (let index = 0; index < workerCount; index += 1) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results.filter((summary): summary is LocaleSummary => summary !== undefined);
 }
 
 async function runAllLocalesDry(
   context: LocaleRunContext,
   targetLocales: readonly string[],
+  concurrency: number,
 ): Promise<LocaleSummary[]> {
   const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
-  return runLocalesWithProgress(context, targetLocales, (targetLocale) =>
-    runDryLocale(context, targetLocale, lock),
+  return runLocalesWithProgress(
+    context,
+    targetLocales,
+    (targetLocale) => runDryLocale(context, targetLocale, lock),
+    concurrency,
   );
 }
 
 async function runAllLocalesLive(
   context: LocaleRunContext,
   targetLocales: readonly string[],
+  concurrency: number,
 ): Promise<LocaleSummary[]> {
-  return runLocalesWithProgress(context, targetLocales, (targetLocale) =>
-    runLiveLocale(context, targetLocale),
+  return runLocalesWithProgress(
+    context,
+    targetLocales,
+    (targetLocale) => runLiveLocale(context, targetLocale),
+    concurrency,
   );
+}
+
+/**
+ * Resolves and validates the run's locale-level concurrency. Unset means 1 (strictly serial,
+ * byte-identical to the pre-pool behavior). Any other value must be an integer of at least 1; a
+ * non-integer or a value below 1 is a whole-run `CONCURRENCY_INVALID` failure raised before any
+ * locale runs.
+ *
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
+ */
+function resolveConcurrency(value: number | undefined): number {
+  if (value === undefined) {
+    return 1;
+  }
+  if (!Number.isInteger(value) || value < 1) {
+    throw new SdkError(
+      "CONCURRENCY_INVALID",
+      `The concurrency option must be an integer of at least 1, got ${value}.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Validates the requested concurrency and rejects the one combination the budget cannot honor: a
+ * live run with concurrency greater than 1 while a `maxTokens` budget is configured. The refusal is
+ * raised before any locale runs (and so before any provider call). A dry run is exempt: it
+ * constructs no provider and no budget tracker, so concurrency cannot affect a budget it never
+ * consults.
+ *
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1
+ *   while `config.maxTokens` is set.
+ */
+function resolveRunConcurrency(
+  value: number | undefined,
+  dryRun: boolean,
+  config: VerbatraConfig,
+): number {
+  const concurrency = resolveConcurrency(value);
+  if (!dryRun && concurrency > 1 && config.maxTokens !== undefined) {
+    throw new SdkError(
+      "CONCURRENCY_BUDGET_CONFLICT",
+      "A token budget (maxTokens) and concurrency greater than 1 cannot be combined on a live run: " +
+        "concurrent locales would overshoot the budget nondeterministically. Set concurrency to 1, " +
+        "remove maxTokens, or use --dry-run.",
+    );
+  }
+  return concurrency;
 }
 
 /**
@@ -321,6 +426,11 @@ async function runAllLocalesLive(
  * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
  *   adapter read error).
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is defined but not an integer of at
+ *   least 1; raised before any locale runs.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set `concurrency` greater than 1
+ *   while the config configures a `maxTokens` budget; raised before any provider call (a dry run is
+ *   exempt).
  * @example
  * ```ts
  * import { loadConfig, translate } from "@verbatra/sdk";
@@ -349,6 +459,7 @@ export async function translate(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const dryRun = input.dryRun ?? false;
+  const concurrency = resolveRunConcurrency(input.concurrency, dryRun, config);
   const prune = input.prune ?? config.prune ?? false;
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
   const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
@@ -381,8 +492,8 @@ export async function translate(
   };
 
   const summaries = dryRun
-    ? await runAllLocalesDry(context, config.targetLocales)
-    : await runAllLocalesLive(context, config.targetLocales);
+    ? await runAllLocalesDry(context, config.targetLocales, concurrency)
+    : await runAllLocalesLive(context, config.targetLocales, concurrency);
   input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
   const { succeeded, partial, failed } = partition(summaries);
