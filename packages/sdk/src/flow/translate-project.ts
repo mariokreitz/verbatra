@@ -210,6 +210,9 @@ async function runLiveLocale(
     targetLocale,
     context.fs,
     async () => {
+      // This lock read runs outside withLockFileGuard yet stays correct under locale concurrency:
+      // SdkFs.writeFile is atomic (temp file + rename), so a read never observes a torn write, and
+      // this locale only ever consults its own baselineFor subtree, which no other locale writes.
       const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
       const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
       const result = await runLocale(params);
@@ -365,9 +368,9 @@ function resolveConcurrency(value: number | undefined): number {
 /**
  * Validates the requested concurrency and rejects the one combination the budget cannot honor: a
  * live run with concurrency greater than 1 while a `maxTokens` budget is configured. The refusal is
- * raised before any locale runs (and so before any provider call). A dry run is exempt: it
- * constructs no provider and no budget tracker, so concurrency cannot affect a budget it never
- * consults.
+ * raised before any locale runs (and so before any provider call). A dry run is exempt: it never
+ * folds usage into or consults the budget tracker, so concurrency cannot affect a budget it never
+ * reads.
  *
  * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
  * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1

@@ -213,6 +213,31 @@ describe("translate: bounded locale-level concurrency", () => {
     );
   });
 
+  it("writes a lock file byte-identical to a serial run when locales complete in reverse order under concurrency", async () => {
+    const targets = ["de", "fr", "es", "it"] as const;
+    const source = { a: "A", b: "B" };
+
+    const serialDir = await project(source);
+    await translate(
+      { config: cfg(targets), cwd: serialDir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const concurrentDir = await project(source);
+    // Force completion order to be the reverse of source order, so a locale record built in
+    // completion order would serialize with reversed keys. The write path's key sort must undo it.
+    const delayByLocale = { de: 40, fr: 30, es: 20, it: 10 };
+    const { provider } = makeConcurrencyProbe({ delayByLocale });
+    await translate(
+      { config: cfg(targets), cwd: concurrentDir, concurrency: 4 },
+      { createProvider: () => provider },
+    );
+
+    expect(await readTextFile(lockFilePath(concurrentDir))).toEqual(
+      await readTextFile(lockFilePath(serialDir)),
+    );
+  });
+
   it("refuses concurrency greater than 1 on a live budgeted run before constructing the provider", async () => {
     let providerConstructed = false;
     await expect(

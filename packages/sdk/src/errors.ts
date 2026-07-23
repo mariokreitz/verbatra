@@ -34,7 +34,8 @@
  * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested `concurrency` greater than 1 while a token
  *   budget (`maxTokens`) is configured; the two are mutually exclusive because concurrency makes the
  *   budget's stop guarantee nondeterministic (thrown by `translate` before any provider call; a dry
- *   run is exempt, since it constructs no provider and no budget tracker).
+ *   run is exempt, since it never folds usage into or consults the budget tracker, so the conflict
+ *   cannot arise).
  * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
  *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction
  *   on `translate`.
