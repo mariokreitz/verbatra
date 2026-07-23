@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { LEGAL_LAST_UPDATED } from "@/lib/site";
+import type { Locale } from "@/lib/i18n";
+import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
 
@@ -13,6 +14,7 @@ export async function generateMetadata(props: {
     title: t("title"),
     description: t("description"),
     robots: { index: true },
+    alternates: localeAlternates(lang as Locale, "/imprint"),
   };
 }
 

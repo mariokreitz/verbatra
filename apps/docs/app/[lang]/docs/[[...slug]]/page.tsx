@@ -119,7 +119,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
             <Link href={englishHref}>{translationNote("viewOriginal")}</Link>.
           </Callout>
         ) : null}
-        <MDX components={getMDXComponents()} />
+        <MDX components={getMDXComponents(lang)} />
         {editHref ? <EditOnGitHub href={editHref} /> : null}
       </DocsBody>
     </DocsPage>

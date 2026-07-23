@@ -3,7 +3,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 import { getTranslations } from "next-intl/server";
 import { GithubIcon } from "@/components/landing/github-icon";
 import { CONTRIBUTING_URL } from "@/components/landing/links";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, type Locale, localizedPath } from "@/lib/i18n";
 
 const LANGUAGE_ARIA_KEY = "Choose a language(language switcher)(aria-label)";
 
@@ -33,15 +33,11 @@ export function i18nConfig(locale: string) {
   return { ...i18nProvider(translations, locale), locales: localeNames };
 }
 
-function localized(locale: Locale, path: string): string {
-  return locale === i18n.defaultLanguage ? path : `/${locale}${path}`;
-}
-
 export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
   const t = await getTranslations({ locale, namespace: "landing.nav" });
   return {
     nav: {
-      url: localized(locale, "/"),
+      url: localizedPath(locale, "/"),
       title: (
         <span className="inline-flex items-center gap-2">
           <svg
@@ -72,7 +68,7 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
       ),
     },
     links: [
-      { text: t("docs"), url: localized(locale, "/docs") },
+      { text: t("docs"), url: localizedPath(locale, "/docs") },
       { text: t("contributing"), url: CONTRIBUTING_URL, external: true },
       {
         type: "icon",
