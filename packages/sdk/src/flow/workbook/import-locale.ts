@@ -8,7 +8,20 @@ import type { WorkbookRow, WorkbookSheet } from "@verbatra/exchange";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { gateCandidateValue, type IntegrityGateReason } from "../integrity-gate.js";
 import { deriveLocaleStatus } from "../locale-failure.js";
-import type { LocaleSummary, SdkNotice } from "../summary.js";
+import type {
+  DuplicateKeyReport,
+  LocaleSummary,
+  MalformedRowReport,
+  SdkNotice,
+} from "../summary.js";
+
+/**
+ * The literal a translator types in a Translation cell to deliberately unset a value: it applies as
+ * an empty string while keeping the key, bypasses the placeholder/ICU integrity gate (an empty value
+ * has no placeholders to match), still honors the source-drift check, and advances the lock baseline
+ * so the clear persists across runs. Matched on the cell's trimmed content (see the exchange reader).
+ */
+const CLEAR_SENTINEL = "[[CLEAR]]";
 
 /** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
 export interface ImportLocaleParams {
@@ -19,6 +32,10 @@ export interface ImportLocaleParams {
   readonly adapter: FormatAdapter;
   /** Source keys flagged invalid-ICU on read; surfaced verbatim, exactly as the provider path. */
   readonly sourceInvalidIcuKeys: readonly string[];
+  /** Rows the exchange reader could not parse for this sheet; surfaced as data, never re-judged. */
+  readonly malformedRows: readonly MalformedRowReport[];
+  /** Later occurrences of a duplicated key in this sheet; the first occurrence already won. */
+  readonly duplicateKeys: readonly DuplicateKeyReport[];
 }
 
 /** The judged outcome of one locale's rows, before any write or lock update. */
@@ -80,6 +97,8 @@ interface Buckets {
   readonly withheld: Set<string>;
   /** Blank cells for a source key whose current hash no longer matches the recorded baseline. */
   readonly blankDrifted: Set<string>;
+  /** Keys the workbook exported as `changed` that the translator left blank (pending work). */
+  readonly unfilled: string[];
 }
 
 /**
@@ -98,12 +117,32 @@ function trackBlankDrift(row: WorkbookRow, params: ImportLocaleParams, buckets: 
 }
 
 /**
- * Apply the fail-safe row rules: empty cells are skipped, an invented key throws {@link UnknownKeyError},
- * an orphaned source key is left unwritten, and every other filled row is judged (accepted or withheld).
+ * Judge a `[[CLEAR]]` row (a deliberate unset). It bypasses the placeholder/ICU gate (an empty value
+ * has no placeholders to match) but still honors the source-drift check: a cleared row whose source
+ * drifted is withheld and reported like any drift, otherwise the value is accepted as an empty string
+ * (the key is kept and its lock baseline advances).
+ */
+function classifyClear(row: WorkbookRow, sourceEntry: TranslationEntry, buckets: Buckets): void {
+  if (contentHash(sourceEntry) !== row.sourceHash) {
+    buckets.mismatches.push(row.key);
+    buckets.withheld.add(row.key);
+    return;
+  }
+  buckets.accepted.set(row.key, { value: "", source: sourceEntry });
+}
+
+/**
+ * Apply the fail-safe row rules: empty cells are skipped (a `changed` blank is recorded as unfilled),
+ * an invented key throws {@link UnknownKeyError}, an orphaned source key is left unwritten, a
+ * `[[CLEAR]]` cell unsets its value, and every other filled row is judged (accepted or withheld). The
+ * reader already collapsed duplicate keys to their first occurrence, so no key is processed twice.
  */
 function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
   for (const row of params.sheet.rows) {
     if (row.translation === "") {
+      if (row.status === "changed") {
+        buckets.unfilled.push(row.key);
+      }
       trackBlankDrift(row, params, buckets);
       continue;
     }
@@ -112,6 +151,10 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
     }
     const sourceEntry = params.source.entries.get(row.key);
     if (sourceEntry === undefined) {
+      continue;
+    }
+    if (row.translation === CLEAR_SENTINEL) {
+      classifyClear(row, sourceEntry, buckets);
       continue;
     }
     const reason = judge(row, sourceEntry, params.adapter);
@@ -141,10 +184,11 @@ function blankRowBaselineNotice(count: number): SdkNotice {
  *
  * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
  * in this sheet (source-side only; a filled value's own ICU failure is reported under
- * `integrityMismatches`). `pruned`, `providerFailures`, `budgetWithheld`, `generated`, and
- * `needsReview` are always empty: an import never prunes, never calls a provider, never generates
- * plural forms, and never recomputes review flags (the workbook's Review columns are informational
- * only; see export-workbook.ts).
+ * `integrityMismatches`). `unfilled` lists `changed` rows the translator left blank; `malformedRows`
+ * and `duplicateKeys` carry the reader's structural findings for this sheet verbatim. `pruned`,
+ * `providerFailures`, `budgetWithheld`, `generated`, and `needsReview` are always empty: an import
+ * never prunes, never calls a provider, never generates plural forms, and never recomputes review
+ * flags (the workbook's Review columns are informational only; see export-workbook.ts).
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
@@ -153,6 +197,7 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     mismatches: [],
     withheld: new Set(),
     blankDrifted: new Set(),
+    unfilled: [],
   };
   classifyRows(params, buckets);
 
@@ -184,6 +229,9 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     notices:
       buckets.blankDrifted.size > 0 ? [blankRowBaselineNotice(buckets.blankDrifted.size)] : [],
     needsReview: [],
+    unfilled: [...new Set(buckets.unfilled)].sort(),
+    malformedRows: params.malformedRows,
+    duplicateKeys: params.duplicateKeys,
   };
   return { summary, accepted: buckets.accepted, withheld: buckets.withheld };
 }

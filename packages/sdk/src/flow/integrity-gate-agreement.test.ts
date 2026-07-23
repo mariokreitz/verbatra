@@ -162,6 +162,8 @@ describe.each(cases)("gateCandidateValue agreement: $name", (testCase) => {
       baseline: new Map(),
       adapter: testCase.adapter,
       sourceInvalidIcuKeys: [],
+      malformedRows: [],
+      duplicateKeys: [],
     });
 
     if (testCase.expected.accepted) {

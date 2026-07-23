@@ -18,6 +18,9 @@ function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSum
     generated: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
   };
 }
 
@@ -71,6 +74,9 @@ describe("failureSummary", () => {
       generated: [],
       notices: [],
       needsReview: [],
+      unfilled: [],
+      malformedRows: [],
+      duplicateKeys: [],
       error: { code: "ADAPTER_WRITE", message: "nope" },
     });
   });

@@ -240,6 +240,43 @@ describe("render: human run summary", () => {
     expect(text).toContain("2 pruned");
   });
 
+  it("shows an unfilled count and the key list for changed rows left blank on import", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ unfilled: ["greeting", "farewell"] })] }),
+      "import",
+    );
+    expect(text).toContain("2 unfilled");
+    expect(text).toContain("unfilled:");
+    expect(text).toContain("greeting, farewell");
+  });
+
+  it("shows a malformed-rows count and the row and column of each malformed row", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ malformedRows: [{ row: 7, column: "Status" }] })] }),
+      "import",
+    );
+    expect(text).toContain("1 malformed-rows");
+    expect(text).toContain("malformed:");
+    expect(text).toContain("row 7 (Status)");
+  });
+
+  it("shows a duplicate-keys count and the conflicting key with its losing row", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ duplicateKeys: [{ key: "greeting", row: 9 }] })] }),
+      "import",
+    );
+    expect(text).toContain("1 duplicate-keys");
+    expect(text).toContain("duplicates:");
+    expect(text).toContain("greeting (row 9)");
+  });
+
+  it("omits the import detail groups when nothing was unfilled, malformed, or duplicated", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("unfilled");
+    expect(text).not.toContain("malformed");
+    expect(text).not.toContain("duplicates");
+  });
+
   it("renders a failed locale with its structured code and message", () => {
     const text = renderHuman(
       makeSummary({

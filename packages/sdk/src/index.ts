@@ -115,8 +115,10 @@ export {
 } from "./flow/run-status.js";
 export type {
   BudgetBehavior,
+  DuplicateKeyReport,
   LocaleNotice,
   LocaleSummary,
+  MalformedRowReport,
   NeedsReviewEntry,
   RunBudget,
   RunSummary,
