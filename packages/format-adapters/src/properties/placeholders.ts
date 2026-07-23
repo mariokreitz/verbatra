@@ -12,108 +12,143 @@ const ARGUMENT_NAME = /^(?:\d+|[A-Za-z_$][\w$-]*)$/;
 interface ParsedArgument {
   readonly name: string;
   readonly type: string | null;
-  readonly style: string | null;
-  /** Index in the source just past the argument's closing brace. */
-  readonly end: number;
+  /** Absolute index where the style begins, or -1 when the argument has no style. */
+  readonly styleStart: number;
 }
 
-/** Index of the brace that closes the one opened at `open`, or -1 when the braces are unbalanced. */
-function matchBrace(message: string, open: number): number {
-  let depth = 0;
-  for (let i = open; i < message.length; i += 1) {
-    const char = message[i];
+/**
+ * For every `{` in the value, the index of the `}` that closes it, or -1 when it is unbalanced,
+ * computed in a single left-to-right pass with an open-brace stack. Precomputing all matches once
+ * replaces a per-`{` rescan to end-of-string, so extraction stays linear in the value length even on
+ * adversarial input such as a long run of unbalanced open braces.
+ */
+function matchingBraces(value: string): Int32Array {
+  const close = new Int32Array(value.length).fill(-1);
+  const open: number[] = [];
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
     if (char === "{") {
-      depth += 1;
+      open.push(i);
     } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) {
-        return i;
+      const start = open.pop();
+      if (start !== undefined) {
+        close[start] = i;
       }
     }
   }
-  return -1;
+  return close;
 }
 
 /**
- * Split the text between an argument's braces into its name, optional type, and optional style. The
- * name runs to the first comma, the type to the second; the style keeps the remainder verbatim
- * (it may itself contain commas and braces). Returns null when the name is not a valid argument name.
+ * Scan the name region [from, limit) for the comma that ends the name, bailing at the first brace,
+ * which can never be part of a valid name. Bailing early keeps a brace-laden body from being sliced
+ * once per enclosing `{`, which is what would otherwise be quadratic.
  */
-function parseArgumentBody(
-  body: string,
-): { readonly name: string; readonly type: string | null; readonly style: string | null } | null {
-  const firstComma = body.indexOf(",");
-  if (firstComma === -1) {
-    const name = body.trim();
-    return ARGUMENT_NAME.test(name) ? { name, type: null, style: null } : null;
+function findNameEnd(
+  value: string,
+  from: number,
+  limit: number,
+): { readonly comma: number; readonly hasBrace: boolean } {
+  for (let i = from; i < limit; i += 1) {
+    const char = value[i];
+    if (char === ",") {
+      return { comma: i, hasBrace: false };
+    }
+    if (char === "{" || char === "}") {
+      return { comma: -1, hasBrace: true };
+    }
   }
-  const name = body.slice(0, firstComma).trim();
+  return { comma: -1, hasBrace: false };
+}
+
+/**
+ * Parse the MessageFormat argument whose braces span `open`..`close` into its name, optional type,
+ * and optional style start, or null when it is not a valid argument. The name runs to the first
+ * comma, the type to the second; the style is the remainder up to the closing brace.
+ */
+function parseArgumentAt(value: string, open: number, close: number): ParsedArgument | null {
+  const { comma, hasBrace } = findNameEnd(value, open + 1, close);
+  if (hasBrace) {
+    return null;
+  }
+  const nameEnd = comma === -1 ? close : comma;
+  const name = value.slice(open + 1, nameEnd).trim();
   if (!ARGUMENT_NAME.test(name)) {
     return null;
   }
-  const rest = body.slice(firstComma + 1);
-  const secondComma = rest.indexOf(",");
-  if (secondComma === -1) {
-    return { name, type: rest.trim(), style: null };
+  if (comma === -1) {
+    return { name, type: null, styleStart: -1 };
   }
-  return { name, type: rest.slice(0, secondComma).trim(), style: rest.slice(secondComma + 1) };
-}
-
-/** Read a whole MessageFormat argument starting at the `{` in `open`, or null when it is not one. */
-function readArgument(message: string, open: number): ParsedArgument | null {
-  const close = matchBrace(message, open);
-  if (close === -1) {
-    return null;
+  const secondComma = value.indexOf(",", comma + 1);
+  if (secondComma === -1 || secondComma >= close) {
+    return { name, type: value.slice(comma + 1, close).trim(), styleStart: -1 };
   }
-  const body = parseArgumentBody(message.slice(open + 1, close));
-  return body === null ? null : { ...body, end: close + 1 };
+  return { name, type: value.slice(comma + 1, secondComma).trim(), styleStart: secondComma + 1 };
 }
 
 /** The canonical token for a non-sub-message argument: name, plus type and style when present. */
-function canonicalToken(arg: ParsedArgument): string {
+function canonicalToken(value: string, arg: ParsedArgument, close: number): string {
   if (arg.type === null) {
     return `{${arg.name}}`;
   }
-  if (arg.style === null) {
+  if (arg.styleStart === -1) {
     return `{${arg.name},${arg.type}}`;
   }
-  return `{${arg.name},${arg.type},${arg.style.trim()}}`;
+  return `{${arg.name},${arg.type},${value.slice(arg.styleStart, close).trim()}}`;
 }
 
-function emitArgument(arg: ParsedArgument, out: string[]): void {
+function emitArgument(
+  value: string,
+  close: Int32Array,
+  arg: ParsedArgument,
+  closeIndex: number,
+  out: string[],
+): void {
   if (arg.type !== null && SUBMESSAGE_TYPES.has(arg.type)) {
     out.push(`{${arg.name},${arg.type}}`);
-    if (arg.style !== null) {
-      scanMessage(arg.style, out, false);
+    if (arg.styleStart !== -1) {
+      scanRange(value, close, arg.styleStart, closeIndex, false, out);
     }
     return;
   }
-  out.push(canonicalToken(arg));
+  out.push(canonicalToken(value, arg, closeIndex));
 }
 
 /**
- * Walk a message, appending a token for every top-level argument and recursing into sub-messages.
- * At the message top level a `{{` pair is a literal double-brace escape and is skipped; inside a
- * sub-message it is not, since a sub-message may open directly onto an argument (`one {{name}...}`).
+ * Walk [start, end), appending a token for every argument and recursing into sub-messages. At the
+ * message top level a `{{` pair is a literal double-brace escape and is skipped; inside a sub-message
+ * it is not, since a sub-message may open directly onto an argument (`one {{name}...}`).
  */
-function scanMessage(message: string, out: string[], topLevel: boolean): void {
-  let i = 0;
-  while (i < message.length) {
-    if (message[i] !== "{") {
+function scanRange(
+  value: string,
+  close: Int32Array,
+  start: number,
+  end: number,
+  topLevel: boolean,
+  out: string[],
+): void {
+  let i = start;
+  while (i < end) {
+    if (value[i] !== "{") {
       i += 1;
       continue;
     }
-    if (topLevel && message[i + 1] === "{") {
+    if (topLevel && value[i + 1] === "{") {
       i += 2;
       continue;
     }
-    const arg = readArgument(message, i);
+    const closeIndex = close[i] ?? -1;
+    if (closeIndex === -1 || closeIndex >= end) {
+      i += 1;
+      continue;
+    }
+    const arg = parseArgumentAt(value, i, closeIndex);
     if (arg === null) {
       i += 1;
       continue;
     }
-    emitArgument(arg, out);
-    i = arg.end;
+    emitArgument(value, close, arg, closeIndex, out);
+    i = closeIndex + 1;
   }
 }
 
@@ -126,6 +161,8 @@ function scanMessage(message: string, out: string[], topLevel: boolean): void {
  * sub-messages for nested arguments, so translating the branch text stays a match while dropping or
  * renaming the argument does not. Every occurrence is preserved (not deduplicated), since
  * placeholder integrity is a multiset. A top-level double-brace literal ({{...}}) is not extracted.
+ * Extraction is a single precompute of the brace matches plus a linear scan, so it stays linear in
+ * the value length even on adversarial (deeply unbalanced or deeply nested) input.
  *
  * Known limitation: MessageFormat single-quote quoting is not interpreted, so a quoted literal
  * (`'{0}'`) is still read as an argument, and a stray double-close (`{0}}`) reads the inner `{0}`.
@@ -134,6 +171,6 @@ function scanMessage(message: string, out: string[], topLevel: boolean): void {
  */
 export function extractPropertiesPlaceholders(value: string): readonly string[] {
   const out: string[] = [];
-  scanMessage(value, out, true);
+  scanRange(value, matchingBraces(value), 0, value.length, true, out);
   return out;
 }

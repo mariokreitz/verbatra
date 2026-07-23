@@ -69,6 +69,10 @@ describe("extractPropertiesPlaceholders", () => {
     expect(extractPropertiesPlaceholders("{count,number}")).toEqual(["{count,number}"]);
   });
 
+  it("emits a header for a sub-message type with no style body", () => {
+    expect(extractPropertiesPlaceholders("{0,plural}")).toEqual(["{0,plural}"]);
+  });
+
   it("emits a header token for a plural argument and recurses into its sub-messages", () => {
     expect(
       extractPropertiesPlaceholders("{count,plural, one {{name} item} other {{name} items}}"),
@@ -135,5 +139,23 @@ describe("extractPropertiesPlaceholders", () => {
 
   it("reads the inner argument of a stray double-close (documented limitation)", () => {
     expect(extractPropertiesPlaceholders("{0}}")).toEqual(["{0}"]);
+  });
+
+  it("extracts a large unbalanced-brace value in bounded time (algorithmic-DoS guard)", () => {
+    const value = "{a".repeat(200_000);
+    const start = performance.now();
+    const result = extractPropertiesPlaceholders(value);
+    const elapsed = performance.now() - start;
+    expect(result).toEqual([]);
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  it("extracts a deeply nested balanced sub-message value in bounded time", () => {
+    const value = `{0,plural,other{${"{".repeat(100_000)}${"}".repeat(100_000)}}}`;
+    const start = performance.now();
+    const result = extractPropertiesPlaceholders(value);
+    const elapsed = performance.now() - start;
+    expect(result).toEqual(["{0,plural}"]);
+    expect(elapsed).toBeLessThan(2000);
   });
 });

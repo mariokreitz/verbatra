@@ -173,6 +173,18 @@ describe("createPropertiesAdapter read", () => {
     const { resource } = await adapter.read(await tempFile("m.properties", "k=v\\"), "de");
     expect(resource.entries.get("k")?.value).toBe("v");
   });
+
+  it("parses a value spread over many continuations in bounded time (algorithmic-DoS guard)", async () => {
+    const lines = 200_000;
+    const content = `k=${"a\\\n".repeat(lines)}z\n`;
+    const path = await tempFile("m.properties", content);
+    const start = performance.now();
+    const { resource } = await adapter.read(path, "de");
+    const elapsed = performance.now() - start;
+    expect(resource.entries.size).toBe(1);
+    expect(resource.entries.get("k")?.value).toBe(`${"a".repeat(lines)}z`);
+    expect(elapsed).toBeLessThan(3000);
+  });
 });
 
 describe("createPropertiesAdapter write (round-trip fidelity)", () => {

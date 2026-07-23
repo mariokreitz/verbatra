@@ -67,17 +67,19 @@ function joinContinuation(
   lines: readonly string[],
   start: number,
 ): { readonly logical: string; readonly nextIndex: number } {
-  let logical = lines[start] ?? "";
+  const pieces: string[] = [];
   let index = start;
-  while (isContinued(logical) && index + 1 < lines.length) {
-    const next = (lines[index + 1] ?? "").replace(LEADING_WHITESPACE, "");
-    logical = logical.slice(0, -1) + next;
+  let current = lines[start] ?? "";
+  while (isContinued(current) && index + 1 < lines.length) {
+    pieces.push(current.slice(0, -1));
     index += 1;
+    current = (lines[index] ?? "").replace(LEADING_WHITESPACE, "");
   }
-  if (isContinued(logical)) {
-    logical = logical.slice(0, -1);
+  if (isContinued(current)) {
+    current = current.slice(0, -1);
   }
-  return { logical, nextIndex: index + 1 };
+  pieces.push(current);
+  return { logical: pieces.join(""), nextIndex: index + 1 };
 }
 
 function decodeSimpleEscape(char: string): string {
