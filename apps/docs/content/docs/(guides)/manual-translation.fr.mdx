@@ -42,11 +42,12 @@ Les lignes sont triées par clé, la ligne d'en-tête est figée, la colonne `So
 
 ## La passation
 
-Ce qu'un traducteur doit savoir tient en trois lignes (et se répète sur la feuille Instructions du classeur elle-même) :
+Ce qu'un traducteur doit savoir tient en quelques lignes (et se répète sur la feuille Instructions du classeur elle-même) :
 
 - Remplis la colonne `Translation`, rien d'autre. La protection de feuille l'impose.
+- Ne renomme, ne supprime et ne réordonne pas les onglets de langue. verbatra associe chaque onglet à une locale par son nom exact, donc un onglet renommé ou manquant est signalé et cette locale n'est pas importée.
 - Trier et filtrer les lignes ne pose aucun problème : l'import relie les lignes par `Key`, jamais par position. Les colonnes doivent rester à leur place ; l'import les lit par position et vérifie les en-têtes `Key` et `Source hash`.
-- Une cellule `Translation` vide signifie "pas encore traduit". L'import la saute et n'écrit jamais de chaîne vide, donc un classeur à moitié rempli peut revenir maintenant et le reste plus tard.
+- Une cellule `Translation` vide signifie "pas encore traduit". L'import la saute et n'écrit jamais de chaîne vide, donc un classeur à moitié rempli peut revenir maintenant et le reste plus tard. Une cellule ne contenant que des espaces compte comme vide. Pour vider délibérément une valeur existante (la mettre à vide), tape exactement `[[CLEAR]]` dans la cellule.
 
 ## Ce que l'import accepte
 
@@ -60,7 +61,9 @@ L'import n'est pas un collage aveugle. Chaque ligne remplie est jugée contre le
 
 Les lignes retenues sont rapportées dans le résumé d'exécution sous la locale à laquelle elles appartiennent ; les lignes acceptées sont écrites et leur ligne de base du verrou avance. Une ligne retenue ou vide garde sa ligne de base antérieure, donc la clé continue de se réexporter jusqu'à sa vraie résolution. Une ligne vide dont la source a dérivé depuis l'export est en plus signalée par un avis `BLANK_ROW_BASELINE_RETAINED`, donc la dérive reste visible.
 
-Chaque feuille de données est une locale dans le résumé : un échec de feuille (une clé inventée, une feuille pour une locale absente de ta config) fait échouer cette locale et laisse les autres intactes. L'import partage le contrat de codes de sortie de `translate` : `0` quand chaque feuille réussit, `1` quand une échoue, `2` quand l'exécution n'a pas pu démarrer. Une passation manuelle retombe donc dans les mêmes [contrôles CI](/docs/ci-and-exit-codes) qu'une exécution automatisée.
+L'import expose aussi des constats structurels par locale au lieu d'avorter dessus : une ligne `changed` que le traducteur a laissée vide (rapportée comme unfilled, toujours en attente), une ligne du classeur que le lecteur n'a pas pu analyser (rapportée par ligne et colonne), et une clé en double (la première occurrence gagne et est importée, chaque suivante est rapportée). Aucun de ces constats ne fait échouer la feuille à lui seul.
+
+Chaque feuille de données est une locale dans le résumé : un échec de feuille (une clé inventée, une feuille pour une locale absente de ta config, ou une locale configurée dont l'onglet manque entièrement parce qu'il a été renommé, supprimé ou sorti de l'ordre) fait échouer cette locale et laisse les autres intactes. L'import partage le contrat de codes de sortie de `translate` : `0` quand chaque feuille réussit, `1` quand une échoue, `2` quand l'exécution n'a pas pu démarrer. Une passation manuelle retombe donc dans les mêmes [contrôles CI](/docs/ci-and-exit-codes) qu'une exécution automatisée.
 
 ### D'abord en dry run
 

@@ -59,7 +59,7 @@ Unbekannte Top-Level-Keys werden abgelehnt. Genau deshalb kann auch kein API-Sch
 
 - **`sourceLocale`** muss ein nicht-leerer String sein.
 - **`targetLocales`** muss mindestens eine Locale enthalten, darf `sourceLocale` nicht einschließen, und keine zwei Einträge dürfen case-insensitiv gleich sein (zum Beispiel wird `["de", "DE"]` abgelehnt), da jede Locale beim Export der Name ihres eigenen Excel-Arbeitsblatts wird.
-- **`format`** ist eines von `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml` oder `arb`. Siehe [Formate](/docs/formats).
+- **`format`** ist eines von `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb` oder `properties`. Siehe [Formate](/docs/formats).
 - **`files.pattern`** muss das `{locale}`-Token enthalten, das verbatra durch jede Locale ersetzt: `locales/{locale}.json` wird zu `locales/de.json`. Pfade werden gegen das Arbeitsverzeichnis aufgelöst.
 
 ### provider

@@ -1,18 +1,5 @@
 import type { TranslationEntry } from "../model/translation-entry.js";
-
-const FNV_OFFSET_BASIS = 14695981039346656037n;
-const FNV_PRIME = 1099511628211n;
-const U64_MASK = (1n << 64n) - 1n;
-
-/** Deterministic 64-bit FNV-1a hash of a string, returned as 16 hex chars. */
-function fnv1a64(input: string): string {
-  let hash = FNV_OFFSET_BASIS;
-  for (let index = 0; index < input.length; index += 1) {
-    hash ^= BigInt(input.charCodeAt(index));
-    hash = (hash * FNV_PRIME) & U64_MASK;
-  }
-  return hash.toString(16).padStart(16, "0");
-}
+import { stableStringHash } from "./string-hash.js";
 
 /** Normalize so equivalent content hashes equal: Unicode to NFC and line endings to LF. */
 function normalizeText(text: string): string {
@@ -38,5 +25,5 @@ function canonicalize(entry: TranslationEntry): string {
  * @returns A 16-character lowercase hex digest.
  */
 export function contentHash(entry: TranslationEntry): string {
-  return fnv1a64(canonicalize(entry));
+  return stableStringHash(canonicalize(entry));
 }

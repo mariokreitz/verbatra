@@ -2,6 +2,7 @@ import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
 import {
   renderError,
   renderLockWait,
+  renderProgress,
   renderRunResultHuman,
   renderRunResultNdjson,
   toRenderableError,
@@ -18,6 +19,10 @@ export interface WatchOptions {
   readonly debounceMs?: number;
   /** Write-lock acquire timeout in milliseconds; defaults to the SDK's 10-minute default. */
   readonly lockAcquireTimeoutMs?: number;
+  /** How many target locales each run may translate at once; defaults to the SDK's 1 (serial). */
+  readonly concurrency?: number;
+  /** When false, bypass the translation-memory cache on every run (read and write); on by default. */
+  readonly cache?: boolean;
   /** When true, emit NDJSON records; otherwise human-readable output. */
   readonly json: boolean;
 }
@@ -71,10 +76,15 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     onLockWait: (event) => {
       streams.err(`${renderLockWait(event, options.json)}\n`);
     },
+    onProgress: (event) => {
+      streams.err(`${renderProgress(event, options.json)}\n`);
+    },
     ...(options.debounceMs !== undefined ? { debounceMs: options.debounceMs } : {}),
     ...(options.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: options.lockAcquireTimeoutMs }
       : {}),
+    ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
+    ...(options.cache === false ? { cache: false } : {}),
   };
 
   deps

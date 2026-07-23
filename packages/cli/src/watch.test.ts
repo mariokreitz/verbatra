@@ -183,6 +183,55 @@ describe("run watch: --debounce validation", () => {
   });
 });
 
+describe("run watch: --concurrency", () => {
+  it("is parsed and passed through to watch() as a number", async () => {
+    const h = watchHarness();
+    const { deps, calls } = recordingDeps({ watch: h.watch });
+    const cap = captureStreams();
+    const { done, session } = await startWatch(["watch", "--concurrency", "3"], deps, cap.streams);
+
+    expect(calls.watch[0]?.concurrency).toBe(3);
+
+    session.requestStop();
+    h.finishStop();
+    await done;
+  });
+
+  it("omitting --concurrency leaves it unset (watch() applies its serial default of 1)", async () => {
+    const h = watchHarness();
+    const { deps, calls } = recordingDeps({ watch: h.watch });
+    const cap = captureStreams();
+    const { done, session } = await startWatch(["watch"], deps, cap.streams);
+
+    expect(calls.watch[0]).not.toHaveProperty("concurrency");
+
+    session.requestStop();
+    h.finishStop();
+    await done;
+  });
+
+  it.each([
+    "abc",
+    "0",
+    "-5",
+    "2.5",
+    "3ms",
+  ])("rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["watch", "--concurrency", value], deps, cap.streams, {
+      onWatchSession: () => {},
+    });
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
+    expect(cap.out()).toBe("");
+    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.watch).toHaveLength(0);
+  });
+});
+
 describe("run watch: shutdown and exit codes", () => {
   it("a clean stop via SIGINT awaits stop() and exits 0", async () => {
     const h = watchHarness();

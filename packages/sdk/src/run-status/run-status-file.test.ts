@@ -20,12 +20,16 @@ function succeededLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummary 
     orphaned: [],
     pruned: [],
     invalidIcuSource: [],
+    cacheHits: [],
     integrityMismatches: [],
     providerFailures: [],
     generated: [],
     budgetWithheld: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     ...overrides,
   };
 }

@@ -6,6 +6,7 @@ import type { TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import type { LockWaitListener } from "../lock/locale-write-lock.js";
 import { localeFilePath } from "../paths.js";
+import type { ProgressListener } from "../progress/types.js";
 import type { CreateProvider } from "../selection/select-provider.js";
 import { defaultCreateWatcher, defaultRunTranslate } from "./wiring.js";
 
@@ -53,8 +54,24 @@ export interface WatchInput {
    * one-shot run does.
    */
   readonly onLockWait?: LockWaitListener;
+  /**
+   * Passed through to every run's {@link TranslateInput.onProgress}: fires per locale and per provider
+   * sub-batch as each run advances, so a watch caller can surface the same progress a one-shot run does.
+   */
+  readonly onProgress?: ProgressListener;
   /** Passed through to every run's {@link TranslateInput.lockAcquireTimeoutMs}; the lock's 10-minute default when unset. */
   readonly lockAcquireTimeoutMs?: number;
+  /**
+   * Passed through to every run's {@link TranslateInput.concurrency}: how many locales each cycle may
+   * run at once. Defaults to 1 (strictly serial). The per-cycle tracker is fresh, so a budgeted watch
+   * with concurrency greater than 1 still fails each run with `CONCURRENCY_BUDGET_CONFLICT`.
+   */
+  readonly concurrency?: number;
+  /**
+   * Passed through to every run's {@link TranslateInput.cache}: when false, each run bypasses the
+   * translation-memory cache (both read and write). On by default.
+   */
+  readonly cache?: boolean;
 }
 
 /** Composition seam: inject the watcher and the run for deterministic, offline tests. */
@@ -139,9 +156,12 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     config: input.config,
     cwd,
     ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
+    ...(input.onProgress !== undefined ? { onProgress: input.onProgress } : {}),
     ...(input.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
       : {}),
+    ...(input.concurrency !== undefined ? { concurrency: input.concurrency } : {}),
+    ...(input.cache !== undefined ? { cache: input.cache } : {}),
   };
 
   let state: "idle" | "running" = "idle";

@@ -28,6 +28,18 @@ describe("instructions: critical guidance", () => {
     expect(text).toContain("not translated yet");
   });
 
+  it("treats a whitespace-only cell the same as an empty cell", () => {
+    expect(text).toContain("only spaces is treated the same as an empty cell");
+  });
+
+  it("documents the [[CLEAR]] sentinel for deliberately clearing a value", () => {
+    expect(text).toContain("[[CLEAR]]");
+  });
+
+  it("warns against renaming, deleting, or reordering the language tabs", () => {
+    expect(text).toContain("Do not rename, delete, or reorder the language tabs");
+  });
+
   it("gives placeholder guidance with a concrete token kept verbatim", () => {
     expect(text).toContain("{name}");
     expect(text).toContain("must stay verbatim");

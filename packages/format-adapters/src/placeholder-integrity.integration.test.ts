@@ -4,6 +4,7 @@ import { createArbAdapter } from "./arb/arb-adapter.js";
 import { createI18nextJsonAdapter } from "./i18next/i18next-adapter.js";
 import { analyzeIcuValue } from "./icu/analyze.js";
 import { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-adapter.js";
+import { createPropertiesAdapter } from "./properties/properties-adapter.js";
 import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 import { createXliffAdapter } from "./xliff/xliff-adapter.js";
 import { createYamlAdapter } from "./yaml/yaml-adapter.js";
@@ -39,6 +40,15 @@ describe("placeholder integrity is multiset-aware end to end", () => {
     const source = adapter.extractPlaceholders("{count} of {count}");
     const translated = adapter.extractPlaceholders("{count} total");
     expect(checkPlaceholders(source, translated).matches).toBe(false);
+  });
+
+  it("properties: dropping a repeated {0} occurrence is a mismatch", () => {
+    const adapter = createPropertiesAdapter();
+    const source = adapter.extractPlaceholders("{0} of {0}");
+    const translated = adapter.extractPlaceholders("{0} total");
+    const result = checkPlaceholders(source, translated);
+    expect(result.matches).toBe(false);
+    expect(result.missing).toEqual(["{0}"]);
   });
 
   it("next-intl: dropping an occurrence inside one ICU branch is a mismatch", () => {

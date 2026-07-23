@@ -23,7 +23,7 @@ Un archivo de bloqueo confirmado, `verbatra.lock.json`, registra para cada clave
 
 Cada cadena que devuelve el proveedor se comprueba antes de escribirse: se exige la integridad de los marcadores de posición y la integridad ICU, y una traducción que rompe cualquiera de las dos se retiene en lugar de publicarse, y se reintenta en la siguiente ejecución. Los comandos de solo lectura `check` y `diff` informan del desfase sin escribir nada, así que CI puede condicionar sobre sus códigos de salida.
 
-verbatra lee y escribe siete formatos (JSON de i18next, vue-i18n, next-intl y ngx-translate, XLIFF, YAML y ARB de Flutter) y traduce a través de cinco proveedores (Anthropic, OpenAI, Gemini, DeepL y cualquier servidor compatible con OpenAI, incluidos los locales) detrás de una sola interfaz. Consulta [Formatos](/docs/formats) y [Proveedores](/docs/providers).
+verbatra lee y escribe ocho formatos (JSON de i18next, vue-i18n, next-intl y ngx-translate, XLIFF, YAML, ARB de Flutter y properties de Java/Spring) y traduce a través de cinco proveedores (Anthropic, OpenAI, Gemini, DeepL y cualquier servidor compatible con OpenAI, incluidos los locales) detrás de una sola interfaz. Consulta [Formatos](/docs/formats) y [Proveedores](/docs/providers).
 
 ## Los paquetes
 

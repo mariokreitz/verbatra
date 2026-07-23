@@ -42,11 +42,12 @@ Las filas están ordenadas por clave, la fila de encabezado está inmovilizada, 
 
 ## La entrega
 
-Lo que un traductor necesita saber cabe en tres líneas (y se repite en la propia hoja Instructions del libro):
+Lo que un traductor necesita saber cabe en unas pocas líneas (y se repite en la propia hoja Instructions del libro):
 
 - Rellena la columna `Translation`, nada más. La protección de hoja lo impone.
+- No renombres, borres ni reordenes las pestañas de idioma. verbatra empareja cada pestaña con un locale por su nombre exacto, así que una pestaña renombrada o ausente se informa y ese locale no se importa.
 - Ordenar y filtrar filas está bien: la importación asigna las filas por `Key`, nunca por posición. Las columnas deben quedarse donde están; la importación las lee por posición y verifica los encabezados `Key` y `Source hash`.
-- Una celda `Translation` vacía significa "todavía sin traducir". La importación la omite y nunca escribe una cadena vacía, así que un libro a medio rellenar puede volver ahora y el resto más tarde.
+- Una celda `Translation` vacía significa "todavía sin traducir". La importación la omite y nunca escribe una cadena vacía, así que un libro a medio rellenar puede volver ahora y el resto más tarde. Una celda que solo contiene espacios cuenta como vacía. Para vaciar deliberadamente un valor existente (dejarlo vacío), escribe exactamente `[[CLEAR]]` en la celda.
 
 ## Qué acepta la importación
 
@@ -60,7 +61,9 @@ La importación no es un pegado a ciegas. Cada fila rellenada se juzga contra el
 
 Las filas retenidas se informan en el resumen de la ejecución bajo el locale al que pertenecen; las filas aceptadas se escriben y su línea base del bloqueo avanza. Una fila retenida o en blanco conserva su línea base anterior, así que la clave se sigue exportando hasta que se resuelve de verdad. Una fila en blanco cuyo origen se desfasó desde la exportación se señala además con un aviso `BLANK_ROW_BASELINE_RETAINED`, para que el desfase siga visible.
 
-Cada hoja de datos es un locale en el resumen: un fallo de hoja (una clave inventada, una hoja de un locale que no está en tu configuración) hace fallar ese locale y deja los demás intactos. La importación comparte el contrato de códigos de salida de `translate`: `0` cuando todas las hojas tienen éxito, `1` cuando una falla, `2` cuando la ejecución no pudo arrancar. Una entrega manual encaja por tanto en las mismas [comprobaciones de CI](/docs/ci-and-exit-codes) que una ejecución automática.
+La importación también expone hallazgos estructurales por locale en lugar de abortar por ellos: una fila `changed` que el traductor dejó en blanco (informada como unfilled, aún pendiente), una fila del libro que el lector no pudo parsear (informada por fila y columna) y una clave duplicada (la primera aparición gana y se importa, cada una posterior se informa). Ninguno de estos hallazgos hace fallar la hoja por sí solo.
+
+Cada hoja de datos es un locale en el resumen: un fallo de hoja (una clave inventada, una hoja de un locale que no está en tu configuración, o un locale configurado cuya pestaña falta por completo porque se renombró, se borró o se sacó de su orden) hace fallar ese locale y deja los demás intactos. La importación comparte el contrato de códigos de salida de `translate`: `0` cuando todas las hojas tienen éxito, `1` cuando una falla, `2` cuando la ejecución no pudo arrancar. Una entrega manual encaja por tanto en las mismas [comprobaciones de CI](/docs/ci-and-exit-codes) que una ejecución automática.
 
 ### Primero en seco
 

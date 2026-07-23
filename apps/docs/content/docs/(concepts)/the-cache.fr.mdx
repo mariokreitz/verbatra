@@ -1,0 +1,30 @@
+---
+title: Le cache
+description: Ce que verbatra.cache.json réutilise, comment une empreinte le délimite, et pourquoi il ne fait jamais échouer une exécution.
+---
+verbatra tient un cache local de mémoire de traduction, `verbatra.cache.json`, pour qu'une chaîne déjà traduite ne soit jamais envoyée deux fois à un fournisseur, même quand sa clé change. Là où [le fichier de verrouillage](/docs/the-lock-file) suit si une clé est à jour, le cache est indexé par contenu : il retient la traduction d'un morceau de texte source, indépendamment de la clé qui le porte.
+
+## Ce qu'il réutilise
+
+Lors d'une exécution, avant qu'une clé parte au fournisseur, verbatra la cherche dans le cache par le hachage de son contenu source actuel. Un succès est servi gratuitement, tu ne le paies donc jamais deux fois. Comme la recherche se fait par contenu, la réutilisation survit à des cas que le fichier de verrouillage ne couvre pas :
+
+- **Une clé renommée.** Déplace une chaîne de `home.title` vers `landing.title` et sa traduction est réutilisée, pas retraduite.
+- **Contenu en double.** Deux clés au texte source identique octet pour octet partagent une traduction ; la seconde est un succès de cache.
+
+Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité des placeholders et de l'ICU](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
+
+## L'empreinte
+
+Chaque valeur en cache est délimitée au contexte de traduction dans lequel elle a été produite : une courte empreinte sur le fournisseur, le modèle, le ton et le glossaire. Change l'un d'eux et les entrées précédentes cessent de correspondre, donc un nouveau ton ou un glossaire modifié retraduit au lieu de servir un résultat périmé. Le format est délibérément hors de l'empreinte ; un changement de format est plutôt rattrapé par le contrôle d'intégrité à chaque succès.
+
+## Le fichier
+
+`verbatra.cache.json` est un fichier compagnon local et regénérable, à côté de ton fichier de verrouillage. `verbatra init` l'ajoute au `.gitignore`, et tu devrais le garder hors du contrôle de version : contrairement au fichier de verrouillage, c'est une optimisation de coût, pas une base de référence partagée. Il ne fait jamais échouer une exécution. Un fichier absent, corrompu, trop volumineux ou de version non reconnue se dégrade en un cache vide et est simplement reconstruit à l'exécution suivante. Pour le reconstruire de zéro, supprime le fichier.
+
+## Le contourner
+
+Passe `--no-cache` à [`translate`](/docs/cli/translate) ou [`watch`](/docs/cli/watch) pour sauter le cache le temps d'une exécution : verbatra fait exactement les appels au fournisseur qu'il ferait sans cache présent, et laisse intact tout fichier de cache existant. Depuis le SDK, mets `cache: false` sur l'entrée de `translate` ou `watch`. Un dry-run ne lit ni n'écrit jamais le cache de toute façon.
+
+## Limite
+
+Les formes plurielles synthétisées ne sont pas mises en cache. Quand `generatePlurals` remplit une catégorie plurielle CLDR absente de la source, cette valeur générée n'est pas enregistrée pour réutilisation, donc quand une exécution la synthétise, la valeur vient du fournisseur, jamais du cache.

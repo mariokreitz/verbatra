@@ -4,6 +4,7 @@ import type {
   LocaleDiff,
   LocaleSummary,
   LockWaitEvent,
+  ProgressEvent,
   RunBudget,
   RunSummary,
   UsageSummary,
@@ -42,7 +43,7 @@ export function toRenderableError(error: unknown): RenderableError {
  */
 export function renderHuman(summary: RunSummary, command = "translate"): string {
   const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
-  const localeLines = summary.locales.map(renderLocaleLine);
+  const localeLines = summary.locales.flatMap(renderLocaleLine);
   const aggregate = `${summary.succeeded.length} succeeded, ${summary.partial.length} partial, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
   }`;
@@ -71,14 +72,49 @@ function renderBudgetLine(budget: RunBudget): string {
   return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
-/** One locale line: the failure code and message, or the counts (translated and unchanged always, the rest only when non-zero). */
-function renderLocaleLine(locale: LocaleSummary): string {
+/** Column width that aligns the import detail group keys past the longest label ("duplicates:"). */
+const DETAIL_GROUP_WIDTH = 13;
+
+/** One indented import-detail group (`unfilled:`, `malformed:`, `duplicates:`), or nothing when empty. */
+function renderDetailGroup(label: string, values: readonly string[]): string | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+  return `    ${`${label}:`.padEnd(DETAIL_GROUP_WIDTH)}${values.join(", ")}`;
+}
+
+/**
+ * The import-only detail groups under a locale line: the unfilled `changed` keys, the malformed rows
+ * (by row and column), and the duplicate-key conflicts (by key and losing row). Empty for a provider
+ * run, which never populates any of these buckets.
+ */
+function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
+  return [
+    renderDetailGroup("unfilled", locale.unfilled),
+    renderDetailGroup(
+      "malformed",
+      locale.malformedRows.map((problem) => `row ${problem.row} (${problem.column})`),
+    ),
+    renderDetailGroup(
+      "duplicates",
+      locale.duplicateKeys.map((duplicate) => `${duplicate.key} (row ${duplicate.row})`),
+    ),
+  ].filter((line): line is string => line !== undefined);
+}
+
+/**
+ * One locale's lines: the failure code and message, or the counts (translated and unchanged always,
+ * the rest only when non-zero) followed by any import-detail key-list groups (unfilled, malformed,
+ * duplicates).
+ */
+function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   if (locale.status === "failed") {
     const suffix = locale.error ? ` [${locale.error.code}] ${locale.error.message}` : "";
-    return `  ${locale.locale}: failed${suffix}`;
+    return [`  ${locale.locale}: failed${suffix}`];
   }
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
+    [locale.cacheHits.length, "from cache", false],
     [locale.unchanged.length, "unchanged", true],
     [locale.generated.length, "generated", false],
     [locale.orphaned.length, "orphaned", false],
@@ -86,6 +122,9 @@ function renderLocaleLine(locale: LocaleSummary): string {
     [locale.invalidIcuSource.length, "invalid-ICU skipped", false],
     [locale.integrityMismatches.length, "integrity-withheld", false],
     [locale.budgetWithheld.length, "budget-withheld", false],
+    [locale.unfilled.length, "unfilled", false],
+    [locale.malformedRows.length, "malformed-rows", false],
+    [locale.duplicateKeys.length, "duplicate-keys", false],
     [locale.needsReview.length, "needs-review", false],
     [locale.notices.length, "notices", false],
   ];
@@ -93,7 +132,7 @@ function renderLocaleLine(locale: LocaleSummary): string {
     .filter(([count, , always]) => always || count > 0)
     .map(([count, label]) => `${count} ${label}`);
   const tokenSuffix = locale.usage !== undefined ? `, ${renderTokens(locale.usage)}` : "";
-  return `  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`;
+  return [`  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`, ...renderLocaleDetail(locale)];
 }
 
 /**
@@ -274,6 +313,51 @@ export function renderLockWaitJson(event: LockWaitEvent): string {
  */
 export function renderLockWait(event: LockWaitEvent, json: boolean): string {
   return json ? renderLockWaitJson(event) : renderLockWaitHuman(event);
+}
+
+/**
+ * Human-readable progress line for one run event: the locale about to start (with its 1-based
+ * position), a provider sub-batch reached, a locale finished (with its translated count), or the
+ * whole run finished. Meant for stderr, so it never mixes with `--json` stdout.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderProgressHuman(event: ProgressEvent): string {
+  switch (event.type) {
+    case "locale-started":
+      return `verbatra: [${event.localeIndex + 1}/${event.totalLocales}] translating ${event.locale}`;
+    case "sub-batch":
+      return `verbatra: ${event.locale} batch ${event.batchIndex}/${event.totalBatches}`;
+    case "locale-finished":
+      return `verbatra: ${event.locale} done, ${event.translated} translated`;
+    case "run-finished":
+      return `verbatra: run finished, ${event.localesCompleted} locales processed`;
+  }
+}
+
+/**
+ * The `--json` progress contract: one structured record per event. The event already carries its own
+ * `type` discriminant, so it is emitted verbatim. Written to stderr, never stdout, so it never
+ * corrupts the run summary or NDJSON stream a `--json` run emits on stdout.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @returns A single-line JSON record string.
+ */
+export function renderProgressJson(event: ProgressEvent): string {
+  return JSON.stringify(event);
+}
+
+/**
+ * One progress line for the active output mode: a structured JSON record under `--json`, the human
+ * line otherwise. Callers write it to stderr, keeping stdout clean in both modes.
+ *
+ * @param event - One progress event from the SDK's `onProgress`.
+ * @param json - Whether the command is in `--json` mode.
+ * @returns The single-line message (no trailing newline).
+ */
+export function renderProgress(event: ProgressEvent, json: boolean): string {
+  return json ? renderProgressJson(event) : renderProgressHuman(event);
 }
 
 /**

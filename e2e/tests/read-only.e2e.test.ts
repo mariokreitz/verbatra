@@ -238,6 +238,65 @@ describe("other formats (read-only, no provider)", () => {
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
   });
+
+  it("checks a .properties project", async () => {
+    const dir = await seedProject(
+      "properties-check",
+      { ...i18nextConfig, format: "properties", files: { pattern: "locales/{locale}.properties" } },
+      {},
+    );
+    await writeFileIn(dir, "locales/en.properties", "greeting=Hello {0}\nfarewell=Goodbye {0}\n");
+    await writeFileIn(dir, "locales/de.properties", "greeting=Hallo {0}\n");
+    const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
+    expect(result.exitCode).toBe(1);
+    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    expect(summary.inSync).toBe(false);
+    const de = summary.locales.find((entry) => entry.locale === "de");
+    expect(de?.missing).toBe(1);
+  });
+
+  /**
+   * The properties analogue of the i18next round-trip: fills the missing key with a value that keeps
+   * its `{0}` MessageFormat placeholder, so the placeholder-integrity path passes and import applies
+   * the row back into the `.properties` target (read as raw text, not JSON).
+   */
+  it("applies a human-filled workbook back into a .properties target file", async () => {
+    const dir = await seedProject(
+      "properties-roundtrip",
+      { ...i18nextConfig, format: "properties", files: { pattern: "locales/{locale}.properties" } },
+      {},
+    );
+    await writeFileIn(dir, "locales/en.properties", "greeting=Hello {0}\nfarewell=Goodbye {0}\n");
+    await writeFileIn(dir, "locales/de.properties", "greeting=Hallo {0}\n");
+
+    const workbookPath = join(dir, "verbatra-translations.xlsx");
+    const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
+    expect(exported.exitCode).toBe(0);
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(workbookPath);
+    for (const sheet of workbook.worksheets) {
+      if (sheet.name === INSTRUCTIONS_SHEET) {
+        continue;
+      }
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === HEADER_ROW) {
+          return;
+        }
+        row.getCell(TRANSLATION_COLUMN).value = "Auf Wiedersehen {0}";
+      });
+    }
+    await workbook.xlsx.writeFile(workbookPath);
+
+    const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir]);
+    expect(imported.exitCode).toBe(0);
+
+    const de = await readFile(join(dir, "locales/de.properties"), "utf8");
+    expect(de).toContain("Auf Wiedersehen {0}");
+
+    const checked = await runVerbatra(consumer, ["check", "--cwd", dir]);
+    expect(checked.exitCode).toBe(0);
+  });
 });
 
 describe("init (no provider)", () => {

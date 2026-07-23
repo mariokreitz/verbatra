@@ -1,5 +1,14 @@
 import type { TranslationProvider } from "@verbatra/ai-providers";
 import type { AdapterRegistry, FormatAdapter, ReadResult } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../cache/fingerprint.js";
+import {
+  additionsToRecord,
+  applyAdditions,
+  cacheFilePath,
+  readTranslationMemory,
+  writeTranslationMemory,
+} from "../cache/translation-memory.js";
+import type { TranslationMemory } from "../cache/types.js";
 import {
   DEFAULT_BUDGET_BEHAVIOR,
   DEFAULT_MAX_BATCH_SIZE,
@@ -19,6 +28,7 @@ import {
   updateLockFileLocale,
 } from "../lock/lock-file.js";
 import type { LockFile } from "../lock/types.js";
+import type { ProgressListener } from "../progress/types.js";
 import {
   buildRunStatusFile,
   runStatusFilePath,
@@ -63,11 +73,42 @@ export interface TranslateInput {
    */
   readonly onLockWait?: LockWaitListener;
   /**
+   * Called as the run advances: once per locale before it starts and once after it finishes, once
+   * per provider sub-batch within a locale, and once when the whole locale loop ends. Never fires a
+   * sub-batch event on a dry-run (no provider call is made). The SDK writes no output; this is the
+   * only progress signal (the CLI renders it to stderr, keeping stdout byte-identical).
+   *
+   * Pairing is not guaranteed when the run throws: a whole-run failure (for example a corrupt
+   * lock-file surfacing as `LOCK_FILE_INVALID`, which re-throws instead of being isolated per locale)
+   * can emit a `locale-started` event with no matching `locale-finished`, and no `run-finished` at
+   * all. A per-locale failure that is isolated (not re-thrown) still emits both, and is counted in
+   * `run-finished`.
+   */
+  readonly onProgress?: ProgressListener;
+  /**
    * Override how long a locale's write lock keeps retrying before failing with `LOCK_CONTENDED`, in
    * milliseconds. Defaults to the lock's own 10-minute default when unset (surfaced to the CLI as
    * `--lock-timeout`).
    */
   readonly lockAcquireTimeoutMs?: number;
+  /**
+   * How many target locales may run at once, a positive integer (surfaced to the CLI as
+   * `--concurrency`). Defaults to 1, which runs locales strictly in sequence and is byte-identical
+   * to a run with this option unset. A value below 1 or a non-integer is rejected with a whole-run
+   * `CONCURRENCY_INVALID` error. On a live run, a value greater than 1 is rejected with a whole-run
+   * `CONCURRENCY_BUDGET_CONFLICT` error when the config sets a `maxTokens` budget, because
+   * concurrency would make the budget's stop guarantee nondeterministic; a dry run is exempt. The
+   * per-locale write locks already isolate concurrent locales on disk, so no extra locking is added.
+   */
+  readonly concurrency?: number;
+  /**
+   * Whether to use the local content-addressed translation-memory cache (`verbatra.cache.json`). On by
+   * default; the CLI exposes it as `--no-cache`. When false, both the cache read and the end-of-run
+   * cache write are skipped: the run makes exactly the provider calls it would with no cache present,
+   * and leaves any existing cache file untouched. Ignored on a dry-run, which never reads or writes the
+   * cache regardless. See the cache module for the fingerprint and degrade-to-empty contract.
+   */
+  readonly cache?: boolean;
 }
 
 /** Composition seam: inject a registry, a provider builder, and a file system for tests. */
@@ -102,6 +143,61 @@ async function recordRunStatus(
   } catch {}
 }
 
+/**
+ * The run-wide translation-memory state, present only on a live run with the cache enabled. `memory`
+ * is the snapshot read once at run start (every locale looks up against it, never against entries this
+ * run produced); `additions` collects each locale's newly translated values, keyed by target locale,
+ * for the single best-effort write at the end. Since each locale records its own slot once,
+ * synchronously, the map is concurrency-clean under the bounded worker pool.
+ */
+interface RunCacheState {
+  readonly memory: TranslationMemory;
+  readonly fingerprint: string;
+  readonly additions: Map<string, Record<string, string>>;
+}
+
+/**
+ * Build the run's cache state: read the snapshot once and compute the run fingerprint, or return
+ * undefined when the cache is bypassed (`input.cache === false`) or on a dry-run (which never reads or
+ * writes the cache). The read degrades a corrupt or unrecognized file to an empty memory and never
+ * throws.
+ */
+async function createRunCacheState(
+  input: TranslateInput,
+  config: VerbatraConfig,
+  cwd: string,
+  dryRun: boolean,
+  fs: SdkFs,
+): Promise<RunCacheState | undefined> {
+  if (dryRun || input.cache === false) {
+    return undefined;
+  }
+  return {
+    memory: await readTranslationMemory(cacheFilePath(cwd), fs),
+    fingerprint: computeFingerprint(config),
+    additions: new Map(),
+  };
+}
+
+/**
+ * Persist the run's cache additions with a single best-effort write, mirroring {@link recordRunStatus}:
+ * any failure is caught and swallowed so it never fails the run. Skipped when the cache is bypassed or
+ * when nothing new was translated, so an all-unchanged or all-cache-hit run leaves the file untouched.
+ */
+async function recordCacheAdditions(
+  cwd: string,
+  cache: RunCacheState | undefined,
+  fs: SdkFs,
+): Promise<void> {
+  if (cache === undefined || cache.additions.size === 0) {
+    return;
+  }
+  try {
+    const merged = applyAdditions(cache.memory, cache.fingerprint, cache.additions);
+    await writeTranslationMemory(cacheFilePath(cwd), merged, fs);
+  } catch {}
+}
+
 /** Everything one locale's run needs that does not vary by locale or by baseline. */
 interface LocaleRunContext {
   readonly source: ReadResult;
@@ -114,7 +210,9 @@ interface LocaleRunContext {
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
   readonly budget: BudgetTracker;
+  readonly cache: RunCacheState | undefined;
   readonly onLockWait?: LockWaitListener;
+  readonly onProgress?: ProgressListener;
   readonly lockAcquireTimeoutMs?: number;
 }
 
@@ -141,6 +239,10 @@ function buildLocaleRunParams(
     maxBatchSize: context.maxBatchSize,
     fs: context.fs,
     budget: context.budget,
+    ...(context.cache !== undefined
+      ? { cache: { snapshot: context.cache.memory, fingerprint: context.cache.fingerprint } }
+      : {}),
+    ...(context.onProgress !== undefined ? { onProgress: context.onProgress } : {}),
   };
 }
 
@@ -184,6 +286,9 @@ async function runLiveLocale(
     targetLocale,
     context.fs,
     async () => {
+      // This lock read runs outside withLockFileGuard yet stays correct under locale concurrency:
+      // SdkFs.writeFile is atomic (temp file + rename), so a read never observes a torn write, and
+      // this locale only ever consults its own baselineFor subtree, which no other locale writes.
       const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
       const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
       const result = await runLocale(params);
@@ -191,6 +296,9 @@ async function runLiveLocale(
         mode: "replace",
         entries: result.lockEntries,
       });
+      if (context.cache !== undefined && result.cacheAdditions.length > 0) {
+        context.cache.additions.set(targetLocale, additionsToRecord(result.cacheAdditions));
+      }
       return result.summary;
     },
     lockOptions,
@@ -220,29 +328,148 @@ async function runOneLocale(
   }
 }
 
+/**
+ * Runs one target locale at `localeIndex`: emits `locale-started`, runs it (isolating a per-locale
+ * failure), stores its summary at `localeIndex` so the collected array stays in `targetLocales`
+ * order regardless of completion order, then emits `locale-finished` with that locale's accepted-key
+ * count. Sub-batch events, which require a provider call, are emitted deeper in `runLocale` and so
+ * never fire on the dry path.
+ */
+async function runLocaleAt(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+  localeIndex: number,
+  runOne: (targetLocale: string) => Promise<LocaleSummary>,
+  results: (LocaleSummary | undefined)[],
+): Promise<void> {
+  const targetLocale = targetLocales[localeIndex];
+  if (targetLocale === undefined) {
+    return;
+  }
+  context.onProgress?.({
+    type: "locale-started",
+    locale: targetLocale,
+    localeIndex,
+    totalLocales: targetLocales.length,
+  });
+  const summary = await runOneLocale(targetLocale, () => runOne(targetLocale));
+  results[localeIndex] = summary;
+  context.onProgress?.({
+    type: "locale-finished",
+    locale: targetLocale,
+    translated: summary.translated.length,
+  });
+}
+
+/**
+ * Runs the target locales through a bounded worker pool of width `concurrency`, collecting each
+ * summary into its `targetLocales` slot so the returned array is always in source order, never
+ * completion order. With `concurrency` 1 (the default) a single worker drains the locales strictly
+ * in sequence, reproducing the serial behavior exactly: same event order, same summary order. Shared
+ * by the dry and live paths. A locale index is claimed synchronously (no `await` between the read and
+ * the increment), so two workers never claim the same locale.
+ */
+async function runLocalesWithProgress(
+  context: LocaleRunContext,
+  targetLocales: readonly string[],
+  runOne: (targetLocale: string) => Promise<LocaleSummary>,
+  concurrency: number,
+): Promise<LocaleSummary[]> {
+  const totalLocales = targetLocales.length;
+  const results: (LocaleSummary | undefined)[] = new Array<LocaleSummary | undefined>(totalLocales);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < totalLocales) {
+      const localeIndex = nextIndex;
+      nextIndex += 1;
+      await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, totalLocales);
+  const workers: Promise<void>[] = [];
+  for (let index = 0; index < workerCount; index += 1) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results.filter((summary): summary is LocaleSummary => summary !== undefined);
+}
+
 async function runAllLocalesDry(
   context: LocaleRunContext,
   targetLocales: readonly string[],
+  concurrency: number,
 ): Promise<LocaleSummary[]> {
   const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
-  const summaries: LocaleSummary[] = [];
-  for (const targetLocale of targetLocales) {
-    summaries.push(
-      await runOneLocale(targetLocale, () => runDryLocale(context, targetLocale, lock)),
-    );
-  }
-  return summaries;
+  return runLocalesWithProgress(
+    context,
+    targetLocales,
+    (targetLocale) => runDryLocale(context, targetLocale, lock),
+    concurrency,
+  );
 }
 
 async function runAllLocalesLive(
   context: LocaleRunContext,
   targetLocales: readonly string[],
+  concurrency: number,
 ): Promise<LocaleSummary[]> {
-  const summaries: LocaleSummary[] = [];
-  for (const targetLocale of targetLocales) {
-    summaries.push(await runOneLocale(targetLocale, () => runLiveLocale(context, targetLocale)));
+  return runLocalesWithProgress(
+    context,
+    targetLocales,
+    (targetLocale) => runLiveLocale(context, targetLocale),
+    concurrency,
+  );
+}
+
+/**
+ * Resolves and validates the run's locale-level concurrency. Unset means 1 (strictly serial,
+ * byte-identical to the pre-pool behavior). Any other value must be an integer of at least 1; a
+ * non-integer or a value below 1 is a whole-run `CONCURRENCY_INVALID` failure raised before any
+ * locale runs.
+ *
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
+ */
+function resolveConcurrency(value: number | undefined): number {
+  if (value === undefined) {
+    return 1;
   }
-  return summaries;
+  if (!Number.isInteger(value) || value < 1) {
+    throw new SdkError(
+      "CONCURRENCY_INVALID",
+      `The concurrency option must be an integer of at least 1, got ${value}.`,
+    );
+  }
+  return value;
+}
+
+/**
+ * Validates the requested concurrency and rejects the one combination the budget cannot honor: a
+ * live run with concurrency greater than 1 while a `maxTokens` budget is configured. The refusal is
+ * raised before any locale runs (and so before any provider call). A dry run is exempt: it never
+ * folds usage into or consults the budget tracker, so concurrency cannot affect a budget it never
+ * reads.
+ *
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1
+ *   while `config.maxTokens` is set.
+ */
+function resolveRunConcurrency(
+  value: number | undefined,
+  dryRun: boolean,
+  config: VerbatraConfig,
+): number {
+  const concurrency = resolveConcurrency(value);
+  if (!dryRun && concurrency > 1 && config.maxTokens !== undefined) {
+    throw new SdkError(
+      "CONCURRENCY_BUDGET_CONFLICT",
+      "A token budget (maxTokens) and concurrency greater than 1 cannot be combined on a live run: " +
+        "concurrent locales would overshoot the budget nondeterministically. Set concurrency to 1, " +
+        "remove maxTokens, or use --dry-run.",
+    );
+  }
+  return concurrency;
 }
 
 /**
@@ -281,6 +508,11 @@ async function runAllLocalesLive(
  * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
  *   adapter read error).
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is defined but not an integer of at
+ *   least 1; raised before any locale runs.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set `concurrency` greater than 1
+ *   while the config configures a `maxTokens` budget; raised before any provider call (a dry run is
+ *   exempt).
  * @example
  * ```ts
  * import { loadConfig, translate } from "@verbatra/sdk";
@@ -309,6 +541,7 @@ export async function translate(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const dryRun = input.dryRun ?? false;
+  const concurrency = resolveRunConcurrency(input.concurrency, dryRun, config);
   const prune = input.prune ?? config.prune ?? false;
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
   const maxBatchSize = config.maxBatchSize ?? DEFAULT_MAX_BATCH_SIZE;
@@ -322,6 +555,7 @@ export async function translate(
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
   const source = await readSource(config, cwd, fs, adapter);
+  const cache = await createRunCacheState(input, config, cwd, dryRun, fs);
   const context: LocaleRunContext = {
     source,
     adapter,
@@ -333,15 +567,18 @@ export async function translate(
     maxBatchSize,
     fs,
     budget,
+    cache,
     ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
+    ...(input.onProgress !== undefined ? { onProgress: input.onProgress } : {}),
     ...(input.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
       : {}),
   };
 
   const summaries = dryRun
-    ? await runAllLocalesDry(context, config.targetLocales)
-    : await runAllLocalesLive(context, config.targetLocales);
+    ? await runAllLocalesDry(context, config.targetLocales, concurrency)
+    : await runAllLocalesLive(context, config.targetLocales, concurrency);
+  input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
   const { succeeded, partial, failed } = partition(summaries);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
@@ -359,6 +596,7 @@ export async function translate(
     ...(budgetSummary !== undefined ? { budget: budgetSummary } : {}),
   };
 
+  await recordCacheAdditions(cwd, cache, fs);
   await recordRunStatus(cwd, dryRun, summary, fs);
 
   return summary;

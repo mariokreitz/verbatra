@@ -1,7 +1,14 @@
 import { resolve } from "node:path";
 import { contentHash, type LocaleResource, type TranslationEntry } from "@verbatra/core";
-import { type ExchangeError, readWorkbook, type WorkbookSheet } from "@verbatra/exchange";
+import {
+  type ExchangeError,
+  readWorkbook,
+  type WorkbookData,
+  type WorkbookSheet,
+} from "@verbatra/exchange";
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../../cache/fingerprint.js";
+import { feedTranslationMemory } from "../../cache/translation-memory.js";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
@@ -67,6 +74,27 @@ function mergeAccepted(
   return merged;
 }
 
+/** The accepted values as a source-content-hash to value record, this sheet's contribution to the cache. */
+function sheetCacheAdditions(accepted: ImportLocaleResult["accepted"]): Record<string, string> {
+  const record: Record<string, string> = {};
+  for (const [, { value, source }] of accepted) {
+    record[contentHash(source)] = value;
+  }
+  return record;
+}
+
+/** Fold one sheet's additions into the run's per-locale map, merging when two sheets share a locale. */
+function collectSheetAdditions(
+  byLocale: Map<string, Record<string, string>>,
+  locale: string,
+  additions: Record<string, string>,
+): void {
+  if (Object.keys(additions).length === 0) {
+    return;
+  }
+  byLocale.set(locale, { ...byLocale.get(locale), ...additions });
+}
+
 /**
  * Only a key actually accepted this run advances its lock baseline to the current source hash. Every
  * other source-present key (withheld for drift, placeholder, or ICU; or a row the translator left
@@ -104,6 +132,25 @@ interface SheetContext {
   readonly source: LocaleResource;
   readonly sourceInvalidIcuKeys: readonly string[];
   readonly dryRun: boolean;
+  /** Every malformed row the reader reported, across all sheets; filtered to the running locale. */
+  readonly malformedRows: WorkbookData["malformedRows"];
+  /** Every duplicate-key occurrence the reader reported; filtered to the running locale. */
+  readonly duplicateKeys: WorkbookData["duplicateKeys"];
+}
+
+/**
+ * A configured target locale whose data sheet (tab) is absent from the returned workbook: a deleted or
+ * renamed tab that would otherwise be a silent drop. Surfaced as that locale's structured failure.
+ */
+class MissingSheetError extends Error {
+  readonly code = "WORKBOOK_SHEET_MISSING";
+  constructor(locale: string) {
+    super(
+      `The workbook has no sheet (tab) for the configured target locale "${locale}". ` +
+        "The tab may have been renamed, deleted, or reordered out of the workbook.",
+    );
+    this.name = "MissingSheetError";
+  }
 }
 
 /**
@@ -116,11 +163,16 @@ async function runSheet(
   ctx: SheetContext,
   sheet: WorkbookSheet,
   lock: LockFile,
-): Promise<{ summary: LocaleSummary; lockEntries: Record<string, string> }> {
+): Promise<{
+  summary: LocaleSummary;
+  lockEntries: Record<string, string>;
+  cacheAdditions: Record<string, string>;
+}> {
   if (!ctx.config.targetLocales.includes(sheet.locale)) {
     throw new SdkError(
       "CONFIG_INVALID",
-      `The workbook has a sheet for locale "${sheet.locale}", which is not a configured target locale.`,
+      `The workbook has a sheet named "${sheet.locale}", which is not a configured target locale. ` +
+        "It may be a renamed, added, or reordered tab; leave every language tab named exactly as exported.",
     );
   }
   const target = await readTarget(ctx.cwd, ctx.config, ctx.adapter, ctx.fs, sheet.locale);
@@ -132,10 +184,16 @@ async function runSheet(
     baseline,
     adapter: ctx.adapter,
     sourceInvalidIcuKeys: ctx.sourceInvalidIcuKeys,
+    malformedRows: ctx.malformedRows
+      .filter((problem) => problem.locale === sheet.locale)
+      .map((problem) => ({ row: problem.row, column: problem.column })),
+    duplicateKeys: ctx.duplicateKeys
+      .filter((duplicate) => duplicate.locale === sheet.locale)
+      .map((duplicate) => ({ key: duplicate.key, row: duplicate.row })),
   });
 
   if (ctx.dryRun) {
-    return { summary, lockEntries: {} };
+    return { summary, lockEntries: {}, cacheAdditions: {} };
   }
 
   const merged = mergeAccepted(target, accepted);
@@ -151,7 +209,11 @@ async function runSheet(
       path,
     );
   }
-  return { summary, lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted) };
+  return {
+    summary,
+    lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted),
+    cacheAdditions: sheetCacheAdditions(accepted),
+  };
 }
 
 /**
@@ -161,10 +223,13 @@ async function runSheet(
  * identical to `translate`'s.
  *
  * Whole-run failures (unknown format, unreadable/invalid/oversized workbook, corrupt lock) throw a
- * structured {@link SdkError}. A per-sheet failure (a locale not in config, a broken-round-trip key,
- * a write failure) is isolated as that locale's `status: "failed"`, not a throw; per-row rejections
- * are withheld and reported on the locale. Dry-run validates and reports without writing any locale or
- * lock file, and skips lock acquisition (there is nothing to protect).
+ * structured {@link SdkError}. A per-sheet failure (a sheet named for a locale not in config, a
+ * broken-round-trip key, a write failure) is isolated as that locale's `status: "failed"`, not a
+ * throw; per-row rejections are withheld and reported on the locale. A configured target locale with
+ * no sheet at all (a deleted, renamed, or reordered tab) is reconciled after the sheet loop and
+ * reported as that locale's `status: "failed"` (`WORKBOOK_SHEET_MISSING`) rather than silently
+ * dropped. Dry-run validates and reports without writing any locale or lock file, and skips lock
+ * acquisition (there is nothing to protect).
  *
  * The lock-file is read once, up front, for every sheet's diff baseline. On a non-dry-run, each
  * sheet's write-and-lock-update step then holds that locale's `withLocaleWriteLock` for its whole
@@ -206,9 +271,12 @@ export async function importWorkbook(
     source: source.resource,
     sourceInvalidIcuKeys: source.invalidIcuKeys,
     dryRun,
+    malformedRows: data.malformedRows,
+    duplicateKeys: data.duplicateKeys,
   };
 
   const summaries: LocaleSummary[] = [];
+  const cacheAdditions = new Map<string, Record<string, string>>();
   for (const sheet of data.sheets) {
     try {
       let summary: LocaleSummary;
@@ -221,6 +289,7 @@ export async function importWorkbook(
             mode: "replace",
             entries: result.lockEntries,
           });
+          collectSheetAdditions(cacheAdditions, sheet.locale, result.cacheAdditions);
           return result.summary;
         });
       }
@@ -228,6 +297,17 @@ export async function importWorkbook(
     } catch (error) {
       summaries.push(failureSummary(sheet.locale, error));
     }
+  }
+
+  const presentLocales = new Set(data.sheets.map((sheet) => sheet.locale));
+  for (const locale of config.targetLocales) {
+    if (!presentLocales.has(locale)) {
+      summaries.push(failureSummary(locale, new MissingSheetError(locale)));
+    }
+  }
+
+  if (!dryRun) {
+    await feedTranslationMemory(cwd, fs, computeFingerprint(config), cacheAdditions);
   }
 
   const { succeeded, partial, failed } = partition(summaries);
