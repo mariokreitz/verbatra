@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { i18n, type Locale } from "@/lib/i18n";
-import { LEGAL_LAST_UPDATED } from "@/lib/site";
+import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
 
 const UMAMI_DOCS = "https://umami.is/docs/";
 const GITHUB_REPO = "https://github.com/mariokreitz/verbatra";
@@ -29,6 +29,7 @@ export async function generateMetadata(props: {
     title: t("title"),
     description: t("description"),
     robots: { index: true },
+    alternates: localeAlternates(lang as Locale, "/privacy"),
   };
 }
 

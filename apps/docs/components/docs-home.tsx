@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { PackageInstall } from "@/components/landing/package-install";
 import { Terminal } from "@/components/landing/terminal";
+import { type Locale, localizedPath } from "@/lib/i18n";
 
 const HERO_COMMANDS = [
   "verbatra init",
@@ -71,12 +72,14 @@ export function DocsHomeHero({
   lead,
   primary,
   secondary,
+  locale,
 }: {
   eyebrow: string;
   headline: string;
   lead: string;
   primary: { label: string; href: string };
   secondary: { label: string; href: string };
+  locale: Locale;
 }): ReactNode {
   return (
     <section className="not-prose relative w-full overflow-hidden border-b border-fd-border px-6 pt-14 pb-16 md:px-10 xl:pt-20">
@@ -123,7 +126,7 @@ export function DocsHomeHero({
         </div>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <Link
-            href={primary.href}
+            href={localizedPath(locale, primary.href)}
             className="group inline-flex items-center gap-2 rounded-[10px] px-[22px] py-[13px] text-base font-semibold text-[color:var(--accent-fill-fg)] transition-[filter] hover:brightness-[1.08]"
             style={{ background: "var(--accent-fill)" }}
           >
@@ -133,7 +136,7 @@ export function DocsHomeHero({
             </span>
           </Link>
           <Link
-            href={secondary.href}
+            href={localizedPath(locale, secondary.href)}
             className="inline-flex items-center gap-2 rounded-[10px] border border-fd-border px-[22px] py-[13px] text-base font-semibold text-fd-foreground transition-colors hover:bg-fd-accent"
           >
             {secondary.label}
@@ -172,13 +175,19 @@ type PathCard = {
   primary?: boolean;
 };
 
-export function DocsHomePaths({ cards }: { cards: ReadonlyArray<PathCard> }): ReactNode {
+export function DocsHomePaths({
+  cards,
+  locale,
+}: {
+  cards: ReadonlyArray<PathCard>;
+  locale: Locale;
+}): ReactNode {
   return (
     <div className="not-prose my-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
       {cards.map((card) => (
         <Link
           key={card.href}
-          href={card.href}
+          href={localizedPath(locale, card.href)}
           className={
             card.primary
               ? "group flex flex-col gap-2 rounded-xl p-5 transition-[filter] hover:brightness-110"

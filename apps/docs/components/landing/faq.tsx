@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import Button from "@/components/ui/button";
+import { type Locale, localizedPath } from "@/lib/i18n";
 import type { FaqItem } from "@/lib/structured-data";
 import { GITHUB_ISSUES_URL } from "./links";
 import { SectionHead } from "./section-head";
@@ -70,6 +71,7 @@ function FaqRow({
 
 export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
   const t = useTranslations("landing.faq");
+  const locale = useLocale() as Locale;
   const [open, setOpen] = useState(0);
   const reduced = useReducedMotion() ?? false;
 
@@ -79,7 +81,11 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
         <div className="md:col-span-2 md:sticky md:top-24 md:self-start">
           <SectionHead title={t("heading")} lead={t("supporting")} />
           <div className="mt-7 flex flex-col items-start gap-4">
-            <Button href="/docs/your-first-translation" variant="secondary" size="md">
+            <Button
+              href={localizedPath(locale, "/docs/your-first-translation")}
+              variant="secondary"
+              size="md"
+            >
               {t("ctaDocs")}
             </Button>
             <a

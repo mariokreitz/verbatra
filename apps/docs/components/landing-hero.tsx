@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Backdrop } from "@/components/landing/fx/backdrop";
 import { GithubIcon } from "@/components/landing/github-icon";
@@ -7,6 +7,7 @@ import { PackageInstall } from "@/components/landing/package-install";
 import { StatusBand } from "@/components/landing/status-band";
 import { Terminal } from "@/components/landing/terminal";
 import Button from "@/components/ui/button";
+import { type Locale, localizedPath } from "@/lib/i18n";
 
 const CLI_COMMANDS = [
   "verbatra init",
@@ -47,6 +48,7 @@ const CLI_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
 
 export async function LandingHero(): Promise<ReactNode> {
   const t = await getTranslations("landing.hero");
+  const locale = (await getLocale()) as Locale;
   return (
     <section className="relative overflow-hidden border-b border-fd-border">
       <Backdrop />
@@ -75,7 +77,12 @@ export async function LandingHero(): Promise<ReactNode> {
             <PackageInstall />
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button href="/docs/your-first-translation" variant="primary" size="lg" trailingArrow>
+            <Button
+              href={localizedPath(locale, "/docs/your-first-translation")}
+              variant="primary"
+              size="lg"
+              trailingArrow
+            >
               {t("ctaQuickstart")}
             </Button>
             <Button href={GITHUB_URL} variant="secondary" size="lg">
