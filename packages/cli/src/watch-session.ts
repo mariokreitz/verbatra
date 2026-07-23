@@ -21,6 +21,8 @@ export interface WatchOptions {
   readonly lockAcquireTimeoutMs?: number;
   /** How many target locales each run may translate at once; defaults to the SDK's 1 (serial). */
   readonly concurrency?: number;
+  /** When false, bypass the translation-memory cache on every run (read and write); on by default. */
+  readonly cache?: boolean;
   /** When true, emit NDJSON records; otherwise human-readable output. */
   readonly json: boolean;
 }
@@ -82,6 +84,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
       ? { lockAcquireTimeoutMs: options.lockAcquireTimeoutMs }
       : {}),
     ...(options.concurrency !== undefined ? { concurrency: options.concurrency } : {}),
+    ...(options.cache === false ? { cache: false } : {}),
   };
 
   deps

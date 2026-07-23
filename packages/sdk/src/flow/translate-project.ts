@@ -1,5 +1,14 @@
 import type { TranslationProvider } from "@verbatra/ai-providers";
 import type { AdapterRegistry, FormatAdapter, ReadResult } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../cache/fingerprint.js";
+import {
+  additionsToRecord,
+  applyAdditions,
+  cacheFilePath,
+  readTranslationMemory,
+  writeTranslationMemory,
+} from "../cache/translation-memory.js";
+import type { TranslationMemory } from "../cache/types.js";
 import {
   DEFAULT_BUDGET_BEHAVIOR,
   DEFAULT_MAX_BATCH_SIZE,
@@ -92,6 +101,14 @@ export interface TranslateInput {
    * per-locale write locks already isolate concurrent locales on disk, so no extra locking is added.
    */
   readonly concurrency?: number;
+  /**
+   * Whether to use the local content-addressed translation-memory cache (`verbatra.cache.json`). On by
+   * default; the CLI exposes it as `--no-cache`. When false, both the cache read and the end-of-run
+   * cache write are skipped: the run makes exactly the provider calls it would with no cache present,
+   * and leaves any existing cache file untouched. Ignored on a dry-run, which never reads or writes the
+   * cache regardless. See the cache module for the fingerprint and degrade-to-empty contract.
+   */
+  readonly cache?: boolean;
 }
 
 /** Composition seam: inject a registry, a provider builder, and a file system for tests. */
@@ -126,6 +143,61 @@ async function recordRunStatus(
   } catch {}
 }
 
+/**
+ * The run-wide translation-memory state, present only on a live run with the cache enabled. `memory`
+ * is the snapshot read once at run start (every locale looks up against it, never against entries this
+ * run produced); `additions` collects each locale's newly translated values, keyed by target locale,
+ * for the single best-effort write at the end. Since each locale records its own slot once,
+ * synchronously, the map is concurrency-clean under the bounded worker pool.
+ */
+interface RunCacheState {
+  readonly memory: TranslationMemory;
+  readonly fingerprint: string;
+  readonly additions: Map<string, Record<string, string>>;
+}
+
+/**
+ * Build the run's cache state: read the snapshot once and compute the run fingerprint, or return
+ * undefined when the cache is bypassed (`input.cache === false`) or on a dry-run (which never reads or
+ * writes the cache). The read degrades a corrupt or unrecognized file to an empty memory and never
+ * throws.
+ */
+async function createRunCacheState(
+  input: TranslateInput,
+  config: VerbatraConfig,
+  cwd: string,
+  dryRun: boolean,
+  fs: SdkFs,
+): Promise<RunCacheState | undefined> {
+  if (dryRun || input.cache === false) {
+    return undefined;
+  }
+  return {
+    memory: await readTranslationMemory(cacheFilePath(cwd), fs),
+    fingerprint: computeFingerprint(config),
+    additions: new Map(),
+  };
+}
+
+/**
+ * Persist the run's cache additions with a single best-effort write, mirroring {@link recordRunStatus}:
+ * any failure is caught and swallowed so it never fails the run. Skipped when the cache is bypassed or
+ * when nothing new was translated, so an all-unchanged or all-cache-hit run leaves the file untouched.
+ */
+async function recordCacheAdditions(
+  cwd: string,
+  cache: RunCacheState | undefined,
+  fs: SdkFs,
+): Promise<void> {
+  if (cache === undefined || cache.additions.size === 0) {
+    return;
+  }
+  try {
+    const merged = applyAdditions(cache.memory, cache.fingerprint, cache.additions);
+    await writeTranslationMemory(cacheFilePath(cwd), merged, fs);
+  } catch {}
+}
+
 /** Everything one locale's run needs that does not vary by locale or by baseline. */
 interface LocaleRunContext {
   readonly source: ReadResult;
@@ -138,6 +210,7 @@ interface LocaleRunContext {
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
   readonly budget: BudgetTracker;
+  readonly cache: RunCacheState | undefined;
   readonly onLockWait?: LockWaitListener;
   readonly onProgress?: ProgressListener;
   readonly lockAcquireTimeoutMs?: number;
@@ -166,6 +239,9 @@ function buildLocaleRunParams(
     maxBatchSize: context.maxBatchSize,
     fs: context.fs,
     budget: context.budget,
+    ...(context.cache !== undefined
+      ? { cache: { snapshot: context.cache.memory, fingerprint: context.cache.fingerprint } }
+      : {}),
     ...(context.onProgress !== undefined ? { onProgress: context.onProgress } : {}),
   };
 }
@@ -220,6 +296,9 @@ async function runLiveLocale(
         mode: "replace",
         entries: result.lockEntries,
       });
+      if (context.cache !== undefined && result.cacheAdditions.length > 0) {
+        context.cache.additions.set(targetLocale, additionsToRecord(result.cacheAdditions));
+      }
       return result.summary;
     },
     lockOptions,
@@ -476,6 +555,7 @@ export async function translate(
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
   const source = await readSource(config, cwd, fs, adapter);
+  const cache = await createRunCacheState(input, config, cwd, dryRun, fs);
   const context: LocaleRunContext = {
     source,
     adapter,
@@ -487,6 +567,7 @@ export async function translate(
     maxBatchSize,
     fs,
     budget,
+    cache,
     ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
     ...(input.onProgress !== undefined ? { onProgress: input.onProgress } : {}),
     ...(input.lockAcquireTimeoutMs !== undefined
@@ -515,6 +596,7 @@ export async function translate(
     ...(budgetSummary !== undefined ? { budget: budgetSummary } : {}),
   };
 
+  await recordCacheAdditions(cwd, cache, fs);
   await recordRunStatus(cwd, dryRun, summary, fs);
 
   return summary;

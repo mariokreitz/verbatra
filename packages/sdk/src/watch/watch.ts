@@ -67,6 +67,11 @@ export interface WatchInput {
    * with concurrency greater than 1 still fails each run with `CONCURRENCY_BUDGET_CONFLICT`.
    */
   readonly concurrency?: number;
+  /**
+   * Passed through to every run's {@link TranslateInput.cache}: when false, each run bypasses the
+   * translation-memory cache (both read and write). On by default.
+   */
+  readonly cache?: boolean;
 }
 
 /** Composition seam: inject the watcher and the run for deterministic, offline tests. */
@@ -156,6 +161,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
       ? { lockAcquireTimeoutMs: input.lockAcquireTimeoutMs }
       : {}),
     ...(input.concurrency !== undefined ? { concurrency: input.concurrency } : {}),
+    ...(input.cache !== undefined ? { cache: input.cache } : {}),
   };
 
   let state: "idle" | "running" = "idle";

@@ -1,5 +1,7 @@
 import { contentHash } from "@verbatra/core";
 import type { AdapterRegistry } from "@verbatra/format-adapters";
+import { computeFingerprint } from "../cache/fingerprint.js";
+import { feedTranslationMemory } from "../cache/translation-memory.js";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
@@ -55,7 +57,10 @@ export type EditEntryResult =
  * locale file (merging just this one key into its current entries, every other key untouched) and
  * updates the lock entry for this key only (see {@link updateLockFileLocale}'s `"merge"` mode); on
  * rejection, writes nothing. Never calls a provider: {@link EditEntryDeps} has no provider seam,
- * so there is no way to construct or call one.
+ * so there is no way to construct or call one. On acceptance it also feeds the accepted value into
+ * the local translation-memory cache (best-effort, keyed by the source content hash and the config
+ * fingerprint), so a later run can reuse it for free; a cache failure is swallowed and never fails
+ * the edit.
  *
  * `locale` and `key` are resolved fresh on every call, never from a cache: `locale` against
  * `config.targetLocales`, `key` against the source resource read fresh from disk.
@@ -127,6 +132,13 @@ export async function editEntry(
       mode: "merge",
       entries: { [input.key]: contentHash(sourceEntry) },
     });
+
+    await feedTranslationMemory(
+      cwd,
+      fs,
+      computeFingerprint(config),
+      new Map([[locale, { [contentHash(sourceEntry)]: input.value }]]),
+    );
 
     return { accepted: true, value: input.value };
   });

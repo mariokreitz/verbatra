@@ -91,6 +91,15 @@ export interface LocaleSummary {
   /** Source keys flagged invalid-ICU that were skipped for translation this run. */
   readonly invalidIcuSource: readonly string[];
   /**
+   * Keys served from the local translation-memory cache instead of the provider: their source content
+   * was unchanged (possibly under a renamed key or shared with another key) and the cached value passed
+   * the integrity gate, so no provider request was made for them. They are written and lock-advanced
+   * exactly like a translated key, but kept distinct from {@link LocaleSummary.translated} because they
+   * cost no provider usage. Always present, empty by default; empty in a dry-run and when the cache is
+   * bypassed. Sorted by key.
+   */
+  readonly cacheHits: readonly string[];
+  /**
    * Translated keys that failed the placeholder-integrity check and were withheld. Never includes a
    * key withheld because the provider call itself failed; see {@link LocaleSummary.providerFailures}
    * for that case.

@@ -219,6 +219,20 @@ describe("render: human run summary", () => {
     expect(text).not.toContain("needs-review");
   });
 
+  it("shows the from-cache count when keys were served from the translation memory", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ translated: ["a"], cacheHits: ["b", "c"] })],
+      }),
+    );
+    expect(text).toContain("2 from cache");
+  });
+
+  it("omits the from-cache count when nothing was served from the cache", () => {
+    const text = renderHuman(makeSummary({ locales: [makeLocale({ translated: ["a"] })] }));
+    expect(text).not.toContain("from cache");
+  });
+
   it("shows the generated count when plural forms were synthesized", () => {
     const text = renderHuman(
       makeSummary({

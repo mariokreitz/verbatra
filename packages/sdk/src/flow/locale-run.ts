@@ -14,6 +14,8 @@ import {
   type TranslationEntry,
 } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
+import { lookupMemory } from "../cache/translation-memory.js";
+import type { CacheAddition, TranslationMemory } from "../cache/types.js";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
 import type { ProgressListener } from "../progress/types.js";
@@ -71,6 +73,14 @@ export interface LocaleRunParams {
    */
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
+  /**
+   * The translation-memory cache context for this run, or undefined when the cache is bypassed
+   * (`--no-cache`) or on a dry-run. When present, each candidate whose source content hash is already
+   * cached under this fingerprint and target locale is served from the snapshot (after passing the
+   * integrity gate) instead of the provider. The snapshot is read-only and shared across locales, so
+   * lookups are concurrency-clean.
+   */
+  readonly cache?: { readonly snapshot: TranslationMemory; readonly fingerprint: string };
   /** The run-wide token-budget tracker, shared and mutated across every locale in the run. */
   readonly budget: BudgetTracker;
   /**
@@ -85,11 +95,88 @@ export interface LocaleRunParams {
 export interface LocaleRunResult {
   readonly summary: LocaleSummary;
   readonly lockEntries: Record<string, string>;
+  /**
+   * Values this locale newly translated through the provider, to fold into the run's cache additions.
+   * Never includes a value that was itself served from the cache (that would re-record what is already
+   * there) and never a generated plural form (those are out of v1 cache scope). Empty when the cache
+   * is bypassed or on a dry-run.
+   */
+  readonly cacheAdditions: readonly CacheAddition[];
 }
 
 interface Accepted {
   readonly value: string;
   readonly source: TranslationEntry;
+}
+
+/** How {@link partitionCacheHits} splits the translation candidates before the provider is called. */
+interface CachePartition {
+  /** Candidates served from the cache (gate-passed), keyed by target key. */
+  readonly hits: ReadonlyMap<string, Accepted>;
+  /** Candidates that missed the cache (or whose cached value failed the gate) and go to the provider. */
+  readonly misses: readonly string[];
+}
+
+/**
+ * Splits the translation candidates into cache hits and provider misses. With no cache context (bypass
+ * or dry-run) every candidate is a miss. A hit is a cached value, keyed by the candidate's current
+ * source content hash under this run's fingerprint and target locale, that still passes
+ * {@link gateCandidateValue} against the current source entry: the value is content-equal but the
+ * target format/adapter may differ, so placeholder and ICU integrity is re-checked. A cached value
+ * that fails the gate falls through as a provider miss. A candidate with no source entry (never
+ * expected, since candidates come from the source-driven diff) is dropped from both, exactly as the
+ * later `entries` filter would have dropped it.
+ */
+function partitionCacheHits(
+  params: LocaleRunParams,
+  toTranslate: readonly string[],
+): CachePartition {
+  const cache = params.cache;
+  const hits = new Map<string, Accepted>();
+  if (cache === undefined) {
+    return { hits, misses: toTranslate };
+  }
+  const misses: string[] = [];
+  for (const key of toTranslate) {
+    const source = params.source.entries.get(key);
+    /* v8 ignore next 3 -- candidates come from the source-driven diff, so a candidate key always has a source entry; this guard is purely defensive. */
+    if (source === undefined) {
+      continue;
+    }
+    const cached = lookupMemory(
+      cache.snapshot,
+      cache.fingerprint,
+      params.targetLocale,
+      contentHash(source),
+    );
+    if (cached !== undefined && gateCandidateValue(source, cached, params.adapter).accepted) {
+      hits.set(key, { value: cached, source });
+    } else {
+      misses.push(key);
+    }
+  }
+  return { hits, misses };
+}
+
+/**
+ * The provider-translated values to record into the cache: every accepted key that was not itself a
+ * cache hit, keyed by its current source content hash. Empty when the cache is bypassed.
+ */
+function collectCacheAdditions(
+  params: LocaleRunParams,
+  accepted: ReadonlyMap<string, Accepted>,
+  cacheHitKeys: ReadonlySet<string>,
+): CacheAddition[] {
+  if (params.cache === undefined) {
+    return [];
+  }
+  const additions: CacheAddition[] = [];
+  for (const [key, entry] of accepted) {
+    if (!cacheHitKeys.has(key)) {
+      additions.push({ contentHash: contentHash(entry.source), value: entry.value });
+    }
+  }
+  return additions;
 }
 
 function buildRequest(
@@ -155,6 +242,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
         orphaned,
         invalidIcuSource,
         translated: toTranslate,
+        cacheHits: [],
         generated: [],
         integrityMismatches: [],
         providerFailures: [],
@@ -163,15 +251,18 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
         notices: sdkNotices,
       }),
       lockEntries: {},
+      cacheAdditions: [],
     };
   }
 
-  const entries = toTranslate
+  const partition = partitionCacheHits(params, toTranslate);
+  const cacheHitKeys = new Set(partition.hits.keys());
+  const entries = partition.misses
     .map((key) => params.source.entries.get(key))
     .filter((entry): entry is TranslationEntry => entry !== undefined);
 
   const startedStopped = params.budget.stopped;
-  const accepted = new Map<string, Accepted>();
+  const accepted = new Map<string, Accepted>(partition.hits);
   const integrityMismatches: string[] = [];
   const providerFailures: string[] = [];
   const budgetWithheld: string[] = [];
@@ -237,7 +328,8 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       unchanged: diff.unchanged,
       orphaned,
       invalidIcuSource,
-      translated: [...accepted.keys()],
+      translated: [...accepted.keys()].filter((key) => !cacheHitKeys.has(key)),
+      cacheHits: [...cacheHitKeys].sort(),
       generated: generation.accepted.map((form) => form.targetKey).sort(),
       integrityMismatches: [...integrityMismatches, ...generation.withheld].sort(),
       providerFailures: [...providerFailures, ...generation.providerFailures].sort(),
@@ -248,6 +340,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
       ...(localeUsage !== undefined ? { usage: localeUsage } : {}),
     }),
     lockEntries: computeLockEntries(params, merged, withheld, generation.accepted),
+    cacheAdditions: collectCacheAdditions(params, accepted, cacheHitKeys),
   };
 }
 
@@ -319,6 +412,7 @@ interface SummaryParts {
   readonly orphaned: readonly string[];
   readonly invalidIcuSource: readonly string[];
   readonly translated: readonly string[];
+  readonly cacheHits: readonly string[];
   readonly generated: readonly string[];
   readonly integrityMismatches: readonly string[];
   readonly providerFailures: readonly string[];
@@ -339,6 +433,7 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
     orphaned: parts.orphaned,
     pruned: parts.pruned,
     invalidIcuSource: parts.invalidIcuSource,
+    cacheHits: parts.cacheHits,
     integrityMismatches: parts.integrityMismatches,
     providerFailures: parts.providerFailures,
     budgetWithheld: parts.budgetWithheld,

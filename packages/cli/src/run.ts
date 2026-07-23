@@ -59,6 +59,7 @@ const translateOptsSchema = z.object({
   prune: z.boolean().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
+  cache: z.boolean().optional(),
   json: z.boolean().optional(),
 });
 
@@ -68,6 +69,7 @@ const watchOptsSchema = z.object({
   debounce: z.string().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
+  cache: z.boolean().optional(),
   json: z.boolean().optional(),
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
@@ -338,6 +340,7 @@ function buildTranslateInput(
       ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
       : {}),
     ...(opts.concurrencyValue !== undefined ? { concurrency: opts.concurrencyValue } : {}),
+    ...(opts.cache === false ? { cache: false } : {}),
   };
 }
 
@@ -428,6 +431,7 @@ async function runWatchCommand(
             ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
             : {}),
           ...(opts.concurrencyValue !== undefined ? { concurrency: opts.concurrencyValue } : {}),
+          ...(opts.cache === false ? { cache: false } : {}),
         },
         deps,
         streams,
@@ -607,6 +611,10 @@ function buildProgram(
       "--concurrency <n>",
       "how many target locales to translate at once (default 1; not allowed with a maxTokens budget)",
     )
+    .option(
+      "--no-cache",
+      "bypass the local translation-memory cache (verbatra.cache.json) for this run",
+    )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: unknown) => {
       setCode(await runTranslate(opts, deps, streams));
@@ -640,6 +648,10 @@ function buildProgram(
     .option(
       "--concurrency <n>",
       "how many target locales to translate at once per run (default 1; not allowed with a maxTokens budget)",
+    )
+    .option(
+      "--no-cache",
+      "bypass the local translation-memory cache (verbatra.cache.json) on every run",
     )
     .option("--json", "print each run as one NDJSON record")
     .action(async (opts: unknown) => {

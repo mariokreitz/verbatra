@@ -267,6 +267,51 @@ describe("run translate: --concurrency", () => {
   });
 });
 
+describe("run translate/watch: --no-cache", () => {
+  it("passes cache: false to the SDK translate() when --no-cache is set", async () => {
+    const { deps, calls } = recordingDeps();
+
+    const code = await run(["translate", "--no-cache"], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(calls.translate[0]?.cache).toBe(false);
+  });
+
+  it("omitting --no-cache leaves cache unset so the SDK default (on) applies", async () => {
+    const { deps, calls } = recordingDeps();
+
+    await run(["translate"], deps, captureStreams().streams);
+
+    expect(calls.translate[0]).not.toHaveProperty("cache");
+  });
+
+  it("passes cache: false through to every watch run when --no-cache is set", async () => {
+    let resolveStop: (() => void) | undefined;
+    const { deps, calls } = recordingDeps({
+      watch: () =>
+        Promise.resolve({
+          stop: () =>
+            new Promise<void>((resolve) => {
+              resolveStop = resolve;
+            }),
+        } satisfies WatchController),
+    });
+
+    let session: WatchSession | undefined;
+    const done = run(["watch", "--no-cache"], deps, captureStreams().streams, {
+      onWatchSession: (s) => {
+        session = s;
+      },
+    });
+    await flush();
+    session?.requestStop();
+    resolveStop?.();
+
+    expect(await done).toBe(0);
+    expect(calls.watch[0]?.cache).toBe(false);
+  });
+});
+
 describe("run translate: progress reporting", () => {
   const events: readonly ProgressEvent[] = [
     { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },

@@ -80,6 +80,7 @@ function renderLocaleLine(locale: LocaleSummary): string {
   }
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
+    [locale.cacheHits.length, "from cache", false],
     [locale.unchanged.length, "unchanged", true],
     [locale.generated.length, "generated", false],
     [locale.orphaned.length, "orphaned", false],
