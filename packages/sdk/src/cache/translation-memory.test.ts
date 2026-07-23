@@ -40,6 +40,15 @@ describe("readTranslationMemory: degrade-to-empty", () => {
     expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
   });
 
+  it("returns an empty memory when the read throws a post-open I/O fault", async () => {
+    const fs = makeFakeFs({
+      readFileBounded: async () => {
+        throw new Error("EIO: i/o error after open");
+      },
+    });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
+  });
+
   it("returns an empty memory for unparseable JSON", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => okRead("{not json") });
     expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });

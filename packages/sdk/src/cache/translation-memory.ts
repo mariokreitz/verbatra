@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { z } from "zod";
-import type { SdkFs } from "../fs.js";
+import type { BoundedFileRead, SdkFs } from "../fs.js";
 import type { CacheAddition, TranslationMemory } from "./types.js";
 
 /** The cache file's name, a sibling of the lock file and obviously JSON. */
@@ -25,15 +25,21 @@ export function cacheFilePath(cwd: string): string {
 /**
  * Read the translation-memory cache into an immutable snapshot. Unlike `readLockFile`, this never
  * throws and never fails a run: a missing, oversized, unparseable, structurally invalid, or
- * unrecognized-version file all degrade to an empty cache. That degrade-to-empty is safe precisely
- * because the cache is regenerable: a bad file simply causes re-translation and is overwritten.
+ * unrecognized-version file, and any read fault after the file is opened (a race delete, an I/O
+ * error), all degrade to an empty cache. That degrade-to-empty is safe precisely because the cache
+ * is regenerable: a bad file simply causes re-translation and is overwritten.
  *
  * @param path - The cache file path (see {@link cacheFilePath}).
  * @param fs - The file-system seam.
  * @returns The parsed memory, or an empty memory on any failure.
  */
 export async function readTranslationMemory(path: string, fs: SdkFs): Promise<TranslationMemory> {
-  const read = await fs.readFileBounded(path, MAX_CACHE_FILE_BYTES);
+  let read: BoundedFileRead;
+  try {
+    read = await fs.readFileBounded(path, MAX_CACHE_FILE_BYTES);
+  } catch {
+    return EMPTY_MEMORY;
+  }
   if (read.kind !== "ok") {
     return EMPTY_MEMORY;
   }
