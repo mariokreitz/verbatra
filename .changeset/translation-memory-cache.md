@@ -1,6 +1,6 @@
 ---
-"@verbatra/sdk": minor
-"@verbatra/cli": minor
+"@verbatra/sdk": patch
+"@verbatra/cli": patch
 ---
 
 Add a content-addressed translation-memory (TM) cache so a translation whose source content is unchanged is reused for free instead of being re-sent to the provider. A translation is reused even when its key was renamed, and identical source text shared across two keys is paid for once. The cache lives in a local, gitignored, regenerable `verbatra.cache.json` sibling to the lock file (scaffolded into `.gitignore` by `init`); it is never a field on the lock file and never committed.

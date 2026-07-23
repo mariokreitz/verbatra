@@ -1,5 +1,5 @@
 ---
-"@verbatra/sdk": minor
+"@verbatra/sdk": patch
 ---
 
 Add support for the Java/Spring `.properties` format. Files with the `.properties`
