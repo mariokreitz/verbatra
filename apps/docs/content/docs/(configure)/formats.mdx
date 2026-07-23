@@ -1,8 +1,8 @@
 ---
 title: Formats
-description: The seven supported formats, how each one reads and writes its files, and the document key order guarantee.
+description: The eight supported formats, how each one reads and writes its files, and the document key order guarantee.
 ---
-verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your [config](/docs/config-file). Seven are supported: four JSON flavors, plus XLIFF, YAML, and ARB.
+verbatra works on your locale files through a format adapter. Each adapter reads a file into one format-neutral shape that the diff, hashing, and integrity checks run on, then writes it back in the file's original shape. You pick the format with the `format` field in your [config](/docs/config-file). Eight are supported: four JSON flavors, plus XLIFF, YAML, ARB, and Java/Spring properties.
 
 ## The four JSON formats
 
@@ -47,6 +47,16 @@ The `arb` format covers Flutter's `.arb` files: JSON with a flat object of messa
 - **Messages are ICU.** Placeholders, plural handling, and ICU validation work exactly as they do for `next-intl-json`.
 - **Descriptions become context.** Each `@key.description` is read as developer context for that message: it reaches the provider as disambiguation context (never as text to translate) and appears in the [`Context` column](/docs/manual-translation) of an exported workbook. It is read-only and never written back.
 
+## Properties
+
+The `properties` format covers Java and Spring `.properties` files, detected by the `.properties` extension: a flat list of key/value lines. Keys are kept verbatim as flat keys, never split into a tree.
+
+- **Separators and comments.** A key is separated from its value by `=`, `:`, or whitespace, with any spaces around the separator ignored, matching `java.util.Properties`. A line whose first non-blank character is `#` or `!` is a comment.
+- **Continuations and escapes.** A line ending in a backslash continues onto the next. The standard escapes (`\t`, `\n`, `\r`, `\f`, `\\`, an escaped separator or comment character) and `\uXXXX` are decoded on read. Input is read as UTF-8; on write, every non-ASCII character is emitted as an ASCII-safe `\uXXXX` escape, so the file still loads under a legacy ISO-8859-1 reader.
+- **Order, comments, and blank lines are preserved.** A write re-reads the destination and keeps its key order, comments, and blank lines: each existing key line is rewritten in place with its new value, and a key the file does not yet have is appended in source order. A duplicate key keeps its first position and takes the last value, matching `Properties.load`.
+- **Placeholders are MessageFormat.** Values are read as `java.text.MessageFormat`, so `{0}`, the typed form `{0,number}`, the styled form `{0,number,integer}`, and named arguments such as `{count}` are extracted and guarded across translation. Sub-message arguments (`plural`, `select`, `selectordinal`, `choice`) are recognized, so translating the branch text stays a match while dropping or renaming an argument does not.
+- **Limitation: single quotes are not interpreted.** MessageFormat single-quote quoting is not honored, so a quoted literal such as `'{0}'` is still read as a placeholder. This is deliberate, so an ordinary apostrophe in translated text never swallows a following placeholder.
+
 ## Document key order
 
 Writes preserve your document's key order. The JSON family, YAML, and ARB round-trip keys exactly in document order:
@@ -69,8 +79,8 @@ The one case that fails by design is a genuine collision, where one file express
 
 verbatra caps input size and nesting depth on read, and resists a file changing underneath it. It writes atomically: it writes to a temporary file, then renames it into place, so an interrupted write never leaves a half-finished locale file. When verbatra cannot handle a file, it raises a structured, secret-free error with a stable code rather than a raw one: `INVALID_JSON`, `INVALID_YAML`, or `INVALID_XML` for malformed syntax, `INVALID_STRUCTURE` for a parseable file of the wrong shape, `MAX_DEPTH_EXCEEDED` and `INPUT_TOO_LARGE` for the caps, and `MIXED_STRUCTURE` for ngx-translate's mixed-style case.
 
-A tree-based locale file (the JSON family, YAML, and ARB) can carry a leaf that is not a string, for example a `count: 5` or `enabled: true` value sitting next to the translatable keys. verbatra accepts these: a leaf can be a string, a number, a boolean, or null, and only a leaf of another type, such as an array, fails with `INVALID_STRUCTURE`. A non-string leaf is excluded from the translatable set: it is never translated, hashed, diffed, or checked for placeholders or ICU. Exclusion is not preservation: if verbatra later writes that same locale file, the write is rebuilt from the strings it manages, so a non-string leaf present at read time is not carried into the output. If such a value needs to survive a rewrite, keep it out of the files verbatra writes to. XLIFF's trans-unit values are always strings, so this does not apply there.
+A tree-based locale file (the JSON family, YAML, and ARB) can carry a leaf that is not a string, for example a `count: 5` or `enabled: true` value sitting next to the translatable keys. verbatra accepts these: a leaf can be a string, a number, a boolean, or null, and only a leaf of another type, such as an array, fails with `INVALID_STRUCTURE`. A non-string leaf is excluded from the translatable set: it is never translated, hashed, diffed, or checked for placeholders or ICU. Exclusion is not preservation: if verbatra later writes that same locale file, the write is rebuilt from the strings it manages, so a non-string leaf present at read time is not carried into the output. If such a value needs to survive a rewrite, keep it out of the files verbatra writes to. XLIFF trans-unit values and `.properties` values are always strings, so this does not apply there.
 
 ## Why the format matters
 
-The format tells verbatra two things it needs for a safe run. First, the placeholder syntax, so the [placeholder integrity check](/docs/translation-safety) knows what to compare before and after translation. Second, for the ICU formats, which values to validate, so an invalid ICU source key is skipped rather than sent in a broken state. The wrong format compares the wrong tokens, so match it to your i18n library: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, `ngx-translate-json` for ngx-translate, `xliff` for XLIFF files, `yaml` for YAML-based i18n, and `arb` for Flutter.
+The format tells verbatra two things it needs for a safe run. First, the placeholder syntax, so the [placeholder integrity check](/docs/translation-safety) knows what to compare before and after translation. Second, for the ICU formats, which values to validate, so an invalid ICU source key is skipped rather than sent in a broken state. The wrong format compares the wrong tokens, so match it to your i18n library: `i18next-json` for i18next, `vue-i18n-json` for vue-i18n, `next-intl-json` for next-intl, `ngx-translate-json` for ngx-translate, `xliff` for XLIFF files, `yaml` for YAML-based i18n, `arb` for Flutter, and `properties` for Java or Spring `.properties` files.

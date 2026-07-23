@@ -1,0 +1,30 @@
+---
+title: La caché
+description: Qué reutiliza verbatra.cache.json, cómo la acota una huella y por qué nunca hace fallar una ejecución.
+---
+verbatra mantiene una caché local de memoria de traducción, `verbatra.cache.json`, para que un string que ya tradujo nunca se envíe dos veces a un proveedor, incluso cuando cambia su clave. Mientras [el archivo de bloqueo](/docs/the-lock-file) registra si una clave está al día, la caché se indexa por contenido: recuerda la traducción de un fragmento de texto de origen, con independencia de qué clave lo contenga.
+
+## Qué reutiliza
+
+En una ejecución, antes de que una clave vaya al proveedor, verbatra la busca en la caché por el hash de su contenido de origen actual. Un acierto se sirve gratis, así que nunca vuelves a pagar por él. Como la búsqueda es por contenido, la reutilización sobrevive a casos que el archivo de bloqueo no cubre:
+
+- **Una clave renombrada.** Mueve un string de `home.title` a `landing.title` y su traducción se reutiliza, no se vuelve a traducir.
+- **Contenido duplicado.** Dos claves con texto de origen idéntico byte a byte comparten una traducción; la segunda es un acierto de caché.
+
+Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad de marcadores de posición e ICU](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.
+
+## La huella
+
+Cada valor en caché queda acotado al contexto de traducción en el que se produjo: una huella corta sobre el proveedor, el modelo, el tono y el glosario. Cambia cualquiera de ellos y las entradas previas dejan de coincidir, así que un tono nuevo o un glosario editado retraduce en lugar de servir un resultado obsoleto. El formato queda deliberadamente fuera de la huella; un cambio de formato lo detecta en su lugar la comprobación de integridad en cada acierto.
+
+## El archivo
+
+`verbatra.cache.json` es un archivo complementario local y regenerable, junto a tu archivo de bloqueo. `verbatra init` lo añade a `.gitignore`, y deberías mantenerlo fuera del control de versiones: a diferencia del archivo de bloqueo, es una optimización de coste, no una línea base compartida. Nunca hace fallar una ejecución. Un archivo ausente, corrupto, demasiado grande o de versión no reconocida degrada a una caché vacía y se reconstruye sin más en la siguiente ejecución. Para reconstruirlo desde cero, borra el archivo.
+
+## Cómo omitirla
+
+Pasa `--no-cache` a [`translate`](/docs/cli/translate) o [`watch`](/docs/cli/watch) para saltarte la caché en una ejecución: verbatra hace exactamente las llamadas al proveedor que haría sin caché presente, y deja intacto cualquier archivo de caché existente. Desde el SDK, pon `cache: false` en la entrada de `translate` o `watch`. Un dry-run nunca lee ni escribe la caché de todos modos.
+
+## Limitación
+
+Las formas plurales sintetizadas no se cachean. Cuando `generatePlurals` rellena una categoría plural de CLDR que falta en el origen, ese valor generado no se registra para su reutilización, así que cuando una ejecución lo sintetiza, el valor viene del proveedor, nunca de la caché.

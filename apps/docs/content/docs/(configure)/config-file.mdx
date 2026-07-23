@@ -59,7 +59,7 @@ Unknown top-level keys are rejected. This is also why an API key cannot live in 
 
 - **`sourceLocale`** must be a non-empty string.
 - **`targetLocales`** must contain at least one locale, must not include `sourceLocale`, and no two entries may be case-insensitively equal (for example `["de", "DE"]` is rejected), since each locale becomes its own Excel worksheet name on export.
-- **`format`** is one of `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, or `arb`. See [Formats](/docs/formats).
+- **`format`** is one of `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb`, or `properties`. See [Formats](/docs/formats).
 - **`files.pattern`** must contain the `{locale}` token, which verbatra replaces with each locale: `locales/{locale}.json` resolves to `locales/de.json`. Paths resolve against the working directory.
 
 ### provider

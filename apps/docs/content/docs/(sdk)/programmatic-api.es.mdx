@@ -46,7 +46,10 @@ if (summary.failed.length > 0) {
 ```
 
 Pasa `dryRun: true` para previsualizar sin llamar a un proveedor ni escribir nada, y `prune: true` o
-`generatePlurals: true` para anular esas opciones de configuración durante una ejecución.
+`generatePlurals: true` para anular esas opciones de configuración durante una ejecución. Pon
+`concurrency` por encima de 1 para traducir locales en paralelo (no permitido con un presupuesto
+`maxTokens` en una ejecución real) y `cache: false` para omitir la
+[caché de memoria de traducción](/docs/the-cache).
 
 ## Comprueba en CI sin escribir
 

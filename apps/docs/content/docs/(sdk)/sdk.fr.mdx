@@ -28,10 +28,13 @@ Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `co
 
 Le flux en une passe : lire la source, comparer chaque locale cible à la ligne de base du verrou, envoyer les clés manquantes et modifiées au fournisseur, exécuter les vérifications d'intégrité des placeholders et d'ICU, écrire les fichiers de locale et mettre à jour le verrou. Utilise-le pour les scripts, les étapes de build et les jobs CI.
 
-Entrée : `{ config, cwd?, dryRun?, prune?, generatePlurals? }`.
+Entrée : `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
 - `dryRun` lit, compare et rapporte sans construire ni appeler le fournisseur et sans rien écrire.
 - `prune` supprime les clés orphelines (clés cibles absentes de la source) du fichier écrit et du verrou. `generatePlurals` synthétise les formes plurielles CLDR manquantes (i18next-JSON avec un fournisseur LLM uniquement). Les deux sont désactivés par défaut ; quand ils sont définis, chacun remplace l'option de config correspondante pour cette exécution.
+- `concurrency` traduit jusqu'à ce nombre de locales cibles à la fois (par défaut 1, strictement en série). Une valeur inférieure à 1 lève `CONCURRENCY_INVALID` ; sur une exécution réelle, une valeur supérieure à 1 avec `maxTokens` configuré lève `CONCURRENCY_BUDGET_CONFLICT` (un dry-run est exempté).
+- `cache` est activé par défaut et réutilise le [cache de mémoire de traduction](/docs/the-cache) local ; mets-le à false pour contourner le cache le temps de l'exécution (le `--no-cache` de la CLI).
+- `onProgress` est appelé à mesure que l'exécution avance (au démarrage et à la fin de chaque locale, et par sous-lot du fournisseur), et `onLockWait` se déclenche pendant qu'un verrou d'écriture de locale est disputé. Les deux sont des callbacks de notification ; le SDK n'écrit rien de lui-même. `lockAcquireTimeoutMs` remplace la durée pendant laquelle un verrou d'écriture disputé réessaie avant d'échouer avec `LOCK_CONTENDED`.
 - `maxBatchSize`, `maxTokens` et `budgetBehavior` sont réservés à la config ; il n'y a pas de surcharge par exécution.
 
 Renvoie un `RunSummary` (voir [son anatomie plus bas](#anatomie-du-runsummary)). Les problèmes globaux lèvent une `SdkError` ; une locale seule qui échoue ne lève jamais et atterrit comme `status: "failed"` sur l'entrée de cette locale pendant que l'exécution continue.
@@ -40,7 +43,7 @@ Renvoie un `RunSummary` (voir [son anatomie plus bas](#anatomie-du-runsummary)).
 
 Surveille le fichier de la locale source et relance `translate` à chaque changement temporisé. Il déclenche une exécution initiale immédiatement au démarrage, puis une exécution par changement stabilisé. Les exécutions sont sérialisées : les changements survenus pendant une exécution se regroupent en une seule exécution de suivi.
 
-Entrée : `{ config, cwd?, debounceMs?, onRun }`. `debounceMs` vaut 300 par défaut. `onRun` est appelé une fois par exécution avec un `WatchRunResult` : `{ status: "succeeded", summary }` ou `{ status: "failed", error: { code, message } }`. Le SDK n'écrit aucun log ; `onRun` est la seule sortie.
+Entrée : `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`. `debounceMs` vaut 300 par défaut. `onRun` est appelé une fois par exécution avec un `WatchRunResult` : `{ status: "succeeded", summary }` ou `{ status: "failed", error: { code, message } }`. Le SDK n'écrit aucun log ; `onRun` est la seule sortie. `concurrency`, `cache`, `onProgress`, `onLockWait` et `lockAcquireTimeoutMs` sont transmis à chaque exécution et se comportent exactement comme sur `translate` (un watch budgété avec `concurrency` supérieur à 1 échoue à chaque exécution avec `CONCURRENCY_BUDGET_CONFLICT`).
 
 Renvoie un `WatchController` avec une seule méthode, `stop()`, qui ferme la surveillance et attend l'exécution en cours. Un fichier source manquant lève `SOURCE_UNREADABLE` au démarrage ; tout échec ultérieur remonte via `onRun` et la surveillance continue.
 
@@ -178,6 +181,7 @@ interface LocaleSummary {
   locale: string;
   status: "succeeded" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
+  cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
   orphaned: string[];            // target keys with no matching source key (always reported)
   pruned: string[];              // orphaned keys removed this run; empty unless pruning is on
@@ -186,6 +190,9 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
+  unfilled: string[];            // import only: changed rows the translator left blank
+  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -200,6 +207,7 @@ Les parties à connaître :
 - **usage** est `undefined`, jamais un zéro fabriqué, dès que rien dans ce périmètre n'a rapporté d'usage : un dry run n'appelle jamais de fournisseur, et DeepL ne rapporte jamais de tokens. `RunSummary.usage` est la somme sur les locales.
 - **budget** n'apparaît que quand `maxTokens` est configuré : `{ maxTokens, behavior, supported, tokensUsed, exceeded }`. Face à un fournisseur sans tokens ou à un dry run, il est quand même présent avec `supported: false`, donc le garde-fou est visiblement inerte plutôt que faussement déclenché.
 - **error.code** sur une locale échouée est une chaîne préservée (le code du fournisseur ou de l'adaptateur sous-jacent, avec `LOCALE_FAILED` seulement en dernier recours), donc ne le traite pas comme un ensemble fermé.
+- **cacheHits** liste les clés servies depuis le [cache de mémoire de traduction](/docs/the-cache) plutôt que par le fournisseur. **unfilled**, **malformedRows** et **duplicateKeys** ne sont remplis que par `importWorkbook` (une exécution `translate` les laisse vides) : une ligne `changed` vide, une ligne du classeur que le lecteur n'a pas pu analyser, et une clé en double dont la première occurrence a gagné.
 
 ## Le modèle d'erreur
 
@@ -217,6 +225,8 @@ Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable 
 | `SOURCE_INVALID` | le fichier de la locale source n'a pas pu être lu ou parsé ; enveloppe l'erreur de lecture de l'adaptateur |
 | `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu, trop volumineux ou à une version non prise en charge |
 | `LOCK_CONTENDED` | le verrou d'écriture d'une locale n'a pas pu être acquis avant son délai ; le message nomme le chemin du fichier de verrou |
+| `CONCURRENCY_INVALID` | `concurrency` a été défini mais n'est pas un entier d'au moins 1 ; levé avant l'exécution de toute locale |
+| `CONCURRENCY_BUDGET_CONFLICT` | une exécution réelle a défini `concurrency` au-dessus de 1 alors que `maxTokens` est configuré ; levé avant tout appel au fournisseur (un dry-run est exempté) |
 | `LOCALE_FAILED` | jamais levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |
 
 Deux exceptions à la règle de la classe d'erreur unique : `retranslateEntry` relance la `ProviderError` du fournisseur quand l'appel unique échoue, et `runStatus` ne lève jamais. Pour la correspondance entre ces codes et les codes de sortie de la CLI, voir [CI et codes de sortie](/docs/ci-and-exit-codes) ; pour de l'aide par symptôme, voir [Dépannage](/docs/troubleshooting).

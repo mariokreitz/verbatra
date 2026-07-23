@@ -47,7 +47,9 @@ if (summary.failed.length > 0) {
 
 Übergib `dryRun: true`, um ohne Provider-Aufruf und ohne Schreiben eine Vorschau zu bekommen, und
 `prune: true` oder `generatePlurals: true`, um diese Konfigurationsoptionen für einen Lauf zu
-übersteuern.
+übersteuern. Setze `concurrency` über 1, um Locales parallel zu übersetzen (bei einem Live-Lauf
+nicht mit einem `maxTokens`-Budget erlaubt), und `cache: false`, um den
+[Translation-Memory-Cache](/docs/the-cache) zu umgehen.
 
 ## In CI prüfen, ohne zu schreiben
 

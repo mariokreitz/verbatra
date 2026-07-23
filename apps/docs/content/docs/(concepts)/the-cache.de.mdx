@@ -1,0 +1,30 @@
+---
+title: Der Cache
+description: Was verbatra.cache.json wiederverwendet, wie ein Fingerprint ihn eingrenzt und warum er nie einen Lauf scheitern lässt.
+---
+verbatra führt einen lokalen Translation-Memory-Cache, `verbatra.cache.json`, damit ein bereits übersetzter String nie zweimal an einen Provider geht, selbst wenn sich sein Key ändert. Während [die Lock-Datei](/docs/the-lock-file) verfolgt, ob ein Key aktuell ist, wird der Cache über den Inhalt indexiert: Er merkt sich die Übersetzung eines Stücks Quelltext, unabhängig davon, welcher Key ihn hält.
+
+## Was er wiederverwendet
+
+Bei einem Lauf schlägt verbatra einen Key im Cache nach, bevor er zum Provider geht, und zwar über den Hash seines aktuellen Quellinhalts. Ein Treffer wird kostenlos bedient, du zahlst also nie erneut dafür. Weil die Suche über den Inhalt läuft, überlebt die Wiederverwendung Fälle, die die Lock-Datei nicht abdeckt:
+
+- **Ein umbenannter Key.** Verschiebst du einen String von `home.title` nach `landing.title`, wird seine Übersetzung wiederverwendet statt neu übersetzt.
+- **Doppelter Inhalt.** Zwei Keys mit bytegleichem Quelltext teilen sich eine Übersetzung; der zweite ist ein Cache-Treffer.
+
+Einem wiederverwendeten Wert wird nicht blind vertraut. Er durchläuft weiterhin dieselben [Platzhalter- und ICU-Integritätsprüfungen](/docs/translation-safety) gegen den aktuellen Quelltext, bevor er geschrieben wird, ein gecachter Wert, der nicht mehr zu seinem Key passt, wird also verworfen und der Key frisch übersetzt. Cache-Treffer werden pro Locale in der Laufzusammenfassung ausgewiesen, getrennt von den in diesem Lauf übersetzten Keys.
+
+## Der Fingerprint
+
+Jeder gecachte Wert ist auf den Übersetzungskontext eingegrenzt, in dem er entstanden ist: ein kurzer Fingerprint über Provider, Modell, Ton und Glossar. Ändere eines davon, und frühere Einträge passen nicht mehr, ein neuer Ton oder ein bearbeitetes Glossar übersetzt also neu, statt ein veraltetes Ergebnis zu liefern. Das Format ist bewusst nicht Teil des Fingerprints; eine Formatänderung fängt stattdessen die Integritätsprüfung bei jedem Treffer ab.
+
+## Die Datei
+
+`verbatra.cache.json` ist eine lokale, regenerierbare Begleitdatei neben deiner Lock-Datei. `verbatra init` trägt sie in `.gitignore` ein, und du solltest sie aus der Versionskontrolle heraushalten: Anders als die Lock-Datei ist sie eine Kostenoptimierung, keine geteilte Grundlinie. Sie lässt nie einen Lauf scheitern. Eine fehlende, beschädigte, zu große oder in der Version unbekannte Datei degradiert zu einem leeren Cache und wird beim nächsten Lauf einfach neu aufgebaut. Um sie von Grund auf neu aufzubauen, lösche die Datei.
+
+## Umgehen
+
+Übergib `--no-cache` an [`translate`](/docs/cli/translate) oder [`watch`](/docs/cli/watch), um den Cache für einen Lauf zu überspringen: verbatra macht genau die Provider-Aufrufe, die es ohne vorhandenen Cache machen würde, und lässt eine bestehende Cache-Datei unangetastet. Aus dem SDK setzt du `cache: false` auf der `translate`- oder `watch`-Eingabe. Ein Dry-Run liest oder schreibt den Cache ohnehin nie.
+
+## Einschränkung
+
+Synthetisierte Pluralformen werden nicht gecacht. Wenn `generatePlurals` eine CLDR-Pluralkategorie ausfüllt, die der Quelle fehlt, wird dieser generierte Wert nicht zur Wiederverwendung aufgezeichnet, wenn ein Lauf ihn synthetisiert, kommt er also vom Provider, nie aus dem Cache.

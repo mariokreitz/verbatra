@@ -59,7 +59,7 @@ Les clés de premier niveau inconnues sont rejetées. C'est aussi pourquoi une c
 
 - **`sourceLocale`** doit être une chaîne non vide.
 - **`targetLocales`** doit contenir au moins une locale, ne doit pas inclure `sourceLocale`, et deux entrées ne peuvent pas être égales sans tenir compte de la casse (par exemple `["de", "DE"]` est rejeté), puisque chaque locale devient le nom de sa propre feuille Excel à l'export.
-- **`format`** est l'un de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml` ou `arb`. Voir [Formats](/docs/formats).
+- **`format`** est l'un de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb` ou `properties`. Voir [Formats](/docs/formats).
 - **`files.pattern`** doit contenir le jeton `{locale}`, que verbatra remplace par chaque locale : `locales/{locale}.json` se résout en `locales/de.json`. Les chemins se résolvent contre le répertoire de travail.
 
 ### provider

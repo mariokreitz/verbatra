@@ -15,6 +15,7 @@ const SUPPORTED_FORMATS = [
   "ARB",
   "YAML",
   "XLIFF",
+  "Java/Spring properties",
 ];
 
 const AUTHOR = {
