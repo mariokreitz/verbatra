@@ -63,6 +63,38 @@ overrides:
   # GHSA-xcpc-8h2w-3j85 (CVE-2026-39244): a crafted ZIP uncompressed-size header forces a ~4GB allocation.
   # Vulnerable <0.6.0; lifts the 0.5.17 copy adm-zip is pulled through (deepl-node) to the patched line.
   adm-zip@<0.6.0: ">=0.6.0"
+  # GHSA-gcfj-64vw-6mp9 (high, Node adapter reuses an inherited proxy across cloned configs) plus the
+  # axios moderate cluster (GHSA-mwf2-3pr3-8698, GHSA-f4gw-2p7v-4548, GHSA-hcpx-6fm6-wx23,
+  # GHSA-xj6q-8x83-jv6g and the rest of the 1.15.2-1.17.x line). All patched in 1.18.0; lifts the
+  # 1.17.0 copy deepl-node pulls on the published ai-providers/sdk path. deepl-node declares
+  # axios ^1.7.4, so the <2 ceiling keeps it inside 1.x (currently 1.18.1).
+  axios@<1.18.0: ">=1.18.0 <2"
+  # GHSA-j3f2-48v5-ccww: protobufjs DoS via an infinite loop parsing a crafted descriptor.
+  # Vulnerable >=7.5.0 <=7.6.4; lifts the 7.6.4 copy @google/genai pulls on the published sdk path.
+  # The <8 ceiling is required: @google/genai declares protobufjs ^7.5.4, so an unbounded ">=7.6.5"
+  # would resolve the 8.x major (8.7.1) and break it.
+  protobufjs@<7.6.5: ">=7.6.5 <8"
+  # GHSA-52cp-r559-cp3m (high): quadratic-complexity DoS in js-yaml merge-key handling on the v4 line.
+  # Vulnerable >=4.0.0 <4.3.0; lifts the 4.2.0 copy on the published sdk path (via cosmiconfig config
+  # loading), and in @commitlint/cli (dev) and fumadocs-mdx (docs). The <5 ceiling keeps it on the v4
+  # API those consumers expect.
+  "js-yaml@>=4.0.0 <4.3.0": ">=4.3.0 <5"
+  # GHSA-724g-mxrg-4qvm: quadratic-complexity DoS in js-yaml via a crafted !!omap on the v5 line.
+  # Vulnerable >=5.0.0 <=5.2.0; lifts the 5.2.0 copy fumadocs-core pulls (apps/docs, private).
+  "js-yaml@>=5.0.0 <5.2.1": ">=5.2.1 <6"
+  # GHSA-3jxr-9vmj-r5cp (high): brace-expansion ReDoS (exponential-time expansion). Both vulnerable
+  # majors reach the published sdk/exchange path through exceljs>archiver>...>minimatch. Lift each to
+  # its patched release, bounded to its own major.
+  brace-expansion@<1.1.16: ">=1.1.16 <2"
+  "brace-expansion@>=2.0.0 <2.1.2": ">=2.1.2 <3"
+  # GHSA-f88m-g3jw-g9cj (high): sharp inherits libvips vulnerabilities. Vulnerable <0.35.0; lifts the
+  # copy next pulls for image optimization (apps/docs only, private, not published to npm).
+  sharp@<0.35.0: ">=0.35.0"
+  # Next.js highs patched in 16.2.11: App Router middleware/proxy bypass, App Router DoS, Server
+  # Actions SSRF, and rewrites SSRF (all >=16.0.0 <16.2.11, apps/docs only, private). The direct pin in
+  # apps/docs/package.json is bumped to 16.2.11; this override lifts any transitive fumadocs copy too,
+  # bounded to the 16.2 line to avoid an unintended minor jump.
+  "next@>=16.0.0 <16.2.11": ">=16.2.11 <16.3"
 
 allowBuilds:
   '@google/genai': false
