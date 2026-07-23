@@ -9,7 +9,7 @@ import type { VerbatraConfig } from "../config/schema.js";
  */
 function fingerprintModel(provider: ProviderConfig): string | null {
   const options: Record<string, unknown> = provider.options;
-  const model = options["model"];
+  const model = options.model;
   return typeof model === "string" ? model : null;
 }
 

@@ -179,6 +179,116 @@ function collectCacheAdditions(
   return additions;
 }
 
+/**
+ * A set of provider-miss keys sharing one source content hash. Only the representative is sent to the
+ * provider; every duplicate inherits the representative's outcome, so byte-identical source text is
+ * translated once per locale rather than once per key.
+ */
+interface MissGroup {
+  readonly representative: string;
+  readonly duplicates: readonly string[];
+}
+
+/**
+ * Groups the provider misses by source content hash so identical source text costs exactly one
+ * provider request per locale, independent of the cache (the dedup still applies under `--no-cache`).
+ * The first key seen for a hash is its representative; every later key with the same hash is a
+ * duplicate. Insertion order is preserved so representative selection and the summary stay
+ * deterministic.
+ */
+function groupMissesByContent(
+  params: LocaleRunParams,
+  misses: readonly string[],
+): readonly MissGroup[] {
+  const byHash = new Map<string, { representative: string; duplicates: string[] }>();
+  for (const key of misses) {
+    const source = params.source.entries.get(key);
+    /* v8 ignore next 3 -- misses come from the source-driven diff, so every miss key has a source entry; this guard is purely defensive. */
+    if (source === undefined) {
+      continue;
+    }
+    const existing = byHash.get(contentHash(source));
+    if (existing === undefined) {
+      byHash.set(contentHash(source), { representative: key, duplicates: [] });
+    } else {
+      existing.duplicates.push(key);
+    }
+  }
+  return [...byHash.values()];
+}
+
+/** The accept/withhold buckets a locale's provider translation folds into. */
+interface TranslationOutcome {
+  readonly accepted: Map<string, Accepted>;
+  readonly integrityMismatches: string[];
+  readonly providerFailures: string[];
+  readonly budgetWithheld: string[];
+  readonly reviewFlags: Map<string, ReviewFlag>;
+}
+
+/**
+ * Applies each translated representative's outcome to every duplicate key sharing its source content
+ * hash. An identical content hash guarantees identical placeholder/ICU-relevant fields, so the
+ * representative's gate decision holds for its duplicates without re-gating: an accepted representative
+ * hands its value (and any review flag) to each duplicate, and a withheld one puts each duplicate in
+ * the same bucket. This is what makes two keys with byte-identical source content cost one request.
+ */
+function fanOutContentDuplicates(
+  params: LocaleRunParams,
+  groups: readonly MissGroup[],
+  outcome: TranslationOutcome,
+): void {
+  for (const group of groups) {
+    if (group.duplicates.length > 0) {
+      applyGroupOutcome(params, group, outcome);
+    }
+  }
+}
+
+function applyGroupOutcome(
+  params: LocaleRunParams,
+  group: MissGroup,
+  outcome: TranslationOutcome,
+): void {
+  const acceptedRepresentative = outcome.accepted.get(group.representative);
+  if (acceptedRepresentative !== undefined) {
+    fanOutAccepted(params, group, acceptedRepresentative, outcome);
+    return;
+  }
+  withheldBucketFor(group.representative, outcome).push(...group.duplicates);
+}
+
+function fanOutAccepted(
+  params: LocaleRunParams,
+  group: MissGroup,
+  acceptedRepresentative: Accepted,
+  outcome: TranslationOutcome,
+): void {
+  const flag = outcome.reviewFlags.get(group.representative);
+  for (const key of group.duplicates) {
+    const source = params.source.entries.get(key);
+    /* v8 ignore next 3 -- duplicates come from the same source-driven diff as their representative. */
+    if (source === undefined) {
+      continue;
+    }
+    outcome.accepted.set(key, { value: acceptedRepresentative.value, source });
+    if (flag !== undefined) {
+      outcome.reviewFlags.set(key, flag);
+    }
+  }
+}
+
+/** The single withheld bucket the representative landed in (it is in exactly one), to mirror onto its duplicates. */
+function withheldBucketFor(representative: string, outcome: TranslationOutcome): string[] {
+  if (outcome.integrityMismatches.includes(representative)) {
+    return outcome.integrityMismatches;
+  }
+  if (outcome.budgetWithheld.includes(representative)) {
+    return outcome.budgetWithheld;
+  }
+  return outcome.providerFailures;
+}
+
 function buildRequest(
   params: LocaleRunParams,
   entries: readonly TranslationEntry[],
@@ -257,8 +367,9 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
 
   const partition = partitionCacheHits(params, toTranslate);
   const cacheHitKeys = new Set(partition.hits.keys());
-  const entries = partition.misses
-    .map((key) => params.source.entries.get(key))
+  const missGroups = groupMissesByContent(params, partition.misses);
+  const entries = missGroups
+    .map((group) => params.source.entries.get(group.representative))
     .filter((entry): entry is TranslationEntry => entry !== undefined);
 
   const startedStopped = params.budget.stopped;
@@ -277,6 +388,13 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     budgetWithheld,
     reviewFlags,
   );
+  fanOutContentDuplicates(params, missGroups, {
+    accepted,
+    integrityMismatches,
+    providerFailures,
+    budgetWithheld,
+    reviewFlags,
+  });
 
   const merged = new Map(target.entries);
   for (const key of pruned) {

@@ -1,5 +1,12 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type {
+  ReviewFlag,
+  TranslateRequest,
+  TranslateResult,
+  TranslationProvider,
+  Usage,
+} from "@verbatra/ai-providers";
 import { buildWorkbook, readWorkbook } from "@verbatra/exchange";
 import { describe, expect, it } from "vitest";
 import { computeFingerprint } from "../cache/fingerprint.js";
@@ -89,6 +96,28 @@ async function fillWorkbook(
   await writeFile(path, await buildWorkbook({ sheets }));
 }
 
+/** Total usage of exactly 100 tokens per call, for tripping a small budget deterministically. */
+const USAGE_100: Usage = { inputTokens: 60, outputTokens: 40 };
+
+/** An offline provider that translates every entry and attaches a review flag to exactly one key. */
+function reviewFlaggingProvider(flaggedKey: string): TranslationProvider {
+  return {
+    id: "stub",
+    kind: "llm",
+    supportsGlossary: true,
+    translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+      const values = new Map<string, string>();
+      for (const entry of request.entries) {
+        values.set(entry.key, `[${request.targetLocale}] ${entry.value}`);
+      }
+      const reviewFlags = new Map<string, ReviewFlag>([
+        [flaggedKey, { status: "review", reasons: ["EQUALS_SOURCE"] }],
+      ]);
+      return { values, integrity: new Map(), reviewFlags };
+    },
+  };
+}
+
 describe("translation-memory cache: cross-key reuse", () => {
   it("reuses a renamed key's translation with zero provider calls, applied silently", async () => {
     const dir = await project({ a: "Hello" }, { de: {} });
@@ -110,13 +139,79 @@ describe("translation-memory cache: cross-key reuse", () => {
     expect(summary.locales[0]?.needsReview).toEqual([]);
   });
 
-  it("stores identical source content once and requests it in a single batch", async () => {
+  it("translates byte-identical source content once per locale and fans the value to every key, even across batch splits", async () => {
     const dir = await project({ a: "Hello", b: "Hello" }, { de: {} });
     const stub = makeStubProvider();
-    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+    const summary = await translate(
+      { config: cfg({ maxBatchSize: 1 }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    // maxBatchSize 1 would put each key in its own request without content dedup; the shared string
+    // is instead sent exactly once and fanned out to both keys.
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls.flatMap((c) => c.request.entries.map((e) => e.value))).toEqual(["Hello"]);
+
+    const de = await readTarget(dir, "de");
+    expect(de.a).toBe("[de] Hello");
+    expect(de.b).toBe("[de] Hello");
+    expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["a", "b"]);
+    expect(localeCacheKeys(await loadCache(dir), computeFingerprint(cfg()), "de")).toHaveLength(1);
+  });
+
+  it("withholds every key sharing content when the representative fails the integrity gate", async () => {
+    const dir = await project({ a: "Hi {{name}}", b: "Hi {{name}}" }, { de: {} });
+    const stub = makeStubProvider({ failIntegrity: new Set(["a"]) });
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
 
     expect(stub.calls).toHaveLength(1);
-    expect(localeCacheKeys(await loadCache(dir), computeFingerprint(cfg()), "de")).toHaveLength(1);
+    expect([...(summary.locales[0]?.integrityMismatches ?? [])].sort()).toEqual(["a", "b"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+    expect(summary.locales[0]?.status).toBe("failed");
+    expect(await fileExists(cacheFilePath(dir))).toBe(false);
+  });
+
+  it("withholds every key sharing content when the provider returns no value for the representative", async () => {
+    const dir = await project({ a: "Hello", b: "Hello" }, { de: {} });
+    const stub = makeStubProvider({ missingValues: new Set(["a"]) });
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(1);
+    expect([...(summary.locales[0]?.providerFailures ?? [])].sort()).toEqual(["a", "b"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+  });
+
+  it("fans a review flag out to every key sharing the representative's content", async () => {
+    const dir = await project({ a: "Hello", b: "Hello" }, { de: {} });
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => reviewFlaggingProvider("a") },
+    );
+
+    expect((summary.locales[0]?.needsReview ?? []).map((flag) => flag.key).sort()).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("withholds every duplicate when the representative is budget-withheld", async () => {
+    // Candidates are processed in key order (a_solo first). a_solo trips the budget, so the later
+    // duplicated group (z_a, z_b) never reaches the provider and its representative is budget-withheld.
+    const dir = await project({ a_solo: "Solo", z_a: "Dup", z_b: "Dup" }, { de: {} });
+    const stub = makeStubProvider({ usage: USAGE_100 });
+    const summary = await translate(
+      { config: cfg({ maxTokens: 50, budgetBehavior: "stop", maxBatchSize: 1 }), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect([...(summary.locales[0]?.budgetWithheld ?? [])].sort()).toEqual(["z_a", "z_b"]);
+    expect(summary.locales[0]?.translated).toEqual(["a_solo"]);
   });
 
   it("reuses deterministically: the same rename flow yields a byte-identical target both times", async () => {
