@@ -9,6 +9,7 @@ export const SUPPORTED_FORMATS = [
   "xliff",
   "yaml",
   "arb",
+  "properties",
 ] as const;
 
 /** Zod schema accepting exactly one of {@link SUPPORTED_FORMATS}. */

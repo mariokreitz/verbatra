@@ -9,10 +9,11 @@ describe("SupportedFormat", () => {
     expect(SUPPORTED_FORMATS).toContain("ngx-translate-json");
   });
 
-  it("enumerates the non-JSON formats (XLIFF, YAML, ARB)", () => {
+  it("enumerates the non-JSON formats (XLIFF, YAML, ARB, properties)", () => {
     expect(SUPPORTED_FORMATS).toContain("xliff");
     expect(SUPPORTED_FORMATS).toContain("yaml");
     expect(SUPPORTED_FORMATS).toContain("arb");
+    expect(SUPPORTED_FORMATS).toContain("properties");
   });
 
   it("accepts a known format", () => {
@@ -23,6 +24,7 @@ describe("SupportedFormat", () => {
     expect(supportedFormatSchema.parse("xliff")).toBe("xliff");
     expect(supportedFormatSchema.parse("yaml")).toBe("yaml");
     expect(supportedFormatSchema.parse("arb")).toBe("arb");
+    expect(supportedFormatSchema.parse("properties")).toBe("properties");
   });
 
   it("rejects an unknown format", () => {

@@ -29,6 +29,7 @@ describe("createDefaultRegistry", () => {
     ["yaml", "en.yml"],
     ["yaml", "en.yaml"],
     ["arb", "app_en.arb"],
+    ["properties", "messages.properties"],
   ] as const)("resolves the %s adapter by detection from %s", (format, file) => {
     const result = createDefaultRegistry().resolve(file);
     expect(result.status).toBe("resolved");
@@ -37,7 +38,12 @@ describe("createDefaultRegistry", () => {
     }
   });
 
-  it.each(["xliff", "yaml", "arb"] as const)("resolves %s by explicit format", (format) => {
+  it.each([
+    "xliff",
+    "yaml",
+    "arb",
+    "properties",
+  ] as const)("resolves %s by explicit format", (format) => {
     const result = createDefaultRegistry().resolve("file", { format });
     expect(result.status).toBe("resolved");
     if (result.status === "resolved") {
