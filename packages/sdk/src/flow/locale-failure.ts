@@ -28,6 +28,9 @@ export function failureSummary(locale: string, error: unknown): LocaleSummary {
     generated: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     error: describeError(error),
   };
 }

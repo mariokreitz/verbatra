@@ -42,7 +42,7 @@ export function toRenderableError(error: unknown): RenderableError {
  */
 export function renderHuman(summary: RunSummary, command = "translate"): string {
   const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
-  const localeLines = summary.locales.map(renderLocaleLine);
+  const localeLines = summary.locales.flatMap(renderLocaleLine);
   const aggregate = `${summary.succeeded.length} succeeded, ${summary.partial.length} partial, ${summary.failed.length} failed${
     summary.dryRun ? " (dry run: nothing written)" : ""
   }`;
@@ -71,11 +71,45 @@ function renderBudgetLine(budget: RunBudget): string {
   return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
-/** One locale line: the failure code and message, or the counts (translated and unchanged always, the rest only when non-zero). */
-function renderLocaleLine(locale: LocaleSummary): string {
+/** Column width that aligns the import detail group keys past the longest label ("duplicates:"). */
+const DETAIL_GROUP_WIDTH = 13;
+
+/** One indented import-detail group (`unfilled:`, `malformed:`, `duplicates:`), or nothing when empty. */
+function renderDetailGroup(label: string, values: readonly string[]): string | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+  return `    ${`${label}:`.padEnd(DETAIL_GROUP_WIDTH)}${values.join(", ")}`;
+}
+
+/**
+ * The import-only detail groups under a locale line: the unfilled `changed` keys, the malformed rows
+ * (by row and column), and the duplicate-key conflicts (by key and losing row). Empty for a provider
+ * run, which never populates any of these buckets.
+ */
+function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
+  return [
+    renderDetailGroup("unfilled", locale.unfilled),
+    renderDetailGroup(
+      "malformed",
+      locale.malformedRows.map((problem) => `row ${problem.row} (${problem.column})`),
+    ),
+    renderDetailGroup(
+      "duplicates",
+      locale.duplicateKeys.map((duplicate) => `${duplicate.key} (row ${duplicate.row})`),
+    ),
+  ].filter((line): line is string => line !== undefined);
+}
+
+/**
+ * One locale's lines: the failure code and message, or the counts (translated and unchanged always,
+ * the rest only when non-zero) followed by any import-detail key-list groups (unfilled, malformed,
+ * duplicates).
+ */
+function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   if (locale.status === "failed") {
     const suffix = locale.error ? ` [${locale.error.code}] ${locale.error.message}` : "";
-    return `  ${locale.locale}: failed${suffix}`;
+    return [`  ${locale.locale}: failed${suffix}`];
   }
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
@@ -86,6 +120,9 @@ function renderLocaleLine(locale: LocaleSummary): string {
     [locale.invalidIcuSource.length, "invalid-ICU skipped", false],
     [locale.integrityMismatches.length, "integrity-withheld", false],
     [locale.budgetWithheld.length, "budget-withheld", false],
+    [locale.unfilled.length, "unfilled", false],
+    [locale.malformedRows.length, "malformed-rows", false],
+    [locale.duplicateKeys.length, "duplicate-keys", false],
     [locale.needsReview.length, "needs-review", false],
     [locale.notices.length, "notices", false],
   ];
@@ -93,7 +130,7 @@ function renderLocaleLine(locale: LocaleSummary): string {
     .filter(([count, , always]) => always || count > 0)
     .map(([count, label]) => `${count} ${label}`);
   const tokenSuffix = locale.usage !== undefined ? `, ${renderTokens(locale.usage)}` : "";
-  return `  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`;
+  return [`  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`, ...renderLocaleDetail(locale)];
 }
 
 /**

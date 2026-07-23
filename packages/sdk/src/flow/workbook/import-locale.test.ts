@@ -46,6 +46,8 @@ function params(over: Partial<ImportLocaleParams> & { sheet: WorkbookSheet }): I
     baseline: new Map<string, string>(),
     adapter: createI18nextJsonAdapter(),
     sourceInvalidIcuKeys: [],
+    malformedRows: [],
+    duplicateKeys: [],
     ...over,
   };
 }
@@ -275,6 +277,76 @@ describe("importLocale", () => {
     expect(result.withheld.size).toBe(0);
     expect(result.summary.translated).toEqual(["greet"]);
     expect(result.summary.integrityMismatches).toEqual([]);
+  });
+
+  it("reports a changed row left blank as unfilled, but not a blank new row", () => {
+    const src = entry("greet", "Hi");
+    const other = entry("intro", "Welcome");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        { ...row("greet", "", contentHash(src)), status: "changed" },
+        { ...row("intro", "", contentHash(other)), status: "new" },
+      ],
+    };
+    const result = importLocale(
+      params({ sheet, source: resource("en", [src, other]), target: resource("de", []) }),
+    );
+
+    expect(result.summary.unfilled).toEqual(["greet"]);
+  });
+
+  it("clears a value via [[CLEAR]] when the source did not drift", () => {
+    const src = entry("greet", "Hi {{name}}", ["{{name}}"]);
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [row("greet", "[[CLEAR]]", contentHash(src))],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo {{name}}", ["{{name}}"])]),
+      }),
+    );
+
+    expect(result.accepted.get("greet")?.value).toBe("");
+    expect(result.summary.integrityMismatches).toEqual([]);
+    expect(result.summary.translated).toEqual(["greet"]);
+  });
+
+  it("withholds a [[CLEAR]] whose source drifted, reporting it like any drift", () => {
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [row("greet", "[[CLEAR]]", "stale-hash")],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [entry("greet", "Hi")]),
+        target: resource("de", [entry("greet", "Hallo")]),
+      }),
+    );
+
+    expect(result.accepted.size).toBe(0);
+    expect(result.summary.integrityMismatches).toEqual(["greet"]);
+  });
+
+  it("carries the reader's malformed-row and duplicate-key findings onto the summary", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = { locale: "de", rows: [row("greet", "Hallo", contentHash(src))] };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", []),
+        malformedRows: [{ row: 4, column: "Status" }],
+        duplicateKeys: [{ key: "greet", row: 5 }],
+      }),
+    );
+
+    expect(result.summary.malformedRows).toEqual([{ row: 4, column: "Status" }]);
+    expect(result.summary.duplicateKeys).toEqual([{ key: "greet", row: 5 }]);
   });
 
   it("never treats the row's context as a translation source, even a hostile one that matches nothing else", () => {

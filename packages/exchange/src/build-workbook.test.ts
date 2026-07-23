@@ -1,8 +1,10 @@
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
-import { buildWorkbook } from "./build-workbook.js";
+import { buildWorkbook, spliceWorkbookProtection } from "./build-workbook.js";
 import { ExchangeError } from "./errors.js";
 import { COLUMN, HEADER_ROW, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
+import { readWorkbook } from "./read-workbook.js";
 import type { WorkbookModel } from "./types.js";
 
 const model: WorkbookModel = {
@@ -84,6 +86,35 @@ describe("buildWorkbook: translator-facing properties", () => {
     const workbook = await loadBuilt();
     const sheet = workbook.getWorksheet("de");
     expect(sheet?.getColumn(COLUMN.sourceHash).hidden).toBe(true);
+  });
+
+  it("locks the workbook structure so tabs cannot be renamed, deleted, or reordered", async () => {
+    const bytes = await buildWorkbook(model);
+    const zip = await JSZip.loadAsync(bytes);
+    const xml = await zip.file("xl/workbook.xml")?.async("string");
+    expect(xml).toContain('<workbookProtection lockStructure="1"');
+    expect(xml?.indexOf("workbookProtection")).toBeLessThan(xml?.indexOf("<sheets>") ?? -1);
+  });
+
+  it("stays readable after the structure lock is applied", async () => {
+    const bytes = await buildWorkbook(model);
+    const data = await readWorkbook(bytes);
+    expect(data.sheets.map((s) => s.locale)).toEqual(["de"]);
+    expect(data.sheets[0]?.rows[0]?.key).toBe("greeting");
+  });
+
+  it("splices workbookProtection before <sheets> when no <bookViews> is present", () => {
+    const xml = "<workbook><workbookPr/><sheets><sheet/></sheets></workbook>";
+    const spliced = spliceWorkbookProtection(xml);
+    expect(spliced).toContain('<workbookProtection lockStructure="1" lockWindows="0"/><sheets>');
+    expect(spliced.indexOf("workbookProtection")).toBeLessThan(spliced.indexOf("<sheets>"));
+  });
+
+  it("splices workbookProtection before <bookViews> to keep the CT_Workbook order", () => {
+    const xml = "<workbook><workbookPr/><bookViews><workbookView/></bookViews><sheets/></workbook>";
+    const spliced = spliceWorkbookProtection(xml);
+    expect(spliced.indexOf("workbookProtection")).toBeLessThan(spliced.indexOf("<bookViews"));
+    expect(spliced.indexOf("<bookViews")).toBeLessThan(spliced.indexOf("<sheets"));
   });
 
   it("writes the context column and keeps it visible, unlike the hidden source-hash column", async () => {

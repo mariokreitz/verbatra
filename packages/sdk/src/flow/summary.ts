@@ -58,6 +58,28 @@ export interface NeedsReviewEntry {
   readonly reasons: readonly ReviewReasonCode[];
 }
 
+/**
+ * One row a workbook import could not read: the 1-based worksheet row number and the header label of
+ * the offending column. Carries no cell content, so untrusted workbook text never reaches the summary.
+ */
+export interface MalformedRowReport {
+  /** The 1-based worksheet row number of the malformed row. */
+  readonly row: number;
+  /** The header label of the column the row was rejected on (for example "Status"). */
+  readonly column: string;
+}
+
+/**
+ * One duplicate-key conflict a workbook import found in a locale's sheet: the duplicated key and the
+ * 1-based worksheet row number of the later (losing) occurrence. The first occurrence is the winner.
+ */
+export interface DuplicateKeyReport {
+  /** The key that appeared more than once in the locale's sheet. */
+  readonly key: string;
+  /** The 1-based worksheet row number of the later occurrence that lost to the first. */
+  readonly row: number;
+}
+
 /** Structured outcome for one target locale; surfaced as data on the run, never thrown. */
 export interface LocaleSummary {
   /** The target locale this summary is for. */
@@ -71,6 +93,12 @@ export interface LocaleSummary {
    * {@link LocaleSummary.budgetWithheld} non-empty). `"failed"` when the locale had candidate keys
    * but accepted nothing at all (neither translated nor generated) while withholding at least one.
    * Withheld keys keep their prior lock hash and retry next run.
+   *
+   * A workbook import's structural findings, {@link LocaleSummary.unfilled},
+   * {@link LocaleSummary.malformedRows}, and {@link LocaleSummary.duplicateKeys}, deliberately do NOT
+   * feed this status: they are surfaced in their own lists (and the CLI) but are not withholdings of
+   * an attempted translation, so a locale that dropped a malformed row, collapsed a duplicate key, or
+   * left a `changed` row unfilled while accepting its other rows can still be `"succeeded"`.
    */
   readonly status: "succeeded" | "partial" | "failed";
   /**
@@ -141,6 +169,27 @@ export interface LocaleSummary {
    * flags on its own path).
    */
   readonly needsReview: readonly NeedsReviewEntry[];
+  /**
+   * Keys the workbook exported as `changed` (needing an updated translation) that the translator left
+   * blank, drifted or not, sorted by key. Pending work made visible: the row is skipped (nothing is
+   * written and the prior lock baseline is kept), but the key is surfaced so an unfinished import is
+   * never silently reported as done. Only a workbook import populates this; the provider path, which
+   * never leaves a candidate key unfilled by a person, always leaves it empty.
+   */
+  readonly unfilled: readonly string[];
+  /**
+   * Rows a workbook import could not read for this locale, each by worksheet row number and offending
+   * column, in row order. The sheet's other rows still import; a malformed row is reported, not
+   * written. Only a workbook import populates this; the provider path always leaves it empty.
+   */
+  readonly malformedRows: readonly MalformedRowReport[];
+  /**
+   * Duplicate-key conflicts a workbook import found in this locale's sheet, in row order. The rule is
+   * first occurrence wins: the first row for a key is judged and its later occurrences are reported
+   * here and otherwise ignored. Only a workbook import populates this; the provider path always leaves
+   * it empty.
+   */
+  readonly duplicateKeys: readonly DuplicateKeyReport[];
   /**
    * A structured, secret-free error for a locale that threw (an adapter/lock/provider-construction
    * failure isolated as data): present only on a "failed" locale, and only that throw path sets it.

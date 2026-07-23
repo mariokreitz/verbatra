@@ -26,6 +26,9 @@ function succeededLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummary 
     budgetWithheld: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     ...overrides,
   };
 }

@@ -17,6 +17,9 @@ function locale(overrides: Partial<LocaleSummary> & { readonly locale: string })
     generated: [],
     notices: [],
     needsReview: [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     ...overrides,
   };
 }

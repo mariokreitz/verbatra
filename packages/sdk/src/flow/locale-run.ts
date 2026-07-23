@@ -338,6 +338,9 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
     generated: parts.generated,
     notices: parts.notices,
     needsReview: parts.needsReview ?? [],
+    unfilled: [],
+    malformedRows: [],
+    duplicateKeys: [],
     ...(parts.usage !== undefined ? { usage: parts.usage } : {}),
   };
 }

@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { ExchangeError } from "./errors.js";
 import { INSTRUCTIONS_LINES } from "./instructions.js";
 import { COLUMN, HEADER_ROW, HEADERS, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
@@ -173,10 +174,57 @@ function buildInstructionsSheet(workbook: ExcelJS.Workbook): void {
 }
 
 /**
+ * The workbook-structure lock, injected into `xl/workbook.xml`. `lockStructure="1"` stops a viewer
+ * from renaming, deleting, moving, or inserting sheets without a password (no password is set, so the
+ * lock is a guard rail, not a security control); it complements the per-sheet cell protection.
+ */
+const WORKBOOK_PROTECTION_XML = '<workbookProtection lockStructure="1" lockWindows="0"/>';
+
+/**
+ * The `xl/workbook.xml` element `workbookProtection` must precede in the CT_Workbook schema sequence:
+ * `fileVersion`, `fileSharing`, `workbookPr`, `workbookProtection`, `bookViews`, `sheets`. So the
+ * splice anchors on the first element that must follow it: `bookViews` when present (only if the
+ * builder ever sets `workbook.views`), otherwise `sheets` (always present). Matching the open-tag
+ * prefixes keeps the insertion schema-correct regardless of which optional elements exceljs emitted.
+ *
+ * Exported for direct unit testing of the anchor selection; not part of the package's public surface.
+ */
+export function spliceWorkbookProtection(xml: string): string {
+  const anchor = xml.includes("<bookViews") ? "<bookViews" : "<sheets";
+  return xml.replace(anchor, `${WORKBOOK_PROTECTION_XML}${anchor}`);
+}
+
+/**
+ * Add workbook-structure protection that exceljs cannot emit itself: reopen the serialized `.xlsx`
+ * (a zip), splice the `workbookProtection` element into `xl/workbook.xml` at its schema position, and
+ * re-serialize. Keeping the tabs locked stops a translator from silently renaming or deleting a
+ * language tab, which import can no longer map back to a locale.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the serialized workbook cannot be reopened
+ */
+async function protectWorkbookStructure(bytes: Uint8Array): Promise<Uint8Array> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(bytes);
+  } catch {
+    throw new ExchangeError("WORKBOOK_INVALID", "The workbook could not be serialized.");
+  }
+  const workbookPart = zip.file("xl/workbook.xml");
+  /* v8 ignore next 3 -- exceljs always writes xl/workbook.xml; this null guard is unreachable for any workbook this module builds. */
+  if (workbookPart === null) {
+    return bytes;
+  }
+  const xml = await workbookPart.async("string");
+  zip.file("xl/workbook.xml", spliceWorkbookProtection(xml));
+  return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+}
+
+/**
  * Build a styled `.xlsx` from the neutral row model: an instructions sheet first, then one data
  * sheet per target locale, each with a frozen header, shaded read-only columns, a hidden source-hash
- * column, and protection that leaves only the translation column editable. Output is deterministic
- * for a given model.
+ * column, and cell protection that leaves only the translation column editable. The workbook structure
+ * is protected too, so the language tabs cannot be trivially renamed, deleted, or reordered. Row
+ * content and order are deterministic for a given model.
  *
  * @param model - the neutral workbook model (sheets in config order, rows in a stable order)
  * @returns the workbook bytes
@@ -191,11 +239,13 @@ export async function buildWorkbook(model: WorkbookModel): Promise<Uint8Array> {
   for (const sheet of model.sheets) {
     await buildDataSheet(workbook, sheet);
   }
+  let serialized: Uint8Array;
   try {
     const buffer = await workbook.xlsx.writeBuffer();
-    const view = buffer as unknown as Uint8Array;
-    return Uint8Array.prototype.slice.call(view);
+    serialized = buffer as unknown as Uint8Array;
   } catch {
     throw new ExchangeError("WORKBOOK_INVALID", "The workbook could not be serialized.");
   }
+  const protectedBytes = await protectWorkbookStructure(serialized);
+  return Uint8Array.prototype.slice.call(protectedBytes);
 }
