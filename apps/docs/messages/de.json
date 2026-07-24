@@ -1,8 +1,10 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra: halte deine i18n-Locale-Dateien synchron und übersetze nur, was sich geändert hat",
+      "title": "verbatra: inkrementelle i18n-Übersetzung für Locale-Dateien",
+      "ogTitle": "verbatra: inkrementelle i18n-Synchronisierung",
       "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die Schlüssel, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl. Leg jetzt los.",
+      "ogDescription": "Halte deine i18n-Locale-Dateien synchron. Übersetze nur geänderte Schlüssel.",
       "ogImageAlt": "verbatra hält deine i18n-Locale-Dateien synchron und übersetzt nur die Schlüssel, die sich geändert haben.",
       "definition": "verbatra ist ein CLI und SDK, das deine i18n-Locale-Dateien synchron hält und nur die Schlüssel übersetzt, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl."
     },
