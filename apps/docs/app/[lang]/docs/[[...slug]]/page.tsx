@@ -15,6 +15,7 @@ import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
 import { extractFaqItems } from "@/lib/extract-faq";
 import { i18n, type Locale } from "@/lib/i18n";
+import { ogAlternateLocales, ogLocale } from "@/lib/site";
 import { source } from "@/lib/source";
 import {
   type BreadcrumbLdItem,
@@ -150,10 +151,13 @@ export async function generateMetadata(props: {
     alternates: { canonical: page.url, languages },
     openGraph: {
       type: "article",
+      siteName: "verbatra",
+      locale: ogLocale(params.lang as Locale),
+      alternateLocale: ogAlternateLocales(params.lang as Locale),
       title: page.data.title,
       description: page.data.description,
       url: page.url,
-      images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+      images: [{ url: "/og-image.png", width: 1200, height: 630, alt: page.data.title }],
     },
     twitter: {
       card: "summary_large_image",

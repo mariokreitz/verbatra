@@ -21,3 +21,23 @@ export function localeAlternates(locale: Locale, path: string) {
   languages["x-default"] = localizedPath(i18n.defaultLanguage, path);
   return { canonical: localizedPath(locale, path), languages };
 }
+
+/**
+ * Open Graph locale in the `language_TERRITORY` form the OG spec expects (for example `en_US`),
+ * rather than the bare language tag. Maps each supported UI locale to a representative territory.
+ */
+const OG_LOCALES: Record<Locale, string> = {
+  en: "en_US",
+  de: "de_DE",
+  es: "es_ES",
+  fr: "fr_FR",
+};
+
+export function ogLocale(locale: Locale): string {
+  return OG_LOCALES[locale];
+}
+
+/** The `og:locale:alternate` set: every supported locale except the current one, territory-qualified. */
+export function ogAlternateLocales(locale: Locale): string[] {
+  return i18n.languages.filter((lang) => lang !== locale).map((lang) => OG_LOCALES[lang]);
+}
