@@ -11,7 +11,7 @@ import { JsonLd } from "@/components/json-ld";
 import { LocaleAwareFrameworkProvider } from "@/lib/framework-provider";
 import { i18n, type Locale } from "@/lib/i18n";
 import { i18nConfig } from "@/lib/layout.shared";
-import { SITE_URL } from "@/lib/site";
+import { ogAlternateLocales, ogLocale, SITE_URL } from "@/lib/site";
 import { AUTHOR_NAME, SEO_KEYWORDS, websiteLd } from "@/lib/structured-data";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -67,7 +67,8 @@ export async function generateMetadata(props: {
     openGraph: {
       type: "website",
       siteName: "verbatra",
-      locale: lang,
+      locale: ogLocale(lang as Locale),
+      alternateLocale: ogAlternateLocales(lang as Locale),
       url: new URL(canonical, SITE_URL).href,
       title: ogTitle,
       description: ogDescription,
