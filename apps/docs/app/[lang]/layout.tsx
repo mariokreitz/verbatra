@@ -12,7 +12,7 @@ import { LocaleAwareFrameworkProvider } from "@/lib/framework-provider";
 import { i18n, type Locale } from "@/lib/i18n";
 import { i18nConfig } from "@/lib/layout.shared";
 import { SITE_URL } from "@/lib/site";
-import { websiteLd } from "@/lib/structured-data";
+import { AUTHOR_NAME, SEO_KEYWORDS, websiteLd } from "@/lib/structured-data";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -28,7 +28,9 @@ export async function generateMetadata(props: {
   const { lang } = await props.params;
   const t = await getTranslations({ locale: lang, namespace: "landing.meta" });
   const title = t("title");
+  const ogTitle = t("ogTitle");
   const description = t("description");
+  const ogDescription = t("ogDescription");
   const ogImageAlt = t("ogImageAlt");
   const canonical = lang === i18n.defaultLanguage ? "/" : `/${lang}`;
 
@@ -36,6 +38,22 @@ export async function generateMetadata(props: {
     metadataBase: new URL(SITE_URL),
     title: { default: title, template: "%s | verbatra" },
     description,
+    keywords: [...SEO_KEYWORDS],
+    authors: [{ name: AUTHOR_NAME, url: "https://github.com/mariokreitz" }],
+    creator: AUTHOR_NAME,
+    publisher: "verbatra",
+    formatDetection: { telephone: false, email: false, address: false },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
     alternates: {
       canonical,
       languages: {
@@ -51,12 +69,14 @@ export async function generateMetadata(props: {
       siteName: "verbatra",
       locale: lang,
       url: new URL(canonical, SITE_URL).href,
-      title,
-      description,
+      title: ogTitle,
+      description: ogDescription,
       images: [{ url: "/og-image.png", width: 1200, height: 630, alt: ogImageAlt }],
     },
     twitter: {
       card: "summary_large_image",
+      site: "@mariokreitz",
+      creator: "@mariokreitz",
       title,
       description,
       images: ["/og-image.png"],

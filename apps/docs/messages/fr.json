@@ -1,8 +1,10 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra : garde tes fichiers de locale i18n synchronisés, traduis seulement ce qui a changé",
+      "title": "verbatra : traduction i18n incrémentale des fichiers de locale",
+      "ogTitle": "verbatra : synchronisation i18n incrémentale",
       "description": "Garde tes fichiers de locale i18n synchronisés. verbatra traduit seulement les clés qui ont changé, via le fournisseur d'IA ou de traduction automatique de ton choix. Commence maintenant.",
+      "ogDescription": "Garde tes fichiers de locale i18n synchronisés. Traduis seulement les clés modifiées.",
       "ogImageAlt": "verbatra garde tes fichiers de locale i18n synchronisés et traduit seulement les clés qui ont changé.",
       "definition": "verbatra est un CLI et un SDK qui garde tes fichiers de locale i18n synchronisés, en traduisant seulement les clés qui ont changé via le fournisseur d'IA ou de traduction automatique de ton choix."
     },

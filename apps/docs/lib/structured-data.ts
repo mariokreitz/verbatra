@@ -18,11 +18,28 @@ const SUPPORTED_FORMATS = [
   "Java/Spring properties",
 ];
 
+export const AUTHOR_NAME = "Mario Kreitz";
+
 const AUTHOR = {
   "@type": "Person",
-  name: "Mario Kreitz",
+  name: AUTHOR_NAME,
   url: "https://github.com/mariokreitz",
 } as const;
+
+/**
+ * Topical keywords for the site. Shared by the SoftwareApplication JSON-LD and the
+ * document `keywords` meta tag so both stay in step from one source.
+ */
+export const SEO_KEYWORDS = [
+  "i18n",
+  "internationalization",
+  "localization",
+  "translation automation",
+  "locale files",
+  "AI translation",
+  "incremental translation",
+  "CLI",
+] as const;
 
 export function softwareApplicationLd(args: {
   description: string;
@@ -46,13 +63,7 @@ export function softwareApplicationLd(args: {
     isAccessibleForFree: true,
     offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     author: AUTHOR,
-    keywords: [
-      "i18n",
-      "internationalization",
-      "localization",
-      "translation automation",
-      "locale files",
-    ],
+    keywords: [...SEO_KEYWORDS],
     featureList: [
       "Incremental translation - only new or changed keys are sent to the provider",
       `Translation providers: ${SUPPORTED_PROVIDERS.join(", ")}`,
