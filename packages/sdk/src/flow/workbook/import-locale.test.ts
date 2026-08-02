@@ -427,6 +427,30 @@ describe("importLocale", () => {
     expect(result.summary.duplicateKeys).toEqual([{ key: "greet", row: 5 }]);
   });
 
+  // Pins the other half of the status-inert decision recorded on LocaleSummary.status. A row is
+  // malformed on its Status cell alone, independently of whether its Translation cell was filled,
+  // so an untouched sheet with a mangled Status column is all-malformed with zero lost work. That
+  // bucket therefore cannot honestly drive a failure.
+  it("still reports succeeded for an import whose only finding is malformed rows", () => {
+    const src = entry("greet", "Hi");
+    const result = importLocale(
+      params({
+        sheet: { locale: "de", rows: [] },
+        source: resource("en", [src]),
+        target: resource("de", []),
+        malformedRows: [
+          { row: 2, column: "Status" },
+          { row: 3, column: "Status" },
+        ],
+      }),
+    );
+
+    expect(result.summary.malformedRows).toHaveLength(2);
+    expect(result.summary.status).toBe("succeeded");
+    expect(result.summary.translated).toEqual([]);
+    expect(result.summary.unfilled).toEqual([]);
+  });
+
   it("never treats the row's context as a translation source, even a hostile one that matches nothing else", () => {
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = {
