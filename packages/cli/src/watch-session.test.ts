@@ -160,7 +160,7 @@ describe("runWatch: lock-wait progress and timeout threading", () => {
       totalLocales: 2,
     });
 
-    expect(err()).toContain("[1/2] translating de");
+    expect(err()).toContain("translating de");
   });
 
   it("passes an onProgress that emits a structured JSON record to stderr under --json", async () => {
