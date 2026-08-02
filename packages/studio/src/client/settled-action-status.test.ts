@@ -25,6 +25,21 @@ describe("settledActionStatusLabel", () => {
     );
   });
 
+  it("reports the empty rejection reason", () => {
+    expect(settledActionStatusLabel({ kind: "rejected", reason: "empty" }, "Saved")).toBe(
+      "Rejected: empty translation",
+    );
+  });
+
+  // The map is shared with the retranslate button, where the empty value came from the provider and
+  // the user typed nothing, so a "[[CLEAR]] instead" remediation would be wrong. It lives in the
+  // edit dialog instead, and this label must stay context-free for both callers.
+  it("keeps the empty label context-free, naming no remediation", () => {
+    const label = settledActionStatusLabel({ kind: "rejected", reason: "empty" }, "Retranslated");
+    expect(label).not.toContain("[[CLEAR]]");
+    expect(label).not.toContain("export");
+  });
+
   it("prefixes an error outcome's message", () => {
     expect(
       settledActionStatusLabel({ kind: "error", message: "The key was not found." }, "Saved"),

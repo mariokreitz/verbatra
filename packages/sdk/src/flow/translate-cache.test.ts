@@ -68,6 +68,13 @@ function localeCacheKeys(cache: TranslationMemory, fingerprint: string, locale: 
   return Object.keys(cache.entries[fingerprint]?.[locale] ?? {});
 }
 
+/** Every cached translation, across every fingerprint and locale, for whole-cache assertions. */
+function cachedValues(cache: TranslationMemory): string[] {
+  return Object.values(cache.entries).flatMap((byLocale) =>
+    Object.values(byLocale ?? {}).flatMap((byHash) => Object.values(byHash ?? {})),
+  );
+}
+
 async function fileExists(path: string): Promise<boolean> {
   try {
     await access(path);
@@ -427,5 +434,96 @@ describe("translation-memory cache: fed by the single-key and workbook write pat
     await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir, dryRun: true });
 
     expect(await fileExists(cacheFilePath(dir))).toBe(false);
+  });
+});
+
+describe("integrity gate: an empty provider value never reaches disk or the cache", () => {
+  it("withholds an empty translation instead of writing it, and reports the locale partial", async () => {
+    const dir = await project({ a: "Save" }, {});
+    const stub = makeStubProvider({ translate: () => "" });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+    expect(summary.succeeded).toEqual([]);
+    expect(await readTarget(dir, "de")).not.toHaveProperty("a");
+  });
+
+  it("never overwrites an existing good translation of a changed key with an empty value", async () => {
+    const dir = await project({ a: "Save" }, { de: { a: "Speichern" } });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+    await setSource(dir, { a: "Save changes" });
+    const stub = makeStubProvider({ translate: () => "" });
+
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+
+    expect((await readTarget(dir, "de")).a).not.toBe("");
+  });
+
+  it("retries the withheld key on the next run instead of locking it in", async () => {
+    const dir = await project({ a: "Save" }, {});
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider({ translate: () => "" }).provider },
+    );
+
+    const second = makeStubProvider();
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => second.provider },
+    );
+
+    expect(second.calls.length).toBeGreaterThan(0);
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    expect((await readTarget(dir, "de")).a).not.toBe("");
+  });
+
+  it("stores no empty value in the cache for a non-empty source", async () => {
+    const dir = await project({ a: "Save" }, {});
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider({ translate: () => "" }).provider },
+    );
+
+    expect(cachedValues(await loadCache(dir))).not.toContain("");
+  });
+});
+
+describe("workbook [[CLEAR]]: a per-key intent never enters the content-addressed cache", () => {
+  it("clears its own key without spraying the empty value onto a byte-identical source key", async () => {
+    const dir = await project({ a: "Save" }, {});
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    // "a" is already translated, so it only appears in the sheet with includeUnchanged.
+    const exported = await exportWorkbook({ config: cfg(), cwd: dir, includeUnchanged: true });
+    await fillWorkbook(exported.path, "de", { a: "[[CLEAR]]" });
+    await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir });
+
+    expect((await readTarget(dir, "de")).a).toBe("");
+    expect(cachedValues(await loadCache(dir))).not.toContain("");
+
+    // A new key whose source text is byte-identical to the cleared one must end up with a real
+    // translation. It may legitimately be served from the cache, because what the cache holds for
+    // that source text is the earlier translation and never the clear: the clear is knowledge about
+    // key "a" specifically, which a content-addressed store cannot express.
+    await setSource(dir, { a: "Save", c: "Save" });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect((await readTarget(dir, "de")).c).not.toBe("");
+    expect((await readTarget(dir, "de")).a).toBe("");
   });
 });

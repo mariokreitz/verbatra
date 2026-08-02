@@ -37,7 +37,7 @@ Haz clic en cualquier clave para abrir su vista de detalle: los valores por loca
 
 ### Edita con la puerta de integridad
 
-El editor muestra la cadena de origen y un área de texto prellenada con la traducción actual. Guardar envía el valor por la misma puerta que cualquier otra escritura de verbatra: un valor que pierde o inventa un marcador de posición, o que rompe la estructura de un mensaje ICU, se rechaza con el motivo nombrado y **no se escribe nada**. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como una fila de importación aceptada.
+El editor muestra la cadena de origen y un área de texto prellenada con la traducción actual. Guardar envía el valor por la misma puerta que cualquier otra escritura de verbatra: un valor que no supera alguna de las comprobaciones de integridad se rechaza con el motivo nombrado y **no se escribe nada**. Vaciar una traducción no es algo que una edición pueda expresar, así que un valor vacío también se rechaza; el centinela `[[CLEAR]]` del libro de trabajo es la forma admitida de vaciar una clave. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como una fila de importación aceptada.
 
 Editar no necesita ningún flag. Toca solo tus archivos locales y nunca llama a un proveedor.
 

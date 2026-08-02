@@ -37,7 +37,7 @@ Clique sur n'importe quelle clé pour ouvrir sa vue détaillée : les valeurs pa
 
 ### Modifier avec le contrôle d'intégrité
 
-L'éditeur montre la chaîne source et une zone de texte préremplie avec la traduction actuelle. Enregistrer soumet la valeur au même contrôle que toute autre écriture verbatra : une valeur qui supprime ou invente un placeholder, ou casse la structure d'un message ICU, est rejetée avec la raison nommée et **rien n'est écrit**. Une modification acceptée écrit le fichier de locale et fait avancer l'entrée de verrou de la clé, exactement comme une ligne d'import acceptée.
+L'éditeur montre la chaîne source et une zone de texte préremplie avec la traduction actuelle. Enregistrer soumet la valeur au même contrôle que toute autre écriture verbatra : une valeur qui échoue à l'une des vérifications d'intégrité est rejetée avec la raison nommée et **rien n'est écrit**. Vider une traduction n'est pas quelque chose qu'une modification peut exprimer, donc une valeur vide est refusée elle aussi ; la sentinelle `[[CLEAR]]` du classeur est le moyen pris en charge pour vider une clé. Une modification acceptée écrit le fichier de locale et fait avancer l'entrée de verrou de la clé, exactement comme une ligne d'import acceptée.
 
 Modifier n'exige aucune option. Ça ne touche que tes fichiers locaux et n'appelle jamais de fournisseur.
 

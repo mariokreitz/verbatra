@@ -13,10 +13,17 @@ export type SettledActionOutcome =
   | { readonly kind: "rejected"; readonly reason: IntegrityGateReason }
   | { readonly kind: "error"; readonly message: string };
 
+/**
+ * Every label here is context-free, because this map is shared by `EditEntryDialog` and
+ * `RetranslateButton`. A retranslate's empty value came from the provider and the user typed
+ * nothing, so a "type [[CLEAR]] instead" remediation would be actively wrong there. That pointer
+ * belongs in the edit dialog, which is the only place a person can have typed the empty value.
+ */
 const REJECTION_LABEL: Readonly<Record<IntegrityGateReason, string>> = {
   placeholder: "Rejected: placeholder mismatch",
   icu: "Rejected: invalid message syntax",
   degenerate: "Rejected: degenerate translation",
+  empty: "Rejected: empty translation",
 };
 
 /**
