@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "entries": {
+    "2972072052020dbc": {
+      "de": {
+        "0343b66158ccb374": "verbatra: inkrementelle i18n-Übersetzung für Lokalisierungsdateien",
+        "0e291b1e41439525": "Welche Übersetzungsanbieter kann ich verwenden?",
+        "1e1df797e6702fa5": "Anthropic, OpenAI, Gemini, DeepL oder ein lokales OpenAI-kompatibles Modell, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren.",
+        "2f54d8a138b14e5e": "Anthropic, OpenAI, Gemini, DeepL oder jeder OpenAI-kompatible Server, den du selbst hostest. Wähle einen in einer einzigen Konfigurationszeile aus und wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren.",
+        "622de9e1f18bb1c0": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das Changelog, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf wird mit einer festgeschriebenen Lock-Datei verglichen, überprüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain.",
+        "9950b67fa4f52371": "JSON für i18next, vue-i18n, next-intl und ngx-translate, dazu XLIFF, YAML, Flutter ARB und Java/Spring Properties. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, zu dem du migrieren müsstest.",
+        "becb17226a48116e": "Fünf, hinter einer Oberfläche: Anthropic, OpenAI und Gemini (LLMs), DeepL (maschinelle Übersetzung) und openai-compatible, das verbatra auf einen lokalen oder selbst gehosteten Server wie Ollama, LM Studio oder vLLM verweist. Du wählst einen über seine ID in deiner Konfiguration aus und kannst später wechseln, indem du diese eine Zeile bearbeitest. Gemini hat einen echten kostenlosen Tarif, und ein lokales Modell kostet pro Aufruf nichts.",
+        "cb68aaa0cc1af48b": "Welche Formate und Frameworks unterstützt verbatra?",
+        "e2425c4c4ba43cd0": "verbatra liest die Lokalisierungsdateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring Properties. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
+        "eb722a4c5664627c": "Übersetze nur das, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini, DeepL oder jeden OpenAI-kompatiblen Server, den du selbst betreibst. Eine festgeschriebene Lock-Datei hält jeden Lauf inkrementell, und die Integrität von Platzhaltern und ICU wird überprüft, bevor etwas geschrieben wird."
+      },
+      "es": {
+        "0343b66158ccb374": "verbatra: traducción incremental de i18n para archivos de localización",
+        "0e291b1e41439525": "¿Qué proveedores de traducción puedo usar?",
+        "1e1df797e6702fa5": "Anthropic, OpenAI, Gemini, DeepL, o un modelo local compatible con OpenAI, elegido en una línea de configuración. Cambia de proveedor sin tocar tus archivos de localización.",
+        "2f54d8a138b14e5e": "Anthropic, OpenAI, Gemini, DeepL, o cualquier servidor compatible con OpenAI que alojes tú mismo. Elige uno en una sola línea de configuración y cambia de proveedor sin tocar tus archivos de localización.",
+        "622de9e1f18bb1c0": "Es joven y está en desarrollo activo, así que fija una versión y lee el changelog cuando actualices. El modelo de seguridad ya es sólido: cada ejecución compara los cambios con un archivo de bloqueo confirmado, verifica la integridad de los placeholders y de ICU en cada resultado, y retiene cualquier cosa que falle en lugar de escribirla. Los equipos lo ejecutan en CI hoy en día; fija las versiones y estarás sobre terreno estable.",
+        "9950b67fa4f52371": "JSON para i18next, vue-i18n, next-intl y ngx-translate, además de propiedades XLIFF, YAML, Flutter ARB y Java/Spring. Eso cubre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring y Flutter. verbatra lee los archivos que ya tienes; no hay un formato específico de verbatra al que migrar.",
+        "becb17226a48116e": "Cinco, detrás de una sola interfaz: Anthropic, OpenAI y Gemini (LLMs), DeepL (traducción automática) y openai-compatible, que apunta verbatra a un servidor local o autoalojado como Ollama, LM Studio o vLLM. Eliges uno por su id en tu configuración y puedes cambiarlo más tarde editando esa única línea. Gemini tiene un nivel gratuito real, y un modelo local no cuesta nada por llamada.",
+        "cb68aaa0cc1af48b": "¿Qué formatos y frameworks soporta verbatra?",
+        "e2425c4c4ba43cd0": "verbatra lee los archivos de localización que tu stack ya usa: JSON para i18next, vue-i18n, next-intl y ngx-translate, además de propiedades XLIFF, YAML, Flutter ARB y Java/Spring. Los completa a través del proveedor que elijas, sin necesidad de adoptar un nuevo formato.",
+        "eb722a4c5664627c": "Traduce solo lo que cambió a través del proveedor que elijas: Anthropic, OpenAI, Gemini, DeepL o cualquier servidor compatible con OpenAI que ejecutes tú mismo. Un archivo de bloqueo confirmado mantiene cada ejecución incremental, y la integridad de los placeholders y de ICU se verifica antes de escribir cualquier cosa."
+      },
+      "fr": {
+        "0343b66158ccb374": "verbatra : traduction i18n incrémentielle pour les fichiers de locale",
+        "0e291b1e41439525": "Quels fournisseurs de traduction puis-je utiliser ?",
+        "1e1df797e6702fa5": "Anthropic, OpenAI, Gemini, DeepL, ou un modèle local compatible OpenAI, choisi en une seule ligne de config. Change de fournisseur sans toucher à tes fichiers de locale.",
+        "2f54d8a138b14e5e": "Anthropic, OpenAI, Gemini, DeepL, ou tout serveur compatible OpenAI que tu héberges toi-même. Choisis-en un dans une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
+        "622de9e1f18bb1c0": "Il est jeune et activement développé, alors fige une version et lis le changelog lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution est comparée à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable.",
+        "9950b67fa4f52371": "JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que les fichiers XLIFF, YAML, Flutter ARB et les propriétés Java/Spring. Cela couvre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring et Flutter. verbatra lit les fichiers que tu as déjà ; il n'y a pas de format spécifique à verbatra vers lequel migrer.",
+        "becb17226a48116e": "Cinq, derrière une seule interface : Anthropic, OpenAI et Gemini (LLM), DeepL (traduction automatique) et openai-compatible, qui pointe verbatra vers un serveur local ou auto-hébergé comme Ollama, LM Studio ou vLLM. Tu en choisis un par son id dans ta config et tu peux changer plus tard en modifiant cette seule ligne. Gemini a un vrai niveau gratuit, et un modèle local ne coûte rien par appel.",
+        "cb68aaa0cc1af48b": "Quels formats et frameworks verbatra prend-il en charge ?",
+        "e2425c4c4ba43cd0": "verbatra lit les fichiers de locale que ta stack utilise déjà : JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que les fichiers XLIFF, YAML, Flutter ARB et les propriétés Java/Spring. Il les remplit via le fournisseur que tu choisis, aucun nouveau format à adopter.",
+        "eb722a4c5664627c": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini, DeepL, ou tout serveur compatible OpenAI que tu gères toi-même. Un fichier de verrouillage validé maintient chaque exécution incrémentielle, et l'intégrité des placeholders et de l'ICU est vérifiée avant toute écriture."
+      }
+    }
+  }
+}

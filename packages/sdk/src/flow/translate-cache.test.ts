@@ -61,7 +61,7 @@ async function readTarget(dir: string, locale: string): Promise<Record<string, s
 }
 
 async function loadCache(dir: string): Promise<TranslationMemory> {
-  return readTranslationMemory(cacheFilePath(dir), defaultFs);
+  return (await readTranslationMemory(cacheFilePath(dir), defaultFs)).memory;
 }
 
 function localeCacheKeys(cache: TranslationMemory, fingerprint: string, locale: string): string[] {
@@ -609,5 +609,153 @@ describe("content dedup: a fanned-out value is re-gated against its own key's so
     expect(stub.calls).toHaveLength(1);
     expect(summary.locales[0]?.integrityMismatches).toEqual([]);
     expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["a", "b"]);
+  });
+});
+
+/**
+ * Read the cache file's raw bytes. Deliberately not through `readTranslationMemory`, which degrades
+ * an unrecognized-version file to empty on read too: going through it would hide the very thing
+ * these tests assert, and make a working fix look refuted.
+ */
+async function rawCacheFile(dir: string): Promise<string> {
+  return readFile(cacheFilePath(dir), "utf8");
+}
+
+const FUTURE_CACHE = `${JSON.stringify(
+  { version: 99, entries: { fp: { de: { futureHash: "KeepMe" } } } },
+  null,
+  2,
+)}\n`;
+
+describe("translation-memory cache: an unrecognized version is preserved, not downgraded", () => {
+  it("leaves the file byte-identical after a translate run", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+  });
+
+  it("still completes the run normally, translating with an empty effective cache", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(stub.calls).toHaveLength(1);
+    expect((await readTarget(dir, "de")).a).toBe("[de] Hello");
+  });
+
+  // Without a signal, a mistyped version would disable caching permanently and silently, which is
+  // worse than the clobber it replaces. It is a notice, never an error.
+  it("reports a notice on the locale without failing the run", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(summary.locales[0]?.notices).toContainEqual(
+      expect.objectContaining({ code: "CACHE_VERSION_UNRECOGNIZED" }),
+    );
+    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.failed).toEqual([]);
+  });
+
+  it.each([
+    [
+      "editEntry",
+      async (dir: string) => {
+        await editEntry({ config: cfg(), cwd: dir, locale: "de", key: "a", value: "Hallo" });
+      },
+    ],
+    [
+      "retranslateEntry",
+      async (dir: string) => {
+        await retranslateEntry(
+          { config: cfg(), cwd: dir, locale: "de", key: "a" },
+          { createProvider: () => makeStubProvider().provider },
+        );
+      },
+    ],
+  ])("leaves the file byte-identical after %s", async (_label, act) => {
+    const dir = await project({ a: "Hello" }, { de: { a: "Hallo alt" } });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await act(dir);
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+  });
+
+  it("leaves the file byte-identical after a workbook import", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    const exported = await exportWorkbook({ config: cfg(), cwd: dir });
+    await fillWorkbook(exported.path, "de", { a: "Hallo" });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir });
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+    expect((await readTarget(dir, "de")).a).toBe("Hallo");
+  });
+
+  it("still creates a missing cache file normally", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(await fileExists(cacheFilePath(dir))).toBe(true);
+  });
+
+  it.each([
+    ["unparseable", "{ not json"],
+    ["schema-invalid", '{"version":1,"entries":[]}'],
+    ["version zero", '{"version":0,"entries":{}}'],
+    ["negative version", '{"version":-1,"entries":{}}'],
+    ["non-integer version", '{"version":1.5,"entries":{}}'],
+  ])("still overwrites a %s cache file, so the cache self-heals", async (_label, contents) => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), contents);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const raw = await rawCacheFile(dir);
+    expect(raw).not.toBe(contents);
+    expect(JSON.parse(raw)).toMatchObject({ version: 1 });
+  });
+
+  it("still overwrites an oversized cache file rather than wedging it", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    const padded = JSON.stringify({
+      version: 1,
+      entries: { fp: { de: { pad: "x".repeat(70 * 1024 * 1024) } } },
+    });
+    await writeFile(cacheFilePath(dir), padded);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const raw = await rawCacheFile(dir);
+    expect(raw.length).toBeLessThan(padded.length);
+    expect(JSON.parse(raw)).toMatchObject({ version: 1 });
   });
 });

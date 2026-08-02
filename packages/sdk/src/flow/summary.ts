@@ -5,7 +5,8 @@ export type SdkNoticeCode =
   | "PLURAL_CATEGORIES_INCOMPLETE"
   | "SUB_BATCH_FAILED"
   | "BLANK_ROW_BASELINE_RETAINED"
-  | "BUDGET_TOKENS_EXCEEDED";
+  | "BUDGET_TOKENS_EXCEEDED"
+  | "CACHE_VERSION_UNRECOGNIZED";
 
 /** Summed token usage across every provider call in a scope (one locale, or the whole run). */
 export interface UsageSummary {

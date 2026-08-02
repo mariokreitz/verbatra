@@ -4,6 +4,7 @@ import { computeFingerprint } from "../cache/fingerprint.js";
 import {
   additionsToRecord,
   applyAdditions,
+  CACHE_FILE_NAME,
   cacheFilePath,
   readTranslationMemory,
   writeTranslationMemory,
@@ -41,7 +42,7 @@ import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 import { readSource } from "./source.js";
-import type { LocaleSummary, RunSummary } from "./summary.js";
+import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
 
 /** Everything the one-shot run needs: the validated config and where/how to run it. */
@@ -154,6 +155,12 @@ interface RunCacheState {
   readonly memory: TranslationMemory;
   readonly fingerprint: string;
   readonly additions: Map<string, Record<string, string>>;
+  /**
+   * False when the cache file on disk carries a version this build does not recognize. The run still
+   * proceeds with the empty effective cache the read degraded to; it just writes nothing back, so a
+   * file written by a newer verbatra is not silently replaced and downgraded.
+   */
+  readonly writable: boolean;
 }
 
 /**
@@ -172,11 +179,34 @@ async function createRunCacheState(
   if (dryRun || input.cache === false) {
     return undefined;
   }
-  return {
-    memory: await readTranslationMemory(cacheFilePath(cwd), fs),
-    fingerprint: computeFingerprint(config),
-    additions: new Map(),
+  const { memory, writable } = await readTranslationMemory(cacheFilePath(cwd), fs);
+  return { memory, writable, fingerprint: computeFingerprint(config), additions: new Map() };
+}
+
+/**
+ * A locale's notices plus the run-wide cache notice when the cache file could not be written. The
+ * condition is run-wide (one file, shared by every locale), so the same notice is attached to each
+ * locale rather than inventing a run-level notice channel, which would change the summary shape.
+ *
+ * It exists because the alternative is silence: without it a mistyped `version` would disable
+ * caching permanently, with no signal at all, where before this behaviour it self-healed. It is a
+ * notice, never an error: the run succeeds and the exit code is unaffected.
+ */
+function withCacheNotices(
+  summaries: readonly LocaleSummary[],
+  cache: RunCacheState | undefined,
+): LocaleSummary[] {
+  if (cache === undefined || cache.writable) {
+    return [...summaries];
+  }
+  const notice: SdkNotice = {
+    code: "CACHE_VERSION_UNRECOGNIZED",
+    message:
+      `${CACHE_FILE_NAME} carries a version this build does not recognize, so it was written by a ` +
+      "newer verbatra. It was left untouched and this run used no cache. Upgrade verbatra, or " +
+      "delete the file to rebuild it in this build's format.",
   };
+  return summaries.map((summary) => ({ ...summary, notices: [...summary.notices, notice] }));
 }
 
 /**
@@ -189,7 +219,7 @@ async function recordCacheAdditions(
   cache: RunCacheState | undefined,
   fs: SdkFs,
 ): Promise<void> {
-  if (cache === undefined || cache.additions.size === 0) {
+  if (cache === undefined || cache.additions.size === 0 || !cache.writable) {
     return;
   }
   try {
@@ -612,7 +642,8 @@ export async function translate(
     : await runAllLocalesLive(context, config.targetLocales, concurrency);
   input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
-  const { succeeded, partial, failed } = partition(summaries);
+  const locales = withCacheNotices(summaries, cache);
+  const { succeeded, partial, failed } = partition(locales);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
     (total, summary) => combineUsage(total, summary.usage),
     undefined,
@@ -620,7 +651,7 @@ export async function translate(
   const budgetSummary = toBudgetSummary(budget);
   const summary: RunSummary = {
     dryRun,
-    locales: summaries,
+    locales,
     succeeded,
     partial,
     failed,

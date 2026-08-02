@@ -417,7 +417,7 @@ describe("translate: a whole-run failure under concurrency", () => {
     );
 
     expect(summary.failed).toEqual(["fr"]);
-    expect(summary.succeeded.sort()).toEqual(["de", "es"]);
+    expect([...summary.succeeded].sort()).toEqual(["de", "es"]);
   });
 
   it("is unchanged at the default serial concurrency: the failure still propagates", async () => {
