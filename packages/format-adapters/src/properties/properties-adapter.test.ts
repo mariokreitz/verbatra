@@ -316,3 +316,78 @@ describe("createPropertiesAdapter write (round-trip fidelity)", () => {
     expect(await readFile(path, "utf8")).toBe("k=a\\tb\\nc\\rd\\fe\\\\f\\u0001g\n");
   });
 });
+
+describe("createPropertiesAdapter write (line-terminator preservation)", () => {
+  it("rewrites a CRLF destination with CRLF, not LF", async () => {
+    const path = await tempFile("m.properties", "# c\r\na=one\r\nb=two\r\n");
+    const { resource } = await adapter.read(path, "de");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe("# c\r\na=one\r\nb=two\r\n");
+  });
+
+  it("leaves an LF destination on LF", async () => {
+    const path = await tempFile("m.properties", "# c\na=one\nb=two\n");
+    const { resource } = await adapter.read(path, "de");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe("# c\na=one\nb=two\n");
+  });
+
+  it("rewrites a CR-only destination with CR", async () => {
+    const path = await tempFile("m.properties", "# c\ra=one\rb=two\r");
+    const { resource } = await adapter.read(path, "de");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe("# c\ra=one\rb=two\r");
+  });
+
+  it("writes LF when the destination does not exist", async () => {
+    const path = join(await tempDir(), "m.properties");
+    const entries = new Map([["a", entry("a", "one")]]);
+    await adapter.write(makeResource(entries), path);
+    expect(await readFile(path, "utf8")).toBe("a=one\n");
+  });
+
+  // Any CRLF wins for the whole file: counting a dominant style would be more code for no gain,
+  // and converging on one is what makes the round trip below a fixed point.
+  it("converts a mixed destination entirely to CRLF when any CRLF is present", async () => {
+    const path = await tempFile("m.properties", "# c\na=one\nb=two\r\nc=three\n");
+    const { resource } = await adapter.read(path, "de");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe("# c\r\na=one\r\nb=two\r\nc=three\r\n");
+  });
+
+  it.each([
+    ["CRLF", "# c\r\na=one\r\nb=two\r\n"],
+    ["LF", "# c\na=one\nb=two\n"],
+    ["CR", "# c\ra=one\rb=two\r"],
+    ["mixed CRLF and LF", "# c\na=one\nb=two\r\nc=three\n"],
+    ["mixed CR and LF", "# c\na=one\rb=two\n"],
+  ])("stays a fixed point across two writes for a %s destination", async (_style, initial) => {
+    const path = await tempFile("m.properties", initial);
+    await adapter.write((await adapter.read(path, "de")).resource, path);
+    const afterFirst = await readFile(path, "utf8");
+    await adapter.write((await adapter.read(path, "de")).resource, path);
+    expect(await readFile(path, "utf8")).toBe(afterFirst);
+  });
+
+  it("keeps a CRLF destination's comments, blank line, and key order", async () => {
+    const path = await tempFile(
+      "m.properties",
+      "# Greeting\r\ngreeting=Hello\r\n\r\n# Farewell\r\nfarewell=Bye\r\n",
+    );
+    const { resource } = await adapter.read(path, "de");
+    const entries = new Map(resource.entries);
+    entries.set("greeting", entry("greeting", "Hallo"));
+    await adapter.write({ ...resource, entries }, path);
+
+    expect(await readFile(path, "utf8")).toBe(
+      "# Greeting\r\ngreeting=Hallo\r\n\r\n# Farewell\r\nfarewell=Bye\r\n",
+    );
+  });
+
+  it("still writes a value's own CR and LF as escapes, not as terminators", async () => {
+    const path = await tempFile("m.properties", "a=one\r\n");
+    const entries = new Map([["a", entry("a", "x\r\ny")]]);
+    await adapter.write(makeResource(entries), path);
+    expect(await readFile(path, "utf8")).toBe("a=x\\r\\ny\r\n");
+  });
+});
