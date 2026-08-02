@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
         with:
-          version: 0.5.0
+          version: 0.6.2
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -38,7 +38,7 @@ Pin every `uses:` reference, including this action itself, to a full commit SHA 
 mutable ref, matching this repository's own SHA-pinning convention (see `actions/checkout`
 above). `<commit-sha>` above is a placeholder: replace it with the full 40-character SHA of the
 commit on `main` you intend to depend on. This repository tags releases per npm package (for
-example `@verbatra/cli@0.5.0`); the action itself is not published and has no version tag of its
+example `@verbatra/cli@0.6.2`); the action itself is not published and has no version tag of its
 own, so a commit SHA is the only stable reference to it.
 
 ## Secret wiring
@@ -49,12 +49,16 @@ value is never inlined into YAML and is never passed as an action input. The act
 read keys only from the environment, so a `${{ secrets.* }}` reference in `env:` is the single
 supported way to provide them.
 
-The four recognized environment variable names are:
+Each hosted provider reads exactly one variable:
 
 - `ANTHROPIC_API_KEY`
 - `OPENAI_API_KEY`
 - `GEMINI_API_KEY`
 - `DEEPL_API_KEY`
+
+The `openai-compatible` provider is the exception: it needs no key for a server that requires none,
+and otherwise reads `OPENAI_COMPATIBLE_API_KEY` or whichever variable its `apiKeyEnvVar` option
+names. Pass that variable through `env:` the same way.
 
 Set only the keys your configured provider needs. Each value must be a `${{ secrets.* }}`
 reference, never a literal:
@@ -69,7 +73,7 @@ env:
 
 ## Version pinning
 
-The `version` input MUST be pinned to an exact version (for example `version: 0.5.0`) for
+The `version` input MUST be pinned to an exact version (for example `version: 0.6.2`) for
 reproducible, supply-chain-safe CI. Do not use a floating tag such as `latest` and do not use a
 range. A floating tag pulls whatever is newest at run time, which is non-reproducible and would
 auto-pull a compromised release. The action enforces this: a `version` that is not an exact
@@ -89,7 +93,7 @@ annotation built from the CLI error. The job then exits with the CLI exit code.
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | none | The `@verbatra/cli` version to run, for example `0.5.0`. Must be an exact semver version; a dist-tag such as `latest`, a range, or a `^`/`~` prefix fails the step. |
+| `version` | yes | none | The `@verbatra/cli` version to run, for example `0.6.2`. Must be an exact semver version; a dist-tag such as `latest`, a range, or a `^`/`~` prefix fails the step. |
 | `config-path` | no | `""` | Explicit config file to load (maps to `--config`). Empty uses the normal config search. |
 | `working-directory` | no | `""` | Directory to resolve config and locale files against (maps to `--cwd`). |
 | `dry-run` | no | `"false"` | Report what would change without calling a provider or writing (maps to `--dry-run`). |
