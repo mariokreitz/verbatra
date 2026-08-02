@@ -11,7 +11,7 @@ Lors d'une exécution, avant qu'une clé parte au fournisseur, verbatra la cherc
 - **Une clé renommée.** Déplace une chaîne de `home.title` vers `landing.title` et sa traduction est réutilisée, pas retraduite.
 - **Contenu en double.** Deux clés au même contenu source partagent une traduction ; la seconde est un succès de cache.
 
-Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité des placeholders et de l'ICU](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
+Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
 
 ## L'empreinte
 

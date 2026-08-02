@@ -34,7 +34,7 @@ a registry, provider builder, or file system for tests; you can ignore it in nor
 ### translate
 
 The one-shot flow: read the source, diff each target locale against the lock baseline, send the
-missing and changed keys to the provider, run the placeholder and ICU integrity checks, write the
+missing and changed keys to the provider, run the integrity checks, write the
 locale files, and update the lock. Use it for scripts, build steps, and CI jobs.
 
 Input: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
@@ -157,7 +157,7 @@ when the key does not yet exist in that locale.
 ### editEntry
 
 Writes one human-typed correction for one key and locale. The candidate value passes the same
-placeholder and ICU gate as a provider translation before anything reaches disk; on acceptance the
+integrity gate as a provider translation before anything reaches disk; on acceptance the
 locale file and the lock entry for that key are updated inside the locale's write lock. Never
 calls a provider.
 
@@ -213,8 +213,8 @@ Input: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` defaults to
 
 ### importWorkbook
 
-Reads a filled workbook back into the locale files, running the same source-drift, placeholder,
-and ICU checks as `translate`. Only accepted rows advance their lock baseline; a blank or rejected
+Reads a filled workbook back into the locale files, running the same source-drift and integrity
+checks as `translate`. Only accepted rows advance their lock baseline; a blank or rejected
 row keeps re-exporting until it is genuinely resolved.
 
 Input: `{ config, workbook, cwd?, dryRun? }`. Returns the same `RunSummary` shape as `translate`

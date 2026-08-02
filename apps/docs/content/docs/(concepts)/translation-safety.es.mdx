@@ -42,6 +42,13 @@ nuevo por clave.
   pero rompe la estructura de plural o de select también se rechaza. Para estos formatos la
   comparación de marcadores de posición además distingue ramas: un marcador de posición fabricado
   dentro de una rama de plural se detecta aunque exista legítimamente en otra.
+- Degeneración: el valor no debe ser estructuralmente degenerado, como un bucle de repetición o una
+  longitud que se ha disparado respecto al origen. Esto atrapa a un modelo que se derrumbó
+  repitiendo un fragmento aunque todos los marcadores de posición sobrevivieran.
+- Vacío: un origen no vacío no puede traducirse a un valor vacío ni compuesto solo de espacios.
+  Vaciar una traducción es un acto aparte y deliberado, y el centinela `[[CLEAR]]` del libro de
+  trabajo es la forma de hacerlo; consulta
+  [Traducción manual](/docs/manual-translation).
 
 Una candidata rechazada se retiene como datos, nunca se escribe: aparece en el resumen de la
 ejecución como una discordancia de integridad, conserva su hash anterior en

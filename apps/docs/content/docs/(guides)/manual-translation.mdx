@@ -4,7 +4,7 @@ description: Export untranslated strings to an Excel workbook, hand it to a tran
 ---
 Not every string belongs to a provider. Marketing copy, legal text, and the languages that matter most often want a human translator. verbatra handles this with a workbook round-trip: **export** the strings that need translating into a styled Excel file, hand it off, then **import** the filled file back into your locale files.
 
-The same diff drives both directions. Export picks exactly the keys an automated run would translate (the new and changed ones), and import runs the same placeholder and ICU checks as `translate`, so a hand-typed value that breaks a placeholder is withheld and reported instead of written.
+The same diff drives both directions. Export picks exactly the keys an automated run would translate (the new and changed ones), and import runs the same integrity checks as `translate`, so a hand-typed value that breaks a placeholder is withheld and reported instead of written.
 
 ## The round-trip
 
@@ -56,6 +56,7 @@ Import is not a blind paste. Every filled row is judged against the live project
 - **Source drift**: the hidden `Source hash` is compared to the current source. If the source string changed after export, the row is withheld, so you never overwrite a current source with a translation of an old one.
 - **Placeholder integrity**: the translation must carry exactly the same placeholders as its source. Drop `{name}` or invent `{total}` and the row is withheld.
 - **ICU validity**: an ICU message must stay structurally valid with the same argument names; only the human-readable text may change.
+- **Degenerate or empty values**: a value that collapsed into a repetition loop, ran away in length from its source, or came back empty for a non-empty source is withheld. Use the `[[CLEAR]]` sentinel above to clear a translation deliberately.
 - **Unknown keys**: a filled row whose key exists in neither the current source nor the current target file (say, one typed in by hand) fails that locale's whole sheet, since the round trip is broken. A filled row whose key exists only in the target (an orphaned key) is silently left unwritten.
 - **Context is never a translation source**: import ignores the `Context` column entirely, and a workbook exported before that column existed still imports normally.
 
@@ -99,7 +100,7 @@ Reach for `--include-unchanged` when a translator wants the full context of a lo
 - `glossary-term-missed`: a configured glossary term did not make it into the translation.
 - `integrity-reordered`: the placeholders match but landed in a different order than the source.
 
-A fifth reason, `provider-degraded`, exists only at translate time (a DeepL degradation notice on the batch a key came from); since export never calls a provider, it never appears on an exported row. A row with no translation yet always exports `ok`; there is nothing to review. See [Translation safety](/docs/translation-safety) for how these flags relate to the hard placeholder and ICU checks.
+A fifth reason, `provider-degraded`, exists only at translate time (a DeepL degradation notice on the batch a key came from); since export never calls a provider, it never appears on an exported row. A row with no translation yet always exports `ok`; there is nothing to review. See [Translation safety](/docs/translation-safety) for how these flags relate to the hard integrity checks.
 
 ## From the SDK
 
@@ -123,4 +124,4 @@ Both take the validated config from [`loadConfig`](/docs/sdk), and `importWorkbo
 
 - [`verbatra export`](/docs/cli/export): every export flag and the report it prints.
 - [`verbatra import`](/docs/cli/import): every import flag, the run summary, and exit codes.
-- [Translation safety](/docs/translation-safety): the placeholder and ICU checks that guard every write, manual or automated.
+- [Translation safety](/docs/translation-safety): the integrity gate that guards every write, manual or automated.

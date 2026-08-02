@@ -26,7 +26,7 @@ Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `co
 
 ### translate
 
-Le flux en une passe : lire la source, comparer chaque locale cible à la ligne de base du verrou, envoyer les clés manquantes et modifiées au fournisseur, exécuter les vérifications d'intégrité des placeholders et d'ICU, écrire les fichiers de locale et mettre à jour le verrou. Utilise-le pour les scripts, les étapes de build et les jobs CI.
+Le flux en une passe : lire la source, comparer chaque locale cible à la ligne de base du verrou, envoyer les clés manquantes et modifiées au fournisseur, exécuter les vérifications d'intégrité, écrire les fichiers de locale et mettre à jour le verrou. Utilise-le pour les scripts, les étapes de build et les jobs CI.
 
 Entrée : `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
@@ -99,7 +99,7 @@ Entrée : `{ config, cwd?, locale, key }`. Renvoie `{ source, target? }` ; `targ
 
 ### editEntry
 
-Écrit une correction saisie par un humain pour une clé et une locale. La valeur candidate passe le même contrôle de placeholders et d'ICU qu'une traduction de fournisseur avant que quoi que ce soit n'atteigne le disque ; à l'acceptation, le fichier de locale et l'entrée de verrou de cette clé sont mis à jour sous le verrou d'écriture de la locale. N'appelle jamais de fournisseur.
+Écrit une correction saisie par un humain pour une clé et une locale. La valeur candidate passe la même barrière d'intégrité qu'une traduction de fournisseur avant que quoi que ce soit n'atteigne le disque ; à l'acceptation, le fichier de locale et l'entrée de verrou de cette clé sont mis à jour sous le verrou d'écriture de la locale. N'appelle jamais de fournisseur.
 
 Entrée : `{ config, cwd?, locale, key, value }`. Renvoie un résultat à deux branches : `{ accepted: true, value }`, ou `{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }` sans rien écrire. `"empty"` couvre une valeur vide ou uniquement composée d'espaces pour une source qui a du texte : une modification ne peut pas exprimer l'effacement d'une clé, alors utilise pour ça la sentinelle `[[CLEAR]]` du classeur.
 
@@ -135,7 +135,7 @@ Entrée : `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` vaut par 
 
 ### importWorkbook
 
-Relit un classeur rempli dans les fichiers de locale, en exécutant les mêmes vérifications de dérive de source, de placeholders et d'ICU que `translate`. Seules les lignes acceptées font avancer leur ligne de base du verrou ; une ligne vide ou rejetée continue de se réexporter jusqu'à sa vraie résolution.
+Relit un classeur rempli dans les fichiers de locale, en exécutant les mêmes vérifications de dérive de source et d'intégrité que `translate`. Seules les lignes acceptées font avancer leur ligne de base du verrou ; une ligne vide ou rejetée continue de se réexporter jusqu'à sa vraie résolution.
 
 Entrée : `{ config, workbook, cwd?, dryRun? }`. Renvoie la même forme `RunSummary` que `translate` (avec `needsReview` toujours vide, puisqu'aucun fournisseur n'intervient). Une feuille pour une locale qui n'est pas une cible configurée fait échouer cette locale avec `CONFIG_INVALID` comme donnée sur le résumé, pas comme exception.
 

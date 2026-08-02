@@ -112,7 +112,7 @@ Beobachten geht weiter.
 Das sind die Nahtstellen, die Verbatra Studio antreibt; nutze sie, um deinen eigenen Review-Flow
 zu bauen. Lies die aktuellen Werte mit `keyValue`, speichere eine menschliche Korrektur mit
 `editEntry` oder lass den Provider für einen Key mit `retranslateEntry` neu laufen. Beide
-Schreiber schicken den Kandidatenwert durch dieselben Platzhalter- und ICU-Prüfungen wie ein
+Schreiber schicken den Kandidatenwert durch dieselben Integritätsprüfungen wie ein
 voller Lauf und geben ein zweiarmiges Ergebnis zurück, statt bei einem abgelehnten Wert zu werfen.
 
 ```ts
@@ -153,8 +153,8 @@ wenn der Aufruf selbst fehlschlägt. Dieselben Nahtstellen hinter einer Oberflä
 ## Der Arbeitsmappen-Roundtrip
 
 Exportiere die zu übersetzenden Strings in eine Excel-Arbeitsmappe, gib sie an eine Übersetzerin,
-dann importiere die ausgefüllte Datei zurück. `importWorkbook` führt dieselben Drift-,
-Platzhalter- und ICU-Prüfungen aus wie `translate` und gibt dieselbe `RunSummary`-Form zurück; eine
+dann importiere die ausgefüllte Datei zurück. `importWorkbook` führt dieselben Drift- und
+Integritätsprüfungen aus wie `translate` und gibt dieselbe `RunSummary`-Form zurück; eine
 manuelle Übergabe fügt sich also in exakt das Reporting ein, das du für einen automatischen Lauf
 nutzt.
 

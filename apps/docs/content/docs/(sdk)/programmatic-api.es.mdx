@@ -112,7 +112,7 @@ vigilancia continúa.
 Estos son los puntos de integración que usa Verbatra Studio; úsalos para construir tu propio flujo de
 revisión. Lee los valores actuales con `keyValue`, guarda una corrección humana con `editEntry` o vuelve
 a ejecutar el proveedor para una clave con `retranslateEntry`. Ambos escritores pasan el valor candidato
-por las mismas comprobaciones de marcadores de posición e ICU que una ejecución completa y devuelven un
+por las mismas comprobaciones de integridad que una ejecución completa y devuelven un
 resultado de dos ramas en lugar de lanzar ante un valor rechazado.
 
 ```ts
@@ -153,8 +153,8 @@ una interfaz.
 ## El ciclo de ida y vuelta del libro
 
 Exporta las cadenas que necesitan traducción a un libro de Excel, entrégaselo a un traductor y luego
-importa el archivo rellenado de vuelta. `importWorkbook` ejecuta las mismas comprobaciones de desfase,
-marcadores de posición e ICU que `translate` y devuelve la misma forma `RunSummary`, así que una entrega
+importa el archivo rellenado de vuelta. `importWorkbook` ejecuta las mismas comprobaciones de desfase
+e integridad que `translate` y devuelve la misma forma `RunSummary`, así que una entrega
 manual encaja en el mismo informe exacto que usas para una ejecución automática.
 
 ```ts

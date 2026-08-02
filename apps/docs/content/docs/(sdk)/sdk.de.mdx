@@ -36,8 +36,8 @@ injiziert; im normalen Gebrauch kannst du es ignorieren.
 ### translate
 
 Der Einmal-Flow: die Quelle lesen, jedes Ziel-Locale mit der Lock-Baseline vergleichen, die
-fehlenden und geänderten Keys an den Provider schicken, die Platzhalter- und
-ICU-Integritätsprüfungen ausführen, die Locale-Dateien schreiben und das Lock aktualisieren. Nutze
+fehlenden und geänderten Keys an den Provider schicken, die Integritätsprüfungen
+ausführen, die Locale-Dateien schreiben und das Lock aktualisieren. Nutze
 es für Skripte, Build-Schritte und CI-Jobs.
 
 Eingabe: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
@@ -170,7 +170,7 @@ dann, wenn der Key in diesem Locale noch nicht existiert.
 ### editEntry
 
 Schreibt eine von Hand getippte Korrektur für einen Key und ein Locale. Der Kandidatenwert
-durchläuft dasselbe Platzhalter- und ICU-Gate wie eine Provider-Übersetzung, bevor irgendetwas die
+durchläuft dasselbe Integritäts-Gate wie eine Provider-Übersetzung, bevor irgendetwas die
 Platte erreicht; bei Annahme werden die Locale-Datei und der Lock-Eintrag für diesen Key innerhalb
 des Schreib-Locks des Locales aktualisiert. Ruft nie einen Provider auf.
 
@@ -233,7 +233,7 @@ Eingabe: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` ist standa
 ### importWorkbook
 
 Liest eine ausgefüllte Arbeitsmappe zurück in die Locale-Dateien und führt dieselben Prüfungen auf
-Quelldrift, Platzhalter und ICU aus wie `translate`. Nur akzeptierte Zeilen rücken ihre
+Quelldrift und Integrität aus wie `translate`. Nur akzeptierte Zeilen rücken ihre
 Lock-Baseline vor; eine leere oder abgelehnte Zeile wird weiter exportiert, bis sie wirklich
 erledigt ist.
 

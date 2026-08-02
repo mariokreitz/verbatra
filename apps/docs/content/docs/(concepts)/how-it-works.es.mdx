@@ -63,13 +63,13 @@ pedir una vez; si tras eso sigue sin resolverse, la clave se trata como no tradu
 ejecución y se reintenta en la siguiente. DeepL es una API de traducción automática sin esta capa de
 respuesta, pero sus resultados pasan por las mismas comprobaciones de integridad de abajo.
 
-## Comprueba la integridad de marcadores de posición e ICU
+## Ejecuta la puerta de integridad
 
 Una traducción que pasó la validación de esquema todavía puede estar rota, así que verbatra recalcula
 su propia decisión de aceptar o rechazar a partir del propio valor candidato: nunca se fía del
-informe del proveedor. Cada candidata aceptada debe llevar los mismos marcadores de posición que su
-origen, y para los formatos ICU debe seguir siendo un mensaje válido. Una candidata que falla
-cualquiera de las dos comprobaciones se retiene en lugar de escribirse, aparece en el resumen de la
+informe del proveedor. Cada candidata aceptada debe pasar todas las comprobaciones de la puerta;
+consulta [Seguridad de la traducción](/docs/translation-safety) para saber cuáles son. Una
+candidata que falla cualquiera de ellas se retiene en lugar de escribirse, aparece en el resumen de la
 ejecución y se reintenta en la siguiente. Consulta
 [Seguridad de la traducción](/docs/translation-safety) para el modelo de seguridad completo.
 

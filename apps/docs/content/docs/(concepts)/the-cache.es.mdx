@@ -11,7 +11,7 @@ En una ejecución, antes de que una clave vaya al proveedor, verbatra la busca e
 - **Una clave renombrada.** Mueve un string de `home.title` a `landing.title` y su traducción se reutiliza, no se vuelve a traducir.
 - **Contenido duplicado.** Dos claves con el mismo contenido de origen comparten una traducción; la segunda es un acierto de caché.
 
-Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad de marcadores de posición e ICU](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.
+Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.
 
 ## La huella
 

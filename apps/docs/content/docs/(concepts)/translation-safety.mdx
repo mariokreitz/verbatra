@@ -38,6 +38,12 @@ keys can match without being byte-identical. That is exactly why the gate is re-
   structure is rejected too. For these formats the placeholder comparison is also branch-aware: a
   placeholder fabricated inside one plural branch is caught even if it legitimately exists in
   another.
+- Degeneracy: the value must not be structurally degenerate, such as a repetition loop or a length
+  that has run away from the source. This catches a model that collapsed into repeating a fragment
+  even when every placeholder survived.
+- Emptiness: a non-empty source may not be translated to an empty or whitespace-only value.
+  Clearing a translation is a separate, deliberate act, and the workbook's `[[CLEAR]]` sentinel is
+  the way to do it; see [Manual translation](/docs/manual-translation).
 
 A rejected candidate is withheld as data, never written: it appears on the run summary as an
 integrity mismatch, keeps its prior hash in [the lock file](/docs/the-lock-file), and is retried

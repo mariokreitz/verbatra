@@ -4,7 +4,7 @@ description: Exporta las cadenas sin traducir a un libro de Excel, entrégaselo 
 ---
 No toda cadena es para un proveedor. Los textos de marketing, los textos legales y los idiomas que más importan suelen pedir un traductor humano. verbatra lo resuelve con un ciclo de ida y vuelta de un libro: **exporta** las cadenas que necesitan traducción a un archivo de Excel con estilos, entrégalo, y luego **importa** el archivo rellenado de vuelta a tus archivos de locale.
 
-El mismo diff impulsa ambas direcciones. La exportación elige exactamente las claves que una ejecución automática traduciría (las nuevas y las modificadas), y la importación ejecuta las mismas comprobaciones de marcadores de posición e ICU que `translate`, así que un valor escrito a mano que rompe un marcador de posición se retiene y se informa en lugar de escribirse.
+El mismo diff impulsa ambas direcciones. La exportación elige exactamente las claves que una ejecución automática traduciría (las nuevas y las modificadas), y la importación ejecuta las mismas comprobaciones de integridad que `translate`, así que un valor escrito a mano que rompe un marcador de posición se retiene y se informa en lugar de escribirse.
 
 ## El ciclo de ida y vuelta
 
@@ -56,6 +56,7 @@ La importación no es un pegado a ciegas. Cada fila rellenada se juzga contra el
 - **Desfase del origen**: el `Source hash` oculto se compara con el origen actual. Si la cadena de origen cambió después de la exportación, la fila se retiene, así que nunca sobrescribes un origen actual con la traducción de uno antiguo.
 - **Integridad de marcadores de posición**: la traducción debe llevar exactamente los mismos marcadores de posición que su origen. Elimina `{name}` o inventa `{total}` y la fila se retiene.
 - **Validez ICU**: un mensaje ICU debe seguir siendo estructuralmente válido con los mismos nombres de argumento; solo el texto legible puede cambiar.
+- **Valores degenerados o vacíos**: un valor que se derrumbó en un bucle de repetición, cuya longitud se disparó respecto a su origen, o que vuelve vacío para un origen no vacío, se retiene. Usa el centinela `[[CLEAR]]` de arriba para vaciar una traducción deliberadamente.
 - **Claves desconocidas**: una fila rellenada cuya clave no existe ni en el origen actual ni en el archivo de destino actual (por ejemplo, una escrita a mano) hace fallar la hoja entera de ese locale, porque el ciclo de ida y vuelta está roto. Una fila rellenada cuya clave existe solo en el destino (una clave huérfana) se deja sin escribir en silencio.
 - **Context nunca es una fuente de traducción**: la importación ignora la columna `Context` por completo, y un libro exportado antes de que esa columna existiera sigue importándose con normalidad.
 
@@ -99,7 +100,7 @@ Recurre a `--include-unchanged` cuando un traductor quiera el contexto completo 
 - `glossary-term-missed`: un término del glosario configurado no llegó a la traducción.
 - `integrity-reordered`: los marcadores de posición coinciden pero quedaron en un orden distinto al del origen.
 
-Un quinto motivo, `provider-degraded`, existe solo al traducir (un aviso de degradación de DeepL sobre el lote del que vino una clave); como la exportación nunca llama a un proveedor, nunca aparece en una fila exportada. Una fila todavía sin traducción siempre exporta `ok`; no hay nada que revisar. Consulta [Seguridad de la traducción](/docs/translation-safety) para ver cómo se relacionan estas señales con las comprobaciones duras de marcadores de posición e ICU.
+Un quinto motivo, `provider-degraded`, existe solo al traducir (un aviso de degradación de DeepL sobre el lote del que vino una clave); como la exportación nunca llama a un proveedor, nunca aparece en una fila exportada. Una fila todavía sin traducción siempre exporta `ok`; no hay nada que revisar. Consulta [Seguridad de la traducción](/docs/translation-safety) para ver cómo se relacionan estas señales con las comprobaciones duras de integridad.
 
 ## Desde el SDK
 
@@ -123,4 +124,4 @@ Ambas toman la configuración validada de [`loadConfig`](/docs/sdk), e `importWo
 
 - [`verbatra export`](/docs/cli/export): todos los flags de exportación y el informe que imprime.
 - [`verbatra import`](/docs/cli/import): todos los flags de importación, el resumen de la ejecución y los códigos de salida.
-- [Seguridad de la traducción](/docs/translation-safety): las comprobaciones de marcadores de posición e ICU que protegen cada escritura, manual o automática.
+- [Seguridad de la traducción](/docs/translation-safety): la puerta de integridad que protege cada escritura, manual o automática.

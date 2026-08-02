@@ -90,7 +90,7 @@ Puis lance :
 verbatra translate
 ```
 
-verbatra lit la locale source, voit que chaque clé manque dans `de`, les envoie au fournisseur par lots, vérifie l'intégrité des placeholders et l'intégrité ICU de chaque résultat, et écrit `locales/de.json`. L'exécution se termine par un résumé par locale : clés traduites, clés inchangées, clés orphelines, et les éventuels avis. Le code de sortie est `0` quand chaque locale a réussi et `1` quand une a échoué ; ajoute `--json` pour un résumé lisible par machine.
+verbatra lit la locale source, voit que chaque clé manque dans `de`, les envoie au fournisseur par lots, passe chaque résultat par la barrière d'intégrité, et écrit `locales/de.json`. L'exécution se termine par un résumé par locale : clés traduites, clés inchangées, clés orphelines, et les éventuels avis. Le code de sortie est `0` quand chaque locale a réussi et `1` quand une a échoué ; ajoute `--json` pour un résumé lisible par machine.
 
 ## Ce qui vient de se passer
 

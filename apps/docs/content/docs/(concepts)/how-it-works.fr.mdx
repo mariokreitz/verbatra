@@ -63,14 +63,14 @@ fois ; si elle reste non résolue après ça, la clé est traitée comme non tra
 exécution et retentée à la suivante. DeepL est une API de traduction automatique sans cette couche
 de réponse, mais ses résultats passent par les mêmes contrôles d'intégrité ci-dessous.
 
-## Vérifier l'intégrité des placeholders et l'intégrité ICU
+## Exécuter la barrière d'intégrité
 
 Une traduction qui a passé la validation de schéma peut quand même être cassée, donc verbatra
 recalcule sa propre décision d'acceptation ou de rejet à partir de la valeur candidate elle-même :
-il ne fait jamais confiance au rapport du fournisseur. Chaque candidate acceptée doit porter les
-mêmes placeholders que sa source, et pour les formats ICU elle doit rester un message valide. Une
-candidate qui échoue à l'un ou l'autre contrôle est retenue au lieu d'être écrite, apparaît sur le
-résumé d'exécution, et est retentée à l'exécution suivante. Voir
+il ne fait jamais confiance au rapport du fournisseur. Chaque candidate acceptée doit passer chaque vérification de la
+barrière ; voir [Sûreté de la traduction](/docs/translation-safety) pour savoir lesquelles. Une
+candidate qui échoue à l'une d'elles est retenue au lieu d'être écrite, apparaît sur le résumé d'exécution, et est retentée
+à l'exécution suivante. Voir
 [Sûreté de la traduction](/docs/translation-safety) pour le modèle de sûreté complet.
 
 ## Écrire via l'adaptateur

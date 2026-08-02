@@ -4,7 +4,7 @@ description: Exportiere unübersetzte Strings in eine Excel-Arbeitsmappe, gib si
 ---
 Nicht jeder String gehört zu einem Provider. Marketingtexte, juristische Texte und die wichtigsten Sprachen wollen oft eine menschliche Übersetzerin. verbatra löst das mit einem Arbeitsmappen-Roundtrip: **exportiere** die zu übersetzenden Strings in eine formatierte Excel-Datei, gib sie weiter, dann **importiere** die ausgefüllte Datei zurück in deine Locale-Dateien.
 
-Beide Richtungen treibt derselbe Diff. Export wählt genau die Keys, die ein automatischer Lauf übersetzen würde (die neuen und geänderten), und Import führt dieselben Platzhalter- und ICU-Prüfungen aus wie `translate`; ein von Hand getippter Wert, der einen Platzhalter bricht, wird also zurückgehalten und gemeldet statt geschrieben.
+Beide Richtungen treibt derselbe Diff. Export wählt genau die Keys, die ein automatischer Lauf übersetzen würde (die neuen und geänderten), und Import führt dieselben Integritätsprüfungen aus wie `translate`; ein von Hand getippter Wert, der einen Platzhalter bricht, wird also zurückgehalten und gemeldet statt geschrieben.
 
 ## Der Roundtrip
 
@@ -56,6 +56,7 @@ Import ist kein blindes Einfügen. Jede ausgefüllte Zeile wird gegen das laufen
 - **Quelldrift**: der verborgene `Source hash` wird mit der aktuellen Quelle verglichen. Hat sich der Quellstring nach dem Export geändert, wird die Zeile zurückgehalten; du überschreibst also nie eine aktuelle Quelle mit der Übersetzung einer alten.
 - **Platzhalter-Integrität**: die Übersetzung muss exakt dieselben Platzhalter tragen wie ihre Quelle. Lass `{name}` fallen oder erfinde `{total}`, und die Zeile wird zurückgehalten.
 - **ICU-Gültigkeit**: eine ICU-Nachricht muss strukturell gültig bleiben, mit denselben Argumentnamen; nur der menschenlesbare Text darf sich ändern.
+- **Degenerierte oder leere Werte**: ein Wert, der in eine Wiederholungsschleife gekippt ist, dessen Länge der Quelle davongelaufen ist oder der für eine nicht leere Quelle leer zurückkommt, wird zurückgehalten. Nutze das `[[CLEAR]]`-Sentinel oben, um eine Übersetzung bewusst zu leeren.
 - **Unbekannte Keys**: eine ausgefüllte Zeile, deren Key weder in der aktuellen Quelle noch in der aktuellen Zieldatei existiert (etwa ein von Hand eingetippter), lässt das ganze Blatt dieses Locales fehlschlagen, weil der Roundtrip gebrochen ist. Eine ausgefüllte Zeile, deren Key nur im Ziel existiert (ein verwaister Key), wird stillschweigend nicht geschrieben.
 - **Context ist nie eine Übersetzungsquelle**: Import ignoriert die Spalte `Context` vollständig, und eine Arbeitsmappe, die vor der Einführung dieser Spalte exportiert wurde, importiert weiterhin normal.
 
@@ -99,7 +100,7 @@ Greif zu `--include-unchanged`, wenn eine Übersetzerin den vollen Kontext eines
 - `glossary-term-missed`: ein konfigurierter Glossarbegriff hat es nicht in die Übersetzung geschafft.
 - `integrity-reordered`: die Platzhalter stimmen, landeten aber in anderer Reihenfolge als in der Quelle.
 
-Ein fünfter Grund, `provider-degraded`, existiert nur zur Übersetzungszeit (eine DeepL-Degradations-Notice auf dem Batch, aus dem ein Key kam); da Export nie einen Provider aufruft, erscheint er nie auf einer exportierten Zeile. Eine Zeile ohne bisherige Übersetzung exportiert immer `ok`; es gibt nichts zu reviewen. In [Übersetzungssicherheit](/docs/translation-safety) steht, wie diese Flags mit den harten Platzhalter- und ICU-Prüfungen zusammenhängen.
+Ein fünfter Grund, `provider-degraded`, existiert nur zur Übersetzungszeit (eine DeepL-Degradations-Notice auf dem Batch, aus dem ein Key kam); da Export nie einen Provider aufruft, erscheint er nie auf einer exportierten Zeile. Eine Zeile ohne bisherige Übersetzung exportiert immer `ok`; es gibt nichts zu reviewen. In [Übersetzungssicherheit](/docs/translation-safety) steht, wie diese Flags mit den harten Integritätsprüfungen zusammenhängen.
 
 ## Aus dem SDK
 
@@ -123,4 +124,4 @@ Beide nehmen die validierte Konfiguration aus [`loadConfig`](/docs/sdk), und `im
 
 - [`verbatra export`](/docs/cli/export): jedes Export-Flag und der Bericht, den es ausgibt.
 - [`verbatra import`](/docs/cli/import): jedes Import-Flag, die Lauf-Zusammenfassung und die Exit-Codes.
-- [Übersetzungssicherheit](/docs/translation-safety): die Platzhalter- und ICU-Prüfungen, die jeden Schreibvorgang schützen, manuell wie automatisch.
+- [Übersetzungssicherheit](/docs/translation-safety): das Integritäts-Gate, das jeden Schreibvorgang schützt, manuell wie automatisch.

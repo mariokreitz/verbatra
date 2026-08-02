@@ -43,6 +43,13 @@ pour cela que la barrière est rejouée par clé.
   structure plural ou select est rejetée aussi. Pour ces formats, la comparaison des placeholders
   tient aussi compte des branches : un placeholder fabriqué dans une branche plurielle est attrapé
   même s'il existe légitimement dans une autre.
+- Dégénérescence : la valeur ne doit pas être structurellement dégénérée, comme une boucle de
+  répétition ou une longueur qui s'est emballée par rapport à la source. Cela attrape un modèle qui
+  s'est effondré en répétant un fragment même si chaque placeholder a survécu.
+- Vacuité : une source non vide ne peut pas être traduite en une valeur vide ou composée seulement
+  d'espaces. Vider une traduction est un acte distinct et délibéré, et la sentinelle `[[CLEAR]]` du
+  classeur est le moyen de le faire ; voir
+  [Traduction manuelle](/docs/manual-translation).
 
 Une candidate rejetée est retenue comme donnée, jamais écrite : elle apparaît sur le résumé
 d'exécution comme un défaut d'intégrité, garde son hash précédent dans

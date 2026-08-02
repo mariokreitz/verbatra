@@ -37,7 +37,7 @@ en el uso normal.
 
 El flujo de una sola pasada: leer el origen, comparar cada locale de destino con la línea base del
 bloqueo, enviar al proveedor las claves faltantes y modificadas, ejecutar las comprobaciones de
-integridad de marcadores de posición e ICU, escribir los archivos de locale y actualizar el bloqueo.
+integridad, escribir los archivos de locale y actualizar el bloqueo.
 Úsalo para scripts, pasos de build y jobs de CI.
 
 Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
@@ -165,7 +165,7 @@ exactamente cuando la clave todavía no existe en ese locale.
 ### editEntry
 
 Escribe una corrección tecleada por un humano para una clave y un locale. El valor candidato pasa por la
-misma puerta de marcadores de posición e ICU que una traducción del proveedor antes de que nada llegue
+misma puerta de integridad que una traducción del proveedor antes de que nada llegue
 al disco; al aceptarse, el archivo de locale y la entrada del bloqueo de esa clave se actualizan dentro
 del bloqueo de escritura del locale. Nunca llama a un proveedor.
 
@@ -224,7 +224,7 @@ Entrada: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` es por def
 ### importWorkbook
 
 Lee un libro rellenado de vuelta a los archivos de locale, ejecutando las mismas comprobaciones de
-desfase del origen, marcadores de posición e ICU que `translate`. Solo las filas aceptadas avanzan su
+desfase del origen e integridad que `translate`. Solo las filas aceptadas avanzan su
 línea base del bloqueo; una fila en blanco o rechazada se sigue exportando hasta que se resuelve de
 verdad.
 

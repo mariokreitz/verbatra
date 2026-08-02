@@ -43,6 +43,13 @@ erneut.
   Select-Struktur bricht, wird ebenfalls abgelehnt. Für diese Formate vergleicht die
   Platzhalterprüfung außerdem pro Zweig: Ein Platzhalter, der in einem Plural-Zweig erfunden
   wurde, fällt auch dann auf, wenn er in einem anderen legitim vorkommt.
+- Degeneriertheit: Der Wert darf nicht strukturell degeneriert sein, etwa eine Wiederholungsschleife
+  oder eine Länge, die der Quelle davongelaufen ist. Das fängt ein Modell ab, das in das Wiederholen
+  eines Fragments gekippt ist, selbst wenn jeder Platzhalter überlebt hat.
+- Leerheit: Eine nicht leere Quelle darf nicht in einen leeren oder nur aus Leerraum bestehenden
+  Wert übersetzt werden. Eine Übersetzung zu leeren ist ein eigener, bewusster Schritt, und das
+  `[[CLEAR]]`-Sentinel der Arbeitsmappe ist der Weg dafür; siehe
+  [Manuelle Übersetzung](/docs/manual-translation).
 
 Ein abgelehnter Kandidat wird als Daten zurückgehalten, nie geschrieben: Er erscheint in der
 Lauf-Zusammenfassung als Integritätsabweichung, behält seinen vorherigen Hash in

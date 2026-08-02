@@ -92,7 +92,7 @@ Un échec d'exécution après le démarrage ne lève jamais ; il arrive comme `{
 
 ## Modifier et retraduire une seule clé
 
-Ce sont les interfaces que Verbatra Studio pilote ; utilise-les pour construire ton propre flux de révision. Lis les valeurs actuelles avec `keyValue`, enregistre une correction humaine avec `editEntry`, ou relance le fournisseur pour une clé avec `retranslateEntry`. Les deux fonctions d'écriture passent la valeur candidate par les mêmes vérifications de placeholders et d'ICU qu'une exécution complète et renvoient un résultat à deux branches au lieu de lever sur une valeur rejetée.
+Ce sont les interfaces que Verbatra Studio pilote ; utilise-les pour construire ton propre flux de révision. Lis les valeurs actuelles avec `keyValue`, enregistre une correction humaine avec `editEntry`, ou relance le fournisseur pour une clé avec `retranslateEntry`. Les deux fonctions d'écriture passent la valeur candidate par les mêmes vérifications d'intégrité qu'une exécution complète et renvoient un résultat à deux branches au lieu de lever sur une valeur rejetée.
 
 ```ts
 import { editEntry, keyValue, loadConfig, retranslateEntry } from "@verbatra/sdk";
@@ -128,7 +128,7 @@ Une locale ou une clé inconnue lève `UNKNOWN_LOCALE` ou `UNKNOWN_KEY`, et `ret
 
 ## L'aller-retour du classeur
 
-Exporte les chaînes à traduire dans un classeur Excel, confie-le à un traducteur, puis réimporte le fichier rempli. `importWorkbook` exécute les mêmes vérifications de dérive, de placeholders et d'ICU que `translate` et renvoie la même forme `RunSummary`, donc une passation manuelle s'insère exactement dans le reporting que tu utilises pour une exécution automatisée.
+Exporte les chaînes à traduire dans un classeur Excel, confie-le à un traducteur, puis réimporte le fichier rempli. `importWorkbook` exécute les mêmes vérifications de dérive et d'intégrité que `translate` et renvoie la même forme `RunSummary`, donc une passation manuelle s'insère exactement dans le reporting que tu utilises pour une exécution automatisée.
 
 ```ts
 import { exportWorkbook, importWorkbook, loadConfig } from "@verbatra/sdk";
