@@ -3,6 +3,7 @@ import type { LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
+import { appendMissingGitignoreEntries } from "./gitignore.js";
 import { runInit } from "./init.js";
 import {
   renderCheckHuman,
@@ -359,6 +360,7 @@ export async function runTranslate(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
+      appendMissingGitignoreEntries(cwd);
       return withWholeRunErrors(
         deps,
         streams,
@@ -412,6 +414,7 @@ async function runWatchCommand(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
+      appendMissingGitignoreEntries(cwd);
       let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
       try {
         loadEnvFiles(cwd);
@@ -503,6 +506,7 @@ export async function runImport(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
+      appendMissingGitignoreEntries(cwd);
       return withWholeRunErrors(
         deps,
         streams,

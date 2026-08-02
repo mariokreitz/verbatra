@@ -580,6 +580,46 @@ describe("run: .env loading is wired before the SDK flow", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  // The cache file lands at the project root on every write path, but only init ever wrote the
+  // ignore entry, so every project scaffolded before it existed gets a new untracked file.
+  it("translate tops up an existing .gitignore in the --cwd directory", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n.env.local\n.verbatra-local/\n");
+    const { deps } = recordingDeps();
+
+    await run(["translate", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("verbatra.cache.json");
+  });
+
+  it("import tops up an existing .gitignore in the --cwd directory", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n");
+    const { deps } = recordingDeps();
+
+    await run(["import", "book.xlsx", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("verbatra.cache.json");
+  });
+
+  it("translate creates no .gitignore when the project has none", async () => {
+    const { deps } = recordingDeps();
+
+    const code = await run(["translate", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(existsSync(join(dir, ".gitignore"))).toBe(false);
+  });
+
+  it("keeps stdout to the summary object under --json while topping up .gitignore", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n");
+    const summary = makeSummary({ succeeded: ["de"] });
+    const { deps } = recordingDeps({ translate: async () => summary });
+    const cap = captureStreams();
+
+    await run(["translate", "--json", "--cwd", dir], deps, cap.streams);
+
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+  });
+
   it("translate loads .env from the --cwd directory before calling the SDK", async () => {
     writeFileSync(join(dir, ".env"), `${TKEY}=valT\n`);
     let seen: string | undefined;
