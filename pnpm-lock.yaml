@@ -72,7 +72,7 @@ catalogs:
       version: 4.4.3
 
 overrides:
-  postcss@<8.5.18: '>=8.5.18'
+  postcss@<8.5.18: '>=8.5.18 <9'
   uuid@<11.1.1: '>=11.1.1'
   js-yaml@<3.15.0: '>=3.15.0 <4'
   esbuild@<0.28.1: '>=0.28.1'
@@ -4137,7 +4137,7 @@ packages:
     engines: {node: '>= 18'}
     peerDependencies:
       jiti: '>=1.21.0'
-      postcss: '>=8.5.18'
+      postcss: '>=8.5.18 <9'
       tsx: ^4.8.1
       yaml: ^2.4.2
     peerDependenciesMeta:
@@ -4551,7 +4551,7 @@ packages:
     peerDependencies:
       '@microsoft/api-extractor': ^7.36.0
       '@swc/core': ^1
-      postcss: '>=8.5.18'
+      postcss: '>=8.5.18 <9'
       typescript: '>=4.5.0'
     peerDependenciesMeta:
       '@microsoft/api-extractor':
