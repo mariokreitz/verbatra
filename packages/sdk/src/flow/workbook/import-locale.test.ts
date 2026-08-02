@@ -279,8 +279,6 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual([]);
   });
 
-  // Both keys are missing from the target, so both still need a translation and both are pending
-  // work. The exported status string no longer decides this; the import-time diff does.
   it("reports a blank row as unfilled whether it was exported new or changed", () => {
     const src = entry("greet", "Hi");
     const other = entry("intro", "Welcome");
@@ -298,8 +296,6 @@ describe("importLocale", () => {
     expect(result.summary.unfilled).toEqual(["greet", "intro"]);
   });
 
-  // The first-handoff shape: nothing translated yet, so every row exports as new and the whole
-  // untouched sheet is pending work. This previously reported nothing at all.
   it("reports every blank row of an all-new first handoff", () => {
     const greeting = entry("greeting", "Hello");
     const farewell = entry("farewell", "Bye");
@@ -339,8 +335,6 @@ describe("importLocale", () => {
     expect(result.summary.unfilled).toEqual([]);
   });
 
-  // The divergence the diff-based rule buys: the row was exported as changed, but the key was
-  // resolved in the meantime, so at import time it is no longer pending work.
   it("excludes a blank row exported as changed whose key is no longer a live candidate", () => {
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = {
@@ -359,7 +353,6 @@ describe("importLocale", () => {
     expect(result.summary.unfilled).toEqual([]);
   });
 
-  // Pinned: unfilled is reported but never drives the status, so a fully blank sheet still succeeds.
   it("still reports succeeded for a fully blank sheet", () => {
     const src = entry("greet", "Hi");
     const sheet: WorkbookSheet = {
@@ -427,10 +420,6 @@ describe("importLocale", () => {
     expect(result.summary.duplicateKeys).toEqual([{ key: "greet", row: 5 }]);
   });
 
-  // Pins the other half of the status-inert decision recorded on LocaleSummary.status. A row is
-  // malformed on its Status cell alone, independently of whether its Translation cell was filled,
-  // so an untouched sheet with a mangled Status column is all-malformed with zero lost work. That
-  // bucket therefore cannot honestly drive a failure.
   it("still reports succeeded for an import whose only finding is malformed rows", () => {
     const src = entry("greet", "Hi");
     const result = importLocale(

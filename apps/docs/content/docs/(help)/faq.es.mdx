@@ -68,7 +68,9 @@ trabajo.
 Confirma tus archivos de locale y `verbatra.lock.json`: el bloqueo registra, por clave, el hash del
 contenido de origen del que salió cada traducción, y confirmarlo es lo que hace que las ejecuciones
 incrementales y la detección de desfase funcionen en todas partes, incluido CI. No confirmes
-`.env`, `.env.local` ni `.verbatra-local/`; `verbatra init` añade los tres a `.gitignore`. Consulta
+`.env`, `.env.local`, `.verbatra-local/` ni `verbatra.cache.json`; `verbatra init` añade los cuatro
+a `.gitignore`, y `translate`, `watch` e `import` completan un `.gitignore` existente al que le
+falte alguno. Consulta
 [El archivo de bloqueo](/docs/the-lock-file).
 
 ## ¿Cómo lo retraduzco todo?

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { appendMissingGitignoreEntries, ensureGitignore } from "./gitignore.js";
 import { captureStreams } from "./test-support.js";
 
+/** A fresh temp project, carrying a `.gitignore` of the given content only when one is passed. */
 function project(gitignore?: string): string {
   const dir = mkdtempSync(join(tmpdir(), "verbatra-gitignore-"));
   if (gitignore !== undefined) {
@@ -34,7 +35,6 @@ afterEach(() => {
 });
 
 describe("appendMissingGitignoreEntries", () => {
-  // The upgrade case this exists for: a project scaffolded before the cache entry was introduced.
   it("adds the cache entry to a .gitignore written by an older init", () => {
     const dir = project(".env\n.env.local\n.verbatra-local/\n");
 
@@ -99,8 +99,6 @@ describe("appendMissingGitignoreEntries", () => {
     expect(readGitignore(dir).match(/verbatra\.cache\.json/g)).toHaveLength(1);
   });
 
-  // Absent means the project is not using a .gitignore; materializing one during an ordinary
-  // translate is a bigger surprise than the untracked file it would prevent.
   it("never creates a .gitignore that does not exist", () => {
     const dir = project();
 
@@ -154,7 +152,6 @@ describe("ensureGitignore", () => {
     expect(cap.out()).toContain("already ignores");
   });
 
-  // The run path may have topped the file up first; re-running init must still not duplicate.
   it("produces no duplicate after the run-path top-up already added the entries", () => {
     const dir = project(".env\n");
     appendMissingGitignoreEntries(dir);

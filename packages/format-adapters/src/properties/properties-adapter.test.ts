@@ -346,8 +346,6 @@ describe("createPropertiesAdapter write (line-terminator preservation)", () => {
     expect(await readFile(path, "utf8")).toBe("a=one\n");
   });
 
-  // Any CRLF wins for the whole file: counting a dominant style would be more code for no gain,
-  // and converging on one is what makes the round trip below a fixed point.
   it("converts a mixed destination entirely to CRLF when any CRLF is present", async () => {
     const path = await tempFile("m.properties", "# c\na=one\nb=two\r\nc=three\n");
     const { resource } = await adapter.read(path, "de");

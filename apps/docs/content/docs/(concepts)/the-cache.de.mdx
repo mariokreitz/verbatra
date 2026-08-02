@@ -9,7 +9,7 @@ verbatra führt einen lokalen Translation-Memory-Cache, `verbatra.cache.json`, d
 Bei einem Lauf schlägt verbatra einen Key im Cache nach, bevor er zum Provider geht, und zwar über den Hash seines aktuellen Quellinhalts. Ein Treffer wird kostenlos bedient, du zahlst also nie erneut dafür. Weil die Suche über den Inhalt läuft, überlebt die Wiederverwendung Fälle, die die Lock-Datei nicht abdeckt:
 
 - **Ein umbenannter Key.** Verschiebst du einen String von `home.title` nach `landing.title`, wird seine Übersetzung wiederverwendet statt neu übersetzt.
-- **Doppelter Inhalt.** Zwei Keys mit bytegleichem Quelltext teilen sich eine Übersetzung; der zweite ist ein Cache-Treffer.
+- **Doppelter Inhalt.** Zwei Keys mit demselben Quellinhalt teilen sich eine Übersetzung; der zweite ist ein Cache-Treffer.
 
 Einem wiederverwendeten Wert wird nicht blind vertraut. Er durchläuft weiterhin dieselben [Platzhalter- und ICU-Integritätsprüfungen](/docs/translation-safety) gegen den aktuellen Quelltext, bevor er geschrieben wird, ein gecachter Wert, der nicht mehr zu seinem Key passt, wird also verworfen und der Key frisch übersetzt. Cache-Treffer werden pro Locale in der Laufzusammenfassung ausgewiesen, getrennt von den in diesem Lauf übersetzten Keys.
 

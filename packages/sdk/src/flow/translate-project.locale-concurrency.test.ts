@@ -323,9 +323,22 @@ async function heldLockFiles(dir: string): Promise<string[]> {
   }
 }
 
+/**
+ * The failure under test is a re-thrown `LOCK_FILE_INVALID`, produced by the
+ * `fsWithOneCorruptLockRead` seam above: three workers start, one hits the corrupt read and
+ * re-throws while the other two are already inside a slow provider call. Those two must finish and
+ * stop, never claiming either of the two queued locales.
+ *
+ * The `sleep(300)` in the two tests that assert on what was never claimed is what makes that
+ * observable. It is well past the probe's 120ms provider delay, so a worker that kept claiming after
+ * the failure would have drained the rest of the queue before either assertion runs.
+ *
+ * Releasing every in-flight worker's write lock before `translate()` settles is the guarantee the
+ * CLI relies on: the CLI ends in a synchronous `process.exit`, which would truncate any release
+ * still pending when the promise settles. Releasing first is what keeps an orphaned lock a
+ * hard-kill-only outcome.
+ */
 describe("translate: a whole-run failure under concurrency", () => {
-  // Three workers start, one hits the corrupt read and re-throws while the other two are inside a
-  // slow provider call. Those two must finish and stop, never reaching the two queued locales.
   it("claims no further locale once one worker raises a whole-run failure", async () => {
     const dir = await project({ a: "A" });
     const { provider, stats } = makeConcurrencyProbe({ delayMs: 120 });
@@ -337,7 +350,6 @@ describe("translate: a whole-run failure under concurrency", () => {
       ),
     ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
 
-    // Settle well past the point abandoned workers would have drained the rest of the queue.
     await sleep(300);
 
     expect(stats().arrived).toBe(2);
@@ -359,9 +371,6 @@ describe("translate: a whole-run failure under concurrency", () => {
     await expect(targetText(dir, "nl")).rejects.toThrow();
   });
 
-  // The guarantee the CLI relies on: it ends in a synchronous process.exit, which would truncate any
-  // lock release still pending when translate() settles. Releasing before settling is what makes an
-  // orphaned lock a hard-kill-only outcome again.
   it("releases every in-flight worker's write lock before translate() settles", async () => {
     const dir = await project({ a: "A" });
     const { provider } = makeConcurrencyProbe({ delayMs: 120 });

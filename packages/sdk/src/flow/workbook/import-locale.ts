@@ -106,7 +106,10 @@ interface Buckets {
   readonly withheld: Set<string>;
   /** Blank cells for a source key whose current hash no longer matches the recorded baseline. */
   readonly blankDrifted: Set<string>;
-  /** Keys the workbook exported as `changed` that the translator left blank (pending work). */
+  /**
+   * Keys the translator left blank that the import-time diff still lists as needing a translation
+   * (pending work). Decided by that diff, not by the `status` the row was exported with.
+   */
   readonly unfilled: string[];
 }
 
@@ -209,11 +212,11 @@ function blankRowBaselineNotice(count: number): SdkNotice {
  * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
  * in this sheet (source-side only; a filled value's own ICU failure is reported under
  * `integrityMismatches`). `unfilled` lists blank rows whose key still needs a translation at import
- * time, whether it was exported as `new` or `changed`; `malformedRows`
- * and `duplicateKeys` carry the reader's structural findings for this sheet verbatim. `pruned`,
- * `providerFailures`, `budgetWithheld`, `generated`, and `needsReview` are always empty: an import
- * never prunes, never calls a provider, never generates plural forms, and never recomputes review
- * flags (the workbook's Review columns are informational only; see export-workbook.ts).
+ * time, whether it was exported as `new` or `changed`; `malformedRows` and `duplicateKeys` carry the
+ * reader's structural findings for this sheet verbatim. `pruned`, `providerFailures`,
+ * `budgetWithheld`, `generated`, and `needsReview` are always empty: an import never prunes, never
+ * calls a provider, never generates plural forms, and never recomputes review flags (the
+ * workbook's Review columns are informational only; see export-workbook.ts).
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });

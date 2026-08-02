@@ -33,7 +33,7 @@ Mit angeschlossenem Terminal fragt `init` alles ab, was du nicht als Flag überg
 
 - `verbatra.config.ts`: deine Projektkonfiguration, vor dem Schreiben gegen das echte Schema validiert
 - `.env.example`: nennt die Schlüsselvariable des Providers, nie einen Schlüsselwert
-- `.gitignore`-Einträge für `.env`, `.env.local` und `.verbatra-local/`, angelegt oder ergänzt, damit ein echter Schlüssel oder lokaler Zustand nie in einem Commit landet
+- `.gitignore`-Einträge für `.env`, `.env.local`, `.verbatra-local/` und `verbatra.cache.json`, angelegt oder ergänzt, damit ein echter Schlüssel, lokaler Zustand oder der regenerierbare Cache nie in einem Commit landet
 
 Ein erneutes `init` überspringt Dateien, die schon existieren; `--force` überschreibt sie. Es füllt außerdem `format` anhand deiner Dependencies vor: Ein Projekt mit i18next, vue-i18n, next-intl oder `@ngx-translate/core` bekommt das passende JSON-Format, alles andere fällt auf `i18next-json` mit einem TODO-Kommentar zum Ändern zurück. Für Gemini sieht das Gerüst so aus:
 

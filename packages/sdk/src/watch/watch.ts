@@ -111,6 +111,16 @@ function describeError(error: unknown): { code: string; message: string } {
  * `onRun` as a {@link WatchRunResult} and watching continues. Returns a controller whose `stop()`
  * closes the watcher and awaits the in-flight run.
  *
+ * Both startup refusals are ordered deliberately: `concurrency` is resolved first because it is
+ * decidable from the arguments alone, while the missing-source check is an I/O probe of project
+ * state, so argument validation runs before any I/O and before the watcher exists. The concurrency
+ * resolve passes `dryRun: false` unconditionally, which is exact rather than a simplification: there
+ * is no dry-run watch, so the budget conflict always applies to a session.
+ *
+ * Resolving it here rather than leaving it to each cycle is the point, not an optimization: a watch
+ * session is long-lived, so a per-cycle refusal would fail the initial run and every run after it,
+ * indefinitely, while the session stayed alive and looked healthy.
+ *
  * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
  * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
  * @returns A {@link WatchController}; call `stop()` to close the watcher and await the in-flight run.
@@ -148,12 +158,6 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   const debounceMs = input.debounceMs ?? DEFAULT_DEBOUNCE_MS;
   const fs = deps.fs ?? defaultFs;
 
-  // Resolve concurrency before probing the source, and before the watcher exists. Both are startup
-  // refusals, but this one is decidable from the arguments alone while the source check is an I/O
-  // probe of project state, so argument validation runs first. A watch session is long-lived: left
-  // to the per-cycle resolve, an unhonorable combination would fail the initial run and every run
-  // after it, indefinitely, while the session stayed alive. There is no dry-run watch, so the
-  // budget conflict always applies.
   resolveRunConcurrency(input.concurrency, false, input.config);
 
   const sourcePath = localeFilePath(cwd, input.config.files.pattern, input.config.sourceLocale);

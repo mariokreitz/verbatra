@@ -57,7 +57,9 @@ const UNUSABLE: TranslationMemoryRead = { memory: EMPTY_MEMORY, writable: true }
  *
  * Note that a version of 0, a negative, or a non-integer never reaches that branch: the schema's
  * positive-integer check rejects them, so they are corrupt and are overwritten like any other
- * corruption.
+ * corruption. That branch is also kept separate from the schema check on purpose: folding the two
+ * together would make every corrupt file non-writable too, wedging a cache that is supposed to
+ * self-heal.
  *
  * @param path - The cache file path (see {@link cacheFilePath}).
  * @param fs - The file-system seam.
@@ -86,8 +88,6 @@ export async function readTranslationMemory(
   if (!result.success) {
     return UNUSABLE;
   }
-  // Split from the schema check above on purpose: folding the two together would make every
-  // corrupt file non-writable too, wedging a cache that is supposed to self-heal.
   if (result.data.version !== CURRENT_VERSION) {
     return { memory: EMPTY_MEMORY, writable: false };
   }

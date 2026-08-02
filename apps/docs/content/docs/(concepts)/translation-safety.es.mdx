@@ -24,7 +24,14 @@ Una traducción válida según el esquema todavía puede estar rota, así que un
 la decisión de aceptar o rechazar directamente a partir del valor candidato; el informe de
 integridad del propio proveedor nunca se toma por bueno. La misma puerta corre en cada ruta de
 escritura: una traducción venida del proveedor, una fila importada de un libro y una edición
-tecleada por una persona en Studio.
+tecleada por una persona en Studio. También corre por clave sobre un valor reutilizado. Cuando una
+misma traducción se sirve a varias claves con el mismo contenido de origen (un acierto de
+[caché](/docs/the-cache), o la copia que hace que un texto idéntico cueste una sola solicitud al
+proveedor), cada clave pasa la puerta contra su propia entrada de origen, y una clave cuya
+comprobación falla se retiene en lugar de escribirse. La igualdad la decide un hash de contenido
+que trata el texto como igual salvo por la normalización Unicode NFC y los finales de línea LF, así
+que dos claves pueden coincidir sin ser idénticas byte a byte. Por eso mismo la puerta se ejecuta de
+nuevo por clave.
 
 - Integridad de los marcadores de posición: el valor traducido debe llevar los mismos marcadores de
   posición que su origen, comparados como multiconjunto (las cantidades importan, el orden no).

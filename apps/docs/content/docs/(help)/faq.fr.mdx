@@ -68,7 +68,9 @@ de travail.
 Commite tes fichiers de locale et `verbatra.lock.json` : le fichier de verrouillage enregistre,
 par clé, le hash du contenu source dont chaque traduction provient, et le commiter est ce qui rend
 les exécutions incrémentales et la détection de dérive opérantes partout, CI comprise. Ne commite
-pas `.env`, `.env.local` ni `.verbatra-local/` ; `verbatra init` ajoute les trois au `.gitignore`.
+pas `.env`, `.env.local`, `.verbatra-local/` ni `verbatra.cache.json` ; `verbatra init` ajoute les
+quatre au `.gitignore`, et `translate`, `watch` et `import` complètent un `.gitignore` existant
+auquel il en manque un.
 Voir [Le fichier de verrouillage](/docs/the-lock-file).
 
 ## Comment je retraduis tout ?

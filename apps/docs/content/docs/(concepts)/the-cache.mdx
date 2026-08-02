@@ -9,9 +9,9 @@ verbatra keeps a local translation-memory cache, `verbatra.cache.json`, so a str
 On a run, before a key goes to the provider, verbatra looks it up in the cache by the hash of its current source content. A hit is served for free, so you never pay for it again. Because the lookup is by content, reuse survives cases the lock file cannot:
 
 - **A renamed key.** Move a string from `home.title` to `landing.title` and its translation is reused, not re-translated.
-- **Duplicate content.** Two keys with byte-identical source text share one translation; the second is a cache hit.
+- **Duplicate content.** Two keys with the same source content share one translation; the second is a cache hit.
 
-A reused value is not trusted blindly. It still passes the same [placeholder and ICU integrity checks](/docs/translation-safety) against the current source before it is written, so a cached value that no longer fits its key is discarded and the key is translated fresh. Cache hits are reported per locale in the run summary, separate from the keys translated this run.
+A reused value is not trusted blindly. It still passes the same [integrity checks](/docs/translation-safety) against the current source before it is written, so a cached value that no longer fits its key is discarded and the key is translated fresh. Cache hits are reported per locale in the run summary, separate from the keys translated this run.
 
 ## The fingerprint
 

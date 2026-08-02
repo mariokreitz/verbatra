@@ -41,6 +41,8 @@ verbatra import verbatra-translations.xlsx --dry-run
 
 El contrato coincide con el de [`verbatra translate`](/docs/cli/translate), así que una entrega manual ramifica igual en CI.
 
+Una celda `Translation` vacía nunca hace fallar un locale: la fila se omite, se conserva su línea base anterior del bloqueo, y la clave se informa como `unfilled` siempre que todavía necesite traducción, tanto si la fila se exportó como `new` como si se exportó como `changed`. Importar un libro que nadie ha rellenado todavía tiene por tanto éxito y devuelve el inventario completo de claves pendientes.
+
 ## Relacionado
 
 - [Traducción humana](/docs/manual-translation) cubre el ciclo completo de exportar, rellenar e importar y qué puede editar un traductor.

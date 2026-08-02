@@ -197,8 +197,6 @@ describe("watch: startup and wiring", () => {
     expect(w.paths).toEqual([]);
   });
 
-  // Pins the precedence: concurrency is decidable from the arguments alone, so it is refused
-  // before the source-existence probe rather than after it.
   it("reports the concurrency conflict ahead of a missing source", async () => {
     const w = watcherHarness();
     const r = runHarness();

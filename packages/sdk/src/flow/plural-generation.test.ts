@@ -57,6 +57,15 @@ function hasNotice(notices: readonly { code: string }[]): boolean {
   return notices.some((n) => n.code === "PLURAL_CATEGORIES_INCOMPLETE");
 }
 
+/**
+ * Generation is the fifth disk-writing path and it shares the one accept/reject choke point, so
+ * every gate rule has to reach it: a synthesized form the provider returned blank must be withheld,
+ * not written as an empty plural category.
+ *
+ * The empty-value test below deliberately uses a placeholder-free plural source. With `{{count}}` in
+ * the source the placeholder check rejects an empty candidate first, so the test would pass with or
+ * without the emptiness rule and would prove nothing about it.
+ */
 describe("translate: plural-category generation (supported case)", () => {
   it("generates every required category for a richer target and clears the warning", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: {} });
@@ -98,13 +107,7 @@ describe("translate: plural-category generation (supported case)", () => {
     expect(hasNotice(locale?.notices ?? [])).toBe(true);
   });
 
-  // Plural generation is the fifth disk-writing path, and it shares the one accept/reject choke
-  // point, so the gate's refusal of an empty translation has to reach it too. A synthesized form
-  // that came back blank must be withheld rather than written as an empty plural category.
   it("withholds a generated form the provider returned empty, and keeps the warning", async () => {
-    // A placeholder-free plural source on purpose: with {{count}} present the placeholder check
-    // rejects an empty candidate first, so the test would pass with or without the emptiness rule
-    // and prove nothing about it.
     const dir = await project({ items_one: "one item", items_other: "many items" }, { pl: {} });
     const blankGenerated = makeStubProvider({
       translate: (value, key, locale) =>

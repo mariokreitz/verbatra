@@ -97,18 +97,18 @@ describe("gateCandidateValue: an empty candidate for a non-empty source", () => 
     expect(gateCandidateValue(entry("   ", []), "", adapter)).toEqual({ accepted: true });
   });
 
-  // The emptiness check runs last precisely so it cannot relabel a rejection that was already
-  // correct: a candidate that is both empty and placeholder-mismatched stays "placeholder".
   it("keeps reporting placeholder for an empty candidate whose source carries a placeholder", () => {
     const result = gateCandidateValue(entry("Hello {{name}}", ["{{name}}"]), "", adapter);
     expect(result).toEqual({ accepted: false, reason: "placeholder" });
   });
 });
 
-// The two adapters that define comparePlaceholders take a different branch inside the gate: it
-// re-derives placeholders from the source value and ignores sourceEntry.placeholders entirely. A
-// suite written only against i18next-json never exercises it, and it is exactly the branch where an
-// empty candidate for a placeholder-carrying source used to be accepted.
+/**
+ * These two adapters define `comparePlaceholders`, which takes a different branch inside the gate:
+ * it re-derives placeholders from the source value and ignores `sourceEntry.placeholders` entirely.
+ * A suite written only against i18next-json never exercises that branch, and it is exactly where an
+ * empty candidate for a placeholder-carrying source used to be accepted.
+ */
 describe.each([
   ["next-intl", createNextIntlJsonAdapter],
   ["arb", createArbAdapter],

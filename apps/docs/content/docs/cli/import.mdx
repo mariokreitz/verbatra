@@ -41,6 +41,8 @@ verbatra import verbatra-translations.xlsx --dry-run
 
 The contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI.
 
+A blank `Translation` cell never fails a locale: the row is skipped, its prior lock baseline is kept, and the key is reported as `unfilled` whenever it still needs a translation, whether the row was exported as `new` or `changed`. Importing a workbook nobody has filled in yet therefore succeeds and returns the full inventory of pending keys.
+
 ## Related
 
 - [Manual translation](/docs/manual-translation) covers the full export, fill, import round-trip and what a translator may edit.

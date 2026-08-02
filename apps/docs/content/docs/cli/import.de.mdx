@@ -41,6 +41,8 @@ verbatra import verbatra-translations.xlsx --dry-run
 
 Der Vertrag entspricht [`verbatra translate`](/docs/cli/translate); eine manuelle Übergabe verzweigt in CI also genauso.
 
+Eine leere `Translation`-Zelle lässt ein Locale nie fehlschlagen: Die Zeile wird übersprungen, ihre bisherige Lock-Baseline bleibt erhalten, und der Key wird als `unfilled` gemeldet, wann immer er weiterhin eine Übersetzung braucht, egal ob die Zeile als `new` oder als `changed` exportiert wurde. Der Import einer Arbeitsmappe, die noch niemand ausgefüllt hat, gelingt also und liefert den vollständigen Bestand ausstehender Keys zurück.
+
 ## Siehe auch
 
 - [Menschliche Übersetzung](/docs/manual-translation) behandelt den vollständigen Roundtrip aus Export, Ausfüllen und Import und was eine Übersetzerin bearbeiten darf.

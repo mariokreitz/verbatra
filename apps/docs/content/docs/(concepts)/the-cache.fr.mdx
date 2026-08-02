@@ -9,7 +9,7 @@ verbatra tient un cache local de mémoire de traduction, `verbatra.cache.json`, 
 Lors d'une exécution, avant qu'une clé parte au fournisseur, verbatra la cherche dans le cache par le hachage de son contenu source actuel. Un succès est servi gratuitement, tu ne le paies donc jamais deux fois. Comme la recherche se fait par contenu, la réutilisation survit à des cas que le fichier de verrouillage ne couvre pas :
 
 - **Une clé renommée.** Déplace une chaîne de `home.title` vers `landing.title` et sa traduction est réutilisée, pas retraduite.
-- **Contenu en double.** Deux clés au texte source identique octet pour octet partagent une traduction ; la seconde est un succès de cache.
+- **Contenu en double.** Deux clés au même contenu source partagent une traduction ; la seconde est un succès de cache.
 
 Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité des placeholders et de l'ICU](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
 

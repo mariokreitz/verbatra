@@ -13,9 +13,9 @@ const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL", "openai-c
  *
  * Keyed by `SupportedFormat` and exhaustive on purpose. This list used to be a bare array that
  * happened to agree with the SDK, and it is exactly the kind of list that goes stale silently: the
- * FAQ answer built from it is published as machine-readable capability data, and `apps/docs` has no
- * tests. Keying it by the type makes adding a format to the SDK a docs typecheck failure until its
- * label is filled in, so the two cannot drift apart again.
+ * SoftwareApplication `featureList` built from it is published as machine-readable capability
+ * data, and `apps/docs` has no tests. Keying it by the type makes adding a format to the SDK a
+ * docs typecheck failure until its label is filled in, so the two cannot drift apart again.
  */
 const FORMAT_LABELS: Readonly<Record<SupportedFormat, string>> = {
   "i18next-json": "i18next",

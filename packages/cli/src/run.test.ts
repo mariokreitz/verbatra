@@ -230,6 +230,13 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
   });
 });
 
+/**
+ * Two halves of the same contract at the CLI boundary: the argument validation the CLI performs
+ * itself, and the SDK's refusal of a concurrency value it cannot honor. The SDK makes that refusal
+ * once at watch startup rather than repeating it every cycle, and no CLI change was needed for it,
+ * because the watch session already renders a startup rejection and resolves exit 2. The last case
+ * pins that user-visible half so the CLI cannot start swallowing it.
+ */
 describe("run translate: --concurrency", () => {
   it("passes a valid --concurrency to the SDK translate() as a number", async () => {
     const { deps, calls } = recordingDeps();
@@ -263,9 +270,6 @@ describe("run translate: --concurrency", () => {
     },
   );
 
-  // The SDK now refuses an unhonorable budget/concurrency combination at watch startup instead of
-  // per cycle. No CLI change was needed for this: the watch session already renders a startup
-  // rejection and resolves exit 2. Pinned here because it is the user-visible half.
   it("a watch startup concurrency refusal exits 2 with the structured error", async () => {
     const { deps } = recordingDeps({
       watch: () =>
@@ -553,6 +557,13 @@ describe("run: usage errors, help, version", () => {
   });
 });
 
+/**
+ * The pre-flight work a run-path command does at its `--cwd` before handing off to the SDK: loading
+ * `.env` files, and topping up an existing `.gitignore`. The top-up is here because `init` was the
+ * only place that ever wrote those entries, so a project scaffolded before `verbatra.cache.json`
+ * existed picks up a new untracked file at its root on the first write. It stays silent by design,
+ * which is what the `--json` case guards: stdout carries the single summary object and nothing else.
+ */
 describe("run: .env loading is wired before the SDK flow", () => {
   let dir: string;
   let savedEnv: NodeJS.ProcessEnv;
@@ -580,8 +591,6 @@ describe("run: .env loading is wired before the SDK flow", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  // The cache file lands at the project root on every write path, but only init ever wrote the
-  // ignore entry, so every project scaffolded before it existed gets a new untracked file.
   it("translate tops up an existing .gitignore in the --cwd directory", async () => {
     writeFileSync(join(dir, ".gitignore"), ".env\n.env.local\n.verbatra-local/\n");
     const { deps } = recordingDeps();

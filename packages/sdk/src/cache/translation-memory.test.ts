@@ -70,15 +70,11 @@ describe("readTranslationMemory: degrade-to-empty", () => {
 });
 
 describe("readTranslationMemory: writability", () => {
-  // The only non-writable exit. A version this build does not know came from a newer one, and the
-  // end-of-run write replaces the whole file, so writing would downgrade and empty it.
   it("marks a valid file with an unrecognized version non-writable", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => okRead('{"version":2,"entries":{}}') });
     expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: false });
   });
 
-  // Folding this into the schema check would make corrupt files non-writable too, wedging a cache
-  // that is meant to self-heal. These land in the schema failure, not the version branch.
   it.each([
     ["zero", '{"version":0,"entries":{}}'],
     ["negative", '{"version":-1,"entries":{}}'],

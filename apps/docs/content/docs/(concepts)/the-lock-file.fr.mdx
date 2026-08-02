@@ -51,6 +51,12 @@ second rédacteur pour la même locale attend, puis relit le fichier de verrouil
 compare avec une référence qui inclut déjà le résultat du premier rédacteur. Des locales
 différentes ne se bloquent pas entre elles.
 
+Quand une exécution traduit plusieurs locales à la fois et rencontre une erreur globale (en
+pratique un fichier de verrouillage corrompu), elle arrête de réclamer de nouvelles locales et
+attend la fin de celles qui tournent déjà, donc chaque verrou pris par l'exécution est libéré avant
+que la commande ne sorte. Aucune locale n'est démarrée après que l'exécution a déjà échoué, et
+aucun verrou n'est rendu orphelin par l'échec lui-même.
+
 Si un verrou ne peut pas être acquis, l'exécution échoue avec `LOCK_CONTENDED` et nomme le chemin
 du fichier de verrou (sous le répertoire `.verbatra-local/`, ignoré par git). Si aucun processus
 verbatra ne tourne, ce fichier a été laissé par un processus tué : supprime-le et réessaie.

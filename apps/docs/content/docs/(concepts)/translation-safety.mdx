@@ -23,7 +23,12 @@ content.
 A schema-valid translation can still be broken, so one gate recomputes the accept-or-reject
 decision directly from the candidate value; the provider's own integrity report is never trusted.
 The same gate runs on every write path: a provider-sourced translation, a workbook import row, and
-a human-typed edit in Studio.
+a human-typed edit in Studio. It also runs per key on a reused value. When one translation is
+served to several keys with the same source content (a [cache](/docs/the-cache) hit, or the copy
+that makes identical text cost a single provider request), each key runs the gate against its own
+source entry, and a key whose check fails is withheld rather than written. Sameness is decided by a
+content hash that treats text as equal up to Unicode NFC normalization and LF line endings, so two
+keys can match without being byte-identical. That is exactly why the gate is re-run per key.
 
 - Placeholder integrity: the translated value must carry the same placeholders as its source,
   compared as a multiset (counts matter, order does not). Drop, add, or alter one and the candidate

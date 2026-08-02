@@ -41,6 +41,8 @@ verbatra import verbatra-translations.xlsx --dry-run
 
 Le contrat correspond à [`verbatra translate`](/docs/cli/translate), donc une passation manuelle se branche de la même façon en CI.
 
+Une cellule `Translation` vide ne fait jamais échouer une locale : la ligne est sautée, la ligne de base antérieure de son verrou est conservée, et la clé est rapportée comme `unfilled` dès qu'elle demande toujours une traduction, que la ligne ait été exportée comme `new` ou `changed`. Importer un classeur que personne n'a encore rempli réussit donc et renvoie l'inventaire complet des clés en attente.
+
 ## Voir aussi
 
 - [Traduction humaine](/docs/manual-translation) couvre l'aller-retour complet export, remplissage, import et ce qu'un traducteur peut modifier.

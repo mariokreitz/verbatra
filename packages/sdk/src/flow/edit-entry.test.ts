@@ -140,6 +140,13 @@ describe("editEntry: acceptance", () => {
   });
 });
 
+/**
+ * A hand-typed value runs through the same `gateCandidateValue` as a provider's, so it is refused
+ * for the same reasons. The empty case is the one a person reaches by accident: Studio's edit dialog
+ * is a plain textarea and a Save button, so select-all-delete used to write an empty value straight
+ * through and feed it to the cache. Clearing a translation is the workbook's `[[CLEAR]]` job, which
+ * never reaches this path.
+ */
 describe("editEntry: rejection", () => {
   it("returns accepted: false on a placeholder mismatch and writes nothing", async () => {
     const dir = await project({ greeting: "Hello {{name}}" }, { de: { greeting: "old" } });
@@ -178,9 +185,6 @@ describe("editEntry: rejection", () => {
     expect(de).toEqual({ greeting: "old" });
   });
 
-  // Studio's edit dialog is a plain textarea and a Save button, so select-all-delete used to write
-  // an empty value straight through and feed it to the cache. Clearing is the workbook's
-  // [[CLEAR]] job; here the value is refused and the existing translation survives.
   it.each(["", "   ", "\t\n"])(
     "returns accepted: false with reason empty for the value %j, writing nothing",
     async (value) => {

@@ -110,8 +110,6 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     expect(events).toContainEqual({ type: "run-finished", localesCompleted: 2 });
   });
 
-  // localeIndex on a finish exists to pair it with its start, and must keep working when the two
-  // orders diverge, which is exactly what concurrency produces and what a counter could not survive.
   it("carries the same localeIndex on a finish as on its start, even out of completion order", async () => {
     const dir = await makeProject(1);
     const config = baseConfig({ targetLocales: ["de", "fr", "es"] });

@@ -39,12 +39,15 @@ config) exactly those keys are removed from the target file and the lock, and no
 
 ## Batch to the provider
 
-Candidates go to your configured provider in sequential sub-batches of at most `maxBatchSize`
-(default 50), so one oversized request cannot take down a whole locale. Each sub-batch carries the
-entries plus your optional `glossary` and `tone`. If a sub-batch call fails (a rate limit, a
-timeout, a revoked key), its keys are withheld for this run and picked up again next run while the
-other sub-batches keep making progress. See [Providers](/docs/providers) for how each provider
-applies the inputs.
+Of the candidates that reach the provider, those sharing the same source content are grouped
+first, so that text costs one request per locale rather than one per key; the value that comes
+back is copied to the other keys in its group and re-checked against each one's own source in the
+integrity step below. The groups go to your configured provider in sequential sub-batches of at
+most `maxBatchSize` (default 50), so one oversized request cannot take down a whole locale. Each
+sub-batch carries the entries plus your optional `glossary` and `tone`. If a sub-batch call fails
+(a rate limit, a timeout, a revoked key), its keys are withheld for this run and picked up again
+next run while the other sub-batches keep making progress. See [Providers](/docs/providers) for
+how each provider applies the inputs.
 
 ## Validate the response
 

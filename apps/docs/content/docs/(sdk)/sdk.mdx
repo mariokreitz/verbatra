@@ -46,7 +46,10 @@ Input: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?,
   only). Both default to off; when set, each overrides the matching config option for that run.
 - `concurrency` runs up to that many target locales at once (default 1, strictly serial). A value
   below 1 throws `CONCURRENCY_INVALID`; on a live run a value above 1 with `maxTokens` configured
-  throws `CONCURRENCY_BUDGET_CONFLICT` (a dry run is exempt).
+  throws `CONCURRENCY_BUDGET_CONFLICT` (a dry run is exempt). A whole-run error raised once locales
+  are already running stops any further locale from being started, and the locales in flight finish
+  and release their write locks before `translate` rejects, so the rejection arrives after the
+  slowest one rather than instantly.
 - `cache` defaults to true and reuses the local [translation-memory cache](/docs/the-cache); set it
   to false to bypass the cache for the run (the CLI's `--no-cache`).
 - `onProgress` is called as the run advances (per locale start and finish, and per provider
@@ -69,12 +72,15 @@ Input: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, o
 `debounceMs` defaults to 300. `onRun` is called once per run with a `WatchRunResult`:
 `{ status: "succeeded", summary }` or `{ status: "failed", error: { code, message } }`. The SDK does
 no logging; `onRun` is the only output. `concurrency`, `cache`, `onProgress`, `onLockWait`, and
-`lockAcquireTimeoutMs` are passed through to every run and behave exactly as on `translate` (a
-budgeted watch with `concurrency` above 1 fails each run with `CONCURRENCY_BUDGET_CONFLICT`).
+`lockAcquireTimeoutMs` are passed through to every run and behave exactly as on `translate`.
 
 Returns a `WatchController` with one method, `stop()`, which closes the watcher and awaits the
-in-flight run. A missing source file throws `SOURCE_UNREADABLE` at startup; every failure after
-that is surfaced through `onRun` and watching continues.
+in-flight run. Three problems are refused at startup, before the watcher exists, so `watch` itself
+rejects rather than returning a controller: a `concurrency` that is not an integer of at least 1
+throws `CONCURRENCY_INVALID`, a `concurrency` above 1 against a config that sets `maxTokens` throws
+`CONCURRENCY_BUDGET_CONFLICT` (there is no dry-run watch, so the budget conflict always applies),
+and a missing source file throws `SOURCE_UNREADABLE`. Every failure after startup is surfaced
+through `onRun` and watching continues.
 
 ## Inspect state without writing
 
@@ -156,8 +162,10 @@ locale file and the lock entry for that key are updated inside the locale's writ
 calls a provider.
 
 Input: `{ config, cwd?, locale, key, value }`. Returns a two-armed result:
-`{ accepted: true, value }`, or `{ accepted: false, reason: "placeholder" | "icu", value }` with
-nothing written.
+`{ accepted: true, value }`, or
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }` with nothing
+written. `"empty"` covers an empty or whitespace-only value for a source that has text: an edit
+cannot express clearing a key, so use the workbook's `[[CLEAR]]` sentinel for that.
 
 ### retranslateEntry
 
@@ -167,9 +175,9 @@ locale file and lock entry for that key only.
 
 Input: `{ config, cwd?, locale, key }`. Returns `{ accepted: true, value, reviewReasons }` (the
 review reason codes, if any, that apply to the new value) or
-`{ accepted: false, reason: "placeholder" | "icu", value }`. Unlike `translate`, a provider failure
-here throws: a `ProviderError` from `@verbatra/ai-providers` with a stable code such as
-`RATE_LIMITED` or `AUTH_FAILED`.
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }`. Unlike
+`translate`, a provider failure here throws: a `ProviderError` from `@verbatra/ai-providers` with a
+stable code such as `RATE_LIMITED` or `AUTH_FAILED`.
 
 ## Locale-file snapshots
 
@@ -271,7 +279,7 @@ interface RunSummary {
 
 interface LocaleSummary {
   locale: string;
-  status: "succeeded" | "failed";
+  status: "succeeded" | "partial" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
@@ -282,7 +290,7 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
-  unfilled: string[];            // import only: changed rows the translator left blank
+  unfilled: string[];            // import only: blank rows whose key still needs a translation
   malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
   duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
@@ -302,7 +310,9 @@ The parts worth knowing:
   [Review in Studio](/docs/review-in-studio) for working the queue.
 - **notices** live per locale, never at the top level. They cover provider notices (say, a DeepL
   degradation) and SDK notices with the codes `PLURAL_CATEGORIES_INCOMPLETE`, `SUB_BATCH_FAILED`,
-  `BLANK_ROW_BASELINE_RETAINED`, and `BUDGET_TOKENS_EXCEEDED`.
+  `BLANK_ROW_BASELINE_RETAINED`, `BUDGET_TOKENS_EXCEEDED`, and `CACHE_VERSION_UNRECOGNIZED`. The
+  cache notice is run-wide (one file, shared by every locale), so it is attached to each locale in
+  the run.
 - **usage** is `undefined`, never a fabricated zero, whenever nothing in that scope reported usage:
   a dry run never calls a provider, and DeepL never reports tokens. `RunSummary.usage` is the sum
   over the locales.
@@ -313,7 +323,8 @@ The parts worth knowing:
   with `LOCALE_FAILED` only as a fallback), so do not treat it as a closed set.
 - **cacheHits** lists keys served from the [translation-memory cache](/docs/the-cache) rather than
   the provider. **unfilled**, **malformedRows**, and **duplicateKeys** are populated only by
-  `importWorkbook` (a `translate` run leaves them empty): a blank `changed` row, a workbook row the
+  `importWorkbook` (a `translate` run leaves them empty): a blank row whose key still needs a
+  translation at import time (whether it was exported as `new` or as `changed`), a workbook row the
   reader could not parse, and a duplicated key whose first occurrence won.
 
 ## The error model

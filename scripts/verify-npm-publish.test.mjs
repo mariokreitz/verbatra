@@ -137,8 +137,6 @@ describe("normalizeLicenseText", () => {
 });
 
 describe("classifyLicense", () => {
-  // The assertion that matters: every real tarball passes today, so absence is proven to fail
-  // here rather than being left to a registry path that can never exercise it.
   it("reports a tarball carrying no root LICENSE as missing", () => {
     expect(classifyLicense(null, ROOT_LICENSE)).toBe("missing");
   });

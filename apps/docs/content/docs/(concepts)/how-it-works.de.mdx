@@ -42,10 +42,13 @@ entfernt, und nichts anderes.
 
 ## In Batches an den Provider
 
-Kandidaten gehen in sequenziellen Sub-Batches von höchstens `maxBatchSize` Einträgen (Default 50)
-an deinen konfigurierten Provider, damit eine überdimensionierte Anfrage nicht eine ganze Locale
-mitreißt. Jeder Sub-Batch trägt die Einträge plus dein optionales `glossary` und `tone`. Schlägt
-ein Sub-Batch-Aufruf fehl (ein Rate-Limit, ein Timeout, ein widerrufener Schlüssel), werden seine
+Von den Kandidaten, die den Provider erreichen, werden zuerst die mit demselben Quellinhalt
+gruppiert, damit dieser Text eine Anfrage pro Locale kostet statt eine pro Key; der zurückkommende
+Wert wird auf die anderen Keys seiner Gruppe kopiert und im Integritätsschritt weiter unten gegen
+die jeweils eigene Quelle erneut geprüft. Die Gruppen gehen in sequenziellen Sub-Batches von
+höchstens `maxBatchSize` Einträgen (Default 50) an deinen konfigurierten Provider, damit eine
+überdimensionierte Anfrage nicht eine ganze Locale mitreißt. Jeder Sub-Batch trägt die Einträge
+plus dein optionales `glossary` und `tone`. Schlägt ein Sub-Batch-Aufruf fehl (ein Rate-Limit, ein Timeout, ein widerrufener Schlüssel), werden seine
 Keys für diesen Lauf zurückgehalten und beim nächsten Lauf wieder aufgegriffen, während die
 anderen Sub-Batches weiter Fortschritt machen. Siehe [Provider](/docs/providers) dafür, wie jeder
 Provider die Eingaben anwendet.

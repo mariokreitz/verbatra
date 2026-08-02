@@ -42,13 +42,16 @@ supprimées du fichier cible et du fichier de verrouillage, et rien d'autre.
 
 ## Envoyer par lots au fournisseur
 
-Les candidates partent vers ton fournisseur configuré en sous-lots séquentiels d'au plus
-`maxBatchSize` entrées (50 par défaut), pour qu'une requête trop grosse ne puisse pas emporter
-toute une locale. Chaque sous-lot transporte les entrées plus tes `glossary` et `tone` optionnels.
-Si l'appel d'un sous-lot échoue (une limite de débit, un délai dépassé, une clé révoquée), ses clés
-sont retenues pour cette exécution et reprises à la suivante, pendant que les autres sous-lots
-continuent d'avancer. Voir [Fournisseurs](/docs/providers) pour la façon dont chaque fournisseur
-applique ces entrées.
+Parmi les candidates qui atteignent le fournisseur, celles qui partagent le même contenu source
+sont d'abord regroupées, pour que ce texte coûte une requête par locale plutôt
+qu'une par clé ; la valeur renvoyée est copiée sur les autres clés de son groupe et revérifiée face
+à la source propre à chacune, à l'étape d'intégrité ci-dessous. Les groupes partent vers ton
+fournisseur configuré en sous-lots séquentiels d'au plus `maxBatchSize` entrées (50 par défaut),
+pour qu'une requête trop grosse ne puisse pas emporter toute une locale. Chaque sous-lot transporte
+les entrées plus tes `glossary` et `tone` optionnels. Si l'appel d'un sous-lot échoue (une limite
+de débit, un délai dépassé, une clé révoquée), ses clés sont retenues pour cette exécution et
+reprises à la suivante, pendant que les autres sous-lots continuent d'avancer. Voir
+[Fournisseurs](/docs/providers) pour la façon dont chaque fournisseur applique ces entrées.
 
 ## Valider la réponse
 

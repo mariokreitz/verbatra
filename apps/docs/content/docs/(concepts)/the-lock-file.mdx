@@ -47,6 +47,11 @@ to that one locale; a second writer for the same locale waits, then re-reads the
 and diffs against a baseline that already includes the first writer's result. Different locales do
 not block each other.
 
+When a run translates several locales at once and hits a whole-run error (in practice a corrupt
+lock file), it stops claiming new locales and waits for the ones already running to finish, so
+every lock the run took is released before the command exits. No locale is started after the run
+has already failed, and no lock is orphaned by the failure itself.
+
 If a lock cannot be acquired, the run fails with `LOCK_CONTENDED` and names the lock file's path
 (under the gitignored `.verbatra-local/` directory). If no verbatra process is running, that file
 was left behind by a killed one: delete it and retry.

@@ -12,7 +12,7 @@ export type IntegrityGateResult =
 /**
  * The single accept/reject decision point every write path (a provider-sourced translation, a
  * workbook import row, or a human-typed edit) must call before a candidate value is merged into a
- * target resource and handed to `adapter.write`. Recomputes both checks directly from the
+ * target resource and handed to `adapter.write`. Recomputes every check directly from the
  * candidate value: it never trusts a provider-reported integrity map, so the same function works
  * whatever the candidate's origin.
  *

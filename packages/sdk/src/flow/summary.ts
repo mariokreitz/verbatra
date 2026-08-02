@@ -101,8 +101,8 @@ export interface LocaleSummary {
    * an attempted translation, so a locale that dropped a malformed row, collapsed a duplicate key, or
    * left a row unfilled while accepting its other rows can still be `"succeeded"`.
    *
-   * This is a settled decision, not an omission, and each of the three fails to be a withholding for
-   * its own reason. Recording the reasoning here so the question stops recurring:
+   * This is a settled decision, not an omission. Recording the reasoning here so the question stops
+   * recurring:
    *
    * 1. Two questions, two commands. `import`'s exit code answers "did the import apply what the
    *    translator gave me". `check` and `diff` answer "is this project fully translated", and both

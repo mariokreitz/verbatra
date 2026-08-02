@@ -185,9 +185,12 @@ async function createRunCacheState(
 }
 
 /**
- * A locale's notices plus the run-wide cache notice when the cache file could not be written. The
- * condition is run-wide (one file, shared by every locale), so the same notice is attached to each
- * locale rather than inventing a run-level notice channel, which would change the summary shape.
+ * The locale summaries with the run-wide cache notice appended to each one's notices when the cache
+ * file was deliberately left unwritten (its version is one this build does not recognize, so
+ * overwriting it would downgrade a file a newer verbatra wrote). Not an I/O failure: nothing was
+ * attempted. The condition is run-wide (one file, shared by every locale), so the same notice is
+ * attached to each locale rather than inventing a run-level notice channel, which would change the
+ * summary shape.
  *
  * It exists because the alternative is silence: without it a mistyped `version` would disable
  * caching permanently, with no signal at all, where before this behaviour it self-healed. It is a
@@ -214,6 +217,9 @@ function withCacheNotices(
  * Persist the run's cache additions with a single best-effort write, mirroring {@link recordRunStatus}:
  * any failure is caught and swallowed so it never fails the run. Skipped when the cache is bypassed or
  * when nothing new was translated, so an all-unchanged or all-cache-hit run leaves the file untouched.
+ * Also skipped when the read marked the file non-writable ({@link RunCacheState.writable}), which is a
+ * deliberate refusal rather than a swallowed failure and so is checked here rather than left to the
+ * catch below.
  */
 async function recordCacheAdditions(
   cwd: string,
@@ -405,7 +411,11 @@ async function runLocaleAt(
  * A whole-run throw out of a worker (in practice only `LOCK_FILE_INVALID`, which `runOneLocale`
  * deliberately re-throws) is recorded rather than propagated immediately, and the recorded reason
  * doubles as the pool's abort flag: no worker claims another locale once it is set, and the pool
- * still awaits every worker already in flight before re-throwing it unchanged.
+ * still awaits every worker already in flight before re-throwing it unchanged. Each worker catches
+ * inside its own loop, so no worker's promise ever rejects and the `Promise.all` cannot short-circuit
+ * on one: it awaits every worker to completion, which is what releases their write locks. The reason
+ * is held wrapped in an object rather than as a bare `unknown` so that a thrown `undefined` still
+ * sets the flag and still aborts the pool.
  *
  * Both halves are load-bearing, and the tradeoff is deliberate. Rejecting eagerly (a bare
  * `Promise.all`) fails fast but abandons the other workers mid-flight: they stay inside their write
@@ -426,7 +436,6 @@ async function runLocalesWithProgress(
   const totalLocales = targetLocales.length;
   const results: (LocaleSummary | undefined)[] = new Array<LocaleSummary | undefined>(totalLocales);
   let nextIndex = 0;
-  // Wrapped rather than a bare `unknown` so a thrown `undefined` still aborts the pool.
   let abort: { readonly reason: unknown } | undefined;
 
   async function worker(): Promise<void> {
@@ -446,8 +455,6 @@ async function runLocalesWithProgress(
   for (let index = 0; index < workerCount; index += 1) {
     workers.push(worker());
   }
-  // No worker rejects, so this awaits every one of them to completion, which is what releases their
-  // write locks. The recorded reason is re-thrown only once they have all unwound.
   await Promise.all(workers);
   if (abort !== undefined) {
     throw abort.reason;

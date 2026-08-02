@@ -25,7 +25,14 @@ Eine schemavalide Übersetzung kann trotzdem kaputt sein, deshalb berechnet ein 
 Entscheidung über Annehmen oder Ablehnen direkt aus dem Kandidatenwert neu; dem eigenen
 Integritätsbericht des Providers wird nie vertraut. Dasselbe Gate läuft auf jedem Schreibpfad:
 einer Übersetzung vom Provider, einer importierten Arbeitsmappen-Zeile und einer von Hand
-getippten Bearbeitung in Studio.
+getippten Bearbeitung in Studio. Es läuft außerdem pro Key auf einem wiederverwendeten Wert. Wird
+eine Übersetzung mehreren Keys mit demselben Quellinhalt ausgeliefert (ein Treffer im
+[Cache](/docs/the-cache) oder die Kopie, die identischen Text nur eine einzige Provider-Anfrage
+kosten lässt), lässt jeder Key das Gate gegen seinen eigenen Quelleintrag laufen, und ein Key,
+dessen Prüfung fehlschlägt, wird zurückgehalten statt geschrieben. Gleichheit entscheidet ein
+Inhalts-Hash, der Text bis auf Unicode-NFC-Normalisierung und LF-Zeilenenden als gleich behandelt,
+zwei Keys können also übereinstimmen, ohne bytegleich zu sein. Genau deshalb läuft das Gate pro Key
+erneut.
 
 - Platzhalter-Integrität: Der übersetzte Wert muss dieselben Platzhalter tragen wie seine Quelle,
   verglichen als Multimenge (die Anzahl zählt, die Reihenfolge nicht). Lass einen fallen, füge

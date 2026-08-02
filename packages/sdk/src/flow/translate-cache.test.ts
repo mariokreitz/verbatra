@@ -497,6 +497,17 @@ describe("integrity gate: an empty provider value never reaches disk or the cach
   });
 });
 
+/**
+ * `[[CLEAR]]` is knowledge about one key, not a translation of its source text, so it must never
+ * enter the content-addressed cache: a store keyed by source hash would hand the empty value to
+ * every other key that happens to share that source string.
+ *
+ * The export below needs `includeUnchanged`, because the key being cleared is already translated and
+ * would otherwise not appear in the sheet at all. The follow-up run then adds a second key whose
+ * source text is byte-identical to the cleared one. That key may legitimately be served from the
+ * cache, because what the cache holds for that source text is the earlier translation and never the
+ * clear; what it must never end up with is an empty value.
+ */
 describe("workbook [[CLEAR]]: a per-key intent never enters the content-addressed cache", () => {
   it("clears its own key without spraying the empty value onto a byte-identical source key", async () => {
     const dir = await project({ a: "Save" }, {});
@@ -505,7 +516,6 @@ describe("workbook [[CLEAR]]: a per-key intent never enters the content-addresse
       { createProvider: () => makeStubProvider().provider },
     );
 
-    // "a" is already translated, so it only appears in the sheet with includeUnchanged.
     const exported = await exportWorkbook({ config: cfg(), cwd: dir, includeUnchanged: true });
     await fillWorkbook(exported.path, "de", { a: "[[CLEAR]]" });
     await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir });
@@ -513,10 +523,6 @@ describe("workbook [[CLEAR]]: a per-key intent never enters the content-addresse
     expect((await readTarget(dir, "de")).a).toBe("");
     expect(cachedValues(await loadCache(dir))).not.toContain("");
 
-    // A new key whose source text is byte-identical to the cleared one must end up with a real
-    // translation. It may legitimately be served from the cache, because what the cache holds for
-    // that source text is the earlier translation and never the clear: the clear is knowledge about
-    // key "a" specifically, which a content-addressed store cannot express.
     await setSource(dir, { a: "Save", c: "Save" });
     await translate(
       { config: cfg(), cwd: dir },
@@ -528,12 +534,24 @@ describe("workbook [[CLEAR]]: a per-key intent never enters the content-addresse
   });
 });
 
-// "crème" written two ways: NFC (U+00E8) and NFD (e + U+0300). canonicalize NFC-normalizes before
-// hashing, so these two sources hash equal and are deduped into one provider request; the gate
-// compares placeholder tokens raw, so the representative's value does not satisfy the duplicate.
+/**
+ * "crème" written two ways: NFC (U+00E8) and NFD (e + U+0300). canonicalize NFC-normalizes before
+ * hashing, so these two sources hash equal and are deduped into one provider request; the gate
+ * compares placeholder tokens raw, so the representative's value does not satisfy the duplicate.
+ *
+ * The two constant lines below are byte-different and look identical on screen. Never collapse
+ * them into one constant, and never retype them: retyping produces NFC for both and silently
+ * inverts every test in this block while they all still pass.
+ */
 const PLACEHOLDER_NFC = "Enjoy {{crème}}";
 const PLACEHOLDER_NFD = "Enjoy {{crème}}";
 
+/**
+ * The re-run test in this block diffs against the first run's lock. The key withheld by the first
+ * run must still be a live candidate, and the cache entry the representative left behind must not be
+ * served to it: the cache-hit path re-gates too, so the duplicate falls through to the provider and
+ * is written with its own decomposed placeholder rather than the representative's composed one.
+ */
 describe("content dedup: a fanned-out value is re-gated against its own key's source", () => {
   it("hashes the two normalization forms equal, so they really do share one request", async () => {
     const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
@@ -567,9 +585,6 @@ describe("content dedup: a fanned-out value is re-gated against its own key's so
       { createProvider: () => makeStubProvider().provider },
     );
 
-    // Run 2 diffs against run 1's lock. The withheld key must still be a live candidate, and the
-    // poisoned cache entry must not be served to it: the cache-hit path re-gates too, so "b" falls
-    // through to the provider and gets a value that matches its own placeholder bytes.
     const second = makeStubProvider();
     const summary = await translate(
       { config: cfg(), cwd: dir },
@@ -580,7 +595,6 @@ describe("content dedup: a fanned-out value is re-gated against its own key's so
     expect(summary.locales[0]?.cacheHits).not.toContain("b");
     expect(second.calls.flatMap((call) => call.request.entries.map((e) => e.key))).toContain("b");
     expect(summary.locales[0]?.translated).toContain("b");
-    // The written value carries b's own decomposed placeholder, never the representative's composed one.
     expect((await readTarget(dir, "de")).b).toContain("{{cre\u0300me}}");
   });
 
@@ -627,6 +641,12 @@ const FUTURE_CACHE = `${JSON.stringify(
   2,
 )}\n`;
 
+/**
+ * Preserving such a file is only half the answer. Without a signal, a mistyped version would disable
+ * caching permanently and silently, which is worse than the clobber the preservation replaces. So
+ * the run completes normally on an empty effective cache and reports a notice on the locale; it is
+ * never an error.
+ */
 describe("translation-memory cache: an unrecognized version is preserved, not downgraded", () => {
   it("leaves the file byte-identical after a translate run", async () => {
     const dir = await project({ a: "Hello" }, { de: {} });
@@ -655,8 +675,6 @@ describe("translation-memory cache: an unrecognized version is preserved, not do
     expect((await readTarget(dir, "de")).a).toBe("[de] Hello");
   });
 
-  // Without a signal, a mistyped version would disable caching permanently and silently, which is
-  // worse than the clobber it replaces. It is a notice, never an error.
   it("reports a notice on the locale without failing the run", async () => {
     const dir = await project({ a: "Hello" }, { de: {} });
     await writeFile(cacheFilePath(dir), FUTURE_CACHE);

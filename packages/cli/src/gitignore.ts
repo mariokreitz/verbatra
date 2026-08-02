@@ -19,7 +19,7 @@ function missingEntries(content: string): string[] {
   return GITIGNORE_ENTRIES.filter((entry) => !present.has(entry));
 }
 
-/** Append the given entries, adding the separating newline only when the file lacks a trailing one. */
+/** Append the given entries, prefixing a newline only when a non-empty file lacks a trailing one. */
 function appendEntries(path: string, content: string, entries: readonly string[]): void {
   const prefix = content.length === 0 || content.endsWith("\n") ? "" : "\n";
   appendFileSync(path, `${prefix}${entries.join("\n")}\n`);

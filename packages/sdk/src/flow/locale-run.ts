@@ -181,8 +181,8 @@ function collectCacheAdditions(
 
 /**
  * A set of provider-miss keys sharing one source content hash. Only the representative is sent to the
- * provider; every duplicate inherits the representative's outcome, so byte-identical source text is
- * translated once per locale rather than once per key.
+ * provider; every duplicate inherits the representative's outcome, so source content that hashes
+ * equal is translated once per locale rather than once per key.
  */
 interface MissGroup {
   readonly representative: string;
@@ -229,8 +229,8 @@ interface TranslationOutcome {
 /**
  * Applies each translated representative's outcome to every duplicate key sharing its source content
  * hash: an accepted representative hands its value (and any review flag) to each duplicate, and a
- * withheld one puts each duplicate in the same bucket. This is what makes two keys with
- * byte-identical source content cost one request.
+ * withheld one puts each duplicate in the same bucket. This is what makes two keys whose source
+ * content hashes equal cost one request.
  *
  * An equal content hash selects the candidate; it does not prove the duplicate's gate decision. The
  * hash is computed over `canonicalize`d text (NFC-normalized, CRLF folded to LF), while the gate
