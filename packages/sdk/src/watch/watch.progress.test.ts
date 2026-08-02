@@ -30,7 +30,7 @@ describe("watch: onProgress threads into each run and reaches the sub-batch loop
       { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 1 },
       { type: "sub-batch", locale: "de", batchIndex: 1, totalBatches: 2 },
       { type: "sub-batch", locale: "de", batchIndex: 2, totalBatches: 2 },
-      { type: "locale-finished", locale: "de", translated: 3 },
+      { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 1 },
       { type: "run-finished", localesCompleted: 1 },
     ]);
   });

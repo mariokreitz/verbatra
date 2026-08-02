@@ -358,6 +358,8 @@ async function runLocaleAt(
     type: "locale-finished",
     locale: targetLocale,
     translated: summary.translated.length,
+    localeIndex,
+    totalLocales: targetLocales.length,
   });
 }
 

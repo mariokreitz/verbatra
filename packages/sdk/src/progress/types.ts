@@ -45,6 +45,19 @@ export interface LocaleFinishedEvent {
   readonly locale: string;
   /** Number of keys accepted (translated) for this locale. In a dry-run, the keys that would be translated. */
   readonly translated: number;
+  /**
+   * Zero-based index of this locale in the run's target-locale order, carrying the same value as the
+   * matching {@link LocaleStartedEvent}. This is a correlation key, so a consumer can pair a finish
+   * with its start without matching on the locale name.
+   *
+   * It is deliberately NOT a progress counter. The worker pool claims indices up front, so this is a
+   * claim ordinal rather than a completion ordinal: under concurrency the locales finish in a
+   * different order, and rendering `localeIndex + 1` of `totalLocales` on a finish produces a
+   * counter that jumps around and never reaches its own total in order. Do not reintroduce one.
+   */
+  readonly localeIndex: number;
+  /** Total number of target locales in this run, mirroring {@link LocaleStartedEvent}. */
+  readonly totalLocales: number;
 }
 
 /** The run reached the end of its locale loop: how many locales it processed. */

@@ -316,9 +316,16 @@ export function renderLockWait(event: LockWaitEvent, json: boolean): string {
 }
 
 /**
- * Human-readable progress line for one run event: the locale about to start (with its 1-based
- * position), a provider sub-batch reached, a locale finished (with its translated count), or the
- * whole run finished. Meant for stderr, so it never mixes with `--json` stdout.
+ * Human-readable progress line for one run event: the locale about to start, a provider sub-batch
+ * reached, a locale finished (with its translated count), or the whole run finished. Meant for
+ * stderr, so it never mixes with `--json` stdout.
+ *
+ * No line carries a positional counter. The started event's `localeIndex` is a claim ordinal, not a
+ * completion ordinal, so under `--concurrency` greater than 1 every worker's line printed before any
+ * work finished: at width 3, `[1/3]`, `[2/3]` and `[3/3]` all appeared up front and the run then
+ * carried on past its own apparent total. A started locale was never progress in the first place,
+ * and the run-finished line still reports the total, so the counter is dropped rather than moved to
+ * the finished event, where a claim ordinal would render just as wrongly.
  *
  * @param event - One progress event from the SDK's `onProgress`.
  * @returns The single-line message (no trailing newline).
@@ -326,7 +333,7 @@ export function renderLockWait(event: LockWaitEvent, json: boolean): string {
 export function renderProgressHuman(event: ProgressEvent): string {
   switch (event.type) {
     case "locale-started":
-      return `verbatra: [${event.localeIndex + 1}/${event.totalLocales}] translating ${event.locale}`;
+      return `verbatra: translating ${event.locale}`;
     case "sub-batch":
       return `verbatra: ${event.locale} batch ${event.batchIndex}/${event.totalBatches}`;
     case "locale-finished":

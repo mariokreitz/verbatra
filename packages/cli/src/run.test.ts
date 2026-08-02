@@ -332,7 +332,7 @@ describe("run translate: progress reporting", () => {
   const events: readonly ProgressEvent[] = [
     { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },
     { type: "sub-batch", locale: "de", batchIndex: 1, totalBatches: 2 },
-    { type: "locale-finished", locale: "de", translated: 3 },
+    { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 2 },
     { type: "run-finished", localesCompleted: 2 },
   ];
 
@@ -357,7 +357,7 @@ describe("run translate: progress reporting", () => {
     const code = await run(["translate"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(cap.err()).toContain("[1/2] translating de");
+    expect(cap.err()).toContain("translating de");
     expect(cap.err()).toContain("de batch 1/2");
     expect(cap.err()).toContain("de done, 3 translated");
     expect(cap.err()).toContain("run finished, 2 locales processed");

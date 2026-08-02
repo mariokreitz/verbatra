@@ -478,12 +478,12 @@ describe("render: lock-wait progress", () => {
 
 describe("render: progress", () => {
   const cases: ReadonlyArray<readonly [ProgressEvent, string]> = [
-    [
-      { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 3 },
-      "[1/3] translating de",
-    ],
+    [{ type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 3 }, "translating de"],
     [{ type: "sub-batch", locale: "de", batchIndex: 2, totalBatches: 4 }, "de batch 2/4"],
-    [{ type: "locale-finished", locale: "de", translated: 5 }, "de done, 5 translated"],
+    [
+      { type: "locale-finished", locale: "de", translated: 5, localeIndex: 0, totalLocales: 3 },
+      "de done, 5 translated",
+    ],
     [{ type: "run-finished", localesCompleted: 3 }, "run finished, 3 locales processed"],
   ];
 

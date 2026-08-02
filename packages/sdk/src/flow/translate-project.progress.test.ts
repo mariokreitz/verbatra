@@ -55,11 +55,11 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
       { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },
       { type: "sub-batch", locale: "de", batchIndex: 1, totalBatches: 2 },
       { type: "sub-batch", locale: "de", batchIndex: 2, totalBatches: 2 },
-      { type: "locale-finished", locale: "de", translated: 3 },
+      { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 2 },
       { type: "locale-started", locale: "fr", localeIndex: 1, totalLocales: 2 },
       { type: "sub-batch", locale: "fr", batchIndex: 1, totalBatches: 2 },
       { type: "sub-batch", locale: "fr", batchIndex: 2, totalBatches: 2 },
-      { type: "locale-finished", locale: "fr", translated: 3 },
+      { type: "locale-finished", locale: "fr", translated: 3, localeIndex: 1, totalLocales: 2 },
       { type: "run-finished", localesCompleted: 2 },
     ]);
   });
@@ -80,7 +80,7 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     // A dry-run reports the keys it would translate, so locale-finished still carries that count.
     expect(events).toEqual([
       { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 1 },
-      { type: "locale-finished", locale: "de", translated: 3 },
+      { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 1 },
       { type: "run-finished", localesCompleted: 1 },
     ]);
   });
@@ -100,8 +100,41 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     );
 
     expect(localeSummary(summary.locales, "de").status).toBe("failed");
-    expect(events).toContainEqual({ type: "locale-finished", locale: "de", translated: 0 });
+    expect(events).toContainEqual({
+      type: "locale-finished",
+      locale: "de",
+      translated: 0,
+      localeIndex: 0,
+      totalLocales: 2,
+    });
     expect(events).toContainEqual({ type: "run-finished", localesCompleted: 2 });
+  });
+
+  // localeIndex on a finish exists to pair it with its start, and must keep working when the two
+  // orders diverge, which is exactly what concurrency produces and what a counter could not survive.
+  it("carries the same localeIndex on a finish as on its start, even out of completion order", async () => {
+    const dir = await makeProject(1);
+    const config = baseConfig({ targetLocales: ["de", "fr", "es"] });
+    const { provider } = makeStubProvider();
+    const events: ProgressEvent[] = [];
+
+    await translate(
+      { config, cwd: dir, concurrency: 3, onProgress: (event) => events.push(event) },
+      { createProvider: () => provider },
+    );
+
+    const started = new Map(
+      events
+        .filter((event) => event.type === "locale-started")
+        .map((event) => [event.locale, event.localeIndex]),
+    );
+    const finished = events.filter((event) => event.type === "locale-finished");
+
+    expect(finished).toHaveLength(3);
+    for (const event of finished) {
+      expect(event.localeIndex).toBe(started.get(event.locale));
+      expect(event.totalLocales).toBe(3);
+    }
   });
 
   it("runs with no onProgress listener without error", async () => {
