@@ -47,7 +47,7 @@
     },
     "compat": {
       "heading": "Ein Werkzeug, jedes Framework.",
-      "body": "verbatra liest die Lokalisierungsdateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring Properties. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
+      "body": "verbatra liest die Lokalisierungsdateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring .properties-Dateien. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
       "labelFrameworks": "Frameworks und Formate"
     },
     "providers": {
@@ -123,7 +123,7 @@
         },
         "formats": {
           "question": "Welche Formate und Frameworks unterstützt verbatra?",
-          "answer": "JSON für i18next, vue-i18n, next-intl und ngx-translate, dazu XLIFF, YAML, Flutter ARB und Java/Spring Properties. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, zu dem du migrieren müsstest."
+          "answer": "JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring .properties-Dateien. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, zu dem du migrieren musst."
         },
         "studio": {
           "question": "Was ist Verbatra Studio?",

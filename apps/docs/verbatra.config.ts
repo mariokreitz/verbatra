@@ -28,6 +28,8 @@ export default defineConfig({
     Gemini: "Gemini",
     DeepL: "DeepL",
     ICU: "ICU",
+    ".properties": ".properties",
+    "Java/Spring": "Java/Spring",
     MIT: "MIT",
   },
   tone: "informal",
