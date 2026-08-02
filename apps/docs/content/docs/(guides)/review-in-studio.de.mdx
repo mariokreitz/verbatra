@@ -37,7 +37,7 @@ Klicke auf einen beliebigen Key, um seine Detailansicht zu öffnen: die Werte pr
 
 ### Bearbeiten mit Integritäts-Gate
 
-Der Editor zeigt den Quellstring und ein Textfeld, vorbefüllt mit der aktuellen Übersetzung. Speichern schickt den Wert durch dasselbe Gate wie jeder andere verbatra-Schreibvorgang: ein Wert, der einen Platzhalter fallen lässt oder erfindet oder die Struktur einer ICU-Nachricht bricht, wird mit benanntem Grund abgelehnt, und **nichts wird geschrieben**. Eine akzeptierte Bearbeitung schreibt die Locale-Datei und rückt den Lock-Eintrag des Keys vor, genau wie eine akzeptierte Import-Zeile.
+Der Editor zeigt den Quellstring und ein Textfeld, vorbefüllt mit der aktuellen Übersetzung. Speichern schickt den Wert durch dasselbe Gate wie jeder andere verbatra-Schreibvorgang: ein Wert, der eine der Integritätsprüfungen nicht besteht, wird mit benanntem Grund abgelehnt, und **nichts wird geschrieben**. Eine Übersetzung zu leeren lässt sich mit einer Bearbeitung nicht ausdrücken, deshalb wird auch ein leerer Wert abgelehnt; der unterstützte Weg, einen Key zu leeren, ist das `[[CLEAR]]`-Sentinel der Arbeitsmappe. Eine akzeptierte Bearbeitung schreibt die Locale-Datei und rückt den Lock-Eintrag des Keys vor, genau wie eine akzeptierte Import-Zeile.
 
 Bearbeiten braucht kein Flag. Es berührt nur deine lokalen Dateien und ruft nie einen Provider auf.
 

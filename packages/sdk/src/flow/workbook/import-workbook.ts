@@ -74,11 +74,21 @@ function mergeAccepted(
   return merged;
 }
 
-/** The accepted values as a source-content-hash to value record, this sheet's contribution to the cache. */
+/**
+ * The accepted values as a source-content-hash to value record, this sheet's contribution to the
+ * cache.
+ *
+ * A `[[CLEAR]]`ed key is excluded. The cache is keyed by source content, so anything stored here is
+ * later served to every key whose source text is byte-identical; `[[CLEAR]]` is an intent about one
+ * key rather than a translation of its text, so storing it would hand an empty value to unrelated
+ * keys that merely share the source string, with no provider call to notice it.
+ */
 function sheetCacheAdditions(accepted: ImportLocaleResult["accepted"]): Record<string, string> {
   const record: Record<string, string> = {};
-  for (const [, { value, source }] of accepted) {
-    record[contentHash(source)] = value;
+  for (const [, { value, source, cleared }] of accepted) {
+    if (!cleared) {
+      record[contentHash(source)] = value;
+    }
   }
   return record;
 }
