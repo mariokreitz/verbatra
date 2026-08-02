@@ -429,3 +429,87 @@ describe("translation-memory cache: fed by the single-key and workbook write pat
     expect(await fileExists(cacheFilePath(dir))).toBe(false);
   });
 });
+
+// "crème" written two ways: NFC (U+00E8) and NFD (e + U+0300). canonicalize NFC-normalizes before
+// hashing, so these two sources hash equal and are deduped into one provider request; the gate
+// compares placeholder tokens raw, so the representative's value does not satisfy the duplicate.
+const PLACEHOLDER_NFC = "Enjoy {{crème}}";
+const PLACEHOLDER_NFD = "Enjoy {{crème}}";
+
+describe("content dedup: a fanned-out value is re-gated against its own key's source", () => {
+  it("hashes the two normalization forms equal, so they really do share one request", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    const stub = makeStubProvider();
+
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0]?.request.entries.map((entry) => entry.key)).toEqual(["a"]);
+  });
+
+  it("withholds the duplicate whose raw placeholder bytes the representative's value does not match", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["b"]);
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    expect(summary.locales[0]?.status).toBe("partial");
+    expect(await readTarget(dir, "de")).not.toHaveProperty("b");
+  });
+
+  it("re-attempts the withheld duplicate on the next run instead of locking it in", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    // Run 2 diffs against run 1's lock. The withheld key must still be a live candidate, and the
+    // poisoned cache entry must not be served to it: the cache-hit path re-gates too, so "b" falls
+    // through to the provider and gets a value that matches its own placeholder bytes.
+    const second = makeStubProvider();
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => second.provider },
+    );
+
+    expect(summary.locales[0]?.unchanged).not.toContain("b");
+    expect(summary.locales[0]?.cacheHits).not.toContain("b");
+    expect(second.calls.flatMap((call) => call.request.entries.map((e) => e.key))).toContain("b");
+    expect(summary.locales[0]?.translated).toContain("b");
+    // The written value carries b's own decomposed placeholder, never the representative's composed one.
+    expect((await readTarget(dir, "de")).b).toContain("{{cre\u0300me}}");
+  });
+
+  it("also withholds when the divergence is a CR inside the placeholder token", async () => {
+    const dir = await project({ a: "Hi {{a\r\nb}}", b: "Hi {{a\nb}}" }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(1);
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["b"]);
+  });
+
+  it("leaves the ordinary byte-identical case alone: one request, both keys written", async () => {
+    const dir = await project({ a: "Hi {{name}}", b: "Hi {{name}}" }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(1);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
+    expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["a", "b"]);
+  });
+});
