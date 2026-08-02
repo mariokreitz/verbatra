@@ -24,6 +24,14 @@
  * prerelease" assertion would fail every future release until that repair happens. Scoped
  * this way it catches a recurrence without tripping on the pre-existing damage.
  *
+ * Third check: every published tarball carries the repository-root LICENSE. No package declares
+ * a LICENSE in `files` and no build step copies one in; the text reaches consumers purely
+ * because `pnpm pack` injects the workspace-root copy, which `npm pack` does not do. That makes
+ * a compliance-relevant property hold by accident, so a change of packer or a package published
+ * through some other path would silently ship without a license and nothing would notice. The
+ * assertion deliberately reads the *published tarball* rather than the working tree: a
+ * working-tree check would pass today while proving nothing about what actually shipped.
+ *
  * Usage:
  * PUBLISHED_PACKAGES_JSON='[{"name":"@verbatra/cli","version":"0.5.0"}]' node scripts/verify-npm-publish.mjs
  *
@@ -32,7 +40,19 @@
  */
 
 import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, "..");
+
+/**
+ * Path of the license file inside a published tarball. npm packs every package under a
+ * `package/` prefix, so this is the tarball-root LICENSE.
+ */
+const TARBALL_LICENSE_MEMBER = "package/LICENSE";
 
 /**
  * How many `npm view` attempts to make per package. Registry/CDN propagation right after
@@ -48,6 +68,10 @@ const RETRY_DELAY_MS = 15_000;
 
 /**
  * @typedef {{ name: string; version: string }} PublishedPackage
+ */
+
+/**
+ * @typedef {{ pkg: PublishedPackage; problem: "missing" | "mismatched" }} LicenseFinding
  */
 
 /**
@@ -220,6 +244,103 @@ function tookOverLatestTag(pkg) {
 }
 
 /**
+ * Normalizes license text for comparison: folds CRLF to LF and trims surrounding whitespace, so
+ * a tarball packed on a different platform is not reported as carrying a different license.
+ * Pure, unit-tested.
+ * @param {string} text - the license text to normalize
+ * @returns {string}
+ */
+function normalizeLicenseText(text) {
+  return text.replace(/\r\n/g, "\n").trim();
+}
+
+/**
+ * Classifies a published tarball's LICENSE against the repository-root LICENSE. Pure and
+ * unit-tested including the absent case, so the assertion is proven to actually fail rather
+ * than being exercised only through the registry path, where every real tarball passes today.
+ *
+ * Content is compared, not just presence, so a truncated or wrong-holder copy is caught too.
+ * @param {string | null} tarballLicense - the tarball's LICENSE text, or null when the tarball
+ *   carries no root LICENSE
+ * @param {string} rootLicense - the repository-root LICENSE text
+ * @returns {"missing" | "mismatched" | null} the problem, or null when the license is correct
+ */
+function classifyLicense(tarballLicense, rootLicense) {
+  if (tarballLicense === null) {
+    return "missing";
+  }
+  return normalizeLicenseText(tarballLicense) === normalizeLicenseText(rootLicense)
+    ? null
+    : "mismatched";
+}
+
+/**
+ * Extracts the root LICENSE from a package's published tarball. Downloads the tarball with
+ * `npm pack` into a fresh empty directory, so the archive is identified by being that
+ * directory's only entry rather than by reconstructing npm's filename scheme, then reads the
+ * member out with `tar`. The temporary directory is always removed.
+ *
+ * A non-zero `tar` exit is read as "no root LICENSE". A corrupt archive would also land here and
+ * be reported as missing rather than as a distinct failure; both are loud failures pointing at
+ * the same tarball, so the distinction would buy nothing.
+ * @param {PublishedPackage} pkg - the package whose published tarball to inspect
+ * @returns {string | null} the LICENSE text, or null when the tarball has no root LICENSE
+ * @throws {Error} when the published tarball cannot be downloaded
+ */
+function readPublishedLicense(pkg) {
+  const spec = `${pkg.name}@${pkg.version}`;
+  const workDir = mkdtempSync(join(tmpdir(), "verbatra-license-"));
+  try {
+    try {
+      execFileSync("npm", ["pack", spec, "--pack-destination", workDir, "--silent"], {
+        encoding: "utf8",
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`could not download the published tarball for ${spec}: ${message}`);
+    }
+    const tarball = readdirSync(workDir)[0];
+    if (tarball === undefined) {
+      throw new Error(`npm pack produced no tarball for ${spec}.`);
+    }
+    try {
+      return execFileSync("tar", ["-xzOf", join(workDir, tarball), TARBALL_LICENSE_MEMBER], {
+        encoding: "utf8",
+      });
+    } catch {
+      return null;
+    }
+  } finally {
+    rmSync(workDir, { force: true, recursive: true });
+  }
+}
+
+/**
+ * Reports packages whose published tarball is missing the root LICENSE or carries different
+ * text.
+ * @param {LicenseFinding[]} findings
+ */
+function reportLicenseFindings(findings) {
+  console.error(
+    `verify-npm-publish: ${findings.length} package(s) published in this run do not carry the ` +
+      "repository-root LICENSE in their registry tarball:",
+  );
+  for (const finding of findings) {
+    const detail =
+      finding.problem === "missing"
+        ? "no package/LICENSE in the tarball"
+        : "package/LICENSE differs from the repository root LICENSE";
+    console.error(`  ${finding.pkg.name}@${finding.pkg.version} (${detail})`);
+  }
+  console.error(
+    "The published LICENSE is injected by `pnpm pack` from the workspace root, so this usually " +
+      "means the release ran through a different packer (`npm pack` does not inject it) or the " +
+      "root LICENSE changed. Republishing is the only fix; a published tarball cannot be " +
+      "amended in place.",
+  );
+}
+
+/**
  * Reports packages that never resolved on the registry.
  * @param {PublishedPackage[]} missing
  */
@@ -260,6 +381,7 @@ function reportLatestTagViolations(violations) {
 
 async function main() {
   const packages = readPublishedPackages();
+  const rootLicense = readFileSync(resolve(REPO_ROOT, "LICENSE"), "utf8");
   console.log(
     `verify-npm-publish: checking ${packages.length} package(s) reported by changesets/action against the npm registry.`,
   );
@@ -268,6 +390,8 @@ async function main() {
   const missing = [];
   /** @type {PublishedPackage[]} */
   const latestTagViolations = [];
+  /** @type {LicenseFinding[]} */
+  const licenseFindings = [];
   for (const pkg of packages) {
     process.stdout.write(`  ${pkg.name}@${pkg.version} ... `);
     const resolved = await resolveRegistryVersion(pkg);
@@ -281,6 +405,11 @@ async function main() {
       console.log(`    dist-tags.latest is ${pkg.version}: the prerelease just published.`);
       latestTagViolations.push(pkg);
     }
+    const problem = classifyLicense(readPublishedLicense(pkg), rootLicense);
+    if (problem !== null) {
+      console.log(`    LICENSE ${problem}.`);
+      licenseFindings.push({ pkg, problem });
+    }
   }
 
   if (missing.length > 0) {
@@ -291,10 +420,14 @@ async function main() {
     reportLatestTagViolations(latestTagViolations);
     process.exitCode = 1;
   }
-  if (missing.length === 0 && latestTagViolations.length === 0) {
+  if (licenseFindings.length > 0) {
+    reportLicenseFindings(licenseFindings);
+    process.exitCode = 1;
+  }
+  if (missing.length === 0 && latestTagViolations.length === 0 && licenseFindings.length === 0) {
     console.log(
       "verify-npm-publish: all reported packages confirmed on the npm registry, no prerelease " +
-        "took over the latest dist-tag.",
+        "took over the latest dist-tag, every tarball carries the root LICENSE.",
     );
   }
 }
@@ -307,4 +440,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   });
 }
 
-export { isLatestTagViolation, isPrereleaseVersion, parsePublishedPackages };
+export {
+  classifyLicense,
+  isLatestTagViolation,
+  isPrereleaseVersion,
+  normalizeLicenseText,
+  parsePublishedPackages,
+};
