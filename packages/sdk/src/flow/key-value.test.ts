@@ -41,20 +41,19 @@ describe("keyValue: locale and key resolution", () => {
     ).rejects.toMatchObject({ code: "UNKNOWN_KEY" });
   });
 
-  it.each([
-    "__proto__",
-    "constructor",
-    "__proto__.x",
-  ])("rejects the prototype-shaped key %s as UNKNOWN_KEY, never treating it as present", async (key) => {
-    const dir = await project({ greeting: "Hello" });
+  it.each(["__proto__", "constructor", "__proto__.x"])(
+    "rejects the prototype-shaped key %s as UNKNOWN_KEY, never treating it as present",
+    async (key) => {
+      const dir = await project({ greeting: "Hello" });
 
-    const error = await keyValue({ config: cfg(), cwd: dir, locale: "de", key }).catch(
-      (e: unknown) => e,
-    );
+      const error = await keyValue({ config: cfg(), cwd: dir, locale: "de", key }).catch(
+        (e: unknown) => e,
+      );
 
-    expect(error).toBeInstanceOf(SdkError);
-    expect((error as SdkError).code).toBe("UNKNOWN_KEY");
-  });
+      expect(error).toBeInstanceOf(SdkError);
+      expect((error as SdkError).code).toBe("UNKNOWN_KEY");
+    },
+  );
 });
 
 describe("keyValue: reads", () => {

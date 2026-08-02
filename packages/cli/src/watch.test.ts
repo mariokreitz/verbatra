@@ -161,26 +161,23 @@ describe("run watch: wiring and rendering", () => {
 });
 
 describe("run watch: --debounce validation", () => {
-  it.each([
-    "abc",
-    "0",
-    "-5",
-    "250ms",
-    "3.5",
-  ])("rejects an invalid --debounce %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
-    const { deps, calls } = recordingDeps();
-    const cap = captureStreams();
+  it.each(["abc", "0", "-5", "250ms", "3.5"])(
+    "rejects an invalid --debounce %s as a usage error: exit 2, structured stderr, no SDK call",
+    async (value) => {
+      const { deps, calls } = recordingDeps();
+      const cap = captureStreams();
 
-    const code = await run(["watch", "--debounce", value], deps, cap.streams, {
-      onWatchSession: () => {},
-    });
+      const code = await run(["watch", "--debounce", value], deps, cap.streams, {
+        onWatchSession: () => {},
+      });
 
-    expect(code).toBe(2);
-    expect(cap.err()).toContain("[INVALID_DEBOUNCE]");
-    expect(cap.out()).toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
-    expect(calls.watch).toHaveLength(0);
-  });
+      expect(code).toBe(2);
+      expect(cap.err()).toContain("[INVALID_DEBOUNCE]");
+      expect(cap.out()).toBe("");
+      expect(calls.loadConfig).toHaveLength(0);
+      expect(calls.watch).toHaveLength(0);
+    },
+  );
 });
 
 describe("run watch: --concurrency", () => {
@@ -210,26 +207,23 @@ describe("run watch: --concurrency", () => {
     await done;
   });
 
-  it.each([
-    "abc",
-    "0",
-    "-5",
-    "2.5",
-    "3ms",
-  ])("rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
-    const { deps, calls } = recordingDeps();
-    const cap = captureStreams();
+  it.each(["abc", "0", "-5", "2.5", "3ms"])(
+    "rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call",
+    async (value) => {
+      const { deps, calls } = recordingDeps();
+      const cap = captureStreams();
 
-    const code = await run(["watch", "--concurrency", value], deps, cap.streams, {
-      onWatchSession: () => {},
-    });
+      const code = await run(["watch", "--concurrency", value], deps, cap.streams, {
+        onWatchSession: () => {},
+      });
 
-    expect(code).toBe(2);
-    expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
-    expect(cap.out()).toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
-    expect(calls.watch).toHaveLength(0);
-  });
+      expect(code).toBe(2);
+      expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
+      expect(cap.out()).toBe("");
+      expect(calls.loadConfig).toHaveLength(0);
+      expect(calls.watch).toHaveLength(0);
+    },
+  );
 });
 
 describe("run watch: shutdown and exit codes", () => {

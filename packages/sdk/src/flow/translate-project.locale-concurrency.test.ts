@@ -275,16 +275,14 @@ describe("translate: bounded locale-level concurrency", () => {
     expect(summary.failed).toEqual([]);
   });
 
-  it.each([
-    0,
-    -3,
-    1.5,
-    Number.NaN,
-  ])("rejects a non-positive or non-integer concurrency (%s) with CONCURRENCY_INVALID", async (value) => {
-    await expect(
-      translate({ config: cfg(["de"]), cwd: "/nonexistent", concurrency: value, dryRun: true }),
-    ).rejects.toMatchObject({ code: "CONCURRENCY_INVALID" });
-  });
+  it.each([0, -3, 1.5, Number.NaN])(
+    "rejects a non-positive or non-integer concurrency (%s) with CONCURRENCY_INVALID",
+    async (value) => {
+      await expect(
+        translate({ config: cfg(["de"]), cwd: "/nonexistent", concurrency: value, dryRun: true }),
+      ).rejects.toMatchObject({ code: "CONCURRENCY_INVALID" });
+    },
+  );
 
   it("throws a structured SdkError for an invalid concurrency, not a generic Error", async () => {
     await expect(

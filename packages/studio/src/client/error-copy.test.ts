@@ -29,15 +29,16 @@ const PROVIDER_CODES = ["RATE_LIMITED", "AUTH_FAILED", "TIMEOUT"];
 const GENERIC_MESSAGE = "Something went wrong on the server.";
 
 describe("copyForErrorCode", () => {
-  it.each(
-    REACHABLE_TODAY_CODES,
-  )("has distinct, specific copy for the reachable-today code %s", (code) => {
-    const copy = copyForErrorCode(code);
+  it.each(REACHABLE_TODAY_CODES)(
+    "has distinct, specific copy for the reachable-today code %s",
+    (code) => {
+      const copy = copyForErrorCode(code);
 
-    expect(copy).toBeDefined();
-    expect(copy).not.toBe(GENERIC_MESSAGE);
-    expect(copy?.length).toBeGreaterThan(0);
-  });
+      expect(copy).toBeDefined();
+      expect(copy).not.toBe(GENERIC_MESSAGE);
+      expect(copy?.length).toBeGreaterThan(0);
+    },
+  );
 
   it.each(PROVIDER_CODES)("has distinct, specific copy for the provider code %s", (code) => {
     const copy = copyForErrorCode(code);
@@ -63,15 +64,12 @@ describe("copyForErrorCode", () => {
     expect(copyForErrorCode("SOMETHING_UNKNOWN")).toBeUndefined();
   });
 
-  it.each([
-    "constructor",
-    "toString",
-    "hasOwnProperty",
-    "__proto__",
-    "valueOf",
-  ])("returns undefined for the inherited Object.prototype member name %s", (code) => {
-    expect(copyForErrorCode(code)).toBeUndefined();
-  });
+  it.each(["constructor", "toString", "hasOwnProperty", "__proto__", "valueOf"])(
+    "returns undefined for the inherited Object.prototype member name %s",
+    (code) => {
+      expect(copyForErrorCode(code)).toBeUndefined();
+    },
+  );
 
   it("every code in the table maps to a non-empty string", () => {
     for (const copy of Object.values(ERROR_CODE_COPY)) {

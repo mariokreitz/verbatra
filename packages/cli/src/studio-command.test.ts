@@ -185,51 +185,49 @@ describe("run studio: the default port comes from @verbatra/studio, never a lite
 });
 
 describe("run studio: --port validation", () => {
-  it.each([
-    "0",
-    "65536",
-    "3.5",
-    "abc",
-  ])("rejects an out-of-range or non-integer port %s, exiting 2 before loading the config", async (value) => {
-    const { deps, calls } = recordingDeps();
-    const cap = captureStreams();
+  it.each(["0", "65536", "3.5", "abc"])(
+    "rejects an out-of-range or non-integer port %s, exiting 2 before loading the config",
+    async (value) => {
+      const { deps, calls } = recordingDeps();
+      const cap = captureStreams();
 
-    const code = await run(["studio", "--port", value], deps, cap.streams);
+      const code = await run(["studio", "--port", value], deps, cap.streams);
 
-    expect(code).toBe(2);
-    expect(calls.loadConfigWithMeta).toHaveLength(0);
-    expect(calls.importStudio).toHaveLength(0);
-  });
+      expect(code).toBe(2);
+      expect(calls.loadConfigWithMeta).toHaveLength(0);
+      expect(calls.importStudio).toHaveLength(0);
+    },
+  );
 
-  it.each([
-    "1",
-    "65535",
-  ])("accepts the boundary port %s and passes it through to startStudioServer", async (value) => {
-    const startCalls: Array<{ port: number | undefined }> = [];
-    const { deps } = recordingDeps({
-      importStudio: async () =>
-        makeStudioModule({
-          startStudioServer: async (options) => {
-            startCalls.push({ port: options.port });
-            return {
-              url: `http://127.0.0.1:${options.port}/`,
-              port: options.port ?? 0,
-              close: async () => {},
-            };
-          },
-        }),
-    });
-    const cap = captureStreams();
-    const captured = captureStudioSession();
+  it.each(["1", "65535"])(
+    "accepts the boundary port %s and passes it through to startStudioServer",
+    async (value) => {
+      const startCalls: Array<{ port: number | undefined }> = [];
+      const { deps } = recordingDeps({
+        importStudio: async () =>
+          makeStudioModule({
+            startStudioServer: async (options) => {
+              startCalls.push({ port: options.port });
+              return {
+                url: `http://127.0.0.1:${options.port}/`,
+                port: options.port ?? 0,
+                close: async () => {},
+              };
+            },
+          }),
+      });
+      const cap = captureStreams();
+      const captured = captureStudioSession();
 
-    const donePromise = run(["studio", "--port", value], deps, cap.streams, captured.hooks);
-    await flush();
-    captured.session()?.requestStop();
-    const code = await donePromise;
+      const donePromise = run(["studio", "--port", value], deps, cap.streams, captured.hooks);
+      await flush();
+      captured.session()?.requestStop();
+      const code = await donePromise;
 
-    expect(code).toBe(0);
-    expect(startCalls).toEqual([{ port: Number(value) }]);
-  });
+      expect(code).toBe(0);
+      expect(startCalls).toEqual([{ port: Number(value) }]);
+    },
+  );
 });
 
 describe("run studio: the loader passed to startStudioServer resolves the already-loaded config", () => {

@@ -33,18 +33,16 @@ describe("providerConfigSchema: openai-compatible", () => {
     expect(result.error?.constructor.name).toBe("ZodError");
   });
 
-  it.each([
-    "ANTHROPIC_API_KEY",
-    "OPENAI_API_KEY",
-    "GEMINI_API_KEY",
-    "DEEPL_API_KEY",
-  ])("rejects apiKeyEnvVar naming the hosted %s variable", (hostedVar) => {
-    const result = providerConfigSchema.safeParse({
-      ...validOpenAiCompatible,
-      options: { ...validOpenAiCompatible.options, apiKeyEnvVar: hostedVar },
-    });
-    expect(result.success).toBe(false);
-  });
+  it.each(["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "DEEPL_API_KEY"])(
+    "rejects apiKeyEnvVar naming the hosted %s variable",
+    (hostedVar) => {
+      const result = providerConfigSchema.safeParse({
+        ...validOpenAiCompatible,
+        options: { ...validOpenAiCompatible.options, apiKeyEnvVar: hostedVar },
+      });
+      expect(result.success).toBe(false);
+    },
+  );
 
   it("rejects an unknown extra option (strict schema)", () => {
     const result = providerConfigSchema.safeParse({

@@ -38,18 +38,16 @@ describe("createDefaultRegistry", () => {
     }
   });
 
-  it.each([
-    "xliff",
-    "yaml",
-    "arb",
-    "properties",
-  ] as const)("resolves %s by explicit format", (format) => {
-    const result = createDefaultRegistry().resolve("file", { format });
-    expect(result.status).toBe("resolved");
-    if (result.status === "resolved") {
-      expect(result.adapter.format).toBe(format);
-    }
-  });
+  it.each(["xliff", "yaml", "arb", "properties"] as const)(
+    "resolves %s by explicit format",
+    (format) => {
+      const result = createDefaultRegistry().resolve("file", { format });
+      expect(result.status).toBe("resolved");
+      if (result.status === "resolved") {
+        expect(result.adapter.format).toBe(format);
+      }
+    },
+  );
 
   it("reports no-match for an unsupported extension", () => {
     expect(createDefaultRegistry().resolve("messages.po").status).toBe("no-match");

@@ -132,10 +132,13 @@ describe("handleRefreshEvent", () => {
     ["a targets event with a nonzero delta", targetsEvent({ added: 0, changed: 1, removed: 0 })],
     ["a zero-delta event", sourceEvent({ added: 0, changed: 0, removed: 0 })],
     ["a lock event", lockEvent],
-  ] as const)("always returns bumpToken: true, independent of whether toast is populated (%s)", (_label, event) => {
-    const handled = handleRefreshEvent(event);
-    expect(handled.bumpToken).toBe(true);
-  });
+  ] as const)(
+    "always returns bumpToken: true, independent of whether toast is populated (%s)",
+    (_label, event) => {
+      const handled = handleRefreshEvent(event);
+      expect(handled.bumpToken).toBe(true);
+    },
+  );
 
   it("carries the same toast deriveRefreshToastView would produce", () => {
     const event = sourceEvent({ added: 1, changed: 0, removed: 0 });

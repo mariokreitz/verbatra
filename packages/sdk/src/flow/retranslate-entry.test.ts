@@ -61,23 +61,22 @@ describe("retranslateEntry: locale and key resolution", () => {
     ).rejects.toMatchObject({ code: "UNKNOWN_KEY" });
   });
 
-  it.each([
-    "__proto__",
-    "constructor",
-    "__proto__.x",
-  ])("rejects the prototype-shaped key %s as UNKNOWN_KEY, never treating it as present", async (key) => {
-    const dir = await project({ greeting: "Hello" });
-    const stub = makeStubProvider();
+  it.each(["__proto__", "constructor", "__proto__.x"])(
+    "rejects the prototype-shaped key %s as UNKNOWN_KEY, never treating it as present",
+    async (key) => {
+      const dir = await project({ greeting: "Hello" });
+      const stub = makeStubProvider();
 
-    const error = await retranslateEntry(
-      { config: cfg(), cwd: dir, locale: "de", key },
-      { createProvider: () => stub.provider },
-    ).catch((e: unknown) => e);
+      const error = await retranslateEntry(
+        { config: cfg(), cwd: dir, locale: "de", key },
+        { createProvider: () => stub.provider },
+      ).catch((e: unknown) => e);
 
-    expect(error).toBeInstanceOf(SdkError);
-    expect((error as SdkError).code).toBe("UNKNOWN_KEY");
-    expect(stub.calls).toHaveLength(0);
-  });
+      expect(error).toBeInstanceOf(SdkError);
+      expect((error as SdkError).code).toBe("UNKNOWN_KEY");
+      expect(stub.calls).toHaveLength(0);
+    },
+  );
 });
 
 describe("retranslateEntry: acceptance", () => {

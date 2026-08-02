@@ -248,23 +248,20 @@ describe("run translate: --concurrency", () => {
     expect(calls.translate[0]).not.toHaveProperty("concurrency");
   });
 
-  it.each([
-    "abc",
-    "0",
-    "-2",
-    "2.5",
-    "3ms",
-  ])("rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call", async (value) => {
-    const { deps, calls } = recordingDeps();
-    const cap = captureStreams();
+  it.each(["abc", "0", "-2", "2.5", "3ms"])(
+    "rejects an invalid --concurrency %s as a usage error: exit 2, structured stderr, no SDK call",
+    async (value) => {
+      const { deps, calls } = recordingDeps();
+      const cap = captureStreams();
 
-    const code = await run(["translate", "--concurrency", value], deps, cap.streams);
+      const code = await run(["translate", "--concurrency", value], deps, cap.streams);
 
-    expect(code).toBe(2);
-    expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
-    expect(cap.out()).toBe("");
-    expect(calls.translate).toHaveLength(0);
-  });
+      expect(code).toBe(2);
+      expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
+      expect(cap.out()).toBe("");
+      expect(calls.translate).toHaveLength(0);
+    },
+  );
 });
 
 describe("run translate/watch: --no-cache", () => {
