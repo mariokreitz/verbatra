@@ -167,7 +167,8 @@ interface RunCacheState {
  * Build the run's cache state: read the snapshot once and compute the run fingerprint, or return
  * undefined when the cache is bypassed (`input.cache === false`) or on a dry-run (which never reads or
  * writes the cache). The read degrades a corrupt or unrecognized file to an empty memory and never
- * throws.
+ * throws, and it also reports whether the file may be written back, which the end-of-run write and
+ * the run's notices both consult.
  */
 async function createRunCacheState(
   input: TranslateInput,
