@@ -368,6 +368,21 @@ async function runLocaleAt(
  * in sequence, reproducing the serial behavior exactly: same event order, same summary order. Shared
  * by the dry and live paths. A locale index is claimed synchronously (no `await` between the read and
  * the increment), so two workers never claim the same locale.
+ *
+ * A whole-run throw out of a worker (in practice only `LOCK_FILE_INVALID`, which `runOneLocale`
+ * deliberately re-throws) is recorded rather than propagated immediately, and the recorded reason
+ * doubles as the pool's abort flag: no worker claims another locale once it is set, and the pool
+ * still awaits every worker already in flight before re-throwing it unchanged.
+ *
+ * Both halves are load-bearing, and the tradeoff is deliberate. Rejecting eagerly (a bare
+ * `Promise.all`) fails fast but abandons the other workers mid-flight: they stay inside their write
+ * lock while the caller is already unwinding, so the CLI's synchronous `process.exit` truncates the
+ * pending release and leaves a lock file on disk that blocks the next run until a human deletes it.
+ * Awaiting without the abort flag is worse still: the pool drains the entire remaining queue, so
+ * locales that had not started yet take fresh locks, issue real provider calls (real spend, on a run
+ * the caller has been told failed) and write their target files. The flag stops new work, and the
+ * await lets in-flight work unwind its `finally`. The cost is that the rejection now surfaces after
+ * the slowest in-flight locale finishes rather than instantly.
  */
 async function runLocalesWithProgress(
   context: LocaleRunContext,
@@ -378,12 +393,18 @@ async function runLocalesWithProgress(
   const totalLocales = targetLocales.length;
   const results: (LocaleSummary | undefined)[] = new Array<LocaleSummary | undefined>(totalLocales);
   let nextIndex = 0;
+  // Wrapped rather than a bare `unknown` so a thrown `undefined` still aborts the pool.
+  let abort: { readonly reason: unknown } | undefined;
 
   async function worker(): Promise<void> {
-    while (nextIndex < totalLocales) {
+    while (abort === undefined && nextIndex < totalLocales) {
       const localeIndex = nextIndex;
       nextIndex += 1;
-      await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+      try {
+        await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+      } catch (error) {
+        abort ??= { reason: error };
+      }
     }
   }
 
@@ -392,7 +413,12 @@ async function runLocalesWithProgress(
   for (let index = 0; index < workerCount; index += 1) {
     workers.push(worker());
   }
+  // No worker rejects, so this awaits every one of them to completion, which is what releases their
+  // write locks. The recorded reason is re-thrown only once they have all unwound.
   await Promise.all(workers);
+  if (abort !== undefined) {
+    throw abort.reason;
+  }
   return results.filter((summary): summary is LocaleSummary => summary !== undefined);
 }
 

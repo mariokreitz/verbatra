@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type {
   TranslateRequest,
@@ -9,6 +9,7 @@ import type { PlaceholderIntegrityResult } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
+import { type BoundedFileRead, defaultFs, type SdkFs } from "../fs.js";
 import { lockFilePath } from "../lock/lock-file.js";
 import {
   baseConfig,
@@ -288,5 +289,146 @@ describe("translate: bounded locale-level concurrency", () => {
     await expect(
       translate({ config: cfg(["de"]), cwd: "/nonexistent", concurrency: 0, dryRun: true }),
     ).rejects.toBeInstanceOf(SdkError);
+  });
+});
+
+/**
+ * Wraps the real file system so that exactly one read of the lock file returns corrupt JSON. This is
+ * the production trigger for a re-thrown whole-run `LOCK_FILE_INVALID`: every live locale reads the
+ * lock file inside its own critical section, so corrupting a single read fails one locale while its
+ * siblings are already past that point and inside their provider call.
+ */
+function fsWithOneCorruptLockRead(dir: string): SdkFs {
+  const lockPath = lockFilePath(dir);
+  let lockReads = 0;
+  return {
+    ...defaultFs,
+    readFileBounded: async (path: string, maxBytes: number): Promise<BoundedFileRead> => {
+      if (path === lockPath) {
+        lockReads += 1;
+        if (lockReads === 1) {
+          return { kind: "ok", content: "{ not json" };
+        }
+      }
+      return defaultFs.readFileBounded(path, maxBytes);
+    },
+  };
+}
+
+async function heldLockFiles(dir: string): Promise<string[]> {
+  try {
+    return (await readdir(join(dir, ".verbatra-local", "locks"))).sort();
+  } catch {
+    return [];
+  }
+}
+
+describe("translate: a whole-run failure under concurrency", () => {
+  // Three workers start, one hits the corrupt read and re-throws while the other two are inside a
+  // slow provider call. Those two must finish and stop, never reaching the two queued locales.
+  it("claims no further locale once one worker raises a whole-run failure", async () => {
+    const dir = await project({ a: "A" });
+    const { provider, stats } = makeConcurrencyProbe({ delayMs: 120 });
+
+    await expect(
+      translate(
+        { config: cfg(["de", "fr", "es", "pt", "nl"]), cwd: dir, concurrency: 3 },
+        { createProvider: () => provider, fs: fsWithOneCorruptLockRead(dir) },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
+
+    // Settle well past the point abandoned workers would have drained the rest of the queue.
+    await sleep(300);
+
+    expect(stats().arrived).toBe(2);
+  });
+
+  it("writes no target file for a locale that was never claimed", async () => {
+    const dir = await project({ a: "A" });
+    const { provider } = makeConcurrencyProbe({ delayMs: 120 });
+
+    await expect(
+      translate(
+        { config: cfg(["de", "fr", "es", "pt", "nl"]), cwd: dir, concurrency: 3 },
+        { createProvider: () => provider, fs: fsWithOneCorruptLockRead(dir) },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
+    await sleep(300);
+
+    await expect(targetText(dir, "pt")).rejects.toThrow();
+    await expect(targetText(dir, "nl")).rejects.toThrow();
+  });
+
+  // The guarantee the CLI relies on: it ends in a synchronous process.exit, which would truncate any
+  // lock release still pending when translate() settles. Releasing before settling is what makes an
+  // orphaned lock a hard-kill-only outcome again.
+  it("releases every in-flight worker's write lock before translate() settles", async () => {
+    const dir = await project({ a: "A" });
+    const { provider } = makeConcurrencyProbe({ delayMs: 120 });
+
+    await expect(
+      translate(
+        { config: cfg(["de", "fr", "es", "pt", "nl"]), cwd: dir, concurrency: 3 },
+        { createProvider: () => provider, fs: fsWithOneCorruptLockRead(dir) },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
+
+    expect(await heldLockFiles(dir)).toEqual([]);
+  });
+
+  it("leaves no orphaned lock when every locale hits the corrupt lock file", async () => {
+    const dir = await project({ a: "A" });
+    await writeFile(lockFilePath(dir), "{ not json", "utf8");
+    const { provider } = makeConcurrencyProbe({ delayMs: 5 });
+
+    await expect(
+      translate(
+        { config: cfg(["de", "fr", "es", "pt"]), cwd: dir, concurrency: 3 },
+        { createProvider: () => provider },
+      ),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
+
+    expect(await heldLockFiles(dir)).toEqual([]);
+  });
+
+  it("still isolates a per-locale failure without aborting the other locales", async () => {
+    const dir = await project({ a: "A" });
+    const provider: TranslationProvider = {
+      id: "one-bad-locale",
+      kind: "llm",
+      supportsGlossary: true,
+      translateBatch: async (request: TranslateRequest): Promise<TranslateResult> => {
+        if (request.targetLocale === "fr") {
+          throw new Error("provider blew up for fr");
+        }
+        const values = new Map<string, string>();
+        const integrity = new Map<string, PlaceholderIntegrityResult>();
+        for (const entry of request.entries) {
+          values.set(entry.key, `[${request.targetLocale}] ${entry.value}`);
+          integrity.set(entry.key, PASS);
+        }
+        return { values, integrity };
+      },
+    };
+
+    const summary = await translate(
+      { config: cfg(["de", "fr", "es"]), cwd: dir, concurrency: 3 },
+      { createProvider: () => provider },
+    );
+
+    expect(summary.failed).toEqual(["fr"]);
+    expect(summary.succeeded.sort()).toEqual(["de", "es"]);
+  });
+
+  it("is unchanged at the default serial concurrency: the failure still propagates", async () => {
+    const dir = await project({ a: "A" });
+    await writeFile(lockFilePath(dir), "{ not json", "utf8");
+    const { provider } = makeConcurrencyProbe({});
+
+    await expect(
+      translate({ config: cfg(["de", "fr"]), cwd: dir }, { createProvider: () => provider }),
+    ).rejects.toMatchObject({ code: "LOCK_FILE_INVALID" });
+
+    expect(await heldLockFiles(dir)).toEqual([]);
   });
 });
