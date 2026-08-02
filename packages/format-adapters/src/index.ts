@@ -30,6 +30,7 @@ export {
 } from "./json/tree-file-adapter.js";
 export { createNextIntlJsonAdapter } from "./next-intl/next-intl-adapter.js";
 export { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-adapter.js";
+export { createPropertiesAdapter } from "./properties/properties-adapter.js";
 export { AdapterRegistry, type AdapterResolution, type ResolveOptions } from "./registry.js";
 export { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 export { createXliffAdapter } from "./xliff/xliff-adapter.js";

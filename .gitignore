@@ -8,6 +8,10 @@ dist/
 # verbatra team workspace (audit trail, specs, ADRs, and agent memory; local only)
 .verbatra
 
+# verbatra's own translation-memory cache for apps/docs: local, regenerable, never committed.
+# That project was scaffolded before `verbatra init` wrote this entry, so it was never added here.
+verbatra.cache.json
+
 # Next.js / Fumadocs (docs app build artifacts)
 .next/
 .source/

@@ -1,7 +1,7 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra: inkrementelle i18n-Übersetzung für Locale-Dateien",
+      "title": "verbatra: inkrementelle i18n-Übersetzung für Lokalisierungsdateien",
       "ogTitle": "verbatra: inkrementelle i18n-Synchronisierung",
       "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die Schlüssel, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl. Leg jetzt los.",
       "ogDescription": "Halte deine i18n-Locale-Dateien synchron. Übersetze nur geänderte Schlüssel.",
@@ -19,7 +19,7 @@
       "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzer und die Automatisierung, um jede Locale synchron zu halten.",
       "ai": {
         "title": "KI-Übersetzung",
-        "body": "Übersetze nur, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini, DeepL oder einen beliebigen OpenAI-kompatiblen Server, den du selbst betreibst. Eine eingecheckte Lock-Datei hält jeden Lauf inkrementell, und die Platzhalter- und ICU-Integrität wird geprüft, bevor irgendetwas geschrieben wird."
+        "body": "Übersetze nur das, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini, DeepL oder jeden OpenAI-kompatiblen Server, den du selbst betreibst. Eine festgeschriebene Lock-Datei hält jeden Lauf inkrementell, und die Integrität von Platzhaltern und ICU wird überprüft, bevor etwas geschrieben wird."
       },
       "excel": {
         "title": "Excel-Übergabe",
@@ -47,12 +47,12 @@
     },
     "compat": {
       "heading": "Ein Werkzeug, jedes Framework.",
-      "body": "verbatra liest die Locale-Dateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate sowie XLIFF, YAML und Flutter ARB. Es füllt sie über den Anbieter, den du wählst, ohne dass du ein neues Format übernehmen musst.",
+      "body": "verbatra liest die Lokalisierungsdateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring Properties. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
       "labelFrameworks": "Frameworks und Formate"
     },
     "providers": {
       "heading": "Übersetze über das Modell, dem du vertraust.",
-      "lead": "Anthropic, OpenAI, Gemini, DeepL oder einen beliebigen OpenAI-kompatiblen Server, den du selbst hostest. Wähle eines in einer einzigen Konfigurationszeile und wechsle den Anbieter, ohne deine Locale-Dateien anzufassen.",
+      "lead": "Anthropic, OpenAI, Gemini, DeepL oder jeder OpenAI-kompatible Server, den du selbst hostest. Wähle einen in einer einzigen Konfigurationszeile aus und wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren.",
       "marqueeLabel": "Übersetzungsanbieter"
     },
     "how": {
@@ -87,7 +87,7 @@
         },
         "provider": {
           "title": "Der Anbieter deiner Wahl",
-          "body": "Anthropic, OpenAI, Gemini, DeepL oder ein lokales OpenAI-kompatibles Modell, gewählt in einer Konfigurationszeile. Wechsle den Anbieter, ohne deine Locale-Dateien anzufassen."
+          "body": "Anthropic, OpenAI, Gemini, DeepL oder ein lokales OpenAI-kompatibles Modell, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren."
         },
         "safety": {
           "title": "Sicher durch Konstruktion",
@@ -118,12 +118,12 @@
           "answer": "Es führt eine eingecheckte Lock-Datei, die festhält, was bereits übersetzt wurde. Jeder Lauf vergleicht deine Quell-Locale mit dieser Lock-Datei und sendet nur die neuen oder geänderten Schlüssel an deinen Anbieter. Unveränderte Schlüssel werden nie angefasst, sodass ein typischer Lauf eine Handvoll Strings kostet, nicht deinen ganzen Katalog."
         },
         "providers": {
-          "question": "Welche Übersetzungsanbieter kann ich nutzen?",
-          "answer": "Fünf, hinter einer Schnittstelle: Anthropic, OpenAI und Gemini (LLMs), DeepL (maschinelle Übersetzung) und openai-compatible, das verbatra auf einen lokalen oder selbst gehosteten Server wie Ollama, LM Studio oder vLLM richtet. Du wählst einen per id in deiner Konfiguration und kannst später durch Ändern dieser einen Zeile wechseln. Gemini hat einen echten kostenlosen Tarif, und ein lokales Modell kostet pro Aufruf nichts."
+          "question": "Welche Übersetzungsanbieter kann ich verwenden?",
+          "answer": "Fünf, hinter einer Oberfläche: Anthropic, OpenAI und Gemini (LLMs), DeepL (maschinelle Übersetzung) und openai-compatible, das verbatra auf einen lokalen oder selbst gehosteten Server wie Ollama, LM Studio oder vLLM verweist. Du wählst einen über seine ID in deiner Konfiguration aus und kannst später wechseln, indem du diese eine Zeile bearbeitest. Gemini hat einen echten kostenlosen Tarif, und ein lokales Modell kostet pro Aufruf nichts."
         },
         "formats": {
           "question": "Welche Formate und Frameworks unterstützt verbatra?",
-          "answer": "JSON für i18next, vue-i18n, next-intl und ngx-translate sowie XLIFF, YAML und Flutter ARB. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, auf das du migrieren müsstest."
+          "answer": "JSON für i18next, vue-i18n, next-intl und ngx-translate, dazu XLIFF, YAML, Flutter ARB und Java/Spring Properties. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, zu dem du migrieren müsstest."
         },
         "studio": {
           "question": "Was ist Verbatra Studio?",
@@ -151,7 +151,7 @@
         },
         "production": {
           "question": "Ist verbatra produktionsreif?",
-          "answer": "Es ist jung und wird aktiv weiterentwickelt, also fixiere eine Version und lies das Changelog, wenn du aktualisierst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf vergleicht mit einer eingecheckten Lock-Datei, prüft die Platzhalter- und ICU-Integrität bei jedem Ergebnis und hält alles zurück, was kaputtgeht, statt es zu schreiben. Teams setzen es heute in CI ein; fixierst du Versionen, stehst du auf stabilem Boden."
+          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das Changelog, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf wird mit einer festgeschriebenen Lock-Datei verglichen, überprüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
         }
       }
     },

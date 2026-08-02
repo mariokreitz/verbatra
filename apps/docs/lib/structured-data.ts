@@ -1,3 +1,4 @@
+import type { SupportedFormat } from "@verbatra/sdk";
 import { SITE_URL } from "@/lib/site";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
@@ -7,16 +8,27 @@ const NPM_STUDIO_URL = "https://www.npmjs.com/package/@verbatra/studio";
 
 const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js", "Flutter"];
 const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL", "openai-compatible"];
-const SUPPORTED_FORMATS = [
-  "i18next",
-  "vue-i18n",
-  "next-intl",
-  "ngx-translate",
-  "ARB",
-  "YAML",
-  "XLIFF",
-  "Java/Spring properties",
-];
+/**
+ * The human label for each format verbatra supports, for the structured data crawlers read.
+ *
+ * Keyed by `SupportedFormat` and exhaustive on purpose. This list used to be a bare array that
+ * happened to agree with the SDK, and it is exactly the kind of list that goes stale silently: the
+ * FAQ answer built from it is published as machine-readable capability data, and `apps/docs` has no
+ * tests. Keying it by the type makes adding a format to the SDK a docs typecheck failure until its
+ * label is filled in, so the two cannot drift apart again.
+ */
+const FORMAT_LABELS: Readonly<Record<SupportedFormat, string>> = {
+  "i18next-json": "i18next",
+  "vue-i18n-json": "vue-i18n",
+  "next-intl-json": "next-intl",
+  "ngx-translate-json": "ngx-translate",
+  arb: "ARB",
+  yaml: "YAML",
+  xliff: "XLIFF",
+  properties: "Java/Spring properties",
+};
+
+const SUPPORTED_FORMATS = Object.values(FORMAT_LABELS);
 
 export const AUTHOR_NAME = "Mario Kreitz";
 
