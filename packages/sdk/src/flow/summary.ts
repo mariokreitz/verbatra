@@ -98,7 +98,27 @@ export interface LocaleSummary {
    * {@link LocaleSummary.malformedRows}, and {@link LocaleSummary.duplicateKeys}, deliberately do NOT
    * feed this status: they are surfaced in their own lists (and the CLI) but are not withholdings of
    * an attempted translation, so a locale that dropped a malformed row, collapsed a duplicate key, or
-   * left a `changed` row unfilled while accepting its other rows can still be `"succeeded"`.
+   * left a row unfilled while accepting its other rows can still be `"succeeded"`.
+   *
+   * This is a settled decision, not an omission, and each of the three fails to be a withholding for
+   * its own reason. Recording the reasoning here so the question stops recurring:
+   *
+   * 1. Two questions, two commands. `import`'s exit code answers "did the import apply what the
+   *    translator gave me". `check` and `diff` answer "is this project fully translated", and both
+   *    already exit non-zero or report pending in every one of these cases. Folding pending human
+   *    work into the import exit code duplicates an existing gate rather than adding one.
+   * 2. It would break the staged handoff. With `de` and `fr` configured and only `de` filled in,
+   *    failing on unfilled work makes `fr` fail and takes the whole import with it, even though `de`
+   *    imported perfectly. Locale-at-a-time handoff is this feature's most common workflow.
+   * 3. {@link LocaleSummary.malformedRows} structurally cannot signal lost work. The Status column is
+   *    the only reachable rejection in the workbook reader; every other field is an unconstrained
+   *    string or a tolerant parse. So a row is malformed on its Status cell alone, entirely
+   *    independently of whether its Translation cell was filled. An untouched sheet with a mangled
+   *    Status column (spreadsheet autocorrect, a CAT-tool round trip) is all-malformed with zero lost
+   *    work. A bucket that cannot distinguish dropped work from absent work cannot honestly drive a
+   *    failure status.
+   * 4. {@link LocaleSummary.duplicateKeys} never could: the first occurrence wins and the intent is
+   *    honoured.
    */
   readonly status: "succeeded" | "partial" | "failed";
   /**
@@ -179,11 +199,16 @@ export interface LocaleSummary {
    */
   readonly needsReview: readonly NeedsReviewEntry[];
   /**
-   * Keys the workbook exported as `changed` (needing an updated translation) that the translator left
-   * blank, drifted or not, sorted by key. Pending work made visible: the row is skipped (nothing is
-   * written and the prior lock baseline is kept), but the key is surfaced so an unfinished import is
-   * never silently reported as done. Only a workbook import populates this; the provider path, which
-   * never leaves a candidate key unfilled by a person, always leaves it empty.
+   * Keys the translator left blank that still need a translation, drifted or not, sorted by key.
+   * Pending work made visible: the row is skipped (nothing is written and the prior lock baseline is
+   * kept), but the key is surfaced so an unfinished import is never silently reported as done. Only a
+   * workbook import populates this; the provider path, which never leaves a candidate key unfilled by
+   * a person, always leaves it empty.
+   *
+   * Membership is decided by the import-time diff, not by the `status` the row was exported with: a
+   * never-translated key exports as `new`, and a first handoff is all-new, which is the most common
+   * unfilled case there is. A row exported as `changed` whose key no longer needs work by import time
+   * is correspondingly excluded.
    */
   readonly unfilled: readonly string[];
   /**
