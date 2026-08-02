@@ -279,7 +279,9 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual([]);
   });
 
-  it("reports a changed row left blank as unfilled, but not a blank new row", () => {
+  // Both keys are missing from the target, so both still need a translation and both are pending
+  // work. The exported status string no longer decides this; the import-time diff does.
+  it("reports a blank row as unfilled whether it was exported new or changed", () => {
     const src = entry("greet", "Hi");
     const other = entry("intro", "Welcome");
     const sheet: WorkbookSheet = {
@@ -293,7 +295,83 @@ describe("importLocale", () => {
       params({ sheet, source: resource("en", [src, other]), target: resource("de", []) }),
     );
 
+    expect(result.summary.unfilled).toEqual(["greet", "intro"]);
+  });
+
+  // The first-handoff shape: nothing translated yet, so every row exports as new and the whole
+  // untouched sheet is pending work. This previously reported nothing at all.
+  it("reports every blank row of an all-new first handoff", () => {
+    const greeting = entry("greeting", "Hello");
+    const farewell = entry("farewell", "Bye");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        { ...row("greeting", "", contentHash(greeting)), status: "new" },
+        { ...row("farewell", "", contentHash(farewell)), status: "new" },
+      ],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [greeting, farewell]),
+        target: resource("de", []),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual(["farewell", "greeting"]);
+  });
+
+  it("does not report a blank row for a key that is already up to date", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", contentHash(src)), status: "unchanged" }],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(src)]]),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual([]);
+  });
+
+  // The divergence the diff-based rule buys: the row was exported as changed, but the key was
+  // resolved in the meantime, so at import time it is no longer pending work.
+  it("excludes a blank row exported as changed whose key is no longer a live candidate", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", "an-older-source-hash"), status: "changed" }],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(src)]]),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual([]);
+  });
+
+  // Pinned: unfilled is reported but never drives the status, so a fully blank sheet still succeeds.
+  it("still reports succeeded for a fully blank sheet", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", contentHash(src)), status: "new" }],
+    };
+    const result = importLocale(
+      params({ sheet, source: resource("en", [src]), target: resource("de", []) }),
+    );
+
     expect(result.summary.unfilled).toEqual(["greet"]);
+    expect(result.summary.status).toBe("succeeded");
   });
 
   it("clears a value via [[CLEAR]] when the source did not drift", () => {

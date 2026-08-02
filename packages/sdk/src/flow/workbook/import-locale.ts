@@ -141,15 +141,26 @@ function classifyClear(row: WorkbookRow, sourceEntry: TranslationEntry, buckets:
 }
 
 /**
- * Apply the fail-safe row rules: empty cells are skipped (a `changed` blank is recorded as unfilled),
- * an invented key throws {@link UnknownKeyError}, an orphaned source key is left unwritten, a
- * `[[CLEAR]]` cell unsets its value, and every other filled row is judged (accepted or withheld). The
- * reader already collapsed duplicate keys to their first occurrence, so no key is processed twice.
+ * Apply the fail-safe row rules: empty cells are skipped (a blank row for a key that still needs a
+ * translation is recorded as unfilled), an invented key throws {@link UnknownKeyError}, an orphaned
+ * source key is left unwritten, a `[[CLEAR]]` cell unsets its value, and every other filled row is
+ * judged (accepted or withheld). The reader already collapsed duplicate keys to their first
+ * occurrence, so no key is processed twice.
+ *
+ * `liveCandidates` is what decides `unfilled`, not the row's exported `status` string. A
+ * never-translated key exports as `"new"`, which is the most common unfilled case of all (a first
+ * handoff, where every row is new), and switching on `"changed"` reported none of them. Deciding on
+ * the import-time diff also correctly excludes a row exported as `changed` whose key has since
+ * stopped needing work.
  */
-function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
+function classifyRows(
+  params: ImportLocaleParams,
+  buckets: Buckets,
+  liveCandidates: ReadonlySet<string>,
+): void {
   for (const row of params.sheet.rows) {
     if (row.translation === "") {
-      if (row.status === "changed") {
+      if (liveCandidates.has(row.key)) {
         buckets.unfilled.push(row.key);
       }
       trackBlankDrift(row, params, buckets);
@@ -197,7 +208,8 @@ function blankRowBaselineNotice(count: number): SdkNotice {
  *
  * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
  * in this sheet (source-side only; a filled value's own ICU failure is reported under
- * `integrityMismatches`). `unfilled` lists `changed` rows the translator left blank; `malformedRows`
+ * `integrityMismatches`). `unfilled` lists blank rows whose key still needs a translation at import
+ * time, whether it was exported as `new` or `changed`; `malformedRows`
  * and `duplicateKeys` carry the reader's structural findings for this sheet verbatim. `pruned`,
  * `providerFailures`, `budgetWithheld`, `generated`, and `needsReview` are always empty: an import
  * never prunes, never calls a provider, never generates plural forms, and never recomputes review
@@ -212,7 +224,7 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     blankDrifted: new Set(),
     unfilled: [],
   };
-  classifyRows(params, buckets);
+  classifyRows(params, buckets, new Set([...diff.missing, ...diff.changed]));
 
   const rowKeys = new Set(params.sheet.rows.map((row) => row.key));
   const invalidIcuSource = [...new Set(params.sourceInvalidIcuKeys)]
