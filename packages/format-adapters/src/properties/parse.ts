@@ -17,6 +17,24 @@ const UNICODE_ESCAPE = /^[0-9a-fA-F]{4}$/;
 const LEADING_WHITESPACE = /^[ \t\f]+/;
 const TRAILING_TERMINATOR = /(?:\r\n|\r|\n)$/;
 
+/** One of the three line terminators a `.properties` file may use. */
+type LineTerminator = "\n" | "\r\n" | "\r";
+
+/**
+ * Pick the terminator a destination should be written back with. Any CRLF in the file wins for the
+ * whole file, then any lone CR; a file with neither (and a missing destination) is written with LF.
+ *
+ * A mixed file therefore converges on one style rather than being preserved line by line:
+ * reproducing a mixture faithfully would mean tracking a terminator per line for no practical
+ * benefit, and converging is what keeps the round trip a fixed point.
+ */
+function detectLineTerminator(content: string): LineTerminator {
+  if (content.includes("\r\n")) {
+    return "\r\n";
+  }
+  return content.includes("\r") ? "\r" : "\n";
+}
+
 function isPropertiesWhitespace(char: string): boolean {
   return char === " " || char === "\t" || char === "\f";
 }
@@ -277,19 +295,25 @@ function isFileNotFound(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
+/** A destination's existing shape: what to rewrite, and the terminator to rewrite it with. */
+interface DestinationStructure {
+  readonly items: ParsedItem[];
+  readonly terminator: LineTerminator;
+}
+
 /**
- * Read the destination's existing structure so a write preserves its comments, blank lines, and key
- * order. A missing destination (`ENOENT`) yields an empty structure (the file is synthesized from
- * entries alone); any other read failure, a path that is not a regular file, is `INVALID_STRUCTURE`,
- * and an oversized one is `INPUT_TOO_LARGE`.
+ * Read the destination's existing structure so a write preserves its comments, blank lines, key
+ * order, and line terminator. A missing destination (`ENOENT`) yields an empty structure and LF (the
+ * file is synthesized from entries alone); any other read failure, or a path that is not a regular
+ * file, is `INVALID_STRUCTURE`, and an oversized one is `INPUT_TOO_LARGE`.
  */
-async function readStructure(filePath: string): Promise<ParsedItem[]> {
+async function readStructure(filePath: string): Promise<DestinationStructure> {
   let outcome: BoundedReadOutcome;
   try {
     outcome = await readBounded(filePath);
   } catch (error) {
     if (isFileNotFound(error)) {
-      return [];
+      return { items: [], terminator: "\n" };
     }
     throw new AdapterError("INVALID_STRUCTURE", "The destination file could not be read.");
   }
@@ -299,7 +323,10 @@ async function readStructure(filePath: string): Promise<ParsedItem[]> {
   if (outcome.kind === "too-large") {
     throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
   }
-  return parseItems(outcome.content);
+  return {
+    items: parseItems(outcome.content),
+    terminator: detectLineTerminator(outcome.content),
+  };
 }
 
 /**
@@ -308,15 +335,22 @@ async function readStructure(filePath: string): Promise<ParsedItem[]> {
  * entry's value (a key no longer present is dropped), and any entry the destination lacks is
  * appended in iteration order. Keys use the `=` separator, every non-ASCII code point is escaped to
  * `\uXXXX`, and the significant characters are escaped per the properties spec.
+ *
+ * The destination's line terminator is preserved too: a file containing any CRLF is written back
+ * entirely with CRLF, a CR-only file with CR, and everything else (including a missing destination)
+ * with LF. `.properties` is the Java and Spring format, so these files often live in CRLF
+ * repositories, where a fixed LF joiner would turn a two-line translation change into a whole-file
+ * diff on the first write. Values are unaffected either way: `\r` and `\n` inside a value are
+ * escaped to `\\r` and `\\n`, so they never reach the joiner.
  */
 export async function serializePropertiesEntries(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
 ): Promise<string> {
-  const structure = await readStructure(filePath);
+  const { items, terminator } = await readStructure(filePath);
   const emitted = new Set<string>();
   const lines: string[] = [];
-  for (const item of structure) {
+  for (const item of items) {
     if (item.kind === "raw") {
       lines.push(item.text);
       continue;
@@ -332,5 +366,5 @@ export async function serializePropertiesEntries(
       lines.push(formatEntry(key, entry.value));
     }
   }
-  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
+  return lines.length === 0 ? "" : `${lines.join(terminator)}${terminator}`;
 }
