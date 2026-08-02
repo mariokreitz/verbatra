@@ -38,7 +38,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
   regenerate the locale files. Do not hand-edit the generated `messages/<locale>.json`.
 - Doc pages use locale-suffixed MDX: `page.mdx` is the English source and
   `page.de.mdx`, `page.es.mdx`, `page.fr.mdx` are its translations. `pnpm i18n` does
-  NOT translate these (verbatra translates JSON, XLIFF, YAML, and ARB, not Markdown),
+  NOT translate these (verbatra translates JSON, XLIFF, YAML, ARB, and properties, not
+  Markdown),
   so the docs team maintains them by hand: whenever you change or add an English
   `.mdx`, update or create its translation for every locale in the same change.
 - When translating a page, translate the prose and the frontmatter `title` and

@@ -27,7 +27,7 @@ Internal refactors that do not change the public surface need no doc change; say
   appear; use a spaced hyphen, a colon, or parentheses.
 - Show real, runnable examples that match the shipped behavior. Only document features
   that exist: the init, translate, watch, check, diff, export, and import commands; the
-  JSON, XLIFF, YAML, and ARB formats; and the four providers.
+  JSON, XLIFF, YAML, ARB, and properties formats; and the four providers.
 - Keep the docs current in every available language. When you add or change an English
   `.mdx`, update or create its `.de.mdx`, `.es.mdx`, and `.fr.mdx` translation in the
   same change (translate prose only; keep code, paths, and glossary terms verbatim; no

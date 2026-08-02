@@ -39,11 +39,12 @@ and route the issue back rather than shipping around it.
   shape-agnostic `TranslationProvider` interface resolved through a
   `ProviderRegistry`.
 - Format-adapter pattern (Reader / Writer / Parser) over a format-neutral
-  intermediate representation. v1 is JSON only with four adapters: i18next,
-  vue-i18n, next-intl, ngx-translate. All are built on the single
-  `createJsonFileAdapter` factory and registered via `createDefaultRegistry`.
-  XLIFF, YAML, and ARB come later. When adding a format, build on the factory and
-  register it. Do not reimplement read, write, or detection.
+  intermediate representation. Eight adapters ship today: i18next, vue-i18n,
+  next-intl, ngx-translate, XLIFF, YAML, Flutter ARB, and Java/Spring properties.
+  All are built on the shared `createTreeFileAdapter` or `createFlatFileAdapter`
+  factory and registered via `createDefaultRegistry`. When adding a format, build
+  on the matching factory and register it. Do not reimplement read, write, or
+  detection.
 
 ## Packages
 
