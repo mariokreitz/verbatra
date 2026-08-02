@@ -303,17 +303,16 @@ describe("buildWorkbook: worksheet-name collision guard", () => {
     expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
   });
 
-  it.each([
-    "Instructions",
-    "instructions",
-    "INSTRUCTIONS",
-  ])("rejects a locale colliding with the reserved instructions sheet name (%s)", async (locale) => {
-    const bad: WorkbookModel = { sheets: [{ locale, rows: [] }] };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
-    expect((error as ExchangeError).message).toContain(locale);
-  });
+  it.each(["Instructions", "instructions", "INSTRUCTIONS"])(
+    "rejects a locale colliding with the reserved instructions sheet name (%s)",
+    async (locale) => {
+      const bad: WorkbookModel = { sheets: [{ locale, rows: [] }] };
+      const error = await buildWorkbook(bad).catch((e) => e);
+      expect(error).toBeInstanceOf(ExchangeError);
+      expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+      expect((error as ExchangeError).message).toContain(locale);
+    },
+  );
 
   it("never lets a raw exceljs error escape the package boundary on either collision path", async () => {
     const duplicateLocales: WorkbookModel = {
