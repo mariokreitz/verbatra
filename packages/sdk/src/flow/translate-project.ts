@@ -451,11 +451,15 @@ function resolveConcurrency(value: number | undefined): number {
  * folds usage into or consults the budget tracker, so concurrency cannot affect a budget it never
  * reads.
  *
+ * Exported for {@link watch}, which resolves the same combination once at startup rather than
+ * letting every cycle rediscover it. Module-level export only; it is not part of the package's
+ * public surface.
+ *
  * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
  * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1
  *   while `config.maxTokens` is set.
  */
-function resolveRunConcurrency(
+export function resolveRunConcurrency(
   value: number | undefined,
   dryRun: boolean,
   config: VerbatraConfig,

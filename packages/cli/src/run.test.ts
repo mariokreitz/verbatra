@@ -262,6 +262,25 @@ describe("run translate: --concurrency", () => {
       expect(calls.translate).toHaveLength(0);
     },
   );
+
+  // The SDK now refuses an unhonorable budget/concurrency combination at watch startup instead of
+  // per cycle. No CLI change was needed for this: the watch session already renders a startup
+  // rejection and resolves exit 2. Pinned here because it is the user-visible half.
+  it("a watch startup concurrency refusal exits 2 with the structured error", async () => {
+    const { deps } = recordingDeps({
+      watch: () =>
+        Promise.reject(
+          new SdkError("CONCURRENCY_BUDGET_CONFLICT", "budget and concurrency cannot combine"),
+        ),
+    });
+    const cap = captureStreams();
+
+    const code = await run(["watch", "--concurrency", "2"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[CONCURRENCY_BUDGET_CONFLICT]");
+  });
 });
 
 describe("run translate/watch: --no-cache", () => {

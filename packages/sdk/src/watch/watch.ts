@@ -2,7 +2,7 @@ import type { AdapterRegistry } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import type { RunSummary } from "../flow/summary.js";
-import type { TranslateInput } from "../flow/translate-project.js";
+import { resolveRunConcurrency, type TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import type { LockWaitListener } from "../lock/locale-write-lock.js";
 import { localeFilePath } from "../paths.js";
@@ -63,8 +63,9 @@ export interface WatchInput {
   readonly lockAcquireTimeoutMs?: number;
   /**
    * Passed through to every run's {@link TranslateInput.concurrency}: how many locales each cycle may
-   * run at once. Defaults to 1 (strictly serial). The per-cycle tracker is fresh, so a budgeted watch
-   * with concurrency greater than 1 still fails each run with `CONCURRENCY_BUDGET_CONFLICT`.
+   * run at once. Defaults to 1 (strictly serial). Because the per-cycle budget tracker is fresh, a
+   * value greater than 1 cannot be honored alongside a `maxTokens` budget; {@link watch} refuses that
+   * combination at startup rather than letting every cycle fail on it.
    */
   readonly concurrency?: number;
   /**
@@ -113,6 +114,10 @@ function describeError(error: unknown): { code: string; message: string } {
  * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
  * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
  * @returns A {@link WatchController}; call `stop()` to close the watcher and await the in-flight run.
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: at startup only, when `concurrency` is defined but
+ *   not an integer of at least 1.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: at startup only, when `concurrency` is
+ *   greater than 1 while the config sets a `maxTokens` budget.
  * @throws {@link SdkError} `SOURCE_UNREADABLE`: at startup only, when the source locale file is absent.
  * @example
  * ```ts
@@ -142,6 +147,14 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   const cwd = input.cwd ?? process.cwd();
   const debounceMs = input.debounceMs ?? DEFAULT_DEBOUNCE_MS;
   const fs = deps.fs ?? defaultFs;
+
+  // Resolve concurrency before probing the source, and before the watcher exists. Both are startup
+  // refusals, but this one is decidable from the arguments alone while the source check is an I/O
+  // probe of project state, so argument validation runs first. A watch session is long-lived: left
+  // to the per-cycle resolve, an unhonorable combination would fail the initial run and every run
+  // after it, indefinitely, while the session stayed alive. There is no dry-run watch, so the
+  // budget conflict always applies.
+  resolveRunConcurrency(input.concurrency, false, input.config);
 
   const sourcePath = localeFilePath(cwd, input.config.files.pattern, input.config.sourceLocale);
   if (!(await fs.fileExists(sourcePath))) {
