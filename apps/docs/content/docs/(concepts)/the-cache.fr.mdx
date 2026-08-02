@@ -19,7 +19,7 @@ Chaque valeur en cache est délimitée au contexte de traduction dans lequel ell
 
 ## Le fichier
 
-`verbatra.cache.json` est un fichier compagnon local et regénérable, à côté de ton fichier de verrouillage. `verbatra init` l'ajoute au `.gitignore`, et tu devrais le garder hors du contrôle de version : contrairement au fichier de verrouillage, c'est une optimisation de coût, pas une base de référence partagée. Il ne fait jamais échouer une exécution. Un fichier absent, corrompu, trop volumineux ou de version non reconnue se dégrade en un cache vide et est simplement reconstruit à l'exécution suivante. Pour le reconstruire de zéro, supprime le fichier.
+`verbatra.cache.json` est un fichier compagnon local et regénérable, à côté de ton fichier de verrouillage. `verbatra init` l'ajoute au `.gitignore`, et tu devrais le garder hors du contrôle de version : contrairement au fichier de verrouillage, c'est une optimisation de coût, pas une base de référence partagée. Il ne fait jamais échouer une exécution. Un fichier absent, corrompu ou trop volumineux se dégrade en un cache vide et est simplement reconstruit à l'exécution suivante. Un fichier dont la `version` n'est pas reconnue par cette build a été écrit par une verbatra plus récente : il se dégrade lui aussi en un cache vide pour l'exécution, mais il est laissé intact sur le disque au lieu d'être reconstruit, de sorte qu'une mise à niveau ne détruit rien. L'exécution signale un avis et se poursuit normalement. Pour le reconstruire de zéro, supprime le fichier.
 
 ## Le contourner
 

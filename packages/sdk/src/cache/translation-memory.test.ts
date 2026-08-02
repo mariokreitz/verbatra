@@ -29,15 +29,19 @@ describe("cacheFilePath", () => {
   });
 });
 
+const EMPTY = { version: 1, entries: {} };
+
 describe("readTranslationMemory: degrade-to-empty", () => {
   it("returns an empty memory for a missing file", async () => {
-    const result = await readTranslationMemory("/x", makeFakeFs());
-    expect(result).toEqual({ version: 1, entries: {} });
+    expect(await readTranslationMemory("/x", makeFakeFs())).toEqual({
+      memory: EMPTY,
+      writable: true,
+    });
   });
 
   it("returns an empty memory for an over-cap file", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => ({ kind: "too-large" }) });
-    expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: true });
   });
 
   it("returns an empty memory when the read throws a post-open I/O fault", async () => {
@@ -46,29 +50,42 @@ describe("readTranslationMemory: degrade-to-empty", () => {
         throw new Error("EIO: i/o error after open");
       },
     });
-    expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: true });
   });
 
   it("returns an empty memory for unparseable JSON", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => okRead("{not json") });
-    expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: true });
   });
 
   it("returns an empty memory for a structurally invalid file", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => okRead('{"version":1,"entries":[]}') });
-    expect(await readTranslationMemory("/x", fs)).toEqual({ version: 1, entries: {} });
-  });
-
-  it("returns an empty memory for an unrecognized version (older or newer)", async () => {
-    const older = makeFakeFs({ readFileBounded: async () => okRead('{"version":0,"entries":{}}') });
-    const newer = makeFakeFs({ readFileBounded: async () => okRead('{"version":2,"entries":{}}') });
-    expect(await readTranslationMemory("/x", older)).toEqual({ version: 1, entries: {} });
-    expect(await readTranslationMemory("/x", newer)).toEqual({ version: 1, entries: {} });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: true });
   });
 
   it("parses a well-formed file", async () => {
     const fs = makeFakeFs({ readFileBounded: async () => okRead(JSON.stringify(SAMPLE)) });
-    expect(await readTranslationMemory("/x", fs)).toEqual(SAMPLE);
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: SAMPLE, writable: true });
+  });
+});
+
+describe("readTranslationMemory: writability", () => {
+  // The only non-writable exit. A version this build does not know came from a newer one, and the
+  // end-of-run write replaces the whole file, so writing would downgrade and empty it.
+  it("marks a valid file with an unrecognized version non-writable", async () => {
+    const fs = makeFakeFs({ readFileBounded: async () => okRead('{"version":2,"entries":{}}') });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: false });
+  });
+
+  // Folding this into the schema check would make corrupt files non-writable too, wedging a cache
+  // that is meant to self-heal. These land in the schema failure, not the version branch.
+  it.each([
+    ["zero", '{"version":0,"entries":{}}'],
+    ["negative", '{"version":-1,"entries":{}}'],
+    ["non-integer", '{"version":1.5,"entries":{}}'],
+  ])("treats a %s version as corrupt, so the file stays writable", async (_label, content) => {
+    const fs = makeFakeFs({ readFileBounded: async () => okRead(content) });
+    expect(await readTranslationMemory("/x", fs)).toEqual({ memory: EMPTY, writable: true });
   });
 });
 

@@ -19,7 +19,7 @@ Jeder gecachte Wert ist auf den Übersetzungskontext eingegrenzt, in dem er ents
 
 ## Die Datei
 
-`verbatra.cache.json` ist eine lokale, regenerierbare Begleitdatei neben deiner Lock-Datei. `verbatra init` trägt sie in `.gitignore` ein, und du solltest sie aus der Versionskontrolle heraushalten: Anders als die Lock-Datei ist sie eine Kostenoptimierung, keine geteilte Grundlinie. Sie lässt nie einen Lauf scheitern. Eine fehlende, beschädigte, zu große oder in der Version unbekannte Datei degradiert zu einem leeren Cache und wird beim nächsten Lauf einfach neu aufgebaut. Um sie von Grund auf neu aufzubauen, lösche die Datei.
+`verbatra.cache.json` ist eine lokale, regenerierbare Begleitdatei neben deiner Lock-Datei. `verbatra init` trägt sie in `.gitignore` ein, und du solltest sie aus der Versionskontrolle heraushalten: Anders als die Lock-Datei ist sie eine Kostenoptimierung, keine geteilte Grundlinie. Sie lässt nie einen Lauf scheitern. Eine fehlende, beschädigte oder zu große Datei degradiert zu einem leeren Cache und wird beim nächsten Lauf einfach neu aufgebaut. Eine Datei mit einer Version, die dieser Build nicht kennt, stammt von einer neueren verbatra: sie degradiert für den Lauf ebenfalls zu einem leeren Cache, bleibt aber unangetastet auf der Festplatte, statt neu aufgebaut zu werden, sodass ein Upgrade nichts zerstört. Der Lauf meldet einen Hinweis und läuft ansonsten normal weiter. Um sie von Grund auf neu aufzubauen, lösche die Datei.
 
 ## Umgehen
 

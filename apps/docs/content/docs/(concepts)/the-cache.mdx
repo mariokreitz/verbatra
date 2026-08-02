@@ -19,7 +19,7 @@ Every cached value is scoped to the translation context it was produced in: a sh
 
 ## The file
 
-`verbatra.cache.json` is a local, regenerable sidecar next to your lock file. `verbatra init` adds it to `.gitignore`, and you should keep it out of version control: unlike the lock file it is a cost optimization, not a shared baseline. It never fails a run. A missing, corrupt, oversized, or unrecognized-version file degrades to an empty cache and is simply rebuilt on the next run. To rebuild it from scratch, delete the file.
+`verbatra.cache.json` is a local, regenerable sidecar next to your lock file. `verbatra init` adds it to `.gitignore`, and you should keep it out of version control: unlike the lock file it is a cost optimization, not a shared baseline. It never fails a run. A missing, corrupt, or oversized file degrades to an empty cache and is simply rebuilt on the next run. A file whose `version` this build does not recognize was written by a newer verbatra: it also degrades to an empty cache for the run, but is left on disk untouched rather than rebuilt, so upgrading is not destructive. The run reports a notice and otherwise proceeds normally. To rebuild it from scratch, delete the file.
 
 ## Bypassing it
 
