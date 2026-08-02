@@ -195,6 +195,11 @@ async function acquireLock(
  * `LOCK_CONTENDED`, naming the exact path a person can delete; this is a liveness cost, never a
  * silent safety failure.
  *
+ * That acceptance is scoped to a hard kill and nothing else. An ordinary in-tool error must never
+ * produce the same orphan, which is why the locale pool in `translate-project.ts` awaits every
+ * in-flight worker before re-throwing a whole-run failure instead of rejecting out from under them:
+ * the `finally` above only runs if something is still there to await it.
+ *
  * Assumes a local, POSIX-like file system where `O_EXCL` exclusive create is atomic; this is not a
  * guarantee made for a network file system, out of scope for a local dev tool.
  */
