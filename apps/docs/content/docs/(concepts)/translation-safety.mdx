@@ -23,7 +23,12 @@ content.
 A schema-valid translation can still be broken, so one gate recomputes the accept-or-reject
 decision directly from the candidate value; the provider's own integrity report is never trusted.
 The same gate runs on every write path: a provider-sourced translation, a workbook import row, and
-a human-typed edit in Studio.
+a human-typed edit in Studio. It also runs per key on a reused value. When one translation is
+served to several keys with the same source content (a [cache](/docs/the-cache) hit, or the copy
+that makes identical text cost a single provider request), each key runs the gate against its own
+source entry, and a key whose check fails is withheld rather than written. Sameness is decided by a
+content hash that treats text as equal up to Unicode NFC normalization and LF line endings, so two
+keys can match without being byte-identical. That is exactly why the gate is re-run per key.
 
 - Placeholder integrity: the translated value must carry the same placeholders as its source,
   compared as a multiset (counts matter, order does not). Drop, add, or alter one and the candidate
@@ -33,6 +38,12 @@ a human-typed edit in Studio.
   structure is rejected too. For these formats the placeholder comparison is also branch-aware: a
   placeholder fabricated inside one plural branch is caught even if it legitimately exists in
   another.
+- Degeneracy: the value must not be structurally degenerate, such as a repetition loop or a length
+  that has run away from the source. This catches a model that collapsed into repeating a fragment
+  even when every placeholder survived.
+- Emptiness: a non-empty source may not be translated to an empty or whitespace-only value.
+  Clearing a translation is a separate, deliberate act, and the workbook's `[[CLEAR]]` sentinel is
+  the way to do it; see [Manual translation](/docs/manual-translation).
 
 A rejected candidate is withheld as data, never written: it appears on the run summary as an
 integrity mismatch, keeps its prior hash in [the lock file](/docs/the-lock-file), and is retried

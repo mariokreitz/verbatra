@@ -230,6 +230,13 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
   });
 });
 
+/**
+ * Two halves of the same contract at the CLI boundary: the argument validation the CLI performs
+ * itself, and the SDK's refusal of a concurrency value it cannot honor. The SDK makes that refusal
+ * once at watch startup rather than repeating it every cycle, and no CLI change was needed for it,
+ * because the watch session already renders a startup rejection and resolves exit 2. The last case
+ * pins that user-visible half so the CLI cannot start swallowing it.
+ */
 describe("run translate: --concurrency", () => {
   it("passes a valid --concurrency to the SDK translate() as a number", async () => {
     const { deps, calls } = recordingDeps();
@@ -262,6 +269,22 @@ describe("run translate: --concurrency", () => {
       expect(calls.translate).toHaveLength(0);
     },
   );
+
+  it("a watch startup concurrency refusal exits 2 with the structured error", async () => {
+    const { deps } = recordingDeps({
+      watch: () =>
+        Promise.reject(
+          new SdkError("CONCURRENCY_BUDGET_CONFLICT", "budget and concurrency cannot combine"),
+        ),
+    });
+    const cap = captureStreams();
+
+    const code = await run(["watch", "--concurrency", "2"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("[CONCURRENCY_BUDGET_CONFLICT]");
+  });
 });
 
 describe("run translate/watch: --no-cache", () => {
@@ -313,7 +336,7 @@ describe("run translate: progress reporting", () => {
   const events: readonly ProgressEvent[] = [
     { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 2 },
     { type: "sub-batch", locale: "de", batchIndex: 1, totalBatches: 2 },
-    { type: "locale-finished", locale: "de", translated: 3 },
+    { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 2 },
     { type: "run-finished", localesCompleted: 2 },
   ];
 
@@ -338,7 +361,7 @@ describe("run translate: progress reporting", () => {
     const code = await run(["translate"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(cap.err()).toContain("[1/2] translating de");
+    expect(cap.err()).toContain("translating de");
     expect(cap.err()).toContain("de batch 1/2");
     expect(cap.err()).toContain("de done, 3 translated");
     expect(cap.err()).toContain("run finished, 2 locales processed");
@@ -534,6 +557,13 @@ describe("run: usage errors, help, version", () => {
   });
 });
 
+/**
+ * The pre-flight work a run-path command does at its `--cwd` before handing off to the SDK: loading
+ * `.env` files, and topping up an existing `.gitignore`. The top-up is here because `init` was the
+ * only place that ever wrote those entries, so a project scaffolded before `verbatra.cache.json`
+ * existed picks up a new untracked file at its root on the first write. It stays silent by design,
+ * which is what the `--json` case guards: stdout carries the single summary object and nothing else.
+ */
 describe("run: .env loading is wired before the SDK flow", () => {
   let dir: string;
   let savedEnv: NodeJS.ProcessEnv;
@@ -559,6 +589,44 @@ describe("run: .env loading is wired before the SDK flow", () => {
       }
     }
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("translate tops up an existing .gitignore in the --cwd directory", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n.env.local\n.verbatra-local/\n");
+    const { deps } = recordingDeps();
+
+    await run(["translate", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("verbatra.cache.json");
+  });
+
+  it("import tops up an existing .gitignore in the --cwd directory", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n");
+    const { deps } = recordingDeps();
+
+    await run(["import", "book.xlsx", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toContain("verbatra.cache.json");
+  });
+
+  it("translate creates no .gitignore when the project has none", async () => {
+    const { deps } = recordingDeps();
+
+    const code = await run(["translate", "--cwd", dir], deps, captureStreams().streams);
+
+    expect(code).toBe(0);
+    expect(existsSync(join(dir, ".gitignore"))).toBe(false);
+  });
+
+  it("keeps stdout to the summary object under --json while topping up .gitignore", async () => {
+    writeFileSync(join(dir, ".gitignore"), ".env\n");
+    const summary = makeSummary({ succeeded: ["de"] });
+    const { deps } = recordingDeps({ translate: async () => summary });
+    const cap = captureStreams();
+
+    await run(["translate", "--json", "--cwd", dir], deps, cap.streams);
+
+    expect(JSON.parse(cap.out().trim())).toEqual(summary);
   });
 
   it("translate loads .env from the --cwd directory before calling the SDK", async () => {

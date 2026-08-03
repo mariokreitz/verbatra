@@ -2,7 +2,7 @@
 title: verbatra import
 description: Import a filled workbook back into the locale files, running the same safety checks.
 ---
-Read a workbook a translator filled in back into your locale files. Every value runs through the same placeholder integrity and ICU integrity checks as an automated run: values that pass are written and [the lock file](/docs/the-lock-file) is updated; values that fail are withheld and reported instead of written, so a bad cell never lands in a locale file.
+Read a workbook a translator filled in back into your locale files. Every value runs through the same integrity checks as an automated run: values that pass are written and [the lock file](/docs/the-lock-file) is updated; values that fail are withheld and reported instead of written, so a bad cell never lands in a locale file.
 
 ## Synopsis
 
@@ -40,6 +40,8 @@ verbatra import verbatra-translations.xlsx --dry-run
 | `2` | could not run: a whole-run error (config, workbook, format, or lock), or a usage error |
 
 The contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI.
+
+A blank `Translation` cell never fails a locale: the row is skipped, its prior lock baseline is kept, and the key is reported as `unfilled` whenever it still needs a translation, whether the row was exported as `new` or `changed`. Importing a workbook nobody has filled in yet therefore succeeds and returns the full inventory of pending keys.
 
 ## Related
 

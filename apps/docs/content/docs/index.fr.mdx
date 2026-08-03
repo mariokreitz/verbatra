@@ -21,7 +21,7 @@ Tu maintiens à la main une seule locale source. Tous les autres fichiers de loc
 
 Un fichier de verrouillage commité, `verbatra.lock.json`, enregistre pour chaque clé traduite le hash de la chaîne source dont sa traduction provient. Chaque exécution lit la locale source, compare chaque cible avec elle et avec cette référence, et n'envoie au fournisseur que les clés manquantes et modifiées. Les clés encore à jour sont laissées tranquilles : lance `translate` deux fois de suite et la seconde exécution ne fait aucun appel fournisseur.
 
-Chaque chaîne renvoyée par le fournisseur est vérifiée avant d'être écrite : l'intégrité des placeholders et l'intégrité ICU sont imposées, et une traduction qui casse l'une ou l'autre est retenue au lieu d'être livrée, puis retentée à l'exécution suivante. Les commandes en lecture seule `check` et `diff` rapportent la dérive sans rien écrire, pour que ta CI puisse bloquer sur leurs codes de sortie.
+Chaque chaîne renvoyée par le fournisseur est vérifiée avant d'être écrite : une traduction qui échoue à l'une des vérifications de la barrière d'intégrité est retenue au lieu d'être livrée, puis retentée à l'exécution suivante. Les commandes en lecture seule `check` et `diff` rapportent la dérive sans rien écrire, pour que ta CI puisse bloquer sur leurs codes de sortie.
 
 verbatra lit et écrit huit formats (JSON i18next, vue-i18n, next-intl et ngx-translate, XLIFF, YAML, Flutter ARB et les properties Java/Spring) et traduit via cinq fournisseurs (Anthropic, OpenAI, Gemini, DeepL, et tout serveur compatible OpenAI, y compris local) derrière une seule interface. Voir [Formats](/docs/formats) et [Fournisseurs](/docs/providers).
 

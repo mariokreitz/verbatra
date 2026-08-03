@@ -72,7 +72,7 @@ Run `verbatra <command> --help` for the same reference at the terminal.
 
 ## Verbatra Studio
 
-`verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same placeholder and ICU integrity checks as a translate run; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. The server binds to `127.0.0.1` only and gates every request behind a per-session token. The dashboard itself ships as [`@verbatra/studio`](https://github.com/mariokreitz/verbatra/tree/main/packages/studio); install it alongside the CLI:
+`verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same integrity gate a translate run applies to every candidate value; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. `--expose-agent-tools` (or `VERBATRA_STUDIO_AGENT_TOOLS`) additionally registers Studio's RPC methods as WebMCP agent tools in the browser; it is off by default and confers no authority the open, authenticated tab does not already hold. The server binds to `127.0.0.1` only and gates every request behind a Host and Origin check, the bootstrap token from the printed URL, and a session cookie. The dashboard itself ships as [`@verbatra/studio`](https://github.com/mariokreitz/verbatra/tree/main/packages/studio); install it alongside the CLI:
 
 ```bash
 pnpm add -D @verbatra/studio
@@ -88,7 +88,7 @@ The CLI returns codes you can branch on in CI and scripts:
 | `0` | Success (also `--help` and `--version`); for `check` and `diff`, every locale is in sync. |
 | `1` | `translate` or `import` finished, but at least one locale failed; for `check` and `diff`, at least one locale is out of sync. |
 | `2` | Could not run: a whole-run error or a usage error. |
-| `130` | `watch` or `studio` was force-stopped by a second interrupt (a single interrupt stops gracefully and exits `0`). |
+| `130` | `watch` or `studio` was force-stopped by a second interrupt. A single interrupt stops gracefully and exits `0`; if the shutdown itself fails, `watch` exits `2` and `studio` exits `1`. |
 
 A `watch` per-run failure is reported as an output record, not an exit code.
 
@@ -103,9 +103,9 @@ Keys are read only from the environment, never from the config. Each provider re
 | `gemini` | `GEMINI_API_KEY` |
 | `deepl` | `DEEPL_API_KEY` |
 
-`openai-compatible` is not in this table: most local servers need no key at all, and when one is required you name your own environment variable for it. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
+`openai-compatible` is not in this table: most local servers need no key at all, and when one is required it comes from `OPENAI_COMPATIBLE_API_KEY` or from whichever variable the provider's `apiKeyEnvVar` option names. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
 
-`verbatra init` writes a `.env.example` and adds `.env` and `.env.local` to your `.gitignore`. `translate` and `watch` load `.env` from the working directory before running.
+`verbatra init` writes a `.env.example` and makes sure your `.gitignore` covers the paths a verbatra project keeps out of version control: `.env` and `.env.local` for your keys, plus `.verbatra-local/` and `verbatra.cache.json` for the local, regenerable state a run produces. `translate`, `watch`, and `import` silently top up an existing `.gitignore` with any of those entries it is missing, so a project scaffolded before an entry existed still gets it; none of them creates a `.gitignore` that is not already there, and a failure to write one never fails the run. `translate`, `watch`, and `studio` load `.env.local` and then `.env` from the working directory before running; a variable already set in the real environment always wins.
 
 ## Configuration
 

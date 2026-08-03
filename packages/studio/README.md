@@ -51,12 +51,17 @@ Every page refreshes live over a server-sent event stream as your locale files c
 
 ## Editing and provider spend
 
-Local editing is always on: an edit from the Review queue runs through the same placeholder and ICU integrity checks as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when Studio is started with `--allow-spend` or with `VERBATRA_STUDIO_ALLOW_SPEND` set; without that flag, Studio never calls a provider.
+Local editing is always on: an edit from the Review queue runs through the same integrity gate a translate run applies to every candidate value, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when Studio is started with `--allow-spend` or with `VERBATRA_STUDIO_ALLOW_SPEND` set; without that flag, those methods are simply not registered on the server and Studio never calls a provider.
+
+## Agent tools (WebMCP)
+
+Starting Studio with `--expose-agent-tools`, or with `VERBATRA_STUDIO_AGENT_TOOLS` set, registers each of Studio's existing RPC methods as a WebMCP tool on the browser's `document.modelContext`, so a browser agent can drive the same dashboard surface. It is off by default. Each tool is a thin 1:1 wrapper over the same authenticated call the dashboard makes, travelling the same input validation and the same capability gate, so registration confers no authority the open, authenticated tab does not already hold: without `--allow-spend` the provider-calling methods are absent, and no tool can reach them.
 
 ## Security model
 
 - The server binds to `127.0.0.1` only; it is never reachable from the network.
-- Every request is gated behind a random per-session token, minted at startup.
+- Every request is gated: the `Host` header must be exactly the bound `127.0.0.1:PORT`, a present `Origin` on a state-changing request must match it, and the request must authenticate. The printed URL's bootstrap token is accepted only on the root `GET`, where it is redeemed for an HttpOnly, `SameSite=Strict` session cookie; every later request, including `POST /rpc`, authenticates on that cookie.
+- The write and spend RPC methods are additionally rate limited per process.
 - Provider calls require the explicit `--allow-spend` opt-in.
 - API keys are read only from environment variables, never from the config, and never reach the browser.
 
@@ -64,7 +69,7 @@ See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio
 
 ## Programmatic use
 
-The package's entry point is `startStudioServer`, which binds the server to `127.0.0.1` and serves the SPA from the built assets (alongside it: the `DEFAULT_STUDIO_PORT` constant and the structured `StudioServerStartError`). The CLI's `studio` command is the intended consumer; most projects never call it directly.
+The package's entry point is `startStudioServer`, which binds the server to `127.0.0.1` and serves the SPA from the built assets. Alongside it the package exports the `DEFAULT_STUDIO_PORT` constant, the structured `StudioServerStartError` with its error-code type, and the supporting types its options, deps, and injection seams are written in. The CLI's `studio` command is the intended consumer; most projects never call it directly.
 
 ## Development
 
@@ -73,6 +78,7 @@ Notes for working on this package inside the [verbatra monorepo](https://github.
 - `src/index.ts` exports `startStudioServer`, which serves the SPA from the built assets next to the compiled module (or from an injected override).
 - `src/server/` is the server implementation, covered by tests.
 - `src/app/` is the React single-page app, built by Vite into `dist/app`. It is not covered by tests; measured client logic that is not React rendering lives in `src/client/`. Changes to `src/app/api.ts` in particular wire real browser globals (`fetch`, `EventSource`) into the covered client modules; smoke-test them in a real browser after touching that file, since a detached reference to a browser global can typecheck and pass every unit test while still throwing at runtime (a bare `const f = fetch` loses `fetch`'s required `Window` receiver and throws "Illegal invocation" the moment it is called).
+- `src/shared/` holds the RPC contract and the SSE event names both sides compile against; `src/webmcp/` is the dependency-injected WebMCP adapter that maps those RPC methods to browser agent tools.
 - `src/dev/` is a local-only development entry point. It is never imported by `src/index.ts`, is never bundled by the build, and is never published.
 
 ### Build

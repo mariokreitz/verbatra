@@ -36,8 +36,8 @@ injiziert; im normalen Gebrauch kannst du es ignorieren.
 ### translate
 
 Der Einmal-Flow: die Quelle lesen, jedes Ziel-Locale mit der Lock-Baseline vergleichen, die
-fehlenden und geänderten Keys an den Provider schicken, die Platzhalter- und
-ICU-Integritätsprüfungen ausführen, die Locale-Dateien schreiben und das Lock aktualisieren. Nutze
+fehlenden und geänderten Keys an den Provider schicken, die Integritätsprüfungen
+ausführen, die Locale-Dateien schreiben und das Lock aktualisieren. Nutze
 es für Skripte, Build-Schritte und CI-Jobs.
 
 Eingabe: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
@@ -50,7 +50,11 @@ Eingabe: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache
   passende Konfigurationsoption für diesen Lauf.
 - `concurrency` übersetzt bis zu so viele Ziel-Locales gleichzeitig (Standard 1, streng seriell).
   Ein Wert unter 1 wirft `CONCURRENCY_INVALID`; bei einem Live-Lauf wirft ein Wert über 1 mit
-  gesetztem `maxTokens` einen `CONCURRENCY_BUDGET_CONFLICT` (ein Dry-Run ist ausgenommen).
+  gesetztem `maxTokens` einen `CONCURRENCY_BUDGET_CONFLICT` (ein Dry-Run ist ausgenommen). Ein
+  Fehler des gesamten Laufs, der auftritt, während bereits Locales laufen, verhindert den Start
+  jedes weiteren Locales, und die laufenden Locales schließen ab und geben ihre Schreibsperren
+  frei, bevor `translate` fehlschlägt; der Fehlschlag kommt also nach dem langsamsten von ihnen an
+  statt sofort.
 - `cache` ist standardmäßig true und verwendet den lokalen [Translation-Memory-Cache](/docs/the-cache)
   wieder; setze ihn auf false, um den Cache für den Lauf zu umgehen (das `--no-cache` der CLI).
 - `onProgress` wird aufgerufen, während der Lauf fortschreitet (pro Locale-Start und -Ende sowie pro
@@ -77,12 +81,16 @@ Eingabe: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?,
 aufgerufen: `{ status: "succeeded", summary }` oder `{ status: "failed", error: { code, message } }`.
 Das SDK loggt nichts; `onRun` ist die einzige Ausgabe. `concurrency`, `cache`, `onProgress`,
 `onLockWait` und `lockAcquireTimeoutMs` werden an jeden Lauf durchgereicht und verhalten sich genau
-wie bei `translate` (ein budgetierter Watch mit `concurrency` über 1 scheitert bei jedem Lauf mit
-`CONCURRENCY_BUDGET_CONFLICT`).
+wie bei `translate`.
 
 Gibt einen `WatchController` mit einer Methode zurück, `stop()`, die den Watcher schließt und den
-laufenden Lauf abwartet. Eine fehlende Quelldatei wirft beim Start `SOURCE_UNREADABLE`; jeder
-Fehlschlag danach kommt über `onRun` an, und das Beobachten geht weiter.
+laufenden Lauf abwartet. Drei Probleme werden schon beim Start zurückgewiesen, bevor der Watcher
+existiert, sodass `watch` selbst fehlschlägt, statt einen Controller zurückzugeben: Eine
+`concurrency`, die keine Ganzzahl von mindestens 1 ist, wirft `CONCURRENCY_INVALID`, eine
+`concurrency` über 1 gegen eine Konfiguration, die `maxTokens` setzt, wirft
+`CONCURRENCY_BUDGET_CONFLICT` (es gibt keinen Dry-Run-Watch, der Budgetkonflikt greift also
+immer), und eine fehlende Quelldatei wirft `SOURCE_UNREADABLE`. Jeder Fehlschlag nach dem Start
+kommt über `onRun` an, und das Beobachten geht weiter.
 
 ## Zustand inspizieren, ohne zu schreiben
 
@@ -162,13 +170,16 @@ dann, wenn der Key in diesem Locale noch nicht existiert.
 ### editEntry
 
 Schreibt eine von Hand getippte Korrektur für einen Key und ein Locale. Der Kandidatenwert
-durchläuft dasselbe Platzhalter- und ICU-Gate wie eine Provider-Übersetzung, bevor irgendetwas die
+durchläuft dasselbe Integritäts-Gate wie eine Provider-Übersetzung, bevor irgendetwas die
 Platte erreicht; bei Annahme werden die Locale-Datei und der Lock-Eintrag für diesen Key innerhalb
 des Schreib-Locks des Locales aktualisiert. Ruft nie einen Provider auf.
 
 Eingabe: `{ config, cwd?, locale, key, value }`. Gibt ein zweiarmiges Ergebnis zurück:
-`{ accepted: true, value }` oder `{ accepted: false, reason: "placeholder" | "icu", value }`,
-wobei nichts geschrieben wird.
+`{ accepted: true, value }` oder
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }`, wobei nichts
+geschrieben wird. `"empty"` deckt einen leeren oder nur aus Whitespace bestehenden Wert für eine
+Quelle mit Text ab: Eine Bearbeitung kann das Leeren eines Keys nicht ausdrücken, nutze dafür also
+das `[[CLEAR]]`-Sentinel der Arbeitsmappe.
 
 ### retranslateEntry
 
@@ -179,9 +190,9 @@ Key.
 
 Eingabe: `{ config, cwd?, locale, key }`. Gibt `{ accepted: true, value, reviewReasons }` zurück
 (die Review-Grund-Codes, falls vorhanden, die auf den neuen Wert zutreffen) oder
-`{ accepted: false, reason: "placeholder" | "icu", value }`. Anders als bei `translate` wirft ein
-Provider-Fehlschlag hier: ein `ProviderError` aus `@verbatra/ai-providers` mit einem stabilen Code
-wie `RATE_LIMITED` oder `AUTH_FAILED`.
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }`. Anders als
+bei `translate` wirft ein Provider-Fehlschlag hier: ein `ProviderError` aus
+`@verbatra/ai-providers` mit einem stabilen Code wie `RATE_LIMITED` oder `AUTH_FAILED`.
 
 ## Locale-Datei-Schnappschüsse
 
@@ -222,7 +233,7 @@ Eingabe: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` ist standa
 ### importWorkbook
 
 Liest eine ausgefüllte Arbeitsmappe zurück in die Locale-Dateien und führt dieselben Prüfungen auf
-Quelldrift, Platzhalter und ICU aus wie `translate`. Nur akzeptierte Zeilen rücken ihre
+Quelldrift und Integrität aus wie `translate`. Nur akzeptierte Zeilen rücken ihre
 Lock-Baseline vor; eine leere oder abgelehnte Zeile wird weiter exportiert, bis sie wirklich
 erledigt ist.
 
@@ -293,7 +304,7 @@ interface RunSummary {
 
 interface LocaleSummary {
   locale: string;
-  status: "succeeded" | "failed";
+  status: "succeeded" | "partial" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
@@ -304,7 +315,7 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
-  unfilled: string[];            // import only: changed rows the translator left blank
+  unfilled: string[];            // import only: blank rows whose key still needs a translation
   malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
   duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
@@ -325,7 +336,9 @@ Die Teile, die du kennen solltest:
   [Review in Studio](/docs/review-in-studio).
 - **notices** leben pro Locale, nie auf oberster Ebene. Dazu zählen Provider-Notices (etwa eine
   DeepL-Degradation) und SDK-Notices mit den Codes `PLURAL_CATEGORIES_INCOMPLETE`,
-  `SUB_BATCH_FAILED`, `BLANK_ROW_BASELINE_RETAINED` und `BUDGET_TOKENS_EXCEEDED` ab.
+  `SUB_BATCH_FAILED`, `BLANK_ROW_BASELINE_RETAINED`, `BUDGET_TOKENS_EXCEEDED` und
+  `CACHE_VERSION_UNRECOGNIZED` ab. Die Cache-Notice gilt für den gesamten Lauf (eine Datei, die
+  sich alle Locales teilen) und wird deshalb an jedes Locale des Laufs gehängt.
 - **usage** ist `undefined`, nie eine erfundene Null, wann immer nichts in diesem Bereich einen
   Verbrauch gemeldet hat: ein Dry-Run ruft nie einen Provider auf, und DeepL meldet nie Tokens.
   `RunSummary.usage` ist die Summe über die Locales.
@@ -338,9 +351,10 @@ Die Teile, die du kennen solltest:
   also nicht als geschlossene Menge.
 - **cacheHits** listet Keys, die aus dem [Translation-Memory-Cache](/docs/the-cache) statt vom
   Provider bedient wurden. **unfilled**, **malformedRows** und **duplicateKeys** werden nur von
-  `importWorkbook` befüllt (ein `translate`-Lauf lässt sie leer): eine leere `changed`-Zeile, eine
-  Arbeitsmappen-Zeile, die der Reader nicht parsen konnte, und ein doppelter Key, dessen erstes
-  Vorkommen gewonnen hat.
+  `importWorkbook` befüllt (ein `translate`-Lauf lässt sie leer): eine leere Zeile, deren Key zum
+  Importzeitpunkt weiterhin eine Übersetzung braucht (egal ob sie als `new` oder als `changed`
+  exportiert wurde), eine Arbeitsmappen-Zeile, die der Reader nicht parsen konnte, und ein
+  doppelter Key, dessen erstes Vorkommen gewonnen hat.
 
 ## Das Fehlermodell
 

@@ -75,7 +75,7 @@ Everything else is private or internal and must not be published by accident.
   formats, with `createJsonFileAdapter` as the JSON specialization) and
   `createFlatFileAdapter` (flat key/value formats), registered via
   `createDefaultRegistry`. Adapters: i18next, vue-i18n, next-intl, ngx-translate,
-  XLIFF, YAML, and Flutter ARB.
+  XLIFF, YAML, Flutter ARB, and Java/Spring properties.
 - `@verbatra/ai-providers` (private): translation provider strategies behind a
   registry. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
   `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and

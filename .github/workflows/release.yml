@@ -114,19 +114,21 @@ jobs:
       - name: Build
         run: pnpm turbo run build --filter=@verbatra/sdk --filter=@verbatra/cli --filter=@verbatra/studio
 
-      # Publish through the tag guard instead of a bare `changeset publish`: when
-      # .changeset/pre.json says mode "pre", the wrapper forces `--tag <tag from pre.json>` so
-      # changesets' per-package "only-pre" fallback can never put a prerelease on latest (that
-      # fallback is how @verbatra/studio prereleases walked onto latest). Outside pre mode it
-      # publishes exactly as before. Accepted trade-off, documented in the script: a brand-new
-      # package first published during pre mode gets no latest tag, so a bare
-      # `npm install <pkg>` will not resolve until its first stable release.
+      # Standing hazard when entering pre mode, recorded here because it is not obvious and a
+      # wrapper script cannot fix it. `changeset publish` resolves a dist-tag per package: a
+      # package whose registry versions are ALL prereleases is classified "only-pre" and is then
+      # published to `latest` rather than the pre tag, deliberately, "because there has not been a
+      # regular release of it yet". That is how @verbatra/studio's prereleases walked onto latest.
+      # Passing `--tag` is NOT a way around it: changesets rejects a custom tag outright while pre
+      # mode is active. The only prevention is to give a new package its first STABLE release
+      # before entering pre mode. Detection is the verify-publish job below, which fails the
+      # workflow if a prerelease published in this run holds the latest tag.
       - name: Create Version Packages PR or publish
         id: changesets
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm changeset version
-          publish: node scripts/release-publish.mjs
+          publish: pnpm exec changeset publish
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

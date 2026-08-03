@@ -33,7 +33,7 @@ Pasa `--yes` para saltarte las preguntas y aceptar los valores por defecto. Sin 
 
 - `verbatra.config.ts`: la configuración de tu proyecto, validada contra el esquema real antes de escribirse
 - `.env.example`: nombra la variable de la clave del proveedor, nunca el valor de una clave
-- entradas en `.gitignore` para `.env`, `.env.local` y `.verbatra-local/`, creadas o añadidas para que una clave real o el estado local nunca acaben en un commit
+- entradas en `.gitignore` para `.env`, `.env.local`, `.verbatra-local/` y `verbatra.cache.json`, creadas o añadidas para que una clave real, el estado local o la caché regenerable nunca acaben en un commit
 
 Volver a ejecutar `init` se salta los archivos que ya existen; `--force` los sobrescribe. También rellena `format` mirando tus dependencias: un proyecto que usa i18next, vue-i18n, next-intl o `@ngx-translate/core` recibe el formato JSON correspondiente, y cualquier otro toma por defecto `i18next-json` con un comentario TODO para cambiarlo. Para Gemini el resultado es este:
 
@@ -90,7 +90,7 @@ Luego ejecuta:
 verbatra translate
 ```
 
-verbatra lee el locale de origen, ve que todas las claves faltan en `de`, las envía al proveedor en lotes, comprueba en cada resultado la integridad de los marcadores de posición e ICU, y escribe `locales/de.json`. La ejecución termina con un resumen por locale: claves traducidas, claves sin cambios, claves huérfanas y cualquier aviso. El código de salida es `0` cuando todos los locales tuvieron éxito y `1` cuando uno falló; añade `--json` para un resumen legible por máquina.
+verbatra lee el locale de origen, ve que todas las claves faltan en `de`, las envía al proveedor en lotes, pasa cada resultado por la puerta de integridad, y escribe `locales/de.json`. La ejecución termina con un resumen por locale: claves traducidas, claves sin cambios, claves huérfanas y cualquier aviso. El código de salida es `0` cuando todos los locales tuvieron éxito y `1` cuando uno falló; añade `--json` para un resumen legible por máquina.
 
 ## Qué acaba de pasar
 

@@ -9,9 +9,9 @@ verbatra mantiene una caché local de memoria de traducción, `verbatra.cache.js
 En una ejecución, antes de que una clave vaya al proveedor, verbatra la busca en la caché por el hash de su contenido de origen actual. Un acierto se sirve gratis, así que nunca vuelves a pagar por él. Como la búsqueda es por contenido, la reutilización sobrevive a casos que el archivo de bloqueo no cubre:
 
 - **Una clave renombrada.** Mueve un string de `home.title` a `landing.title` y su traducción se reutiliza, no se vuelve a traducir.
-- **Contenido duplicado.** Dos claves con texto de origen idéntico byte a byte comparten una traducción; la segunda es un acierto de caché.
+- **Contenido duplicado.** Dos claves con el mismo contenido de origen comparten una traducción; la segunda es un acierto de caché.
 
-Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad de marcadores de posición e ICU](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.
+Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.
 
 ## La huella
 
@@ -19,7 +19,7 @@ Cada valor en caché queda acotado al contexto de traducción en el que se produ
 
 ## El archivo
 
-`verbatra.cache.json` es un archivo complementario local y regenerable, junto a tu archivo de bloqueo. `verbatra init` lo añade a `.gitignore`, y deberías mantenerlo fuera del control de versiones: a diferencia del archivo de bloqueo, es una optimización de coste, no una línea base compartida. Nunca hace fallar una ejecución. Un archivo ausente, corrupto, demasiado grande o de versión no reconocida degrada a una caché vacía y se reconstruye sin más en la siguiente ejecución. Para reconstruirlo desde cero, borra el archivo.
+`verbatra.cache.json` es un archivo complementario local y regenerable, junto a tu archivo de bloqueo. `verbatra init` lo añade a `.gitignore`, y `translate`, `watch` e `import` completan un `.gitignore` existente al que le falte la entrada, de modo que un proyecto creado con una versión anterior la recibe en la siguiente ejecución. Mantenlo fuera del control de versiones: a diferencia del archivo de bloqueo, es una optimización de coste, no una línea base compartida. Nunca hace fallar una ejecución. Un archivo ausente, corrupto o demasiado grande degrada a una caché vacía y se reconstruye sin más en la siguiente ejecución. Un archivo cuya `version` esta compilación no reconoce fue escrito por una verbatra más reciente: también degrada a una caché vacía durante la ejecución, pero se deja intacto en disco en lugar de reconstruirse, de modo que actualizar no destruye nada. La ejecución informa de un aviso y por lo demás continúa con normalidad. Para reconstruirlo desde cero, borra el archivo.
 
 ## Cómo omitirla
 

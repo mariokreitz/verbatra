@@ -1,5 +1,9 @@
 import type { TranslationEntry } from "@verbatra/core";
-import { createDefaultRegistry, createNextIntlJsonAdapter } from "@verbatra/format-adapters";
+import {
+  createArbAdapter,
+  createDefaultRegistry,
+  createNextIntlJsonAdapter,
+} from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import { gateCandidateValue } from "./integrity-gate.js";
 
@@ -66,5 +70,71 @@ describe("gateCandidateValue: ICU-capable formats (branch-aware comparePlacehold
     const candidate = "Hallo {name";
     const result = gateCandidateValue(source, candidate, adapter);
     expect(result).toEqual({ accepted: false, reason: "icu" });
+  });
+});
+
+describe("gateCandidateValue: an empty candidate for a non-empty source", () => {
+  const adapter = i18nextAdapter();
+
+  it("rejects an empty candidate for a placeholder-free source", () => {
+    const result = gateCandidateValue(entry("Save", []), "", adapter);
+    expect(result).toEqual({ accepted: false, reason: "empty" });
+  });
+
+  it.each(["   ", "\t", "\n", " \t\n "])(
+    "rejects a whitespace-only candidate (%j)",
+    (candidate) => {
+      const result = gateCandidateValue(entry("Save", []), candidate, adapter);
+      expect(result).toEqual({ accepted: false, reason: "empty" });
+    },
+  );
+
+  it("still round-trips an empty translation of a source that is itself empty", () => {
+    expect(gateCandidateValue(entry("", []), "", adapter)).toEqual({ accepted: true });
+  });
+
+  it("accepts an empty candidate for a whitespace-only source", () => {
+    expect(gateCandidateValue(entry("   ", []), "", adapter)).toEqual({ accepted: true });
+  });
+
+  it("keeps reporting placeholder for an empty candidate whose source carries a placeholder", () => {
+    const result = gateCandidateValue(entry("Hello {{name}}", ["{{name}}"]), "", adapter);
+    expect(result).toEqual({ accepted: false, reason: "placeholder" });
+  });
+});
+
+/**
+ * These two adapters define `comparePlaceholders`, which takes a different branch inside the gate:
+ * it re-derives placeholders from the source value and ignores `sourceEntry.placeholders` entirely.
+ * A suite written only against i18next-json never exercises that branch, and it is exactly where an
+ * empty candidate for a placeholder-carrying source used to be accepted.
+ */
+describe.each([
+  ["next-intl", createNextIntlJsonAdapter],
+  ["arb", createArbAdapter],
+])("gateCandidateValue: empty candidates on the %s comparePlaceholders branch", (_name, make) => {
+  const adapter = make();
+
+  it("rejects an empty candidate for a placeholder-free source", () => {
+    expect(gateCandidateValue(entry("Save", []), "", adapter)).toEqual({
+      accepted: false,
+      reason: "empty",
+    });
+  });
+
+  it("rejects an empty candidate for a source that carries a placeholder", () => {
+    const result = gateCandidateValue(entry("Hello {name}", ["{name}"]), "", adapter);
+    expect(result.accepted).toBe(false);
+  });
+
+  it("rejects a whitespace-only candidate for a placeholder-free source", () => {
+    expect(gateCandidateValue(entry("Save", []), "  ", adapter)).toEqual({
+      accepted: false,
+      reason: "empty",
+    });
+  });
+
+  it("still round-trips an empty translation of an empty source", () => {
+    expect(gateCandidateValue(entry("", []), "", adapter)).toEqual({ accepted: true });
   });
 });

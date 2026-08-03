@@ -61,8 +61,9 @@ against the working directory.
 
 Commit your locale files and `verbatra.lock.json`: the lock records, per key, the source content
 hash each translation came from, and committing it is what makes runs incremental and drift
-detection work everywhere, including CI. Do not commit `.env`, `.env.local`, or
-`.verbatra-local/`; `verbatra init` adds all three to `.gitignore`. See
+detection work everywhere, including CI. Do not commit `.env`, `.env.local`,
+`.verbatra-local/`, or `verbatra.cache.json`; `verbatra init` adds all four to `.gitignore`, and
+`translate`, `watch`, and `import` top up an existing `.gitignore` that is missing any of them. See
 [The lock file](/docs/the-lock-file).
 
 ## How do I re-translate everything?

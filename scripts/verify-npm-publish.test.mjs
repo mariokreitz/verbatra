@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
+  classifyLicense,
   isLatestTagViolation,
   isPrereleaseVersion,
+  normalizeLicenseText,
   parsePublishedPackages,
 } from "./verify-npm-publish.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const ROOT_LICENSE = readFileSync(resolve(REPO_ROOT, "LICENSE"), "utf8");
 
 describe("parsePublishedPackages", () => {
   it("parses a valid publishedPackages payload", () => {
@@ -113,5 +121,43 @@ describe("isLatestTagViolation", () => {
 
   it("passes when the package has no latest dist-tag at all", () => {
     expect(isLatestTagViolation("0.1.0-next.1", null)).toBe(false);
+  });
+});
+
+describe("normalizeLicenseText", () => {
+  it("folds CRLF to LF so a tarball packed on another platform still matches", () => {
+    expect(normalizeLicenseText("MIT License\r\n\r\nCopyright\r\n")).toBe(
+      "MIT License\n\nCopyright",
+    );
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(normalizeLicenseText("\n  MIT License  \n\n")).toBe("MIT License");
+  });
+});
+
+describe("classifyLicense", () => {
+  it("reports a tarball carrying no root LICENSE as missing", () => {
+    expect(classifyLicense(null, ROOT_LICENSE)).toBe("missing");
+  });
+
+  it("reports a truncated LICENSE as mismatched", () => {
+    expect(classifyLicense("MIT License\n", ROOT_LICENSE)).toBe("mismatched");
+  });
+
+  it("reports a wrong-holder LICENSE as mismatched", () => {
+    expect(
+      classifyLicense(ROOT_LICENSE.replace("Mario Kreitz", "Someone Else"), ROOT_LICENSE),
+    ).toBe("mismatched");
+  });
+
+  it("passes the actual repository root LICENSE", () => {
+    expect(classifyLicense(ROOT_LICENSE, ROOT_LICENSE)).toBeNull();
+  });
+
+  it("passes a copy that differs only by line endings and trailing whitespace", () => {
+    const repacked = `${ROOT_LICENSE.replace(/\n/g, "\r\n")}\n\n`;
+
+    expect(classifyLicense(repacked, ROOT_LICENSE)).toBeNull();
   });
 });

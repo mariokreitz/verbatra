@@ -9,9 +9,9 @@ verbatra tient un cache local de mémoire de traduction, `verbatra.cache.json`, 
 Lors d'une exécution, avant qu'une clé parte au fournisseur, verbatra la cherche dans le cache par le hachage de son contenu source actuel. Un succès est servi gratuitement, tu ne le paies donc jamais deux fois. Comme la recherche se fait par contenu, la réutilisation survit à des cas que le fichier de verrouillage ne couvre pas :
 
 - **Une clé renommée.** Déplace une chaîne de `home.title` vers `landing.title` et sa traduction est réutilisée, pas retraduite.
-- **Contenu en double.** Deux clés au texte source identique octet pour octet partagent une traduction ; la seconde est un succès de cache.
+- **Contenu en double.** Deux clés au même contenu source partagent une traduction ; la seconde est un succès de cache.
 
-Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité des placeholders et de l'ICU](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
+Une valeur réutilisée n'est pas acceptée aveuglément. Elle passe toujours les mêmes [contrôles d'intégrité](/docs/translation-safety) face à la source actuelle avant d'être écrite, donc une valeur en cache qui ne convient plus à sa clé est écartée et la clé est traduite à neuf. Les succès de cache sont rapportés par locale dans le résumé de l'exécution, séparément des clés traduites lors de cette exécution.
 
 ## L'empreinte
 
@@ -19,7 +19,7 @@ Chaque valeur en cache est délimitée au contexte de traduction dans lequel ell
 
 ## Le fichier
 
-`verbatra.cache.json` est un fichier compagnon local et regénérable, à côté de ton fichier de verrouillage. `verbatra init` l'ajoute au `.gitignore`, et tu devrais le garder hors du contrôle de version : contrairement au fichier de verrouillage, c'est une optimisation de coût, pas une base de référence partagée. Il ne fait jamais échouer une exécution. Un fichier absent, corrompu, trop volumineux ou de version non reconnue se dégrade en un cache vide et est simplement reconstruit à l'exécution suivante. Pour le reconstruire de zéro, supprime le fichier.
+`verbatra.cache.json` est un fichier compagnon local et regénérable, à côté de ton fichier de verrouillage. `verbatra init` l'ajoute au `.gitignore`, et `translate`, `watch` et `import` complètent un `.gitignore` existant auquel l'entrée manque, de sorte qu'un projet créé avec une version plus ancienne la reçoit à l'exécution suivante. Garde-le hors du contrôle de version : contrairement au fichier de verrouillage, c'est une optimisation de coût, pas une base de référence partagée. Il ne fait jamais échouer une exécution. Un fichier absent, corrompu ou trop volumineux se dégrade en un cache vide et est simplement reconstruit à l'exécution suivante. Un fichier dont la `version` n'est pas reconnue par cette build a été écrit par une verbatra plus récente : il se dégrade lui aussi en un cache vide pour l'exécution, mais il est laissé intact sur le disque au lieu d'être reconstruit, de sorte qu'une mise à niveau ne détruit rien. L'exécution signale un avis et se poursuit normalement. Pour le reconstruire de zéro, supprime le fichier.
 
 ## Le contourner
 

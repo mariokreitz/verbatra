@@ -24,7 +24,14 @@ Una traducción válida según el esquema todavía puede estar rota, así que un
 la decisión de aceptar o rechazar directamente a partir del valor candidato; el informe de
 integridad del propio proveedor nunca se toma por bueno. La misma puerta corre en cada ruta de
 escritura: una traducción venida del proveedor, una fila importada de un libro y una edición
-tecleada por una persona en Studio.
+tecleada por una persona en Studio. También corre por clave sobre un valor reutilizado. Cuando una
+misma traducción se sirve a varias claves con el mismo contenido de origen (un acierto de
+[caché](/docs/the-cache), o la copia que hace que un texto idéntico cueste una sola solicitud al
+proveedor), cada clave pasa la puerta contra su propia entrada de origen, y una clave cuya
+comprobación falla se retiene en lugar de escribirse. La igualdad la decide un hash de contenido
+que trata el texto como igual salvo por la normalización Unicode NFC y los finales de línea LF, así
+que dos claves pueden coincidir sin ser idénticas byte a byte. Por eso mismo la puerta se ejecuta de
+nuevo por clave.
 
 - Integridad de los marcadores de posición: el valor traducido debe llevar los mismos marcadores de
   posición que su origen, comparados como multiconjunto (las cantidades importan, el orden no).
@@ -35,6 +42,13 @@ tecleada por una persona en Studio.
   pero rompe la estructura de plural o de select también se rechaza. Para estos formatos la
   comparación de marcadores de posición además distingue ramas: un marcador de posición fabricado
   dentro de una rama de plural se detecta aunque exista legítimamente en otra.
+- Degeneración: el valor no debe ser estructuralmente degenerado, como un bucle de repetición o una
+  longitud que se ha disparado respecto al origen. Esto atrapa a un modelo que se derrumbó
+  repitiendo un fragmento aunque todos los marcadores de posición sobrevivieran.
+- Vacío: un origen no vacío no puede traducirse a un valor vacío ni compuesto solo de espacios.
+  Vaciar una traducción es un acto aparte y deliberado, y el centinela `[[CLEAR]]` del libro de
+  trabajo es la forma de hacerlo; consulta
+  [Traducción manual](/docs/manual-translation).
 
 Una candidata rechazada se retiene como datos, nunca se escribe: aparece en el resumen de la
 ejecución como una discordancia de integridad, conserva su hash anterior en

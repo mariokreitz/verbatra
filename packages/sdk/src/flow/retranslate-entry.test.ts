@@ -180,6 +180,20 @@ describe("retranslateEntry: rejection", () => {
       | undefined;
     expect(lock?.locales.de?.greeting).toBeUndefined();
   });
+
+  it("returns accepted: false with reason empty when the provider returns an empty value", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
+    const stub = makeStubProvider({ translate: () => "" });
+
+    const result = await retranslateEntry(
+      { config: cfg(), cwd: dir, locale: "de", key: "greeting" },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(result).toMatchObject({ accepted: false, reason: "empty" });
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de).toEqual({ greeting: "Hallo" });
+  });
 });
 
 describe("retranslateEntry: provider errors", () => {

@@ -109,7 +109,7 @@ continues.
 These are the seams Verbatra Studio drives; use them to build your own review flow. Read the
 current values with `keyValue`, save a human correction with `editEntry`, or re-run the provider
 for one key with `retranslateEntry`. Both writers gate the candidate value through the same
-placeholder and ICU checks as a full run and return a two-armed result instead of throwing on a
+integrity checks as a full run and return a two-armed result instead of throwing on a
 rejected value.
 
 ```ts
@@ -149,7 +149,7 @@ the provider's own `ProviderError` (for example `RATE_LIMITED`) when the call it
 ## The workbook round-trip
 
 Export the strings that need translating into an Excel workbook, hand it to a translator, then
-import the filled file back. `importWorkbook` runs the same drift, placeholder, and ICU checks as
+import the filled file back. `importWorkbook` runs the same drift and integrity checks as
 `translate` and returns the same `RunSummary` shape, so a manual handoff slots into the exact
 reporting you use for an automated run.
 

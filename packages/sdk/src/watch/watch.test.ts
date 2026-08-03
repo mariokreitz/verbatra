@@ -171,6 +171,68 @@ describe("watch: startup and wiring", () => {
     expect(w.paths).toEqual([]);
   });
 
+  it("refuses concurrency greater than 1 with a token budget at startup, before any watcher", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    await expect(
+      watch(
+        { config: baseConfig({ maxTokens: 1_000 }), cwd: CWD, concurrency: 2, onRun: () => {} },
+        { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+      ),
+    ).rejects.toMatchObject({ code: "CONCURRENCY_BUDGET_CONFLICT" });
+    expect(r.calls).toBe(0);
+    expect(w.paths).toEqual([]);
+  });
+
+  it("refuses a concurrency that is not an integer of at least 1 at startup", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    await expect(
+      watch(
+        { config: baseConfig(), cwd: CWD, concurrency: 0, onRun: () => {} },
+        { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+      ),
+    ).rejects.toMatchObject({ code: "CONCURRENCY_INVALID" });
+    expect(r.calls).toBe(0);
+    expect(w.paths).toEqual([]);
+  });
+
+  it("reports the concurrency conflict ahead of a missing source", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    const missingFs = makeFakeFs({ fileExists: async () => false });
+    await expect(
+      watch(
+        { config: baseConfig({ maxTokens: 1_000 }), cwd: CWD, concurrency: 2, onRun: () => {} },
+        { fs: missingFs, createWatcher: w.createWatcher, runTranslate: r.run },
+      ),
+    ).rejects.toMatchObject({ code: "CONCURRENCY_BUDGET_CONFLICT" });
+  });
+
+  it("starts normally for concurrency greater than 1 without a budget", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    await watch(
+      { config: baseConfig(), cwd: CWD, concurrency: 3, onRun: () => {} },
+      { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+    );
+    await settle();
+    expect(r.inputs[0]?.concurrency).toBe(3);
+    expect(w.paths).toEqual([SOURCE]);
+  });
+
+  it("starts normally for a budget at the default serial concurrency", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    await watch(
+      { config: baseConfig({ maxTokens: 1_000 }), cwd: CWD, onRun: () => {} },
+      { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+    );
+    await settle();
+    expect(r.calls).toBe(1);
+    expect(w.paths).toEqual([SOURCE]);
+  });
+
   it("surfaces each run's summary through onRun, not swallowed", async () => {
     const w = watcherHarness();
     const r = runHarness();

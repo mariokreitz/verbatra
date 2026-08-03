@@ -50,6 +50,12 @@ bajo un bloqueo de escritura entre procesos limitado a ese único locale; un seg
 mismo locale espera, luego relee el archivo de bloqueo fresco y hace diff contra una línea base que
 ya incluye el resultado del primer escritor. Locales distintos no se bloquean entre sí.
 
+Cuando una ejecución traduce varios locales a la vez y se topa con un error de toda la ejecución (en
+la práctica, un archivo de bloqueo corrupto), deja de reclamar locales nuevos y espera a que
+terminen los que ya están en marcha, así que cada bloqueo que tomó la ejecución se libera antes de
+que el comando salga. Ningún locale se arranca después de que la ejecución ya haya fallado, y el
+fallo en sí no deja huérfano ningún bloqueo.
+
 Si un bloqueo no se puede adquirir, la ejecución falla con `LOCK_CONTENDED` y nombra la ruta del
 archivo de bloqueo (bajo el directorio `.verbatra-local/`, ignorado por git). Si no hay ningún
 proceso de verbatra en marcha, ese archivo lo dejó atrás uno que fue matado: bórralo y reintenta.

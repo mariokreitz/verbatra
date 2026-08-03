@@ -42,12 +42,16 @@ destino y del bloqueo, y nada más.
 
 ## Envía lotes al proveedor
 
-Las candidatas van a tu proveedor configurado en sublotes secuenciales de como mucho `maxBatchSize`
-(por defecto 50), así que una solicitud sobredimensionada no puede tumbar un locale entero. Cada
-sublote lleva las entradas más tus `glossary` y `tone` opcionales. Si la llamada de un sublote falla
-(un límite de tasa, un tiempo de espera agotado, una clave revocada), sus claves se retienen en esta
-ejecución y se recogen de nuevo en la siguiente mientras los demás sublotes siguen avanzando.
-Consulta [Proveedores](/docs/providers) para ver cómo aplica cada proveedor estas entradas.
+De las candidatas que llegan al proveedor, las que comparten el mismo contenido de origen
+se agrupan primero, así que ese texto cuesta una solicitud por locale en lugar de una por clave; el
+valor que vuelve se copia a las demás claves de su grupo y se vuelve a comprobar contra el origen de
+cada una en el paso de integridad de abajo. Los grupos van a tu proveedor configurado en sublotes
+secuenciales de como mucho `maxBatchSize` (por defecto 50), así que una solicitud sobredimensionada
+no puede tumbar un locale entero. Cada sublote lleva las entradas más tus `glossary` y `tone`
+opcionales. Si la llamada de un sublote falla (un límite de tasa, un tiempo de espera agotado, una
+clave revocada), sus claves se retienen en esta ejecución y se recogen de nuevo en la siguiente
+mientras los demás sublotes siguen avanzando. Consulta [Proveedores](/docs/providers) para ver cómo
+aplica cada proveedor estas entradas.
 
 ## Valida la respuesta
 
@@ -59,13 +63,13 @@ pedir una vez; si tras eso sigue sin resolverse, la clave se trata como no tradu
 ejecución y se reintenta en la siguiente. DeepL es una API de traducción automática sin esta capa de
 respuesta, pero sus resultados pasan por las mismas comprobaciones de integridad de abajo.
 
-## Comprueba la integridad de marcadores de posición e ICU
+## Ejecuta la puerta de integridad
 
 Una traducción que pasó la validación de esquema todavía puede estar rota, así que verbatra recalcula
 su propia decisión de aceptar o rechazar a partir del propio valor candidato: nunca se fía del
-informe del proveedor. Cada candidata aceptada debe llevar los mismos marcadores de posición que su
-origen, y para los formatos ICU debe seguir siendo un mensaje válido. Una candidata que falla
-cualquiera de las dos comprobaciones se retiene en lugar de escribirse, aparece en el resumen de la
+informe del proveedor. Cada candidata aceptada debe pasar todas las comprobaciones de la puerta;
+consulta [Seguridad de la traducción](/docs/translation-safety) para saber cuáles son. Una
+candidata que falla cualquiera de ellas se retiene en lugar de escribirse, aparece en el resumen de la
 ejecución y se reintenta en la siguiente. Consulta
 [Seguridad de la traducción](/docs/translation-safety) para el modelo de seguridad completo.
 

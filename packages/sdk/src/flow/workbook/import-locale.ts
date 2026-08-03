@@ -41,10 +41,19 @@ export interface ImportLocaleParams {
 /** The judged outcome of one locale's rows, before any write or lock update. */
 export interface ImportLocaleResult {
   readonly summary: LocaleSummary;
-  /** The accepted values to merge into the target, keyed by key. Empty when nothing passed. */
+  /**
+   * The accepted values to merge into the target, keyed by key. Empty when nothing passed.
+   *
+   * `cleared` marks a value that came from the `[[CLEAR]]` sentinel rather than from a translation.
+   * The distinction exists for the cache: entries are stored by source-content hash, so a cached
+   * value is served to every key whose source text is byte-identical. `[[CLEAR]]` expresses an
+   * intent about one key, not a translation of its content, so it must never enter a
+   * content-addressed store, where it would be handed to unrelated keys that merely share the
+   * source string.
+   */
   readonly accepted: ReadonlyMap<
     string,
-    { readonly value: string; readonly source: TranslationEntry }
+    { readonly value: string; readonly source: TranslationEntry; readonly cleared: boolean }
   >;
   /**
    * Keys judged but not accepted this run (drift, placeholder, ICU), for diagnostics and testing only.
@@ -92,12 +101,15 @@ function judge(
 }
 
 interface Buckets {
-  readonly accepted: Map<string, { value: string; source: TranslationEntry }>;
+  readonly accepted: Map<string, { value: string; source: TranslationEntry; cleared: boolean }>;
   readonly mismatches: string[];
   readonly withheld: Set<string>;
   /** Blank cells for a source key whose current hash no longer matches the recorded baseline. */
   readonly blankDrifted: Set<string>;
-  /** Keys the workbook exported as `changed` that the translator left blank (pending work). */
+  /**
+   * Keys the translator left blank that the import-time diff still lists as needing a translation
+   * (pending work). Decided by that diff, not by the `status` the row was exported with.
+   */
   readonly unfilled: string[];
 }
 
@@ -128,19 +140,30 @@ function classifyClear(row: WorkbookRow, sourceEntry: TranslationEntry, buckets:
     buckets.withheld.add(row.key);
     return;
   }
-  buckets.accepted.set(row.key, { value: "", source: sourceEntry });
+  buckets.accepted.set(row.key, { value: "", source: sourceEntry, cleared: true });
 }
 
 /**
- * Apply the fail-safe row rules: empty cells are skipped (a `changed` blank is recorded as unfilled),
- * an invented key throws {@link UnknownKeyError}, an orphaned source key is left unwritten, a
- * `[[CLEAR]]` cell unsets its value, and every other filled row is judged (accepted or withheld). The
- * reader already collapsed duplicate keys to their first occurrence, so no key is processed twice.
+ * Apply the fail-safe row rules: empty cells are skipped (a blank row for a key that still needs a
+ * translation is recorded as unfilled), an invented key throws {@link UnknownKeyError}, an orphaned
+ * source key is left unwritten, a `[[CLEAR]]` cell unsets its value, and every other filled row is
+ * judged (accepted or withheld). The reader already collapsed duplicate keys to their first
+ * occurrence, so no key is processed twice.
+ *
+ * `liveCandidates` is what decides `unfilled`, not the row's exported `status` string. A
+ * never-translated key exports as `"new"`, which is the most common unfilled case of all (a first
+ * handoff, where every row is new), and switching on `"changed"` reported none of them. Deciding on
+ * the import-time diff also correctly excludes a row exported as `changed` whose key has since
+ * stopped needing work.
  */
-function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
+function classifyRows(
+  params: ImportLocaleParams,
+  buckets: Buckets,
+  liveCandidates: ReadonlySet<string>,
+): void {
   for (const row of params.sheet.rows) {
     if (row.translation === "") {
-      if (row.status === "changed") {
+      if (liveCandidates.has(row.key)) {
         buckets.unfilled.push(row.key);
       }
       trackBlankDrift(row, params, buckets);
@@ -159,7 +182,11 @@ function classifyRows(params: ImportLocaleParams, buckets: Buckets): void {
     }
     const reason = judge(row, sourceEntry, params.adapter);
     if (reason === undefined) {
-      buckets.accepted.set(row.key, { value: row.translation, source: sourceEntry });
+      buckets.accepted.set(row.key, {
+        value: row.translation,
+        source: sourceEntry,
+        cleared: false,
+      });
     } else {
       buckets.mismatches.push(row.key);
       buckets.withheld.add(row.key);
@@ -184,11 +211,12 @@ function blankRowBaselineNotice(count: number): SdkNotice {
  *
  * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
  * in this sheet (source-side only; a filled value's own ICU failure is reported under
- * `integrityMismatches`). `unfilled` lists `changed` rows the translator left blank; `malformedRows`
- * and `duplicateKeys` carry the reader's structural findings for this sheet verbatim. `pruned`,
- * `providerFailures`, `budgetWithheld`, `generated`, and `needsReview` are always empty: an import
- * never prunes, never calls a provider, never generates plural forms, and never recomputes review
- * flags (the workbook's Review columns are informational only; see export-workbook.ts).
+ * `integrityMismatches`). `unfilled` lists blank rows whose key still needs a translation at import
+ * time, whether it was exported as `new` or `changed`; `malformedRows` and `duplicateKeys` carry the
+ * reader's structural findings for this sheet verbatim. `pruned`, `providerFailures`,
+ * `budgetWithheld`, `generated`, and `needsReview` are always empty: an import never prunes, never
+ * calls a provider, never generates plural forms, and never recomputes review flags (the
+ * workbook's Review columns are informational only; see export-workbook.ts).
  */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
@@ -199,7 +227,7 @@ export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
     blankDrifted: new Set(),
     unfilled: [],
   };
-  classifyRows(params, buckets);
+  classifyRows(params, buckets, new Set([...diff.missing, ...diff.changed]));
 
   const rowKeys = new Set(params.sheet.rows.map((row) => row.key));
   const invalidIcuSource = [...new Set(params.sourceInvalidIcuKeys)]

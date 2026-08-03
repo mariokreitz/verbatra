@@ -23,7 +23,7 @@ verbatra watch [flags]
 
 Avec `--json`, chaque exécution émet un enregistrement [`WatchRunResult`](/docs/sdk) : un succès portant le résumé d'exécution, ou un échec portant un code d'erreur et un message. La ligne de démarrage, l'avis d'arrêt et la progression de chaque exécution vont sur stderr, donc le flux stdout reste du NDJSON propre. Une exécution échouée n'est qu'un enregistrement sur le flux : elle n'arrête pas la surveillance et ne change pas le code de sortie.
 
-`--concurrency` s'applique à l'exécution de chaque cycle. Comme le budget de tokens de chaque exécution est neuf, un `--concurrency` supérieur à `1` échoue toujours à chaque exécution avec la sortie `2` quand la config fixe un budget `maxTokens`. `--no-cache` contourne le [cache de mémoire de traduction](/docs/the-cache) à chaque cycle.
+`--concurrency` s'applique à l'exécution de chaque cycle. Comme le budget de tokens de chaque exécution est neuf, un `--concurrency` supérieur à `1` ne peut pas être respecté quand la config fixe un budget `maxTokens` : `watch` refuse cette combinaison au démarrage et sort avec le code `2` avant l'exécution initiale, au lieu de démarrer une session qui échoue à chaque cycle. `--no-cache` contourne le [cache de mémoire de traduction](/docs/the-cache) à chaque cycle.
 
 ## Arrêt
 

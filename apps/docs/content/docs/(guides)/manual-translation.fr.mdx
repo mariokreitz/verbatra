@@ -4,7 +4,7 @@ description: Exporte les chaînes non traduites vers un classeur Excel, confie-l
 ---
 Toutes les chaînes ne sont pas faites pour un fournisseur. Les textes marketing, les textes juridiques et les langues qui comptent le plus veulent souvent un traducteur humain. verbatra gère ça avec un aller-retour de classeur : **exporte** les chaînes à traduire dans un fichier Excel stylisé, confie-le, puis **importe** le fichier rempli dans tes fichiers de locale.
 
-La même comparaison pilote les deux directions. L'export choisit exactement les clés qu'une exécution automatisée traduirait (les nouvelles et les modifiées), et l'import exécute les mêmes vérifications de placeholders et d'ICU que `translate`, donc une valeur saisie à la main qui casse un placeholder est retenue et signalée au lieu d'être écrite.
+La même comparaison pilote les deux directions. L'export choisit exactement les clés qu'une exécution automatisée traduirait (les nouvelles et les modifiées), et l'import exécute les mêmes vérifications d'intégrité que `translate`, donc une valeur saisie à la main qui casse un placeholder est retenue et signalée au lieu d'être écrite.
 
 ## L'aller-retour
 
@@ -56,12 +56,13 @@ L'import n'est pas un collage aveugle. Chaque ligne remplie est jugée contre le
 - **Dérive de la source** : le `Source hash` masqué est comparé à la source actuelle. Si la chaîne source a changé après l'export, la ligne est retenue, donc tu n'écrases jamais une source actuelle avec la traduction d'une ancienne.
 - **Intégrité des placeholders** : la traduction doit porter exactement les mêmes placeholders que sa source. Supprime `{name}` ou invente `{total}` et la ligne est retenue.
 - **Validité ICU** : un message ICU doit rester structurellement valide avec les mêmes noms d'arguments ; seul le texte lisible par un humain peut changer.
+- **Valeurs dégénérées ou vides** : une valeur qui s'est effondrée en boucle de répétition, dont la longueur s'est emballée par rapport à sa source, ou qui revient vide pour une source non vide, est retenue. Utilise la sentinelle `[[CLEAR]]` ci-dessus pour vider une traduction délibérément.
 - **Clés inconnues** : une ligne remplie dont la clé n'existe ni dans la source actuelle ni dans le fichier cible actuel (par exemple une clé tapée à la main) fait échouer toute la feuille de cette locale, puisque l'aller-retour est cassé. Une ligne remplie dont la clé n'existe que dans la cible (une clé orpheline) est silencieusement laissée non écrite.
 - **Le contexte n'est jamais une source de traduction** : l'import ignore entièrement la colonne `Context`, et un classeur exporté avant l'existence de cette colonne s'importe toujours normalement.
 
 Les lignes retenues sont rapportées dans le résumé d'exécution sous la locale à laquelle elles appartiennent ; les lignes acceptées sont écrites et leur ligne de base du verrou avance. Une ligne retenue ou vide garde sa ligne de base antérieure, donc la clé continue de se réexporter jusqu'à sa vraie résolution. Une ligne vide dont la source a dérivé depuis l'export est en plus signalée par un avis `BLANK_ROW_BASELINE_RETAINED`, donc la dérive reste visible.
 
-L'import expose aussi des constats structurels par locale au lieu d'avorter dessus : une ligne `changed` que le traducteur a laissée vide (rapportée comme unfilled, toujours en attente), une ligne du classeur que le lecteur n'a pas pu analyser (rapportée par ligne et colonne), et une clé en double (la première occurrence gagne et est importée, chaque suivante est rapportée). Aucun de ces constats ne fait échouer la feuille à lui seul.
+L'import expose aussi des constats structurels par locale au lieu d'avorter dessus : une ligne vide dont la clé demande toujours une traduction (rapportée comme unfilled, toujours en attente, que la ligne ait été exportée comme `new` ou `changed`), une ligne du classeur que le lecteur n'a pas pu analyser (rapportée par ligne et colonne), et une clé en double (la première occurrence gagne et est importée, chaque suivante est rapportée). Aucun de ces constats ne fait échouer la feuille à lui seul. L'appartenance à la liste unfilled est décidée par rapport au projet tel qu'il est au moment de l'import, donc une première passation qui revient intacte rapporte chaque clé en attente plutôt que rien, et une ligne exportée comme `changed` dont la clé n'a plus besoin de travail en est exclue.
 
 Chaque feuille de données est une locale dans le résumé : un échec de feuille (une clé inventée, une feuille pour une locale absente de ta config, ou une locale configurée dont l'onglet manque entièrement parce qu'il a été renommé, supprimé ou sorti de l'ordre) fait échouer cette locale et laisse les autres intactes. L'import partage le contrat de codes de sortie de `translate` : `0` quand chaque feuille réussit, `1` quand une échoue, `2` quand l'exécution n'a pas pu démarrer. Une passation manuelle retombe donc dans les mêmes [contrôles CI](/docs/ci-and-exit-codes) qu'une exécution automatisée.
 
@@ -99,7 +100,7 @@ Prends `--include-unchanged` quand un traducteur veut le contexte complet d'une 
 - `glossary-term-missed` : un terme du glossaire configuré n'est pas arrivé dans la traduction.
 - `integrity-reordered` : les placeholders correspondent mais ont atterri dans un ordre différent de la source.
 
-Une cinquième raison, `provider-degraded`, n'existe qu'au moment de translate (un avis de dégradation DeepL sur le lot d'où vient une clé) ; comme l'export n'appelle jamais de fournisseur, elle n'apparaît jamais sur une ligne exportée. Une ligne sans traduction exporte toujours `ok` ; il n'y a rien à réviser. Voir [Sûreté de la traduction](/docs/translation-safety) pour la relation entre ces signalements et les vérifications strictes de placeholders et d'ICU.
+Une cinquième raison, `provider-degraded`, n'existe qu'au moment de translate (un avis de dégradation DeepL sur le lot d'où vient une clé) ; comme l'export n'appelle jamais de fournisseur, elle n'apparaît jamais sur une ligne exportée. Une ligne sans traduction exporte toujours `ok` ; il n'y a rien à réviser. Voir [Sûreté de la traduction](/docs/translation-safety) pour la relation entre ces signalements et les vérifications d'intégrité strictes.
 
 ## Depuis le SDK
 
@@ -123,4 +124,4 @@ Les deux prennent la config validée de [`loadConfig`](/docs/sdk), et `importWor
 
 - [`verbatra export`](/docs/cli/export) : chaque option d'export et le rapport affiché.
 - [`verbatra import`](/docs/cli/import) : chaque option d'import, le résumé d'exécution et les codes de sortie.
-- [Sûreté de la traduction](/docs/translation-safety) : les vérifications de placeholders et d'ICU qui gardent chaque écriture, manuelle ou automatisée.
+- [Sûreté de la traduction](/docs/translation-safety) : la barrière d'intégrité qui garde chaque écriture, manuelle ou automatisée.

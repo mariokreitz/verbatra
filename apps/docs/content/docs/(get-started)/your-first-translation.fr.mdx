@@ -33,7 +33,7 @@ Passe `--yes` pour sauter les questions et prendre les valeurs par défaut. Sans
 
 - `verbatra.config.ts` : la configuration de ton projet, validée contre le vrai schéma avant d'être écrite
 - `.env.example` : nomme la variable de clé du fournisseur, jamais une valeur de clé
-- des entrées `.gitignore` pour `.env`, `.env.local` et `.verbatra-local/`, créées ou ajoutées pour qu'une vraie clé ou l'état local ne finisse jamais dans un commit
+- des entrées `.gitignore` pour `.env`, `.env.local`, `.verbatra-local/` et `verbatra.cache.json`, créées ou ajoutées pour qu'une vraie clé, l'état local ou le cache regénérable ne finisse jamais dans un commit
 
 Relancer `init` saute les fichiers qui existent déjà ; `--force` les écrase. Il pré-remplit aussi `format` en regardant tes dépendances : un projet utilisant i18next, vue-i18n, next-intl ou `@ngx-translate/core` reçoit le format JSON correspondant, tout le reste prend `i18next-json` par défaut avec un commentaire TODO pour le changer. Pour Gemini, le fichier généré ressemble à ceci :
 
@@ -90,7 +90,7 @@ Puis lance :
 verbatra translate
 ```
 
-verbatra lit la locale source, voit que chaque clé manque dans `de`, les envoie au fournisseur par lots, vérifie l'intégrité des placeholders et l'intégrité ICU de chaque résultat, et écrit `locales/de.json`. L'exécution se termine par un résumé par locale : clés traduites, clés inchangées, clés orphelines, et les éventuels avis. Le code de sortie est `0` quand chaque locale a réussi et `1` quand une a échoué ; ajoute `--json` pour un résumé lisible par machine.
+verbatra lit la locale source, voit que chaque clé manque dans `de`, les envoie au fournisseur par lots, passe chaque résultat par la barrière d'intégrité, et écrit `locales/de.json`. L'exécution se termine par un résumé par locale : clés traduites, clés inchangées, clés orphelines, et les éventuels avis. Le code de sortie est `0` quand chaque locale a réussi et `1` quand une a échoué ; ajoute `--json` pour un résumé lisible par machine.
 
 ## Ce qui vient de se passer
 

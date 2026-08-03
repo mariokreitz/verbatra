@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import {
@@ -7,6 +7,7 @@ import {
   scaffoldingMetadata,
   verbatraConfigSchema,
 } from "@verbatra/sdk";
+import { ensureGitignore } from "./gitignore.js";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
@@ -185,37 +186,6 @@ function writeFileIfAllowed(
   }
   writeFileSync(path, content);
   streams.out(`${existed ? "overwrote" : "created"} ${label}\n`);
-}
-
-/**
- * Ensures .env, .env.local, .verbatra-local/, and verbatra.cache.json are gitignored: creates the
- * file if absent, otherwise appends only the entries not already present, so re-running init never
- * duplicates them. .verbatra-local/ holds process-local, never-committed state (the run-status
- * snapshot `translate`/`watch` write, and the per-locale write lock files under locks/).
- * verbatra.cache.json is the local, regenerable translation-memory cache: safe to delete at any time,
- * which rebuilds it naturally on the next run, and never committed.
- */
-function ensureGitignore(cwd: string, streams: Streams): void {
-  const gitignorePath = resolve(cwd, ".gitignore");
-  const entries = [".env", ".env.local", ".verbatra-local/", "verbatra.cache.json"];
-  if (!existsSync(gitignorePath)) {
-    writeFileSync(
-      gitignorePath,
-      `# Local environment files (never commit real keys)\n${entries.join("\n")}\n`,
-    );
-    streams.out(`created .gitignore (${entries.join(", ")})\n`);
-    return;
-  }
-  const content = readFileSync(gitignorePath, "utf8");
-  const present = new Set(content.split(/\r?\n/).map((line) => line.trim()));
-  const missing = entries.filter((entry) => !present.has(entry));
-  if (missing.length === 0) {
-    streams.out(`.gitignore already ignores ${entries.join(", ")}\n`);
-    return;
-  }
-  const prefix = content.length === 0 || content.endsWith("\n") ? "" : "\n";
-  appendFileSync(gitignorePath, `${prefix}${missing.join("\n")}\n`);
-  streams.out(`updated .gitignore (added ${missing.join(", ")})\n`);
 }
 
 /** Resolves the provider from the flag or an interactive prompt; reports and returns undefined on error. */

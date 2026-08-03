@@ -25,6 +25,18 @@ describe("settledActionStatusLabel", () => {
     );
   });
 
+  it("reports the empty rejection reason", () => {
+    expect(settledActionStatusLabel({ kind: "rejected", reason: "empty" }, "Saved")).toBe(
+      "Rejected: empty translation",
+    );
+  });
+
+  it("keeps the empty label context-free for the retranslate caller, naming neither the [[CLEAR]] sentinel nor the export remediation", () => {
+    const label = settledActionStatusLabel({ kind: "rejected", reason: "empty" }, "Retranslated");
+    expect(label).not.toContain("[[CLEAR]]");
+    expect(label).not.toContain("export");
+  });
+
   it("prefixes an error outcome's message", () => {
     expect(
       settledActionStatusLabel({ kind: "error", message: "The key was not found." }, "Saved"),

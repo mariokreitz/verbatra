@@ -9,9 +9,9 @@ verbatra keeps a local translation-memory cache, `verbatra.cache.json`, so a str
 On a run, before a key goes to the provider, verbatra looks it up in the cache by the hash of its current source content. A hit is served for free, so you never pay for it again. Because the lookup is by content, reuse survives cases the lock file cannot:
 
 - **A renamed key.** Move a string from `home.title` to `landing.title` and its translation is reused, not re-translated.
-- **Duplicate content.** Two keys with byte-identical source text share one translation; the second is a cache hit.
+- **Duplicate content.** Two keys with the same source content share one translation; the second is a cache hit.
 
-A reused value is not trusted blindly. It still passes the same [placeholder and ICU integrity checks](/docs/translation-safety) against the current source before it is written, so a cached value that no longer fits its key is discarded and the key is translated fresh. Cache hits are reported per locale in the run summary, separate from the keys translated this run.
+A reused value is not trusted blindly. It still passes the same [integrity checks](/docs/translation-safety) against the current source before it is written, so a cached value that no longer fits its key is discarded and the key is translated fresh. Cache hits are reported per locale in the run summary, separate from the keys translated this run.
 
 ## The fingerprint
 
@@ -19,7 +19,7 @@ Every cached value is scoped to the translation context it was produced in: a sh
 
 ## The file
 
-`verbatra.cache.json` is a local, regenerable sidecar next to your lock file. `verbatra init` adds it to `.gitignore`, and you should keep it out of version control: unlike the lock file it is a cost optimization, not a shared baseline. It never fails a run. A missing, corrupt, oversized, or unrecognized-version file degrades to an empty cache and is simply rebuilt on the next run. To rebuild it from scratch, delete the file.
+`verbatra.cache.json` is a local, regenerable sidecar next to your lock file. `verbatra init` adds it to `.gitignore`, and `translate`, `watch` and `import` top up an existing `.gitignore` that is missing the entry, so a project scaffolded by an older version picks it up on the next run. Keep it out of version control: unlike the lock file it is a cost optimization, not a shared baseline. It never fails a run. A missing, corrupt, or oversized file degrades to an empty cache and is simply rebuilt on the next run. A file whose `version` this build does not recognize was written by a newer verbatra: it also degrades to an empty cache for the run, but is left on disk untouched rather than rebuilt, so upgrading is not destructive. The run reports a notice and otherwise proceeds normally. To rebuild it from scratch, delete the file.
 
 ## Bypassing it
 

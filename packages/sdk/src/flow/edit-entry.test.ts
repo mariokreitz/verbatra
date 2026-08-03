@@ -140,6 +140,13 @@ describe("editEntry: acceptance", () => {
   });
 });
 
+/**
+ * A hand-typed value runs through the same `gateCandidateValue` as a provider's, so it is refused
+ * for the same reasons. The empty case is the one a person reaches by accident: Studio's edit dialog
+ * is a plain textarea and a Save button, so select-all-delete used to write an empty value straight
+ * through and feed it to the cache. Clearing a translation is the workbook's `[[CLEAR]]` job, which
+ * never reaches this path.
+ */
 describe("editEntry: rejection", () => {
   it("returns accepted: false on a placeholder mismatch and writes nothing", async () => {
     const dir = await project({ greeting: "Hello {{name}}" }, { de: { greeting: "old" } });
@@ -176,6 +183,34 @@ describe("editEntry: rejection", () => {
     expect(result).toMatchObject({ accepted: false, reason: "icu" });
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de).toEqual({ greeting: "old" });
+  });
+
+  it.each(["", "   ", "\t\n"])(
+    "returns accepted: false with reason empty for the value %j, writing nothing",
+    async (value) => {
+      const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
+
+      const result = await editEntry({
+        config: cfg(),
+        cwd: dir,
+        locale: "de",
+        key: "greeting",
+        value,
+      });
+
+      expect(result).toMatchObject({ accepted: false, reason: "empty" });
+      const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+      expect(de).toEqual({ greeting: "Hallo" });
+    },
+  );
+
+  it("does not feed the cache when an empty value is rejected", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
+
+    await editEntry({ config: cfg(), cwd: dir, locale: "de", key: "greeting", value: "" });
+
+    const cache = await readJsonFile(join(dir, "verbatra.cache.json")).catch(() => undefined);
+    expect(JSON.stringify(cache ?? {})).not.toContain('""');
   });
 });
 

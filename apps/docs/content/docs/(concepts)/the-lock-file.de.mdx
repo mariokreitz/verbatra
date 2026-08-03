@@ -51,6 +51,12 @@ ein zweiter Schreiber für dieselbe Locale wartet, liest die Lock-Datei dann fri
 vergleicht mit einer Baseline, die das Ergebnis des ersten Schreibers schon enthält. Verschiedene
 Locales blockieren einander nicht.
 
+Übersetzt ein Lauf mehrere Locales gleichzeitig und trifft auf einen Fehler des gesamten Laufs (in
+der Praxis eine beschädigte Lock-Datei), beansprucht er keine neuen Locales mehr und wartet, bis
+die bereits laufenden fertig sind; so wird jede Sperre, die der Lauf genommen hat, freigegeben,
+bevor der Befehl endet. Nach dem Fehlschlag des Laufs wird kein Locale mehr gestartet, und der
+Fehlschlag selbst lässt keine Sperre verwaist zurück.
+
 Kann eine Sperre nicht erworben werden, schlägt der Lauf mit `LOCK_CONTENDED` fehl und nennt den
 Pfad der Sperrdatei (im gitignorierten Verzeichnis `.verbatra-local/`). Läuft gerade kein
 verbatra-Prozess, wurde diese Datei von einem abgeschossenen Prozess zurückgelassen: Lösche sie

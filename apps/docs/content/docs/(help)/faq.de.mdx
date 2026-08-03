@@ -67,8 +67,9 @@ Datei. Im SDK heißen dieselben Stellschrauben `cwd` und `configPath` auf `loadC
 Committe deine Locale-Dateien und `verbatra.lock.json`: Die Lock-Datei hält pro Key den
 Quell-Content-Hash fest, aus dem jede Übersetzung entstanden ist, und sie zu committen ist es, was
 Läufe überall inkrementell macht und die Drift-Erkennung funktionieren lässt, auch in CI. Committe
-nicht `.env`, `.env.local` oder `.verbatra-local/`; `verbatra init` trägt alle drei in
-`.gitignore` ein. Siehe [Die Lock-Datei](/docs/the-lock-file).
+nicht `.env`, `.env.local`, `.verbatra-local/` oder `verbatra.cache.json`; `verbatra init` trägt
+alle vier in `.gitignore` ein, und `translate`, `watch` und `import` ergänzen einen vorhandenen
+`.gitignore`, dem einer davon fehlt. Siehe [Die Lock-Datei](/docs/the-lock-file).
 
 ## Wie übersetze ich alles neu?
 

@@ -28,12 +28,12 @@ It ships in three packages. `@verbatra/cli` gives you a `verbatra` command for t
 - **Many locale formats.** JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, ARB, and Java/Spring properties.
 - **Five providers** behind one interface: Anthropic, OpenAI, Gemini, and openai-compatible (a local or self-hosted server such as LM Studio, Ollama, or vLLM) as LLMs, plus DeepL (machine translation).
 - **Incremental by default.** A lock file records what has been translated, so each run sends only new or changed strings to the provider.
-- **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project.
+- **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project, and gitignores the local files it must not commit.
 - **Dry runs.** `--dry-run` previews what would change without calling a provider or writing files.
-- **Read-only status and diff.** `verbatra check` reports per-locale missing, stale, and up-to-date counts, and `verbatra diff` lists the exact keys that would be added, re-translated, or are orphaned. Both write nothing and exit non-zero when locales are out of sync, so they slot into CI.
+- **Read-only status and diff.** `verbatra check` reports per-locale missing, stale, and up-to-date counts, and `verbatra diff` lists the exact keys that would be added, re-translated, or are orphaned. Both write nothing and exit non-zero when a locale has a missing or stale key (orphaned keys alone never do), so they slot into CI.
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
 - **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run.
-- **Placeholder integrity.** Every translation is checked after the fact; a result that drops or alters a placeholder is withheld and reported rather than written.
+- **Integrity gate on every translation.** Every candidate translation is re-checked from the value itself before it is written, never taken on trust from whatever produced it. A candidate that fails any check (a dropped or altered placeholder, for example) is withheld and reported rather than written. It is the single accept/reject point every write path calls: a provider result, a workbook import, a manual edit, and any translation reused for another key, whether that reuse comes from the cache or from grouping keys that share source content.
 - **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape. A genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path, errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. See the [Formats page](https://verbatra.kreitz-webdev.de/docs/formats) for the full behavior.
 - **Document key order preserved.** JSON-family, YAML, and ARB files round-trip in exact document key order: integer-like keys keep their position, and new keys append in source-document order. A YAML composite key (a map or sequence used as a mapping key) fails with a structured error instead of being silently mangled.
 - **Opt-in cleanup and plural generation.** Orphan pruning (`--prune` / `prune`) and CLDR plural-category generation (`generatePlurals`) are off by default and documented on the [Configuration page](https://verbatra.kreitz-webdev.de/docs/config-file).
@@ -98,7 +98,7 @@ export default defineConfig({
 });
 ```
 
-`files.pattern` must contain the `{locale}` token, and `targetLocales` must not include `sourceLocale`. The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb`, and `properties`. The optional `glossary` (a term map) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output.
+`files.pattern` must contain the `{locale}` token, and `targetLocales` must neither include `sourceLocale` nor list the same locale twice (compared case-insensitively). The supported `format` values are `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb`, and `properties`. The optional `glossary` (a term map, given inline or as a path to a JSON file of the same shape) and `tone` (`"formal"`, `"informal"`, or `"neutral"`) refine the output.
 
 The `provider` block is selected by `id`. The LLM providers take a `model` and a token limit; DeepL needs no model:
 
@@ -119,20 +119,20 @@ Each provider reads its API key from one environment variable:
 | `gemini` | `GEMINI_API_KEY` |
 | `deepl` | `DEEPL_API_KEY` |
 
-`openai-compatible` is not in this table: most local servers need no key at all, and when one is required you name your own environment variable for it. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
+`openai-compatible` is not in this table: most local servers need no key at all, and when one is required it comes from `OPENAI_COMPATIBLE_API_KEY`, or from whichever variable the provider's `apiKeyEnvVar` option names. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
 
 ## Commands
 
 | Command | What it does | Common flags |
 | --- | --- | --- |
-| `verbatra init` | Create a verbatra config and .env example for this project | `--provider <id>`, `--source`, `--targets`, `--path`, `--yes`, `--force` |
-| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--prune`, `--json` |
-| `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--json` |
+| `verbatra init` | Create a verbatra config and .env example for this project | `--provider <id>`, `--source`, `--targets`, `--path`, `--cwd`, `--yes`, `--force` |
+| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--prune`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
+| `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
 | `verbatra check` | Report per-locale missing, stale, and up-to-date counts without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra diff` | List the keys per locale that would be added, re-translated, or are orphaned, without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
-| `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--cwd`, `--config` |
+| `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--expose-agent-tools`, `--cwd`, `--config` |
 
 Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
 
@@ -140,7 +140,7 @@ Run `verbatra <command> --help` for the full option list. The complete command r
 
 `verbatra studio` starts Verbatra Studio, a local web dashboard over your project with four pages: Translations (per-locale status, the diff, and lock drift, down to a per-key detail view), Review (the needs-review queue, where you can edit a translation in place), Activity (a live feed of locale-file changes and the last run's token usage and budget), and Settings (your resolved config, glossary, and the session's capabilities). Every page refreshes live over a server-sent event stream as your locale files change.
 
-Local editing is always on: an edit from the Review queue goes through the same placeholder and ICU integrity checks as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only and gates every request behind a per-session token.
+Local editing is always on: an edit from the Review queue goes through the same integrity gate as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only, and every request must carry the exact `127.0.0.1:PORT` `Host` header, match `Origin` when it changes state, and authenticate: the printed URL's bootstrap token is redeemed once to mint an HttpOnly, `SameSite=Strict` session cookie that every later request uses.
 
 ```bash
 verbatra studio
@@ -168,7 +168,9 @@ const config = await loadConfig();
 // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY). No key is passed.
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} locale(s) translated, ${summary.failed.length} failed`);
+console.log(
+  `${summary.succeeded.length} locale(s) fully translated, ${summary.partial.length} partial, ${summary.failed.length} failed`,
+);
 ```
 
 The manual-translation workflow is available too, with `exportWorkbook` and `importWorkbook`:
@@ -197,7 +199,7 @@ See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
 
 ## Security
 
-API keys are read only from environment variables, never from the config file. The config schema rejects unknown keys, so a key cannot hide there by accident, and `verbatra init` adds `.env` and `.env.local` to your `.gitignore`. To report a vulnerability, see [SECURITY.md](./SECURITY.md).
+API keys are read only from environment variables, never from the config file. The config schema rejects unknown keys, so a key cannot hide there by accident, and `verbatra init` adds the local files a verbatra project must not commit, `.env` and `.env.local` among them, to your `.gitignore`. `translate`, `watch`, and `import` top up an existing `.gitignore` that is missing one of those entries. To report a vulnerability, see [SECURITY.md](./SECURITY.md).
 
 ## Documentation
 

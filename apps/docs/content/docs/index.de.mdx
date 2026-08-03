@@ -21,7 +21,7 @@ Du pflegst eine Quell-Locale von Hand. Jede andere Locale-Datei driftet ab, wäh
 
 Eine committete Lock-Datei, `verbatra.lock.json`, hält für jeden übersetzten Key den Hash des Quellstrings fest, aus dem seine Übersetzung entstanden ist. Jeder Lauf liest die Quell-Locale, vergleicht jedes Ziel mit ihr und mit dieser Baseline und sendet nur die fehlenden und geänderten Keys an den Provider. Keys, die noch aktuell sind, bleiben unangetastet: Führe `translate` zweimal hintereinander aus, und der zweite Lauf macht überhaupt keinen Provider-Aufruf.
 
-Jeder String, den der Provider zurückgibt, wird vor dem Schreiben geprüft: Platzhalter-Integrität und ICU-Integrität werden erzwungen, und eine Übersetzung, die eine von beiden verletzt, wird zurückgehalten statt ausgeliefert und beim nächsten Lauf erneut versucht. Die schreibgeschützten Befehle `check` und `diff` melden Drift, ohne etwas zu schreiben, sodass deine CI anhand ihrer Exit-Codes ein Gate setzen kann.
+Jeder String, den der Provider zurückgibt, wird vor dem Schreiben geprüft: Eine Übersetzung, die eine der Prüfungen des Integritäts-Gates nicht besteht, wird zurückgehalten statt ausgeliefert und beim nächsten Lauf erneut versucht. Die schreibgeschützten Befehle `check` und `diff` melden Drift, ohne etwas zu schreiben, sodass deine CI anhand ihrer Exit-Codes ein Gate setzen kann.
 
 verbatra liest und schreibt acht Formate (i18next-, vue-i18n-, next-intl- und ngx-translate-JSON, XLIFF, YAML, Flutter ARB und Java/Spring-Properties) und übersetzt über fünf Provider (Anthropic, OpenAI, Gemini, DeepL und jeden OpenAI-kompatiblen Server, auch lokale) hinter einer einzigen Schnittstelle. Siehe [Formate](/docs/formats) und [Provider](/docs/providers).
 

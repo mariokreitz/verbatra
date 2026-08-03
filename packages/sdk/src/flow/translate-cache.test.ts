@@ -61,11 +61,18 @@ async function readTarget(dir: string, locale: string): Promise<Record<string, s
 }
 
 async function loadCache(dir: string): Promise<TranslationMemory> {
-  return readTranslationMemory(cacheFilePath(dir), defaultFs);
+  return (await readTranslationMemory(cacheFilePath(dir), defaultFs)).memory;
 }
 
 function localeCacheKeys(cache: TranslationMemory, fingerprint: string, locale: string): string[] {
   return Object.keys(cache.entries[fingerprint]?.[locale] ?? {});
+}
+
+/** Every cached translation, across every fingerprint and locale, for whole-cache assertions. */
+function cachedValues(cache: TranslationMemory): string[] {
+  return Object.values(cache.entries).flatMap((byLocale) =>
+    Object.values(byLocale ?? {}).flatMap((byHash) => Object.values(byHash ?? {})),
+  );
 }
 
 async function fileExists(path: string): Promise<boolean> {
@@ -427,5 +434,346 @@ describe("translation-memory cache: fed by the single-key and workbook write pat
     await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir, dryRun: true });
 
     expect(await fileExists(cacheFilePath(dir))).toBe(false);
+  });
+});
+
+describe("integrity gate: an empty provider value never reaches disk or the cache", () => {
+  it("withholds an empty translation instead of writing it, and reports the locale partial", async () => {
+    const dir = await project({ a: "Save" }, {});
+    const stub = makeStubProvider({ translate: () => "" });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["a"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+    expect(summary.succeeded).toEqual([]);
+    expect(await readTarget(dir, "de")).not.toHaveProperty("a");
+  });
+
+  it("never overwrites an existing good translation of a changed key with an empty value", async () => {
+    const dir = await project({ a: "Save" }, { de: { a: "Speichern" } });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+    await setSource(dir, { a: "Save changes" });
+    const stub = makeStubProvider({ translate: () => "" });
+
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+
+    expect((await readTarget(dir, "de")).a).not.toBe("");
+  });
+
+  it("retries the withheld key on the next run instead of locking it in", async () => {
+    const dir = await project({ a: "Save" }, {});
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider({ translate: () => "" }).provider },
+    );
+
+    const second = makeStubProvider();
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => second.provider },
+    );
+
+    expect(second.calls.length).toBeGreaterThan(0);
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    expect((await readTarget(dir, "de")).a).not.toBe("");
+  });
+
+  it("stores no empty value in the cache for a non-empty source", async () => {
+    const dir = await project({ a: "Save" }, {});
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider({ translate: () => "" }).provider },
+    );
+
+    expect(cachedValues(await loadCache(dir))).not.toContain("");
+  });
+});
+
+/**
+ * `[[CLEAR]]` is knowledge about one key, not a translation of its source text, so it must never
+ * enter the content-addressed cache: a store keyed by source hash would hand the empty value to
+ * every other key that happens to share that source string.
+ *
+ * The export below needs `includeUnchanged`, because the key being cleared is already translated and
+ * would otherwise not appear in the sheet at all. The follow-up run then adds a second key whose
+ * source text is byte-identical to the cleared one. That key may legitimately be served from the
+ * cache, because what the cache holds for that source text is the earlier translation and never the
+ * clear; what it must never end up with is an empty value.
+ */
+describe("workbook [[CLEAR]]: a per-key intent never enters the content-addressed cache", () => {
+  it("clears its own key without spraying the empty value onto a byte-identical source key", async () => {
+    const dir = await project({ a: "Save" }, {});
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const exported = await exportWorkbook({ config: cfg(), cwd: dir, includeUnchanged: true });
+    await fillWorkbook(exported.path, "de", { a: "[[CLEAR]]" });
+    await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir });
+
+    expect((await readTarget(dir, "de")).a).toBe("");
+    expect(cachedValues(await loadCache(dir))).not.toContain("");
+
+    await setSource(dir, { a: "Save", c: "Save" });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect((await readTarget(dir, "de")).c).not.toBe("");
+    expect((await readTarget(dir, "de")).a).toBe("");
+  });
+});
+
+/**
+ * "crème" written two ways: NFC (U+00E8) and NFD (e + U+0300). canonicalize NFC-normalizes before
+ * hashing, so these two sources hash equal and are deduped into one provider request; the gate
+ * compares placeholder tokens raw, so the representative's value does not satisfy the duplicate.
+ *
+ * The two constant lines below are byte-different and look identical on screen. Never collapse
+ * them into one constant, and never retype them: retyping produces NFC for both and silently
+ * inverts every test in this block while they all still pass.
+ */
+const PLACEHOLDER_NFC = "Enjoy {{crème}}";
+const PLACEHOLDER_NFD = "Enjoy {{crème}}";
+
+/**
+ * The re-run test in this block diffs against the first run's lock. The key withheld by the first
+ * run must still be a live candidate, and the cache entry the representative left behind must not be
+ * served to it: the cache-hit path re-gates too, so the duplicate falls through to the provider and
+ * is written with its own decomposed placeholder rather than the representative's composed one.
+ */
+describe("content dedup: a fanned-out value is re-gated against its own key's source", () => {
+  it("hashes the two normalization forms equal, so they really do share one request", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    const stub = makeStubProvider();
+
+    await translate({ config: cfg(), cwd: dir }, { createProvider: () => stub.provider });
+
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0]?.request.entries.map((entry) => entry.key)).toEqual(["a"]);
+  });
+
+  it("withholds the duplicate whose raw placeholder bytes the representative's value does not match", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["b"]);
+    expect(summary.locales[0]?.translated).toEqual(["a"]);
+    expect(summary.locales[0]?.status).toBe("partial");
+    expect(await readTarget(dir, "de")).not.toHaveProperty("b");
+  });
+
+  it("re-attempts the withheld duplicate on the next run instead of locking it in", async () => {
+    const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const second = makeStubProvider();
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => second.provider },
+    );
+
+    expect(summary.locales[0]?.unchanged).not.toContain("b");
+    expect(summary.locales[0]?.cacheHits).not.toContain("b");
+    expect(second.calls.flatMap((call) => call.request.entries.map((e) => e.key))).toContain("b");
+    expect(summary.locales[0]?.translated).toContain("b");
+    expect((await readTarget(dir, "de")).b).toContain("{{cre\u0300me}}");
+  });
+
+  it("also withholds when the divergence is a CR inside the placeholder token", async () => {
+    const dir = await project({ a: "Hi {{a\r\nb}}", b: "Hi {{a\nb}}" }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(1);
+    expect(summary.locales[0]?.integrityMismatches).toEqual(["b"]);
+  });
+
+  it("leaves the ordinary byte-identical case alone: one request, both keys written", async () => {
+    const dir = await project({ a: "Hi {{name}}", b: "Hi {{name}}" }, { de: {} });
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(stub.calls).toHaveLength(1);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
+    expect([...(summary.locales[0]?.translated ?? [])].sort()).toEqual(["a", "b"]);
+  });
+});
+
+/**
+ * Read the cache file's raw bytes. Deliberately not through `readTranslationMemory`, which degrades
+ * an unrecognized-version file to empty on read too: going through it would hide the very thing
+ * these tests assert, and make a working fix look refuted.
+ */
+async function rawCacheFile(dir: string): Promise<string> {
+  return readFile(cacheFilePath(dir), "utf8");
+}
+
+const FUTURE_CACHE = `${JSON.stringify(
+  { version: 99, entries: { fp: { de: { futureHash: "KeepMe" } } } },
+  null,
+  2,
+)}\n`;
+
+/**
+ * Preserving such a file is only half the answer. Without a signal, a mistyped version would disable
+ * caching permanently and silently, which is worse than the clobber the preservation replaces. So
+ * the run completes normally on an empty effective cache and reports a notice on the locale; it is
+ * never an error.
+ */
+describe("translation-memory cache: an unrecognized version is preserved, not downgraded", () => {
+  it("leaves the file byte-identical after a translate run", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+  });
+
+  it("still completes the run normally, translating with an empty effective cache", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+    const stub = makeStubProvider();
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => stub.provider },
+    );
+
+    expect(summary.succeeded).toEqual(["de"]);
+    expect(stub.calls).toHaveLength(1);
+    expect((await readTarget(dir, "de")).a).toBe("[de] Hello");
+  });
+
+  it("reports a notice on the locale without failing the run", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(summary.locales[0]?.notices).toContainEqual(
+      expect.objectContaining({ code: "CACHE_VERSION_UNRECOGNIZED" }),
+    );
+    expect(summary.locales[0]?.status).toBe("succeeded");
+    expect(summary.failed).toEqual([]);
+  });
+
+  it.each([
+    [
+      "editEntry",
+      async (dir: string) => {
+        await editEntry({ config: cfg(), cwd: dir, locale: "de", key: "a", value: "Hallo" });
+      },
+    ],
+    [
+      "retranslateEntry",
+      async (dir: string) => {
+        await retranslateEntry(
+          { config: cfg(), cwd: dir, locale: "de", key: "a" },
+          { createProvider: () => makeStubProvider().provider },
+        );
+      },
+    ],
+  ])("leaves the file byte-identical after %s", async (_label, act) => {
+    const dir = await project({ a: "Hello" }, { de: { a: "Hallo alt" } });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await act(dir);
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+  });
+
+  it("leaves the file byte-identical after a workbook import", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    const exported = await exportWorkbook({ config: cfg(), cwd: dir });
+    await fillWorkbook(exported.path, "de", { a: "Hallo" });
+    await writeFile(cacheFilePath(dir), FUTURE_CACHE);
+
+    await importWorkbook({ config: cfg(), workbook: exported.path, cwd: dir });
+
+    expect(await rawCacheFile(dir)).toBe(FUTURE_CACHE);
+    expect((await readTarget(dir, "de")).a).toBe("Hallo");
+  });
+
+  it("still creates a missing cache file normally", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(await fileExists(cacheFilePath(dir))).toBe(true);
+  });
+
+  it.each([
+    ["unparseable", "{ not json"],
+    ["schema-invalid", '{"version":1,"entries":[]}'],
+    ["version zero", '{"version":0,"entries":{}}'],
+    ["negative version", '{"version":-1,"entries":{}}'],
+    ["non-integer version", '{"version":1.5,"entries":{}}'],
+  ])("still overwrites a %s cache file, so the cache self-heals", async (_label, contents) => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    await writeFile(cacheFilePath(dir), contents);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const raw = await rawCacheFile(dir);
+    expect(raw).not.toBe(contents);
+    expect(JSON.parse(raw)).toMatchObject({ version: 1 });
+  });
+
+  it("still overwrites an oversized cache file rather than wedging it", async () => {
+    const dir = await project({ a: "Hello" }, { de: {} });
+    const padded = JSON.stringify({
+      version: 1,
+      entries: { fp: { de: { pad: "x".repeat(70 * 1024 * 1024) } } },
+    });
+    await writeFile(cacheFilePath(dir), padded);
+
+    await translate(
+      { config: cfg(), cwd: dir },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const raw = await rawCacheFile(dir);
+    expect(raw.length).toBeLessThan(padded.length);
+    expect(JSON.parse(raw)).toMatchObject({ version: 1 });
   });
 });

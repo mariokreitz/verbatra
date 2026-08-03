@@ -181,8 +181,8 @@ function collectCacheAdditions(
 
 /**
  * A set of provider-miss keys sharing one source content hash. Only the representative is sent to the
- * provider; every duplicate inherits the representative's outcome, so byte-identical source text is
- * translated once per locale rather than once per key.
+ * provider; every duplicate inherits the representative's outcome, so source content that hashes
+ * equal is translated once per locale rather than once per key.
  */
 interface MissGroup {
   readonly representative: string;
@@ -228,10 +228,16 @@ interface TranslationOutcome {
 
 /**
  * Applies each translated representative's outcome to every duplicate key sharing its source content
- * hash. An identical content hash guarantees identical placeholder/ICU-relevant fields, so the
- * representative's gate decision holds for its duplicates without re-gating: an accepted representative
- * hands its value (and any review flag) to each duplicate, and a withheld one puts each duplicate in
- * the same bucket. This is what makes two keys with byte-identical source content cost one request.
+ * hash: an accepted representative hands its value (and any review flag) to each duplicate, and a
+ * withheld one puts each duplicate in the same bucket. This is what makes two keys whose source
+ * content hashes equal cost one request.
+ *
+ * An equal content hash selects the candidate; it does not prove the duplicate's gate decision. The
+ * hash is computed over `canonicalize`d text (NFC-normalized, CRLF folded to LF), while the gate
+ * compares placeholder tokens raw, so the hash is a lossy function of exactly the bytes the gate
+ * inspects: two keys whose placeholder names differ only by Unicode normalization form hash equal
+ * and gate differently. Each duplicate is therefore re-gated against its own source in
+ * {@link fanOutAccepted}, and the check is pure and cheap, so the dedup saving stands.
  */
 function fanOutContentDuplicates(
   params: LocaleRunParams,
@@ -258,6 +264,13 @@ function applyGroupOutcome(
   withheldBucketFor(group.representative, outcome).push(...group.duplicates);
 }
 
+/**
+ * Hands the representative's accepted value to each duplicate, re-gating it against that duplicate's
+ * own source entry first. A duplicate whose gate rejects is withheld as an integrity mismatch rather
+ * than written: the fan-out is a write path like any other, and this is the only place it can be
+ * caught, since a fanned-out value makes no provider call, raises no review flag, and would then be
+ * locked in as correct and never re-attempted.
+ */
 function fanOutAccepted(
   params: LocaleRunParams,
   group: MissGroup,
@@ -271,6 +284,10 @@ function fanOutAccepted(
     if (source === undefined) {
       continue;
     }
+    if (!gateCandidateValue(source, acceptedRepresentative.value, params.adapter).accepted) {
+      outcome.integrityMismatches.push(key);
+      continue;
+    }
     outcome.accepted.set(key, { value: acceptedRepresentative.value, source });
     if (flag !== undefined) {
       outcome.reviewFlags.set(key, flag);
@@ -278,7 +295,12 @@ function fanOutAccepted(
   }
 }
 
-/** The single withheld bucket the representative landed in (it is in exactly one), to mirror onto its duplicates. */
+/**
+ * The single withheld bucket the representative landed in (it is in exactly one), to mirror onto its
+ * duplicates. Mirroring is safe here for the same reason re-gating is needed above but not here:
+ * withholding is the conservative direction, so an equal content hash that does not prove an equal
+ * gate decision can only cost a duplicate an extra retry, never a bad write.
+ */
 function withheldBucketFor(representative: string, outcome: TranslationOutcome): string[] {
   if (outcome.integrityMismatches.includes(representative)) {
     return outcome.integrityMismatches;

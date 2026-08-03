@@ -4,6 +4,7 @@ import { computeFingerprint } from "../cache/fingerprint.js";
 import {
   additionsToRecord,
   applyAdditions,
+  CACHE_FILE_NAME,
   cacheFilePath,
   readTranslationMemory,
   writeTranslationMemory,
@@ -41,7 +42,7 @@ import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 import { readSource } from "./source.js";
-import type { LocaleSummary, RunSummary } from "./summary.js";
+import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
 
 /** Everything the one-shot run needs: the validated config and where/how to run it. */
@@ -154,13 +155,20 @@ interface RunCacheState {
   readonly memory: TranslationMemory;
   readonly fingerprint: string;
   readonly additions: Map<string, Record<string, string>>;
+  /**
+   * False when the cache file on disk carries a version this build does not recognize. The run still
+   * proceeds with the empty effective cache the read degraded to; it just writes nothing back, so a
+   * file written by a newer verbatra is not silently replaced and downgraded.
+   */
+  readonly writable: boolean;
 }
 
 /**
  * Build the run's cache state: read the snapshot once and compute the run fingerprint, or return
  * undefined when the cache is bypassed (`input.cache === false`) or on a dry-run (which never reads or
  * writes the cache). The read degrades a corrupt or unrecognized file to an empty memory and never
- * throws.
+ * throws, and it also reports whether the file may be written back, which the end-of-run write and
+ * the run's notices both consult.
  */
 async function createRunCacheState(
   input: TranslateInput,
@@ -172,24 +180,53 @@ async function createRunCacheState(
   if (dryRun || input.cache === false) {
     return undefined;
   }
-  return {
-    memory: await readTranslationMemory(cacheFilePath(cwd), fs),
-    fingerprint: computeFingerprint(config),
-    additions: new Map(),
+  const { memory, writable } = await readTranslationMemory(cacheFilePath(cwd), fs);
+  return { memory, writable, fingerprint: computeFingerprint(config), additions: new Map() };
+}
+
+/**
+ * The locale summaries with the run-wide cache notice appended to each one's notices when the cache
+ * file was deliberately left unwritten (its version is one this build does not recognize, so
+ * overwriting it would downgrade a file a newer verbatra wrote). Not an I/O failure: nothing was
+ * attempted. The condition is run-wide (one file, shared by every locale), so the same notice is
+ * attached to each locale rather than inventing a run-level notice channel, which would change the
+ * summary shape.
+ *
+ * It exists because the alternative is silence: without it a mistyped `version` would disable
+ * caching permanently, with no signal at all, where before this behaviour it self-healed. It is a
+ * notice, never an error: the run succeeds and the exit code is unaffected.
+ */
+function withCacheNotices(
+  summaries: readonly LocaleSummary[],
+  cache: RunCacheState | undefined,
+): LocaleSummary[] {
+  if (cache === undefined || cache.writable) {
+    return [...summaries];
+  }
+  const notice: SdkNotice = {
+    code: "CACHE_VERSION_UNRECOGNIZED",
+    message:
+      `${CACHE_FILE_NAME} carries a version this build does not recognize, so it was written by a ` +
+      "newer verbatra. It was left untouched and this run used no cache. Upgrade verbatra, or " +
+      "delete the file to rebuild it in this build's format.",
   };
+  return summaries.map((summary) => ({ ...summary, notices: [...summary.notices, notice] }));
 }
 
 /**
  * Persist the run's cache additions with a single best-effort write, mirroring {@link recordRunStatus}:
  * any failure is caught and swallowed so it never fails the run. Skipped when the cache is bypassed or
  * when nothing new was translated, so an all-unchanged or all-cache-hit run leaves the file untouched.
+ * Also skipped when the read marked the file non-writable ({@link RunCacheState.writable}), which is a
+ * deliberate refusal rather than a swallowed failure and so is checked here rather than left to the
+ * catch below.
  */
 async function recordCacheAdditions(
   cwd: string,
   cache: RunCacheState | undefined,
   fs: SdkFs,
 ): Promise<void> {
-  if (cache === undefined || cache.additions.size === 0) {
+  if (cache === undefined || cache.additions.size === 0 || !cache.writable) {
     return;
   }
   try {
@@ -358,6 +395,8 @@ async function runLocaleAt(
     type: "locale-finished",
     locale: targetLocale,
     translated: summary.translated.length,
+    localeIndex,
+    totalLocales: targetLocales.length,
   });
 }
 
@@ -368,6 +407,25 @@ async function runLocaleAt(
  * in sequence, reproducing the serial behavior exactly: same event order, same summary order. Shared
  * by the dry and live paths. A locale index is claimed synchronously (no `await` between the read and
  * the increment), so two workers never claim the same locale.
+ *
+ * A whole-run throw out of a worker (in practice only `LOCK_FILE_INVALID`, which `runOneLocale`
+ * deliberately re-throws) is recorded rather than propagated immediately, and the recorded reason
+ * doubles as the pool's abort flag: no worker claims another locale once it is set, and the pool
+ * still awaits every worker already in flight before re-throwing it unchanged. Each worker catches
+ * inside its own loop, so no worker's promise ever rejects and the `Promise.all` cannot short-circuit
+ * on one: it awaits every worker to completion, which is what releases their write locks. The reason
+ * is held wrapped in an object rather than as a bare `unknown` so that a thrown `undefined` still
+ * sets the flag and still aborts the pool.
+ *
+ * Both halves are load-bearing, and the tradeoff is deliberate. Rejecting eagerly (a bare
+ * `Promise.all`) fails fast but abandons the other workers mid-flight: they stay inside their write
+ * lock while the caller is already unwinding, so the CLI's synchronous `process.exit` truncates the
+ * pending release and leaves a lock file on disk that blocks the next run until a human deletes it.
+ * Awaiting without the abort flag is worse still: the pool drains the entire remaining queue, so
+ * locales that had not started yet take fresh locks, issue real provider calls (real spend, on a run
+ * the caller has been told failed) and write their target files. The flag stops new work, and the
+ * await lets in-flight work unwind its `finally`. The cost is that the rejection now surfaces after
+ * the slowest in-flight locale finishes rather than instantly.
  */
 async function runLocalesWithProgress(
   context: LocaleRunContext,
@@ -378,12 +436,17 @@ async function runLocalesWithProgress(
   const totalLocales = targetLocales.length;
   const results: (LocaleSummary | undefined)[] = new Array<LocaleSummary | undefined>(totalLocales);
   let nextIndex = 0;
+  let abort: { readonly reason: unknown } | undefined;
 
   async function worker(): Promise<void> {
-    while (nextIndex < totalLocales) {
+    while (abort === undefined && nextIndex < totalLocales) {
       const localeIndex = nextIndex;
       nextIndex += 1;
-      await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+      try {
+        await runLocaleAt(context, targetLocales, localeIndex, runOne, results);
+      } catch (error) {
+        abort ??= { reason: error };
+      }
     }
   }
 
@@ -393,6 +456,9 @@ async function runLocalesWithProgress(
     workers.push(worker());
   }
   await Promise.all(workers);
+  if (abort !== undefined) {
+    throw abort.reason;
+  }
   return results.filter((summary): summary is LocaleSummary => summary !== undefined);
 }
 
@@ -451,11 +517,15 @@ function resolveConcurrency(value: number | undefined): number {
  * folds usage into or consults the budget tracker, so concurrency cannot affect a budget it never
  * reads.
  *
+ * Exported for {@link watch}, which resolves the same combination once at startup rather than
+ * letting every cycle rediscover it. Module-level export only; it is not part of the package's
+ * public surface.
+ *
  * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
  * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1
  *   while `config.maxTokens` is set.
  */
-function resolveRunConcurrency(
+export function resolveRunConcurrency(
   value: number | undefined,
   dryRun: boolean,
   config: VerbatraConfig,
@@ -580,7 +650,8 @@ export async function translate(
     : await runAllLocalesLive(context, config.targetLocales, concurrency);
   input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
-  const { succeeded, partial, failed } = partition(summaries);
+  const locales = withCacheNotices(summaries, cache);
+  const { succeeded, partial, failed } = partition(locales);
   const usage = summaries.reduce<ReturnType<typeof combineUsage>>(
     (total, summary) => combineUsage(total, summary.usage),
     undefined,
@@ -588,7 +659,7 @@ export async function translate(
   const budgetSummary = toBudgetSummary(budget);
   const summary: RunSummary = {
     dryRun,
-    locales: summaries,
+    locales,
     succeeded,
     partial,
     failed,

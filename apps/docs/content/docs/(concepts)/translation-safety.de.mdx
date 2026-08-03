@@ -25,7 +25,14 @@ Eine schemavalide Übersetzung kann trotzdem kaputt sein, deshalb berechnet ein 
 Entscheidung über Annehmen oder Ablehnen direkt aus dem Kandidatenwert neu; dem eigenen
 Integritätsbericht des Providers wird nie vertraut. Dasselbe Gate läuft auf jedem Schreibpfad:
 einer Übersetzung vom Provider, einer importierten Arbeitsmappen-Zeile und einer von Hand
-getippten Bearbeitung in Studio.
+getippten Bearbeitung in Studio. Es läuft außerdem pro Key auf einem wiederverwendeten Wert. Wird
+eine Übersetzung mehreren Keys mit demselben Quellinhalt ausgeliefert (ein Treffer im
+[Cache](/docs/the-cache) oder die Kopie, die identischen Text nur eine einzige Provider-Anfrage
+kosten lässt), lässt jeder Key das Gate gegen seinen eigenen Quelleintrag laufen, und ein Key,
+dessen Prüfung fehlschlägt, wird zurückgehalten statt geschrieben. Gleichheit entscheidet ein
+Inhalts-Hash, der Text bis auf Unicode-NFC-Normalisierung und LF-Zeilenenden als gleich behandelt,
+zwei Keys können also übereinstimmen, ohne bytegleich zu sein. Genau deshalb läuft das Gate pro Key
+erneut.
 
 - Platzhalter-Integrität: Der übersetzte Wert muss dieselben Platzhalter tragen wie seine Quelle,
   verglichen als Multimenge (die Anzahl zählt, die Reihenfolge nicht). Lass einen fallen, füge
@@ -36,6 +43,13 @@ getippten Bearbeitung in Studio.
   Select-Struktur bricht, wird ebenfalls abgelehnt. Für diese Formate vergleicht die
   Platzhalterprüfung außerdem pro Zweig: Ein Platzhalter, der in einem Plural-Zweig erfunden
   wurde, fällt auch dann auf, wenn er in einem anderen legitim vorkommt.
+- Degeneriertheit: Der Wert darf nicht strukturell degeneriert sein, etwa eine Wiederholungsschleife
+  oder eine Länge, die der Quelle davongelaufen ist. Das fängt ein Modell ab, das in das Wiederholen
+  eines Fragments gekippt ist, selbst wenn jeder Platzhalter überlebt hat.
+- Leerheit: Eine nicht leere Quelle darf nicht in einen leeren oder nur aus Leerraum bestehenden
+  Wert übersetzt werden. Eine Übersetzung zu leeren ist ein eigener, bewusster Schritt, und das
+  `[[CLEAR]]`-Sentinel der Arbeitsmappe ist der Weg dafür; siehe
+  [Manuelle Übersetzung](/docs/manual-translation).
 
 Ein abgelehnter Kandidat wird als Daten zurückgehalten, nie geschrieben: Er erscheint in der
 Lauf-Zusammenfassung als Integritätsabweichung, behält seinen vorherigen Hash in

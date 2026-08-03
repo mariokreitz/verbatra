@@ -49,8 +49,9 @@ overrides:
   # Force the patched postcss for the vulnerable copies only (next bundles 8.4.31).
   # GHSA-qx2v-qp2m-jg93 (XSS via unescaped </style> in CSS stringify output, <8.5.10) and
   # GHSA-r28c-9q8g-f849 (path traversal in source map auto-loading disclosing arbitrary .map
-  # files, <=8.5.17). Dev-only paths (tailwind, vite, and next tooling).
-  postcss@<8.5.18: ">=8.5.18"
+  # files, <=8.5.17). Dev-only paths (tailwind, vite, and next tooling). The <9 ceiling keeps the
+  # lift inside the v8 line those consumers declare, so a future major is never resolved onto them.
+  postcss@<8.5.18: ">=8.5.18 <9"
   # GHSA-w5hq-g745-h8pq: missing buffer bounds check in uuid v3/v5/v6 with a buf argument.
   # Vulnerable <11.1.1; lifts the copy exceljs pulls (uuid 8.3.2) on the published sdk/exchange path.
   uuid@<11.1.1: ">=11.1.1"

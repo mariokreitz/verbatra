@@ -10,3 +10,4 @@
 
 # verbatra's local-only run-status snapshot (review flags, token usage); never committed.
 .verbatra-local/
+verbatra.cache.json

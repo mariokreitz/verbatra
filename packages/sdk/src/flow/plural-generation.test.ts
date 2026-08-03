@@ -57,6 +57,15 @@ function hasNotice(notices: readonly { code: string }[]): boolean {
   return notices.some((n) => n.code === "PLURAL_CATEGORIES_INCOMPLETE");
 }
 
+/**
+ * Generation is the fifth disk-writing path and it shares the one accept/reject choke point, so
+ * every gate rule has to reach it: a synthesized form the provider returned blank must be withheld,
+ * not written as an empty plural category.
+ *
+ * The empty-value test below deliberately uses a placeholder-free plural source. With `{{count}}` in
+ * the source the placeholder check rejects an empty candidate first, so the test would pass with or
+ * without the emptiness rule and would prove nothing about it.
+ */
 describe("translate: plural-category generation (supported case)", () => {
   it("generates every required category for a richer target and clears the warning", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: {} });
@@ -95,6 +104,29 @@ describe("translate: plural-category generation (supported case)", () => {
     const locale = summary.locales[0];
     expect(locale?.generated).toEqual(["items_many"]);
     expect(locale?.integrityMismatches).toEqual(["items_few"]);
+    expect(hasNotice(locale?.notices ?? [])).toBe(true);
+  });
+
+  it("withholds a generated form the provider returned empty, and keeps the warning", async () => {
+    const dir = await project({ items_one: "one item", items_other: "many items" }, { pl: {} });
+    const blankGenerated = makeStubProvider({
+      translate: (value, key, locale) =>
+        key === "items_few" || key === "items_many" ? "" : `[${locale}] ${value}`,
+    });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      { createProvider: () => blankGenerated.provider },
+    );
+
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBeUndefined();
+    expect(pl.items_many).toBeUndefined();
+    expect(pl.items_one).toBe("[pl] one item");
+
+    const locale = summary.locales[0];
+    expect(locale?.generated).toEqual([]);
+    expect([...(locale?.integrityMismatches ?? [])].sort()).toEqual(["items_few", "items_many"]);
     expect(hasNotice(locale?.notices ?? [])).toBe(true);
   });
 

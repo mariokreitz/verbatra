@@ -1,7 +1,7 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra : traduction i18n incrémentale des fichiers de locale",
+      "title": "verbatra : traduction i18n incrémentielle pour les fichiers de locale",
       "ogTitle": "verbatra : synchronisation i18n incrémentale",
       "description": "Garde tes fichiers de locale i18n synchronisés. verbatra traduit seulement les clés qui ont changé, via le fournisseur d'IA ou de traduction automatique de ton choix. Commence maintenant.",
       "ogDescription": "Garde tes fichiers de locale i18n synchronisés. Traduis seulement les clés modifiées.",
@@ -19,7 +19,7 @@
       "lead": "verbatra est plus que de la traduction par IA. Il couvre la traduction automatique que tu contrôles, un transfert Excel propre pour les traducteurs humains, et l'automatisation pour garder chaque locale synchronisée.",
       "ai": {
         "title": "Traduction par IA",
-        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini, DeepL ou n'importe quel serveur compatible OpenAI que tu héberges toi-même. Un fichier de verrouillage validé garde chaque exécution incrémentale, et l'intégrité des espaces réservés et de l'ICU est vérifiée avant que quoi que ce soit ne soit écrit."
+        "body": "Traduis seulement ce qui a changé via le fournisseur de ton choix : Anthropic, OpenAI, Gemini, DeepL, ou tout serveur compatible OpenAI que tu gères toi-même. Un fichier de verrouillage validé maintient chaque exécution incrémentielle, et l'intégrité des placeholders et de l'ICU est vérifiée avant toute écriture."
       },
       "excel": {
         "title": "Transfert Excel",
@@ -47,12 +47,12 @@
     },
     "compat": {
       "heading": "Un seul outil, tous les frameworks.",
-      "body": "verbatra lit les fichiers de locale que ta stack utilise déjà : JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que XLIFF, YAML et Flutter ARB. Il les remplit via le fournisseur que tu choisis, sans aucun nouveau format à adopter.",
+      "body": "verbatra lit les fichiers de locale que ta pile utilise déjà : JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que les fichiers XLIFF, YAML, Flutter ARB et Java/Spring .properties. Il les remplit via le fournisseur que tu choisis, aucun nouveau format à adopter.",
       "labelFrameworks": "Frameworks et formats"
     },
     "providers": {
       "heading": "Traduis via le modèle en qui tu as confiance.",
-      "lead": "Anthropic, OpenAI, Gemini, DeepL ou n'importe quel serveur compatible OpenAI que tu héberges toi-même. Choisis-en un en une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
+      "lead": "Anthropic, OpenAI, Gemini, DeepL, ou tout serveur compatible OpenAI que tu héberges toi-même. Choisis-en un dans une seule ligne de config et change de fournisseur sans toucher à tes fichiers de locale.",
       "marqueeLabel": "Fournisseurs de traduction"
     },
     "how": {
@@ -87,7 +87,7 @@
         },
         "provider": {
           "title": "Le fournisseur de ton choix",
-          "body": "Anthropic, OpenAI, Gemini, DeepL ou un modèle local compatible OpenAI, choisi en une ligne de config. Change de fournisseur sans toucher à tes fichiers de locale."
+          "body": "Anthropic, OpenAI, Gemini, DeepL, ou un modèle local compatible OpenAI, choisi en une seule ligne de config. Change de fournisseur sans toucher à tes fichiers de locale."
         },
         "safety": {
           "title": "Sûr par conception",
@@ -119,11 +119,11 @@
         },
         "providers": {
           "question": "Quels fournisseurs de traduction puis-je utiliser ?",
-          "answer": "Cinq, derrière une seule interface : Anthropic, OpenAI et Gemini (des LLM), DeepL (traduction automatique) et openai-compatible, qui pointe verbatra vers un serveur local ou auto-hébergé comme Ollama, LM Studio ou vLLM. Tu en choisis un par id dans ta config et tu peux en changer plus tard en modifiant cette seule ligne. Gemini a un vrai palier gratuit, et un modèle local ne coûte rien par appel."
+          "answer": "Cinq, derrière une seule interface : Anthropic, OpenAI et Gemini (LLM), DeepL (traduction automatique) et openai-compatible, qui pointe verbatra vers un serveur local ou auto-hébergé comme Ollama, LM Studio ou vLLM. Tu en choisis un par son id dans ta config et tu peux changer plus tard en modifiant cette seule ligne. Gemini a un vrai niveau gratuit, et un modèle local ne coûte rien par appel."
         },
         "formats": {
           "question": "Quels formats et frameworks verbatra prend-il en charge ?",
-          "answer": "JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que XLIFF, YAML et Flutter ARB. Cela couvre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js et Flutter. verbatra lit les fichiers que tu as déjà ; il n'y a aucun format propre à verbatra vers lequel migrer."
+          "answer": "JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que les fichiers XLIFF, YAML, Flutter ARB et Java/Spring .properties. Cela couvre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring et Flutter. verbatra lit les fichiers que tu as déjà ; il n'y a pas de format spécifique à verbatra vers lequel migrer."
         },
         "studio": {
           "question": "Qu'est-ce que Verbatra Studio ?",
@@ -151,7 +151,7 @@
         },
         "production": {
           "question": "verbatra est-il prêt pour la production ?",
-          "answer": "Il est jeune et activement développé, donc épingle une version et lis le changelog quand tu mets à jour. Le modèle de sûreté est déjà solide : chaque exécution compare à un fichier de verrouillage validé, vérifie l'intégrité des espaces réservés et de l'ICU sur chaque résultat, et retient tout ce qui casse plutôt que de l'écrire. Les équipes l'utilisent en CI aujourd'hui ; si tu épingles les versions, tu es sur un terrain stable."
+          "answer": "Il est jeune et activement développé, alors fige une version et lis le changelog lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution est comparée à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
         }
       }
     },

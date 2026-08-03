@@ -42,10 +42,13 @@ entfernt, und nichts anderes.
 
 ## In Batches an den Provider
 
-Kandidaten gehen in sequenziellen Sub-Batches von höchstens `maxBatchSize` Einträgen (Default 50)
-an deinen konfigurierten Provider, damit eine überdimensionierte Anfrage nicht eine ganze Locale
-mitreißt. Jeder Sub-Batch trägt die Einträge plus dein optionales `glossary` und `tone`. Schlägt
-ein Sub-Batch-Aufruf fehl (ein Rate-Limit, ein Timeout, ein widerrufener Schlüssel), werden seine
+Von den Kandidaten, die den Provider erreichen, werden zuerst die mit demselben Quellinhalt
+gruppiert, damit dieser Text eine Anfrage pro Locale kostet statt eine pro Key; der zurückkommende
+Wert wird auf die anderen Keys seiner Gruppe kopiert und im Integritätsschritt weiter unten gegen
+die jeweils eigene Quelle erneut geprüft. Die Gruppen gehen in sequenziellen Sub-Batches von
+höchstens `maxBatchSize` Einträgen (Default 50) an deinen konfigurierten Provider, damit eine
+überdimensionierte Anfrage nicht eine ganze Locale mitreißt. Jeder Sub-Batch trägt die Einträge
+plus dein optionales `glossary` und `tone`. Schlägt ein Sub-Batch-Aufruf fehl (ein Rate-Limit, ein Timeout, ein widerrufener Schlüssel), werden seine
 Keys für diesen Lauf zurückgehalten und beim nächsten Lauf wieder aufgegriffen, während die
 anderen Sub-Batches weiter Fortschritt machen. Siehe [Provider](/docs/providers) dafür, wie jeder
 Provider die Eingaben anwendet.
@@ -61,13 +64,13 @@ diesem Lauf als nicht übersetzt und wird beim nächsten erneut versucht. DeepL 
 Maschinenübersetzungs-API ohne diese Antwortschicht, aber seine Ergebnisse durchlaufen dieselben
 Integritätsprüfungen unten.
 
-## Platzhalter- und ICU-Integrität prüfen
+## Das Integritäts-Gate ausführen
 
 Eine Übersetzung, die die Schemavalidierung bestanden hat, kann trotzdem kaputt sein, deshalb
 berechnet verbatra die Entscheidung über Annehmen oder Ablehnen selbst aus dem Kandidatenwert: Es
-vertraut nie dem Bericht des Providers. Jeder akzeptierte Kandidat muss dieselben Platzhalter
-tragen wie seine Quelle, und für die ICU-Formate muss er weiterhin eine gültige Nachricht sein.
-Ein Kandidat, der eine der beiden Prüfungen nicht besteht, wird zurückgehalten statt geschrieben,
+vertraut nie dem Bericht des Providers. Jeder akzeptierte Kandidat muss jede Prüfung des Gates
+bestehen; siehe [Übersetzungssicherheit](/docs/translation-safety) dafür, welche das sind. Ein
+Kandidat, der eine davon nicht besteht, wird zurückgehalten statt geschrieben,
 taucht in der Lauf-Zusammenfassung auf und wird beim nächsten Lauf erneut versucht. Siehe
 [Übersetzungssicherheit](/docs/translation-safety) für das vollständige Sicherheitsmodell.
 

@@ -64,6 +64,26 @@ function submitStatusClassName(state: SubmitState): string {
   );
 }
 
+/**
+ * The remediation the shared status label deliberately cannot carry. Saving an empty value is
+ * refused, and clearing a translation outright is done with the workbook's `[[CLEAR]]` sentinel, so
+ * someone who select-all-deletes here needs pointing at it. Kept local to this dialog because the
+ * label map is shared with the retranslate button, where an empty value came from the provider and
+ * the user typed nothing, making this pointer wrong there.
+ */
+function clearRemediationHint(state: SubmitState): string | undefined {
+  if (state.kind !== "settled" || state.outcome.kind !== "rejected") {
+    return undefined;
+  }
+  if (state.outcome.reason !== "empty") {
+    return undefined;
+  }
+  return (
+    "To clear this translation, run verbatra export, type [[CLEAR]] in its Translation cell, " +
+    "then run verbatra import."
+  );
+}
+
 function EditorFields({
   context,
   value,
@@ -177,6 +197,9 @@ export function EditEntryDialog({
               <span className={submitStatusClassName(submit)}>{submitStatusLabel(submit)}</span>
             ) : null}
           </span>
+          {clearRemediationHint(submit) !== undefined ? (
+            <p className="mt-2 text-sm text-muted-foreground">{clearRemediationHint(submit)}</p>
+          ) : null}
         </>
       ) : null}
     </DrawerShell>

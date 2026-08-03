@@ -23,7 +23,7 @@ verbatra watch [flags]
 
 Mit `--json` erzeugt jeder Lauf einen [`WatchRunResult`](/docs/sdk)-Datensatz: ein Erfolg mit der Lauf-Zusammenfassung oder ein Fehlschlag mit Fehlercode und Meldung. Die Startzeile, der Stopp-Hinweis und der Fortschritt jedes Laufs gehen auf stderr, der stdout-Strom bleibt also sauberes NDJSON. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom: er stoppt weder den Watcher noch ändert er den Exit-Code.
 
-`--concurrency` gilt für den Lauf jedes Zyklus. Da das Token-Budget jedes Laufs frisch ist, scheitert ein `--concurrency` über `1` weiterhin bei jedem Lauf mit Exit `2`, wenn die Konfiguration ein `maxTokens`-Budget setzt. `--no-cache` umgeht den [Translation-Memory-Cache](/docs/the-cache) bei jedem Zyklus.
+`--concurrency` gilt für den Lauf jedes Zyklus. Da das Token-Budget jedes Laufs frisch ist, lässt sich ein `--concurrency` über `1` nicht einhalten, wenn die Konfiguration ein `maxTokens`-Budget setzt: `watch` lehnt diese Kombination beim Start ab und beendet sich vor dem initialen Lauf mit Exit `2`, statt eine Sitzung zu starten, die in jedem Zyklus fehlschlägt. `--no-cache` umgeht den [Translation-Memory-Cache](/docs/the-cache) bei jedem Zyklus.
 
 ## Stoppen
 

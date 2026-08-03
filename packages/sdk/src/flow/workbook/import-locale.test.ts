@@ -279,7 +279,7 @@ describe("importLocale", () => {
     expect(result.summary.integrityMismatches).toEqual([]);
   });
 
-  it("reports a changed row left blank as unfilled, but not a blank new row", () => {
+  it("reports a blank row as unfilled whether it was exported new or changed", () => {
     const src = entry("greet", "Hi");
     const other = entry("intro", "Welcome");
     const sheet: WorkbookSheet = {
@@ -293,7 +293,78 @@ describe("importLocale", () => {
       params({ sheet, source: resource("en", [src, other]), target: resource("de", []) }),
     );
 
+    expect(result.summary.unfilled).toEqual(["greet", "intro"]);
+  });
+
+  it("reports every blank row of an all-new first handoff", () => {
+    const greeting = entry("greeting", "Hello");
+    const farewell = entry("farewell", "Bye");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        { ...row("greeting", "", contentHash(greeting)), status: "new" },
+        { ...row("farewell", "", contentHash(farewell)), status: "new" },
+      ],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [greeting, farewell]),
+        target: resource("de", []),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual(["farewell", "greeting"]);
+  });
+
+  it("does not report a blank row for a key that is already up to date", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", contentHash(src)), status: "unchanged" }],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(src)]]),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual([]);
+  });
+
+  it("excludes a blank row exported as changed whose key is no longer a live candidate", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", "an-older-source-hash"), status: "changed" }],
+    };
+    const result = importLocale(
+      params({
+        sheet,
+        source: resource("en", [src]),
+        target: resource("de", [entry("greet", "Hallo")]),
+        baseline: new Map([["greet", contentHash(src)]]),
+      }),
+    );
+
+    expect(result.summary.unfilled).toEqual([]);
+  });
+
+  it("still reports succeeded for a fully blank sheet", () => {
+    const src = entry("greet", "Hi");
+    const sheet: WorkbookSheet = {
+      locale: "de",
+      rows: [{ ...row("greet", "", contentHash(src)), status: "new" }],
+    };
+    const result = importLocale(
+      params({ sheet, source: resource("en", [src]), target: resource("de", []) }),
+    );
+
     expect(result.summary.unfilled).toEqual(["greet"]);
+    expect(result.summary.status).toBe("succeeded");
   });
 
   it("clears a value via [[CLEAR]] when the source did not drift", () => {
@@ -347,6 +418,26 @@ describe("importLocale", () => {
 
     expect(result.summary.malformedRows).toEqual([{ row: 4, column: "Status" }]);
     expect(result.summary.duplicateKeys).toEqual([{ key: "greet", row: 5 }]);
+  });
+
+  it("still reports succeeded for an import whose only finding is malformed rows", () => {
+    const src = entry("greet", "Hi");
+    const result = importLocale(
+      params({
+        sheet: { locale: "de", rows: [] },
+        source: resource("en", [src]),
+        target: resource("de", []),
+        malformedRows: [
+          { row: 2, column: "Status" },
+          { row: 3, column: "Status" },
+        ],
+      }),
+    );
+
+    expect(result.summary.malformedRows).toHaveLength(2);
+    expect(result.summary.status).toBe("succeeded");
+    expect(result.summary.translated).toEqual([]);
+    expect(result.summary.unfilled).toEqual([]);
   });
 
   it("never treats the row's context as a translation source, even a hostile one that matches nothing else", () => {

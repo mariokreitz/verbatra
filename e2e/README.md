@@ -19,10 +19,15 @@ project, `npm install`s both tarballs, and runs the binary via `src/harness.ts`.
 The suite is split by trust boundary so a provider secret never reaches code that a pull
 request can modify.
 
-- **No-key tier** (`tests/read-only.e2e.test.ts`, run with `npm run test:nokey`): packaging
-  smoke, `init` scaffolding, `check` / `diff` / `export` across i18next, YAML, and ARB,
-  `translate --dry-run`, a full `export` then `import` round-trip (a workbook filled in code
-  the way a translator would), structured exit-2 boundary errors (missing config, invalid
+- **No-key tier** (`tests/read-only.e2e.test.ts`, `tests/structure-lock-import.e2e.test.ts`, and
+  `tests/progress-flags.e2e.test.ts`, run with `npm run test:nokey`): packaging smoke, `init`
+  scaffolding, `check` across i18next, YAML, Flutter ARB, and `.properties` projects, `diff` and
+  `export` on the i18next project, `translate --dry-run`, `export` then `import` round-trips for
+  i18next and `.properties` (a workbook filled in code the way a translator would) plus an
+  import of the untouched, structure-locked bytes `export` wrote, the keyless flag surface
+  (`--dry-run --concurrency 2` with progress on stderr and a clean stdout summary, `--no-cache`,
+  and the `--concurrency` versus `maxTokens` refusal exiting 2 on `CONCURRENCY_BUDGET_CONFLICT`
+  before any provider is constructed), structured exit-2 boundary errors (missing config, invalid
   config values, an invalid `--debounce`, an unreadable `.env`), and the `watch` SIGINT
   contract: the watcher starts without a provider key, and a single interrupt stops it cleanly
   with exit 0 after at least one NDJSON record. It makes no provider call, so it is

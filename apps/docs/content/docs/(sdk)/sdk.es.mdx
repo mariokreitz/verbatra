@@ -37,7 +37,7 @@ en el uso normal.
 
 El flujo de una sola pasada: leer el origen, comparar cada locale de destino con la línea base del
 bloqueo, enviar al proveedor las claves faltantes y modificadas, ejecutar las comprobaciones de
-integridad de marcadores de posición e ICU, escribir los archivos de locale y actualizar el bloqueo.
+integridad, escribir los archivos de locale y actualizar el bloqueo.
 Úsalo para scripts, pasos de build y jobs de CI.
 
 Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
@@ -49,7 +49,10 @@ Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache
   de configuración correspondiente para esa ejecución.
 - `concurrency` traduce hasta ese número de locales de destino a la vez (por defecto 1, estrictamente
   en serie). Un valor menor que 1 lanza `CONCURRENCY_INVALID`; en una ejecución real, un valor mayor
-  que 1 con `maxTokens` configurado lanza `CONCURRENCY_BUDGET_CONFLICT` (un dry-run queda exento).
+  que 1 con `maxTokens` configurado lanza `CONCURRENCY_BUDGET_CONFLICT` (un dry-run queda exento). Un
+  error de toda la ejecución que se levanta cuando ya hay locales en marcha impide que se arranque
+  ningún locale más, y los locales en vuelo terminan y liberan sus bloqueos de escritura antes de que
+  `translate` rechace, así que el rechazo llega después del más lento en vez de al instante.
 - `cache` está activado por defecto y reutiliza la [caché de memoria de traducción](/docs/the-cache)
   local; ponlo en false para omitir la caché en la ejecución (el `--no-cache` de la CLI).
 - `onProgress` se llama a medida que avanza la ejecución (por inicio y fin de cada locale, y por
@@ -75,11 +78,14 @@ Entrada: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?,
 `debounceMs` es 300 por defecto. `onRun` se llama una vez por ejecución con un `WatchRunResult`:
 `{ status: "succeeded", summary }` o `{ status: "failed", error: { code, message } }`. El SDK no
 registra nada; `onRun` es la única salida. `concurrency`, `cache`, `onProgress`, `onLockWait` y
-`lockAcquireTimeoutMs` se pasan a cada ejecución y se comportan igual que en `translate` (un watch con
-presupuesto y `concurrency` mayor que 1 falla en cada ejecución con `CONCURRENCY_BUDGET_CONFLICT`).
+`lockAcquireTimeoutMs` se pasan a cada ejecución y se comportan igual que en `translate`.
 
 Devuelve un `WatchController` con un solo método, `stop()`, que cierra el watcher y espera la ejecución
-en curso. Un archivo de origen ausente lanza `SOURCE_UNREADABLE` al arrancar; todo fallo posterior se
+en curso. Tres problemas se rechazan al arrancar, antes de que el watcher exista, así que `watch` mismo
+rechaza en lugar de devolver un controlador: un `concurrency` que no es un entero de al menos 1 lanza
+`CONCURRENCY_INVALID`, un `concurrency` mayor que 1 contra una configuración que fija `maxTokens` lanza
+`CONCURRENCY_BUDGET_CONFLICT` (no hay watch en seco, así que el conflicto de presupuesto siempre
+aplica), y un archivo de origen ausente lanza `SOURCE_UNREADABLE`. Todo fallo posterior al arranque se
 comunica a través de `onRun` y la vigilancia continúa.
 
 ## Inspecciona el estado sin escribir
@@ -159,13 +165,16 @@ exactamente cuando la clave todavía no existe en ese locale.
 ### editEntry
 
 Escribe una corrección tecleada por un humano para una clave y un locale. El valor candidato pasa por la
-misma puerta de marcadores de posición e ICU que una traducción del proveedor antes de que nada llegue
+misma puerta de integridad que una traducción del proveedor antes de que nada llegue
 al disco; al aceptarse, el archivo de locale y la entrada del bloqueo de esa clave se actualizan dentro
 del bloqueo de escritura del locale. Nunca llama a un proveedor.
 
 Entrada: `{ config, cwd?, locale, key, value }`. Devuelve un resultado de dos ramas:
-`{ accepted: true, value }`, o `{ accepted: false, reason: "placeholder" | "icu", value }` sin escribir
-nada.
+`{ accepted: true, value }`, o
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }` sin escribir
+nada. `"empty"` cubre un valor vacío o solo con espacios para un origen que sí tiene texto: una
+edición no puede expresar el vaciado de una clave, así que usa para eso el centinela `[[CLEAR]]` del
+libro.
 
 ### retranslateEntry
 
@@ -175,9 +184,9 @@ integridad. Al aceptarse escribe el archivo de locale y la entrada del bloqueo s
 
 Entrada: `{ config, cwd?, locale, key }`. Devuelve `{ accepted: true, value, reviewReasons }` (los
 códigos de motivo de revisión, si los hay, que aplican al nuevo valor) o
-`{ accepted: false, reason: "placeholder" | "icu", value }`. A diferencia de `translate`, aquí un fallo
-del proveedor lanza: un `ProviderError` de `@verbatra/ai-providers` con un código estable como
-`RATE_LIMITED` o `AUTH_FAILED`.
+`{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }`. A diferencia de
+`translate`, aquí un fallo del proveedor lanza: un `ProviderError` de `@verbatra/ai-providers` con un
+código estable como `RATE_LIMITED` o `AUTH_FAILED`.
 
 ## Instantáneas de archivos de locale
 
@@ -215,7 +224,7 @@ Entrada: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` es por def
 ### importWorkbook
 
 Lee un libro rellenado de vuelta a los archivos de locale, ejecutando las mismas comprobaciones de
-desfase del origen, marcadores de posición e ICU que `translate`. Solo las filas aceptadas avanzan su
+desfase del origen e integridad que `translate`. Solo las filas aceptadas avanzan su
 línea base del bloqueo; una fila en blanco o rechazada se sigue exportando hasta que se resuelve de
 verdad.
 
@@ -282,7 +291,7 @@ interface RunSummary {
 
 interface LocaleSummary {
   locale: string;
-  status: "succeeded" | "failed";
+  status: "succeeded" | "partial" | "failed";
   translated: string[];          // keys translated this run (in dry-run, keys that would be)
   cacheHits: string[];           // keys served from the translation-memory cache this run
   unchanged: string[];           // keys already up to date
@@ -293,7 +302,7 @@ interface LocaleSummary {
   providerFailures: string[];    // keys withheld because nothing was translated for them
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
-  unfilled: string[];            // import only: changed rows the translator left blank
+  unfilled: string[];            // import only: blank rows whose key still needs a translation
   malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
   duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
@@ -313,7 +322,9 @@ Las partes que conviene conocer:
   [Revisión en Studio](/docs/review-in-studio) para trabajar la cola.
 - **notices** vive por locale, nunca en el nivel superior. Cubre avisos del proveedor (por ejemplo, una
   degradación de DeepL) y avisos del SDK con los códigos `PLURAL_CATEGORIES_INCOMPLETE`,
-  `SUB_BATCH_FAILED`, `BLANK_ROW_BASELINE_RETAINED` y `BUDGET_TOKENS_EXCEEDED`.
+  `SUB_BATCH_FAILED`, `BLANK_ROW_BASELINE_RETAINED`, `BUDGET_TOKENS_EXCEEDED` y
+  `CACHE_VERSION_UNRECOGNIZED`. El aviso de caché es de toda la ejecución (un solo archivo, compartido
+  por cada locale), así que se adjunta a cada locale de la ejecución.
 - **usage** es `undefined`, nunca un cero inventado, siempre que nada en ese ámbito informara de uso:
   una ejecución en seco nunca llama a un proveedor, y DeepL nunca informa de tokens. `RunSummary.usage`
   es la suma sobre los locales.
@@ -324,8 +335,10 @@ Las partes que conviene conocer:
   adaptador, con `LOCALE_FAILED` solo como reserva), así que no lo trates como un conjunto cerrado.
 - **cacheHits** lista las claves servidas desde la [caché de memoria de traducción](/docs/the-cache)
   en lugar del proveedor. **unfilled**, **malformedRows** y **duplicateKeys** solo los rellena
-  `importWorkbook` (una ejecución de `translate` los deja vacíos): una fila `changed` en blanco, una
-  fila del libro que el lector no pudo parsear y una clave duplicada cuya primera aparición ganó.
+  `importWorkbook` (una ejecución de `translate` los deja vacíos): una fila en blanco cuya clave
+  todavía necesita traducción en el momento de la importación (tanto si se exportó como `new` como si
+  se exportó como `changed`), una fila del libro que el lector no pudo parsear y una clave duplicada
+  cuya primera aparición ganó.
 
 ## El modelo de errores
 

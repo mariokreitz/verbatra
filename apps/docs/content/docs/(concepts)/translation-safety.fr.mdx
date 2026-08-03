@@ -25,7 +25,14 @@ Une traduction valide au schéma peut quand même être cassée, donc une barri�
 décision d'acceptation ou de rejet directement à partir de la valeur candidate ; le rapport
 d'intégrité du fournisseur lui-même n'est jamais cru. La même barrière tourne sur chaque chemin
 d'écriture : une traduction issue d'un fournisseur, une ligne d'import de classeur, et une
-modification tapée à la main dans Studio.
+modification tapée à la main dans Studio. Elle tourne aussi par clé sur une valeur réutilisée.
+Quand une même traduction est servie à plusieurs clés au même contenu source
+(un succès de [cache](/docs/the-cache), ou la copie qui fait qu'un texte identique ne coûte qu'une
+seule requête au fournisseur), chaque clé passe la barrière face à sa propre entrée source, et une
+clé dont la vérification échoue est retenue au lieu d'être écrite. L'égalité est décidée par un hash
+de contenu qui traite le texte comme égal à la normalisation Unicode NFC et aux fins de ligne LF
+près, donc deux clés peuvent correspondre sans être identiques octet pour octet. C'est exactement
+pour cela que la barrière est rejouée par clé.
 
 - Intégrité des placeholders : la valeur traduite doit porter les mêmes placeholders que sa source,
   comparés comme un multiensemble (les quantités comptent, l'ordre non). Perds-en un, ajoutes-en un
@@ -36,6 +43,13 @@ modification tapée à la main dans Studio.
   structure plural ou select est rejetée aussi. Pour ces formats, la comparaison des placeholders
   tient aussi compte des branches : un placeholder fabriqué dans une branche plurielle est attrapé
   même s'il existe légitimement dans une autre.
+- Dégénérescence : la valeur ne doit pas être structurellement dégénérée, comme une boucle de
+  répétition ou une longueur qui s'est emballée par rapport à la source. Cela attrape un modèle qui
+  s'est effondré en répétant un fragment même si chaque placeholder a survécu.
+- Vacuité : une source non vide ne peut pas être traduite en une valeur vide ou composée seulement
+  d'espaces. Vider une traduction est un acte distinct et délibéré, et la sentinelle `[[CLEAR]]` du
+  classeur est le moyen de le faire ; voir
+  [Traduction manuelle](/docs/manual-translation).
 
 Une candidate rejetée est retenue comme donnée, jamais écrite : elle apparaît sur le résumé
 d'exécution comme un défaut d'intégrité, garde son hash précédent dans
