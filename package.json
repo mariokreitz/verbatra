@@ -26,13 +26,12 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:no-em-dash": "! git grep -n -- \"$(printf '\\342\\200\\224')\" -- ':!pnpm-lock.yaml'",
-    "check:dts": "node scripts/check-published-dts.mjs",
-    "check:studio-bundle": "node scripts/check-cli-studio-bundle.mjs",
-    "verify:npm-publish": "node scripts/verify-npm-publish.mjs",
+    "check:dts": "node scripts/check-build-output.mjs dts",
+    "check:studio-bundle": "node scripts/check-build-output.mjs studio-bundle",
     "test:scripts": "vitest run scripts",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
-    "release": "node scripts/release-publish.mjs"
+    "release": "changeset publish"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",
