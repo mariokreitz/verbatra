@@ -1,13 +1,13 @@
 version: 2
 
 updates:
-  # Dependabot does parse pnpm-workspace.yaml's catalog entries (pnpm catalog support is
-  # GA-announced upstream), but coverage is unreliable in practice: this repo has never
-  # received an update proposal for a catalog-pinned package, and dependabot-core has open
-  # issues describing catalog entries being left untouched or misclassified. This entry
-  # already uses the documented-correct configuration (npm ecosystem, directory "/", the
-  # workspace root); there is no local fix. Catalog-pinned packages need periodic manual
-  # review instead, see the comment above the "catalog" key in pnpm-workspace.yaml.
+  # Dependabot updates pnpm-workspace.yaml's catalog entries, in both the default "catalog"
+  # and "catalogs.bundled". This was previously recorded here as an upstream reliability gap
+  # requiring manual review; that is no longer accurate. Commit deda4f6 ("bump the npm-minor-patch
+  # group with 7 updates") moved @types/react and @types/react-dom in the default catalog and
+  # @formatjs/icu-messageformat-parser in catalogs.bundled, and single-package proposals have
+  # since arrived for catalog-pinned openai and typescript. Catalog versions are therefore
+  # Dependabot-maintained; do not bump them by hand in parallel, which only creates conflicts.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -19,6 +19,20 @@ updates:
       include: "scope"
     labels:
       - "dependencies"
+    ignore:
+      # TypeScript 7 is the native Go port, not an incremental release of the 6.x line. It ships
+      # a tsc binary but effectively no JavaScript compiler API: `ts.sys` and `ts.createProgram`
+      # are undefined and the package exposes two runtime exports plus a separate, explicitly
+      # unstable "./unstable/*" surface. Typechecking survives (tsc --noEmit passes across every
+      # package), but the build does not: tsup inlines rollup-plugin-dts 6.1.1 into its own
+      # dist/rollup.js, and that copy reads ts.sys at import time, so every `pnpm build` dies with
+      # "Cannot read properties of undefined (reading 'useCaseSensitiveFileNames')". Because the
+      # plugin is bundled rather than resolved, a pnpm override cannot reach it, and tsup 8.5.1 is
+      # the current latest, so there is no version to upgrade to. Standalone rollup-plugin-dts
+      # 6.5.1 already declares a typescript ^7 peer, so the fix is upstream in tsup.
+      # Remove this entry once tsup ships a release carrying a TS7-capable dts path.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
     groups:
       deepl-logging:
         patterns:
