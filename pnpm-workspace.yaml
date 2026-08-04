@@ -42,7 +42,7 @@ catalogs:
     exceljs: 4.4.0
     jszip: 3.10.1
     loglevel: 1.9.2
-    openai: 6.46.0
+    openai: 7.3.0
     yaml: 2.9.0
 
 overrides:
