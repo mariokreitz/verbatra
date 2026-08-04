@@ -8,17 +8,18 @@ packages:
 # catalog holds the runtime deps that @verbatra/sdk re-declares from the internal packages it
 # bundles, so the owning package and sdk always pin the same version.
 #
-# Dependabot does not reliably update these entries even though pnpm catalog support is
-# GA-announced upstream (see the comment in .github/dependabot.yml): dependabot-core has
-# multiple open issues describing catalog entries being left untouched, lockfile corruption
-# on catalog-sourced updates, and catalog entries being misclassified for dependency-type
-# group filters. This is an upstream reliability gap, not a local configuration mistake;
-# there is no additional setting here that fixes it. Treat every version below (in either
-# "catalog" or "catalogs.bundled") as manually maintained: check the latest with
-# `npm view <package> version` (or `npm view <package> versions` for the full release
-# history), then bump here and run `pnpm install` to refresh the lockfile. The
-# "catalogs.bundled" entries are the highest risk to leave stale, since they ship inside the
-# published @verbatra/sdk rather than staying internal to this repo.
+# Dependabot maintains the versions below, in both "catalog" and "catalogs.bundled" (see the
+# comment in .github/dependabot.yml). This was previously documented as an upstream gap that
+# required bumping every entry by hand; that is no longer accurate, so do not do it, because a
+# manual bump only conflicts with the open proposal. Reach for a manual bump only when a
+# security fix cannot wait for the weekly schedule.
+#
+# One entry is deliberately pinned back: typescript stays on the 6.x line because TypeScript 7
+# is the native port and drops the JavaScript compiler API that tsup's bundled rollup-plugin-dts
+# needs to emit declarations. .github/dependabot.yml ignores it and records the full reasoning.
+#
+# The "catalogs.bundled" entries carry the most weight, since @verbatra/sdk re-declares them and
+# they ship to consumers rather than staying internal to this repo.
 catalog:
   "@types/node": 26.1.2
   "@types/react": 19.2.18
