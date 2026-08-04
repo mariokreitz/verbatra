@@ -19,10 +19,13 @@ async function findTarball(dir: string, prefix: string): Promise<string> {
 
 /**
  * Build `@verbatra/sdk`, `@verbatra/cli`, and their workspace dependencies before packing, scoped to
- * just that subgraph (not the whole monorepo). CI never takes this path: it sets
- * `VERBATRA_SDK_TARBALL`/`VERBATRA_CLI_TARBALL` after running its own `pnpm build`, so this only
- * guards a local `npm test` run in `e2e/`, which would otherwise pack whatever `dist/` happens to be
- * on disk (stale or absent) instead of the current source.
+ * just that subgraph (not the whole monorepo). CI never takes this path: it sets the three
+ * `VERBATRA_*_TARBALL` variables after running its own `pnpm build`, so this only guards a local
+ * `npm test` run in `e2e/`, which would otherwise pack whatever `dist/` happens to be on disk
+ * (stale or absent) instead of the current source.
+ *
+ * `@verbatra/studio` needs no filter of its own: it is a devDependency of `@verbatra/cli`, so
+ * `--filter=@verbatra/cli...` already builds it, prebuilt SPA included.
  */
 async function buildPackables(): Promise<void> {
   await execa(
@@ -32,23 +35,37 @@ async function buildPackables(): Promise<void> {
   );
 }
 
+/** The tarball override variables, in the order they are reported when only some are set. */
+const TARBALL_ENV_VARS = [
+  "VERBATRA_SDK_TARBALL",
+  "VERBATRA_CLI_TARBALL",
+  "VERBATRA_STUDIO_TARBALL",
+] as const;
+
 /**
- * Resolves the sdk and cli tarballs: from `VERBATRA_SDK_TARBALL`/`VERBATRA_CLI_TARBALL` when both
- * are set (the CI path), otherwise by building the publishable subgraph and running `pnpm pack`
+ * Resolves the sdk, cli, and studio tarballs: from the three `VERBATRA_*_TARBALL` variables when
+ * all are set (the CI path), otherwise by building the publishable subgraph and running `pnpm pack`
  * into a temp directory.
  *
- * @throws When exactly one of the two override variables is set.
+ * Studio is packed alongside the other two so the `studio` command can be driven through the same
+ * published-package boundary as every other command. It is installed only into the consumers that
+ * ask for it, so the rest of the suite is unaffected.
+ *
+ * @throws When some but not all of the override variables are set.
  */
-async function packTarballs(): Promise<{ sdk: string; cli: string }> {
-  const envSdk = process.env.VERBATRA_SDK_TARBALL;
-  const envCli = process.env.VERBATRA_CLI_TARBALL;
-  if (envSdk && envCli) {
-    return { sdk: resolve(envSdk), cli: resolve(envCli) };
+async function packTarballs(): Promise<{ sdk: string; cli: string; studio: string }> {
+  const set = TARBALL_ENV_VARS.filter((name) => process.env[name]);
+  if (set.length === TARBALL_ENV_VARS.length) {
+    return {
+      sdk: resolve(process.env.VERBATRA_SDK_TARBALL as string),
+      cli: resolve(process.env.VERBATRA_CLI_TARBALL as string),
+      studio: resolve(process.env.VERBATRA_STUDIO_TARBALL as string),
+    };
   }
-  if (envSdk || envCli) {
+  if (set.length > 0) {
     throw new Error(
-      "VERBATRA_SDK_TARBALL and VERBATRA_CLI_TARBALL must both be set or both be unset. " +
-        "Only one was provided, which is more likely a misconfiguration than an intentional partial override.",
+      `${TARBALL_ENV_VARS.join(", ")} must all be set or all be unset. Only ${set.join(", ")} ` +
+        "was provided, which is more likely a misconfiguration than an intentional partial override.",
     );
   }
 
@@ -59,9 +76,11 @@ async function packTarballs(): Promise<{ sdk: string; cli: string }> {
     execa("pnpm", ["--filter", filter, "pack", "--pack-destination", dest], { cwd: repoRoot });
   await pack("@verbatra/sdk");
   await pack("@verbatra/cli");
+  await pack("@verbatra/studio");
   return {
     sdk: await findTarball(dest, "verbatra-sdk-"),
     cli: await findTarball(dest, "verbatra-cli-"),
+    studio: await findTarball(dest, "verbatra-studio-"),
   };
 }
 

@@ -109,7 +109,6 @@ function HighlightedText({ text, base }: { text: string; base: string }): ReactN
   return (
     <>
       {tokens.map((token, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static per-line tokenization can repeat tokens (separators), so the index disambiguates.
         <span key={i} style={{ color: tokenColor(token) ?? base }}>
           {i > 0 ? " " : ""}
           {token}
