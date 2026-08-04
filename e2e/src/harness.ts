@@ -7,10 +7,11 @@ import { execa } from "execa";
 const e2eDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(e2eDir, ".tarballs.json");
 
-/** Absolute paths to the packed `@verbatra/sdk` and `@verbatra/cli` tarballs. */
+/** Absolute paths to the packed `@verbatra/sdk`, `@verbatra/cli`, and `@verbatra/studio` tarballs. */
 export interface Tarballs {
   sdk: string;
   cli: string;
+  studio: string;
 }
 
 /**
@@ -34,15 +35,23 @@ export interface Consumer {
  * Creates a consumer project: a temp directory with a minimal package.json, then a real
  * `npm install` of the sdk and cli tarballs from the manifest. This is the "published package"
  * boundary the whole suite tests through.
+ *
+ * `@verbatra/studio` is installed only when asked for, because its absence is the normal state for
+ * a project that never runs the dashboard, and the CLI is built to degrade gracefully in exactly
+ * that case. Adding it everywhere would hide that.
+ *
+ * @param options - `withStudio` also installs `@verbatra/studio`, which the `studio` command
+ *   resolves through a runtime dynamic import.
  */
-export async function makeConsumer(): Promise<Consumer> {
-  const { sdk, cli } = await readTarballs();
+export async function makeConsumer(options: { withStudio?: boolean } = {}): Promise<Consumer> {
+  const { sdk, cli, studio } = await readTarballs();
   const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-consumer-"));
   await writeFile(
     join(dir, "package.json"),
     JSON.stringify({ name: "verbatra-e2e-consumer", version: "0.0.0", private: true }, null, 2),
   );
-  await execa("npm", ["install", "--no-audit", "--no-fund", "--no-package-lock", sdk, cli], {
+  const packs = options.withStudio === true ? [sdk, cli, studio] : [sdk, cli];
+  await execa("npm", ["install", "--no-audit", "--no-fund", "--no-package-lock", ...packs], {
     cwd: dir,
   });
   return { dir, bin: join(dir, "node_modules", ".bin", "verbatra") };

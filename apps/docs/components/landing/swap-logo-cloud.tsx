@@ -66,7 +66,6 @@ export function SwapLogoCloud({
       </ul>
       <div className={cn("grid items-center gap-x-4 gap-y-8", gridClassName)} aria-hidden="true">
         {slots.map((logo, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: the slots are positional and fixed in count; the swapping identity lives on the inner motion element's key.
           <div key={`slot-${i}`} className="flex items-center justify-center">
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.div
