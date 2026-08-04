@@ -360,7 +360,11 @@ export async function runTranslate(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
-      appendMissingGitignoreEntries(cwd);
+      // Never on a dry run: --dry-run promises to write nothing, and .gitignore is a tracked file
+      // the user owns, so touching it would dirty a working tree a preview must leave alone.
+      if (opts.dryRun !== true) {
+        appendMissingGitignoreEntries(cwd);
+      }
       return withWholeRunErrors(
         deps,
         streams,
@@ -506,7 +510,11 @@ export async function runImport(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
-      appendMissingGitignoreEntries(cwd);
+      // Never on a dry run: --dry-run promises to write nothing, and .gitignore is a tracked file
+      // the user owns, so touching it would dirty a working tree a preview must leave alone.
+      if (opts.dryRun !== true) {
+        appendMissingGitignoreEntries(cwd);
+      }
       return withWholeRunErrors(
         deps,
         streams,
