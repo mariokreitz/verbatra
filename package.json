@@ -41,7 +41,7 @@
     "@vitest/coverage-v8": "catalog:",
     "lefthook": "2.1.10",
     "tsup": "catalog:",
-    "turbo": "2.10.7",
+    "turbo": "2.10.8",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

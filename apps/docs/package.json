@@ -15,9 +15,9 @@
   "dependencies": {
     "@icons-pack/react-simple-icons": "13.13.0",
     "clsx": "2.1.1",
-    "fumadocs-core": "16.13.0",
-    "fumadocs-mdx": "15.2.0",
-    "fumadocs-ui": "16.13.0",
+    "fumadocs-core": "16.14.0",
+    "fumadocs-mdx": "15.2.1",
+    "fumadocs-ui": "16.14.0",
     "motion": "12.43.0",
     "next": "16.2.12",
     "next-intl": "4.13.4",
