@@ -1,5 +1,33 @@
 # @verbatra/studio
 
+## 0.2.3
+
+### Patch Changes
+
+- 2c37673: Handle the new `empty` integrity rejection in the editor.
+
+  The SDK now refuses an empty or whitespace-only translation of a non-empty
+  source. Studio's edit dialog is a plain text area and a Save button, so
+  select-all-delete previously wrote the empty value straight through; it is now
+  rejected with "Rejected: empty translation" and nothing is written.
+
+  The status label is deliberately context-free, because the same map renders
+  retranslate outcomes, where an empty value came from the provider and the user
+  typed nothing. The edit dialog additionally shows a local hint pointing at the
+  export, `[[CLEAR]]`, import round trip, which remains the supported way to
+  unset a translation.
+
+- Updated dependencies [dda9ede]
+- Updated dependencies [4bb2bf2]
+- Updated dependencies [b75967c]
+- Updated dependencies [a4f6831]
+- Updated dependencies [d39ae24]
+- Updated dependencies [2c37673]
+- Updated dependencies [34f9aeb]
+- Updated dependencies [188f2f0]
+- Updated dependencies [7c2e877]
+  - @verbatra/sdk@0.6.3
+
 ## 0.2.2
 
 ### Patch Changes

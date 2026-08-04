@@ -1,5 +1,234 @@
 # @verbatra/sdk
 
+## 0.6.3
+
+### Patch Changes
+
+- dda9ede: Re-gate a fanned-out translation against the key it is written to.
+
+  Within-locale deduplication sends one representative per source content hash and
+  copies its accepted value onto every duplicate key. That copy skipped
+  `gateCandidateValue`, on the stated guarantee that an identical content hash
+  implies identical placeholder and ICU fields. It does not: the hash is computed
+  over canonicalized text (NFC-normalized, CRLF folded to LF) while the gate
+  compares placeholder tokens raw, so the hash is a lossy function of exactly the
+  bytes the gate inspects.
+
+  Two keys whose non-ASCII placeholder name differs only by Unicode normalization
+  form therefore hashed equal, and the representative's value was written to the
+  duplicate even though it fails that key's own placeholder check. The run
+  reported success: a fanned-out value makes no provider call so no review flag
+  fires, and the key was then locked in as correct and never re-attempted.
+
+  Each duplicate is now re-gated against its own source entry, and a rejection is
+  withheld as an integrity mismatch instead of written, so the key is re-attempted
+  on the next run. The check is pure and runs only for keys that actually have
+  duplicates, so the deduplication saving is unchanged and the ordinary
+  byte-identical case still costs one request.
+
+- 4bb2bf2: Release every locale's write lock before `translate()` settles on a whole-run
+  failure.
+
+  With `concurrency` greater than 1, the locale pool awaited its workers with
+  `Promise.all`, which rejects on the first failure but does not stop the others.
+  A whole-run error (in practice a corrupt lock file, surfaced as
+  `LOCK_FILE_INVALID`) therefore rejected `translate()` while the remaining
+  workers were still inside their critical sections. Three things followed: their
+  lock files were still held when the caller unwound, and the CLI's synchronous
+  exit truncated the pending release, leaving orphaned locks that blocked the next
+  run for the full lock timeout, per locale, until someone deleted them by hand;
+  the pool kept pulling from the queue, so locales that had not started yet took
+  fresh locks, issued real provider calls and wrote their target files after the
+  run had already been reported as failed; and an SDK caller that caught the
+  rejection was wrong about both what was on disk and what had been billed.
+
+  The pool now records the failure instead of propagating it immediately. The
+  recorded reason doubles as an abort flag, so no worker claims another locale,
+  and the pool still awaits every in-flight worker so each one unwinds and
+  releases its lock before the error is re-thrown unchanged.
+
+  Note for SDK consumers: `translate()` now rejects after the slowest in-flight
+  locale finishes rather than instantly. The error, its code and the exit code are
+  unchanged, as is `concurrency: 1` and the isolation of ordinary per-locale
+  failures.
+
+- b75967c: Leave a cache file with an unrecognized version on disk instead of downgrading
+  it.
+
+  `readTranslationMemory` degrades an unrecognized-version cache to an empty
+  memory, which is the correct and documented read contract. But the end-of-run
+  write replaces the whole file, so a cache written by a newer verbatra was
+  silently destroyed and relabelled with this build's version, keeping only the
+  current run's entries. The same happened through `editEntry`,
+  `retranslateEntry` and `importWorkbook`.
+
+  The read now also reports whether the file may be written, and the write paths
+  honour it. The distinction is narrow on purpose: only a structurally valid file
+  whose `version` is unrecognized is preserved. A missing file is still created, a
+  corrupt, schema-invalid or oversized one is still overwritten so the cache
+  self-heals rather than wedging, and a `version` of zero, negative or
+  non-integer fails the schema's positive-integer check and is treated as
+  corruption.
+
+  The run itself is unaffected: it proceeds with an empty effective cache,
+  succeeds, and its exit code and summary shape are unchanged. It does report a
+  `CACHE_VERSION_UNRECOGNIZED` notice, because the alternative is a mistyped
+  version disabling caching permanently with no signal at all.
+
+  This adds `CACHE_VERSION_UNRECOGNIZED` as an additive member of the exported
+  `SdkNoticeCode` union on `@verbatra/sdk`. The behavior fixed is a defect, so the
+  bump stays patch, but the addition to the public type is called out here as
+  deliberate, exactly as `BLANK_ROW_BASELINE_RETAINED` was in 0.4.4. `writable` is
+  returned alongside the memory rather than added to it, so the exported
+  `TranslationMemory` type is unchanged.
+
+- a4f6831: Keep `verbatra.cache.json` gitignored in projects scaffolded before it existed.
+
+  The ignore entry was only ever written by `verbatra init`, so a project
+  initialized on an earlier release never received it. Every write path creates
+  the cache at the project root, so upgrading users got a new untracked file next
+  to their locale changes and were liable to commit it, contradicting the cache's
+  own documented contract that it is local, gitignored and never committed.
+  `.verbatra-local/` is the same defect one release earlier.
+
+  `translate`, `watch` and `import` now top up an existing `.gitignore` with any
+  entry it is missing, once per invocation. The check is deliberately narrow: it
+  never creates a `.gitignore` that does not exist, it is silent so `--json`
+  stdout is untouched, it never fails a run, and it decides purely on file
+  presence and content, with no `git` subprocess and no new dependency. Re-running
+  `verbatra init` still produces no duplicate entry. The cache file does not move.
+
+  If you already committed `verbatra.cache.json`, no `.gitignore` change untracks
+  it; run `git rm --cached verbatra.cache.json` once. On the current release you
+  can also get the entry today, without upgrading, by re-running
+  `verbatra init --provider <id> --yes`, which is non-destructive because it skips
+  every file that already exists.
+
+- d39ae24: Report every blank workbook row that still needs a translation as `unfilled`.
+
+  A blank row was recorded into `summary.locales[].unfilled` only when the row had
+  been exported with status `changed`. A never-translated key exports as `new`, so
+  the most common unfilled case of all, a first handoff where every row is new,
+  reported nothing: importing an entirely untouched workbook gave `unfilled: []`
+  and a clean success, with no inventory of the pending work.
+
+  Membership is now decided by the import-time diff rather than by the status
+  string recorded in the exported row, so a blank row for a key that still needs a
+  translation is reported whether it was exported as `new` or `changed`. A row
+  exported as `changed` whose key has since stopped needing work is correspondingly
+  excluded.
+
+  No exit code moves. `unfilled`, `malformedRows` and `duplicateKeys` still do not
+  feed a locale's status, which is a settled decision now recorded in the summary
+  type's own documentation rather than left to be rediscovered: `check` and `diff`
+  already answer "is this project fully translated", failing on unfilled work
+  would break the locale-at-a-time handoff, and a malformed row is decided on its
+  Status cell alone, so that bucket cannot distinguish dropped work from absent
+  work in the first place.
+
+- 2c37673: Reject an empty translation of a non-empty source in the integrity gate.
+
+  `gateCandidateValue` accepted `""` as a valid translation whenever the source
+  carried no placeholders: the placeholder check compared `[]` against `[]`,
+  `validateMessage("")` is true on every adapter including the ICU ones, and the
+  degeneracy assessment finds no runaway repetition in a zero-length value.
+  Whitespace-only values were accepted the same way. On the two adapters that
+  define `comparePlaceholders` (next-intl and ARB), even a source carrying a
+  placeholder accepted an empty translation, because that branch re-derives from
+  the source value.
+
+  The consequences were silent and reported as a clean success. A provider
+  returning `""` had the empty value written, counted as translated, and stored in
+  the translation-memory cache; on a changed key it destroyed an existing good
+  translation. Because the cache is keyed by source content, the empty value was
+  then served to every other key whose source text was byte-identical, with no
+  provider call to notice it and nothing in `check` or `diff` to surface it.
+
+  An empty or whitespace-only candidate for a non-empty source is now withheld
+  with the new `empty` reason, on every write path: the provider path, content
+  fan-out, plural generation, workbook import, `editEntry` and
+  `retranslateEntry`. The check runs last, so no existing rejection reason
+  changes; only the wrongful accepts do. An empty source still round-trips an
+  empty translation.
+
+  Separately, a `[[CLEAR]]`ed workbook row no longer contributes to the cache.
+  `[[CLEAR]]` states an intent about one key, and the cache is content-addressed,
+  so storing it would hand the clear to unrelated keys sharing that source text.
+  Clearing a key still works exactly as before and is still the only supported way
+  to unset a translation.
+
+  This adds `empty` to the exported `IntegrityGateReason` union on
+  `@verbatra/sdk`. The behavior fixed is a defect, so the bump stays patch, but
+  the addition to the public type is called out here as deliberate, following the
+  policy recorded for `BLANK_ROW_BASELINE_RETAINED` in 0.4.4. Note that unlike
+  that case, this union is consumed in an exhaustive `Record` in
+  `@verbatra/studio`, so a consumer doing the same will need a new arm.
+
+- 34f9aeb: Preserve a `.properties` file's line endings when writing it.
+
+  The `.properties` parser accepts all three physical terminators (`\n`, `\r\n`,
+  `\r`), but the serializer always joined with `\n` regardless of what the
+  destination used. `.properties` is the Java and Spring format, so these files
+  commonly live in CRLF repositories, where the first `verbatra translate`
+  rewrote every line and turned a two-key translation change into a whole-file
+  diff.
+
+  The write now follows the destination: a file containing any CRLF is written
+  back entirely with CRLF, a CR-only file with CR, and everything else, including
+  a destination that does not exist yet, with LF. Comment, blank-line and
+  key-order preservation are unchanged, and a value's own `\r` or `\n` is still
+  escaped rather than emitted as a terminator.
+
+- 188f2f0: Drop the positional counter from the human progress line, and make
+  `locale-finished` correlatable.
+
+  `renderProgressHuman` printed `[N/total] translating <locale>` on
+  `locale-started` using the locale's index in the run's target order. The worker
+  pool claims those indices up front, so at `--concurrency 3` all three lines
+  printed before any work completed, showing `[1/3]`, `[2/3]` and `[3/3]` and
+  then continuing past the apparent total. The line is now
+  `verbatra: translating <locale>`.
+
+  No counter replaces it, on either event. A claim ordinal rendered on a finish
+  would be non-monotonic under concurrency, which is worse than no counter, and a
+  true completion counter needs run-scoped state that neither the CLI nor the SDK
+  should grow for a cosmetic line. A locale that has merely started was never
+  progress, and the `run-finished` line still reports the total.
+
+  This adds `localeIndex` and `totalLocales` as required members of the exported
+  `LocaleFinishedEvent` on `@verbatra/sdk`, so a consumer can pair a finish with
+  its start without matching on the locale name, which concurrency made necessary.
+  Both are documented as correlation keys and explicitly not as progress counters.
+  The behavior fixed is a defect, so the bump stays patch, but the addition to the
+  public type is called out here as deliberate, following the same house policy
+  recorded for `BLANK_ROW_BASELINE_RETAINED` in 0.4.4. The SDK is the only
+  constructor of this event, so no consumer code needs to supply the new fields.
+
+  `--json` is unaffected on stdout; the stderr progress records simply carry the
+  two extra fields.
+
+- 7c2e877: Validate the watch session's concurrency at startup instead of on every cycle.
+
+  `watch()` passed `concurrency` straight through to each run and performed no
+  equivalent check of its own, so a session started with a value greater than 1
+  against a config that sets `maxTokens` started normally and then failed the
+  initial run, and every run after it, indefinitely, with
+  `CONCURRENCY_BUDGET_CONFLICT`. The same held for a concurrency that is not an
+  integer of at least 1, which produced `CONCURRENCY_INVALID` per cycle.
+
+  Both combinations are decidable from the arguments alone, so `watch()` now
+  resolves them once at startup, before the watcher is created. This is a
+  startup-validation improvement rather than a bug fix: the per-cycle failure was
+  documented and intended, it was simply reported later and repeatedly rather than
+  once and immediately.
+
+  Note for SDK consumers: `watch()` now rejects where it previously returned a
+  controller and surfaced the refusal through `onRun`. Callers that pass a
+  misconfigured combination see the error at the `await watch(...)` call site. The
+  CLI is unaffected in shape: `verbatra watch --concurrency 2` on a budgeted
+  config already rendered the structured error and exited non-zero, and still
+  does, just at startup.
+
 ## 0.6.2
 
 ### Patch Changes
