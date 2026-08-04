@@ -31,8 +31,8 @@ catalogs:
       specifier: 1.9.2
       version: 1.9.2
     openai:
-      specifier: 6.46.0
-      version: 6.46.0
+      specifier: 7.3.0
+      version: 7.3.0
     yaml:
       specifier: 2.9.0
       version: 2.9.0
@@ -211,7 +211,7 @@ importers:
         version: 1.9.2
       openai:
         specifier: catalog:bundled
-        version: 6.46.0(ws@8.21.0)(zod@4.4.3)
+        version: 7.3.0(ws@8.21.0)(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -420,7 +420,7 @@ importers:
         version: 1.9.2
       openai:
         specifier: catalog:bundled
-        version: 6.46.0(ws@8.21.0)(zod@4.4.3)
+        version: 7.3.0(ws@8.21.0)(zod@4.4.3)
       yaml:
         specifier: catalog:bundled
         version: 2.9.0
@@ -4019,8 +4019,9 @@ packages:
   oniguruma-to-es@4.3.6:
     resolution: {integrity: sha512-csuQ9x3Yr0cEIs/Zgx/OEt9iBw9vqIunAPQkx19R/fiMq2oGVTgcMqO/V3Ybqefr1TBvosI6jU539ksaBULJyA==}
 
-  openai@6.46.0:
-    resolution: {integrity: sha512-DFg6jEPT2RO+oAyXtddeUJU8zkGy1OQ1AjGzNIJUMQG03TTqvCpy9tBpQ+2VVVnvrl3E56F8GEin2JYtWpITtA==}
+  openai@7.3.0:
+    resolution: {integrity: sha512-FLnIAkDEP3grs+BSDpqxEWVR37yG97/hs95lajF8SnHuA5nqtssh0uJVXbPhODNEoZqar+nEd+fIeGJgwoLUmg==}
+    engines: {node: '>=22.0.0'}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
       '@smithy/hash-node': '>=4.3.0 <5'
@@ -8336,7 +8337,7 @@ snapshots:
       regex: 6.1.0
       regex-recursion: 6.0.2
 
-  openai@6.46.0(ws@8.21.0)(zod@4.4.3):
+  openai@7.3.0(ws@8.21.0)(zod@4.4.3):
     optionalDependencies:
       ws: 8.21.0
       zod: 4.4.3
