@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
-import { SdkError } from "../errors.js";
+import { errorMessage, SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import { type GlossaryProvenance, resolveGlossary } from "./resolve-glossary.js";
 import { type VerbatraConfig, type VerbatraConfigInput, verbatraConfigSchema } from "./schema.js";
@@ -124,7 +124,7 @@ async function loadExplicitWithMeta(
   try {
     result = await explorer.load(resolved);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
   }
 
@@ -171,7 +171,7 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
   try {
     result = await explorer.search(options.cwd);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
   }
 

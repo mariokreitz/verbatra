@@ -1,16 +1,11 @@
 import { resolve } from "node:path";
 import { contentHash, type LocaleResource, type TranslationEntry } from "@verbatra/core";
-import {
-  type ExchangeError,
-  readWorkbook,
-  type WorkbookData,
-  type WorkbookSheet,
-} from "@verbatra/exchange";
+import { readWorkbook, type WorkbookData, type WorkbookSheet } from "@verbatra/exchange";
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import { computeFingerprint } from "../../cache/fingerprint.js";
 import { feedTranslationMemory } from "../../cache/translation-memory.js";
 import type { VerbatraConfig } from "../../config/schema.js";
-import { SdkError } from "../../errors.js";
+import { errorMessage, SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
 import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
@@ -268,7 +263,7 @@ export async function importWorkbook(
   try {
     data = await readWorkbook(bytes);
   } catch (error) {
-    throw new SdkError("SOURCE_INVALID", (error as ExchangeError).message);
+    throw new SdkError("SOURCE_INVALID", errorMessage(error));
   }
 
   const lock = await readLockFile(lockFilePath(cwd), fs);

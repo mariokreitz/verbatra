@@ -66,6 +66,29 @@ export function tempFileName(path: string): string {
  * failure is swallowed and never fails the call, both because the rename has already durably
  * completed the visible part of the write and because opening a directory for fsync is
  * unsupported entirely on some platforms (Windows).
+ *
+ * Two consequences of the temp-then-rename shape are deliberate policy, not oversights, and neither
+ * should be "fixed" without revisiting the reasoning here.
+ *
+ * A symlinked target is **replaced, never followed**. `rename(2)` does not resolve the destination
+ * symlink, so the link itself is swapped for a regular file and whatever it pointed at is left
+ * untouched. That is the secure direction and the reason to keep it: resolving the target with
+ * `realpath` before writing would turn a symlink planted anywhere in a checkout into an
+ * arbitrary-file-write primitive, so a `verbatra translate` in CI could be steered into overwriting
+ * a file outside the project. Adding an `lstat` guard would be worse than useless: there is no
+ * time-of-check window today precisely because there is no check to race. If a user ever reports
+ * genuinely wanting symlinked locale files to write through to a shared target, that is a product
+ * decision to reopen, and it would have to place the temp file beside the *resolved* target or the
+ * rename crosses filesystems and fails.
+ *
+ * The target's mode is **not preserved**. The rename installs a new inode carrying the temp file's
+ * mode, so a target created at a restrictive mode comes back at the process umask. Locale files are
+ * committed source that git resets to 0644 on checkout, and nothing written through here is a
+ * credential, so preserving the mode would add a stat and a chmod to every write for no benefit.
+ *
+ * The same policy applies to the SDK's own atomic write in `packages/sdk/src/fs.ts`, which covers
+ * the lock file, cache, run-status and workbook. The two implementations are separate on purpose
+ * (this one fsyncs, that one does not) but must not diverge on symlink or mode behaviour.
  */
 export async function atomicWriteFile(
   path: string,
