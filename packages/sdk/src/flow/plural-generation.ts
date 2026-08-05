@@ -49,6 +49,12 @@ export interface GeneratedForm {
   readonly lockHash: string;
 }
 
+/**
+ * What one locale's plural generation produced, partitioned so the caller can write the accepted
+ * forms and report the rest honestly. Every candidate key lands in exactly one of `accepted`,
+ * `withheld`, `providerFailures` or `budgetWithheld`: a key is never both written and reported as
+ * held back, which is what lets the run summary's status be derived from these lists alone.
+ */
 export interface PluralGenerationResult {
   /** Forms generated and integrity-passing, ready to write. */
   readonly accepted: readonly GeneratedForm[];

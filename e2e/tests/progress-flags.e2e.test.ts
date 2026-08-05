@@ -42,6 +42,13 @@ beforeAll(async () => {
 }, 180_000);
 
 describe("translate --dry-run --concurrency 2 (no provider)", () => {
+  /**
+   * The stream split is the point. Progress is rendered to stderr only (a per-locale "translating"
+   * line and a run-finished line), while stdout stays the clean dry-run summary. Every progress
+   * line carries the "verbatra: " prefix, so a stdout with no line starting that way is what proves
+   * none of them leaked across. `farewell` is the key missing from both target locales, so its
+   * continued absence afterwards is the proof the dry run wrote nothing.
+   */
   it("exits 0, writes nothing, prints progress to stderr while stdout stays the dry-run summary", async () => {
     const dir = await seedMultiLocale("dry-run-concurrency");
     const result = await runVerbatra(
@@ -52,15 +59,12 @@ describe("translate --dry-run --concurrency 2 (no provider)", () => {
 
     expect(result.exitCode).toBe(0);
 
-    // Progress lines are rendered to stderr only: a per-locale "translating" line and a run-finished line.
     expect(result.stderr).toMatch(/translating/);
     expect(result.stderr).toMatch(/run finished/);
 
-    // stdout is the clean dry-run summary, never a progress line (those carry the "verbatra: " prefix).
     expect(result.stdout).not.toMatch(/^verbatra: /m);
     expect(result.stdout).toContain("(dry run: nothing written)");
 
-    // Nothing was written: the missing key is still absent in both target locales.
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
     const fr = await readJsonIn<Record<string, string>>(dir, "locales/fr.json");
     expect(de.farewell).toBeUndefined();
@@ -81,6 +85,11 @@ describe("translate --no-cache --dry-run (no provider)", () => {
 });
 
 describe("translate --concurrency 2 with a token budget (no provider key)", () => {
+  /**
+   * The API key is blanked deliberately. A missing-key failure would name the key's environment
+   * variable, so the absence of any `API_KEY` mention in stderr is what proves the budget guard
+   * refused the run before a provider was ever constructed.
+   */
   it("exits 2 on the budget guard before any provider construction, never on a missing key", async () => {
     const dir = await seedMultiLocale("concurrency-budget-conflict", { maxTokens: 4096 });
     const result = await runVerbatra(consumer, ["translate", "--concurrency", "2", "--cwd", dir], {
@@ -90,7 +99,6 @@ describe("translate --concurrency 2 with a token budget (no provider key)", () =
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("CONCURRENCY_BUDGET_CONFLICT");
-    // A missing-key failure would name the API key variable; its absence proves the guard ran first.
     expect(result.stderr).not.toMatch(/API_KEY/);
   });
 });

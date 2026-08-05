@@ -249,12 +249,15 @@ describe("atomic write integration (byte-identical adapter output)", () => {
 });
 
 describe("atomicWriteFile: symlink and mode policy", () => {
+  /**
+   * Pinned deliberately, and pinned in this direction. rename(2) does not resolve the destination
+   * symlink, so a link planted in a checkout is clobbered rather than followed. Resolving it would
+   * turn any such link into an arbitrary-file-write primitive.
+   *
+   * If this test ever fails, the fix is NOT to update the expectation. It is to ask why the write
+   * started following links. See the `atomicWriteFile` JSDoc for the full policy.
+   */
   it("replaces a symlinked target instead of writing through it", async () => {
-    // Pinned deliberately, and pinned in this direction. rename(2) does not resolve the
-    // destination symlink, so a link planted in a checkout is clobbered rather than followed.
-    // Resolving it would turn any such link into an arbitrary-file-write primitive. If this test
-    // ever fails, the fix is not to update the expectation: it is to ask why the write started
-    // following links. See the atomicWriteFile JSDoc.
     const dir = await makeDir();
     const outside = join(dir, "outside.json");
     const link = join(dir, "de.json");

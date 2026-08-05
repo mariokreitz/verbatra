@@ -107,10 +107,13 @@ describe("the root verify script mirrors the CI build-and-test job", () => {
     }
   });
 
+  /**
+   * `pnpm turbo run typecheck` is the one step the loop has to skip: CI invokes turbo directly
+   * because no root `typecheck` script exists, and spelling that step `pnpm typecheck` to satisfy
+   * the assertion would fail at runtime.
+   */
   it("names only scripts the root manifest actually defines", () => {
     for (const step of verifySteps) {
-      // `pnpm turbo run typecheck` is the one step CI invokes directly, since no root
-      // `typecheck` script exists; writing it as `pnpm typecheck` would fail at runtime.
       if (step === "pnpm turbo run typecheck") {
         continue;
       }
@@ -118,11 +121,14 @@ describe("the root verify script mirrors the CI build-and-test job", () => {
     }
   });
 
+  /**
+   * check:dts and check:studio-bundle both read `dist/` and exit 1 with "Run the build first", so
+   * their position after `pnpm build` is part of the contract rather than incidental ordering.
+   */
   it("puts the build before every check that reads build output", () => {
     const buildIndex = verifySteps.indexOf("pnpm build");
 
     expect(buildIndex).toBeGreaterThanOrEqual(0);
-    // check:dts and check:studio-bundle both read dist/ and exit 1 with "Run the build first".
     expect(verifySteps.indexOf("pnpm check:dts")).toBeGreaterThan(buildIndex);
     expect(verifySteps.indexOf("pnpm check:studio-bundle")).toBeGreaterThan(buildIndex);
   });
@@ -131,10 +137,13 @@ describe("the root verify script mirrors the CI build-and-test job", () => {
     expect(ciGateChecks.length).toBeGreaterThanOrEqual(9);
   });
 
+  /**
+   * The e2e job runs a build of its own, which is what makes it a usable canary: if the scoping
+   * broke, that build would be pulled into the build-and-test list and surface as a duplicate.
+   */
   it("scopes the parse to build-and-test, excluding the other jobs' pnpm commands", () => {
     const e2eChecks = gateChecks(runCommands(jobBlock(CI_WORKFLOW, "e2e")));
 
-    // e2e runs its own build; if the scoping broke, that would show up as a duplicate.
     expect(e2eChecks).toContain("pnpm build");
     expect(ciGateChecks.filter((step) => step === "pnpm build")).toHaveLength(1);
   });

@@ -104,6 +104,11 @@ export interface LocaleRunResult {
   readonly cacheAdditions: readonly CacheAddition[];
 }
 
+/**
+ * One translation that passed the integrity gate. `source` is the source entry the value was gated
+ * against, kept alongside it because the merged target entry is built from it and its content hash
+ * is what keys the value's cache addition.
+ */
 interface Accepted {
   readonly value: string;
   readonly source: TranslationEntry;
@@ -251,6 +256,11 @@ function fanOutContentDuplicates(
   }
 }
 
+/**
+ * Applies one group's representative outcome to its duplicates. An accepted representative hands
+ * its value out through {@link fanOutAccepted}, which re-gates it per duplicate; a withheld one has
+ * the single bucket it landed in mirrored onto every duplicate.
+ */
 function applyGroupOutcome(
   params: LocaleRunParams,
   group: MissGroup,
@@ -311,6 +321,12 @@ function withheldBucketFor(representative: string, outcome: TranslationOutcome):
   return outcome.providerFailures;
 }
 
+/**
+ * Assembles one provider request for `entries`. The adapter's `extractPlaceholders` always travels
+ * with the request; `glossary`, `tone`, and the adapter's optional `comparePlaceholders` are spread
+ * in only when defined rather than passed as an explicit undefined, which
+ * `exactOptionalPropertyTypes` rejects.
+ */
 function buildRequest(
   params: LocaleRunParams,
   entries: readonly TranslationEntry[],
@@ -329,12 +345,45 @@ function buildRequest(
 }
 
 /**
+ * Whether this locale's target file has to be written at all.
+ *
+ * A run that accepted, pruned and generated nothing leaves the merged resource exactly as it was
+ * read, so writing it back cannot change the content. Skipping is not merely an optimisation: the
+ * atomic write replaces the inode, which churns the mtime and retriggers third-party file watchers,
+ * and it reformats a hand-formatted target to canonical form, which can fail a drift check that
+ * runs `verbatra translate` and then `git diff --exit-code`.
+ *
+ * An absent target is written anyway. A first run for a new locale also accepts nothing when there
+ * is nothing to translate, and skipping there would leave no file at all, so a later `import` of
+ * that locale would fail on a missing file instead of reading an empty one.
+ *
+ * Both halves are pinned by tests in `no-op-write.test.ts`. Neither may be simplified away: the
+ * existence check in particular looks redundant next to the counts and is not.
+ *
+ * @param params - The locale run parameters, for the file-system seam.
+ * @param path - The resolved target locale file path.
+ * @param changed - How many keys this run accepted, pruned, and generated.
+ */
+async function shouldWriteTarget(
+  params: LocaleRunParams,
+  path: string,
+  changed: { readonly accepted: number; readonly pruned: number; readonly generated: number },
+): Promise<boolean> {
+  if (changed.accepted > 0 || changed.pruned > 0 || changed.generated > 0) {
+    return true;
+  }
+  return !(await params.fs.fileExists(path));
+}
+
+/**
  * Runs one target locale: read, diff, translate, integrity-check, write, and compute the lock
  * entries. A dry-run (provider undefined) stops after the diff and reports what would change.
  * Accepted translations are applied in source-document order, not diff order, so a key already in
  * the target keeps its position (Map.set semantics) and a new key appends where the source puts it.
  * When generation is on, source-absent keys that look like generated plural forms are kept out of
  * the orphaned and pruned lists. May throw; the orchestrator isolates that as a per-locale failure.
+ *
+ * The target write is conditional; {@link shouldWriteTarget} carries the two rules that govern it.
  */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
   const target = await readTargetResource({
@@ -435,17 +484,12 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   }
 
   const path = localeFilePath(params.cwd, params.filesPattern, params.targetLocale);
-  // Nothing accepted, pruned or generated means `merged` is exactly what was read, so writing it
-  // back cannot change the content. The write is skipped rather than performed for the same result:
-  // the atomic write replaces the inode, which churns the mtime and retriggers third-party file
-  // watchers, and it reformats a hand-formatted target to canonical form, which can fail a drift
-  // check that runs `verbatra translate` and then `git diff --exit-code`.
-  //
-  // The target must already exist for the skip to apply. A first run for a new locale also accepts
-  // nothing when there is nothing to translate, and skipping there would leave no file at all, so a
-  // later `import` of that locale would fail on a missing file instead of reading an empty one.
-  const changedSomething = accepted.size > 0 || pruned.length > 0 || generation.accepted.length > 0;
-  if (changedSomething || !(await params.fs.fileExists(path))) {
+  const writeNeeded = await shouldWriteTarget(params, path, {
+    accepted: accepted.size,
+    pruned: pruned.length,
+    generated: generation.accepted.length,
+  });
+  if (writeNeeded) {
     await params.adapter.write(
       {
         locale: params.targetLocale,
@@ -576,6 +620,11 @@ interface SummaryParts {
   readonly needsReview?: readonly NeedsReviewEntry[];
 }
 
+/**
+ * Assembles this locale's {@link LocaleSummary} from the run's buckets, deriving `status` from them.
+ * The workbook-import fields (`unfilled`, `malformedRows`, `duplicateKeys`) are always empty here:
+ * only an import populates them, and the provider path builds no such findings.
+ */
 function baseSummary(parts: SummaryParts): LocaleSummary {
   return {
     locale: parts.locale,

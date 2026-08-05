@@ -59,13 +59,21 @@ describe("createVitestConfig", () => {
 describe("AC3 guard: every consumer vitest.config goes through the preset", () => {
   const packagesDir = join(import.meta.dirname, "..");
 
-  /** @returns {{ pkg: string, path: string, source: string }[]} */
+  /**
+   * Every consumer package's vitest config, one entry per file that exists. The `config` package
+   * itself is skipped: it owns the preset and imports it by relative path, so it is not a consumer.
+   * Both config file names are probed per package and a package normally carries only one, so the
+   * read of the name it does not use is expected to throw; that failure is swallowed and the sweep
+   * keeps looking. A package that has dropped out of the sweep entirely is caught by the count
+   * assertion below, not here.
+   *
+   * @returns {{ pkg: string, path: string, source: string }[]}
+   */
   function collectConsumerConfigs() {
     const entries = readdirSync(packagesDir, { withFileTypes: true });
     const configs = [];
 
     for (const entry of entries) {
-      // The config package owns the preset and imports it by relative path, so it is not a consumer.
       if (!entry.isDirectory() || entry.name === "config") {
         continue;
       }
@@ -74,9 +82,7 @@ describe("AC3 guard: every consumer vitest.config goes through the preset", () =
         const path = join(packagesDir, entry.name, file);
         try {
           configs.push({ pkg: entry.name, path, source: readFileSync(path, "utf8") });
-        } catch {
-          // A missing config file for this name is expected; keep looking.
-        }
+        } catch {}
       }
     }
 

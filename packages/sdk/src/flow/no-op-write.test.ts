@@ -127,7 +127,11 @@ describe("translate: a live run that changes nothing does not rewrite the target
     expect(await readFile(targetPath(dir, "de"), "utf8")).not.toContain("gone");
   });
 
-  it("does not skip the write when an orphan is reported but pruning is off", async () => {
+  /**
+   * Reporting an orphan is not by itself a reason to touch the file. Nothing is accepted and nothing
+   * is pruned, so the target is left exactly as it was, orphan included.
+   */
+  it("skips the write when an orphan is reported but pruning is off", async () => {
     const dir = await project({ a: "A" }, { de: { a: "da", gone: "weg" } });
     const stub = makeStubProvider();
     const { registry, writes } = spyingRegistry();
@@ -137,15 +141,17 @@ describe("translate: a live run that changes nothing does not rewrite the target
       { createProvider: () => stub.provider, adapterRegistry: registry },
     );
 
-    // Nothing accepted and nothing pruned, so the file is left exactly as it was, orphan included.
     expect(summary.locales[0]?.orphaned).toEqual(["gone"]);
     expect(writes).toEqual([]);
     expect(await readFile(targetPath(dir, "de"), "utf8")).toContain("gone");
   });
 
+  /**
+   * The boundary the write skip must not swallow. An empty source means nothing is accepted, which is
+   * the same predicate a no-op run hits, so the skip has to yield to the create: the file must appear
+   * anyway, or a later import of this locale fails on a missing file.
+   */
   it("still creates a target that does not exist yet, even with nothing to translate", async () => {
-    // An empty source means nothing is accepted, which is the same predicate a no-op run hits. The
-    // file must appear anyway, or a later import of this locale fails on a missing file.
     const dir = await project({}, { de: undefined });
     const stub = makeStubProvider();
     const { registry, writes } = spyingRegistry();

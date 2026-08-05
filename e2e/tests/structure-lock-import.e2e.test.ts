@@ -10,12 +10,13 @@ import {
 } from "../src/harness.js";
 
 /**
- * QA gap (a): the export now re-zips the workbook with a workbook-structure lock, and the read no
- * longer throws on a bad row. The existing round-trip e2e re-saves the workbook through exceljs before
- * import, which strips that injected lock, so no e2e imports the structure-locked artifact directly.
- * This test drives `verbatra import` on the exact protected file that `verbatra export` produced, with
- * no exceljs touch, proving the CLI import path opens the re-zipped, structure-locked workbook. The
- * cells are left unfilled, so import applies nothing and exits 0, and the target file is untouched.
+ * The export re-zips the workbook with a workbook-structure lock, and the read no longer throws on
+ * a bad row. The existing round-trip e2e re-saves the workbook through exceljs before import, which
+ * strips that injected lock, so no other e2e imports the structure-locked artifact directly. This
+ * test drives `verbatra import` on the exact bytes `verbatra export` produced, with no exceljs
+ * touch in between, so the injected `workbookProtection` lock is still present in the file the CLI
+ * import path opens. The cells are left unfilled, so import applies nothing and exits 0: the target
+ * locale keeps its existing value and gains no new key.
  */
 
 let consumer: Consumer;
@@ -44,11 +45,9 @@ describe("import a structure-locked export directly (no exceljs re-save)", () =>
     const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
     expect(exported.exitCode).toBe(0);
 
-    // Import the exact bytes the exporter wrote: the workbookProtection lock is still present.
     const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir]);
     expect(imported.exitCode).toBe(0);
 
-    // Nothing was filled, so the target locale is unchanged and no new key appears.
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
     expect(de.greeting).toBe("Hallo {{name}}");
     expect(de.farewell).toBeUndefined();

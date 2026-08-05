@@ -9,6 +9,8 @@ export const DEEPL_MAX_TEXTS_PER_REQUEST = 50;
  */
 const DEEPL_MAX_PAYLOAD_BYTES = 128 * 1024;
 const DEEPL_PAYLOAD_OVERHEAD_RESERVE_BYTES = 4 * 1024;
+
+/** The budget chunking compares against: the documented cap less the reserved overhead above. */
 export const DEEPL_MAX_TEXT_PAYLOAD_BYTES =
   DEEPL_MAX_PAYLOAD_BYTES - DEEPL_PAYLOAD_OVERHEAD_RESERVE_BYTES;
 

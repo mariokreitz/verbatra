@@ -25,6 +25,7 @@ const SEARCH_PLACES = [
   `${MODULE_NAME}.config.ts`,
 ];
 
+/** Where {@link loadConfig} should obtain the configuration. The three sources are alternatives. */
 export interface LoadConfigOptions {
   /** Directory to start the search from. Defaults to the current working directory. */
   readonly cwd?: string;

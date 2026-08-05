@@ -526,21 +526,26 @@ describe("the script end to end in a real repository", () => {
     expect(result.output).toContain("fetch-depth");
   });
 
+  /**
+   * Reproduces what actions/checkout leaves in the workspace for a pull request: HEAD is a merge
+   * ref whose first parent is the base commit the ref was built on, which is not necessarily the
+   * current tip of the base branch. The fixture builds a feature branch touching nothing
+   * dependency-related, merges it to produce that merge ref, then advances the base branch with an
+   * unrelated bundled bump. Reading the base from `HEAD^1` is what keeps that later bump out of the
+   * comparison; taking the passed base sha at face value would blame this pull request for it.
+   */
   it("takes the base from the merge ref's first parent, not a base sha that moved on", () => {
     const dir = makeRepo();
     const mergeBase = git(dir, ["rev-parse", "HEAD"]);
 
-    // A pull request that touches nothing dependency-related.
     git(dir, ["checkout", "--quiet", "-b", "feature"]);
     write(dir, "packages/sdk/README.md", "docs only\n");
     commit(dir, "docs only");
 
-    // The merge ref actions/checkout leaves at HEAD: first parent is the base it was built on.
     git(dir, ["checkout", "--quiet", "main"]);
     git(dir, ["merge", "--quiet", "--no-ff", "-m", "merge ref", "feature"]);
     const mergeRef = git(dir, ["rev-parse", "HEAD"]);
 
-    // Meanwhile main moves on with an unrelated bundled bump.
     git(dir, ["checkout", "--quiet", "-b", "advanced-main"]);
     bumpOpenai(dir, "9.9.9");
     const advancedBase = commit(dir, "unrelated bundled bump on the base branch");
