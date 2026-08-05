@@ -629,6 +629,25 @@ describe("run: .env loading is wired before the SDK flow", () => {
     expect(readFileSync(join(dir, ".gitignore"), "utf8")).toBe(before);
   });
 
+  it("import --dry-run leaves .gitignore untouched when the workbook cannot be read", async () => {
+    const before = ".env\n";
+    writeFileSync(join(dir, ".gitignore"), before);
+    const { deps } = recordingDeps({
+      importWorkbook: async () => {
+        throw new Error("workbook is unreadable");
+      },
+    });
+
+    const code = await run(
+      ["import", "book.xlsx", "--dry-run", "--cwd", dir],
+      deps,
+      captureStreams().streams,
+    );
+
+    expect(code).not.toBe(0);
+    expect(readFileSync(join(dir, ".gitignore"), "utf8")).toBe(before);
+  });
+
   it("translate creates no .gitignore when the project has none", async () => {
     const { deps } = recordingDeps();
 
