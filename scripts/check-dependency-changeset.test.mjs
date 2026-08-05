@@ -519,7 +519,7 @@ describe("the script end to end in a real repository", () => {
   it("fails loudly when an explicit base ref is not in the clone", () => {
     const dir = makeRepo();
 
-    const result = run(dir, { BASE_SHA: "0".repeat(40), HEAD_BRANCH: "chore/bump" });
+    const result = run(dir, { BASE_SHA: "1".repeat(40), HEAD_BRANCH: "chore/bump" });
 
     expect(result.code).toBe(1);
     expect(result.output).toContain("does not resolve");
@@ -551,11 +551,69 @@ describe("the script end to end in a real repository", () => {
     const advancedBase = commit(dir, "unrelated bundled bump on the base branch");
 
     git(dir, ["checkout", "--quiet", mergeRef]);
-    const result = run(dir, { BASE_SHA: advancedBase, HEAD_BRANCH: "feature" });
+    const result = run(dir, {
+      BASE_SHA: advancedBase,
+      HEAD_SHA: git(dir, ["rev-parse", "HEAD^2"]),
+      HEAD_BRANCH: "feature",
+    });
 
     expect(git(dir, ["rev-parse", "HEAD^1"])).toBe(mergeBase);
     expect(result.code).toBe(0);
     expect(result.output).toContain("no published package's resolved dependencies changed");
+  });
+
+  it("treats the all-zero base a branch-creating push reports as absent", () => {
+    const dir = makeRepo();
+    bumpOpenai(dir, "8.0.0");
+    commit(dir, "bump openai");
+
+    const result = run(dir, { BASE_SHA: "0".repeat(40), HEAD_BRANCH: "chore/bump" });
+
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("nothing to compare against");
+  });
+
+  it("uses the base it was given when HEAD is an ordinary merge commit", () => {
+    // The shape an integration branch ends in: feature branches merged back with --no-ff. The bump
+    // lands early, then a later merge becomes the tip, so the tip's first parent already contains
+    // it. Preferring that first parent on merge-shape alone silently compared the branch against
+    // itself and passed an undisclosed bump, which is the exact failure this guard exists to catch.
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    bumpOpenai(dir, "8.0.0");
+    commit(dir, "bump openai early, no changeset");
+    git(dir, ["checkout", "--quiet", "-b", "side"]);
+    write(dir, "NOTE.md", "docs\n");
+    commit(dir, "an unrelated later commit");
+    git(dir, ["checkout", "--quiet", "main"]);
+    git(dir, ["merge", "--quiet", "--no-ff", "-m", "merge the side branch", "side"]);
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "integration" });
+
+    expect(git(dir, ["rev-list", "--parents", "-n", "1", "HEAD"]).split(/\s+/)).toHaveLength(3);
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("openai: 7.3.0 -> 8.0.0");
+  });
+
+  it("prefers the merge ref's first parent only when HEAD_SHA proves it is one", () => {
+    const dir = makeRepo();
+    const staleBase = git(dir, ["rev-parse", "HEAD"]);
+    git(dir, ["checkout", "--quiet", "-b", "feature"]);
+    write(dir, "NOTE.md", "docs only\n");
+    const featureTip = commit(dir, "docs only");
+    git(dir, ["checkout", "--quiet", "main"]);
+    // Main moves on with an unrelated bundled bump, making the recorded base stale.
+    bumpOpenai(dir, "9.9.9");
+    commit(dir, "unrelated bump on the base branch");
+    git(dir, ["merge", "--quiet", "--no-ff", "-m", "merge ref", "feature"]);
+
+    // HEAD_SHA matches the second parent, so this is a real merge ref: use its first parent and
+    // the stale base is correctly ignored.
+    expect(
+      run(dir, { BASE_SHA: staleBase, HEAD_SHA: featureTip, HEAD_BRANCH: "feature" }).code,
+    ).toBe(0);
+    // Without that proof the given base is honoured, which reports main's own bump.
+    expect(run(dir, { BASE_SHA: staleBase, HEAD_BRANCH: "feature" }).code).toBe(1);
   });
 
   it("exempts the exact Version Packages branch and no lookalike", () => {

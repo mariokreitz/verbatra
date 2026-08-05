@@ -38,6 +38,9 @@
  * Usage (BASE_SHA defaults to origin/main, so it also runs locally):
  * BASE_SHA=<sha> HEAD_BRANCH=<branch> node scripts/check-dependency-changeset.mjs
  *
+ * `HEAD_SHA` is set only by the pull-request job, and only to let the guard recognise GitHub's
+ * merge ref. A base passed in `BASE_SHA` is otherwise always used exactly as given.
+ *
  * The pure functions are exported for the unit tests; main runs only when the file is invoked as a
  * script, not when it is imported.
  */
@@ -423,12 +426,27 @@ function readAddedChangesets(baseRef) {
  * On a `pull_request` event actions/checkout leaves HEAD at the merge ref, whose first parent is by
  * construction the base commit that merge was built on. Using it removes any dependence on the base
  * sha the event payload reported, which can be stale by the time the job runs and would otherwise
- * attribute an unrelated base-branch bump to this pull request. Everywhere else, fall back to the
- * configured ref.
+ * attribute an unrelated base-branch bump to this pull request.
+ *
+ * The merge ref is identified by proof, not by shape: HEAD must have two parents AND its second
+ * parent must be exactly the pull request's head sha. Testing "HEAD has two parents" alone was a
+ * defect, because it silently discarded an explicitly supplied base whenever HEAD happened to be an
+ * ordinary merge commit. A branch built the way this repository builds integration branches (feature
+ * branches merged back with `--no-ff`) ends at such a commit, and comparing against its first parent
+ * hides everything that landed before the final merge. That is the exact failure this guard exists
+ * to prevent, so the narrow test matters: given a correct base, the guard must never ignore it.
+ *
+ * Everywhere else, including a push and any local run, the configured base is used as given.
+ *
+ * @param configuredBase - The base ref supplied by the caller.
+ * @param headSha - The pull request's head sha, when running on a pull request.
  */
-function resolveBaseRef(configuredBase) {
+function resolveBaseRef(configuredBase, headSha) {
+  if (headSha === undefined || headSha === "") {
+    return configuredBase;
+  }
   const parents = git(["rev-list", "--parents", "-n", "1", "HEAD"]).split(/\s+/);
-  return parents.length === 3 ? "HEAD^1" : configuredBase;
+  return parents.length === 3 && parents[2] === headSha ? "HEAD^1" : configuredBase;
 }
 
 /** The changesets base branch, which fixes the exact name of the exempt Version Packages branch. */
@@ -461,11 +479,15 @@ function reportUnaccompanied(changes) {
 }
 
 function main() {
-  const configuredBase = process.env.BASE_SHA?.trim() || "origin/main";
+  const rawBase = process.env.BASE_SHA?.trim() ?? "";
+  // A push that creates a branch reports an all-zero "before" sha, which resolves to nothing.
+  const explicitBase = /^0+$/.test(rawBase) ? "" : rawBase;
+  const configuredBase = explicitBase || "origin/main";
   const headBranch = process.env.HEAD_BRANCH?.trim();
+  const headSha = process.env.HEAD_SHA?.trim();
 
   if (!refExists(configuredBase)) {
-    if (process.env.BASE_SHA?.trim()) {
+    if (explicitBase) {
       throw new Error(
         `BASE_SHA "${configuredBase}" does not resolve in this clone. The checkout needs ` +
           "fetch-depth: 0 for the guard to see the base commit.",
@@ -477,7 +499,7 @@ function main() {
     return;
   }
 
-  const baseRef = resolveBaseRef(configuredBase);
+  const baseRef = resolveBaseRef(configuredBase, headSha);
   const base = resolveAtCommit(baseRef);
   const head = resolveAtCommit("HEAD");
   if (base === null || head === null) {

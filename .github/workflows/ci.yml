@@ -113,11 +113,16 @@ jobs:
           node-version: "22.14.0"
 
       - name: Guard published dependency changes against a missing changeset
-        # BASE_SHA is empty on a push to main, where the script falls back to origin/main and finds
-        # nothing to compare. HEAD_BRANCH carries the changeset-release exemption; there is
-        # deliberately no exemption by actor, since a bot is the case this guard exists for.
+        # On a pull request the base comes from the event and HEAD_SHA lets the guard confirm that
+        # HEAD really is GitHub's merge ref before preferring its first parent, which is immune to a
+        # base sha that moved on. On a push the base is the commit main pointed at beforehand, so
+        # the comparison covers exactly what the push introduced; falling back to origin/main there
+        # would compare main against itself and pass everything. HEAD_BRANCH carries the
+        # changeset-release exemption; there is deliberately no exemption by actor, since a bot is
+        # the case this guard exists for.
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_BRANCH: ${{ github.head_ref }}
         run: node scripts/check-dependency-changeset.mjs
 

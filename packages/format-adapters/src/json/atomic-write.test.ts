@@ -329,6 +329,12 @@ describe("atomicWriteFile: symlink and mode policy", () => {
 
     const after = await lstat(target);
     expect(after.ino).not.toBe(inodeBefore);
-    expect(after.mode & 0o777).not.toBe(0o600);
+    // The replacement takes the mode a fresh file gets under the current umask, not the target's.
+    // Compared against a sibling created the same way rather than against a literal, because
+    // 0o666 & ~umask equals 0o600 under a hardened umask and a literal would fail there while the
+    // behaviour is unchanged.
+    const sibling = join(dir, "fresh.json");
+    await writeFile(sibling, "x", "utf8");
+    expect(after.mode & 0o777).toBe((await lstat(sibling)).mode & 0o777);
   });
 });

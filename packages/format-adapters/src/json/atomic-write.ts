@@ -67,9 +67,14 @@ export function tempFileName(path: string): string {
  * pattern is free to put the locale in a directory rather than the filename, and the first run for
  * a new locale then has nowhere to write. Skipping this produced a raw `ENOENT` naming the hidden
  * temp sibling rather than the configured path, which is a file the user never asked for and
- * cannot find. It also mirrors what the SDK already does for its own artifacts, so verbatra no
- * longer creates directories for the files it owns but not for the user's. `recursive: true` makes
- * it a no-op in the overwhelmingly common case where the directory is already there.
+ * cannot find. `recursive: true` makes it a no-op in the overwhelmingly common case where the
+ * directory is already there.
+ *
+ * Note that the SDK's own atomic write does NOT do this, so its callers each handle a missing
+ * directory themselves or fail: only the run-status snapshot creates one (at its own call site),
+ * while the lock file and cache resolve flat into a directory that always exists, and
+ * `export --out` into a missing directory still fails. Do not read this paragraph as describing
+ * both write paths.
  * Same-directory placement keeps source and destination on one filesystem so the rename is
  * atomic; a reader never sees a truncated file. The temp-file fsync happens before the rename,
  * so by the time the rename is issued its bytes are already flushed to storage; a crash after

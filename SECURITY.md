@@ -31,8 +31,9 @@ packages on npm or the repository's releases.
 
 ## Supply-chain controls
 
-The published packages are protected by controls that are enforced rather than
-observed, so a regression shows up as a failure instead of going unnoticed.
+The published packages are protected by the controls below. Most are enforced by
+CI or by GitHub rather than by convention, so a regression shows up as a failure;
+where that is not the case it is said so explicitly.
 
 - **Publishing uses npm Trusted Publishing over OIDC.** There is no long-lived
   npm token in the repository or in CI to steal or leak.
@@ -45,14 +46,18 @@ observed, so a regression shows up as a failure instead of going unnoticed.
   runtime image, which its author controls.
 - **The lockfile is committed and CI installs are frozen**, so a build resolves
   the exact dependency tree that was reviewed.
-- **The workflow token is least-privilege**, with write scopes granted per job
-  rather than workflow-wide.
+- **Workflows default to a read-only token.** Every workflow declares
+  `contents: read` at the top, and the release workflow confines its publishing
+  token to the single job that publishes. One exception is worth naming rather
+  than glossing over: the CI workflow still grants its OIDC token workflow-wide
+  instead of only to the job that uploads coverage. Narrowing that is tracked.
 - **Dependencies are audited weekly** and the code is scanned weekly with CodeQL,
   so a newly disclosed advisory surfaces without waiting for a code change.
 - **A change to what a published package makes consumers install must ship with a
   changelog entry.** CI fails a pull request that moves one of those versions
-  without one, whoever or whatever authored it, so a dependency cannot change
-  underneath a release unannounced.
+  without one, including a pull request opened by a bot, which is the case it was
+  built for. It is a presence check: it requires an entry to accompany the change
+  and does not judge what that entry says.
 
 ## Handling of API keys
 
