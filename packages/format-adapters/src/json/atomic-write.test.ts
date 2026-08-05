@@ -18,6 +18,9 @@ import { createI18nextJsonAdapter } from "../i18next/i18next-adapter.js";
 import { type AtomicWriteOps, atomicWriteFile, tempFileName } from "./atomic-write.js";
 
 const realOps: AtomicWriteOps = {
+  mkdir: async (path) => {
+    await mkdir(path, { recursive: true });
+  },
   writeFile: (path, data) => writeFile(path, data, "utf8"),
   fsyncFile: async () => {},
   rename: (from, to) => rename(from, to),
@@ -160,11 +163,15 @@ describe("atomicWriteFile", () => {
 });
 
 describe("atomicWriteFile durability sequencing", () => {
-  it("calls writeFile, fsyncFile, rename, fsyncDir in that exact order on the happy path", async () => {
+  it("calls mkdir, writeFile, fsyncFile, rename, fsyncDir in that exact order on the happy path", async () => {
     const dir = await makeDir();
     const target = join(dir, "en.json");
     const calls: string[] = [];
     const ops: AtomicWriteOps = {
+      mkdir: async (path) => {
+        calls.push("mkdir");
+        await realOps.mkdir(path);
+      },
       writeFile: async (path, data) => {
         calls.push("writeFile");
         await realOps.writeFile(path, data);
@@ -186,7 +193,7 @@ describe("atomicWriteFile durability sequencing", () => {
 
     await atomicWriteFile(target, "DATA\n", ops);
 
-    expect(calls).toEqual(["writeFile", "fsyncFile", "rename", "fsyncDir"]);
+    expect(calls).toEqual(["mkdir", "writeFile", "fsyncFile", "rename", "fsyncDir"]);
   });
 
   it("aborts before rename, cleans up the temp, and rethrows when fsyncFile rejects", async () => {
@@ -245,6 +252,47 @@ describe("atomic write integration (byte-identical adapter output)", () => {
 
     expect(await readFile(target, "utf8")).toBe(`{\n  "greeting": "Hi"\n}\n`);
     expect(await readdir(dir)).toEqual(["en.json"]);
+  });
+});
+
+describe("atomicWriteFile: the target directory", () => {
+  it("creates a missing parent directory rather than failing", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "de", "common.json");
+
+    await atomicWriteFile(target, "DATA\n", realOps);
+
+    expect(await readFile(target, "utf8")).toBe("DATA\n");
+  });
+
+  it("creates a deeply nested parent, as a locale layout like de/LC_MESSAGES/ needs", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "locales", "de", "LC_MESSAGES", "messages.json");
+
+    await atomicWriteFile(target, "DATA\n", realOps);
+
+    expect(await readFile(target, "utf8")).toBe("DATA\n");
+  });
+
+  it("leaves no temp file behind when the directory had to be created", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "de", "common.json");
+
+    await atomicWriteFile(target, "DATA\n", realOps);
+
+    expect(await readdir(join(dir, "de"))).toEqual(["common.json"]);
+  });
+
+  it("propagates a directory-creation failure and writes nothing", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "de", "common.json");
+    const ops: AtomicWriteOps = {
+      ...realOps,
+      mkdir: () => Promise.reject(new Error("mkdir denied")),
+    };
+
+    await expect(atomicWriteFile(target, "DATA\n", ops)).rejects.toThrow("mkdir denied");
+    expect(await readdir(dir)).toEqual([]);
   });
 });
 

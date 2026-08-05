@@ -185,6 +185,43 @@ describe("export then import round-trip (no provider)", () => {
   });
 });
 
+describe("a locale whose directory does not exist yet", () => {
+  it("imports into a nested per-locale path, creating the directory", async () => {
+    // The locale lives in a directory rather than the filename, which is the standard i18next
+    // namespace layout. locales/de/ does not exist, so writing the target has to create it.
+    const dir = await seedProject(
+      "nested-locale-path",
+      { ...i18nextConfig, files: { pattern: "locales/{locale}/common.json" } },
+      { "locales/en/common.json": { greeting: "Hello {{name}}", farewell: "Goodbye" } },
+    );
+
+    const workbookPath = join(dir, "verbatra-translations.xlsx");
+    const exported = await runVerbatra(consumer, ["export", "--out", workbookPath, "--cwd", dir]);
+    expect(exported.exitCode).toBe(0);
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(workbookPath);
+    for (const sheet of workbook.worksheets) {
+      if (sheet.name === INSTRUCTIONS_SHEET) {
+        continue;
+      }
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === HEADER_ROW) {
+          return;
+        }
+        row.getCell(TRANSLATION_COLUMN).value = "Auf Wiedersehen";
+      });
+    }
+    await workbook.xlsx.writeFile(workbookPath);
+
+    const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir]);
+    expect(imported.exitCode).toBe(0);
+
+    const de = await readJsonIn<Record<string, string>>(dir, "locales/de/common.json");
+    expect(de.farewell).toBe("Auf Wiedersehen");
+  });
+});
+
 describe("other formats (read-only, no provider)", () => {
   it("checks a YAML project", async () => {
     const dir = await seedProject(
