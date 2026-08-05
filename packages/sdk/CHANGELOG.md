@@ -1,5 +1,88 @@
 # @verbatra/sdk
 
+## 0.6.4
+
+### Patch Changes
+
+- 07df69b: Create a locale file's directory instead of failing when it does not exist.
+
+  Adding a target locale failed outright for any project whose `files.pattern` puts the locale in a
+  directory rather than the filename. `locales/{locale}/common.json`, the standard layout for i18next
+  namespaces, is the common case: the first run for a new locale has nowhere to write, so the write
+  threw.
+
+  The failure was also hard to act on. It surfaced as a raw `ENOENT` naming the hidden temporary file
+  the atomic write uses, not the path configured in `files.pattern`, so the error pointed at a file
+  that had never been asked for and no longer existed by the time anyone looked.
+
+  The write path now creates the containing directory first. It applies to every format, since they
+  all write through the same path, and it is a no-op for the flat `locales/{locale}.json` layout
+  where the directory is already there.
+
+  This covers the locale files an adapter writes. `verbatra export --out` still fails the same way
+  when the workbook's directory does not exist, because that goes through a different write inside
+  the SDK; it is tracked separately.
+
+- e6de185: Disclose four bundled runtime dependency moves that shipped undisclosed in 0.6.3.
+
+  These versions changed in `@verbatra/sdk`'s published `dependencies` between 0.6.2 and 0.6.3
+  without a changeset or a changelog entry. They are real dependencies of the published tarball,
+  not internals, so each one lands in a consumer's `node_modules`, lockfile, `npm audit` output
+  and SBOM. This entry is the retroactive record; no version moves as part of it.
+
+  - `openai` 6.46.0 to 7.3.0
+  - `@anthropic-ai/sdk` 0.111.0 to 0.115.0
+  - `@google/genai` 2.11.0 to 2.15.0
+  - `@formatjs/icu-messageformat-parser` 3.5.11 to 3.5.16
+
+  `openai` is the only major. Its sole breaking change is a new `engines.node` floor of `>=22.0.0`,
+  which every published verbatra package already subsumes by declaring `>=22.14.0`, so no consumer
+  meeting verbatra's own floor is affected. The provider seam was verified against the new major
+  rather than assumed compatible: the emitted error modules are byte-identical between the two
+  versions, which is the check that matters because provider error classification matches on the
+  runtime constructor name, and the `ChatModel` union is unchanged, so the published declarations
+  do not shift either. `@anthropic-ai/sdk` was checked to the same depth. `@google/genai` and
+  `@formatjs/icu-messageformat-parser` are recorded as version moves only, with no compatibility
+  claim beyond a green build and test suite.
+
+  Nothing is being rolled back. CI now fails any pull request that changes what a published package
+  makes consumers install without a changeset, so this class of silent move cannot recur.
+
+- 1ae3be9: Report a contended lock even when the acquire budget has already elapsed.
+
+  `onWait` is documented to fire once right after the first failed acquire, so a caller can render a
+  "still waiting" line. It did not fire at all when the acquire budget elapsed during that first
+  attempt: the deadline was checked before the notification, so the call threw `LOCK_CONTENDED`
+  having reported nothing, and a caller that had asked to be told about contention saw only the
+  failure.
+
+  The notification now runs before the deadline check. On the ordinary path nothing changes, because
+  the notifier already throttles a notice emitted moments after the previous one.
+
+  The CLI is unaffected, since `--lock-timeout` is taken in whole seconds and so never produces a
+  budget short enough to hit this. It is reachable from the SDK, where `lockAcquireTimeoutMs` accepts
+  any millisecond value.
+
+- 9aafc43: Leave a target locale file untouched when a run changes nothing in it.
+
+  `translate` rewrote every target file on every run, even when nothing was translated, pruned or
+  generated. The content was identical, so the change was invisible in git for a file already in
+  verbatra's formatting, but the write still replaced the file: the inode and mtime changed on every
+  run, which retriggers third-party file watchers (Vite, webpack, a framework dev server) for no
+  reason, and a hand-formatted target was reformatted to canonical form the first time.
+
+  That reformatting is the case that could actually fail a build. A drift check that runs
+  `verbatra translate` and then `git diff --exit-code` would report a change on a project whose
+  locale files were formatted by hand, even though no translation happened.
+
+  The write is now skipped when nothing was accepted, pruned or generated, and the target already
+  exists. The existing-target condition matters: a first run for a new locale also accepts nothing
+  when there is nothing to translate, and the file must still be created there, or a later `import`
+  of that locale would fail on a missing file rather than reading an empty one.
+
+  Nothing else changes. Lock-file entries, the translation-memory cache and the run summary are all
+  computed exactly as before, so a skipped write never hides a key from the summary or the lock file.
+
 ## 0.6.3
 
 ### Patch Changes
