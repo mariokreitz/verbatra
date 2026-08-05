@@ -205,6 +205,31 @@ describe("withLocaleWriteLock: wait progress", () => {
     });
   }
 
+  it("reports the wait even when the acquire budget has already elapsed", async () => {
+    // A zero budget means the deadline has passed by the time the first attempt fails. The caller
+    // asked to be told about contention, so it must still hear about it before the throw rather
+    // than seeing only the failure. Checking the deadline before notifying loses that notice.
+    const fs = makeContendedFs(Number.POSITIVE_INFINITY, async () => ({
+      kind: "ok",
+      content: JSON.stringify({ pid: 9876, acquiredAt: "2026-08-05T00:00:00.000Z" }),
+    }));
+    const events: LockWaitEvent[] = [];
+
+    await expect(
+      withLocaleWriteLock("/proj", "de", fs, async () => undefined, {
+        pollIntervalMs: 50,
+        acquireTimeoutMs: 0,
+        onWait: (event) => events.push(event),
+      }),
+    ).rejects.toMatchObject({ code: "LOCK_CONTENDED" });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      lockPath: localeLockPath("/proj", "de"),
+      holder: { pid: 9876 },
+    });
+  });
+
   it("invokes onWait once after the first failed acquire, carrying the holder pid and acquiredAt", async () => {
     vi.useFakeTimers();
     const fs = makeContendedFs(1, async () => ({

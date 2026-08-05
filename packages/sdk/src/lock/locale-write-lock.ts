@@ -151,6 +151,13 @@ function makeWaitNotifier(
  * Repeatedly attempt `fs.createExclusive(path, ...)` until it succeeds, sleeping a jittered
  * `pollIntervalMs` between attempts, until `deadline` (a `Date.now()`-comparable timestamp) passes.
  * When `notify` is supplied, it runs after each failed attempt to surface wait progress.
+ *
+ * `notify` runs before the deadline check, not after, and the order is load-bearing. Checking the
+ * deadline first means an attempt that fails when the budget has already elapsed throws without
+ * ever reporting that it waited, so a caller asked to be told about contention is told nothing and
+ * sees only the failure. That contradicts {@link LocaleWriteLockOptions.onWait}, which promises a
+ * notice right after the first failed attempt. Notifying first costs nothing on the ordinary path,
+ * where the throttle in the notifier suppresses a duplicate emitted moments after the previous one.
  */
 async function acquireLock(
   path: string,
@@ -163,6 +170,9 @@ async function acquireLock(
     if (await fs.createExclusive(path, lockPayload())) {
       return;
     }
+    if (notify !== undefined) {
+      await notify();
+    }
     if (Date.now() >= deadline) {
       throw new SdkError(
         "LOCK_CONTENDED",
@@ -170,9 +180,6 @@ async function acquireLock(
           "verbatra process is currently running, this lock file was likely left behind by one " +
           "that was killed; delete it and retry.",
       );
-    }
-    if (notify !== undefined) {
-      await notify();
     }
     const jitter = Math.random() * pollIntervalMs;
     await sleep(pollIntervalMs + jitter);
