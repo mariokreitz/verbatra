@@ -25,6 +25,7 @@
     "test": "turbo run test",
     "format": "biome format --write .",
     "check": "biome check .",
+    "verify": "pnpm check:no-em-dash && pnpm check && pnpm build && pnpm check:dts && pnpm check:studio-bundle && pnpm turbo run typecheck && pnpm typecheck:configs && pnpm test && pnpm test:scripts",
     "check:no-em-dash": "! git grep -n -- \"$(printf '\\342\\200\\224')\" -- ':!pnpm-lock.yaml'",
     "check:dts": "node scripts/check-build-output.mjs dts",
     "check:studio-bundle": "node scripts/check-build-output.mjs studio-bundle",

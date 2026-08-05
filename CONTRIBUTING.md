@@ -79,7 +79,11 @@ one.
 
 1. Branch from `main`.
 2. Make your change with tests, and keep it focused.
-3. Ensure `pnpm check`, `pnpm lint`, `pnpm test`, and `pnpm build` pass locally.
+3. Run `pnpm verify` locally and make sure it passes. It runs exactly the checks
+   the CI build-and-test job runs, in the same order, including the guards that
+   are easy to miss (the em dash guard, the published-declaration and studio
+   bundle guards, the build config typecheck, and the root script tests). A test
+   fails if the two ever drift apart.
 4. Use Conventional Commit messages.
 5. Add a changeset if a publishable package changed.
 6. Open a pull request with the template, describing what changed and how you

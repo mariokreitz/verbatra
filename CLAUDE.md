@@ -35,6 +35,12 @@ Run from the repository root unless noted.
 - Test all: `pnpm test` (turbo run test, Vitest)
 - Format: `pnpm format` (biome format --write .)
 - Check format and lint without writing: `pnpm check` (biome check .)
+- Reproduce the CI merge gate locally: `pnpm verify`. Chains the same nine checks
+  the `build-and-test` job runs, in the same order: `check:no-em-dash`, `check`,
+  `build`, `check:dts`, `check:studio-bundle`, `turbo run typecheck`,
+  `typecheck:configs`, `test`, `test:scripts`. CI keeps them as separate steps so a
+  failure names itself; `scripts/verify-script-parity.test.mjs` fails if the two
+  definitions drift apart.
 - Add a changeset: `pnpm changeset`
 - Publish: `pnpm release` (changeset publish; normally run by CI)
 
