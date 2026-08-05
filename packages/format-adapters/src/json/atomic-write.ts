@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { open, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 /** The file-system operations the atomic write needs, injectable so tests can force a failure at any step. */
 export interface AtomicWriteOps {
+  /** Create a directory and every missing parent; a no-op when it already exists. */
+  mkdir(path: string): Promise<void>;
   writeFile(path: string, data: string): Promise<void>;
   fsyncFile(path: string): Promise<void>;
   rename(from: string, to: string): Promise<void>;
@@ -32,6 +34,9 @@ async function fsyncDirBestEffort(path: string): Promise<void> {
 }
 
 const nodeOps: AtomicWriteOps = {
+  mkdir: async (path) => {
+    await mkdir(path, { recursive: true });
+  },
   writeFile: (path, data) => writeFile(path, data, "utf8"),
   fsyncFile: (path) => fsyncPath(path),
   rename: (from, to) => rename(from, to),
@@ -55,8 +60,21 @@ export function tempFileName(path: string): string {
 }
 
 /**
- * Write bytes to a target file atomically and crash-durably: write a temp file in the same
- * directory, fsync it, rename it over the target, then fsync the containing directory.
+ * Write bytes to a target file atomically and crash-durably: create the containing directory,
+ * write a temp file in it, fsync it, rename it over the target, then fsync the directory.
+ *
+ * The directory is created first because the target's parent may not exist yet. A locale file
+ * pattern is free to put the locale in a directory rather than the filename, and the first run for
+ * a new locale then has nowhere to write. Skipping this produced a raw `ENOENT` naming the hidden
+ * temp sibling rather than the configured path, which is a file the user never asked for and
+ * cannot find. `recursive: true` makes it a no-op in the overwhelmingly common case where the
+ * directory is already there.
+ *
+ * Note that the SDK's own atomic write does NOT do this, so its callers each handle a missing
+ * directory themselves or fail: only the run-status snapshot creates one (at its own call site),
+ * while the lock file and cache resolve flat into a directory that always exists, and
+ * `export --out` into a missing directory still fails. Do not read this paragraph as describing
+ * both write paths.
  * Same-directory placement keeps source and destination on one filesystem so the rename is
  * atomic; a reader never sees a truncated file. The temp-file fsync happens before the rename,
  * so by the time the rename is issued its bytes are already flushed to storage; a crash after
@@ -95,8 +113,10 @@ export async function atomicWriteFile(
   data: string,
   ops: AtomicWriteOps = nodeOps,
 ): Promise<void> {
+  const directory = dirname(path);
   const tmp = tempFileName(path);
   try {
+    await ops.mkdir(directory);
     await ops.writeFile(tmp, data);
     await ops.fsyncFile(tmp);
     await ops.rename(tmp, path);
@@ -105,6 +125,6 @@ export async function atomicWriteFile(
     throw error;
   }
   try {
-    await ops.fsyncDir(dirname(path));
+    await ops.fsyncDir(directory);
   } catch {}
 }
