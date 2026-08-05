@@ -17,10 +17,42 @@ informed as we investigate and work on a fix.
 verbatra is published to npm. Security fixes target the latest released minor;
 upgrade to the latest release to receive them.
 
-| Version | Supported |
-| ------- | --------- |
-| 0.4.x   | yes       |
-| < 0.4.0 | no        |
+| Version               | Supported |
+| --------------------- | --------- |
+| Latest released minor | yes       |
+| Anything older        | no        |
+
+This is stated without version numbers on purpose. A numbered table goes stale
+the moment a release ships, and a security policy that names an outdated line is
+worse than one that names none: it tells you a supported version is unsupported.
+`@verbatra/sdk` and `@verbatra/cli` are released together and share a version;
+`@verbatra/studio` is versioned independently. For the current numbers, see the
+packages on npm or the repository's releases.
+
+## Supply-chain controls
+
+The published packages are protected by controls that are enforced rather than
+observed, so a regression shows up as a failure instead of going unnoticed.
+
+- **Publishing uses npm Trusted Publishing over OIDC.** There is no long-lived
+  npm token in the repository or in CI to steal or leak.
+- **Releases carry build provenance**, so a consumer can verify that a published
+  tarball was built by this repository's release workflow.
+- **Every GitHub Action is pinned to a full commit SHA**, and the repository
+  requires it: pinning is enforced by GitHub, not only by code review, so a
+  workflow that reintroduces a mutable tag fails. One limit is worth stating
+  plainly: this pins the action reference, not a Docker-based action's own
+  runtime image, which its author controls.
+- **The lockfile is committed and CI installs are frozen**, so a build resolves
+  the exact dependency tree that was reviewed.
+- **The workflow token is least-privilege**, with write scopes granted per job
+  rather than workflow-wide.
+- **Dependencies are audited weekly** and the code is scanned weekly with CodeQL,
+  so a newly disclosed advisory surfaces without waiting for a code change.
+- **A change to what a published package makes consumers install must ship with a
+  changelog entry.** CI fails a pull request that moves one of those versions
+  without one, whoever or whatever authored it, so a dependency cannot change
+  underneath a release unannounced.
 
 ## Handling of API keys
 
