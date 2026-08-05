@@ -92,7 +92,10 @@ hold to the standards in the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Step-by-step guides for adding a new translation provider or a new format adapter
 are not yet written. Open an issue or a draft pull request to discuss the design
-first: format adapters build on the shared `createJsonFileAdapter` factory and
-register in the adapter registry, providers implement the `TranslationProvider`
-interface behind the provider registry, and both must respect the repository's
-inner-to-outer dependency graph (never import against it).
+first: format adapters build on one of the two shared factories,
+`createTreeFileAdapter` for nested-tree formats (with `createJsonFileAdapter` as
+its JSON specialization) or `createFlatFileAdapter` for flat key/value formats,
+and register in the adapter registry; providers implement the
+`TranslationProvider` interface behind the provider registry; and both must
+respect the repository's inner-to-outer dependency graph (never import against
+it).

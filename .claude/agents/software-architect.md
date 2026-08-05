@@ -35,8 +35,10 @@ never contains the em dash character (U+2014).
   `translateBatch` directly as an MT API, reusing only cross-cutting pieces. All
   providers sit behind the single `TranslationProvider` interface resolved through
   `ProviderRegistry`. Reject bespoke per-provider plumbing.
-- New formats build on `createJsonFileAdapter` and register via
-  `createDefaultRegistry`. Reject reimplemented read, write, or detection logic.
+- New formats build on `createTreeFileAdapter` (nested-tree formats, with
+  `createJsonFileAdapter` as the JSON specialization) or `createFlatFileAdapter`
+  (flat key/value formats), and register via `createDefaultRegistry`. Reject
+  reimplemented read, write, or detection logic.
 - zod at boundaries only, kept out of hot paths.
 
 ## How you work
