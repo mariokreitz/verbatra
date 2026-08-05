@@ -128,6 +128,14 @@ export function tempFileName(path: string): string {
 /**
  * Write to a temp file in the same directory, then rename over the target. rename is atomic on POSIX, so a
  * reader sees either the old or the new file, never a truncated middle.
+ *
+ * A symlinked target is replaced, never followed, and the target's mode is not preserved. Both are
+ * deliberate and match `atomicWriteFile` in `@verbatra/format-adapters`, whose JSDoc carries the
+ * full reasoning: following a symlink would manufacture an arbitrary-file-write primitive, and
+ * nothing written through here is a credential. Keep the two in step.
+ *
+ * The per-locale write lock is the exception and does not go through this path: it uses
+ * `createExclusive`, and `O_CREAT | O_EXCL` refuses to follow a symlink at all.
  */
 async function atomicWrite(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = tempFileName(path);

@@ -33,6 +33,36 @@ updates:
       # Remove this entry once tsup ships a release carrying a TS7-capable dts path.
       - dependency-name: "typescript"
         versions: [">=7.0.0"]
+      # Every name below is a "catalogs.bundled" entry, so @verbatra/sdk re-declares it and it lands
+      # in a consumer's node_modules, lockfile, npm audit and SBOM. A major on one of these is a
+      # change to the published contract and needs a deliberate evaluation, not a routine weekly
+      # proposal: openai 6 to 7 arrived that way, went green, and was merged eight minutes later
+      # with no changeset and no changelog line. Minor and patch proposals still flow normally.
+      #
+      # This does not replace the disclosure gate. scripts/check-dependency-changeset.mjs fails any
+      # pull request that moves one of these versions without a changeset, whoever authors it. This
+      # entry only stops the proposal from arriving unbidden. To take a major deliberately, bump the
+      # entry by hand on a branch, verify the provider seam, and ship the changeset with it.
+      - dependency-name: "@anthropic-ai/sdk"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@formatjs/icu-messageformat-parser"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@google/genai"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@xmldom/xmldom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "deepl-node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "exceljs"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "jszip"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "loglevel"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "openai"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "yaml"
+        update-types: ["version-update:semver-major"]
     groups:
       deepl-logging:
         patterns:

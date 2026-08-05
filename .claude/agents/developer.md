@@ -32,7 +32,9 @@ the product owner marks the spec ready and your open-question list is empty.
   `any`. Keep cognitive complexity at or under 15. Keep functions and files small.
 - Respect the dependency direction and the SDK-first layering. Put logic in the SDK
   or below, not in the cli or action wrappers. Keep `@verbatra/core` pure.
-- Reuse the provider registry and the `createJsonFileAdapter` factory. Do not
+- Reuse the provider registry and the shared adapter factories,
+  `createTreeFileAdapter` (nested-tree formats, with `createJsonFileAdapter` as the
+  JSON specialization) or `createFlatFileAdapter` (flat key/value formats). Do not
   reimplement provider or adapter machinery.
 - zod only at boundaries (config, CLI args, action inputs, provider responses), never
   in hot paths.

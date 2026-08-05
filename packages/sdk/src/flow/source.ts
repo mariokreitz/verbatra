@@ -1,6 +1,6 @@
 import type { FormatAdapter, ReadResult } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
-import { SdkError } from "../errors.js";
+import { errorMessage, SdkError } from "../errors.js";
 import type { SdkFs } from "../fs.js";
 import { localeFilePath } from "../paths.js";
 
@@ -24,7 +24,7 @@ export async function readSource(
   try {
     return await adapter.read(sourcePath, config.sourceLocale);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw new SdkError(
       "SOURCE_INVALID",
       `The source locale file at ${sourcePath} could not be read: ${detail}`,

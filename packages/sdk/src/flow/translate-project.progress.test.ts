@@ -64,6 +64,10 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     ]);
   });
 
+  /**
+   * A dry run stays silent on the provider channel but is not silent overall: `locale-finished`
+   * still carries the count the run would have translated, which is what makes the preview useful.
+   */
   it("does not construct a provider or emit a sub-batch event on a dry-run", async () => {
     const dir = await makeProject(3);
     const config = baseConfig({ targetLocales: ["de"], maxBatchSize: 2 });
@@ -77,7 +81,6 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
 
     expect(createProvider).not.toHaveBeenCalled();
     expect(events.some((event) => event.type === "sub-batch")).toBe(false);
-    // A dry-run reports the keys it would translate, so locale-finished still carries that count.
     expect(events).toEqual([
       { type: "locale-started", locale: "de", localeIndex: 0, totalLocales: 1 },
       { type: "locale-finished", locale: "de", translated: 3, localeIndex: 0, totalLocales: 1 },
@@ -85,10 +88,13 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     ]);
   });
 
+  /**
+   * `localesCompleted` counts locales attempted, not locales that succeeded, so the failed locale
+   * and its succeeding sibling both land in the total. The failed one still emits its own
+   * `locale-finished` with a zero count rather than being dropped from the stream.
+   */
   it("counts a failed (isolated, not thrown) locale in run-finished and fires its locale-finished with 0", async () => {
     const dir = await makeProject(1);
-    // "de" is locked so its live acquire times out (LOCK_CONTENDED), isolated as a failed summary;
-    // "fr" is free and succeeds. Both must still be counted and both must emit locale-finished.
     await holdLock(dir, "de");
     const config = baseConfig({ targetLocales: ["de", "fr"] });
     const { provider } = makeStubProvider();

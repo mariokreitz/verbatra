@@ -1,12 +1,28 @@
+/**
+ * Next.js configuration for the documentation site. The default export is the base config wrapped
+ * first by the Fumadocs MDX plugin and then by the next-intl plugin.
+ */
 import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+/**
+ * The base Next.js config, before the MDX and next-intl plugins wrap it.
+ *
+ * `experimental.optimizePackageImports` tree-shakes the icon barrel and motion so that only the
+ * used exports ship (Vercel 2.1).
+ *
+ * `redirects()` folds the www host onto the apex domain, and keeps inbound links to the old
+ * "testing" concept page alive after its rename to "translation-safety". That rename needs two
+ * entries because English is unprefixed while de, es, and fr carry a locale prefix.
+ *
+ * `headers()` sets the app-layer security headers for every route. CSP and HSTS are deliberately
+ * not here: they are handled at the host/edge.
+ */
 const config = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
-  // Tree-shake the icon barrel and motion so only the used exports ship (Vercel 2.1).
   experimental: {
     optimizePackageImports: ["@icons-pack/react-simple-icons", "motion"],
   },
@@ -18,8 +34,6 @@ const config = {
         destination: "https://verbatra.kreitz-webdev.de/:path*",
         permanent: true,
       },
-      // The "testing" concept page was renamed to "translation-safety". Keep stale inbound links alive
-      // (English is unprefixed; de/es/fr carry a locale prefix).
       {
         source: "/docs/testing",
         destination: "/docs/translation-safety",
@@ -32,7 +46,6 @@ const config = {
       },
     ];
   },
-  // App-layer security headers for every route; CSP and HSTS are handled at the host/edge, not here.
   async headers() {
     return [
       {
@@ -52,7 +65,8 @@ const config = {
 };
 
 const withMDX = createMDX();
-// next-intl acts as a message-catalog provider only; Fumadocs owns routing.
+
+/** next-intl acts as a message-catalog provider only; Fumadocs owns routing. */
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 export default withNextIntl(withMDX(config));

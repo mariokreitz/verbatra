@@ -41,10 +41,19 @@ describe("studio (no key)", () => {
    * The one thing no unit test can prove: that the command reaches the real `@verbatra/studio`
    * through its runtime dynamic import after packing and installing, and that the prebuilt SPA
    * resolves from the installed package rather than from a bundled copy. `check:studio-bundle`
-   * asserts the import survives bundling by reading the built file; this drives it for real.
+   * asserts the import survives bundling by reading the built file; this drives it for real. The
+   * assertion on the served document body is that proof: a real asset read off disk inside the
+   * installed package, which a server answering with a constant placeholder body would not satisfy.
    *
    * No provider key is set: the dashboard always serves and always edits locally, and only
    * provider-spending actions are gated behind --allow-spend, so startup must not need one.
+   *
+   * Reaching the document takes two requests made by hand. The server binds 127.0.0.1 and requires
+   * the Host header to match it exactly, so the banner URL is the only entry point that works, and
+   * fetch sends the matching Host itself. That URL only exchanges the bootstrap token for a session
+   * cookie and answers 303; it never serves the document. Its redirect is followed manually because
+   * Node's fetch keeps no cookie jar, so an automatically followed redirect would arrive
+   * unauthenticated and be answered with 401.
    */
   it("serves the dashboard from the installed package and stops cleanly on interrupt", async () => {
     const dir = join(consumer.dir, "studio-live");
@@ -65,13 +74,8 @@ describe("studio (no key)", () => {
 
       const url = BANNER_URL_PATTERN.exec(stdout)?.[1];
       expect(url).toBeDefined();
-      // The server binds 127.0.0.1 and requires the Host header to match it exactly, so the
-      // printed URL is the only entry point that works; fetch sends the matching Host itself.
       expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64}$/);
 
-      // The bootstrap URL exchanges the token for a session cookie and redirects; it never serves
-      // the document itself. Follow that by hand: Node's fetch keeps no cookie jar, so an
-      // automatic redirect would arrive unauthenticated and answer 401.
       const bootstrap = await fetch(url as string, { redirect: "manual" });
       expect(bootstrap.status).toBe(303);
       expect(bootstrap.headers.get("location")).toBe("/");
@@ -84,8 +88,6 @@ describe("studio (no key)", () => {
       const document = await fetch(rootUrl, { headers: { cookie } });
       expect(document.status).toBe(200);
       expect(document.headers.get("content-type")).toContain("text/html");
-      // A real asset read, not a placeholder: prove the prebuilt SPA came off disk inside the
-      // installed package rather than the server answering with a constant body.
       expect((await document.text()).toLowerCase()).toContain("<html");
     } finally {
       studio.kill("SIGINT");

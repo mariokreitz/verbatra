@@ -1,6 +1,6 @@
 import type { AdapterRegistry } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
-import { SdkError } from "../errors.js";
+import { describeError, SdkError } from "../errors.js";
 import type { RunSummary } from "../flow/summary.js";
 import { resolveRunConcurrency, type TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
@@ -95,15 +95,6 @@ export interface WatchController {
   stop(): Promise<void>;
 }
 
-/** Project any thrown value onto the secret-free `{ code, message }` shape of a failed run. */
-function describeError(error: unknown): { code: string; message: string } {
-  if (error instanceof Error) {
-    const code = (error as { code?: unknown }).code;
-    return { code: typeof code === "string" ? code : "WATCH_RUN_FAILED", message: error.message };
-  }
-  return { code: "WATCH_RUN_FAILED", message: String(error) };
-}
-
 /**
  * Start watching the source file and re-run the one-shot {@link translate} on each debounced change.
  * Runs are serialized: changes during a run collapse into a single follow-up, so two runs never
@@ -192,7 +183,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     try {
       input.onRun({ status: "succeeded", summary: await runTranslate(runInput) });
     } catch (error) {
-      input.onRun({ status: "failed", error: describeError(error) });
+      input.onRun({ status: "failed", error: describeError(error, "WATCH_RUN_FAILED") });
     }
   }
 

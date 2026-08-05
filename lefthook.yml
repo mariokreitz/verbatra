@@ -8,7 +8,15 @@ pre-commit:
         Biome found lint/format issues. Run `pnpm check` to see them,
         or `pnpm format` to auto-fix formatting, then re-stage.
     lockfile:
-      glob: "{package.json,packages/*/package.json,pnpm-lock.yaml,pnpm-workspace.yaml}"
+      # apps/* is inside the pnpm workspace (see pnpm-workspace.yaml), so an apps/docs dependency
+      # change without a lockfile update would otherwise commit clean and only fail in CI, at
+      # `pnpm install --frozen-lockfile`. Prophylactic: exactly one commit in history did this and
+      # it did not turn CI red.
+      #
+      # e2e/ is deliberately out of scope. It sits outside the pnpm workspace and carries its own
+      # e2e/package-lock.json consumed by `npm ci`, which `pnpm install --lockfile-only` cannot
+      # validate. CI covers it instead.
+      glob: "{package.json,packages/*/package.json,apps/*/package.json,pnpm-lock.yaml,pnpm-workspace.yaml}"
       run: pnpm install --frozen-lockfile --lockfile-only
       fail_text: |
         pnpm-lock.yaml is out of sync with a package.json (a dependency was

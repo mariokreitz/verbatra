@@ -253,6 +253,11 @@ interface LocaleRunContext {
   readonly lockAcquireTimeoutMs?: number;
 }
 
+/**
+ * Projects the run-wide context, this locale's name, and its baseline into one
+ * {@link LocaleRunParams}. `cache` and `onProgress` are spread in only when present rather than
+ * passed as an explicit undefined, which `exactOptionalPropertyTypes` rejects.
+ */
 function buildLocaleRunParams(
   context: LocaleRunContext,
   targetLocale: string,
@@ -307,6 +312,11 @@ async function runDryLocale(
  * lock-file-read relocation this function embodies: previously `translate` read the lock exactly
  * once before this loop, which let two concurrent calls both diff against the same stale snapshot
  * and both pay for the same provider call.
+ *
+ * That read sits outside `withLockFileGuard` and is still correct under locale concurrency,
+ * for two reasons together: `SdkFs.writeFile` is atomic (a temp file plus a rename), so a read
+ * never observes a torn write, and this locale only ever consults its own `baselineFor` subtree,
+ * which no other locale writes.
  */
 async function runLiveLocale(
   context: LocaleRunContext,
@@ -323,9 +333,6 @@ async function runLiveLocale(
     targetLocale,
     context.fs,
     async () => {
-      // This lock read runs outside withLockFileGuard yet stays correct under locale concurrency:
-      // SdkFs.writeFile is atomic (temp file + rename), so a read never observes a torn write, and
-      // this locale only ever consults its own baselineFor subtree, which no other locale writes.
       const lock = await readLockFile(lockFilePath(context.cwd), context.fs);
       const params = buildLocaleRunParams(context, targetLocale, baselineFor(lock, targetLocale));
       const result = await runLocale(params);
@@ -462,6 +469,12 @@ async function runLocalesWithProgress(
   return results.filter((summary): summary is LocaleSummary => summary !== undefined);
 }
 
+/**
+ * Dry path for every target locale. This is where the whole dry run's one lock read happens: no dry
+ * locale writes, so a single pre-loop snapshot serves them all and none of them pays lock-acquire
+ * latency. Contrast {@link runAllLocalesLive}, whose locales each re-read the lock inside their own
+ * write lock.
+ */
 async function runAllLocalesDry(
   context: LocaleRunContext,
   targetLocales: readonly string[],
@@ -476,6 +489,10 @@ async function runAllLocalesDry(
   );
 }
 
+/**
+ * Live path for every target locale, each taking its own write lock and its own fresh lock read in
+ * {@link runLiveLocale}.
+ */
 async function runAllLocalesLive(
   context: LocaleRunContext,
   targetLocales: readonly string[],

@@ -1,5 +1,17 @@
-// Pure core for the verbatra GitHub Action: turns the CLI's --json RunSummary and exit code into
-// GitHub annotations, a job-summary markdown, and an exit status. No I/O (annotate.mjs handles that).
+/**
+ * Pure core of the verbatra GitHub Action: turns the CLI's `--json` RunSummary and its exit code
+ * into GitHub annotations, a job-summary markdown document, and the status the action exits with.
+ * It does no I/O at all; annotate.mjs reads the captured files and writes the results.
+ *
+ * Everything placed into a workflow command is percent-encoded first. Locale names, provider error
+ * messages, and raw CLI stderr are untrusted: a newline in any of them would end the `::error::`
+ * line and let whatever follows be parsed as a second, forged workflow command.
+ *
+ * The exit status is the CLI's exit code propagated verbatim. The action consumes the CLI's
+ * contract instead of re-deriving success or failure from the summary contents, so the two can
+ * never disagree, and a run that produced no parseable summary is still reported as the failure it
+ * was.
+ */
 
 /**
  * Escape a workflow-command data segment (the message after `::`) so a value cannot break out of the
@@ -23,6 +35,15 @@ function escapeProperty(value) {
   return escapeData(value).replace(/:/g, "%3A").replace(/,/g, "%2C");
 }
 
+/**
+ * Build one `::error::` workflow command. The title sits in a command property and the code and
+ * message in the data segment, so each half is encoded for the position it occupies.
+ *
+ * @param title - The annotation title, shown as the heading in the Actions UI.
+ * @param code - The structured error code, bracketed in front of the message.
+ * @param message - The human-readable error message.
+ * @returns The complete workflow-command line, without a trailing newline.
+ */
 function errorAnnotation(title, code, message) {
   return `::error title=${escapeProperty(title)}::${escapeData(`[${code}] ${message}`)}`;
 }
@@ -47,13 +68,14 @@ export function parseSummaryJson(stdout) {
 }
 
 /**
- * Pull `{ code, message }` out of the CLI's stderr line "verbatra: error [CODE] message".
+ * Pull `{ code, message }` out of the CLI's stderr line "verbatra: error [CODE] message". The
+ * message is matched with `.*`, which stops at the newline, so trailing stderr noise printed after
+ * the error line is not folded into the extracted message.
  *
  * @param stderrText - The CLI's captured stderr.
  * @returns The extracted `{ code, message }`, or `null` when no error line is present.
  */
 export function extractCliError(stderrText) {
-  // `.*` stops at the newline so trailing stderr noise is not folded into the message.
   const match = String(stderrText ?? "").match(/error \[([^\]]+)\] (.*)/);
   if (match === null) {
     return null;
@@ -61,8 +83,10 @@ export function extractCliError(stderrText) {
   return { code: match[1], message: match[2].trim() };
 }
 
-// Exit code used when the exit_code output wiring itself is broken (missing or non-numeric), so a
-// broken wire-up fails the job loudly instead of defaulting to a false success.
+/**
+ * Exit code used when the `exit_code` output wiring itself is broken (missing or non-numeric), so a
+ * broken wire-up fails the job loudly instead of defaulting to a false success.
+ */
 export const WIRING_FAILURE_EXIT_CODE = 2;
 
 /**
@@ -79,11 +103,28 @@ export function resolveExitCode(exitCodeArg) {
   return Number.isNaN(parsed) ? WIRING_FAILURE_EXIT_CODE : parsed;
 }
 
+/**
+ * Render one locale as a row of the job-summary counts table. The column order here has to stay in
+ * step with the header and separator built in `summaryMarkdown`; only the "failed" status is
+ * reported as a failure, every other status reads as "ok".
+ *
+ * @param locale - One locale entry of the RunSummary.
+ * @returns The markdown table row for that locale.
+ */
 function countsRow(locale) {
   const status = locale.status === "failed" ? "failed" : "ok";
   return `| ${locale.locale} | ${status} | ${locale.translated.length} | ${locale.unchanged.length} | ${locale.orphaned.length} | ${locale.invalidIcuSource.length} | ${locale.integrityMismatches.length} | ${locale.providerFailures.length} | ${locale.notices.length} |`;
 }
 
+/**
+ * Build the job summary for a run that produced a parseable RunSummary: the per-locale counts
+ * table, one aggregate line, and, when any locale failed, the failures listed with their structured
+ * codes. A dry run is marked in both the heading and the aggregate line, because the table itself
+ * looks identical to a real run that wrote files.
+ *
+ * @param summary - The parsed RunSummary.
+ * @returns The markdown document, without a trailing newline.
+ */
 function summaryMarkdown(summary) {
   const heading = summary.dryRun
     ? "## verbatra translation summary (dry run)"
@@ -109,6 +150,16 @@ function summaryMarkdown(summary) {
   return lines.join("\n");
 }
 
+/**
+ * Build the single annotation for a run that produced no usable summary. The structured code and
+ * message from stderr are preferred, then raw stderr, then a generic message naming the exit code,
+ * so the annotation still says something useful when the CLI died before it could report anything
+ * structured.
+ *
+ * @param exitCode - The CLI's exit code.
+ * @param stderrText - The CLI's captured stderr.
+ * @returns The workflow-command line for the whole-run failure.
+ */
 function wholeRunAnnotation(exitCode, stderrText) {
   const cliError = extractCliError(stderrText);
   const code = cliError?.code ?? "VERBATRA_FAILED";
@@ -118,6 +169,15 @@ function wholeRunAnnotation(exitCode, stderrText) {
   return errorAnnotation("verbatra", code, message);
 }
 
+/**
+ * Build the job summary for a run that produced no usable summary, using the same fallback order as
+ * the matching annotation. A summary is written even on a whole-run failure, so the job page never
+ * shows an empty summary next to a red run.
+ *
+ * @param exitCode - The CLI's exit code.
+ * @param stderrText - The CLI's captured stderr.
+ * @returns The markdown document, without a trailing newline.
+ */
 function wholeRunMarkdown(exitCode, stderrText) {
   const cliError = extractCliError(stderrText);
   const detail = cliError

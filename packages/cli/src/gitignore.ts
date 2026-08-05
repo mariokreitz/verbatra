@@ -60,21 +60,29 @@ export function ensureGitignore(cwd: string, streams: Streams): void {
  * untracked file they were liable to commit, contradicting its own documented contract.
  * `.verbatra-local/` is the same defect one release earlier, and this covers both identically.
  *
- * Three deliberate limits, all narrower than the `init` variant:
+ * Four deliberate limits, all narrower than the `init` variant:
  *
  * - It never creates a `.gitignore`. Absent means the project is not using one, and materializing
  *   it under someone during an ordinary translate is a bigger surprise than the untracked file.
  * - It is silent. `--json` puts a single summary object on stdout, and nothing here may disturb it.
  * - It never throws. An unwritable or racing `.gitignore` is not a reason to fail a translation, so
  *   any error is swallowed and the run proceeds.
+ * - It does nothing on a dry run. `--dry-run` promises to write nothing, and `.gitignore` is a
+ *   tracked file the user owns, so a preview that dirties the working tree can fail a CI job
+ *   asserting a clean checkout. The gate lives here rather than at each call site so a new caller
+ *   cannot forget it; `watch` has no dry-run mode and so passes nothing.
  *
  * It decides purely on file presence and content: no `git` subprocess, no work-tree detection, no
  * new dependency. A user who has deliberately un-ignored one of these paths would be surprised by
  * the append; that is a judgement call, weighed against a silent untracked artifact.
  *
  * @param cwd - The project directory whose `.gitignore` to top up.
+ * @param dryRun - When true, return without reading or writing anything.
  */
-export function appendMissingGitignoreEntries(cwd: string): void {
+export function appendMissingGitignoreEntries(cwd: string, dryRun = false): void {
+  if (dryRun) {
+    return;
+  }
   try {
     const gitignorePath = resolve(cwd, ".gitignore");
     if (!existsSync(gitignorePath)) {

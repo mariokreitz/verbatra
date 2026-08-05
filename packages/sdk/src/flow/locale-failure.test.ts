@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveLocaleStatus, describeError, failureSummary, partition } from "./locale-failure.js";
+import { deriveLocaleStatus, failureSummary, partition } from "./locale-failure.js";
 import type { LocaleSummary } from "./summary.js";
 
 /** A minimal summary carrying only the fields partition reads (`locale` and `status`). */
@@ -34,30 +34,6 @@ const NO_STATUS_PARTS = {
   providerFailures: [] as readonly string[],
   budgetWithheld: [] as readonly string[],
 };
-
-describe("describeError", () => {
-  it("preserves a string code carried on an Error", () => {
-    const error = Object.assign(new Error("provider blew up"), { code: "PROVIDER_ERROR" });
-    expect(describeError(error)).toEqual({ code: "PROVIDER_ERROR", message: "provider blew up" });
-  });
-
-  it("falls back to LOCALE_FAILED when an Error's code is not a string", () => {
-    const error = Object.assign(new Error("coded oddly"), { code: 500 });
-    expect(describeError(error)).toEqual({ code: "LOCALE_FAILED", message: "coded oddly" });
-  });
-
-  it("falls back to LOCALE_FAILED for an Error with no code at all", () => {
-    expect(describeError(new Error("plain"))).toEqual({ code: "LOCALE_FAILED", message: "plain" });
-  });
-
-  it("stringifies a non-Error value under the LOCALE_FAILED fallback", () => {
-    expect(describeError("raw failure")).toEqual({
-      code: "LOCALE_FAILED",
-      message: "raw failure",
-    });
-    expect(describeError(42)).toEqual({ code: "LOCALE_FAILED", message: "42" });
-  });
-});
 
 describe("failureSummary", () => {
   it("returns a failed summary with empty lists and the structured error", () => {

@@ -164,6 +164,11 @@ describe("translate: bounded locale-level concurrency", () => {
     expect(stats().maxInFlight).toBe(1);
   });
 
+  /**
+   * The per-locale delays are chosen so completion order is the exact reverse of source order: the
+   * first source locale finishes last. Ordering the summary by completion would therefore produce a
+   * visibly wrong result rather than one that happens to look right.
+   */
   it("orders RunSummary.locales and written files by source order regardless of completion order", async () => {
     const targets = ["de", "fr", "es", "it"] as const;
     const source = { a: "A", b: "B" };
@@ -175,7 +180,6 @@ describe("translate: bounded locale-level concurrency", () => {
     );
 
     const concurrentDir = await project(source);
-    // Reverse the completion order: the first source locale finishes last.
     const delayByLocale = { de: 40, fr: 30, es: 20, it: 10 };
     const { provider } = makeConcurrencyProbe({ delayByLocale });
     const concurrent = await translate(
@@ -214,6 +218,11 @@ describe("translate: bounded locale-level concurrency", () => {
     );
   });
 
+  /**
+   * The delays force completion order to be the exact reverse of source order, so a locale record
+   * built in completion order would serialize with its keys reversed. The write path's key sort is
+   * what has to undo that, and comparing the bytes against a serial run is what proves it did.
+   */
   it("writes a lock file byte-identical to a serial run when locales complete in reverse order under concurrency", async () => {
     const targets = ["de", "fr", "es", "it"] as const;
     const source = { a: "A", b: "B" };
@@ -225,8 +234,6 @@ describe("translate: bounded locale-level concurrency", () => {
     );
 
     const concurrentDir = await project(source);
-    // Force completion order to be the reverse of source order, so a locale record built in
-    // completion order would serialize with reversed keys. The write path's key sort must undo it.
     const delayByLocale = { de: 40, fr: 30, es: 20, it: 10 };
     const { provider } = makeConcurrencyProbe({ delayByLocale });
     await translate(

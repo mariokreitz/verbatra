@@ -146,6 +146,11 @@ describe("translation-memory cache: cross-key reuse", () => {
     expect(summary.locales[0]?.needsReview).toEqual([]);
   });
 
+  /**
+   * The fixture pins `maxBatchSize` to 1, so without content deduplication each key would become
+   * its own provider request. One recorded call is therefore the whole assertion: the dedup happens
+   * before batching, not as a side effect of keys landing in the same batch.
+   */
   it("translates byte-identical source content once per locale and fans the value to every key, even across batch splits", async () => {
     const dir = await project({ a: "Hello", b: "Hello" }, { de: {} });
     const stub = makeStubProvider();
@@ -154,8 +159,6 @@ describe("translation-memory cache: cross-key reuse", () => {
       { createProvider: () => stub.provider },
     );
 
-    // maxBatchSize 1 would put each key in its own request without content dedup; the shared string
-    // is instead sent exactly once and fanned out to both keys.
     expect(stub.calls).toHaveLength(1);
     expect(stub.calls.flatMap((c) => c.request.entries.map((e) => e.value))).toEqual(["Hello"]);
 
@@ -207,9 +210,13 @@ describe("translation-memory cache: cross-key reuse", () => {
     ]);
   });
 
+  /**
+   * Candidates are processed in key order, so the fixture's key names carry the setup: `a_solo` is
+   * reached first and trips the budget, which leaves the later duplicated group (`z_a`, `z_b`)
+   * short of the provider entirely, its representative budget-withheld. Renaming those keys out of
+   * that order changes what the test exercises without failing it.
+   */
   it("withholds every duplicate when the representative is budget-withheld", async () => {
-    // Candidates are processed in key order (a_solo first). a_solo trips the budget, so the later
-    // duplicated group (z_a, z_b) never reaches the provider and its representative is budget-withheld.
     const dir = await project({ a_solo: "Solo", z_a: "Dup", z_b: "Dup" }, { de: {} });
     const stub = makeStubProvider({ usage: USAGE_100 });
     const summary = await translate(

@@ -1,4 +1,14 @@
-import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import type { LocaleResource } from "@verbatra/core";
@@ -235,5 +245,42 @@ describe("atomic write integration (byte-identical adapter output)", () => {
 
     expect(await readFile(target, "utf8")).toBe(`{\n  "greeting": "Hi"\n}\n`);
     expect(await readdir(dir)).toEqual(["en.json"]);
+  });
+});
+
+describe("atomicWriteFile: symlink and mode policy", () => {
+  /**
+   * Pinned deliberately, and pinned in this direction. rename(2) does not resolve the destination
+   * symlink, so a link planted in a checkout is clobbered rather than followed. Resolving it would
+   * turn any such link into an arbitrary-file-write primitive.
+   *
+   * If this test ever fails, the fix is NOT to update the expectation. It is to ask why the write
+   * started following links. See the `atomicWriteFile` JSDoc for the full policy.
+   */
+  it("replaces a symlinked target instead of writing through it", async () => {
+    const dir = await makeDir();
+    const outside = join(dir, "outside.json");
+    const link = join(dir, "de.json");
+    await writeFile(outside, "ORIGINAL", "utf8");
+    await symlink(outside, link);
+
+    await atomicWriteFile(link, "REPLACED", realOps);
+
+    expect((await lstat(link)).isSymbolicLink()).toBe(false);
+    expect(await readFile(link, "utf8")).toBe("REPLACED");
+    expect(await readFile(outside, "utf8")).toBe("ORIGINAL");
+  });
+
+  it("does not preserve the target's mode, which the rename installs a new inode over", async () => {
+    const dir = await makeDir();
+    const target = join(dir, "de.json");
+    await writeFile(target, "before", { encoding: "utf8", mode: 0o600 });
+    const inodeBefore = (await lstat(target)).ino;
+
+    await atomicWriteFile(target, "after", realOps);
+
+    const after = await lstat(target);
+    expect(after.ino).not.toBe(inodeBefore);
+    expect(after.mode & 0o777).not.toBe(0o600);
   });
 });
