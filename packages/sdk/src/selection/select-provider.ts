@@ -1,6 +1,6 @@
 import type { TranslationProvider } from "@verbatra/ai-providers";
 import { buildProvider, type ProviderConfig } from "../config/provider-config.js";
-import { SdkError } from "../errors.js";
+import { errorMessage, SdkError } from "../errors.js";
 
 /** Builds the provider from its config. Injectable so tests stay offline. */
 export type CreateProvider = (config: ProviderConfig) => TranslationProvider;
@@ -17,7 +17,7 @@ export function selectProvider(
   try {
     return createProvider(config);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
+    const detail = errorMessage(error);
     throw new SdkError(
       "PROVIDER_CONSTRUCTION_FAILED",
       `Failed to construct provider "${config.id}": ${detail}`,

@@ -435,15 +435,27 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   }
 
   const path = localeFilePath(params.cwd, params.filesPattern, params.targetLocale);
-  await params.adapter.write(
-    {
-      locale: params.targetLocale,
-      namespace: target.namespace,
-      format: params.format,
-      entries: merged,
-    },
-    path,
-  );
+  // Nothing accepted, pruned or generated means `merged` is exactly what was read, so writing it
+  // back cannot change the content. The write is skipped rather than performed for the same result:
+  // the atomic write replaces the inode, which churns the mtime and retriggers third-party file
+  // watchers, and it reformats a hand-formatted target to canonical form, which can fail a drift
+  // check that runs `verbatra translate` and then `git diff --exit-code`.
+  //
+  // The target must already exist for the skip to apply. A first run for a new locale also accepts
+  // nothing when there is nothing to translate, and skipping there would leave no file at all, so a
+  // later `import` of that locale would fail on a missing file instead of reading an empty one.
+  const changedSomething = accepted.size > 0 || pruned.length > 0 || generation.accepted.length > 0;
+  if (changedSomething || !(await params.fs.fileExists(path))) {
+    await params.adapter.write(
+      {
+        locale: params.targetLocale,
+        namespace: target.namespace,
+        format: params.format,
+        entries: merged,
+      },
+      path,
+    );
+  }
 
   const pluralNotices = params.generatePlurals ? pluralNoticeFor(params, merged) : sdkNotices;
   const notices: readonly LocaleNotice[] = [

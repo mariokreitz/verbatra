@@ -79,7 +79,11 @@ one.
 
 1. Branch from `main`.
 2. Make your change with tests, and keep it focused.
-3. Ensure `pnpm check`, `pnpm lint`, `pnpm test`, and `pnpm build` pass locally.
+3. Run `pnpm verify` locally and make sure it passes. It runs exactly the checks
+   the CI build-and-test job runs, in the same order, including the guards that
+   are easy to miss (the em dash guard, the published-declaration and studio
+   bundle guards, the build config typecheck, and the root script tests). A test
+   fails if the two ever drift apart.
 4. Use Conventional Commit messages.
 5. Add a changeset if a publishable package changed.
 6. Open a pull request with the template, describing what changed and how you
@@ -92,7 +96,10 @@ hold to the standards in the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Step-by-step guides for adding a new translation provider or a new format adapter
 are not yet written. Open an issue or a draft pull request to discuss the design
-first: format adapters build on the shared `createJsonFileAdapter` factory and
-register in the adapter registry, providers implement the `TranslationProvider`
-interface behind the provider registry, and both must respect the repository's
-inner-to-outer dependency graph (never import against it).
+first: format adapters build on one of the two shared factories,
+`createTreeFileAdapter` for nested-tree formats (with `createJsonFileAdapter` as
+its JSON specialization) or `createFlatFileAdapter` for flat key/value formats,
+and register in the adapter registry; providers implement the
+`TranslationProvider` interface behind the provider registry; and both must
+respect the repository's inner-to-outer dependency graph (never import against
+it).

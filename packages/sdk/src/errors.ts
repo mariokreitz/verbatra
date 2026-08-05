@@ -55,6 +55,41 @@ export type SdkErrorCode =
   | "CONCURRENCY_BUDGET_CONFLICT"
   | "LOCALE_FAILED";
 
+/**
+ * The message of a caught value: an `Error`'s own message, or the stringified value for anything
+ * else. The single copy of an idiom the SDK had five of, one of them an unchecked cast that
+ * produced `undefined` for any thrown non-`Error`.
+ */
+export function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** A caught value's own string `code`, when it carries one. Read without casting. */
+function stringCode(error: unknown): string | undefined {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
+    return error.code;
+  }
+  return undefined;
+}
+
+/**
+ * Projects a caught value onto the secret-free `{ code, message }` shape recorded on a failed run.
+ * A value carrying a string `code` keeps it; anything else falls back to `fallbackCode`.
+ *
+ * The fallback is a parameter rather than a constant because the two call sites deliberately
+ * differ, and unifying them would change observable output: a whole failed watch run reports
+ * `WATCH_RUN_FAILED`, a single failed locale reports {@link SdkErrorCode} `LOCALE_FAILED`.
+ *
+ * @param error - The caught value.
+ * @param fallbackCode - The code to record when the value carries none of its own.
+ */
+export function describeError(
+  error: unknown,
+  fallbackCode: string,
+): { code: string; message: string } {
+  return { code: stringCode(error) ?? fallbackCode, message: errorMessage(error) };
+}
+
 /** The single structured error the SDK throws or records. Never carries a secret. */
 export class SdkError extends Error {
   /** The stable {@link SdkErrorCode} for this failure; branch on this, not the message. */
