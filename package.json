@@ -28,6 +28,7 @@
     "check:no-em-dash": "! git grep -n -- \"$(printf '\\342\\200\\224')\" -- ':!pnpm-lock.yaml'",
     "check:dts": "node scripts/check-build-output.mjs dts",
     "check:studio-bundle": "node scripts/check-build-output.mjs studio-bundle",
+    "check:dependency-changeset": "node scripts/check-dependency-changeset.mjs",
     "test:scripts": "vitest run scripts",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",

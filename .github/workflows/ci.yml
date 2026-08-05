@@ -180,23 +180,24 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Verify every matrix leg passed
+      # One step over all three rather than one step each, so a run that fails more than one job
+      # reports every failure instead of only the first. Results arrive through env rather than
+      # direct interpolation, keeping the expressions out of the shell.
+      - name: Verify every required job succeeded
+        env:
+          BUILD_AND_TEST: ${{ needs.build-and-test.result }}
+          E2E: ${{ needs.e2e.result }}
+          DEPENDENCY_DISCLOSURE: ${{ needs.dependency-disclosure.result }}
         run: |
-          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
-            echo "build-and-test matrix did not succeed: ${{ needs.build-and-test.result }}"
-            exit 1
-          fi
-
-      - name: Verify e2e passed
-        run: |
-          if [ "${{ needs.e2e.result }}" != "success" ]; then
-            echo "e2e did not succeed: ${{ needs.e2e.result }}"
-            exit 1
-          fi
-
-      - name: Verify the dependency disclosure guard passed
-        run: |
-          if [ "${{ needs.dependency-disclosure.result }}" != "success" ]; then
-            echo "dependency-disclosure did not succeed: ${{ needs.dependency-disclosure.result }}"
-            exit 1
-          fi
+          failed=0
+          for entry in "build-and-test:$BUILD_AND_TEST" \
+                       "e2e:$E2E" \
+                       "dependency-disclosure:$DEPENDENCY_DISCLOSURE"; do
+            job="${entry%%:*}"
+            result="${entry#*:}"
+            if [ "$result" != "success" ]; then
+              echo "$job did not succeed: $result"
+              failed=1
+            fi
+          done
+          exit "$failed"

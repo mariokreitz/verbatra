@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Pull-request guard: a change to what a published package makes consumers install must ship with a
- * changeset, so the move is disclosed in the changelog rather than reaching npm silently.
+ * Pull-request guard: a change to what a published package makes consumers install must be
+ * accompanied by a changeset, so the move reaches the changelog rather than npm alone.
  *
  * This exists because four consumer-visible dependency deltas shipped inside `@verbatra/sdk@0.6.3`
  * with no changeset and no changelog line, among them an `openai` major. Nothing in the pipeline
@@ -15,16 +15,22 @@
  * makes the check honest in both directions: a `catalogs.bundled` bump changes no package.json at
  * all (the manifests hold `catalog:bundled`, not a version), while a default-catalog bump of
  * typescript or vitest reaches no consumer and must not fail a pull request. Only entries actually
- * reachable from a published manifest are considered.
+ * reachable from a published manifest are considered, which does mean a default-catalog entry a
+ * published package depends on (`zod`, `chokidar`) is gated exactly like a bundled one. That is
+ * deliberate: what decides the outcome is whether a consumer resolves it, not which block it sits in.
  *
- * `workspace:` entries are skipped. They name internal packages that tsup bundles into the tarball,
- * so their specifier is not something a consumer resolves.
+ * Scope limits worth knowing. Only `dependencies` is read, not `peerDependencies` or
+ * `optionalDependencies`, because no published package declares either today. `workspace:` entries
+ * are skipped: they name sibling packages whose versions the release flow itself sets and discloses,
+ * so requiring a second changeset for them would fail every release.
  *
  * Two exemptions, and the asymmetry between them is deliberate.
  *
- * - By branch, mandatory. A `changeset-release/*` head is exempt because the Version Packages pull
- *   request consumes the changeset files, deleting them in the same diff that bumps versions. The
- *   naive rule would fail every release pull request permanently.
+ * - By branch, mandatory. The Version Packages head is exempt because that pull request consumes
+ *   the changeset files, deleting them in the same diff that bumps versions. The naive rule would
+ *   fail every release pull request permanently. Matched exactly against
+ *   `changeset-release/<baseBranch>` rather than by prefix, since a head ref is author-controlled
+ *   and a prefix would let any branch name its way out of the guard.
  * - By actor, forbidden. Do not add one. Dependabot is the exact case this guard exists for and will
  *   never author a changeset, so exempting it would make the guard a no-op for its only real
  *   trigger.
@@ -43,23 +49,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 
-/** Manifests of the packages published to npm, repository-relative. Private packages are excluded. */
-const PUBLISHED_MANIFESTS = [
-  "packages/cli/package.json",
-  "packages/sdk/package.json",
-  "packages/studio/package.json",
-];
-
-/** The names those manifests publish under, which a changeset must name to disclose a change. */
-const PUBLISHED_NAMES = ["@verbatra/cli", "@verbatra/sdk", "@verbatra/studio"];
-
 const WORKSPACE_MANIFEST = "pnpm-workspace.yaml";
+const CHANGESET_CONFIG = ".changeset/config.json";
 
-/** Head branches exempt from the guard, matched as a prefix. See the module note on exemptions. */
-const RELEASE_BRANCH_PREFIX = "changeset-release/";
+/** Workspace package manifests, matching the `packages/*` and `apps/*` globs the workspace declares. */
+const WORKSPACE_MANIFEST_PATH = /^(?:packages|apps)\/[^/]+\/package\.json$/;
 
 /**
- * @typedef {{ catalogs: Record<string, Record<string, string>> }} WorkspaceCatalogs
+ * @typedef {{ path: string; json: string }} RawManifest
  */
 
 /**
@@ -72,7 +69,22 @@ function unquote(value) {
   return match ? (match[1] ?? match[2] ?? "") : value;
 }
 
-/** The indentation width of a line, counting leading spaces only. */
+/**
+ * Drops an unquoted trailing `#` comment from a YAML scalar and trims the rest. Without this an
+ * annotated pin (`openai: 7.3.0 # taken deliberately`) parses as the version `7.3.0 # taken
+ * deliberately`, so adding or removing a comment would read as a version change and fail the guard
+ * on a comment-only edit. A quoted scalar is returned whole, since a `#` inside quotes is content.
+ */
+function stripInlineComment(value) {
+  const quoted = /^\s*(?:"[^"]*"|'[^']*')/.exec(value);
+  if (quoted?.[0] !== undefined) {
+    return quoted[0].trim();
+  }
+  const comment = value.search(/(?:^|\s)#/);
+  return (comment === -1 ? value : value.slice(0, comment)).trim();
+}
+
+/** The indentation width of a line, counting leading whitespace. */
 function indentOf(line) {
   return line.length - line.trimStart().length;
 }
@@ -105,8 +117,9 @@ function collectMappingBlock(lines, start, parentIndent) {
       break;
     }
     const match = /^\s*(.+?):\s*(.*)$/.exec(line);
-    if (match?.[1] !== undefined && match[2] !== undefined && match[2] !== "") {
-      entries[unquote(match[1])] = unquote(match[2]);
+    const value = match?.[2] === undefined ? "" : stripInlineComment(match[2]);
+    if (match?.[1] !== undefined && value !== "") {
+      entries[unquote(match[1].trim())] = unquote(value);
     }
   }
   return { entries, end: index };
@@ -142,7 +155,9 @@ function parseWorkspaceCatalogs(yamlText) {
 
 /**
  * Parses the named catalogs nested under a `catalogs:` key into `target`, and returns the index of
- * the first line past the whole `catalogs:` block.
+ * the first line past the whole `catalogs:` block. A trailing comment on the catalog's own key line
+ * is tolerated: anchoring on a bare `name:` would silently drop the entire catalog the moment
+ * someone annotated it, and every dependency in it would then read as removed.
  * @param {string[]} lines - all lines of the document
  * @param {number} start - index of the first line after `catalogs:`
  * @param {Record<string, Record<string, string>>} target - accumulator, keyed by catalog name
@@ -158,10 +173,10 @@ function parseNamedCatalogs(lines, start, target) {
     if (indentOf(line) === 0) {
       break;
     }
-    const match = /^\s*(.+?):\s*$/.exec(line);
+    const match = /^\s*(.+?):\s*(?:#.*)?$/.exec(line);
     if (match?.[1] !== undefined) {
       const block = collectMappingBlock(lines, index + 1, indentOf(line));
-      target[unquote(match[1])] = block.entries;
+      target[unquote(match[1].trim())] = block.entries;
       index = block.end - 1;
     }
   }
@@ -171,8 +186,9 @@ function parseNamedCatalogs(lines, start, target) {
 /**
  * Resolves one `dependencies` specifier to the version a consumer installs. A `catalog:` reference
  * is looked up in the named catalog (bare `catalog:` means the default one); anything else is
- * already a literal version. `workspace:` entries return null: they name internal packages bundled
- * into the tarball, so no consumer resolves their specifier.
+ * already a literal version. `workspace:` entries return null, since the release flow sets and
+ * discloses those versions itself.
+ *
  * An unresolvable catalog reference yields the sentinel "unresolved" rather than throwing: it is a
  * broken workspace, and reporting it as a difference is more useful than failing the guard itself.
  * @param {string} specifier - the raw value from a `dependencies` entry
@@ -192,26 +208,49 @@ function resolveSpecifier(specifier, dependency, catalogs) {
 }
 
 /**
+ * The workspace manifests npm publishes: every one not marked `private`. Derived rather than
+ * hardcoded, so a newly published package is guarded the day it stops being private and a package
+ * moved between `packages/` and `apps/` does not read as having dropped all its dependencies.
+ * @param {RawManifest[]} manifests - every workspace manifest at one commit
+ * @returns {{ name: string; dependencies: Record<string, string> }[]}
+ */
+function publishedManifests(manifests) {
+  const published = [];
+  for (const manifest of manifests) {
+    const parsed =
+      /** @type {{ name?: string; private?: boolean; dependencies?: Record<string, string> }} */ (
+        JSON.parse(manifest.json)
+      );
+    if (parsed.private === true || typeof parsed.name !== "string") {
+      continue;
+    }
+    published.push({ name: parsed.name, dependencies: parsed.dependencies ?? {} });
+  }
+  return published;
+}
+
+/** The names npm publishes, which a changeset must name to count. */
+function publishedNames(manifests) {
+  return publishedManifests(manifests).map((manifest) => manifest.name);
+}
+
+/**
  * The full set of versions the published packages make consumers install, keyed `package > dep`.
  * This is the value the guard compares across commits, so an entry appearing, disappearing, or
  * changing version is all one uniform difference.
  * @param {string} workspaceYaml - the pnpm-workspace.yaml contents
- * @param {{ path: string; json: string }[]} manifests - the published package manifests
+ * @param {RawManifest[]} manifests - every workspace manifest at the same commit
  * @returns {Record<string, string>}
  */
 function resolvePublishedDependencies(workspaceYaml, manifests) {
   const catalogs = parseWorkspaceCatalogs(workspaceYaml);
   /** @type {Record<string, string>} */
   const resolved = {};
-  for (const manifest of manifests) {
-    const parsed = /** @type {{ name?: string; dependencies?: Record<string, string> }} */ (
-      JSON.parse(manifest.json)
-    );
-    const name = parsed.name ?? manifest.path;
-    for (const [dependency, specifier] of Object.entries(parsed.dependencies ?? {})) {
+  for (const manifest of publishedManifests(manifests)) {
+    for (const [dependency, specifier] of Object.entries(manifest.dependencies)) {
       const version = resolveSpecifier(specifier, dependency, catalogs);
       if (version !== null) {
-        resolved[`${name} > ${dependency}`] = version;
+        resolved[`${manifest.name} > ${dependency}`] = version;
       }
     }
   }
@@ -263,52 +302,66 @@ function parseChangesetPackages(markdown) {
 }
 
 /**
- * Whether any of the given changeset bodies discloses a change to a published package. A changeset
- * naming only a private package cannot appear in a published changelog, so it does not count.
+ * Whether any of the given changeset bodies names a published package. This is a presence check,
+ * not a content check: it asserts a changeset accompanies the change, and does not attempt to
+ * verify that its prose describes the specific dependency. A changeset naming only a private
+ * package cannot appear in a published changelog, so it does not count.
  * @param {string[]} changesetBodies - contents of the changeset files added or updated in the diff
- * @param {readonly string[]} publishedNames - the package names published to npm
+ * @param {readonly string[]} names - the package names published to npm
  * @returns {boolean}
  */
-function disclosesPublishedPackage(changesetBodies, publishedNames) {
+function namesPublishedPackage(changesetBodies, names) {
   return changesetBodies.some((body) =>
-    parseChangesetPackages(body).some((name) => publishedNames.includes(name)),
+    parseChangesetPackages(body).some((name) => names.includes(name)),
   );
 }
 
 /**
- * Whether a head branch is the Version Packages branch, which is exempt. Matched as a prefix, the
- * shape changesets/action creates.
+ * Whether a head branch is the Version Packages branch, which is exempt. Matched exactly rather
+ * than by prefix: the head ref is author-controlled, and a prefix match would let any branch named
+ * `changeset-release/anything` opt itself out of a required check.
  * @param {string | undefined} branch - the pull request's head branch
+ * @param {string} baseBranch - the changesets base branch, from .changeset/config.json
  * @returns {boolean}
  */
-function isReleaseBranch(branch) {
-  return typeof branch === "string" && branch.startsWith(RELEASE_BRANCH_PREFIX);
+function isReleaseBranch(branch, baseBranch) {
+  return branch === `changeset-release/${baseBranch}`;
 }
 
 /**
  * The guard's verdict. Pure, so every branch is unit-tested without a git repository: no change
- * passes, a change with a qualifying changeset passes, a change without one fails, and a release
+ * passes, a change with a qualifying changeset passes, a change without one fails, and the release
  * branch passes regardless.
  * @param {DependencyChange[]} changes - resolved dependency differences
  * @param {string[]} changesetBodies - contents of the changeset files added or updated in the diff
- * @param {string | undefined} headBranch - the pull request's head branch
- * @returns {{ ok: boolean; reason: "no-changes" | "release-branch" | "disclosed" | "undisclosed" }}
+ * @param {{ headBranch?: string | undefined; baseBranch: string; published: readonly string[] }} context
+ * @returns {{ ok: boolean; reason: "no-changes" | "release-branch" | "accompanied" | "unaccompanied" }}
  */
-function evaluate(changes, changesetBodies, headBranch) {
-  if (isReleaseBranch(headBranch)) {
+function evaluate(changes, changesetBodies, context) {
+  if (isReleaseBranch(context.headBranch, context.baseBranch)) {
     return { ok: true, reason: "release-branch" };
   }
   if (changes.length === 0) {
     return { ok: true, reason: "no-changes" };
   }
-  return disclosesPublishedPackage(changesetBodies, PUBLISHED_NAMES)
-    ? { ok: true, reason: "disclosed" }
-    : { ok: false, reason: "undisclosed" };
+  return namesPublishedPackage(changesetBodies, context.published)
+    ? { ok: true, reason: "accompanied" }
+    : { ok: false, reason: "unaccompanied" };
 }
 
 /** Runs a git command in the repository root and returns its trimmed stdout. */
 function git(args) {
   return execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" }).trim();
+}
+
+/** Whether a ref resolves in this clone. Distinguishes a missing ref from a missing file. */
+function refExists(ref) {
+  try {
+    git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Reads a repository file at a commit, or null when the file does not exist there. */
@@ -320,29 +373,39 @@ function readAtCommit(ref, path) {
   }
 }
 
+/** Every workspace package manifest at a commit, read straight out of the tree. */
+function readWorkspaceManifests(ref) {
+  const listed = git(["ls-tree", "-r", "--name-only", ref]);
+  /** @type {RawManifest[]} */
+  const manifests = [];
+  for (const path of listed.split("\n")) {
+    if (!WORKSPACE_MANIFEST_PATH.test(path)) {
+      continue;
+    }
+    const json = readAtCommit(ref, path);
+    if (json !== null) {
+      manifests.push({ path, json });
+    }
+  }
+  return manifests;
+}
+
 /** The resolved published-dependency set at a commit, or null when the workspace file is absent. */
 function resolveAtCommit(ref) {
   const workspaceYaml = readAtCommit(ref, WORKSPACE_MANIFEST);
   if (workspaceYaml === null) {
     return null;
   }
-  const manifests = [];
-  for (const path of PUBLISHED_MANIFESTS) {
-    const json = readAtCommit(ref, path);
-    if (json !== null) {
-      manifests.push({ path, json });
-    }
-  }
-  return resolvePublishedDependencies(workspaceYaml, manifests);
+  return resolvePublishedDependencies(workspaceYaml, readWorkspaceManifests(ref));
 }
 
-/** Contents of every changeset file the diff adds or updates between `baseSha` and HEAD. */
-function readAddedChangesets(baseSha) {
+/** Contents of every changeset file the diff adds or updates between `baseRef` and HEAD. */
+function readAddedChangesets(baseRef) {
   const listed = git([
     "diff",
     "--name-only",
     "--diff-filter=AM",
-    baseSha,
+    baseRef,
     "HEAD",
     "--",
     ".changeset",
@@ -354,11 +417,35 @@ function readAddedChangesets(baseSha) {
     .filter((body) => body !== null);
 }
 
-/** Reports the undisclosed changes and what the author has to do about them. */
-function reportUndisclosed(changes) {
+/**
+ * The commit to compare against.
+ *
+ * On a `pull_request` event actions/checkout leaves HEAD at the merge ref, whose first parent is by
+ * construction the base commit that merge was built on. Using it removes any dependence on the base
+ * sha the event payload reported, which can be stale by the time the job runs and would otherwise
+ * attribute an unrelated base-branch bump to this pull request. Everywhere else, fall back to the
+ * configured ref.
+ */
+function resolveBaseRef(configuredBase) {
+  const parents = git(["rev-list", "--parents", "-n", "1", "HEAD"]).split(/\s+/);
+  return parents.length === 3 ? "HEAD^1" : configuredBase;
+}
+
+/** The changesets base branch, which fixes the exact name of the exempt Version Packages branch. */
+function readBaseBranch() {
+  const raw = readAtCommit("HEAD", CHANGESET_CONFIG);
+  if (raw === null) {
+    throw new Error(`HEAD has no ${CHANGESET_CONFIG}; cannot determine the release branch name.`);
+  }
+  const parsed = /** @type {{ baseBranch?: unknown }} */ (JSON.parse(raw));
+  return typeof parsed.baseBranch === "string" ? parsed.baseBranch : "main";
+}
+
+/** Reports the unaccompanied changes and what the author has to do about them. */
+function reportUnaccompanied(changes) {
   console.error(
     `check-dependency-changeset: ${changes.length} dependency change(s) reach consumers of a ` +
-      "published package, and no changeset in this pull request discloses them:",
+      "published package, and no changeset in this pull request accompanies them:",
   );
   for (const change of changes) {
     const from = change.from ?? "(absent)";
@@ -368,29 +455,41 @@ function reportUndisclosed(changes) {
   console.error(
     "\nEvery version above lands in a consumer's node_modules, lockfile, npm audit and SBOM, so it " +
       "belongs in the changelog. Run `pnpm changeset`, pick the published package(s) affected, and " +
-      "describe the move. A patch bump is right for a routine refresh; a bundled major deserves a " +
-      "note on what changed for consumers.",
+      "name each dependency above in the summary. A patch bump is right for a routine refresh; a " +
+      "bundled major deserves a note on what changed for consumers.",
   );
 }
 
 function main() {
-  const baseSha = process.env.BASE_SHA?.trim() || "origin/main";
+  const configuredBase = process.env.BASE_SHA?.trim() || "origin/main";
   const headBranch = process.env.HEAD_BRANCH?.trim();
 
-  const base = resolveAtCommit(baseSha);
-  if (base === null) {
+  if (!refExists(configuredBase)) {
+    if (process.env.BASE_SHA?.trim()) {
+      throw new Error(
+        `BASE_SHA "${configuredBase}" does not resolve in this clone. The checkout needs ` +
+          "fetch-depth: 0 for the guard to see the base commit.",
+      );
+    }
     console.log(
-      `check-dependency-changeset: no ${WORKSPACE_MANIFEST} at "${baseSha}", nothing to compare.`,
+      `check-dependency-changeset: no "${configuredBase}" in this clone, nothing to compare against.`,
     );
     return;
   }
+
+  const baseRef = resolveBaseRef(configuredBase);
+  const base = resolveAtCommit(baseRef);
   const head = resolveAtCommit("HEAD");
-  if (head === null) {
-    throw new Error(`HEAD has no ${WORKSPACE_MANIFEST}; the working tree is not this repository.`);
+  if (base === null || head === null) {
+    throw new Error(`no ${WORKSPACE_MANIFEST} at "${base === null ? baseRef : "HEAD"}".`);
   }
 
   const changes = diffResolvedDependencies(base, head);
-  const verdict = evaluate(changes, readAddedChangesets(baseSha), headBranch);
+  const verdict = evaluate(changes, readAddedChangesets(baseRef), {
+    headBranch,
+    baseBranch: readBaseBranch(),
+    published: publishedNames(readWorkspaceManifests("HEAD")),
+  });
 
   if (verdict.reason === "release-branch") {
     console.log(
@@ -407,12 +506,12 @@ function main() {
   }
   if (verdict.ok) {
     console.log(
-      `check-dependency-changeset: ${changes.length} dependency change(s), disclosed by a changeset ` +
-        "naming a published package.",
+      `check-dependency-changeset: ${changes.length} dependency change(s), accompanied by a ` +
+        "changeset naming a published package.",
     );
     return;
   }
-  reportUndisclosed(changes);
+  reportUnaccompanied(changes);
   process.exitCode = 1;
 }
 
@@ -428,10 +527,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
 export {
   diffResolvedDependencies,
-  disclosesPublishedPackage,
   evaluate,
   isReleaseBranch,
+  namesPublishedPackage,
   parseChangesetPackages,
   parseWorkspaceCatalogs,
+  publishedNames,
   resolvePublishedDependencies,
+  stripInlineComment,
 };

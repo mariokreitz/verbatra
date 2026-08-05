@@ -1,18 +1,32 @@
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import {
   diffResolvedDependencies,
-  disclosesPublishedPackage,
   evaluate,
   isReleaseBranch,
+  namesPublishedPackage,
   parseChangesetPackages,
   parseWorkspaceCatalogs,
+  publishedNames,
   resolvePublishedDependencies,
+  stripInlineComment,
 } from "./check-dependency-changeset.mjs";
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(SCRIPT_DIR, "..");
+const SCRIPT_NAME = "check-dependency-changeset.mjs";
 
 /** A workspace file with both catalogs, shaped like the real one including comments and quoting. */
 const WORKSPACE_YAML = `packages:
@@ -51,12 +65,36 @@ const CLI_MANIFEST = JSON.stringify({
   dependencies: { "@verbatra/sdk": "workspace:*", commander: "15.0.0" },
 });
 
+const PRIVATE_MANIFEST = JSON.stringify({
+  name: "@verbatra/core",
+  private: true,
+  dependencies: { zod: "catalog:", "some-internal-dep": "1.0.0" },
+});
+
 function manifests() {
   return [
     { path: "packages/sdk/package.json", json: SDK_MANIFEST },
     { path: "packages/cli/package.json", json: CLI_MANIFEST },
   ];
 }
+
+describe("stripInlineComment", () => {
+  it("drops an annotation from a pinned version", () => {
+    expect(stripInlineComment("7.3.0 # major taken deliberately")).toBe("7.3.0");
+  });
+
+  it("leaves a value with no comment untouched, trimming only", () => {
+    expect(stripInlineComment("  7.3.0  ")).toBe("7.3.0");
+  });
+
+  it("keeps a hash that is inside quotes, where it is content", () => {
+    expect(stripInlineComment('">=1.0.0 <2"')).toBe('">=1.0.0 <2"');
+  });
+
+  it("does not cut a hash that is part of the value itself", () => {
+    expect(stripInlineComment("1.0.0-rc#1")).toBe("1.0.0-rc#1");
+  });
+});
 
 describe("parseWorkspaceCatalogs", () => {
   it("parses the default catalog and every named catalog", () => {
@@ -75,6 +113,27 @@ describe("parseWorkspaceCatalogs", () => {
     expect(parseWorkspaceCatalogs(WORKSPACE_YAML).bundled?.openai).toBe("7.3.0");
   });
 
+  it("keeps an annotated pin's version clean of its comment", () => {
+    const annotated = WORKSPACE_YAML.replace(
+      "openai: 7.3.0",
+      "openai: 7.3.0 # major taken deliberately, see the changeset",
+    );
+
+    expect(parseWorkspaceCatalogs(annotated).bundled?.openai).toBe("7.3.0");
+  });
+
+  it("survives a comment on the catalog's own key line", () => {
+    const annotated = WORKSPACE_YAML.replace(
+      "  bundled:",
+      "  bundled: # what @verbatra/sdk re-declares",
+    );
+
+    const catalogs = parseWorkspaceCatalogs(annotated);
+
+    expect(Object.keys(catalogs).sort()).toEqual(["bundled", "default"]);
+    expect(catalogs.bundled?.openai).toBe("7.3.0");
+  });
+
   it("stops a catalog at the next top-level key", () => {
     expect(parseWorkspaceCatalogs(WORKSPACE_YAML).bundled).not.toHaveProperty("postcss@<8.5.18");
   });
@@ -90,6 +149,21 @@ describe("parseWorkspaceCatalogs", () => {
   });
 });
 
+describe("publishedNames", () => {
+  it("names every manifest not marked private", () => {
+    expect(publishedNames(manifests()).sort()).toEqual(["@verbatra/cli", "@verbatra/sdk"]);
+  });
+
+  it("excludes a private package", () => {
+    const withPrivate = [
+      ...manifests(),
+      { path: "packages/core/package.json", json: PRIVATE_MANIFEST },
+    ];
+
+    expect(publishedNames(withPrivate)).not.toContain("@verbatra/core");
+  });
+});
+
 describe("resolvePublishedDependencies", () => {
   it("resolves catalog, bundled-catalog and literal specifiers to installable versions", () => {
     const resolved = resolvePublishedDependencies(WORKSPACE_YAML, manifests());
@@ -101,10 +175,21 @@ describe("resolvePublishedDependencies", () => {
     expect(resolved["@verbatra/cli > commander"]).toBe("15.0.0");
   });
 
-  it("skips workspace dependencies, which no consumer resolves", () => {
+  it("skips workspace dependencies, whose versions the release flow sets and discloses", () => {
     expect(resolvePublishedDependencies(WORKSPACE_YAML, manifests())).not.toHaveProperty(
       "@verbatra/cli > @verbatra/sdk",
     );
+  });
+
+  it("ignores a private package's dependencies entirely", () => {
+    const withPrivate = [
+      ...manifests(),
+      { path: "packages/core/package.json", json: PRIVATE_MANIFEST },
+    ];
+
+    const resolved = resolvePublishedDependencies(WORKSPACE_YAML, withPrivate);
+
+    expect(resolved).not.toHaveProperty("@verbatra/core > some-internal-dep");
   });
 
   it("omits catalog entries no published package depends on, so a toolchain bump is invisible", () => {
@@ -181,6 +266,17 @@ describe("diffResolvedDependencies", () => {
 
     expect(changes).toEqual([]);
   });
+
+  it("reports nothing when only a pin's annotation changes", () => {
+    const annotated = WORKSPACE_YAML.replace("openai: 7.3.0", "openai: 7.3.0 # deliberate");
+
+    const changes = diffResolvedDependencies(
+      resolvePublishedDependencies(WORKSPACE_YAML, manifests()),
+      resolvePublishedDependencies(annotated, manifests()),
+    );
+
+    expect(changes).toEqual([]);
+  });
 });
 
 describe("parseChangesetPackages", () => {
@@ -207,83 +303,311 @@ describe("parseChangesetPackages", () => {
   });
 });
 
-describe("disclosesPublishedPackage", () => {
+describe("namesPublishedPackage", () => {
   const published = ["@verbatra/cli", "@verbatra/sdk", "@verbatra/studio"];
 
   it("accepts a changeset naming a published package", () => {
-    expect(disclosesPublishedPackage(['---\n"@verbatra/sdk": patch\n---\n'], published)).toBe(true);
+    expect(namesPublishedPackage(['---\n"@verbatra/sdk": patch\n---\n'], published)).toBe(true);
   });
 
   it("rejects a changeset naming only a private package", () => {
-    expect(disclosesPublishedPackage(['---\n"@verbatra/core": patch\n---\n'], published)).toBe(
-      false,
-    );
+    expect(namesPublishedPackage(['---\n"@verbatra/core": patch\n---\n'], published)).toBe(false);
   });
 
   it("rejects an empty changeset list", () => {
-    expect(disclosesPublishedPackage([], published)).toBe(false);
+    expect(namesPublishedPackage([], published)).toBe(false);
   });
 });
 
 describe("isReleaseBranch", () => {
-  it("recognizes the Version Packages branch", () => {
-    expect(isReleaseBranch("changeset-release/main")).toBe(true);
+  it("recognizes the Version Packages branch for the configured base branch", () => {
+    expect(isReleaseBranch("changeset-release/main", "main")).toBe(true);
   });
 
   it("does not treat an ordinary branch as a release branch", () => {
-    expect(isReleaseBranch("fix/something")).toBe(false);
-    expect(isReleaseBranch("main")).toBe(false);
-    expect(isReleaseBranch(undefined)).toBe(false);
+    expect(isReleaseBranch("fix/something", "main")).toBe(false);
+    expect(isReleaseBranch("main", "main")).toBe(false);
+    expect(isReleaseBranch(undefined, "main")).toBe(false);
   });
 
-  it("does not match a branch that merely contains the prefix later on", () => {
-    expect(isReleaseBranch("feat/changeset-release/main")).toBe(false);
+  it("refuses a lookalike branch, since a head ref is author-controlled", () => {
+    expect(isReleaseBranch("changeset-release/i-just-named-it-this", "main")).toBe(false);
+    expect(isReleaseBranch("changeset-release/main-but-not-really", "main")).toBe(false);
+    expect(isReleaseBranch("feat/changeset-release/main", "main")).toBe(false);
+  });
+
+  it("follows a different configured base branch", () => {
+    expect(isReleaseBranch("changeset-release/develop", "develop")).toBe(true);
+    expect(isReleaseBranch("changeset-release/main", "develop")).toBe(false);
   });
 });
 
 describe("evaluate", () => {
   const change = [{ package: "@verbatra/sdk", dependency: "openai", from: "6.46.0", to: "7.3.0" }];
   const disclosure = ['---\n"@verbatra/sdk": patch\n---\n\nBump openai.\n'];
+  const context = { baseBranch: "main", published: ["@verbatra/sdk", "@verbatra/cli"] };
 
   it("fails a dependency change with no changeset", () => {
-    expect(evaluate(change, [], "dependabot/npm_and_yarn/openai-7.3.0")).toEqual({
-      ok: false,
-      reason: "undisclosed",
-    });
+    expect(
+      evaluate(change, [], { ...context, headBranch: "dependabot/npm_and_yarn/openai-7.3.0" }),
+    ).toEqual({ ok: false, reason: "unaccompanied" });
   });
 
-  it("passes a dependency change disclosed by a changeset naming a published package", () => {
-    expect(evaluate(change, disclosure, "chore/bump-openai")).toEqual({
+  it("passes a dependency change accompanied by a changeset naming a published package", () => {
+    expect(evaluate(change, disclosure, { ...context, headBranch: "chore/bump-openai" })).toEqual({
       ok: true,
-      reason: "disclosed",
+      reason: "accompanied",
     });
   });
 
   it("fails a dependency change whose only changeset names a private package", () => {
-    expect(evaluate(change, ['---\n"@verbatra/core": patch\n---\n'], "chore/bump")).toEqual({
-      ok: false,
-      reason: "undisclosed",
-    });
+    expect(
+      evaluate(change, ['---\n"@verbatra/core": patch\n---\n'], {
+        ...context,
+        headBranch: "chore/bump",
+      }),
+    ).toEqual({ ok: false, reason: "unaccompanied" });
   });
 
   it("passes when nothing consumer-facing changed", () => {
-    expect(evaluate([], [], "chore/tidy")).toEqual({ ok: true, reason: "no-changes" });
+    expect(evaluate([], [], { ...context, headBranch: "chore/tidy" })).toEqual({
+      ok: true,
+      reason: "no-changes",
+    });
   });
 
   it("exempts the Version Packages branch, which deletes changesets while bumping versions", () => {
-    expect(evaluate(change, [], "changeset-release/main")).toEqual({
+    expect(evaluate(change, [], { ...context, headBranch: "changeset-release/main" })).toEqual({
       ok: true,
       reason: "release-branch",
     });
   });
 
   it("is not exempted by a bot-shaped branch name, the case the guard exists for", () => {
-    for (const branch of [
+    for (const headBranch of [
       "dependabot/npm_and_yarn/openai-7.3.0",
       "dependabot/npm_and_yarn/multi-abc123",
       "renovate/openai-7.x",
     ]) {
-      expect(evaluate(change, [], branch).ok).toBe(false);
+      expect(evaluate(change, [], { ...context, headBranch }).ok).toBe(false);
     }
+  });
+
+  it("is not exempted by a branch merely shaped like the release branch", () => {
+    expect(
+      evaluate(change, [], { ...context, headBranch: "changeset-release/not-the-base" }).ok,
+    ).toBe(false);
+  });
+});
+
+/**
+ * End-to-end coverage of the git layer, which decides what gets compared and therefore holds the
+ * failure modes the pure functions cannot see. Each case builds a throwaway repository shaped like
+ * this one and runs the real script inside it. The script resolves its repository root from its own
+ * location, so copying it into the fixture's `scripts/` is what points it at the fixture.
+ */
+describe("the script end to end in a real repository", () => {
+  const fixtures = [];
+
+  afterAll(() => {
+    for (const dir of fixtures) {
+      rmSync(dir, { force: true, recursive: true });
+    }
+  });
+
+  function run(cwd, env = {}) {
+    try {
+      const stdout = execFileSync(process.execPath, [join(cwd, "scripts", SCRIPT_NAME)], {
+        cwd,
+        encoding: "utf8",
+        env: { ...process.env, BASE_SHA: "", HEAD_BRANCH: "", ...env },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      return { code: 0, output: stdout };
+    } catch (error) {
+      const failure = /** @type {{ status: number; stdout: string; stderr: string }} */ (error);
+      return { code: failure.status ?? 1, output: `${failure.stdout}${failure.stderr}` };
+    }
+  }
+
+  function git(cwd, args) {
+    return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  }
+
+  function write(dir, relativePath, contents) {
+    const full = join(dir, relativePath);
+    mkdirSync(dirname(full), { recursive: true });
+    writeFileSync(full, contents);
+  }
+
+  /**
+   * A fixture repository with one published package pinning openai through the bundled catalog.
+   *
+   * The path is realpath'd: on macOS the temp directory is reached through a `/var` symlink, and
+   * the script's "invoked as a script" guard compares `import.meta.url` against `process.argv[1]`,
+   * which the two spellings would fail. That mismatch makes `main()` silently never run.
+   */
+  function makeRepo() {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), "verbatra-guard-")));
+    fixtures.push(dir);
+    git(dir, ["init", "--quiet", "--initial-branch=main"]);
+    git(dir, ["config", "user.email", "guard@example.test"]);
+    git(dir, ["config", "user.name", "Guard Fixture"]);
+
+    write(dir, "pnpm-workspace.yaml", WORKSPACE_YAML);
+    write(dir, "packages/sdk/package.json", SDK_MANIFEST);
+    write(dir, "packages/core/package.json", PRIVATE_MANIFEST);
+    write(dir, ".changeset/config.json", JSON.stringify({ baseBranch: "main" }));
+    write(dir, ".changeset/README.md", "# Changesets\n");
+    cpSync(join(SCRIPT_DIR, SCRIPT_NAME), join(dir, "scripts", SCRIPT_NAME));
+    git(dir, ["add", "-A"]);
+    git(dir, ["commit", "--quiet", "-m", "initial"]);
+    return dir;
+  }
+
+  function bumpOpenai(dir, version) {
+    write(
+      dir,
+      "pnpm-workspace.yaml",
+      WORKSPACE_YAML.replace("openai: 7.3.0", `openai: ${version}`),
+    );
+  }
+
+  function commit(dir, message) {
+    git(dir, ["add", "-A"]);
+    git(dir, ["commit", "--quiet", "-m", message]);
+    return git(dir, ["rev-parse", "HEAD"]);
+  }
+
+  it("fails a bundled bump with no changeset", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    bumpOpenai(dir, "8.0.0");
+    commit(dir, "bump openai");
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "dependabot/openai-8" });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("openai: 7.3.0 -> 8.0.0");
+  });
+
+  it("passes the same bump once a changeset naming a published package is added", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    bumpOpenai(dir, "8.0.0");
+    write(dir, ".changeset/bump.md", '---\n"@verbatra/sdk": patch\n---\n\nBump openai.\n');
+    commit(dir, "bump openai with a changeset");
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "chore/bump" });
+
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("accompanied by a changeset");
+  });
+
+  it("ignores a changeset that was already on the base branch", () => {
+    const dir = makeRepo();
+    write(dir, ".changeset/unrelated.md", '---\n"@verbatra/sdk": patch\n---\n\nSomething else.\n');
+    const base = commit(dir, "an unrelated changeset lands on main");
+    bumpOpenai(dir, "8.0.0");
+    commit(dir, "bump openai");
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "chore/bump" });
+
+    expect(result.code).toBe(1);
+  });
+
+  it("fails loudly when an explicit base ref is not in the clone", () => {
+    const dir = makeRepo();
+
+    const result = run(dir, { BASE_SHA: "0".repeat(40), HEAD_BRANCH: "chore/bump" });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("does not resolve");
+    expect(result.output).toContain("fetch-depth");
+  });
+
+  it("takes the base from the merge ref's first parent, not a base sha that moved on", () => {
+    const dir = makeRepo();
+    const mergeBase = git(dir, ["rev-parse", "HEAD"]);
+
+    // A pull request that touches nothing dependency-related.
+    git(dir, ["checkout", "--quiet", "-b", "feature"]);
+    write(dir, "packages/sdk/README.md", "docs only\n");
+    commit(dir, "docs only");
+
+    // The merge ref actions/checkout leaves at HEAD: first parent is the base it was built on.
+    git(dir, ["checkout", "--quiet", "main"]);
+    git(dir, ["merge", "--quiet", "--no-ff", "-m", "merge ref", "feature"]);
+    const mergeRef = git(dir, ["rev-parse", "HEAD"]);
+
+    // Meanwhile main moves on with an unrelated bundled bump.
+    git(dir, ["checkout", "--quiet", "-b", "advanced-main"]);
+    bumpOpenai(dir, "9.9.9");
+    const advancedBase = commit(dir, "unrelated bundled bump on the base branch");
+
+    git(dir, ["checkout", "--quiet", mergeRef]);
+    const result = run(dir, { BASE_SHA: advancedBase, HEAD_BRANCH: "feature" });
+
+    expect(git(dir, ["rev-parse", "HEAD^1"])).toBe(mergeBase);
+    expect(result.code).toBe(0);
+    expect(result.output).toContain("no published package's resolved dependencies changed");
+  });
+
+  it("exempts the exact Version Packages branch and no lookalike", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    bumpOpenai(dir, "8.0.0");
+    commit(dir, "bump openai");
+
+    expect(run(dir, { BASE_SHA: base, HEAD_BRANCH: "changeset-release/main" }).code).toBe(0);
+    expect(run(dir, { BASE_SHA: base, HEAD_BRANCH: "changeset-release/sneaky" }).code).toBe(1);
+  });
+
+  it("does not gate a private package's dependency change", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    write(
+      dir,
+      "packages/core/package.json",
+      JSON.stringify({
+        name: "@verbatra/core",
+        private: true,
+        dependencies: { zod: "catalog:", "some-internal-dep": "2.0.0" },
+      }),
+    );
+    commit(dir, "bump a private package's dependency");
+
+    expect(run(dir, { BASE_SHA: base, HEAD_BRANCH: "chore/bump" }).code).toBe(0);
+  });
+
+  it("guards a package the moment it stops being private", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    write(
+      dir,
+      "packages/core/package.json",
+      JSON.stringify({
+        name: "@verbatra/core",
+        dependencies: { zod: "catalog:", "some-internal-dep": "1.0.0" },
+      }),
+    );
+    commit(dir, "publish the core package");
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "chore/publish-core" });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("@verbatra/core > some-internal-dep");
+  });
+
+  it("does not report a change when a package directory merely moves", () => {
+    const dir = makeRepo();
+    const base = git(dir, ["rev-parse", "HEAD"]);
+    mkdirSync(join(dir, "apps"), { recursive: true });
+    git(dir, ["mv", "packages/sdk", "apps/sdk"]);
+    commit(dir, "move the package between workspace globs");
+
+    const result = run(dir, { BASE_SHA: base, HEAD_BRANCH: "chore/move" });
+
+    expect(result.code).toBe(0);
   });
 });
