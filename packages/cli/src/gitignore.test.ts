@@ -63,6 +63,15 @@ describe("appendMissingGitignoreEntries", () => {
     expect(content).toContain("dist");
   });
 
+  it("writes nothing on a dry run, even with entries missing", () => {
+    const before = ".env\n";
+    const dir = project(before);
+
+    appendMissingGitignoreEntries(dir, true);
+
+    expect(readGitignore(dir)).toBe(before);
+  });
+
   it("is idempotent: a second call changes nothing", () => {
     const dir = project(".env\n");
     appendMissingGitignoreEntries(dir);

@@ -360,7 +360,7 @@ export async function runTranslate(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
-      appendMissingGitignoreEntries(cwd);
+      appendMissingGitignoreEntries(cwd, opts.dryRun);
       return withWholeRunErrors(
         deps,
         streams,
@@ -506,7 +506,7 @@ export async function runImport(
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
-      appendMissingGitignoreEntries(cwd);
+      appendMissingGitignoreEntries(cwd, opts.dryRun);
       return withWholeRunErrors(
         deps,
         streams,
