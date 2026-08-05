@@ -85,6 +85,42 @@ jobs:
           use_oidc: true
           files: ./packages/*/coverage/lcov.info
 
+  dependency-disclosure:
+    # A change to what a published package makes consumers install must ship with a changeset. Four
+    # such deltas, one of them a major, reached npm inside 0.6.3 with no changelog line because no
+    # gate here or in lefthook.yml ever checked for changeset presence.
+    #
+    # Its own job for two reasons: the guard needs full history (fetch-depth: 0), which would slow
+    # every leg of the build matrix, and a failure this specific deserves a check name of its own
+    # rather than being buried in a build log. It installs nothing, so it costs seconds.
+    name: Dependency disclosure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The guard compares HEAD against the pull request's base commit, which a shallow
+          # checkout does not contain.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.14.0"
+
+      - name: Guard published dependency changes against a missing changeset
+        # BASE_SHA is empty on a push to main, where the script falls back to origin/main and finds
+        # nothing to compare. HEAD_BRANCH carries the changeset-release exemption; there is
+        # deliberately no exemption by actor, since a bot is the case this guard exists for.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: node scripts/check-dependency-changeset.mjs
+
   e2e:
     # No-key tier only. It never receives a provider secret, so it is safe to run on
     # pull requests, including from forks. Live provider coverage lives in e2e-live.yml.
@@ -140,7 +176,7 @@ jobs:
     # job so the branch-protection context stays "Build and test gate" regardless of
     # which Node versions the matrix runs, and release can trust a single CI result.
     name: Build and test gate
-    needs: [build-and-test, e2e]
+    needs: [build-and-test, e2e, dependency-disclosure]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -155,5 +191,12 @@ jobs:
         run: |
           if [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "e2e did not succeed: ${{ needs.e2e.result }}"
+            exit 1
+          fi
+
+      - name: Verify the dependency disclosure guard passed
+        run: |
+          if [ "${{ needs.dependency-disclosure.result }}" != "success" ]; then
+            echo "dependency-disclosure did not succeed: ${{ needs.dependency-disclosure.result }}"
             exit 1
           fi
