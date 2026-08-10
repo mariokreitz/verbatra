@@ -4,6 +4,7 @@ import type { RpcCallResult, RpcClient } from "../client/rpc-client.js";
 import { rpcParamsSchemas } from "../shared/rpc/contract.js";
 import type { ProjectSnapshotResult } from "../shared/rpc/snapshot.js";
 import { type ModelContext, registerAgentTools, type WebMcpTool } from "./register-tools.js";
+import type { AgentToolsRegistration } from "./registration-report.js";
 
 interface RecordedCall {
   readonly method: string;
@@ -109,14 +110,95 @@ function expectedName(method: string): string {
   return `verbatra_${method.replaceAll(".", "_")}`;
 }
 
+/** A stand-in for the browser's `DOMException`: only the structural `name` matters here. */
+function namedError(name: string, message: string): Error {
+  const error = new Error(message);
+  error.name = name;
+  return error;
+}
+
+/**
+ * A model context that refuses one named tool by throwing before it ever returns a promise, the
+ * shape a host that validates its argument synchronously would take.
+ */
+function makeThrowingModelContext(refused: string): { context: ModelContext; tools: WebMcpTool[] } {
+  const tools: WebMcpTool[] = [];
+  return {
+    context: {
+      registerTool: (tool): void => {
+        if (tool.name === refused) {
+          throw namedError("SecurityError", "registration refused");
+        }
+        tools.push(tool);
+      },
+    },
+    tools,
+  };
+}
+
+/**
+ * A model context that answers with a promise, as the specified surface does, and rejects one
+ * named tool. A discarded return value here is a floating rejection no caller can catch.
+ */
+function makeRejectingModelContext(refused: string): {
+  context: ModelContext;
+  tools: WebMcpTool[];
+} {
+  const tools: WebMcpTool[] = [];
+  return {
+    context: {
+      registerTool: (tool): Promise<void> => {
+        if (tool.name === refused) {
+          return Promise.reject(namedError("SecurityError", "registration refused"));
+        }
+        tools.push(tool);
+        return Promise.resolve();
+      },
+    },
+    tools,
+  };
+}
+
+/** A promise-answering model context that rejects any name it has already accepted. */
+function makeDuplicateRejectingModelContext(): { context: ModelContext; tools: WebMcpTool[] } {
+  const tools: WebMcpTool[] = [];
+  return {
+    context: {
+      registerTool: (tool): Promise<void> => {
+        if (tools.some((registered) => registered.name === tool.name)) {
+          return Promise.reject(namedError("InvalidStateError", "tool name already registered"));
+        }
+        tools.push(tool);
+        return Promise.resolve();
+      },
+    },
+    tools,
+  };
+}
+
 async function registerWith(
   snapshot: RpcCallResult<"project.snapshot">,
-): Promise<{ tools: WebMcpTool[]; calls: RecordedCall[] }> {
+): Promise<{ tools: WebMcpTool[]; calls: RecordedCall[]; registration: AgentToolsRegistration }> {
   const calls: RecordedCall[] = [];
   const { context, tools } = makeModelContext();
   const rpcClient = makeRpcClient(snapshot, calls);
-  await registerAgentTools({ modelContext: context, rpcClient, schemas: rpcParamsSchemas });
-  return { tools, calls };
+  const registration = await registerAgentTools({
+    modelContext: context,
+    rpcClient,
+    schemas: rpcParamsSchemas,
+  });
+  return { tools, calls, registration };
+}
+
+async function registerWithContext(
+  snapshot: RpcCallResult<"project.snapshot">,
+  context: ModelContext,
+): Promise<AgentToolsRegistration> {
+  return registerAgentTools({
+    modelContext: context,
+    rpcClient: makeRpcClient(snapshot, []),
+    schemas: rpcParamsSchemas,
+  });
 }
 
 const SNAPSHOT_ON: RpcCallResult<"project.snapshot"> = {
@@ -230,6 +312,102 @@ describe("registerAgentTools annotations and input schema", () => {
     expect(toolByName(tools, expectedName("project.snapshot")).inputSchema).toEqual(
       z.toJSONSchema(rpcParamsSchemas["project.snapshot"]),
     );
+  });
+});
+
+describe("registerAgentTools registration report", () => {
+  it("reports every attempted tool as registered when the surface accepts them all", async () => {
+    const { registration } = await registerWith(SNAPSHOT_ON);
+
+    expect(registration.attempted).toBe(11);
+    expect(registration.registered).toHaveLength(11);
+    expect(registration.failures).toEqual([]);
+  });
+
+  it("counts the two spend tools among the attempts once spend is granted", async () => {
+    const { registration } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
+
+    expect(registration.attempted).toBe(13);
+    expect(registration.failures).toEqual([]);
+  });
+
+  it("reports nothing attempted when the pass no-ops", async () => {
+    const calls: RecordedCall[] = [];
+    const withoutSurface = await registerAgentTools({
+      modelContext: undefined,
+      rpcClient: makeRpcClient(SNAPSHOT_ON, calls),
+      schemas: rpcParamsSchemas,
+    });
+    const { registration: withoutOptIn } = await registerWith({
+      ok: true,
+      result: makeSnapshotResult({ exposeAgentTools: false }),
+    });
+
+    for (const registration of [withoutSurface, withoutOptIn]) {
+      expect(registration).toEqual({ attempted: 0, registered: [], failures: [] });
+    }
+  });
+});
+
+describe("registerAgentTools failure reporting", () => {
+  it("reports a synchronous throw and still registers every tool after it", async () => {
+    const refused = expectedName("status.diff");
+    const { context, tools } = makeThrowingModelContext(refused);
+
+    const registration = await registerWithContext(SNAPSHOT_ON, context);
+    const registeredNames = tools.map((tool) => tool.name);
+
+    expect(registration.attempted).toBe(11);
+    expect(registration.registered).toHaveLength(10);
+    expect(registration.failures).toEqual([
+      { tool: refused, errorName: "SecurityError", message: "registration refused" },
+    ]);
+    expect(registeredNames).not.toContain(refused);
+    expect(registeredNames).toContain(expectedName("key.value"));
+    expect(registeredNames).toContain(expectedName("translation.editEntry"));
+  });
+
+  it("reports a rejected registration and leaves no unhandled rejection behind", async () => {
+    const refused = expectedName("status.diff");
+    const { context, tools } = makeRejectingModelContext(refused);
+    const escaped: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      escaped.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      const registration = await registerWithContext(SNAPSHOT_ON, context);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(escaped).toEqual([]);
+      expect(registration.failures).toEqual([
+        { tool: refused, errorName: "SecurityError", message: "registration refused" },
+      ]);
+      expect(registration.registered).toHaveLength(10);
+      expect(tools.map((tool) => tool.name)).toContain(expectedName("key.value"));
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("catches a duplicate registration as an InvalidStateError rather than letting it escape", async () => {
+    const { context, tools } = makeDuplicateRejectingModelContext();
+
+    const first = await registerWithContext(SNAPSHOT_ON, context);
+    const second = await registerWithContext(SNAPSHOT_ON, context);
+
+    expect(first.failures).toEqual([]);
+    expect(first.registered).toHaveLength(11);
+    expect(second.registered).toEqual([]);
+    expect(second.failures).toHaveLength(11);
+    expect(new Set(second.failures.map((failure) => failure.errorName))).toEqual(
+      new Set(["InvalidStateError"]),
+    );
+    expect(second.failures.map((failure) => failure.tool)).toContain(
+      expectedName("project.snapshot"),
+    );
+    expect(tools).toHaveLength(11);
   });
 });
 
