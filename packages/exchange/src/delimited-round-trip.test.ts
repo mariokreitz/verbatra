@@ -72,9 +72,16 @@ describe("buildDelimited + readDelimited round trip", () => {
 });
 
 /**
- * Values a spreadsheet's default number format would coerce or misparse. A delimited file carries no
- * cell formatting at all, so the round trip is the only guarantee that verbatra itself never coerces
- * them; what the translator's spreadsheet does to the file it opens is outside verbatra's reach.
+ * Values a spreadsheet may coerce, misparse, or evaluate as a formula when it opens the file. The
+ * workbook is safe from both by construction: the builder assigns a string cell value and never a
+ * formula object, so Excel never re-parses it, and the Translation column carries the text number
+ * format as a coercion hint. A delimited file has neither property, and RFC 4180 quoting is not a
+ * mitigation, since a spreadsheet strips the quoting before it evaluates the value.
+ *
+ * verbatra therefore round-trips these values verbatim, deliberately. Every one of them below is an
+ * ordinary translation, so refusing them or prefixing them with an escape character would corrupt
+ * real content to defend against what the consuming spreadsheet does. The choice is documented for
+ * the translator handoff instead: a returned file is untrusted input.
  */
 const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "007",

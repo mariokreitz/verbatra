@@ -92,13 +92,26 @@ interface RecordScan {
   readonly next: number;
 }
 
-/** Scan one record: fields separated by the delimiter, up to a line break or the end of the text. */
-function scanRecord(text: string, start: number, delimiter: string): RecordScan {
+/**
+ * Scan one record: fields separated by the delimiter, up to a line break or the end of the text. The
+ * per-field caps are enforced inside the loop, so a record that breaches one is abandoned where it
+ * breaches it and its remaining fields are never materialized.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a field-length or field-count breach
+ */
+function scanRecord(
+  text: string,
+  start: number,
+  delimiter: string,
+  limits: DelimitedLimits,
+): RecordScan {
   const fields: string[] = [];
   let cursor = start;
   for (;;) {
     const field = scanField(text, cursor, delimiter);
+    assertFieldLength(field.value, limits);
     fields.push(field.value);
+    assertFieldCount(fields.length, limits);
     cursor = field.next;
     if (text[cursor] !== delimiter) {
       return { fields, next: cursor };
@@ -115,13 +128,29 @@ function consumeLineBreak(text: string, cursor: number): number {
   return text[cursor] === "\n" ? cursor + 1 : cursor;
 }
 
-/** Split the text into records. Line breaks inside a quoted field belong to the field, not the record. */
-function scanRecords(text: string, delimiter: string): readonly (readonly string[])[] {
+/**
+ * Split the text into records. Line breaks inside a quoted field belong to the field, not the record.
+ *
+ * Every cap is enforced during the scan, never over the finished result: the record count is checked
+ * as each record is added, and {@link scanRecord} checks each field as it is scanned. A crafted file
+ * therefore stops being read at the record that breaches a cap, so peak memory is bounded by the caps
+ * (roughly `maxRowsPerFile` records of at most `maxFieldsPerRow` fields) rather than by the size of
+ * the input. Checking the finished scan instead would let a small input (a few MiB of bare line
+ * breaks, or of bare delimiters) allocate gigabytes before any cap could fire.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a record-count, field-count, or field-length breach
+ */
+function scanRecords(
+  text: string,
+  delimiter: string,
+  limits: DelimitedLimits,
+): readonly (readonly string[])[] {
   const records: (readonly string[])[] = [];
   let cursor = 0;
   while (cursor < text.length) {
-    const record = scanRecord(text, cursor, delimiter);
+    const record = scanRecord(text, cursor, delimiter, limits);
     records.push(record.fields);
+    assertRecordCount(records.length, limits);
     const next = consumeLineBreak(text, record.next);
     if (next === record.next) {
       break;
@@ -146,30 +175,38 @@ function assertInputBytes(text: string, limits: DelimitedLimits): void {
 }
 
 /**
- * Enforce the per-record caps. Checked for every record including the header, so a crafted file cannot
- * smuggle an unbounded field or field count past the row loop.
+ * Enforce the field-length cap on one field, the moment it has been scanned and before the rest of
+ * its record is.
  *
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a field-count or field-length breach
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a field-length breach
  */
-function assertRecordBounds(fields: readonly string[], limits: DelimitedLimits): void {
-  if (fields.length > limits.maxFieldsPerRow) {
+function assertFieldLength(value: string, limits: DelimitedLimits): void {
+  if (value.length > limits.maxFieldLength) {
+    throw new ExchangeError(
+      "WORKBOOK_INVALID",
+      `The interchange file has a field longer than the maximum of ${limits.maxFieldLength} characters.`,
+    );
+  }
+}
+
+/**
+ * Enforce the field-count cap on the record being scanned, the moment the field that breaches it is
+ * added and before any further field is.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a field-count breach
+ */
+function assertFieldCount(count: number, limits: DelimitedLimits): void {
+  if (count > limits.maxFieldsPerRow) {
     throw new ExchangeError(
       "WORKBOOK_INVALID",
       `The interchange file has a row with more than the maximum of ${limits.maxFieldsPerRow} fields.`,
     );
   }
-  for (const field of fields) {
-    if (field.length > limits.maxFieldLength) {
-      throw new ExchangeError(
-        "WORKBOOK_INVALID",
-        `The interchange file has a field longer than the maximum of ${limits.maxFieldLength} characters.`,
-      );
-    }
-  }
 }
 
 /**
- * Enforce the record-count cap.
+ * Enforce the record-count cap on the records scanned so far, the moment the record that breaches it
+ * is added and before any further record is.
  *
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the file has more data records than allowed
  */
@@ -285,6 +322,10 @@ function readRecord(
  * input (a missing or mismatched header line, or any {@link DelimitedLimits} cap breach) surfaces as a
  * structured {@link ExchangeError} (`WORKBOOK_INVALID`); no field content or path escapes in it.
  *
+ * The size cap is checked before anything is scanned, and every other cap is enforced during the scan
+ * (see {@link scanRecords}), so a crafted file is abandoned at the point it breaches a cap rather than
+ * after it has already been expanded into memory.
+ *
  * @param input - the file text, the locale its name carried, and its format
  * @param options - optional caps; defaults to {@link DEFAULT_DELIMITED_LIMITS}
  * @returns the one parsed sheet, plus any malformed rows and duplicate keys
@@ -298,11 +339,7 @@ export function readDelimited(
   assertInputBytes(input.text, limits);
   const text = input.text.startsWith(UTF8_BOM) ? input.text.slice(UTF8_BOM.length) : input.text;
 
-  const records = scanRecords(text, DELIMITER[input.format]);
-  for (const fields of records) {
-    assertRecordBounds(fields, limits);
-  }
-  assertRecordCount(records.length, limits);
+  const records = scanRecords(text, DELIMITER[input.format], limits);
   assertHeaderRecord(records);
 
   const into: DelimitedAccumulator = {

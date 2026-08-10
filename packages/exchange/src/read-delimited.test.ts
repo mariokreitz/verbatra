@@ -218,3 +218,67 @@ describe("readDelimited bounds", () => {
     expect.assertions(1);
   });
 });
+
+/**
+ * The caps have to fire DURING the scan, not over its finished output. A bare line break is one
+ * record and a bare delimiter is one field, so an input well under `maxInputBytes` can expand into
+ * millions of records or fields; checking the caps afterwards means that memory is already spent and
+ * the process can die before any check runs.
+ *
+ * Each test below pins the ordering that only an in-scan check can produce: the input carries a
+ * second, later breach that a scan-then-check implementation would reach first and report instead.
+ * The reported cap therefore proves the earlier one fired before the rest of the input was expanded.
+ */
+describe("readDelimited enforces its bounds during the scan, not after it", () => {
+  it("stops at the record that breaches maxRowsPerFile, before scanning a later oversized field", () => {
+    const text = [
+      HEADER_LINE,
+      record("a"),
+      record("b"),
+      record("c"),
+      record("d", "x".repeat(64)),
+    ].join("\n");
+
+    expect(() =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxRowsPerFile: 2, maxFieldLength: 24 } },
+      ),
+    ).toThrow(/maximum of 2 rows/);
+  });
+
+  it("stops at the field that breaches maxFieldLength, before scanning the rest of its record", () => {
+    const text = [HEADER_LINE, ["y".repeat(64), ...Array<string>(11).fill("x")].join(",")].join(
+      "\n",
+    );
+
+    expect(() =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxFieldsPerRow: 10, maxFieldLength: 24 } },
+      ),
+    ).toThrow(/maximum of 24 characters/);
+  });
+
+  it("rejects a run of bare line breaks that would otherwise expand into one record each", () => {
+    const text = `${HEADER_LINE}\n${"\n".repeat(64)}`;
+
+    expect(() =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxRowsPerFile: 4 } },
+      ),
+    ).toThrow(/maximum of 4 rows/);
+  });
+
+  it("rejects a run of bare delimiters that would otherwise expand into one field each", () => {
+    const text = `${HEADER_LINE}\n${",".repeat(64)}`;
+
+    expect(() =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxFieldsPerRow: 12 } },
+      ),
+    ).toThrow(/maximum of 12 fields/);
+  });
+});

@@ -93,6 +93,7 @@ What differs from the workbook:
 - **No protection.** A workbook leaves only `Translation` editable and hides `Source hash`; a text file cannot. Every column is editable and the hash is visible. An edited or blanked hash is not trusted: the row is compared against the live source and withheld as drift, exactly like a stale row.
 - **No instructions sheet.** Pass the handing-off rules above to the translator yourself.
 - **Quoting is RFC 4180.** A value containing the delimiter, a double quote, a line break, or padding whitespace is quoted, and quotes inside it are doubled, so nothing in a string can shift a column. Files are written with LF line endings, and `csv` carries a UTF-8 BOM so Excel reads it as UTF-8.
+- **A spreadsheet may still change what it opens.** Opening a `.csv` or `.tsv` in a spreadsheet can coerce a value (`007` becoming `7`) and can treat a value starting with `=`, `+`, `-`, or `@` as a formula. Quoting does not prevent it, because a spreadsheet strips the quoting before evaluating. verbatra writes and reads every value verbatim by design, since `-5 Grad` and `+49 30 1234567` are ordinary translations. Treat a file coming back from a translator as untrusted input.
 - **Everything else is identical.** The same diff picks the rows, and every returned row runs the same integrity gate, so a delimited handoff and a workbook produce the same result for the same values.
 
 ## Selecting what to export
