@@ -1,11 +1,14 @@
 /**
- * Stable, machine-readable codes for workbook interchange failures.
+ * Stable, machine-readable codes for interchange failures. One code covers both channels: a caller
+ * branches on the code, never on which file shape produced it.
  *
- * - `WORKBOOK_INVALID`: the returned workbook could not be parsed into the neutral row model (a
- *   non-xlsx or corrupt file, a missing identifier column, an unexpected sheet shape, or any cap
- *   breach from {@link WorkbookLimits}), or, on the build side, a sheet locale that cannot be a valid
- *   worksheet name (too long, a forbidden character, a collision with the reserved instructions sheet
- *   name, or a collision with another sheet locale).
+ * - `WORKBOOK_INVALID`: the returned handoff could not be parsed into the neutral row model (a
+ *   non-xlsx or corrupt workbook, a missing identifier column, an unexpected sheet shape, a
+ *   delimited file with a missing or mismatched header line, or any cap breach from
+ *   {@link WorkbookLimits} or {@link DelimitedLimits}), or, on the build side, a locale that cannot
+ *   name its own destination: an invalid worksheet name (too long, a forbidden character, a
+ *   collision with the reserved instructions sheet name, or a collision with another sheet locale),
+ *   or a locale that cannot be a plain interchange file name.
  */
 export type ExchangeErrorCode = "WORKBOOK_INVALID";
 
