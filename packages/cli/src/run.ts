@@ -75,12 +75,16 @@ const watchOptsSchema = z.object({
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
 
+/** The interchange format flag shared by export and import; omitted means the xlsx workbook. */
+const exchangeFormatSchema = z.enum(["xlsx", "csv", "tsv"]).optional();
+
 const exportOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   out: z.string().optional(),
   locales: localeListSchema,
   includeUnchanged: z.boolean().optional(),
+  format: exchangeFormatSchema,
   json: z.boolean().optional(),
 });
 
@@ -88,6 +92,7 @@ const importOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   dryRun: z.boolean().optional(),
+  format: exchangeFormatSchema,
   json: z.boolean().optional(),
 });
 
@@ -479,6 +484,7 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
           ...(opts.out !== undefined ? { out: opts.out } : {}),
           ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
           ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+          ...(opts.format !== undefined ? { format: opts.format } : {}),
         });
         streams.out(
           opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
@@ -517,6 +523,7 @@ export async function runImport(
             workbook,
             cwd,
             ...(opts.dryRun === true ? { dryRun: true } : {}),
+            ...(opts.format !== undefined ? { format: opts.format } : {}),
           });
           streams.out(
             opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
@@ -664,12 +671,18 @@ function buildProgram(
 
   program
     .command("export")
-    .description("Export untranslated strings into a styled Excel workbook for a human translator")
+    .description(
+      "Export untranslated strings into a translator handoff (Excel workbook, CSV, or TSV)",
+    )
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
-    .option("--out <path>", "write the workbook to this path (default verbatra-translations.xlsx)")
+    .option(
+      "--out <path>",
+      "write the handoff here: a file for xlsx (default verbatra-translations.xlsx), a directory for csv and tsv (default verbatra-translations)",
+    )
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--include-unchanged", "also export already up-to-date strings (off by default)")
+    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the export result as JSON")
     .action(async (opts: unknown) => {
       setCode(await runExport(opts, deps, streams));
@@ -682,18 +695,23 @@ function buildProgram(
         "  $ verbatra export                       write the workbook with missing and changed strings",
         "  $ verbatra export --locales de,fr       only the German and French sheets",
         "  $ verbatra export --include-unchanged   include already up-to-date strings",
+        "  $ verbatra export --format csv          write one <locale>.csv per locale into a directory",
       ].join("\n"),
     );
 
   program
     .command("import")
-    .argument("<workbook>", "path to the filled workbook to import")
+    .argument(
+      "<workbook>",
+      "path to the filled handoff: a workbook file, one csv or tsv file, or a directory of them",
+    )
     .description(
-      "Import a filled workbook back into the locale files, running the same safety checks",
+      "Import a filled handoff back into the locale files, running the same safety checks",
     )
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--dry-run", "validate and report without writing locale files or updating the lock")
+    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the run summary as JSON")
     .action(async (workbook: string, opts: unknown) => {
       setCode(await runImport(workbook, opts, deps, streams));
@@ -705,6 +723,7 @@ function buildProgram(
         "Examples:",
         "  $ verbatra import translations.xlsx             import the filled workbook",
         "  $ verbatra import translations.xlsx --dry-run   validate and report, write nothing",
+        "  $ verbatra import handoff --format csv          import every <locale>.csv in the directory",
       ].join("\n"),
     );
 

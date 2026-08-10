@@ -74,6 +74,27 @@ Validate a returned workbook and preview what would be written without touching 
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
+## CSV and TSV instead of a workbook
+
+Some vendors and pipelines want plain text rather than Excel. `--format csv` and `--format tsv` write the same columns, in the same order, as one file per locale:
+
+```bash
+# write handoff/de.csv and handoff/fr.csv
+verbatra export --format csv --out handoff
+
+# import every locale file in the directory back
+verbatra import handoff --format csv
+```
+
+Import also takes a single file (`verbatra import handoff/de.csv --format csv`) and reads the locale from the file name, so keep the files named as they were exported.
+
+What differs from the workbook:
+
+- **No protection.** A workbook leaves only `Translation` editable and hides `Source hash`; a text file cannot. Every column is editable and the hash is visible. An edited or blanked hash is not trusted: the row is compared against the live source and withheld as drift, exactly like a stale row.
+- **No instructions sheet.** Pass the handing-off rules above to the translator yourself.
+- **Quoting is RFC 4180.** A value containing the delimiter, a double quote, a line break, or padding whitespace is quoted, and quotes inside it are doubled, so nothing in a string can shift a column. Files are written with LF line endings, and `csv` carries a UTF-8 BOM so Excel reads it as UTF-8.
+- **Everything else is identical.** The same diff picks the rows, and every returned row runs the same integrity gate, so a delimited handoff and a workbook produce the same result for the same values.
+
 ## Selecting what to export
 
 By default, export includes only the missing and changed strings, the work that actually needs doing:
@@ -113,6 +134,9 @@ const config = await loadConfig();
 
 // Write a workbook of the strings that need translating
 await exportWorkbook({ config });
+
+// ...or one CSV file per locale, into a directory
+await exportWorkbook({ config, format: "csv", out: "handoff" });
 
 // ...later, import the filled file back
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
