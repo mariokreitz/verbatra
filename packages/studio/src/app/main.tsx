@@ -1,6 +1,9 @@
 /**
  * The dashboard browser entry point: it applies the stored theme, mounts the React app into the
- * `#root` container, and then hands off to the WebMCP adapter.
+ * `#root` container behind an error boundary, and then hands off to the WebMCP adapter.
+ *
+ * The boundary is the outermost element of the mounted tree, so it covers every panel and the
+ * shell alike. Nothing below it is expected to catch a render throw on its own.
  *
  * The `registerAgentTools` call is fire-and-forget. It attaches the agent tools only when the
  * browser and the server-side opt-in both allow it and no-ops otherwise (see `registerAgentTools`
@@ -13,6 +16,7 @@ import { rpcParamsSchemas } from "../shared/rpc/contract.js";
 import { type ModelContext, registerAgentTools } from "../webmcp/register-tools.js";
 import { App } from "./App.js";
 import { rpcClient } from "./api.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
 import { initTheme } from "./lib/theme-dom.js";
 import "./styles.css";
 
@@ -27,7 +31,11 @@ initTheme();
 
 const container = document.getElementById("root");
 if (container !== null) {
-  createRoot(container).render(<App />);
+  createRoot(container).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
 }
 
 registerAgentTools({
