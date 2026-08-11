@@ -24,6 +24,43 @@ retranslated; a match means it is unchanged and never sent to the provider. That
 run with no source edits calls the provider for nothing, and why stale translations cannot hide
 behind a key that merely exists. The full pipeline is on [How it works](/docs/how-it-works).
 
+## Adopting an existing project
+
+Pointing verbatra at a repository whose locale files already hold reviewed translations does not
+retranslate them. On the first run there is no lock file, so no key can be detected as stale: a
+source key the target file already has is unchanged, is never sent to the provider, and keeps its
+existing value. Only keys the target file does not have are missing, and only those are translated.
+When nothing was accepted, pruned, or generated for a locale, its existing target file is not
+rewritten at all.
+
+The run still records the current source hash for every key the target holds, so the first run is
+the adoption step: it establishes the baseline at zero provider cost, and from the second run on,
+source edits show up as drift the normal way.
+
+Adoption is decided by key presence, never by value, which has two consequences worth knowing
+before that first run:
+
+- An empty or untranslated value counts as translated. A target value that is an empty string, or
+  that is still the untranslated source text, is a key that exists, so it is unchanged and never
+  filled in. Scaffolding tools that pre-create locale files with empty string values run straight
+  into this. The fix is to delete the key from the target file: emptying its value does not help,
+  because an empty string is still an entry. Once the key is gone, the next run sees it as missing
+  and translates it.
+- A translation that was already out of date is recorded as current. The lock takes the source hash
+  as it is now, so a translation that had already drifted from the source before you adopted the
+  project is taken as up to date and will not be revisited. Fix or delete those keys before the
+  first run.
+
+Plural generation follows the same adoption rule. A plural form the target file already holds is
+kept as it is, never regenerated and never sent to the provider, so `generatePlurals` is safe to
+leave on while adopting a project that carries hand-written plural forms; only forms genuinely
+absent from the target are synthesized.
+
+You can see all of this before spending anything: `verbatra diff` lists the exact missing and
+changed keys per locale, `verbatra check` reports the same as counts, and
+`verbatra translate --dry-run` gives you the full run summary. None of the three calls a provider,
+writes a locale file, or touches the lock.
+
 ## How it is updated
 
 The lock is updated per locale, and how depends on what ran:
@@ -58,7 +95,9 @@ was left behind by a killed one: delete it and retry.
 
 ## Missing or corrupt
 
-A missing lock file is not an error: it counts as a first run, where every source key is missing.
+A missing lock file is not an error: it is a first run, and with no baseline nothing can be
+detected as stale. Source keys the target file does not have are missing and get translated; keys
+it does have are unchanged and are left untouched, as described under adoption above.
 A lock file that is present but unparseable, structurally wrong, oversized, or at an unsupported
 version fails the run with `LOCK_FILE_INVALID` instead of being silently overwritten, so you can
 inspect or restore it rather than losing the baseline.

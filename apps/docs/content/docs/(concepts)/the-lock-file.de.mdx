@@ -26,6 +26,43 @@ zweiter Lauf ohne Quelländerungen den Provider für nichts auf, und deshalb kö
 Übersetzungen nicht hinter einem Key verstecken, der bloß existiert. Die vollständige Pipeline
 steht auf [Wie es funktioniert](/docs/how-it-works).
 
+## Ein bestehendes Projekt übernehmen
+
+verbatra auf ein Repository zu richten, dessen Locale-Dateien schon geprüfte Übersetzungen
+enthalten, übersetzt diese nicht neu. Beim ersten Lauf gibt es keine Lock-Datei, also kann kein Key
+als veraltet erkannt werden: Ein Quell-Key, den die Zieldatei schon hat, gilt als unverändert, geht
+nie an den Provider und behält seinen bestehenden Wert. Nur Keys, die die Zieldatei nicht hat, sind
+fehlend, und nur die werden übersetzt. Wurde für eine Locale keine Übersetzung angenommen, kein Key
+entfernt und keine Form generiert, wird ihre bestehende Zieldatei gar nicht neu geschrieben.
+
+Der Lauf hält trotzdem für jeden Key, den das Ziel enthält, den aktuellen Quell-Hash fest; der erste
+Lauf ist also der Übernahmeschritt selbst: Er legt die Baseline ohne einen einzigen Provider-Aufruf
+an, und ab dem zweiten Lauf tauchen Quelländerungen ganz normal als Drift auf.
+
+Ob ein Key als übernommen gilt, entscheidet allein seine Anwesenheit, nie sein Wert. Daraus folgen
+zwei Dinge, die du vor diesem ersten Lauf kennen solltest:
+
+- Ein leerer oder unübersetzter Wert zählt als übersetzt. Ein Zielwert, der ein leerer String ist
+  oder noch der unübersetzte Quelltext, ist ein Key, der existiert, gilt also als unverändert und
+  wird nie gefüllt. Scaffolding-Tools, die Locale-Dateien mit leeren Strings vorab anlegen, laufen
+  genau da hinein. Die Lösung ist, den Key aus der Zieldatei zu löschen: den Wert zu leeren hilft
+  nicht, denn ein leerer String ist weiterhin ein Eintrag. Ist der Key weg, sieht ihn der nächste
+  Lauf als fehlend und übersetzt ihn.
+- Eine schon vorher veraltete Übersetzung wird als aktuell verbucht. Die Lock-Datei nimmt den
+  Quell-Hash so, wie er jetzt ist; eine Übersetzung, die schon vor der Übernahme von der Quelle
+  abgedriftet war, gilt damit als aktuell und wird nicht noch einmal angefasst. Korrigiere oder
+  lösche solche Keys vor dem ersten Lauf.
+
+Die Plural-Generierung folgt derselben Übernahmeregel. Eine Pluralform, die die Zieldatei schon
+enthält, bleibt so, wie sie ist: Sie wird weder neu generiert noch an den Provider geschickt.
+`generatePlurals` kannst du also gefahrlos anlassen, während du ein Projekt mit handgeschriebenen
+Pluralformen übernimmst; synthetisiert werden nur Formen, die im Ziel wirklich fehlen.
+
+Das alles kannst du dir ansehen, bevor du etwas ausgibst: `verbatra diff` listet pro Locale genau
+die fehlenden und geänderten Keys, `verbatra check` meldet dasselbe als Zahlen, und
+`verbatra translate --dry-run` gibt dir die vollständige Lauf-Zusammenfassung. Keiner der drei ruft
+einen Provider auf, schreibt eine Locale-Datei oder fasst die Lock-Datei an.
+
 ## Wie sie aktualisiert wird
 
 Die Lock-Datei wird pro Locale aktualisiert, und wie, hängt davon ab, was gelaufen ist:
@@ -64,8 +101,10 @@ und versuche es erneut.
 
 ## Fehlend oder beschädigt
 
-Eine fehlende Lock-Datei ist kein Fehler: Das zählt als erster Lauf, bei dem jeder Quell-Key
-fehlend ist. Eine Lock-Datei, die vorhanden, aber nicht parsebar, strukturell falsch, zu groß oder
+Eine fehlende Lock-Datei ist kein Fehler: Es ist ein erster Lauf, und ohne Baseline kann nichts als
+veraltet erkannt werden. Quell-Keys, die die Zieldatei nicht hat, sind fehlend und werden übersetzt;
+Keys, die sie hat, gelten als unverändert und bleiben unangetastet, wie oben bei der Übernahme
+beschrieben. Eine Lock-Datei, die vorhanden, aber nicht parsebar, strukturell falsch, zu groß oder
 auf einer nicht unterstützten Version ist, lässt den Lauf mit `LOCK_FILE_INVALID` fehlschlagen,
 statt still überschrieben zu werden, damit du sie untersuchen oder wiederherstellen kannst, statt
 die Baseline zu verlieren.

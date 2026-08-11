@@ -26,6 +26,46 @@ sans modification de la source n'appelle le fournisseur pour rien, et pourquoi d
 périmées ne peuvent pas se cacher derrière une clé qui existe simplement. Le pipeline complet est
 sur [Comment ça marche](/docs/how-it-works).
 
+## Adopter un projet existant
+
+Pointer verbatra vers un dépôt dont les fichiers de locale contiennent déjà des traductions relues
+ne les retraduit pas. À la première exécution il n'y a pas de fichier de verrouillage, donc aucune
+clé ne peut être détectée comme périmée : une clé source que le fichier cible possède déjà est
+inchangée, n'est jamais envoyée au fournisseur et garde sa valeur existante. Seules les clés que le
+fichier cible n'a pas sont manquantes, et seules celles-là sont traduites. Si pour une locale aucune
+traduction n'a été acceptée, aucune clé supprimée et aucune forme générée, son fichier cible
+existant n'est pas réécrit du tout.
+
+L'exécution enregistre quand même le hash source actuel pour chaque clé que la cible contient : la
+première exécution est donc l'étape d'adoption elle-même. Elle établit la référence sans un seul
+appel au fournisseur, et à partir de la deuxième exécution les modifications de la source
+ressortent comme dérive de façon normale.
+
+Qu'une clé soit adoptée se décide par sa présence, jamais par sa valeur, ce qui a deux conséquences
+à connaître avant cette première exécution :
+
+- Une valeur vide ou non traduite compte comme traduite. Une valeur cible qui est une chaîne
+  vide, ou qui est encore le texte source non traduit, est une clé qui existe : elle est donc
+  inchangée et ne sera jamais remplie. Les outils de scaffolding qui pré-créent les fichiers de
+  locale avec des chaînes vides tombent exactement là-dessus. La solution est de supprimer la clé du
+  fichier cible : vider sa valeur ne sert à rien, car une chaîne vide reste une entrée. Une fois la
+  clé partie, l'exécution suivante la voit comme manquante et la traduit.
+- Une traduction déjà périmée est enregistrée comme à jour. Le fichier de verrouillage prend le hash
+  source tel qu'il est maintenant, donc une traduction qui avait déjà dérivé de la source avant
+  l'adoption du projet est tenue pour à jour et ne sera pas revue. Corrige ou supprime ces clés avant
+  la première exécution.
+
+La génération de pluriels suit la même règle d'adoption. Une forme plurielle que le fichier cible
+contient déjà est gardée telle quelle : elle n'est ni régénérée ni envoyée au fournisseur. Tu peux
+donc laisser `generatePlurals` activé pendant que tu adoptes un projet qui porte des formes
+plurielles écrites à la main ; seules les formes réellement absentes de la cible sont synthétisées.
+
+Tu peux voir tout cela avant de dépenser quoi que ce soit : `verbatra diff` liste par locale les
+clés manquantes et modifiées exactes, `verbatra check` rapporte la même chose sous forme de
+compteurs, et `verbatra translate --dry-run` te donne le résumé complet de l'exécution. Aucun des
+trois n'appelle de fournisseur, n'écrit de fichier de locale ni ne touche au fichier de
+verrouillage.
+
 ## Comment il est mis à jour
 
 Le fichier de verrouillage est mis à jour par locale, et la façon dépend de ce qui a tourné :
@@ -63,8 +103,10 @@ verbatra ne tourne, ce fichier a été laissé par un processus tué : supprime-
 
 ## Absent ou corrompu
 
-Un fichier de verrouillage absent n'est pas une erreur : il compte comme une première exécution, où
-chaque clé source est manquante. Un fichier de verrouillage présent mais inanalysable,
+Un fichier de verrouillage absent n'est pas une erreur : c'est une première exécution, et sans
+référence rien ne peut être détecté comme périmé. Les clés source que le fichier cible n'a pas sont
+manquantes et se font traduire ; celles qu'il a sont inchangées et restent intactes, comme décrit
+plus haut à propos de l'adoption. Un fichier de verrouillage présent mais inanalysable,
 structurellement faux, trop gros ou à une version non prise en charge fait échouer l'exécution avec
 `LOCK_FILE_INVALID` au lieu d'être écrasé en silence, pour que tu puisses l'inspecter ou le
 restaurer plutôt que de perdre la référence.

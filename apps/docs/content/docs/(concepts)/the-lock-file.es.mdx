@@ -26,6 +26,45 @@ origen no llama al proveedor para nada, y por eso las traducciones obsoletas no 
 esconderse detrás de una clave que simplemente existe. La canalización completa está en
 [Cómo funciona](/docs/how-it-works).
 
+## Adoptar un proyecto existente
+
+Apuntar verbatra a un repositorio cuyos archivos de locale ya contienen traducciones revisadas no
+las retraduce. En la primera ejecución no hay archivo de bloqueo, así que ninguna clave puede
+detectarse como obsoleta: una clave de origen que el archivo de destino ya tiene está sin cambios,
+nunca se envía al proveedor y conserva su valor existente. Solo son faltantes las claves que el
+archivo de destino no tiene, y solo esas se traducen. Si para un locale no se aceptó ninguna
+traducción, no se eliminó ninguna clave y no se generó ninguna forma, su archivo de destino
+existente no se reescribe en absoluto.
+
+La ejecución sí registra el hash de origen actual para cada clave que el destino contiene, así que
+la primera ejecución es el propio paso de adopción: establece la línea base sin una sola llamada al
+proveedor, y a partir de la segunda ejecución las ediciones del origen aparecen como desfase de la
+forma habitual.
+
+Que una clave se dé por adoptada lo decide su presencia, nunca su valor, y de ahí salen dos
+consecuencias que conviene conocer antes de esa primera ejecución:
+
+- Un valor vacío o sin traducir cuenta como traducido. Un valor de destino que es una cadena
+  vacía, o que sigue siendo el texto de origen sin traducir, es una clave que existe, así que está
+  sin cambios y nunca se rellena. Las herramientas de scaffolding que precrean archivos de locale
+  con cadenas vacías caen justo aquí. La solución es borrar la clave del archivo de destino: vaciar
+  su valor no sirve, porque una cadena vacía sigue siendo una entrada. Una vez que la clave no está,
+  la siguiente ejecución la ve como faltante y la traduce.
+- Una traducción que ya estaba obsoleta queda registrada como actual. El bloqueo toma el hash de
+  origen tal como está ahora, así que una traducción que ya se había desviado del origen antes de
+  adoptar el proyecto queda dada por al día y no se vuelve a tocar. Corrige o borra esas claves
+  antes de la primera ejecución.
+
+La generación de plurales sigue la misma regla de adopción. Una forma plural que el archivo de
+destino ya tiene se conserva tal cual: ni se regenera ni se envía al proveedor. Así que puedes dejar
+`generatePlurals` activado mientras adoptas un proyecto que lleva formas plurales escritas a mano;
+solo se sintetizan las formas que de verdad faltan en el destino.
+
+Puedes verlo todo antes de gastar nada: `verbatra diff` lista por locale las claves faltantes y
+modificadas exactas, `verbatra check` informa de lo mismo en forma de recuentos y
+`verbatra translate --dry-run` te da el resumen completo de la ejecución. Ninguno de los tres llama
+a un proveedor, escribe un archivo de locale ni toca el bloqueo.
+
 ## Cómo se actualiza
 
 El bloqueo se actualiza por locale, y el cómo depende de qué se ejecutó:
@@ -62,8 +101,10 @@ proceso de verbatra en marcha, ese archivo lo dejó atrás uno que fue matado: b
 
 ## Ausente o corrupto
 
-Un archivo de bloqueo ausente no es un error: cuenta como una primera ejecución, en la que toda
-clave de origen es faltante. Un archivo de bloqueo presente pero imposible de parsear,
+Un archivo de bloqueo ausente no es un error: es una primera ejecución, y sin línea base nada puede
+detectarse como obsoleto. Las claves de origen que el archivo de destino no tiene son faltantes y se
+traducen; las que sí tiene están sin cambios y se dejan intactas, como se describe arriba en la
+adopción. Un archivo de bloqueo presente pero imposible de parsear,
 estructuralmente incorrecto, demasiado grande o con una versión no soportada hace fallar la
 ejecución con `LOCK_FILE_INVALID` en lugar de sobrescribirse en silencio, para que puedas
 inspeccionarlo o restaurarlo en vez de perder la línea base.
