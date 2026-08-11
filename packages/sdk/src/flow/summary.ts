@@ -60,12 +60,19 @@ export interface NeedsReviewEntry {
 }
 
 /**
- * One row a workbook import could not read: the 1-based worksheet row number and the header label of
- * the offending column. Carries no cell content, so untrusted workbook text never reaches the summary.
+ * One row a workbook import could not read: the 1-based row number, the file line for a delimited
+ * import, and the header label of the offending column. Carries no cell content, so untrusted workbook
+ * text never reaches the summary.
  */
 export interface MalformedRowReport {
   /** The 1-based worksheet row number of the malformed row. */
   readonly row: number;
+  /**
+   * The 1-based file line the malformed record starts on. Present only for a delimited (csv or tsv)
+   * import; an xlsx workbook has rows rather than lines. See {@link DuplicateKeyReport.line} for why
+   * both numbers are reported.
+   */
+  readonly line?: number;
   /** The header label of the column the row was rejected on (for example "Status"). */
   readonly column: string;
 }
@@ -79,6 +86,15 @@ export interface DuplicateKeyReport {
   readonly key: string;
   /** The 1-based worksheet row number of the later occurrence that lost to the first. */
   readonly row: number;
+  /**
+   * The 1-based file line this later occurrence starts on. Present only for a delimited (csv or tsv)
+   * import.
+   *
+   * A delimited record holding a quoted line break covers one spreadsheet row but several editor
+   * lines, so `row` is the number a translator sees in a spreadsheet and `line` the one they see in a
+   * text editor. Both are reported so the position holds whichever tool they opened the file in.
+   */
+  readonly line?: number;
 }
 
 /** Structured outcome for one target locale; surfaced as data on the run, never thrown. */

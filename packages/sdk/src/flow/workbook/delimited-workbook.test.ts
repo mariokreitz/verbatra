@@ -322,7 +322,26 @@ describe("importWorkbook: a delimited handoff is judged exactly like a workbook"
 
     const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
     expect(summary.locales[0]?.translated).toEqual(["farewell", "greeting"]);
-    expect(summary.locales[0]?.malformedRows).toEqual([{ row: 4, column: "Current translation" }]);
+    expect(summary.locales[0]?.malformedRows).toEqual([
+      { row: 4, line: 4, column: "Current translation" },
+    ]);
+  });
+
+  it("carries the file line of a malformed row past a source with an embedded line break", async () => {
+    const dir = await project({ greeting: "Hello\nagain", farewell: "Bye" });
+    const config = cfg({ targetLocales: ["de"] });
+    await exportWorkbook({ config, cwd: dir, format: "csv", out: "handoff" });
+
+    const path = join(dir, "handoff", "de.csv");
+    const data = await readExported(path, "de", "csv");
+    const rows = (data.sheets[0]?.rows ?? []).map((row) => ({ ...row, translation: "Uebersetzt" }));
+    const text = buildDelimited({ locale: "de", rows }, "csv");
+    await writeFile(path, `${text}broken,row\n`, "utf8");
+
+    const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
+    expect(summary.locales[0]?.malformedRows).toEqual([
+      { row: 4, line: 5, column: "Current translation" },
+    ]);
   });
 
   it("keeps the first occurrence of a duplicated key and reports the later one", async () => {
@@ -343,7 +362,7 @@ describe("importWorkbook: a delimited handoff is judged exactly like a workbook"
     await writeFile(path, buildDelimited({ locale: "de", rows }, "csv"), "utf8");
 
     const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
-    expect(summary.locales[0]?.duplicateKeys).toEqual([{ key: "greeting", row: 3 }]);
+    expect(summary.locales[0]?.duplicateKeys).toEqual([{ key: "greeting", row: 3, line: 3 }]);
     expect(await readJsonFile(join(dir, "locales", "de.json"))).toEqual({ greeting: "Hallo" });
   });
 });
