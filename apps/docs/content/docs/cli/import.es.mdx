@@ -20,7 +20,7 @@ verbatra import <workbook> [flags]
 | `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
 | `--dry-run` | ninguno | desactivado | valida e informa sin escribir archivos de locale ni actualizar el bloqueo |
 | `--format` | `<format>` | `xlsx` | lee un libro de Excel (`xlsx`) o archivos delimitados (`csv`, `tsv`) |
-| `--json` | ninguno | desactivado | imprime el resumen de la ejecución como un objeto JSON en stdout (la misma [forma `RunSummary`](/docs/sdk) que `translate`); los errores siguen yendo a stderr |
+| `--json` | ninguno | desactivado | imprime un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout que lleva el resumen de la ejecución bajo `result` (la misma [forma `RunSummary`](/docs/sdk) que `translate`), o el código de error si la ejecución falla; la línea de error legible por humanos sigue yendo a stderr |
 
 ## Ejemplos
 

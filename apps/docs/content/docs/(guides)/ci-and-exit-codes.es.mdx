@@ -43,9 +43,29 @@ Ambos aceptan `--locales de,fr` para bloquear un subconjunto. Pasar `--locales` 
 
 ## Salida JSON
 
-Seis comandos aceptan `--json` para una salida legible por máquina en stdout: `translate`, `watch`, `check`, `diff`, `export` e `import`. Los errores van siempre a stderr como una línea estructurada (`verbatra: error [CODE] message`), así que stdout sigue siendo analizable.
+Seis comandos aceptan `--json` para una salida legible por máquina en stdout: `translate`, `watch`, `check`, `diff`, `export` e `import`. Cada registro ocupa una línea, y cada registro va dentro del mismo envoltorio, así que ramificas sobre un solo campo y nunca tienes que adivinar de qué comando son los datos que tienes delante:
 
-`verbatra translate --json` y `verbatra import --json` imprimen un objeto `RunSummary`:
+```ts
+type Envelope<TResult> =
+  | { ok: true; version: 1; command: string; result: TResult }
+  | { ok: false; version: 1; command: string | null; code: string; message: string };
+```
+
+`version` es la versión de esta forma de envoltorio, no la versión del paquete. Es un entero, así que lo comparas con `===` en lugar de analizar un rango, y solo cambia cuando un campo existente cambia de significado o desaparece. Pueden aparecer campos nuevos sin incrementarla, así que ignora los que no reconozcas.
+
+Una ejecución que falla por completo escribe exactamente un registro `ok: false` en stdout y sale con `2`. Su `code` es el mismo código de error estable que lleva la línea de stderr, y es sobre lo que ramificas:
+
+```json
+{ "ok": false, "version": 1, "command": "translate", "code": "CONFIG_INVALID", "message": "..." }
+```
+
+`command` es `null` solo cuando el fallo ocurrió antes de resolver un subcomando.
+
+Los errores van además a stderr como una línea estructurada (`verbatra: error [CODE] message`) en ambos modos, sin cambios, así que un script que lee el código de salida y stderr no necesita ninguna actualización. Sin `--json`, una ejecución fallida sigue sin escribir absolutamente nada en stdout. Los registros de progreso y de espera de bloqueo van siempre a stderr, así que stdout no lleva más que envoltorios.
+
+El resto de esta sección describe el `result` que cada comando pone dentro de un envoltorio de éxito.
+
+`verbatra translate --json` y `verbatra import --json` llevan un `RunSummary`:
 
 ```ts
 interface RunSummary {
@@ -60,15 +80,9 @@ interface RunSummary {
 
 Cada `LocaleSummary` lleva las listas de claves por locale (traducidas, sin cambios, huérfanas, retenidas, marcadas para revisión y más); consulta [la referencia del SDK](/docs/sdk) para la anatomía completa.
 
-`verbatra watch --json` imprime un registro por ejecución como NDJSON (un objeto JSON por línea):
+`verbatra watch --json` imprime un envoltorio por ejecución como NDJSON (un objeto JSON por línea), con `command: "watch"`. Una ejecución correcta es un registro `ok: true` que lleva el `RunSummary` de esa ejecución; una ejecución fallida es un registro `ok: false` que lleva su código y su mensaje. Una ejecución fallida es solo un registro en el flujo: ni detiene el watcher ni cambia el código de salida.
 
-```ts
-type WatchRunResult =
-  | { status: "succeeded"; summary: RunSummary }
-  | { status: "failed"; error: { code: string; message: string } };
-```
-
-`verbatra check --json` imprime un documento de estado. El `inSync` de nivel superior es true exactamente cuando el comando sale con `0`:
+`verbatra check --json` lleva un documento de estado. El `inSync` de nivel superior es true exactamente cuando el comando sale con `0`:
 
 ```ts
 interface CheckSummary {
@@ -85,7 +99,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` te da listas de claves en lugar de contadores. El `hasPendingChanges` de nivel superior es true exactamente cuando el comando sale con `1`:
+`verbatra diff --json` lleva listas de claves en lugar de contadores. El `hasPendingChanges` de nivel superior es true exactamente cuando el comando sale con `1`:
 
 ```ts
 interface DiffSummary {
@@ -102,7 +116,7 @@ interface LocaleDiff {
 }
 ```
 
-`verbatra export --json` imprime dónde quedó el libro y el número de filas por locale:
+`verbatra export --json` lleva la ruta donde quedó el libro y el número de filas por locale:
 
 ```ts
 {

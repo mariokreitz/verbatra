@@ -20,9 +20,9 @@ verbatra watch [flags]
 | `--lock-timeout` | `<seconds>` | `600` | wie lange auf eine gehaltene Schreibsperre eines Locales gewartet wird, bevor der Lauf scheitert; muss eine nackte positive Ganzzahl von Sekunden sein (ein Wert wie `60s`, `0` oder `-1` ist ein Verwendungsfehler, Exit `2`) |
 | `--concurrency` | `<n>` | `1` | pro Lauf bis zu `n` Ziel-Locales gleichzeitig übersetzen; muss eine positive Ganzzahl sein |
 | `--no-cache` | keins | aus (Cache an) | bei jedem Lauf den lokalen [Translation-Memory-Cache](/docs/the-cache) (`verbatra.cache.json`) umgehen |
-| `--json` | keins | aus | jeden Lauf als einen NDJSON-Datensatz (ein JSON-Objekt pro Zeile) auf stdout ausgeben |
+| `--json` | keins | aus | jeden Lauf als einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, im NDJSON-Stil (ein Objekt pro Zeile) |
 
-Mit `--json` erzeugt jeder Lauf einen [`WatchRunResult`](/docs/sdk)-Datensatz: ein Erfolg mit der Lauf-Zusammenfassung oder ein Fehlschlag mit Fehlercode und Meldung. Die Startzeile, der Stopp-Hinweis und der Fortschritt jedes Laufs gehen auf stderr, der stdout-Strom bleibt also sauberes NDJSON. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom: er stoppt weder den Watcher noch ändert er den Exit-Code.
+Mit `--json` erzeugt jeder Lauf einen [Envelope](/docs/ci-and-exit-codes#json-ausgabe)-Datensatz mit `command: "watch"`: einen `ok: true`-Datensatz, der das [`RunSummary`](/docs/sdk) dieses Laufs unter `result` trägt, oder einen `ok: false`-Datensatz mit Fehlercode und Meldung. Die Startzeile, der Stopp-Hinweis und der Fortschritt jedes Laufs gehen auf stderr, der stdout-Strom bleibt also sauberes NDJSON. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom: er stoppt weder den Watcher noch ändert er den Exit-Code.
 
 `--lock-timeout` gilt für jeden Zyklus: Es stellt ein, wie lange ein Locale auf eine umkämpfte [Schreibsperre](/docs/the-lock-file) wartet, bevor dieser Lauf mit `LOCK_CONTENDED` scheitert. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom, der Watcher läuft also so oder so weiter.
 

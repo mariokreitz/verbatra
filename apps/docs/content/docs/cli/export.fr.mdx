@@ -20,7 +20,7 @@ verbatra export [flags]
 | `--format` | `<format>` | `xlsx` | écrit un classeur Excel (`xlsx`) ou un fichier délimité par locale (`csv`, `tsv`) |
 | `--locales` | `<list>` | toutes les cibles configurées | sous-ensemble de locales cibles à exporter, séparées par des virgules |
 | `--include-unchanged` | aucun | désactivé | exporte aussi les chaînes déjà à jour |
-| `--json` | aucun | désactivé | affiche le résultat d'export (chemin et nombre de lignes par locale) comme un seul objet JSON sur stdout ; les erreurs vont toujours sur stderr |
+| `--json` | aucun | désactivé | affiche une [enveloppe JSON](/docs/ci-and-exit-codes#sortie-json) sur stdout portant le résultat d'export (chemin et nombre de lignes par locale) sous `result`, ou le code d'erreur si l'exécution échoue ; la ligne d'erreur lisible par un humain va toujours sur stderr |
 
 Une valeur `--locales` vide ou inconnue est rejetée avec la sortie `2` plutôt que de ne rien exporter en silence.
 

@@ -21,7 +21,7 @@ verbatra translate [flags]
 | `--lock-timeout` | `<seconds>` | `600` | combien de temps attendre un verrou d'écriture de locale déjà détenu avant d'échouer ; doit être un entier positif brut de secondes (une valeur comme `60s`, `0` ou `-1` est une erreur d'usage, code `2`) |
 | `--concurrency` | `<n>` | `1` | traduit jusqu'à `n` locales cibles à la fois ; doit être un entier positif |
 | `--no-cache` | aucun | désactivé (cache activé) | contourne le [cache de mémoire de traduction](/docs/the-cache) local (`verbatra.cache.json`) pour cette exécution |
-| `--json` | aucun | désactivé | affiche le résumé d'exécution comme un seul objet JSON sur stdout (la [forme `RunSummary`](/docs/sdk)) ; les erreurs vont toujours sur stderr |
+| `--json` | aucun | désactivé | affiche une [enveloppe JSON](/docs/ci-and-exit-codes#sortie-json) sur stdout portant le résumé d'exécution sous `result` (la [forme `RunSummary`](/docs/sdk)), ou le code d'erreur si l'exécution échoue ; la ligne d'erreur lisible par un humain va toujours sur stderr |
 
 Par défaut, une exécution ne supprime rien : les clés orphelines sont signalées et laissées en place. `--prune` supprime exactement ces clés et rien d'autre, et remplace l'option `prune` de la config pour cette exécution. Avant de s'exécuter, `translate` charge `.env.local` puis `.env` depuis le répertoire de travail ; une variable déjà définie dans l'environnement réel l'emporte.
 
