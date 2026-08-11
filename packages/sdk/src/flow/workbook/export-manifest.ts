@@ -34,8 +34,12 @@ const manifestSchema = z.object({
  * name, or its timestamp says which run produced it, so the export has to say so itself.
  *
  * Written after the locale files, never before: a run that dies midway leaves the previous manifest in
- * place, which lists at least every file then present, so the next import degrades to the old
- * read-everything behavior rather than flagging a fresh file as stale.
+ * place rather than a half-truth of its own. That covers a re-export whose locale selection is a
+ * superset of the last one, where the old manifest still names every file present. It does not cover a
+ * narrower or disjoint re-export: exporting `[de]` and then dying partway through an export of `[fr]`
+ * leaves a fresh `fr` file behind a manifest that names only `de`, and the next import refuses that
+ * fresh file as `HANDOFF_FILE_STALE`. The failure is loud rather than silent (the locale is reported,
+ * never applied outdated), and re-exporting clears it by rewriting both the files and the manifest.
  */
 export async function writeExportManifest(
   fs: SdkFs,
