@@ -47,6 +47,20 @@ export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore()
  */
 export const agentToolsStatusStore: AgentToolsStatusStore = createAgentToolsStatusStore();
 
+/**
+ * The teardown handle for the agent-tools surface. Its signal is passed to every `registerTool`
+ * call, and aborting it is the only way the WebMCP specification offers to take the tools back:
+ * there is no `unregisterTool`. `abort()` is idempotent and never throws, so a caller may invoke
+ * it twice or during page teardown safely.
+ *
+ * Nothing aborts it today. The dashboard mounts once per page load and is never unmounted, and
+ * aborting on `pagehide` would be wrong rather than harmless: a back/forward-cache restore brings
+ * the same document back with its tools permanently gone, and re-registration is not supported.
+ * So the controller exists as the seam a real teardown would use, and stays untouched until there
+ * is one.
+ */
+export const agentToolsAbortController = new AbortController();
+
 const refreshListeners = new Set<(event: RefreshEvent) => void>();
 
 /** Lets a panel react to a live-refresh event without threading the reconnect controller through props. */

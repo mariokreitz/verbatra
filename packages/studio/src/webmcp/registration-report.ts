@@ -20,9 +20,10 @@ export interface ToolRegistrationFailure {
 
 /**
  * The outcome of one registration pass. `attempted` counts only the tools the pass actually tried
- * to register, so it is 11 without the spend capability and 13 with it, and 0 when the pass no-ops
- * (no WebMCP surface, or the server did not opt in). `registered` plus `failures` always accounts
- * for every attempt: one failing tool never cancels the ones after it.
+ * to register, so it is 11 without the spend capability and 13 with it, fewer when a teardown
+ * signal aborts the pass part way, and 0 when the pass no-ops (no WebMCP surface, the server did
+ * not opt in, or the signal had already aborted). `registered` plus `failures` always accounts for
+ * every attempt: one failing tool never cancels the ones after it.
  */
 export interface AgentToolsRegistration {
   readonly attempted: number;
