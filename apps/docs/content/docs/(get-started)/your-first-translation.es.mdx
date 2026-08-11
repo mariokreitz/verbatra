@@ -65,7 +65,7 @@ Las claves vienen del entorno, nunca del archivo de configuración. Cada proveed
 cp .env.example .env
 ```
 
-Luego abre `.env` y pega tu clave después de `GEMINI_API_KEY=`. verbatra carga `.env.local` y luego `.env` desde el directorio de trabajo antes de una ejecución, y una variable ya definida en tu shell siempre gana. Consulta [Proveedores](/docs/providers) para ver la variable de cada proveedor.
+Luego abre `.env` y pega tu clave después de `GEMINI_API_KEY=`. `translate`, `watch` y `studio` cargan `.env.local` y luego `.env` desde el directorio de trabajo antes de una ejecución, y una variable ya definida en tu shell siempre gana. Consulta [Proveedores](/docs/providers) para ver la variable de cada proveedor.
 
 <Callout title="¿Aún sin clave? Gemini tiene un nivel gratuito.">
 La API de Gemini tiene un nivel realmente gratuito, lo que la convierte en la forma más barata de probar verbatra. Consigue una clave en [Google AI Studio](https://aistudio.google.com/apikey) y define `GEMINI_API_KEY`. El nivel gratuito tiene límites de solicitudes por minuto y por día, así que dosifica una primera traducción grande.

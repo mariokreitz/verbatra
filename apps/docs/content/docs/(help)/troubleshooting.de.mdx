@@ -69,9 +69,9 @@ genannte Variable ist ungesetzt oder leer. Fehlermeldungen nennen die Variable, 
 einen Schlüsselwert, und Schlüssel werden nie aus der Konfiguration oder aus CLI-Argumenten
 gelesen.
 
-**Lösung**: Setze die Variable, die die Meldung nennt. Die CLI lädt `.env` und `.env.local` aus
-dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen Skript also
-`node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
+**Lösung**: Setze die Variable, die die Meldung nennt. `translate`, `watch` und `studio` laden
+`.env` und `.env.local` aus dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen
+Skript also `node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
 nur, wenn die Konfiguration ein `apiKeyEnvVar` nennt, das ungesetzt ist; ohne eines fällt es für
 lokale Server auf einen schlüssellosen Platzhalter zurück.
 

@@ -135,7 +135,7 @@ To load one explicit file instead of searching, pass `--config <path>`; a relati
 
 ## The working directory and .env
 
-Run verbatra from your project root, or pass `--cwd` pointing at it. The working directory is the single anchor for everything verbatra resolves: the config search starts there and walks upward, `.env.local` and `.env` are loaded from there, and each locale file path is resolved against it. Keeping all three in the same place is what makes a plain `verbatra translate` work.
+Run verbatra from your project root, or pass `--cwd` pointing at it. The working directory is the single anchor for everything verbatra resolves: the config search starts there and walks upward, `.env.local` and `.env` are loaded from there by `translate`, `watch`, and `studio`, and each locale file path is resolved against it. Keeping all three in the same place is what makes a plain `verbatra translate` work.
 
 Environment precedence is, highest first: a variable already set in your real environment, then `.env.local`, then `.env`. A variable already present is never overwritten.
 
