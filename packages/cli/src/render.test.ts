@@ -277,6 +277,16 @@ describe("render: human run summary", () => {
     expect(text).toContain("row 7 (Status)");
   });
 
+  it("labels the record number and the file line of a malformed row that reports both", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ malformedRows: [{ row: 7, line: 11, column: "Status" }] })],
+      }),
+      "import",
+    );
+    expect(text).toContain("row 7, line 11 (Status)");
+  });
+
   it("shows a duplicate-keys count and the conflicting key with its losing row", () => {
     const text = renderHuman(
       makeSummary({ locales: [makeLocale({ duplicateKeys: [{ key: "greeting", row: 9 }] })] }),
@@ -285,6 +295,16 @@ describe("render: human run summary", () => {
     expect(text).toContain("1 duplicate-keys");
     expect(text).toContain("duplicates:");
     expect(text).toContain("greeting (row 9)");
+  });
+
+  it("labels the record number and the file line of a duplicate key that reports both", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [makeLocale({ duplicateKeys: [{ key: "greeting", row: 9, line: 14 }] })],
+      }),
+      "import",
+    );
+    expect(text).toContain("greeting (row 9, line 14)");
   });
 
   it("omits the import detail groups when nothing was unfilled, malformed, or duplicated", () => {

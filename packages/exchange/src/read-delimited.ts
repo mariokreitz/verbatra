@@ -86,9 +86,34 @@ function scanField(text: string, start: number, delimiter: string): FieldScan {
   return { value: `${quoted.value}${trailing.value}`, next: trailing.next };
 }
 
-/** One scanned record: its fields and the offset of the line break (or end of text) that closed it. */
+/**
+ * Count the line breaks in one scanned field value: CRLF as one break, and a lone LF or CR as one
+ * each. Counting the decoded value rather than the raw text is exact, because decoding only collapses
+ * a doubled quote into one quote and never adds or removes a break.
+ */
+function countLineBreaks(value: string): number {
+  let breaks = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "\n") {
+      breaks += 1;
+    } else if (char === "\r") {
+      breaks += 1;
+      if (value[index + 1] === "\n") {
+        index += 1;
+      }
+    }
+  }
+  return breaks;
+}
+
+/**
+ * One scanned record: its fields, the number of line breaks its fields carry inside quotes, and the
+ * offset of the line break (or end of text) that closed it.
+ */
 interface RecordScan {
   readonly fields: readonly string[];
+  readonly breaks: number;
   readonly next: number;
 }
 
@@ -96,6 +121,10 @@ interface RecordScan {
  * Scan one record: fields separated by the delimiter, up to a line break or the end of the text. The
  * per-field caps are enforced inside the loop, so a record that breaches one is abandoned where it
  * breaches it and its remaining fields are never materialized.
+ *
+ * The line breaks each field carries are counted as the field is scanned, which is what lets
+ * {@link scanRecords} know the line every record starts on without walking the text a second time.
+ * Only a quoted field can hold a break: a plain field ends at one, and the delimiter is not one.
  *
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a field-length or field-count breach
  */
@@ -106,15 +135,17 @@ function scanRecord(
   limits: DelimitedLimits,
 ): RecordScan {
   const fields: string[] = [];
+  let breaks = 0;
   let cursor = start;
   for (;;) {
     const field = scanField(text, cursor, delimiter);
     assertFieldLength(field.value, limits);
     fields.push(field.value);
+    breaks += countLineBreaks(field.value);
     assertFieldCount(fields.length, limits);
     cursor = field.next;
     if (text[cursor] !== delimiter) {
-      return { fields, next: cursor };
+      return { fields, breaks, next: cursor };
     }
     cursor += 1;
   }
@@ -128,8 +159,19 @@ function consumeLineBreak(text: string, cursor: number): number {
   return text[cursor] === "\n" ? cursor + 1 : cursor;
 }
 
+/** One record the scan hands on: its fields and the 1-based file line the record starts on. */
+interface ScannedRecord {
+  readonly fields: readonly string[];
+  readonly line: number;
+}
+
 /**
  * Split the text into records. Line breaks inside a quoted field belong to the field, not the record.
+ *
+ * Each record carries the file line it starts on, tracked as the scan advances: the running line
+ * moves on by the breaks the finished record's fields held plus the one that closed it. A record
+ * therefore knows its line without the text being walked again, and a quoted break shifts every
+ * later record's line exactly as it does in an editor.
  *
  * Every cap is enforced during the scan, never over the finished result: the record count is checked
  * as each record is added, and {@link scanRecord} checks each field as it is scanned. A crafted file
@@ -144,17 +186,19 @@ function scanRecords(
   text: string,
   delimiter: string,
   limits: DelimitedLimits,
-): readonly (readonly string[])[] {
-  const records: (readonly string[])[] = [];
+): readonly ScannedRecord[] {
+  const records: ScannedRecord[] = [];
   let cursor = 0;
+  let line = 1;
   while (cursor < text.length) {
     const record = scanRecord(text, cursor, delimiter, limits);
-    records.push(record.fields);
+    records.push({ fields: record.fields, line });
     assertRecordCount(records.length, limits);
     const next = consumeLineBreak(text, record.next);
     if (next === record.next) {
       break;
     }
+    line += record.breaks + 1;
     cursor = next;
   }
   return records;
@@ -227,8 +271,8 @@ function assertRecordCount(count: number, limits: DelimitedLimits): void {
  *
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the header record is absent or does not match
  */
-function assertHeaderRecord(records: readonly (readonly string[])[]): void {
-  const header = records[0];
+function assertHeaderRecord(records: readonly ScannedRecord[]): void {
+  const header = records[0]?.fields;
   if (header === undefined || header.length !== HEADERS.length) {
     throw new ExchangeError(
       "WORKBOOK_INVALID",
@@ -272,26 +316,38 @@ interface DelimitedAccumulator {
   readonly seenKeys: Set<string>;
 }
 
+/** Where a reported record sits in the file: its record number and the line it starts on. */
+interface RecordPosition {
+  /** The 1-based record number, counting the header as record 1. */
+  readonly row: number;
+  /** The 1-based file line the record starts on. */
+  readonly line: number;
+}
+
 /**
  * Judge one data record: report a field-count mismatch or a failed shape check as a malformed row,
  * report a repeated key as a duplicate (the first occurrence already won its place), and otherwise keep
  * the row. Skips a blank line and a record whose Key field is empty, exactly like the xlsx reader.
  *
- * `row` is the 1-based record number, counting the header as record 1. It is the file's line number
- * only while no earlier record contains a quoted field with a line break in it; once one does, a
- * record spans several lines and the record number no longer matches an editor's line number.
+ * A problem carries both numbers, because a delimited file has two honest answers to "which one is
+ * it". `row` is the 1-based record number, counting the header as record 1, which is the row a
+ * spreadsheet shows: a quoted line break keeps a record on one spreadsheet row. `line` is the file
+ * line the record starts on, which is what a text editor shows, and the two diverge from the first
+ * quoted line break onwards. Reporting both, each labelled where it is rendered, means a translator
+ * can act on the number that matches whatever they opened the file in.
  */
 function readRecord(
   fields: readonly string[],
   locale: string,
-  row: number,
+  at: RecordPosition,
   into: DelimitedAccumulator,
 ): void {
+  const { row, line } = at;
   if (isBlankRecord(fields)) {
     return;
   }
   if (fields.length !== HEADERS.length) {
-    into.malformed.push({ locale, row, column: fieldCountColumn(fields.length) });
+    into.malformed.push({ locale, row, line, column: fieldCountColumn(fields.length) });
     return;
   }
   if (fields[COLUMN.key - 1] === "") {
@@ -299,11 +355,11 @@ function readRecord(
   }
   const outcome = parseRowCells(fields);
   if (!outcome.ok) {
-    into.malformed.push({ locale, row, column: outcome.column });
+    into.malformed.push({ locale, row, line, column: outcome.column });
     return;
   }
   if (into.seenKeys.has(outcome.row.key)) {
-    into.duplicates.push({ locale, key: outcome.row.key, row });
+    into.duplicates.push({ locale, key: outcome.row.key, row, line });
     return;
   }
   into.seenKeys.add(outcome.row.key);
@@ -322,9 +378,12 @@ function readRecord(
  * It decides no policy: it reports structure, including problems, for the SDK to judge. A malformed
  * record (a wrong field count or a failed shape check) and a duplicate key are returned as structured
  * data on {@link WorkbookData.malformedRows} and {@link WorkbookData.duplicateKeys} rather than thrown,
- * so one bad or repeated record never discards the file's good rows. Genuinely unreadable or oversized
- * input (a missing or mismatched header line, or any {@link DelimitedLimits} cap breach) surfaces as a
- * structured {@link ExchangeError} (`WORKBOOK_INVALID`); no field content or path escapes in it.
+ * so one bad or repeated record never discards the file's good rows. Each of those carries both the
+ * record number a spreadsheet shows as the row and the file line a text editor shows (see
+ * {@link readRecord}), so the reported position holds however the translator opened the file.
+ * Genuinely unreadable or oversized input (a missing or mismatched header line, or any
+ * {@link DelimitedLimits} cap breach) surfaces as a structured {@link ExchangeError}
+ * (`WORKBOOK_INVALID`); no field content or path escapes in it.
  *
  * The size cap is checked before anything is scanned, and every other cap is enforced during the scan
  * (see {@link scanRecords}), so a crafted file is abandoned at the point it breaches a cap rather than
@@ -352,9 +411,9 @@ export function readDelimited(
     duplicates: [],
     seenKeys: new Set<string>(),
   };
-  for (const [index, fields] of records.entries()) {
+  for (const [index, record] of records.entries()) {
     if (index >= HEADER_RECORD) {
-      readRecord(fields, input.locale, index + 1, into);
+      readRecord(record.fields, input.locale, { row: index + 1, line: record.line }, into);
     }
   }
   return {

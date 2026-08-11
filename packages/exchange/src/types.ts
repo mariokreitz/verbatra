@@ -65,14 +65,20 @@ export interface WorkbookModel {
 /**
  * One data row that failed the read-layer shape check. Reported as structured data rather than
  * thrown, so one bad row never aborts the rest of its sheet. Carries only the sheet's locale, the
- * 1-based worksheet row number, and the offending column's header label; never any cell content, so
- * untrusted workbook text cannot leak through it.
+ * 1-based row number, the file line for a delimited file, and the offending column's header label;
+ * never any cell content, so untrusted workbook text cannot leak through it.
  */
 export interface WorkbookRowProblem {
   /** The locale (data-sheet name) the malformed row was on. */
   readonly locale: string;
   /** The 1-based worksheet row number of the malformed row. */
   readonly row: number;
+  /**
+   * The 1-based file line the malformed record starts on, for a delimited file. Set only by the
+   * delimited reader: a workbook has rows, not lines, so the xlsx reader leaves it absent. See
+   * {@link WorkbookDuplicateKey.line} for why both numbers are reported.
+   */
+  readonly line?: number;
   /** The header label of the column the row was rejected on (for example "Status"). */
   readonly column: string;
 }
@@ -90,6 +96,16 @@ export interface WorkbookDuplicateKey {
   readonly key: string;
   /** The 1-based worksheet row number of this later (losing) occurrence. */
   readonly row: number;
+  /**
+   * The 1-based file line this later occurrence starts on, for a delimited file. Set only by the
+   * delimited reader; absent for a workbook, which has rows rather than lines.
+   *
+   * Both numbers are reported because a delimited file has two honest readings of "where". A record
+   * containing a quoted line break occupies one spreadsheet row but several editor lines, so `row`
+   * is what a translator sees after opening the file in a spreadsheet and `line` is what they see in
+   * a text editor. Reporting one alone would be wrong for half of the audience.
+   */
+  readonly line?: number;
 }
 
 /** The parsed result of reading a returned workbook back into the neutral row model. */

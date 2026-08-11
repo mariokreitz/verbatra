@@ -84,20 +84,30 @@ function renderDetailGroup(label: string, values: readonly string[]): string | u
 }
 
 /**
+ * Where a reported import problem sits, both numbers labelled. A delimited import also reports the
+ * file line the record starts on, which is the number a text editor shows and the only one that stays
+ * right once a record holds a quoted line break; `row` remains the record number a spreadsheet shows.
+ * An xlsx import has no line, so it renders the row alone exactly as before.
+ */
+function renderPosition(at: { readonly row: number; readonly line?: number }): string {
+  return at.line === undefined ? `row ${at.row}` : `row ${at.row}, line ${at.line}`;
+}
+
+/**
  * The import-only detail groups under a locale line: the unfilled `changed` keys, the malformed rows
- * (by row and column), and the duplicate-key conflicts (by key and losing row). Empty for a provider
- * run, which never populates any of these buckets.
+ * (by position and column), and the duplicate-key conflicts (by key and losing position). Empty for a
+ * provider run, which never populates any of these buckets.
  */
 function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
   return [
     renderDetailGroup("unfilled", locale.unfilled),
     renderDetailGroup(
       "malformed",
-      locale.malformedRows.map((problem) => `row ${problem.row} (${problem.column})`),
+      locale.malformedRows.map((problem) => `${renderPosition(problem)} (${problem.column})`),
     ),
     renderDetailGroup(
       "duplicates",
-      locale.duplicateKeys.map((duplicate) => `${duplicate.key} (row ${duplicate.row})`),
+      locale.duplicateKeys.map((duplicate) => `${duplicate.key} (${renderPosition(duplicate)})`),
     ),
   ].filter((line): line is string => line !== undefined);
 }

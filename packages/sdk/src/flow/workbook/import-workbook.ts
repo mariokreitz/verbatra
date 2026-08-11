@@ -362,6 +362,15 @@ function absentLocaleFailures(
 }
 
 /**
+ * The reader's file line, ready to spread into a report: the delimited reader supplies one, the xlsx
+ * reader does not, and under `exactOptionalPropertyTypes` an absent line must be left out rather than
+ * set to `undefined`.
+ */
+function lineOf(reported: { readonly line?: number }): { readonly line?: number } {
+  return reported.line === undefined ? {} : { line: reported.line };
+}
+
+/**
  * Run one data sheet: judge its rows with {@link importLocale}, and on a non-dry-run write the merged
  * target file when anything was accepted. The file write is skipped when nothing was accepted, but the
  * lock entries are still recomputed so the locale's existing baseline is never wiped just because this
@@ -397,10 +406,10 @@ async function runSheet(
     sourceInvalidIcuKeys: ctx.sourceInvalidIcuKeys,
     malformedRows: ctx.malformedRows
       .filter((problem) => problem.locale === sheet.locale)
-      .map((problem) => ({ row: problem.row, column: problem.column })),
+      .map((problem) => ({ row: problem.row, column: problem.column, ...lineOf(problem) })),
     duplicateKeys: ctx.duplicateKeys
       .filter((duplicate) => duplicate.locale === sheet.locale)
-      .map((duplicate) => ({ key: duplicate.key, row: duplicate.row })),
+      .map((duplicate) => ({ key: duplicate.key, row: duplicate.row, ...lineOf(duplicate) })),
   });
 
   if (ctx.dryRun) {
