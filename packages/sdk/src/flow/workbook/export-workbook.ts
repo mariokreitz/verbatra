@@ -20,6 +20,7 @@ import { readTarget } from "../diff-locales.js";
 import { selectLocales } from "../select-locales.js";
 import { readSource } from "../source.js";
 import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
+import { writeExportManifest } from "./export-manifest.js";
 
 /** Default workbook output path, relative to the resolved working directory. */
 export const DEFAULT_WORKBOOK_PATH = "verbatra-translations.xlsx";
@@ -169,6 +170,11 @@ function buildRows(
  * Write one delimited interchange file per exported locale into the output directory, creating the
  * directory (and any missing parent) first. The file name carries the locale, since a delimited file
  * has no sheet to name it.
+ *
+ * Nothing already in the directory is removed: a file the user put there, and a locale file from an
+ * earlier export with a wider selection, both survive untouched. What the run does instead is record
+ * the locales it wrote, in the manifest written last (see {@link writeExportManifest}), so a later
+ * import can tell this export's files from an earlier one's leftovers and refuse to apply the latter.
  */
 async function writeDelimitedFiles(
   fs: SdkFs,
@@ -183,6 +189,12 @@ async function writeDelimitedFiles(
       buildDelimited(sheet, format),
     );
   }
+  await writeExportManifest(
+    fs,
+    directory,
+    format,
+    sheets.map((sheet) => sheet.locale),
+  );
 }
 
 /**
@@ -195,6 +207,11 @@ async function writeDelimitedFiles(
  * workbook leaves only the Translation column editable and hides the source hash, while every field of
  * a delimited file is editable and its source hash is visible. An edited source hash is never trusted
  * on import; it is compared against the live source and the row is withheld as drift.
+ *
+ * A delimited export also writes a small hidden manifest naming the locales it wrote. It exists so a
+ * re-export with a narrower `locales` selection retires the locales it dropped: their files stay on
+ * disk, but the next import recognizes them as leftovers from the earlier run and refuses to apply
+ * them. The export deletes nothing, so an unrelated file in the output directory is never at risk.
  *
  * @param input - The validated config and export options.
  * @param deps - Optional composition seams (registry, file system) for tests.
