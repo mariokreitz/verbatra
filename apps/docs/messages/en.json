@@ -5,6 +5,10 @@
       "text": "This page was translated automatically, so it may contain mistakes or read a little oddly. The English version is the source of truth.",
       "viewOriginal": "Read the English original"
     },
+    "notTranslated": {
+      "title": "Not available in your language",
+      "text": "This page has not been translated yet, so it is shown in English."
+    },
     "llms": {
       "heading": "For AI agents",
       "index": "llms.txt (index)",

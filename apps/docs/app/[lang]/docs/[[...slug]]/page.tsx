@@ -72,6 +72,45 @@ async function pageJsonLd(
   return blocks;
 }
 
+/**
+ * The locale notice above a localized page body. The loader inherits the English
+ * file whenever a locale has no translated sibling, so an identical source path
+ * means this locale serves the English body untranslated: say that plainly rather
+ * than claim a machine translation that does not exist. Renders nothing on the
+ * English site or on the docs home.
+ */
+async function LocaleNotice({
+  page,
+  slug,
+  lang,
+}: {
+  page: DocsPageData;
+  slug: string[] | undefined;
+  lang: Locale;
+}) {
+  if (lang === i18n.defaultLanguage || !slug || slug.length === 0) return null;
+
+  if (source.getPage(slug, i18n.defaultLanguage)?.path === page.path) {
+    const notTranslated = await getTranslations({ locale: lang, namespace: "docs.notTranslated" });
+    return (
+      <Callout type="info" title={notTranslated("title")}>
+        {notTranslated("text")}
+      </Callout>
+    );
+  }
+
+  const machineTranslated = await getTranslations({
+    locale: lang,
+    namespace: "docs.machineTranslated",
+  });
+  return (
+    <Callout type="info" title={machineTranslated("title")}>
+      {machineTranslated("text")}{" "}
+      <Link href={`/docs/${slug.join("/")}`}>{machineTranslated("viewOriginal")}</Link>.
+    </Callout>
+  );
+}
+
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
   const lang = params.lang as Locale;
@@ -81,13 +120,6 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
   const MDX = page.data.body;
 
   const isHome = !params.slug || params.slug.length === 0;
-
-  const isTranslated = lang !== i18n.defaultLanguage;
-  const englishHref = `/docs${params.slug && params.slug.length > 0 ? `/${params.slug.join("/")}` : ""}`;
-  const translationNote =
-    isTranslated && !isHome
-      ? await getTranslations({ locale: lang, namespace: "docs.machineTranslated" })
-      : null;
 
   const editHref = isHome
     ? null
@@ -114,12 +146,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
         </>
       )}
       <DocsBody>
-        {translationNote ? (
-          <Callout type="info" title={translationNote("title")}>
-            {translationNote("text")}{" "}
-            <Link href={englishHref}>{translationNote("viewOriginal")}</Link>.
-          </Callout>
-        ) : null}
+        <LocaleNotice page={page} slug={params.slug} lang={lang} />
         <MDX components={getMDXComponents(lang)} />
         {editHref ? <EditOnGitHub href={editHref} /> : null}
       </DocsBody>
