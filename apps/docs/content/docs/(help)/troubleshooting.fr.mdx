@@ -87,7 +87,9 @@ révoquée).
 précédente et sont reprises à l'exécution suivante, donc pour `RATE_LIMITED` ou `TIMEOUT` relance
 simplement plus tard. `AUTH_FAILED` ne se résout pas en réessayant : remplace la clé derrière la
 variable d'environnement. Un `maxBatchSize` plus petit réduit aussi le rayon d'impact d'une seule
-requête échouée.
+requête échouée. Quand `TIMEOUT` devient la règle plutôt qu'un accroc (un modèle local lent, ou de
+gros lots), augmente `requestTimeoutMs` dans les options du fournisseur : il borne chaque requête à
+deux minutes par défaut. Voir [Délai de requête](/docs/providers#délai-de-requête).
 
 ## Le fichier de verrouillage est corrompu (LOCK_FILE_INVALID)
 
@@ -114,7 +116,10 @@ killed; delete it and retry.`
 a laissé le fichier de verrou derrière lui.
 
 **Solution** : exactement ce que dit le message : attends que l'autre exécution finisse, ou, si
-aucune ne tourne, supprime le fichier de verrou au chemin affiché et réessaie.
+aucune ne tourne, supprime le fichier de verrou au chemin affiché et réessaie. Pour changer combien
+de temps une exécution attend avant d'abandonner, passe `--lock-timeout <seconds>` à
+[`translate`](/docs/cli/translate) ou [`watch`](/docs/cli/watch) ; la valeur par défaut est `600`
+secondes.
 
 ## Des clés à points ou des clés YAML entrent en collision (INVALID_STRUCTURE)
 

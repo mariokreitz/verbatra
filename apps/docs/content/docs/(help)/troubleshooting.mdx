@@ -78,7 +78,10 @@ request timeout (`TIMEOUT`), or HTTP 401/403 (`AUTH_FAILED`, an invalid or revok
 **Fix**: nothing is lost. The affected keys keep their prior lock baseline and are picked up again
 on the next run, so for `RATE_LIMITED` or `TIMEOUT` simply re-run later. `AUTH_FAILED` does not
 resolve by retrying: replace the key behind the environment variable. A smaller `maxBatchSize`
-also reduces the blast radius of a single failed request.
+also reduces the blast radius of a single failed request. When `TIMEOUT` is the rule rather than a
+hiccup (a slow local model, or large batches), raise `requestTimeoutMs` in the provider's options:
+it bounds every request at two minutes by default. See
+[Request timeout](/docs/providers#request-timeout).
 
 ## The lock file is corrupt (LOCK_FILE_INVALID)
 
@@ -105,7 +108,9 @@ killed; delete it and retry.`
 file behind.
 
 **Fix**: exactly what the message says: wait for the other run to finish, or, if none is running,
-delete the lock file at the printed path and retry.
+delete the lock file at the printed path and retry. To change how long a run waits before giving
+up, pass `--lock-timeout <seconds>` to [`translate`](/docs/cli/translate) or
+[`watch`](/docs/cli/watch); it defaults to `600` seconds.
 
 ## Dotted keys or YAML keys collide (INVALID_STRUCTURE)
 
