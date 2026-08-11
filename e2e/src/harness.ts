@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
+import { type RecordedProcessOutput, recordPendingRun, recordRun } from "./diagnostics.js";
 
 const e2eDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(e2eDir, ".tarballs.json");
@@ -109,12 +110,19 @@ export async function runVerbatra(
     reject: false,
     ...timeoutOptions,
   });
-  return {
+  const runResult: RunResult = {
     exitCode: result.exitCode ?? null,
     signal: result.signal ?? null,
     stdout: result.stdout,
     stderr: result.stderr,
   };
+  recordRun(commandLabel(args), runResult);
+  return runResult;
+}
+
+/** How a run is identified in a failure report. Arguments never carry the key; the environment does. */
+function commandLabel(args: string[]): string {
+  return `verbatra ${args.join(" ")}`;
 }
 
 /**
@@ -131,11 +139,26 @@ export function spawnVerbatra(
   args: string[],
   options: { cwd?: string; env?: Record<string, string> } = {},
 ) {
-  return execa(consumer.bin, args, {
+  const subprocess = execa(consumer.bin, args, {
     cwd: options.cwd ?? consumer.dir,
     env: { ...process.env, ...options.env },
     reject: false,
   });
+  // Resolved only when a test has already failed, to recover the output of a process that was
+  // still running when the failure was thrown. SIGKILL is a no-op on a process that has already
+  // exited, and the promise never rejects (`reject: false`), so awaiting one the test already
+  // awaited just returns its settled result.
+  recordPendingRun(commandLabel(args), async (): Promise<RecordedProcessOutput> => {
+    subprocess.kill("SIGKILL");
+    const result = await subprocess;
+    return {
+      exitCode: result.exitCode ?? null,
+      signal: result.signal ?? null,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  });
+  return subprocess;
 }
 
 /** The execa subprocess handle returned by {@link spawnVerbatra}. */
@@ -219,7 +242,8 @@ export interface ProviderEnv {
   model?: string;
 }
 
-const PROVIDER_ENV_VARS: Record<ProviderEnv["id"], string> = {
+/** The environment variable each provider reads its API key from. */
+export const PROVIDER_ENV_VARS: Record<ProviderEnv["id"], string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   gemini: "GEMINI_API_KEY",
