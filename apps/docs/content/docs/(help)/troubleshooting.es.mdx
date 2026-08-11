@@ -85,7 +85,10 @@ inválida o revocada).
 bloqueo y se recogen de nuevo en la siguiente ejecución, así que para `RATE_LIMITED` o `TIMEOUT`
 simplemente vuelve a ejecutar más tarde. `AUTH_FAILED` no se resuelve reintentando: reemplaza la
 clave detrás de la variable de entorno. Un `maxBatchSize` más pequeño también reduce el radio de
-impacto de una sola solicitud fallida.
+impacto de una sola solicitud fallida. Cuando `TIMEOUT` es la norma y no un tropiezo (un modelo
+local lento, o lotes grandes), sube `requestTimeoutMs` en las opciones del proveedor: acota cada
+solicitud a dos minutos por defecto. Consulta
+[Tiempo de espera de solicitud](/docs/providers#tiempo-de-espera-de-solicitud).
 
 ## El archivo de bloqueo está corrupto (LOCK_FILE_INVALID)
 
@@ -112,7 +115,9 @@ Un `translate`, `watch`, `import` o una escritura de Studio concurrentes lo tien
 matado dejó atrás el archivo de bloqueo.
 
 **Solución**: exactamente lo que dice el mensaje: espera a que termine la otra ejecución o, si no
-hay ninguna en marcha, borra el archivo de bloqueo en la ruta impresa y reintenta.
+hay ninguna en marcha, borra el archivo de bloqueo en la ruta impresa y reintenta. Para cambiar
+cuánto espera una ejecución antes de rendirse, pasa `--lock-timeout <seconds>` a
+[`translate`](/docs/cli/translate) o [`watch`](/docs/cli/watch); por defecto son `600` segundos.
 
 ## Claves con puntos o claves YAML colisionan (INVALID_STRUCTURE)
 

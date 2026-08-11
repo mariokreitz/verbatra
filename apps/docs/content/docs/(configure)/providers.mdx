@@ -42,7 +42,7 @@ provider: {
 }
 ```
 
-Reads `ANTHROPIC_API_KEY`. `model` and `maxTokens` are both required. `maxTokens` caps the tokens a single response may produce; it is this provider's output-token limit option (the others call it `maxOutputTokens`).
+Reads `ANTHROPIC_API_KEY`. `model` and `maxTokens` are both required. `maxTokens` caps the tokens a single response may produce; it is this provider's output-token limit option (the others call it `maxOutputTokens`). The optional `requestTimeoutMs` is also accepted; see [Request timeout](#request-timeout).
 
 ## OpenAI
 
@@ -56,7 +56,7 @@ provider: {
 }
 ```
 
-Reads `OPENAI_API_KEY`. `model` and `maxOutputTokens` are both required.
+Reads `OPENAI_API_KEY`. `model` and `maxOutputTokens` are both required. The optional `requestTimeoutMs` is also accepted; see [Request timeout](#request-timeout).
 
 ## Gemini
 
@@ -70,7 +70,7 @@ provider: {
 }
 ```
 
-Reads `GEMINI_API_KEY`. `model` and `maxOutputTokens` are both required.
+Reads `GEMINI_API_KEY`. `model` and `maxOutputTokens` are both required. The optional `requestTimeoutMs` is also accepted; see [Request timeout](#request-timeout).
 
 <Callout title="The free tier and its limits">
 Gemini is the recommended starting point for small projects because its API has a free tier. Create a key at [Google AI Studio](https://aistudio.google.com/apikey), no billing required. The free tier caps requests per minute and per day (the exact numbers depend on the model and change over time, so check Google's current limits), and verbatra splits work into sequential sub-batches, so a first-time run over many locales can hit those caps. A brief rate-limit or server error is retried automatically with a short backoff, but that only smooths over momentary hiccups, not a sustained cap. If you do hit the cap, translate one locale at a time or lower `maxBatchSize`, then re-run: verbatra only picks up what is still missing, so runs are safe to repeat.
@@ -85,7 +85,7 @@ provider: {
 }
 ```
 
-Reads `DEEPL_API_KEY`. DeepL is a machine-translation API, not an LLM: it has no `model` field and no output-token limit. The only option is an optional `glossaryId` naming a glossary you have already created in DeepL:
+Reads `DEEPL_API_KEY`. DeepL is a machine-translation API, not an LLM: it has no `model` field and no output-token limit. It takes two optional options: `glossaryId`, naming a glossary you have already created in DeepL, and `requestTimeoutMs` (see [Request timeout](#request-timeout)):
 
 ```ts
 provider: {
@@ -138,7 +138,7 @@ provider: {
 }
 ```
 
-`apiKeyEnvVar` names the environment variable holding your key for that server. This is the same `openai-compatible` provider pointed at a different endpoint, not a dedicated Mistral provider.
+`apiKeyEnvVar` names the environment variable holding your key for that server. This is the same `openai-compatible` provider pointed at a different endpoint, not a dedicated Mistral provider. The optional `requestTimeoutMs` is accepted here too, and matters most for this provider: see [Request timeout](#request-timeout).
 
 ### Keys are optional
 
@@ -191,6 +191,26 @@ A locale's work is split into sequential sub-batches of at most `maxBatchSize` e
 
 Transient failures (a rate-limit response or a server error) are retried automatically with a short backoff: the OpenAI, Anthropic, and DeepL SDK clients retry by default, and verbatra adds an equivalent retry of its own for Gemini, whose SDK does not. Retries smooth over momentary hiccups; a sustained failure still surfaces as a structured error.
 
+### Request timeout
+
+Every provider bounds each outbound request, so a server that accepts the connection but never answers cannot stall a run and hold a locale's write lock open. The bound is `requestTimeoutMs`, an optional positive integer of milliseconds accepted in the `options` of all five providers (`anthropic`, `openai`, `gemini`, `deepl`, and `openai-compatible`):
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "http://192.168.178.74:1234/v1",
+    model: "qwen2.5-14b-instruct",
+    maxOutputTokens: 1024,
+    requestTimeoutMs: 300000, // 5 minutes
+  },
+}
+```
+
+Leave it out and verbatra applies its own default of `120000` ms (two minutes): long enough that a legitimately slow large batch is not cut off, short enough that a hung-but-alive server cannot block a locale indefinitely. Raise it when a slow local model or a large `maxBatchSize` needs longer; lower it to fail faster. When the bound elapses, that request fails with the retriable `TIMEOUT` code and only its own sub-batch is affected, so the keys come back on the next run.
+
+DeepL is the one exception to cancellation: its client cannot abort a request already in flight, so on timeout verbatra stops waiting and moves on, but the request it sent is left to settle at DeepL.
+
 ### Structured errors
 
 A provider failure never surfaces as a raw SDK error, which could carry request headers or a key. verbatra classifies each failure by its HTTP status or SDK error class and raises a structured error with a stable code and a fixed, secret-free message:
@@ -199,7 +219,7 @@ A provider failure never surfaces as a raw SDK error, which could carry request 
 | --- | --- |
 | `MISSING_API_KEY` | The required environment variable is unset or empty. The message names the variable, never a value. |
 | `RATE_LIMITED` | HTTP 429 or an SDK rate-limit error. Back off and retry later. |
-| `TIMEOUT` | A network or request timeout; no response arrived in time. Retrying may help. |
+| `TIMEOUT` | A network or request timeout; no response arrived in time. Retrying may help, and [`requestTimeoutMs`](#request-timeout) raises the bound. |
 | `AUTH_FAILED` | HTTP 401 or 403: the key is invalid, revoked, or lacks permission. Retrying will not help. |
 | `OUTPUT_TRUNCATED` | The model hit its output-token limit; see below. |
 | `INVALID_RESPONSE` | The output was malformed, incomplete, or failed reconciliation against the request. |
