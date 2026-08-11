@@ -37,7 +37,7 @@ Loop until the developer reports zero open questions and the spec is marked read
 
 ### 3. Design (software-architect)
 Validate the intended approach against the binding architecture rules: SDK-first,
-acyclic dependency direction, the provider Strategy + Factory + Registry layer, and
+acyclic dependency direction, the provider Strategy + Factory layer, and
 the format-adapter factory. Decide whether the change is architecturally
 significant; if so, write a short architecture decision record. Reject approaches
 that import against the dependency arrow, duplicate the adapter or provider
