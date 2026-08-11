@@ -276,6 +276,10 @@ interface DelimitedAccumulator {
  * Judge one data record: report a field-count mismatch or a failed shape check as a malformed row,
  * report a repeated key as a duplicate (the first occurrence already won its place), and otherwise keep
  * the row. Skips a blank line and a record whose Key field is empty, exactly like the xlsx reader.
+ *
+ * `row` is the 1-based record number, counting the header as record 1. It is the file's line number
+ * only while no earlier record contains a quoted field with a line break in it; once one does, a
+ * record spans several lines and the record number no longer matches an editor's line number.
  */
 function readRecord(
   fields: readonly string[],

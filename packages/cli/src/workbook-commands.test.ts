@@ -70,6 +70,10 @@ describe("run export: SDK delegation and rendering", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(calls.exportWorkbook).toHaveLength(0);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).toContain('The --format option must be one of xlsx, csv, tsv, got "ods".');
+    expect(cap.err()).not.toContain("invalid_value");
+    expect(cap.err()).not.toContain('"path"');
   });
 
   it("--json prints the export result as one JSON line", async () => {
@@ -192,6 +196,22 @@ describe("run import: SDK delegation and rendering", () => {
 
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
+    expect(calls.importWorkbook).toHaveLength(0);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).toContain('The --format option must be one of xlsx, csv, tsv, got "ods".');
+    expect(cap.err()).not.toContain("invalid_value");
+    expect(cap.err()).not.toContain('"path"');
+  });
+
+  it("rejects --format json, the likely typo for the --json flag, with the same usage error", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["import", "wb.csv", "--format", "json"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).not.toContain("invalid_value");
     expect(calls.importWorkbook).toHaveLength(0);
   });
 
