@@ -69,9 +69,9 @@ genannte Variable ist ungesetzt oder leer. Fehlermeldungen nennen die Variable, 
 einen Schlüsselwert, und Schlüssel werden nie aus der Konfiguration oder aus CLI-Argumenten
 gelesen.
 
-**Lösung**: Setze die Variable, die die Meldung nennt. Die CLI lädt `.env` und `.env.local` aus
-dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen Skript also
-`node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
+**Lösung**: Setze die Variable, die die Meldung nennt. `translate`, `watch` und `studio` laden
+`.env` und `.env.local` aus dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen
+Skript also `node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
 nur, wenn die Konfiguration ein `apiKeyEnvVar` nennt, das ungesetzt ist; ohne eines fällt es für
 lokale Server auf einen schlüssellosen Platzhalter zurück.
 
@@ -89,7 +89,10 @@ oder widerrufener Schlüssel).
 werden beim nächsten Lauf wieder aufgegriffen; bei `RATE_LIMITED` oder `TIMEOUT` lass den Lauf
 also einfach später erneut laufen. `AUTH_FAILED` löst sich durch Wiederholen nicht: Tausche den
 Schlüssel hinter der Umgebungsvariable aus. Ein kleineres `maxBatchSize` verringert außerdem den
-Wirkungsradius einer einzelnen fehlgeschlagenen Anfrage.
+Wirkungsradius einer einzelnen fehlgeschlagenen Anfrage. Wenn `TIMEOUT` die Regel statt ein
+Aussetzer ist (ein langsames lokales Modell oder große Batches), erhöhe `requestTimeoutMs` in den
+Optionen des Providers: Es begrenzt jede Anfrage standardmäßig auf zwei Minuten. Siehe
+[Anfrage-Timeout](/docs/providers#anfrage-timeout).
 
 ## Die Lock-Datei ist beschädigt (LOCK_FILE_INVALID)
 
@@ -116,7 +119,10 @@ Ein gleichzeitiges `translate`, `watch`, `import` oder ein Studio-Schreibvorgang
 ein abgeschossener Prozess hat die Sperrdatei zurückgelassen.
 
 **Lösung**: Genau, was die Meldung sagt: Warte, bis der andere Lauf fertig ist, oder, wenn keiner
-läuft, lösche die Sperrdatei am ausgegebenen Pfad und versuche es erneut.
+läuft, lösche die Sperrdatei am ausgegebenen Pfad und versuche es erneut. Um zu ändern, wie lange
+ein Lauf wartet, bevor er aufgibt, gib `--lock-timeout <seconds>` an
+[`translate`](/docs/cli/translate) oder [`watch`](/docs/cli/watch); der Standard sind `600`
+Sekunden.
 
 ## Gepunktete Keys oder YAML-Keys kollidieren (INVALID_STRUCTURE)
 

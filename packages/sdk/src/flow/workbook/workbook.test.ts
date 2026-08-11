@@ -640,6 +640,8 @@ describe("importWorkbook", () => {
     expect(summary.locales[0]?.translated).toEqual(["good"]);
     expect(summary.locales[0]?.malformedRows).toHaveLength(1);
     expect(summary.locales[0]?.malformedRows[0]?.column).toBe("Status");
+    // A workbook has rows, not lines, so the xlsx path reports no file line at all.
+    expect(summary.locales[0]?.malformedRows[0]).not.toHaveProperty("line");
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.good).toBe("Gut");
     expect(de.bad).toBeUndefined();

@@ -501,6 +501,63 @@ describe("translate: plural generation lock and re-run", () => {
   });
 });
 
+/**
+ * Generation is the one write path whose candidates are derived from the source rather than from the
+ * diff, so it is the one path that could hand a value to a key the target already fills. A first run
+ * has no lock file, which makes every candidate look ungenerated, so these tests pin the adoption
+ * guarantee at exactly the moment it is weakest.
+ */
+describe("translate: plural generation adopts existing target forms", () => {
+  const HAND_WRITTEN = "{{count}} hand-written form";
+  const SEEDED_PL = { items_one: "{{count}} sztuka", items_other: "{{count}} sztuk" };
+
+  it("keeps a hand-written plural form on a first run and still generates its missing sibling", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: { ...SEEDED_PL, items_few: HAND_WRITTEN } });
+
+    const summary = await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBe(HAND_WRITTEN);
+    expect(pl.items_many).toBeDefined();
+    expect(summary.locales[0]?.generated).toEqual(["items_many"]);
+    expect(summary.locales[0]?.translated).toEqual([]);
+    expect(summary.locales[0]?.integrityMismatches).toEqual([]);
+  });
+
+  it("leaves an adopted form untracked in the lock file while locking the generated sibling", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: { ...SEEDED_PL, items_few: HAND_WRITTEN } });
+
+    await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    const lock = (await readJsonFile(lockPath(dir))) as LockShape;
+    expect(lock.locales.pl?.items_few).toBeUndefined();
+    expect(lock.locales.pl?.items_many).toBeDefined();
+  });
+
+  it("keeps adopting the hand-written form on later runs, so the protection is not first-run only", async () => {
+    const dir = await project(PLURAL_SOURCE, { pl: { ...SEEDED_PL, items_few: HAND_WRITTEN } });
+
+    await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      { createProvider: () => makeStubProvider().provider },
+    );
+    const summary = await translate(
+      { config: cfg(), cwd: dir, generatePlurals: true },
+      { createProvider: () => makeStubProvider().provider },
+    );
+
+    expect(summary.locales[0]?.generated).toEqual([]);
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBe(HAND_WRITTEN);
+  });
+});
+
 describe("translate: plural generation determinism", () => {
   it("two runs over identical inputs produce the same key-set and byte-identical lock-file", async () => {
     const build = async (): Promise<{ generated: readonly string[]; lock: string }> => {
@@ -850,6 +907,7 @@ describe("generatePluralForms: comparePlaceholders wiring (the second buildReque
       glossary: undefined,
       tone: undefined,
       baseline: new Map(),
+      targetKeys: new Set(),
       maxBatchSize: 50,
       budget: createBudgetTracker(undefined, "warn"),
     };
@@ -944,6 +1002,7 @@ describe("generatePluralForms: accept/withhold is recomputed via gateCandidateVa
       glossary: undefined,
       tone: undefined,
       baseline: new Map(),
+      targetKeys: new Set(),
       maxBatchSize: 50,
       budget: createBudgetTracker(undefined, "warn"),
     };

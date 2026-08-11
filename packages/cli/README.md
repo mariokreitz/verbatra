@@ -33,22 +33,22 @@ npm install -D @verbatra/cli
 yarn add -D @verbatra/cli
 ```
 
-Invoke the binary through your package manager: `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
+A dev-dependency install puts the `verbatra` binary in `node_modules/.bin`, not on your PATH, so invoke it with `npx verbatra ...`, which runs the locally installed binary whichever package manager put it there. Yarn users can also run `yarn verbatra ...`.
 
 ## Quick start
 
 ```bash
 # Scaffold verbatra.config.ts and .env.example
-verbatra init --provider anthropic
+npx verbatra init --provider anthropic
 
 # Provide the provider's API key (see the table below for each provider's variable)
 export ANTHROPIC_API_KEY=your-key-here
 
 # Translate every target locale once
-verbatra translate
+npx verbatra translate
 
 # Also remove orphaned keys (present in a target file, absent from source)
-verbatra translate --prune
+npx verbatra translate --prune
 ```
 
 Plural-category generation is opt-in too, but config/SDK only: set `generatePlurals: true` in the config. Unlike `--prune`, there is no `--generate-plurals` flag (the SDK `translate()` input accepts a per-run override).
@@ -76,7 +76,7 @@ Run `verbatra <command> --help` for the same reference at the terminal.
 
 ```bash
 pnpm add -D @verbatra/studio
-verbatra studio
+npx verbatra studio
 ```
 
 ## Exit codes

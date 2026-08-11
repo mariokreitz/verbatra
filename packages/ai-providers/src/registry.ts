@@ -9,9 +9,11 @@ export type ProviderResolution =
   | { readonly status: "unknown"; readonly id: string; readonly known: readonly string[] };
 
 /**
- * Holds the registered providers and resolves one by id. Open for extension: a new
- * provider attaches through register without changing existing providers or the
- * resolution logic. Resolving an unknown id yields a defined, structured outcome.
+ * Holds the registered providers and resolves one by id. Open for extension: a caller adds a provider
+ * through `register` without changing existing providers or the resolution logic. Resolving an unknown
+ * id yields a defined, structured outcome. The SDK builds its configured provider through the
+ * `providerFactories` table in `packages/sdk/src/config/provider-config.ts` instead, so this type is
+ * exported for direct id-based resolution rather than as the SDK's resolution path today.
  *
  * @example
  * ```ts

@@ -85,7 +85,7 @@ dynamically by the `studio` command.
 ## Where do API keys live?
 
 Only in environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
-`DEEPL_API_KEY`, plus whatever variable you name for `openai-compatible`. The CLI loads `.env` and
-`.env.local` from the working directory (real environment variables win). The config schema
-rejects unknown keys precisely so a secret cannot end up in a committed file, and error messages
-name the variable but never a value. See [Providers](/docs/providers).
+`DEEPL_API_KEY`, plus whatever variable you name for `openai-compatible`. `translate`, `watch`,
+and `studio` load `.env` and `.env.local` from the working directory (real environment variables
+win). The config schema rejects unknown keys precisely so a secret cannot end up in a committed
+file, and error messages name the variable but never a value. See [Providers](/docs/providers).

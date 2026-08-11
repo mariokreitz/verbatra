@@ -54,7 +54,8 @@ Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache
   ningún locale más, y los locales en vuelo terminan y liberan sus bloqueos de escritura antes de que
   `translate` rechace, así que el rechazo llega después del más lento en vez de al instante.
 - `cache` está activado por defecto y reutiliza la [caché de memoria de traducción](/docs/the-cache)
-  local; ponlo en false para omitir la caché en la ejecución (el `--no-cache` de la CLI).
+  local (`verbatra.cache.json`, exportada también como `CACHE_FILE_NAME`); ponlo en false para omitir
+  la caché en la ejecución (el `--no-cache` de la CLI).
 - `onProgress` se llama a medida que avanza la ejecución (por inicio y fin de cada locale, y por
   sub-lote del proveedor), y `onLockWait` se dispara mientras el bloqueo de escritura de un locale
   está en disputa. Ambos son callbacks de notificación; el SDK no escribe nada por sí mismo.
@@ -308,8 +309,8 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
   unfilled: string[];            // import only: blank rows whose key still needs a translation
-  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
-  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
+  malformedRows: { row: number; line?: number; column: string }[]; // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number; line?: number }[];    // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -343,7 +344,8 @@ Las partes que conviene conocer:
   `importWorkbook` (una ejecución de `translate` los deja vacíos): una fila en blanco cuya clave
   todavía necesita traducción en el momento de la importación (tanto si se exportó como `new` como si
   se exportó como `changed`), una fila del libro que el lector no pudo parsear y una clave duplicada
-  cuya primera aparición ganó.
+  cuya primera aparición ganó. El `line` opcional de las dos últimas es la línea del archivo en la
+  que empieza el registro, y solo está presente en una importación delimitada (`csv` o `tsv`).
 
 ## El modelo de errores
 

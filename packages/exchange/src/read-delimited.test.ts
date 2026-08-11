@@ -123,26 +123,28 @@ describe("readDelimited structural problems", () => {
   it("reports a malformed record per row and keeps reading the rest of the file", () => {
     const data = read(csv(record("a"), "b,Hello,,translated,,h,,ok,", record("c")));
     expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["a", "c"]);
-    expect(data.malformedRows).toEqual([{ locale: "de", row: 3, column: "Status" }]);
+    expect(data.malformedRows).toEqual([{ locale: "de", row: 3, line: 3, column: "Status" }]);
   });
 
   it("reports a record with too few fields on the first column it does not supply", () => {
     const data = read(csv(record("a"), "b,Hello,,new"));
     expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["a"]);
-    expect(data.malformedRows).toEqual([{ locale: "de", row: 3, column: "Translation" }]);
+    expect(data.malformedRows).toEqual([{ locale: "de", row: 3, line: 3, column: "Translation" }]);
   });
 
   it("reports a record with too many fields on the last defined column", () => {
     const data = read(csv(`${record("b")},extra`));
-    expect(data.malformedRows).toEqual([{ locale: "de", row: 2, column: "Review reasons" }]);
+    expect(data.malformedRows).toEqual([
+      { locale: "de", row: 2, line: 2, column: "Review reasons" },
+    ]);
   });
 
   it("keeps the first occurrence of a duplicated key and reports every later one", () => {
     const data = read(csv(record("a", "One"), record("a", "Two"), record("a", "Three")));
     expect(data.sheets[0]?.rows.map((r) => r.source)).toEqual(["One"]);
     expect(data.duplicateKeys).toEqual([
-      { locale: "de", key: "a", row: 3 },
-      { locale: "de", key: "a", row: 4 },
+      { locale: "de", key: "a", row: 3, line: 3 },
+      { locale: "de", key: "a", row: 4, line: 4 },
     ]);
   });
 
@@ -160,6 +162,71 @@ describe("readDelimited structural problems", () => {
     const swapped = [...HEADERS];
     swapped[1] = "Original";
     expect(caught([swapped.join(","), record("a")].join("\n")).code).toBe("WORKBOOK_INVALID");
+  });
+});
+
+describe("readDelimited reported line numbers", () => {
+  /** Every record separator the reader accepts, each also used as the embedded break in a quoted field. */
+  const SEPARATORS = [
+    ["LF", "\n"],
+    ["CRLF", "\r\n"],
+    ["a lone CR", "\r"],
+  ] as const;
+
+  it.each(SEPARATORS)(
+    "reports the file line of a malformed record after a quoted %s break",
+    (_name, separator) => {
+      const text = [
+        HEADER_LINE,
+        record("a", `"Line one${separator}Line two"`),
+        "b,Hello,,translated,,h,,ok,",
+      ].join(separator);
+      expect(read(text).malformedRows).toEqual([
+        { locale: "de", row: 3, line: 4, column: "Status" },
+      ]);
+    },
+  );
+
+  it.each(SEPARATORS)(
+    "reports the file line of a duplicate key after a quoted %s break",
+    (_name, separator) => {
+      const text = [
+        HEADER_LINE,
+        record("a", `"Line one${separator}Line two"`),
+        record("a", "Again"),
+      ].join(separator);
+      expect(read(text).duplicateKeys).toEqual([{ locale: "de", key: "a", row: 3, line: 4 }]);
+    },
+  );
+
+  it("counts every quoted break in every earlier record, not just the first", () => {
+    const text = [
+      HEADER_LINE,
+      record("a", '"one\ntwo\nthree"'),
+      record("b", '"four\nfive"'),
+      "c,Hello,,translated,,h,,ok,",
+    ].join("\n");
+    expect(read(text).malformedRows).toEqual([{ locale: "de", row: 4, line: 7, column: "Status" }]);
+  });
+
+  it("counts a break in any field of a record, not only the first field", () => {
+    const text = [
+      HEADER_LINE,
+      record("a", "Hello", "new", '"Hallo\nWelt"'),
+      "b,Hello,,translated,,h,,ok,",
+    ].join("\n");
+    expect(read(text).malformedRows).toEqual([{ locale: "de", row: 3, line: 4, column: "Status" }]);
+  });
+
+  it("counts a blank line as both a record and a line", () => {
+    const text = [HEADER_LINE, record("a"), "", "c,Hello,,translated,,h,,ok,"].join("\n");
+    expect(read(text).malformedRows).toEqual([{ locale: "de", row: 4, line: 4, column: "Status" }]);
+  });
+
+  it("reports the line the record starts on, not the line it ends on", () => {
+    const text = [HEADER_LINE, `b,"Hello\nthere",,translated,,h,,ok,`, record("c")].join("\n");
+    expect(read(text).malformedRows).toEqual([{ locale: "de", row: 2, line: 2, column: "Status" }]);
+    expect(read(text).sheets[0]?.rows.map((r) => r.key)).toEqual(["c"]);
   });
 });
 

@@ -37,6 +37,8 @@ verbatra import handoff --format csv
 
 Avec `csv` ou `tsv`, la locale vient du nom du fichier et non d'un nom de feuille : garde donc chaque fichier nommé exactement comme il a été exporté. Une locale cible configurée sans fichier est rapportée comme l'échec de cette locale, jamais ignorée en silence.
 
+Un fichier laissé par un export antérieur avec une sélection `--locales` plus large n'est jamais appliqué. L'import rapproche le répertoire du manifeste que l'export le plus récent y a écrit et rapporte cette locale en échec avec `HANDOFF_FILE_STALE`, si bien qu'une traduction périmée ne peut pas revenir sans qu'on le voie. Réexporte cette locale pour rafraîchir son fichier, ou supprime le fichier. Un répertoire sans manifeste lisible (assemblé à la main, ou ayant perdu le fichier caché en passant par une archive) est lu comme avant, chaque fichier présent est importé. Un fichier unique nommé directement est de même pris au mot.
+
 ## Codes de sortie
 
 | Code | Signification |

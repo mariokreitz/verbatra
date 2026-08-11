@@ -124,8 +124,45 @@ describe("exportWorkbook: delimited formats", () => {
     );
 
     expect(result.path).toBe(join(dir, "handoff"));
-    expect([...written.keys()]).toEqual([join(dir, "handoff", "de.csv")]);
+    expect([...written.keys()]).toEqual([
+      join(dir, "handoff", "de.csv"),
+      join(dir, "handoff", ".verbatra-export-csv.json"),
+    ]);
     expect(written.get(join(dir, "handoff", "de.csv"))).toContain("Key,Source");
+  });
+
+  it("records the exported locales in a per-format manifest, written after the locale files", async () => {
+    const dir = await project({ a: "A" });
+    await exportWorkbook({ config: cfg(), cwd: dir, format: "csv", out: "handoff" });
+    await exportWorkbook({ config: cfg(), cwd: dir, format: "tsv", out: "handoff" });
+
+    expect(await readJsonFile(join(dir, "handoff", ".verbatra-export-csv.json"))).toEqual({
+      version: 1,
+      format: "csv",
+      locales: ["de", "fr"],
+    });
+    expect(await readJsonFile(join(dir, "handoff", ".verbatra-export-tsv.json"))).toEqual({
+      version: 1,
+      format: "tsv",
+      locales: ["de", "fr"],
+    });
+  });
+
+  it("leaves an unrelated file in the output directory untouched when the selection narrows", async () => {
+    const dir = await project({ a: "A" });
+    await exportWorkbook({ config: cfg(), cwd: dir, format: "csv", out: "handoff" });
+    await writeFile(join(dir, "handoff", "notes.txt"), "translator notes", "utf8");
+
+    await exportWorkbook({
+      config: cfg(),
+      cwd: dir,
+      format: "csv",
+      out: "handoff",
+      locales: ["de"],
+    });
+
+    expect(await readFile(join(dir, "handoff", "notes.txt"), "utf8")).toBe("translator notes");
+    await expect(readFile(join(dir, "handoff", "fr.csv"), "utf8")).resolves.toContain("Key,Source");
   });
 
   it("writes the xlsx workbook when no format is passed", async () => {
@@ -238,6 +275,118 @@ describe("importWorkbook: delimited formats", () => {
   });
 });
 
+describe("delimited handoff: a narrower re-export retires the locales it dropped", () => {
+  const wide = cfg({ targetLocales: ["de", "fr", "es"] });
+
+  /** Export every locale of `wide` into `handoff`, then fill each file with a stale translation. */
+  async function exportedWideHandoff(dir: string): Promise<void> {
+    await exportWorkbook({ config: wide, cwd: dir, format: "csv", out: "handoff" });
+    await fillExported(join(dir, "handoff", "de.csv"), "de", "csv", { greeting: "Hallo" });
+    await fillExported(join(dir, "handoff", "fr.csv"), "fr", "csv", { greeting: "Bonjour" });
+    await fillExported(join(dir, "handoff", "es.csv"), "es", "csv", { greeting: "Hola" });
+  }
+
+  const manifestPath = (dir: string): string => join(dir, "handoff", ".verbatra-export-csv.json");
+
+  const importHandoff = async (dir: string, dryRun = false) =>
+    importWorkbook({ config: wide, cwd: dir, workbook: "handoff", format: "csv", dryRun });
+
+  it("rejects a leftover locale file from a wider earlier export instead of applying it", async () => {
+    const dir = await project({ greeting: "Hello" });
+    await exportedWideHandoff(dir);
+
+    await exportWorkbook({
+      config: wide,
+      cwd: dir,
+      format: "csv",
+      out: "handoff",
+      locales: ["de"],
+    });
+    await fillExported(join(dir, "handoff", "de.csv"), "de", "csv", { greeting: "Hallo" });
+
+    const summary = await importHandoff(dir);
+
+    const stale = (locale: string) => summary.locales.find((entry) => entry.locale === locale);
+    expect(stale("fr")?.error?.code).toBe("HANDOFF_FILE_STALE");
+    expect(stale("fr")?.error?.message).toContain("fr.csv");
+    expect(stale("es")?.error?.code).toBe("HANDOFF_FILE_STALE");
+    expect(summary.failed).toEqual(["fr", "es"]);
+    expect(await readJsonFile(join(dir, "locales", "de.json"))).toEqual({ greeting: "Hallo" });
+    await expect(readFile(join(dir, "locales", "fr.json"), "utf8")).rejects.toThrow();
+    await expect(readFile(join(dir, "locales", "es.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("reports every locale as stale, without failing the run, when no file is current", async () => {
+    const dir = await project({ greeting: "Hello" });
+    await exportedWideHandoff(dir);
+    await writeJsonFile(manifestPath(dir), { version: 1, format: "csv", locales: [] });
+
+    const summary = await importHandoff(dir);
+
+    expect(summary.failed).toEqual(["de", "fr", "es"]);
+    expect(summary.locales.map((entry) => entry.error?.code)).toEqual([
+      "HANDOFF_FILE_STALE",
+      "HANDOFF_FILE_STALE",
+      "HANDOFF_FILE_STALE",
+    ]);
+    await expect(readFile(join(dir, "locales", "de.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("rejects a stale file on a dry run too, and still writes nothing", async () => {
+    const dir = await project({ greeting: "Hello" });
+    await exportedWideHandoff(dir);
+    await writeJsonFile(manifestPath(dir), { version: 1, format: "csv", locales: ["de"] });
+
+    const summary = await importHandoff(dir, true);
+
+    expect(summary.dryRun).toBe(true);
+    expect(summary.locales.find((entry) => entry.locale === "de")?.translated).toEqual([
+      "greeting",
+    ]);
+    expect(summary.locales.find((entry) => entry.locale === "fr")?.error?.code).toBe(
+      "HANDOFF_FILE_STALE",
+    );
+    await expect(readFile(join(dir, "locales", "de.json"), "utf8")).rejects.toThrow();
+  });
+
+  it("takes a directly named file at face value, even for a locale the manifest dropped", async () => {
+    const dir = await project({ greeting: "Hello" });
+    await exportedWideHandoff(dir);
+    await writeJsonFile(manifestPath(dir), { version: 1, format: "csv", locales: ["de"] });
+
+    const summary = await importWorkbook({
+      config: wide,
+      cwd: dir,
+      workbook: join("handoff", "fr.csv"),
+      format: "csv",
+    });
+
+    expect(summary.locales[0]?.translated).toEqual(["greeting"]);
+    expect(await readJsonFile(join(dir, "locales", "fr.json"))).toEqual({ greeting: "Bonjour" });
+  });
+
+  it.each([
+    ["no manifest at all", undefined],
+    ["a manifest that is not JSON", "{ not json"],
+    ["a manifest of an unsupported version", '{"version":2,"format":"csv","locales":["de"]}'],
+    ["a manifest written for another format", '{"version":1,"format":"tsv","locales":["de"]}'],
+    ["a manifest with an unexpected shape", '{"version":1,"format":"csv","locales":"de"}'],
+  ])("reads every present file when the directory has %s", async (_case, manifest) => {
+    const dir = await project({ greeting: "Hello" });
+    await exportedWideHandoff(dir);
+    if (manifest === undefined) {
+      await rm(manifestPath(dir));
+    } else {
+      await writeFile(manifestPath(dir), manifest, "utf8");
+    }
+
+    const summary = await importHandoff(dir);
+
+    expect(summary.failed).toEqual([]);
+    expect(await readJsonFile(join(dir, "locales", "fr.json"))).toEqual({ greeting: "Bonjour" });
+  });
+});
+
 describe("importWorkbook: a delimited handoff is judged exactly like a workbook", () => {
   /**
    * The same filled rows delivered as xlsx and as csv, into two identical projects. Every row runs the
@@ -322,7 +471,26 @@ describe("importWorkbook: a delimited handoff is judged exactly like a workbook"
 
     const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
     expect(summary.locales[0]?.translated).toEqual(["farewell", "greeting"]);
-    expect(summary.locales[0]?.malformedRows).toEqual([{ row: 4, column: "Current translation" }]);
+    expect(summary.locales[0]?.malformedRows).toEqual([
+      { row: 4, line: 4, column: "Current translation" },
+    ]);
+  });
+
+  it("carries the file line of a malformed row past a source with an embedded line break", async () => {
+    const dir = await project({ greeting: "Hello\nagain", farewell: "Bye" });
+    const config = cfg({ targetLocales: ["de"] });
+    await exportWorkbook({ config, cwd: dir, format: "csv", out: "handoff" });
+
+    const path = join(dir, "handoff", "de.csv");
+    const data = await readExported(path, "de", "csv");
+    const rows = (data.sheets[0]?.rows ?? []).map((row) => ({ ...row, translation: "Uebersetzt" }));
+    const text = buildDelimited({ locale: "de", rows }, "csv");
+    await writeFile(path, `${text}broken,row\n`, "utf8");
+
+    const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
+    expect(summary.locales[0]?.malformedRows).toEqual([
+      { row: 4, line: 5, column: "Current translation" },
+    ]);
   });
 
   it("keeps the first occurrence of a duplicated key and reports the later one", async () => {
@@ -343,7 +511,7 @@ describe("importWorkbook: a delimited handoff is judged exactly like a workbook"
     await writeFile(path, buildDelimited({ locale: "de", rows }, "csv"), "utf8");
 
     const summary = await importWorkbook({ config, cwd: dir, workbook: "handoff", format: "csv" });
-    expect(summary.locales[0]?.duplicateKeys).toEqual([{ key: "greeting", row: 3 }]);
+    expect(summary.locales[0]?.duplicateKeys).toEqual([{ key: "greeting", row: 3, line: 3 }]);
     expect(await readJsonFile(join(dir, "locales", "de.json"))).toEqual({ greeting: "Hallo" });
   });
 });

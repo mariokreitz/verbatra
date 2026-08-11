@@ -478,7 +478,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     }
   }
 
-  const generation = await runGeneration(params, provider);
+  const generation = await runGeneration(params, provider, new Set(target.entries.keys()));
   for (const form of generation.accepted) {
     merged.set(form.targetKey, { ...form.entry, namespace: target.namespace });
   }
@@ -551,10 +551,15 @@ const NO_GENERATION_RESULT: PluralGenerationResult = {
   tripped: false,
 };
 
-/** Runs plural generation when enabled and the provider is an LLM; otherwise returns the empty result. */
+/**
+ * Runs plural generation when enabled and the provider is an LLM; otherwise returns the empty result.
+ * `targetKeys` are the keys read from the target file before this run touched anything, which is what
+ * lets generation adopt a form somebody else already wrote instead of translating over it.
+ */
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
+  targetKeys: ReadonlySet<string>,
 ): Promise<PluralGenerationResult> {
   if (!params.generatePlurals || provider.kind !== "llm") {
     return NO_GENERATION_RESULT;
@@ -569,6 +574,7 @@ async function runGeneration(
     glossary: params.glossary,
     tone: params.tone,
     baseline: params.baseline,
+    targetKeys,
     maxBatchSize: params.maxBatchSize,
     budget: params.budget,
   });

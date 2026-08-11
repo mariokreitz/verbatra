@@ -43,6 +43,8 @@ verbatra export --format csv --out handoff
 
 Eine Textdatei ist diffbar und lässt sich überall öffnen, hat aber keinen Zellschutz: jede Spalte ist editierbar und die Spalte `Source hash` ist sichtbar. Ein geänderter Hash wird nie vertraut, der Import vergleicht ihn mit der aktuellen Quelle und hält die Zeile zurück.
 
+Jeder Text-Export schreibt zusätzlich ein verstecktes Manifest in das Verzeichnis, `.verbatra-export-csv.json` oder `.verbatra-export-tsv.json`, das die soeben geschriebenen Locales benennt. Nur dadurch kann ein erneuter Export mit einer engeren `--locales`-Auswahl die weggefallenen Locales außer Dienst stellen: deren Dateien bleiben auf der Platte, und [`verbatra import`](/docs/cli/import) weist sie als Überbleibsel zurück, statt eine veraltete Übersetzung anzuwenden. Der Export löscht nichts aus dem Ausgabeverzeichnis, eine eigene Datei darin ist also nie in Gefahr.
+
 ## Exit-Codes
 
 | Code | Bedeutung |

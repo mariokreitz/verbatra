@@ -1,8 +1,8 @@
 ---
 title: Deine erste Übersetzung
-description: Installiere die CLI, erzeuge mit verbatra init eine Konfiguration, setze deinen API-Schlüssel und starte deinen ersten translate-Lauf. In unter zehn Minuten von null zur übersetzten Locale-Datei.
+description: Installiere die CLI, erzeuge mit verbatra init eine Konfiguration, sieh dir den Lauf ohne API-Schlüssel in der Vorschau an, setze dann deinen Schlüssel und starte deinen ersten translate-Lauf. In unter zehn Minuten von null zur übersetzten Locale-Datei.
 ---
-Vier Schritte führen dich vom leeren Projekt zur übersetzten Locale-Datei. Alles, was du brauchst, sind Node.js `>=22.14.0` und ein API-Schlüssel für einen Provider.
+Fünf Schritte führen dich vom leeren Projekt zur übersetzten Locale-Datei. Alles, was du brauchst, ist Node.js `>=22.14.0` und ein API-Schlüssel für einen Provider, sobald du wirklich übersetzen willst. Die ersten drei Schritte kosten nichts und brauchen kein Konto.
 
 ## 1. Installiere die CLI
 
@@ -57,21 +57,7 @@ export default defineConfig({
 });
 ```
 
-## 3. Setze deinen API-Schlüssel
-
-Schlüssel kommen aus der Umgebung, nie aus der Konfigurationsdatei. Jeder gehostete Provider liest genau eine Variable; für Gemini ist das `GEMINI_API_KEY`. Kopiere das erzeugte Beispiel und trage deinen Schlüssel ein:
-
-```bash
-cp .env.example .env
-```
-
-Öffne dann `.env` und füge deinen Schlüssel nach `GEMINI_API_KEY=` ein. verbatra lädt vor einem Lauf `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die schon in deiner Shell gesetzt ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
-
-<Callout title="Noch kein Schlüssel? Gemini hat ein kostenloses Kontingent.">
-Geminis API hat ein wirklich kostenloses Kontingent und ist damit der günstigste Weg, verbatra auszuprobieren. Hol dir einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Das kostenlose Kontingent hat Anfragelimits pro Minute und pro Tag, verteile eine große Erstübersetzung also über die Zeit.
-</Callout>
-
-## 4. Übersetze
+## 3. Vorschau ohne API-Schlüssel
 
 Wenn du noch keine Quelldatei hast, lege eine unter dem konfigurierten Muster an, zum Beispiel `locales/en.json`:
 
@@ -84,7 +70,33 @@ Wenn du noch keine Quelldatei hast, lege eine unter dem konfigurierten Muster an
 }
 ```
 
-Dann führe aus:
+Sieh dir den Lauf jetzt in der Vorschau an:
+
+```bash
+verbatra translate --dry-run
+```
+
+Ein Dry-Run baut überhaupt keinen Provider auf, braucht also keinen API-Schlüssel und kann nichts ausgeben. Er liest deine Dateien, vergleicht sie und gibt dieselbe Zusammenfassung pro Locale aus wie ein echter Lauf, ohne einen einzigen String zu senden oder eine einzige Datei zu schreiben. Nutze ihn, um Format, Dateimuster und Locales zu prüfen, bevor du dich irgendwo anmeldest.
+
+[`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff) kommen genauso ohne Provider aus: `check` meldet Zählwerte pro Locale, `diff` listet die genauen Keys.
+
+## 4. Setze deinen API-Schlüssel
+
+Schlüssel kommen aus der Umgebung, nie aus der Konfigurationsdatei. Jeder gehostete Provider liest genau eine Variable; für Gemini ist das `GEMINI_API_KEY`. Kopiere das erzeugte Beispiel und trage deinen Schlüssel ein:
+
+```bash
+cp .env.example .env
+```
+
+Öffne dann `.env` und füge deinen Schlüssel nach `GEMINI_API_KEY=` ein. `translate`, `watch` und `studio` laden vor einem Lauf `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die schon in deiner Shell gesetzt ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
+
+<Callout title="Noch kein Schlüssel? Gemini hat ein kostenloses Kontingent.">
+Geminis API hat ein wirklich kostenloses Kontingent und ist damit der günstigste Weg, verbatra auszuprobieren. Hol dir einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Das kostenlose Kontingent hat Anfragelimits pro Minute und pro Tag, verteile eine große Erstübersetzung also über die Zeit.
+</Callout>
+
+## 5. Übersetze
+
+Mit dem Schlüssel an Ort und Stelle führst du denselben Befehl echt aus:
 
 ```bash
 verbatra translate
@@ -113,7 +125,7 @@ Drei Dinge liegen jetzt auf der Platte:
 
 - `.verbatra-local/`: prozesslokaler Zustand (der Run-Status-Schnappschuss und die Schreibsperren pro Locale). `init` hat das Verzeichnis in `.gitignore` eingetragen; committe es nie.
 
-Die Lock-Datei ist die Baseline für jeden künftigen Lauf. Führe `verbatra translate` erneut aus, ohne etwas zu bearbeiten, und nichts wird gesendet: Jeder Key ist bereits aktuell. Ändere einen einzigen Quellstring, und nur dieser Key wird neu übersetzt. Um einen Lauf ohne Provider-Aufruf und ohne einen einzigen Schreibvorgang in der Vorschau zu sehen, verwende `verbatra translate --dry-run`.
+Die Lock-Datei ist die Baseline für jeden künftigen Lauf. Führe `verbatra translate` erneut aus, ohne etwas zu bearbeiten, und nichts wird gesendet: Jeder Key ist bereits aktuell. Ändere einen einzigen Quellstring, und nur dieser Key wird neu übersetzt.
 
 <Callout title="Committe die Lock-Datei">
 Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien, damit jede Maschine und deine CI mit derselben Baseline vergleichen. Siehe [Die Lock-Datei](/docs/the-lock-file).

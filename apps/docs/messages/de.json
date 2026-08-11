@@ -270,6 +270,10 @@
       "title": "Maschinell übersetzte Seite",
       "viewOriginal": "Das englische Original lesen"
     },
+    "notTranslated": {
+      "text": "Diese Seite ist noch nicht übersetzt und wird deshalb auf Englisch angezeigt.",
+      "title": "Nicht in deiner Sprache verfügbar"
+    },
     "llms": {
       "full": "llms-full.txt (vollständiger Text)",
       "heading": "Für KI-Agenten",

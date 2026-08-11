@@ -42,7 +42,7 @@ provider: {
 }
 ```
 
-Lit `ANTHROPIC_API_KEY`. `model` et `maxTokens` sont tous deux requis. `maxTokens` plafonne les tokens qu'une seule réponse peut produire ; c'est l'option de limite de tokens de sortie de ce fournisseur (les autres l'appellent `maxOutputTokens`).
+Lit `ANTHROPIC_API_KEY`. `model` et `maxTokens` sont tous deux requis. `maxTokens` plafonne les tokens qu'une seule réponse peut produire ; c'est l'option de limite de tokens de sortie de ce fournisseur (les autres l'appellent `maxOutputTokens`). Le `requestTimeoutMs` optionnel est aussi accepté ; voir [Délai de requête](#délai-de-requête).
 
 ## OpenAI
 
@@ -56,7 +56,7 @@ provider: {
 }
 ```
 
-Lit `OPENAI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
+Lit `OPENAI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis. Le `requestTimeoutMs` optionnel est aussi accepté ; voir [Délai de requête](#délai-de-requête).
 
 ## Gemini
 
@@ -70,7 +70,7 @@ provider: {
 }
 ```
 
-Lit `GEMINI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis.
+Lit `GEMINI_API_KEY`. `model` et `maxOutputTokens` sont tous deux requis. Le `requestTimeoutMs` optionnel est aussi accepté ; voir [Délai de requête](#délai-de-requête).
 
 <Callout title="L'offre gratuite et ses limites">
 Gemini est le point de départ recommandé pour les petits projets parce que son API a une offre gratuite. Crée une clé sur [Google AI Studio](https://aistudio.google.com/apikey), sans facturation requise. L'offre gratuite plafonne les requêtes par minute et par jour (les chiffres exacts dépendent du modèle et changent avec le temps, donc vérifie les limites actuelles de Google), et verbatra découpe le travail en sous-lots séquentiels, donc une première exécution sur beaucoup de locales peut atteindre ces plafonds. Une brève limite de débit ou erreur serveur est retentée automatiquement avec un court backoff, mais cela ne lisse que des accrocs momentanés, pas un plafond durable. Si tu atteins le plafond, traduis une locale à la fois ou baisse `maxBatchSize`, puis relance : verbatra ne reprend que ce qui manque encore, donc les exécutions peuvent être répétées sans risque.
@@ -85,7 +85,7 @@ provider: {
 }
 ```
 
-Lit `DEEPL_API_KEY`. DeepL est une API de traduction automatique, pas un LLM : il n'a pas de champ `model` et pas de limite de tokens de sortie. La seule option est un `glossaryId` optionnel nommant un glossaire que tu as déjà créé dans DeepL :
+Lit `DEEPL_API_KEY`. DeepL est une API de traduction automatique, pas un LLM : il n'a pas de champ `model` et pas de limite de tokens de sortie. Il prend deux options facultatives : `glossaryId`, qui nomme un glossaire que tu as déjà créé dans DeepL, et `requestTimeoutMs` (voir [Délai de requête](#délai-de-requête)) :
 
 ```ts
 provider: {
@@ -138,7 +138,7 @@ provider: {
 }
 ```
 
-`apiKeyEnvVar` nomme la variable d'environnement contenant ta clé pour ce serveur. C'est le même fournisseur `openai-compatible` pointé vers un autre point d'accès, pas un fournisseur Mistral dédié.
+`apiKeyEnvVar` nomme la variable d'environnement contenant ta clé pour ce serveur. C'est le même fournisseur `openai-compatible` pointé vers un autre point d'accès, pas un fournisseur Mistral dédié. Le `requestTimeoutMs` optionnel est accepté ici aussi, et c'est pour ce fournisseur qu'il compte le plus : voir [Délai de requête](#délai-de-requête).
 
 ### Les clés sont optionnelles
 
@@ -191,6 +191,26 @@ Le travail d'une locale est découpé en sous-lots séquentiels d'au plus `maxBa
 
 Les échecs transitoires (une réponse de limite de débit ou une erreur serveur) sont retentés automatiquement avec un court backoff : les clients SDK d'OpenAI, d'Anthropic et de DeepL retentent par défaut, et verbatra ajoute une nouvelle tentative équivalente de son cru pour Gemini, dont le SDK ne le fait pas. Les nouvelles tentatives lissent des accrocs momentanés ; un échec durable remonte quand même comme une erreur structurée.
 
+### Délai de requête
+
+Chaque fournisseur borne chaque requête sortante, pour qu'un serveur qui accepte la connexion mais ne répond jamais ne puisse pas bloquer une exécution ni garder ouvert le verrou d'écriture d'une locale. Cette borne, c'est `requestTimeoutMs`, un entier positif facultatif en millisecondes accepté dans les `options` des cinq fournisseurs (`anthropic`, `openai`, `gemini`, `deepl` et `openai-compatible`) :
+
+```ts
+provider: {
+  id: "openai-compatible",
+  options: {
+    baseUrl: "http://192.168.178.74:1234/v1",
+    model: "qwen2.5-14b-instruct",
+    maxOutputTokens: 1024,
+    requestTimeoutMs: 300000, // 5 minutes
+  },
+}
+```
+
+Si tu l'omets, verbatra applique sa propre valeur par défaut de `120000` ms (deux minutes) : assez longue pour ne pas couper un gros lot légitimement lent, assez courte pour qu'un serveur figé mais vivant ne bloque pas une locale indéfiniment. Augmente-la quand un modèle local lent ou un gros `maxBatchSize` demande plus de temps ; baisse-la pour échouer plus vite. Quand la borne est atteinte, cette requête échoue avec le code réessayable `TIMEOUT` et seul son propre sous-lot est touché : les clés reviennent à l'exécution suivante.
+
+DeepL est la seule exception à l'annulation : son client ne peut pas interrompre une requête déjà en vol, donc au délai dépassé verbatra cesse d'attendre et poursuit, mais la requête déjà envoyée va à son terme chez DeepL.
+
 ### Erreurs structurées
 
 Un échec de fournisseur ne remonte jamais comme une erreur SDK brute, qui pourrait porter des en-têtes de requête ou une clé. verbatra classe chaque échec selon son statut HTTP ou sa classe d'erreur SDK et lève une erreur structurée avec un code stable et un message fixe, sans secret :
@@ -198,8 +218,9 @@ Un échec de fournisseur ne remonte jamais comme une erreur SDK brute, qui pourr
 | Code | Signification |
 | --- | --- |
 | `MISSING_API_KEY` | La variable d'environnement requise est absente ou vide. Le message nomme la variable, jamais une valeur. |
+| `INVALID_REQUEST` | La requête a échoué à la validation avant tout appel réseau : un champ malformé, ou un code de locale que DeepL n'accepte pas (un code source régional, ou un `en` ou `pt` nu en cible). Corrige la configuration ou la requête ; réessayer n'aidera pas. |
 | `RATE_LIMITED` | HTTP 429 ou une erreur de limite de débit du SDK. Attends et réessaie plus tard. |
-| `TIMEOUT` | Un délai réseau ou de requête dépassé ; aucune réponse n'est arrivée à temps. Réessayer peut aider. |
+| `TIMEOUT` | Un délai réseau ou de requête dépassé ; aucune réponse n'est arrivée à temps. Réessayer peut aider, et [`requestTimeoutMs`](#délai-de-requête) relève la borne. |
 | `AUTH_FAILED` | HTTP 401 ou 403 : la clé est invalide, révoquée ou sans permission. Réessayer n'aidera pas. |
 | `OUTPUT_TRUNCATED` | Le modèle a atteint sa limite de tokens de sortie ; voir plus bas. |
 | `INVALID_RESPONSE` | La sortie était malformée, incomplète, ou a échoué à la réconciliation avec la requête. |
