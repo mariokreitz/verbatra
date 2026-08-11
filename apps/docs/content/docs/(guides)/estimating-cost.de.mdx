@@ -1,0 +1,149 @@
+---
+title: Kosten abschätzen
+description: "Schätze den Umfang eines Übersetzungslaufs ab, bevor du Geld ausgibst: zähle die Keys mit einem Dry Run, rechne sie in Requests und Tokens um und bepreise sie mit den Raten deines Providers."
+---
+Bevor du ein KI-Werkzeug auf eine echte Locale-Datei loslässt, willst du eine Größenordnung dafür, was es kosten wird. Diese Seite gibt dir eine Methode statt einer Preisliste: verbatra verfolgt keine Provider-Raten, und Raten ändern sich. Der dauerhafte Teil ist deshalb zu wissen, welche Einheiten dir berechnet werden und wie du sie zählst. Jede Zahl unten ist eine Annahme, die du durch deine eigene ersetzt.
+
+Die Kurzfassung für ein typisches Projekt: ein paar hundert Keys in ein paar Locales auf einem günstigen Modell kosten Cents, nicht Euro, und der Lauf danach kostet fast nichts, weil verbatra nur sendet, was sich geändert hat.
+
+## Schritt 1: den Umfang mit einem Dry Run bestimmen
+
+Ein Dry Run ist die vom Werkzeug unterstützte Antwort auf "wie viel Arbeit ist das". Er berechnet genau, welche Keys gesendet würden, ohne einen Provider zu konstruieren, einen API-Key zu lesen, einen Netzwerkaufruf zu machen oder irgendetwas zu schreiben:
+
+```bash
+verbatra translate --dry-run
+```
+
+```
+verbatra translate (dry run)
+  de: 400 translated, 0 unchanged
+  es: 400 translated, 0 unchanged
+  fr: 400 translated, 0 unchanged
+3 succeeded, 0 partial, 0 failed (dry run: nothing written)
+```
+
+Bei einem Dry Run ist die Zahl hinter `translated` die Anzahl der Keys, die an den Provider gesendet **würden**: die in der Zieldatei fehlenden Keys plus die Keys, deren Quelltext sich seit der Lock-Baseline geändert hat, abzüglich der wegen ungültigem ICU übersprungenen. Diese Zahl ist die Eingabe für alles Weitere.
+
+Behandle sie als **Obergrenze**, aus zwei Gründen. Ein Dry Run liest [den Cache](/docs/the-cache) nie, Keys, die ein echter Lauf aus dem Translation Memory bedienen würde, werden hier also mitgezählt. Und ein Dry Run dedupliziert nicht: bei einem echten Lauf werden Keys mit identischem Quelltext gruppiert, und nur ein Repräsentant wird gesendet. Eine Datei mit wiederholten Strings kostet also weniger Keys, als der Dry Run zeigt.
+
+Ein Dry Run meldet Zahlen, keine Tokens und kein Geld. Aus der Zahl einen Betrag zu machen ist der Rest dieser Seite. Die vollständige Flag-Liste steht unter [`verbatra translate`](/docs/cli/translate).
+
+## Schritt 2: die Requests zählen
+
+verbatra sendet nicht einen Request pro Key. Es teilt die Arbeit jedes Locales in sequenzielle Sub-Batches von höchstens `maxBatchSize` Keys auf (Standard `50`), und jeder Sub-Batch ist ein Provider-Request:
+
+```
+Requests pro Locale = ceil(zu übersetzende Keys / maxBatchSize)
+```
+
+Für den festen Overhead zählt die Batch-Größe mehr als die Key-Anzahl, weil ein Teil jedes Requests konstant ist (siehe nächster Schritt). Zwei Korrekturen:
+
+- Eine Antwort, die mit fehlenden Keys zurückkommt, löst **höchstens einen** begrenzten Reparatur-Request für die noch fehlende Teilmenge aus. Im Normalbetrieb sind das null zusätzliche Requests.
+- `generatePlurals` fügt eigene gebatchte Requests für die Pluralformen hinzu, die es ergänzt, gezählt nach derselben Regel.
+
+## Schritt 3: die Tokens in einem Request zählen
+
+Ein LLM-Request trägt vier Dinge. Nur eines davon skaliert mit deiner Key-Anzahl:
+
+| Teil | Skaliert mit | Ungefähre Größe |
+| --- | --- | --- |
+| Systemregeln | nichts: konstant pro Request | ~250 Tokens |
+| Ausgabeschema | nichts: konstant pro Request | ~100 Tokens |
+| Items-Payload | Keys im Sub-Batch | Key + Wert + JSON-Interpunktion, pro Item |
+| Antwort | Keys im Sub-Batch | Key + übersetzter Wert, pro Item |
+
+Die Systemregeln sind eine Compile-Zeit-Konstante, auf jedem Request identisch. Deshalb ist der Overhead pro Request bekannt und keine Schätzung. Die Items-Payload ist ein JSON-Objekt mit Quell- und Ziel-Locale, einem optionalen Tone und Glossar sowie einem Item pro Key mit `key`, `value` und optional `description` und `meaning`. Die Antwort wiederholt jeden Key neben seiner Übersetzung, die Ausgabegröße folgt der Eingabegröße also eng.
+
+Zum Zählen gilt als Faustregel **~4 Zeichen pro Token** für englische Prosa. Nicht-lateinische Schriften und stark interpunktierte Strings sind dichter, behandle das also als Größenordnung, nicht als Messung.
+
+## Schritt 4: mit den Raten deines Providers bepreisen
+
+verbatra veröffentlicht bewusst keine Preise. Schlage die aktuelle Rate für dein Modell auf der Seite des Providers nach, die die einzige Autorität ist:
+
+| Provider | Abgerechnet nach | Preise |
+| --- | --- | --- |
+| Gemini | Eingabe- und Ausgabe-Tokens (kostenlose Stufe verfügbar) | [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| Anthropic | Eingabe- und Ausgabe-Tokens | [Anthropic pricing](https://www.anthropic.com/pricing) |
+| OpenAI | Eingabe- und Ausgabe-Tokens | [OpenAI API pricing](https://openai.com/api/pricing/) |
+| DeepL | Quell**zeichen**, nicht Tokens | [DeepL Pro pricing](https://www.deepl.com/pro) |
+| openai-compatible | nichts: deine eigene Hardware | keine API-Kosten |
+
+## Ein durchgerechnetes Beispiel
+
+Ersetze jede Annahme in diesem Block durch deine eigenen Zahlen.
+
+**Annahmen**
+
+- 400 zu übersetzende Keys pro Locale (die Dry-Run-Zahl oben), 3 Ziel-Locales
+- durchschnittlicher Quellwert 40 Zeichen, durchschnittlicher Key-Name 20 Zeichen
+- kein `description`, `meaning`, Glossar oder Tone
+- `maxBatchSize` auf dem Standardwert `50`
+- Provider `gemini`, Modell `gemini-2.5-flash`
+- 4 Zeichen pro Token
+- übersetzte Werte ungefähr so lang wie die Quelle
+- **illustrative** Rate von `$0.10` pro Million Eingabe-Tokens und `$0.40` pro Million Ausgabe-Tokens: ein Platzhalter, der die Rechnung konkret macht, kein zitierter Preis. Schlage den echten nach.
+
+**Requests**
+
+`ceil(400 / 50)` = 8 Requests pro Locale, 24 Requests insgesamt.
+
+**Eingabe-Tokens pro Request**
+
+| | |
+| --- | --- |
+| Systemregeln | 250 |
+| Ausgabeschema | 100 |
+| 50 Items x (20 + 40 + ~20 Interpunktion) Zeichen / 4 | 1.000 |
+| **Summe** | **~1.350** |
+
+**Ausgabe-Tokens pro Request**
+
+50 Items x (20 Zeichen Key + 40 Zeichen Wert + ~15 Interpunktion) / 4 = **~950**.
+
+**Summen über 3 Locales**
+
+- Eingabe: 24 x 1.350 = **~32.400 Tokens**
+- Ausgabe: 24 x 950 = **~22.800 Tokens**
+- Kosten: (32.400 / 1.000.000 x $0.10) + (22.800 / 1.000.000 x $0.40) = $0.0032 + $0.0091 = **etwa 1,2 Cent**
+
+Beachte, wo der feste Overhead landet: Systemregeln und Schema machen 24 x 350 = 8.400 der 32.400 Eingabe-Tokens aus, etwa ein Viertel. Ein höheres `maxBatchSize` verteilt diese Konstante auf mehr Keys; ein niedrigeres (etwa um unter einem Rate-Limit zu bleiben) kostet proportional mehr.
+
+## Die genaue Methode: an einem Locale kalibrieren
+
+Jede Schätzung oben ist Arithmetik auf Annahmen. Die genaue Zahl kommt daraus, ein Locale echt zu übersetzen und die Tokens zu lesen, die verbatra meldet.
+
+`translate` hat kein Flag zur Locale-Auswahl, grenze den Lauf also über die Konfiguration ein. Kopiere deine Konfiguration, kürze `targetLocales` auf ein einzelnes Locale und zeige mit `--config` auf die Kopie:
+
+```bash
+verbatra translate --config verbatra.one-locale.config.ts
+```
+
+```
+verbatra translate
+  de: 400 translated, 0 unchanged, 18400 tokens (10800 in, 7600 out)
+  total: 18400 tokens (10800 in, 7600 out)
+1 succeeded, 0 partial, 0 failed
+```
+
+Multipliziere diesen gemessenen Wert mit der Zahl deiner übrigen Locales. Die Token-Nutzung steht auch in der `--json`-Ausgabe als `usage.inputTokens` und `usage.outputTokens`, ein Skript kann die Hochrechnung also übernehmen. Das ist die Zahl, die du dem vorlegst, der die Ausgabe freigibt.
+
+Der Kalibrierungslauf ist ein echter Lauf: er gibt echtes Geld aus und schreibt echte Übersetzungen für dieses Locale. Genau das ist der Sinn, und die Arbeit ist nicht verloren, weil die übrigen Locales von derselben Quelle ausgehen und das kalibrierte Locale nun fertig ist.
+
+Um einen Lauf zu deckeln, statt ihn vorherzusagen, setze `maxTokens` mit `budgetBehavior: "stop"`. Damit wird jeder noch nicht versuchte Key zurückgehalten, sobald die Obergrenze überschritten ist; zurückgehaltene Keys werden im nächsten Lauf automatisch erneut versucht. Siehe [die Konfigurationsreferenz](/docs/config-file).
+
+## DeepL wird anders abgerechnet
+
+DeepL ist eine maschinelle Übersetzungs-API, kein nach Tokens abgerechnetes LLM, und folgt deshalb nicht der Formel oben:
+
+- Die abrechenbare Einheit sind **Quellzeichen**. Für das Beispielprojekt sind das 400 Keys x 40 Zeichen = 16.000 Zeichen pro Locale, 48.000 über drei.
+- verbatra sendet an DeepL nur den Quelltext. Es gibt keine Systemregeln, keine Key-Namen und keinen JSON-Umschlag in der abgerechneten Payload, also auch keine Konstante pro Request, die sich amortisieren ließe.
+- DeepL hält Strings mit Platzhaltern oder ICU-Syntax zurück, statt sie zu riskieren. Die tatsächlich gesendeten Zeichen können also unter der Rohsumme liegen.
+- DeepL meldet keine Token-Nutzung, ein konfiguriertes `maxTokens`-Budget wird deshalb als nicht unterstützt ausgewiesen, statt scheinbar zu funktionieren.
+
+## Warum der zweite Lauf fast kostenlos ist
+
+Der mit Abstand größte Faktor dafür, was verbatra über die Zeit kostet, ist, dass Läufe inkrementell sind. Gesendet werden nur Keys, die fehlen oder deren Quelltext sich seit der Baseline in [der Lock-Datei](/docs/the-lock-file) geändert hat. Ein unverändertes Projekt erneut laufen zu lassen sendet nichts und kostet nichts.
+
+Das durchgerechnete Beispiel oben ist also die **Erstlauf**-Kosten, die einmalige Rechnung dafür, ein Projekt von Grund auf zu übersetzen. Im Alltag zahlst du für die Handvoll Strings, die du seit dem letzten Lauf bearbeitet hast. Deshalb liegen die laufenden Kosten, ein Projekt übersetzt zu halten, weit unter der Anfangszahl. [Der Cache](/docs/the-cache) senkt wiederkehrende Kosten weiter, indem er eine identische frühere Übersetzung wiederverwendet, statt sie zweimal zu bezahlen.
+
+Um das Ganze vorher zu null Kosten zu proben, nutze Geminis kostenlose Stufe oder richte den `openai-compatible`-Provider auf ein lokales Modell. Siehe [Provider](/docs/providers).

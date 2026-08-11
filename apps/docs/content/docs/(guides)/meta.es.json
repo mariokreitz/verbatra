@@ -1,7 +1,8 @@
 {
-  "title": "Gu\u00edas",
+  "title": "Guías",
   "defaultOpen": true,
   "pages": [
+    "estimating-cost",
     "ci-and-exit-codes",
     "github-action",
     "manual-translation",
