@@ -37,7 +37,7 @@ The run still records the current source hash for every key the target holds, so
 the adoption step: it establishes the baseline at zero provider cost, and from the second run on,
 source edits show up as drift the normal way.
 
-Adoption is decided by key presence, never by value, which has three consequences worth knowing
+Adoption is decided by key presence, never by value, which has two consequences worth knowing
 before that first run:
 
 - An empty or untranslated value counts as translated. A target value that is an empty string, or
@@ -50,11 +50,11 @@ before that first run:
   as it is now, so a translation that had already drifted from the source before you adopted the
   project is taken as up to date and will not be revisited. Fix or delete those keys before the
   first run.
-- Plural generation can overwrite existing forms. `generatePlurals` (off by default, i18next-JSON
-  only) decides what to synthesize from the lock, not from the target file, so on a first run every
-  plural form it plans counts as not yet generated and overwrites whatever the target file holds at
-  that key. Leave it off while adopting a project that carries hand-written plural forms, and turn
-  it on once the baseline exists.
+
+Plural generation follows the same adoption rule. A plural form the target file already holds is
+kept as it is, never regenerated and never sent to the provider, so `generatePlurals` is safe to
+leave on while adopting a project that carries hand-written plural forms; only forms genuinely
+absent from the target are synthesized.
 
 You can see all of this before spending anything: `verbatra diff` lists the exact missing and
 changed keys per locale, `verbatra check` reports the same as counts, and

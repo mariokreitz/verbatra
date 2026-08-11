@@ -40,7 +40,7 @@ Lauf ist also der Übernahmeschritt selbst: Er legt die Baseline ohne einen einz
 an, und ab dem zweiten Lauf tauchen Quelländerungen ganz normal als Drift auf.
 
 Ob ein Key als übernommen gilt, entscheidet allein seine Anwesenheit, nie sein Wert. Daraus folgen
-drei Dinge, die du vor diesem ersten Lauf kennen solltest:
+zwei Dinge, die du vor diesem ersten Lauf kennen solltest:
 
 - Ein leerer oder unübersetzter Wert zählt als übersetzt. Ein Zielwert, der ein leerer String ist
   oder noch der unübersetzte Quelltext, ist ein Key, der existiert, gilt also als unverändert und
@@ -52,11 +52,11 @@ drei Dinge, die du vor diesem ersten Lauf kennen solltest:
   Quell-Hash so, wie er jetzt ist; eine Übersetzung, die schon vor der Übernahme von der Quelle
   abgedriftet war, gilt damit als aktuell und wird nicht noch einmal angefasst. Korrigiere oder
   lösche solche Keys vor dem ersten Lauf.
-- Die Plural-Generierung kann bestehende Formen überschreiben. `generatePlurals` (standardmäßig aus,
-  nur i18next-JSON) entscheidet anhand der Lock-Datei, was synthetisiert wird, nicht anhand der
-  Zieldatei. Beim ersten Lauf gilt deshalb jede geplante Pluralform als noch nicht generiert und
-  überschreibt, was die Zieldatei an diesem Key hält. Lass die Option aus, solange du ein Projekt mit
-  handgeschriebenen Pluralformen übernimmst, und schalte sie ein, sobald die Baseline steht.
+
+Die Plural-Generierung folgt derselben Übernahmeregel. Eine Pluralform, die die Zieldatei schon
+enthält, bleibt so, wie sie ist: Sie wird weder neu generiert noch an den Provider geschickt.
+`generatePlurals` kannst du also gefahrlos anlassen, während du ein Projekt mit handgeschriebenen
+Pluralformen übernimmst; synthetisiert werden nur Formen, die im Ziel wirklich fehlen.
 
 Das alles kannst du dir ansehen, bevor du etwas ausgibst: `verbatra diff` listet pro Locale genau
 die fehlenden und geänderten Keys, `verbatra check` meldet dasselbe als Zahlen, und

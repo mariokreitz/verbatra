@@ -41,7 +41,7 @@ la primera ejecución es el propio paso de adopción: establece la línea base s
 proveedor, y a partir de la segunda ejecución las ediciones del origen aparecen como desfase de la
 forma habitual.
 
-Que una clave se dé por adoptada lo decide su presencia, nunca su valor, y de ahí salen tres
+Que una clave se dé por adoptada lo decide su presencia, nunca su valor, y de ahí salen dos
 consecuencias que conviene conocer antes de esa primera ejecución:
 
 - Un valor vacío o sin traducir cuenta como traducido. Un valor de destino que es una cadena
@@ -54,12 +54,11 @@ consecuencias que conviene conocer antes de esa primera ejecución:
   origen tal como está ahora, así que una traducción que ya se había desviado del origen antes de
   adoptar el proyecto queda dada por al día y no se vuelve a tocar. Corrige o borra esas claves
   antes de la primera ejecución.
-- La generación de plurales puede sobrescribir formas existentes. `generatePlurals` (desactivado por
-  defecto, solo i18next-JSON) decide qué sintetizar a partir del bloqueo, no del archivo de destino,
-  así que en una primera ejecución toda forma plural que planifica cuenta como aún no generada y
-  sobrescribe lo que el archivo de destino tenga en esa clave. Déjalo desactivado mientras adoptas
-  un proyecto que ya lleva formas plurales escritas a mano, y actívalo una vez que exista la línea
-  base.
+
+La generación de plurales sigue la misma regla de adopción. Una forma plural que el archivo de
+destino ya tiene se conserva tal cual: ni se regenera ni se envía al proveedor. Así que puedes dejar
+`generatePlurals` activado mientras adoptas un proyecto que lleva formas plurales escritas a mano;
+solo se sintetizan las formas que de verdad faltan en el destino.
 
 Puedes verlo todo antes de gastar nada: `verbatra diff` lista por locale las claves faltantes y
 modificadas exactas, `verbatra check` informa de lo mismo en forma de recuentos y
