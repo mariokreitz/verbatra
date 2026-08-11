@@ -14,37 +14,46 @@ interface MediaStub {
   setPrefersLight(next: boolean): void;
   /** Plays one OS scheme change into every registered listener. */
   emitChange(): void;
-  /** How many change listeners are currently registered on the query. */
+  /** How many change listeners are live across every query the stub handed out. */
   listenerCount(): number;
 }
 
 function installMatchMedia(prefersLight: boolean): MediaStub {
   let matches = prefersLight;
-  const listeners = new Set<() => void>();
-  // `systemPrefersLight` calls `window.matchMedia` afresh on every read, so the returned object
-  // exposes `matches` as a getter over the shared flag rather than a snapshot of it.
-  const query = {
-    get matches(): boolean {
-      return matches;
-    },
-    addEventListener(_type: string, listener: () => void): void {
-      listeners.add(listener);
-    },
-    removeEventListener(_type: string, listener: () => void): void {
-      listeners.delete(listener);
-    },
+  // A real `matchMedia` returns a new MediaQueryList per call and each one owns its listener
+  // list, so the stub does the same. One shared object would count a listener re-registered on
+  // the same query and one leaked onto a second query alike, and hide the leak.
+  const queries: Array<Set<() => void>> = [];
+  // `systemPrefersLight` calls `window.matchMedia` afresh on every read, so each query exposes
+  // `matches` as a getter over the shared flag rather than a snapshot of it.
+  const createQuery = (): MediaQueryList => {
+    const listeners = new Set<() => void>();
+    queries.push(listeners);
+    return {
+      get matches(): boolean {
+        return matches;
+      },
+      addEventListener(_type: string, listener: () => void): void {
+        listeners.add(listener);
+      },
+      removeEventListener(_type: string, listener: () => void): void {
+        listeners.delete(listener);
+      },
+    } as unknown as MediaQueryList;
   };
-  vi.stubGlobal("matchMedia", () => query as unknown as MediaQueryList);
+  vi.stubGlobal("matchMedia", createQuery);
   return {
     setPrefersLight(next: boolean): void {
       matches = next;
     },
     emitChange(): void {
-      for (const listener of [...listeners]) {
-        listener();
+      for (const listeners of queries) {
+        for (const listener of [...listeners]) {
+          listener();
+        }
       }
     },
-    listenerCount: (): number => listeners.size,
+    listenerCount: (): number => queries.reduce((total, listeners) => total + listeners.size, 0),
   };
 }
 
@@ -164,6 +173,27 @@ describe("initTheme", () => {
     initTheme();
 
     expect(media.listenerCount()).toBe(1);
+  });
+
+  it("does not accumulate listeners when it runs more than once", () => {
+    const media = installMatchMedia(false);
+
+    initTheme();
+    initTheme();
+    initTheme();
+
+    expect(media.listenerCount()).toBe(1);
+  });
+
+  it("still tracks the OS scheme through the surviving listener after a repeat call", () => {
+    const media = installMatchMedia(false);
+    initTheme();
+    initTheme();
+
+    media.setPrefersLight(true);
+    media.emitChange();
+
+    expect(appliedTheme()).toBe("light");
   });
 
   it("re-resolves a system preference when the OS scheme flips", () => {
