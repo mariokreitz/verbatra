@@ -2,6 +2,9 @@ import { createVitestConfig } from "@verbatra/config/vitest";
 
 export default createVitestConfig({
   testInclude: [
+    // This file's own guard, co-located with it at the package root rather than inside a source
+    // tree, because it pins the package configuration and not any shipped module.
+    "*.test.ts",
     "src/server/**/*.test.ts",
     "src/client/**/*.test.ts",
     "src/shared/**/*.test.ts",
