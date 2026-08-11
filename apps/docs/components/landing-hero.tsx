@@ -20,7 +20,7 @@ const CLI_OUTPUTS: Readonly<Record<number, ReadonlyArray<string>>> = {
   0: [
     "✓ created verbatra.config.ts",
     "source en · targets de, es, fr",
-    "provider anthropic · key from ANTHROPIC_API_KEY",
+    "provider gemini · key from GEMINI_API_KEY",
   ],
   1: [
     "diff en.json · 12 new · 0 changed · 108 unchanged",

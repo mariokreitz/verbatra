@@ -26,9 +26,9 @@ Node.js `>=22.14.0`.
 ## Installation
 
 ```bash
+npm install --save-dev @verbatra/cli
+# pnpm
 pnpm add -D @verbatra/cli
-# npm
-npm install -D @verbatra/cli
 # yarn
 yarn add -D @verbatra/cli
 ```
@@ -39,10 +39,10 @@ A dev-dependency install puts the `verbatra` binary in `node_modules/.bin`, not 
 
 ```bash
 # Scaffold verbatra.config.ts and .env.example
-npx verbatra init --provider anthropic
+npx verbatra init --provider gemini
 
 # Provide the provider's API key (see the table below for each provider's variable)
-export ANTHROPIC_API_KEY=your-key-here
+export GEMINI_API_KEY=your-key-here
 
 # Translate every target locale once
 npx verbatra translate
@@ -50,6 +50,8 @@ npx verbatra translate
 # Also remove orphaned keys (present in a target file, absent from source)
 npx verbatra translate --prune
 ```
+
+Gemini is shown because its API has a real free tier, so you can create a key at [Google AI Studio](https://aistudio.google.com/apikey) and try verbatra without setting up billing. `anthropic`, `openai`, and `deepl` work the same way; only the key variable and the config's `provider` block differ.
 
 Plural-category generation is opt-in too, but config/SDK only: set `generatePlurals: true` in the config. Unlike `--prune`, there is no `--generate-plurals` flag (the SDK `translate()` input accepts a per-run override).
 
@@ -75,7 +77,7 @@ Run `verbatra <command> --help` for the same reference at the terminal.
 `verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same integrity gate a translate run applies to every candidate value; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. `--expose-agent-tools` (or `VERBATRA_STUDIO_AGENT_TOOLS`) additionally registers Studio's RPC methods as WebMCP agent tools in the browser; it is off by default and confers no authority the open, authenticated tab does not already hold. The server binds to `127.0.0.1` only and gates every request behind a Host and Origin check, the bootstrap token from the printed URL, and a session cookie. The dashboard itself ships as [`@verbatra/studio`](https://github.com/mariokreitz/verbatra/tree/main/packages/studio); install it alongside the CLI:
 
 ```bash
-pnpm add -D @verbatra/studio
+npm install --save-dev @verbatra/studio
 npx verbatra studio
 ```
 

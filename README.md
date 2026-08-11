@@ -23,20 +23,22 @@ Needs Node.js `>=22.14.0`. verbatra installs as a development dependency, which 
 
 ```bash
 # 1. Install as a dev dependency
-pnpm add -D @verbatra/cli
+npm install --save-dev @verbatra/cli
 
 # 2. Scaffold verbatra.config.ts and .env.example (choose your provider)
-npx verbatra init --provider anthropic
+npx verbatra init --provider gemini
 
 # 3. Provide the provider's API key. init created .env.example and gitignored
-#    .env, so you can set it in .env, or export it (Anthropic shown):
-export ANTHROPIC_API_KEY=your-key-here
+#    .env, so you can set it in .env, or export it (Gemini shown):
+export GEMINI_API_KEY=your-key-here
 
 # 4. Translate every target locale once
 npx verbatra translate
 ```
 
-`npx` runs the locally installed binary whichever package manager put it there, so step 1 works the same as `npm install -D @verbatra/cli` or `yarn add -D @verbatra/cli`. Yarn users can also run `yarn verbatra ...`.
+Gemini is the cheapest way to try verbatra: its API has a real free tier, so you can create a key at [Google AI Studio](https://aistudio.google.com/apikey) without setting up billing. Pass `anthropic`, `openai`, or `deepl` to `--provider` instead if you prefer one of those; switching later means editing one `id` in your config.
+
+`npx` runs the locally installed binary whichever package manager put it there, so step 1 works the same as `pnpm add -D @verbatra/cli` or `yarn add -D @verbatra/cli`. Yarn users can also run `yarn verbatra ...`.
 
 ## Description
 
@@ -75,10 +77,10 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6", // replace with your provider's model id
-      maxTokens: 4096,
+      model: "gemini-2.5-flash", // replace with your provider's model id
+      maxOutputTokens: 4096,
     },
   },
 });
@@ -89,7 +91,10 @@ export default defineConfig({
 The `provider` block is selected by `id`. The LLM providers take a `model` and a token limit; DeepL needs no model:
 
 ```ts
-// OpenAI / Gemini
+// Anthropic (this provider's output-token limit option is maxTokens)
+provider: { id: "anthropic", options: { model: "claude-sonnet-4-6", maxTokens: 4096 } }
+
+// OpenAI
 provider: { id: "openai", options: { model: "gpt-5.4-mini", maxOutputTokens: 4096 } }
 
 // DeepL (machine translation)
@@ -136,7 +141,7 @@ npx verbatra studio
 Studio ships as its own package; install both as dev dependencies:
 
 ```bash
-pnpm add -D @verbatra/cli @verbatra/studio
+npm install --save-dev @verbatra/cli @verbatra/studio
 ```
 
 See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio) for the full command reference and security model.
@@ -151,7 +156,7 @@ import { loadConfig, translate } from "@verbatra/sdk";
 // Discovers and validates verbatra.config.ts (or .verbatrarc.json, or a package.json "verbatra" key).
 const config = await loadConfig();
 
-// The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY). No key is passed.
+// The provider reads its API key from the environment (e.g. GEMINI_API_KEY). No key is passed.
 const summary = await translate({ config });
 
 console.log(
