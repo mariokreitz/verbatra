@@ -43,6 +43,14 @@ export interface SdkFs {
   createExclusive(path: string, data: string): Promise<boolean>;
   /** Delete a file if present; a no-op if it is already absent. */
   deleteFile(path: string): Promise<void>;
+  /**
+   * Create a directory and every missing parent (mkdir -p); a no-op if it already exists.
+   *
+   * Optional so an `SdkFs` written against an earlier version stays valid, and because an in-memory
+   * test double has no directories to create. Only the delimited export calls it, right before writing
+   * one interchange file per locale into the directory the caller named.
+   */
+  mkdir?(path: string): Promise<void>;
 }
 
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
@@ -186,5 +194,8 @@ export const defaultFs: SdkFs = {
   createExclusive: (path: string, data: string): Promise<boolean> => createExclusive(path, data),
   deleteFile: async (path: string): Promise<void> => {
     await rm(path, { force: true });
+  },
+  mkdir: async (path: string): Promise<void> => {
+    await mkdir(path, { recursive: true });
   },
 };

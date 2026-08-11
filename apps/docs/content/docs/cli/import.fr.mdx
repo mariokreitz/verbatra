@@ -1,6 +1,6 @@
 ---
 title: verbatra import
-description: Réimporte un classeur rempli dans les fichiers de locale, avec les mêmes vérifications de sûreté.
+description: Réimporte une remise remplie (classeur, CSV ou TSV) dans les fichiers de locale, avec les mêmes vérifications de sûreté.
 ---
 Relis dans tes fichiers de locale un classeur rempli par un traducteur. Chaque valeur passe par les mêmes vérifications d'intégrité qu'une exécution automatisée : les valeurs qui passent sont écrites et [le fichier de verrouillage](/docs/the-lock-file) est mis à jour ; les valeurs qui échouent sont retenues et signalées au lieu d'être écrites, donc une cellule défectueuse n'atterrit jamais dans un fichier de locale.
 
@@ -10,7 +10,7 @@ Relis dans tes fichiers de locale un classeur rempli par un traducteur. Chaque v
 verbatra import <workbook> [flags]
 ```
 
-`<workbook>` est le chemin du classeur produit par [`verbatra export`](/docs/cli/export) et rempli par le traducteur.
+`<workbook>` est le chemin de la remise produite par [`verbatra export`](/docs/cli/export) et remplie par le traducteur : le fichier du classeur avec `xlsx`, et avec `csv` et `tsv` soit un seul fichier `<locale>.csv`, soit le répertoire qui en contient un par locale.
 
 ## Options
 
@@ -19,6 +19,7 @@ verbatra import <workbook> [flags]
 | `--cwd` | `<path>` | répertoire courant | résout la config et les fichiers de locale depuis ce répertoire |
 | `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
 | `--dry-run` | aucun | désactivé | valide et rapporte sans écrire les fichiers de locale ni mettre à jour le verrou |
+| `--format` | `<format>` | `xlsx` | lit un classeur Excel (`xlsx`) ou des fichiers délimités (`csv`, `tsv`) |
 | `--json` | aucun | désactivé | affiche le résumé d'exécution comme un seul objet JSON sur stdout (la même [forme `RunSummary`](/docs/sdk) que `translate`) ; les erreurs vont toujours sur stderr |
 
 ## Exemples
@@ -29,7 +30,12 @@ verbatra import verbatra-translations.xlsx
 
 # validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
+
+# import every locale file in a CSV handoff directory
+verbatra import handoff --format csv
 ```
+
+Avec `csv` ou `tsv`, la locale vient du nom du fichier et non d'un nom de feuille : garde donc chaque fichier nommé exactement comme il a été exporté. Une locale cible configurée sans fichier est rapportée comme l'échec de cette locale, jamais ignorée en silence.
 
 ## Codes de sortie
 
@@ -47,4 +53,4 @@ Une cellule `Translation` vide ne fait jamais échouer une locale : la ligne est
 
 - [Traduction humaine](/docs/manual-translation) couvre l'aller-retour complet export, remplissage, import et ce qu'un traducteur peut modifier.
 - [Sûreté de la traduction](/docs/translation-safety) explique les vérifications qui peuvent retenir une valeur.
-- [`verbatra export`](/docs/cli/export) produit le classeur que cette commande lit.
+- [`verbatra export`](/docs/cli/export) produit la remise que cette commande lit.

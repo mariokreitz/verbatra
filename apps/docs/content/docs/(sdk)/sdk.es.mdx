@@ -209,7 +209,7 @@ current)` devuelve `{ added, changed, removed }`. Solo contadores, nunca nombres
 
 ## El par de libro
 
-La entrega en Excel para traductores humanos; consulta [Traducción humana](/docs/manual-translation).
+La entrega para traductores humanos, como libro de Excel o como texto delimitado; consulta [Traducción humana](/docs/manual-translation).
 
 ### exportWorkbook
 
@@ -217,9 +217,12 @@ Escribe las cadenas que todavía necesitan traducción (claves faltantes y modif
 las sin cambios con `includeUnchanged`) en un libro `.xlsx` con estilos. Las filas llevan la misma señal
 de revisión que calcula una ejecución de translate. Sin llamada al proveedor, sin escritura del bloqueo.
 
-Entrada: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` es por defecto
-`DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`), exportado como constante. Devuelve
-`{ path, locales }`: la ruta absoluta escrita y un número de filas por locale.
+Entrada: `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format` es `xlsx` por
+defecto; `csv` y `tsv` escriben en su lugar un `<locale>.csv` o `<locale>.tsv` por locale, así que `out`
+nombra un directorio para ellos (creado si falta) y una ruta de archivo para `xlsx`. `out` es por
+defecto `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) o `DEFAULT_DELIMITED_PATH`
+(`verbatra-translations`), ambos exportados como constantes. Devuelve `{ path, locales }`: la ruta
+absoluta escrita y un número de filas por locale.
 
 ### importWorkbook
 
@@ -228,7 +231,9 @@ desfase del origen e integridad que `translate`. Solo las filas aceptadas avanza
 línea base del bloqueo; una fila en blanco o rechazada se sigue exportando hasta que se resuelve de
 verdad.
 
-Entrada: `{ config, workbook, cwd?, dryRun? }`. Devuelve la misma forma `RunSummary` que `translate`
+Entrada: `{ config, workbook, cwd?, dryRun?, format? }`. Con `csv` o `tsv`, `workbook` es un solo
+archivo de entrega o el directorio que contiene uno por locale, y la locale viene del nombre del
+archivo. Devuelve la misma forma `RunSummary` que `translate`
 (con `needsReview` siempre vacío, ya que no interviene ningún proveedor). Una hoja de un locale que no
 es un destino configurado hace fallar ese locale con `CONFIG_INVALID` como dato en el resumen, no como
 excepción.

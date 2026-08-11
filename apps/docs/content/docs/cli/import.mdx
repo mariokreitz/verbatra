@@ -1,6 +1,6 @@
 ---
 title: verbatra import
-description: Import a filled workbook back into the locale files, running the same safety checks.
+description: Import a filled workbook, CSV, or TSV handoff back into the locale files, running the same safety checks.
 ---
 Read a workbook a translator filled in back into your locale files. Every value runs through the same integrity checks as an automated run: values that pass are written and [the lock file](/docs/the-lock-file) is updated; values that fail are withheld and reported instead of written, so a bad cell never lands in a locale file.
 
@@ -10,7 +10,7 @@ Read a workbook a translator filled in back into your locale files. Every value 
 verbatra import <workbook> [flags]
 ```
 
-`<workbook>` is the path to the workbook produced by [`verbatra export`](/docs/cli/export) and filled in by the translator.
+`<workbook>` is the path to the handoff produced by [`verbatra export`](/docs/cli/export) and filled in by the translator: the workbook file for `xlsx`, and for `csv` and `tsv` either one `<locale>.csv` file or the directory holding one file per locale.
 
 ## Flags
 
@@ -19,6 +19,7 @@ verbatra import <workbook> [flags]
 | `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
 | `--config` | `<path>` | search for one | load this config file instead of searching for one |
 | `--dry-run` | none | off | validate and report without writing locale files or updating the lock |
+| `--format` | `<format>` | `xlsx` | read an Excel workbook (`xlsx`) or delimited files (`csv`, `tsv`) |
 | `--json` | none | off | print the run summary as one JSON object on stdout (the same [`RunSummary` shape](/docs/sdk) as `translate`); errors still go to stderr |
 
 ## Examples
@@ -29,7 +30,12 @@ verbatra import verbatra-translations.xlsx
 
 # validate and report, write nothing
 verbatra import verbatra-translations.xlsx --dry-run
+
+# import every locale file in a CSV handoff directory
+verbatra import handoff --format csv
 ```
+
+With `csv` or `tsv` the locale comes from the file name, not from a sheet name, so keep every file named exactly as it was exported. A configured target locale with no file is reported as that locale's failure, never silently skipped.
 
 ## Exit codes
 
@@ -47,4 +53,4 @@ A blank `Translation` cell never fails a locale: the row is skipped, its prior l
 
 - [Manual translation](/docs/manual-translation) covers the full export, fill, import round-trip and what a translator may edit.
 - [Translation safety](/docs/translation-safety) explains the checks that can withhold a value.
-- [`verbatra export`](/docs/cli/export) produces the workbook this command reads.
+- [`verbatra export`](/docs/cli/export) produces the handoff this command reads.

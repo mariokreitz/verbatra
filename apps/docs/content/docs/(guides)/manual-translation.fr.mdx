@@ -74,6 +74,28 @@ Valide un classeur renvoyé et prévisualise ce qui serait écrit sans toucher u
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
+## CSV et TSV plutôt qu'un classeur
+
+Certains prestataires et pipelines veulent du texte brut plutôt qu'Excel. `--format csv` et `--format tsv` écrivent les mêmes colonnes, dans le même ordre, sous forme d'un fichier par locale :
+
+```bash
+# write handoff/de.csv and handoff/fr.csv
+verbatra export --format csv --out handoff
+
+# import every locale file in the directory back
+verbatra import handoff --format csv
+```
+
+L'import accepte aussi un seul fichier (`verbatra import handoff/de.csv --format csv`) et lit la locale dans le nom du fichier : garde donc les fichiers nommés comme ils ont été exportés.
+
+Ce qui change par rapport au classeur :
+
+- **Aucune protection.** Un classeur ne laisse modifiable que `Translation` et masque `Source hash` ; un fichier texte ne le peut pas. Chaque colonne est modifiable et le hash est visible. Un hash modifié ou vidé n'est pas cru : la ligne est comparée à la source actuelle et retenue comme dérive, exactement comme une ligne périmée.
+- **Aucune feuille d'instructions.** Transmets toi-même au traducteur les règles de passation ci-dessus.
+- **Le quoting suit la RFC 4180.** Une valeur contenant le délimiteur, un guillemet double, un saut de ligne ou des espaces en bordure est mise entre guillemets, et ses guillemets internes sont doublés : rien dans une chaîne ne peut donc décaler une colonne. Les fichiers sont écrits avec des fins de ligne LF, et `csv` porte un BOM UTF-8 pour qu'Excel le lise en UTF-8.
+- **Un tableur peut quand même modifier ce qu'il ouvre.** Ouvrir un `.csv` ou un `.tsv` dans un tableur peut convertir une valeur (`007` devient `7`) et peut traiter une valeur commençant par `=`, `+`, `-` ou `@` comme une formule. Le quoting n'y change rien, car le tableur le retire avant d'évaluer. verbatra écrit et relit chaque valeur telle quelle, délibérément, car `-5 Grad` et `+49 30 1234567` sont des traductions ordinaires. Considère comme non fiable tout fichier renvoyé par un traducteur.
+- **Tout le reste est identique.** Le même diff choisit les lignes, et chaque ligne renvoyée passe par la même barrière d'intégrité : une remise délimitée et un classeur donnent le même résultat pour les mêmes valeurs.
+
 ## Choisir quoi exporter
 
 Par défaut, l'export n'inclut que les chaînes manquantes et modifiées, le travail qui a vraiment besoin d'être fait :
@@ -113,6 +135,9 @@ const config = await loadConfig();
 
 // Write a workbook of the strings that need translating
 await exportWorkbook({ config });
+
+// ...or one CSV file per locale, into a directory
+await exportWorkbook({ config, format: "csv", out: "handoff" });
 
 // ...later, import the filled file back
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });

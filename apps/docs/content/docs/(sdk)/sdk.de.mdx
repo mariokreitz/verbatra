@@ -216,7 +216,7 @@ nie Key-Namen.
 
 ## Das Arbeitsmappen-Paar
 
-Die Excel-Übergabe für menschliche Übersetzerinnen; siehe
+Die Übergabe für menschliche Übersetzerinnen, als Excel-Arbeitsmappe oder als Textdateien; siehe
 [Menschliche Übersetzung](/docs/manual-translation).
 
 ### exportWorkbook
@@ -226,8 +226,11 @@ kommen mit `includeUnchanged` dazu) in eine formatierte `.xlsx`-Arbeitsmappe. Di
 dasselbe Review-Flag-Signal, das ein translate-Lauf berechnet. Kein Provider-Aufruf, kein
 Lock-Schreiben.
 
-Eingabe: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` ist standardmäßig
-`DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`), als Konstante exportiert. Gibt
+Eingabe: `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format` ist standardmäßig
+`xlsx`; `csv` und `tsv` schreiben stattdessen eine `<locale>.csv` bzw. `<locale>.tsv` pro Locale, `out`
+benennt dafür also ein Verzeichnis (das angelegt wird, falls es fehlt) und bei `xlsx` einen Dateipfad.
+`out` ist standardmäßig `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) oder
+`DEFAULT_DELIMITED_PATH` (`verbatra-translations`), beide als Konstanten exportiert. Gibt
 `{ path, locales }` zurück: den absoluten geschriebenen Pfad und eine Zeilenzahl pro Locale.
 
 ### importWorkbook
@@ -237,7 +240,9 @@ Quelldrift und Integrität aus wie `translate`. Nur akzeptierte Zeilen rücken i
 Lock-Baseline vor; eine leere oder abgelehnte Zeile wird weiter exportiert, bis sie wirklich
 erledigt ist.
 
-Eingabe: `{ config, workbook, cwd?, dryRun? }`. Gibt dieselbe `RunSummary`-Form zurück wie
+Eingabe: `{ config, workbook, cwd?, dryRun?, format? }`. Bei `csv` und `tsv` ist `workbook` entweder
+eine einzelne Übergabedatei oder das Verzeichnis mit einer Datei pro Locale, und die Locale kommt aus
+dem Dateinamen. Gibt dieselbe `RunSummary`-Form zurück wie
 `translate` (mit `needsReview` immer leer, da kein Provider beteiligt ist). Ein Blatt für ein
 Locale, das kein konfiguriertes Ziel ist, lässt dieses Locale mit `CONFIG_INVALID` als Daten auf
 der Zusammenfassung fehlschlagen, kein Wurf.

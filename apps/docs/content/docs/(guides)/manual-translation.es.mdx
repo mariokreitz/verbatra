@@ -74,6 +74,28 @@ Valida un libro devuelto y previsualiza lo que se escribiría sin tocar un solo 
 verbatra import verbatra-translations.xlsx --dry-run
 ```
 
+## CSV y TSV en lugar de un libro
+
+Algunos proveedores y pipelines quieren texto plano en vez de Excel. `--format csv` y `--format tsv` escriben las mismas columnas, en el mismo orden, como un archivo por locale:
+
+```bash
+# write handoff/de.csv and handoff/fr.csv
+verbatra export --format csv --out handoff
+
+# import every locale file in the directory back
+verbatra import handoff --format csv
+```
+
+La importación también acepta un solo archivo (`verbatra import handoff/de.csv --format csv`) y lee la locale del nombre del archivo, así que mantén los archivos con el nombre con el que se exportaron.
+
+Qué cambia frente al libro:
+
+- **Sin protección.** Un libro deja editable solo `Translation` y oculta `Source hash`; un archivo de texto no puede. Todas las columnas son editables y el hash es visible. Un hash editado o vaciado no se da por bueno: la fila se compara con la fuente actual y se retiene como deriva, igual que una fila obsoleta.
+- **Sin hoja de instrucciones.** Pasa tú mismo al traductor las reglas de entrega de arriba.
+- **El entrecomillado sigue RFC 4180.** Un valor que contiene el delimitador, unas comillas dobles, un salto de línea o espacios alrededor se entrecomilla, y sus comillas internas se duplican, así que nada dentro de una cadena puede desplazar una columna. Los archivos se escriben con finales de línea LF, y `csv` lleva un BOM UTF-8 para que Excel lo lea como UTF-8.
+- **Una hoja de cálculo puede cambiar lo que abre.** Abrir un `.csv` o `.tsv` en una hoja de cálculo puede convertir valores (`007` pasa a `7`) y puede tratar un valor que empieza por `=`, `+`, `-` o `@` como una fórmula. El entrecomillado no lo evita, porque la hoja de cálculo lo elimina antes de evaluar. verbatra escribe y lee cada valor literalmente a propósito, porque `-5 Grad` y `+49 30 1234567` son traducciones normales. Trata como entrada no confiable cualquier archivo que devuelva un traductor.
+- **Todo lo demás es idéntico.** El mismo diff elige las filas y cada fila devuelta pasa por la misma puerta de integridad, así que una entrega delimitada y un libro producen el mismo resultado para los mismos valores.
+
 ## Seleccionar qué exportar
 
 Por defecto, la exportación incluye solo las cadenas faltantes y modificadas, el trabajo que de verdad hay que hacer:
@@ -113,6 +135,9 @@ const config = await loadConfig();
 
 // Write a workbook of the strings that need translating
 await exportWorkbook({ config });
+
+// ...or one CSV file per locale, into a directory
+await exportWorkbook({ config, format: "csv", out: "handoff" });
 
 // ...later, import the filled file back
 const summary = await importWorkbook({ config, workbook: "verbatra-translations.xlsx" });
