@@ -13,12 +13,15 @@ export const RATE_LIMITED_MESSAGE = "The translation provider rate-limited this 
 export const TIMEOUT_MESSAGE = "The translation provider request timed out.";
 /** Static, secret-free message for a 401 or 403; the configured key is invalid or lacks permission. */
 export const AUTH_FAILED_MESSAGE = "The translation provider rejected the request credentials.";
+/** Static, secret-free message for a 5xx; the provider failed on its own side. */
+export const PROVIDER_UNAVAILABLE_MESSAGE = "The translation provider is currently unavailable.";
 
 /** The static message for each {@link ClassifiedProviderErrorCode} the guard can produce. */
 const MESSAGE_BY_CODE: Readonly<Record<ClassifiedProviderErrorCode, string>> = {
   RATE_LIMITED: RATE_LIMITED_MESSAGE,
   TIMEOUT: TIMEOUT_MESSAGE,
   AUTH_FAILED: AUTH_FAILED_MESSAGE,
+  PROVIDER_UNAVAILABLE: PROVIDER_UNAVAILABLE_MESSAGE,
   PROVIDER_ERROR: PROVIDER_CALL_FAILED_MESSAGE,
 };
 

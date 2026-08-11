@@ -48,7 +48,7 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
 };
 
 /**
- * Copy for three `ProviderErrorCode` values (see `@verbatra/ai-providers`'s `errors.ts` for the
+ * Copy for four `ProviderErrorCode` values (see `@verbatra/ai-providers`'s `errors.ts` for the
  * canonical codes; Studio never imports that package, so the code strings are duplicated here
  * rather than referenced by type). These reach the client on a spend-enabled server:
  * `translation.retranslateEntry` and `translation.translatePending` call a provider, and
@@ -60,9 +60,11 @@ const PROVIDER_CODE_COPY: Readonly<Record<string, string>> = {
   RATE_LIMITED: "The translation provider is rate-limiting requests. Wait a moment and try again.",
   AUTH_FAILED: "The translation provider rejected the configured API key.",
   TIMEOUT: "The translation provider did not respond in time. Try again.",
+  PROVIDER_UNAVAILABLE:
+    "The translation provider is currently unavailable. This is an outage on their side, so try again later.",
 };
 
-/** The complete code-to-copy lookup table: the transport, sdk, and adapter codes plus the three provider codes. */
+/** The complete code-to-copy lookup table: the transport, sdk, and adapter codes plus the four provider codes. */
 export const ERROR_CODE_COPY: Readonly<Record<string, string>> = {
   ...REACHABLE_CODE_COPY,
   ...PROVIDER_CODE_COPY,

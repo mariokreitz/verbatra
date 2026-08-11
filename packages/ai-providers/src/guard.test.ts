@@ -4,6 +4,7 @@ import {
   AUTH_FAILED_MESSAGE,
   guardProviderCall,
   PROVIDER_CALL_FAILED_MESSAGE,
+  PROVIDER_UNAVAILABLE_MESSAGE,
   RATE_LIMITED_MESSAGE,
   TIMEOUT_MESSAGE,
 } from "./guard.js";
@@ -79,8 +80,16 @@ describe("guardProviderCall: classification by status code", () => {
     });
   });
 
+  it("maps a 503 to PROVIDER_UNAVAILABLE", async () => {
+    const call = () => Promise.reject(new StatusError(503));
+    await expect(guardProviderCall(call)).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      message: PROVIDER_UNAVAILABLE_MESSAGE,
+    });
+  });
+
   it("falls back to PROVIDER_ERROR for an unrecognized status", async () => {
-    const call = () => Promise.reject(new StatusError(500));
+    const call = () => Promise.reject(new StatusError(400));
     await expect(guardProviderCall(call)).rejects.toMatchObject({
       code: "PROVIDER_ERROR",
       message: PROVIDER_CALL_FAILED_MESSAGE,

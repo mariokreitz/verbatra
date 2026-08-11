@@ -15,8 +15,19 @@ import { redact } from "./redaction.js";
  *   received in time); the caller may retry.
  * - `AUTH_FAILED`: the underlying SDK call failed with an HTTP 401 or 403; the configured key is invalid,
  *   revoked, or lacks permission. Retrying will not help.
+ * - `PROVIDER_UNAVAILABLE`: the underlying SDK call failed with an HTTP 5xx; the provider is down or
+ *   refusing service on its own side, and the request itself was never at fault. This is a retryable
+ *   failure, but a slow one: the retry layers underneath already absorb a transient 5xx (Gemini
+ *   retries one twice internally, and the openai and @anthropic-ai/sdk clients retry twice by
+ *   default), so a 5xx that surfaces with this code has already outlived those retries and
+ *   represents a sustained outage. Retry later, or route the work to a different provider.
  * - `PROVIDER_ERROR`: an underlying SDK call threw an error the guard could not classify by status code
  *   or SDK error class; mapped to a static, secret-free error.
+ *
+ * A 5xx carries its own code rather than joining `TIMEOUT` or `RATE_LIMITED`: both of those name a
+ * specific, different failure, and reporting a hard outage as "the request timed out" or "you were
+ * rate-limited" would be plainly untrue in the text a user reads. The distinction also keeps the
+ * codes usable as a policy input, since an outage and a rate limit warrant different responses.
  */
 export type ProviderErrorCode =
   | "MISSING_API_KEY"
@@ -28,6 +39,7 @@ export type ProviderErrorCode =
   | "RATE_LIMITED"
   | "TIMEOUT"
   | "AUTH_FAILED"
+  | "PROVIDER_UNAVAILABLE"
   | "PROVIDER_ERROR";
 
 /**
