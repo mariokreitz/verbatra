@@ -82,11 +82,14 @@ Everything else is private or internal and must not be published by accident.
   `createFlatFileAdapter` (flat key/value formats), registered via
   `createDefaultRegistry`. Adapters: i18next, vue-i18n, next-intl, ngx-translate,
   XLIFF, YAML, Flutter ARB, and Java/Spring properties.
-- `@verbatra/ai-providers` (private): translation provider strategies behind a
-  registry. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
+- `@verbatra/ai-providers` (private): translation provider strategies behind one
+  interface. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
   `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
   implements `translateBatch` directly. All sit behind one `TranslationProvider`
-  interface resolved through `ProviderRegistry`.
+  interface. The SDK constructs the configured provider through the id-to-factory
+  table in `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
+  `selectProvider`. `ProviderRegistry` is exported from the package but is not on
+  that path today; keep it, do not treat it as the resolution mechanism.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
   Excel workbooks over a neutral, format-agnostic row model.
 - `@verbatra/studio` (public): local dashboard, a prebuilt single-page app served
@@ -115,7 +118,7 @@ Everything else is private or internal and must not be published by accident.
   github-action / framework-adapters. Never import against the arrow. Never create
   a cycle.
 - Keep `@verbatra/core` pure: no I/O, no network, no file system.
-- Reuse the provider registry and the shared adapter factories
+- Reuse the provider factory table and the shared adapter factories
   (`createTreeFileAdapter` or `createFlatFileAdapter`). Do not reimplement provider
   plumbing or adapter read, write, and detection logic. When adding a format, build
   on the matching factory and register it.

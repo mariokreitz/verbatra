@@ -5,13 +5,17 @@ paths:
 
 # @verbatra/ai-providers rules
 
-Translation provider strategies behind a registry. These rules are binding when
+Translation provider strategies behind one interface. These rules are binding when
 editing anything under `packages/ai-providers`.
 
 ## Structure
 
-- All providers sit behind one `TranslationProvider` interface resolved through
-  `ProviderRegistry`. Do not reimplement provider plumbing per provider.
+- All providers sit behind one `TranslationProvider` interface. The SDK constructs
+  the configured provider through the id-to-factory table in
+  `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
+  `selectProvider`. `ProviderRegistry` is exported from this package but is not on
+  that path today; keep it, do not treat it as the resolution mechanism. Do not
+  reimplement provider plumbing per provider.
 - OpenAI, Anthropic, and Gemini (@google/genai) run through the shared
   `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
   implements `translateBatch` directly.

@@ -21,8 +21,8 @@ Hold the diff to every rule in it.
 - Conventions: strict TypeScript with no `any`, cognitive complexity at or under 15,
   small functions and files, DRY, KISS, SOLID, descriptive names.
 - Layering: respects the acyclic dependency direction and SDK-first structure;
-  `@verbatra/core` stays pure; providers and adapters reuse the registry and factory
-  rather than duplicating them.
+  `@verbatra/core` stays pure; providers reuse the factory table and adapters reuse
+  the registry and factory rather than duplicating them.
 - Boundaries: zod used at boundaries only, not in hot paths.
 - Tests: co-located `*.test.ts` exist, are meaningful (not just coverage padding),
   and cover the acceptance criteria.
