@@ -13,14 +13,27 @@ export const translationsResultSchema = z.object({
 export type TranslationsResult = z.infer<typeof translationsResultSchema>;
 
 /**
- * Derive the JSON Schema form a provider hands to its model from a zod schema.
+ * A bare JSON Schema describing an object. The literal `type: "object"` is carried in the type
+ * because Anthropic's tool `input_schema` requires it; without it the derivation would only be
+ * assignable to the vendor parameter through a cast that would also hide unrelated mismatches.
+ */
+export interface JsonObjectSchema {
+  readonly type: "object";
+  readonly [keyword: string]: unknown;
+}
+
+/**
+ * Derive the JSON Schema form a provider hands to its model from a zod object schema.
  * The `$schema` annotation is dropped so the result is a bare JSON Schema suitable
  * for both Anthropic tool input and OpenAI Structured Outputs.
  *
- * @param schema - The zod schema to convert; in practice {@link translationsResultSchema}.
+ * The parameter is a `ZodObject` rather than any `ZodType` so the declared `type: "object"` on
+ * the result is guaranteed by construction: an object schema always converts to that keyword.
+ *
+ * @param schema - The zod object schema to convert; in practice {@link translationsResultSchema}.
  * @returns A bare JSON Schema object (no `$schema` key).
  */
-export function deriveJsonSchema(schema: z.ZodType): Record<string, unknown> {
+export function deriveJsonSchema(schema: z.ZodObject): JsonObjectSchema {
   const json = z.toJSONSchema(schema) as Record<string, unknown>;
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(json)) {
@@ -28,5 +41,5 @@ export function deriveJsonSchema(schema: z.ZodType): Record<string, unknown> {
       result[key] = value;
     }
   }
-  return result;
+  return { ...result, type: "object" };
 }

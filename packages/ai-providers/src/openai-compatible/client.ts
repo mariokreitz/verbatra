@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { resolveOpenAiCompatibleKey } from "../env.js";
+import { toMutableRequest } from "../llm/mutable.js";
 import type { OpenAiRequest } from "../openai/request.js";
 import type { OpenAiCallOptions, OpenAiClient, OpenAiCompletion } from "../openai/types.js";
 import type { OpenAiCompatibleConfig } from "./config.js";
@@ -30,7 +31,7 @@ export function createDefaultClient(config: OpenAiCompatibleConfig): OpenAiClien
           options?: OpenAiCallOptions,
         ): Promise<OpenAiCompletion> =>
           (await sdk.chat.completions.create(
-            body as unknown as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+            toMutableRequest(body),
             options,
           )) as unknown as OpenAiCompletion,
       },
