@@ -1,0 +1,140 @@
+---
+title: Opera Studio con un agente del navegador
+description: Expón las acciones de revisión de Verbatra Studio como herramientas WebMCP para que un agente de IA del navegador pueda ejecutar esas mismas operaciones desde tu pestaña de panel abierta y autenticada.
+---
+Verbatra Studio es normalmente una superficie para personas: abres el panel de loopback y recorres a golpe de clic el estado del proyecto, el desfase, la cola de revisión y las ediciones. Con el flag opcional `--expose-agent-tools`, Studio registra además esas mismas acciones de revisión como herramientas WebMCP, de modo que un agente de IA del navegador (por ejemplo Gemini o Claude dentro de Chrome) situado en esa misma pestaña abierta y autenticada puede operarlas de forma estructurada en lugar de adivinar sobre el DOM.
+
+Esto sirve para operar conversacionalmente un proyecto verbatra existente: inspeccionar estado y desfase, trabajar la cola de revisión, editar entradas y (solo cuando además permites el gasto) retraducir y traducir claves pendientes. No sirve para la configuración inicial del proyecto ni para el acceso remoto.
+
+<Callout title="Experimental y detrás de un flag del navegador">
+WebMCP es una capacidad del navegador nueva y en evolución. Hoy requiere una compilación concreta de Chrome con un flag experimental, y la superficie puede cambiar a medida que el estándar madure. Trátalo como una función en vista previa.
+</Callout>
+
+## Qué es WebMCP
+
+WebMCP permite a una página registrar herramientas en `document.modelContext` que un agente de IA residente en el navegador puede llamar después. Studio lo usa para anunciar sus acciones de revisión como herramientas con nombre. Cada llamada a una herramienta sigue viajando por exactamente el mismo RPC autenticado que el panel, sobre el mismo origen de loopback, con la misma validación de entrada y las mismas puertas de capacidad. Registrar las herramientas no concede al agente nada que la pestaña abierta y autenticada no tuviera ya: un agente que manejara el DOM ya podía alcanzar cada una de estas acciones. La superficie llega exactamente hasta donde llega esa única pestaña abierta y no añade exposición de red nueva.
+
+### Requisitos del navegador
+
+- Un navegador con soporte de WebMCP. Hoy eso significa Chrome 149 o posterior con `chrome://flags/#enable-webmcp-testing` activado, o un navegador posterior con soporte nativo.
+- `document.modelContext` debe estar presente. Cuando falta, Studio no registra nada y el panel queda igual.
+- Un contexto de navegación real. Esto no funciona en modo headless; el agente opera la pestaña abierta y viva.
+- Ningún cambio de configuración ni de CSP por parte de Studio. La Permissions-Policy `tools` de WebMCP tiene `self` por defecto, que es justo el caso de mismo origen de Studio, así que no hay que conceder nada.
+
+## Actívalo
+
+Las herramientas de agente están desactivadas por defecto. Actívalas con el flag en el comando `studio`:
+
+```bash
+verbatra studio --expose-agent-tools
+```
+
+O usa la alternativa por entorno:
+
+```bash
+VERBATRA_STUDIO_AGENT_TOOLS=1 verbatra studio
+```
+
+El flag y la variable de entorno se resuelven exactamente igual que `--allow-spend`: `1`, `true`, `yes` u `on` (sin distinguir mayúsculas) cuenta como activado, y el flag de la CLI gana sobre la variable. Sin ninguno de los dos, no se registra ninguna herramienta. Consulta [`verbatra studio`](/docs/cli/studio) para ver todos los flags.
+
+Después abre la URL de loopback impresa en tu navegador con soporte de WebMCP. El agente de esa pestaña descubre las herramientas registradas y puede llamarlas.
+
+## El catálogo de herramientas
+
+Con la exposición activada, Studio registra trece herramientas, una por acción del panel. Sin `--allow-spend` registra once: las dos herramientas de gasto se omiten por completo. Los nombres de herramienta llevan prefijo y usan guiones bajos (por ejemplo `verbatra_project_snapshot`).
+
+### Herramientas de lectura (diez)
+
+Inspeccionan el estado del proyecto sin cambiar nada. Están marcadas como de solo lectura.
+
+| Herramienta | Qué devuelve |
+| --- | --- |
+| `verbatra_project_snapshot` | estado del proyecto resuelto y capacidades |
+| `verbatra_status_check` | resumen de cobertura por locale |
+| `verbatra_status_diff` | desfase por locale (claves faltantes, cambiadas, huérfanas) |
+| `verbatra_glossary_get` | el glosario resuelto |
+| `verbatra_lock_state` | el estado del archivo de bloqueo |
+| `verbatra_history_list` | historial reciente de confirmaciones de los archivos de locale |
+| `verbatra_key_integrity` | integridad de marcadores de posición e ICU de una clave |
+| `verbatra_review_queue` | la cola de revisión |
+| `verbatra_usage_summary` | uso de tokens y presupuesto de la última ejecución |
+| `verbatra_key_value` | los valores de origen y destino de una clave y un locale |
+
+### Herramienta de escritura (una)
+
+`verbatra_translation_editEntry` edita en el sitio el valor de un locale. Pasa por la misma puerta de integridad que cualquier otra escritura de verbatra: un valor que no supera alguna de sus comprobaciones se rechaza y no se escribe nada. Una edición aceptada escribe el archivo de locale y avanza la entrada de bloqueo de esa clave, exactamente como una edición desde el panel. Editar no necesita flag de gasto; solo toca tus archivos locales y nunca llama a un proveedor.
+
+### Herramientas de gasto (dos)
+
+Estas llaman a un proveedor de traducción y se registran solo cuando Studio también corre con `--allow-spend`:
+
+- `verbatra_translation_retranslateEntry`: retraduce una clave y un locale.
+- `verbatra_translation_translatePending`: traduce todo lo que esté pendiente ahora mismo.
+
+Ambas pasan sus resultados por la puerta de integridad antes de que nada llegue al disco, y ambas están sujetas a los límites de frecuencia existentes de Studio (retraducir, 20 por minuto móvil; traducir lo pendiente, 5 por minuto móvil más una guarda de ejecución única). Sin `--allow-spend`, no aparecen en el conjunto de herramientas y el servidor ni siquiera registra los endpoints subyacentes, así que un agente no puede alcanzar un gasto que no concediste al arrancar.
+
+## El aviso de modo degradado
+
+El registro tiene tres desenlaces posibles, y solo uno de ellos es un problema.
+
+**Nada intentado, nada reportado.** Cuando falta `document.modelContext` (un navegador sin WebMCP, o Chrome sin el flag) o cuando no activaste la exposición, Studio no intenta ningún registro. El panel queda igual y la consola permanece en silencio. Ese es el no-op previsto, no un fallo.
+
+**Once herramientas y ningún aviso.** Sin `--allow-spend`, Studio intenta once registros en lugar de trece: las dos herramientas de gasto se omiten antes de intentarse siquiera. Once herramientas es la cuenta sana de una sesión sin gasto, así que su ausencia es el estado esperado y nunca levanta un aviso.
+
+**El aviso.** Si Studio intentó un registro y el navegador lo rechazó, el panel muestra una advertencia en la parte superior del área de contenido, en todas las vistas:
+
+> Agent tools degraded: 2 of the agent tool registrations failed with SecurityError. The dashboard itself is unaffected. The browser console lists every failing tool.
+
+El recuento y el nombre del error son los reales de esa pasada. El aviso no tiene control para cerrarlo y permanece mientras viva la página. Recargar la pestaña ejecuta una pasada de registro nueva, ya que el estado se guarda solo en memoria.
+
+### Qué sigue funcionando en modo degradado
+
+Una herramienta que falla nunca cancela las siguientes, así que toda herramienta que sí se registró sigue siendo invocable y la superficie suele quedar parcialmente utilizable en vez de caída. El panel queda intacto: la interfaz humana, los RPC y todas las puertas de capacidad se comportan exactamente igual que con la exposición apagada, y ningún archivo de locale se ve afectado.
+
+### Leer la consola
+
+Studio escribe una única línea agregada a nivel de error, no una línea por herramienta, porque una causa compartida hace fallar a todas de forma idéntica:
+
+```text
+Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+```
+
+La primera frase dice cuántos de los registros intentados fallaron, y sobre cuántos intentos. Después cada herramienta fallida aparece como `name (ErrorName: message)`, separadas por punto y coma. El nombre del error identifica la causa: es el `name` del valor con el que el navegador rechazó, normalmente una `DOMException` como `SecurityError` o `InvalidStateError`.
+
+Una pasada que nunca llegó al bucle por herramienta reporta una línea distinta y no levanta el aviso:
+
+```text
+Verbatra agent tools: registration did not start (TypeError: Failed to fetch).
+```
+
+Eso significa que la llamada de instantánea del proyecto que decide si la exposición está activa falló al cargar, así que no se intentó ninguna herramienta.
+
+### Qué puedes hacer
+
+Ningún ajuste de Studio arregla un registro rechazado, porque el rechazo viene del navegador. En la práctica:
+
+- Lee primero el nombre del error en la consola. Nombra la causa con más precisión que el aviso.
+- Recarga la pestaña. El registro corre una vez por carga de página, así que un rechazo transitorio se despeja.
+- Vuelve a comprobar los requisitos del navegador de arriba. Un flag ausente o un navegador sin WebMCP produce el no-op silencioso, nunca este aviso, así que si ves el aviso la superficie sí arrancó.
+- Sigue usando las herramientas que se registraron, o trabaja en el panel, que no se ve afectado en ningún caso.
+
+## Modelo de seguridad
+
+Ten presentes estos puntos antes de activar las herramientas de agente.
+
+- **Desactivadas por defecto.** Optas por ellas explícitamente con `--expose-agent-tools` (o `VERBATRA_STUDIO_AGENT_TOOLS`).
+- **El gasto exige ambos flags.** Las dos herramientas de gasto aparecen solo si pasas a la vez `--expose-agent-tools` y `--allow-spend`. Ninguno implica al otro. Las herramientas de lectura y escritura no gastan.
+- **Ninguna exposición de red nueva.** Cada llamada a una herramienta usa el mismo RPC de loopback autenticado que el panel. Studio sigue escuchando solo en `127.0.0.1`, y el token de sesión del navegador sigue autenticando cada petición.
+- **Las cadenas traducibles no son de confianza.** Las herramientas que pueden devolver texto derivado del proyecto (cadenas de locale, nombres de clave, términos de glosario, asuntos de confirmación, marcadores de posición) marcan su contenido como no fiable, de modo que un agente consumidor trate esos valores como datos y no como instrucciones.
+
+### El riesgo de gasto aceptado
+
+Esto conviene decirlo sin rodeos. Con `--allow-spend` y `--expose-agent-tools` activados a la vez, un agente autónomo puede provocar gasto en el proveedor sin una confirmación humana por clic. Studio no añade un diálogo de aprobación por llamada: el servidor no puede distinguir una llamada originada por un agente de un clic humano en la misma sesión, así que ese diálogo daría una seguridad falsa y desharía el sentido de la función. Los límites de frecuencia de arriba siguen acotando el coste, pero un agente puede llegar por su cuenta hasta ese techo.
+
+Activa el gasto dirigido por un agente de forma deliberada. Si solo quieres que un agente inspeccione el estado y corrija entradas a mano, arranca Studio sin `--allow-spend`: las herramientas de agente funcionan por completo en ese modo de lectura y edición, y ninguna herramienta alcanza un proveedor.
+
+## Siguiente
+
+- [Revisa traducciones en Studio](/docs/review-in-studio): el mismo flujo, conducido por una persona.
+- [`verbatra studio`](/docs/cli/studio): todos los flags y el contrato de arranque.
+- [Seguridad de la traducción](/docs/translation-safety): la puerta de integridad por la que pasan todas las ediciones y retraducciones.

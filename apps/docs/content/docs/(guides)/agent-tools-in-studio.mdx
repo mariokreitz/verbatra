@@ -73,6 +73,51 @@ These call a translation provider and are registered only when Studio also runs 
 
 Both run their results through the integrity gate before anything reaches disk, and both are subject to Studio's existing rate limits (retranslate at 20 per rolling minute, translate-pending at 5 per rolling minute plus a single-concurrent guard). Without `--allow-spend`, they are absent from the tool set and the server does not register the underlying endpoints at all, so spend you did not grant at startup cannot be reached from an agent.
 
+## The degraded-mode notice
+
+Registration has three possible outcomes, and only one of them is a problem.
+
+**Nothing attempted, nothing reported.** When `document.modelContext` is absent (a browser without WebMCP, or Chrome without the flag) or when you did not opt in, Studio attempts no registration at all. The dashboard is unchanged and the console stays quiet. That is the designed no-op, not a failure.
+
+**Eleven tools and no notice.** Without `--allow-spend`, Studio attempts eleven registrations rather than thirteen: the two spend tools are skipped before they are ever attempted. Eleven tools is the healthy count for a session without spend, so their absence is the expected state and never raises a notice.
+
+**The notice.** If Studio attempted a registration and the browser rejected it, the dashboard renders a warning at the top of the content area, on every view:
+
+> Agent tools degraded: 2 of the agent tool registrations failed with SecurityError. The dashboard itself is unaffected. The browser console lists every failing tool.
+
+The count and the error name are the real ones from that pass. The notice has no dismiss control and stays for the life of the page. Reloading the tab runs a fresh registration pass, since the status is held in memory only.
+
+### What still works while degraded
+
+A failing tool never cancels the ones after it, so every tool that did register stays callable and the surface is usually partly usable rather than down. The dashboard is untouched: the human UI, the RPCs, and every capability gate behave exactly as they would with the surface off, and no locale file is affected.
+
+### Reading the console
+
+Studio writes one aggregate line at error level, not one line per tool, because a shared cause fails every tool identically:
+
+```text
+Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+```
+
+The first sentence gives how many of the attempted registrations failed, and out of how many attempts. Each failing tool then follows as `name (ErrorName: message)`, separated by semicolons. The error name identifies the cause: it is the `name` of the value the browser rejected with, usually a `DOMException` such as `SecurityError` or `InvalidStateError`.
+
+A pass that never reached the per-tool loop reports a different line and does not raise the notice:
+
+```text
+Verbatra agent tools: registration did not start (TypeError: Failed to fetch).
+```
+
+That means the project snapshot call that decides whether the surface is opted in failed at load, so no tool was attempted.
+
+### What to do about it
+
+No Studio setting fixes a rejected registration, because the rejection comes from the browser. In practice:
+
+- Read the error name in the console first. It names the cause more precisely than the notice does.
+- Reload the tab. Registration runs once per page load, so a transient rejection clears.
+- Re-check the browser requirements above. A missing flag or a browser without WebMCP produces the silent no-op, never this notice, so if you see the notice the surface did start.
+- Keep using the tools that registered, or work in the dashboard, which is unaffected either way.
+
 ## Security model
 
 Keep these points in mind before you enable agent tools.

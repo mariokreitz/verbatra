@@ -1,0 +1,140 @@
+---
+title: Studio mit einem Browser-Agenten bedienen
+description: Mache die Review-Aktionen von Verbatra Studio als WebMCP-Tools verfügbar, damit ein KI-Agent im Browser dieselben Operationen aus deinem offenen, authentifizierten Dashboard-Tab heraus ausführen kann.
+---
+Verbatra Studio ist normalerweise eine Oberfläche für Menschen: Du öffnest das Loopback-Dashboard und klickst dich durch Projektzustand, Drift, die Review-Warteschlange und Bearbeitungen. Mit dem ausdrücklich zu aktivierenden Flag `--expose-agent-tools` registriert Studio dieselben Review-Aktionen zusätzlich als WebMCP-Tools, sodass ein KI-Agent im Browser (zum Beispiel Gemini oder Claude in Chrome) auf demselben offenen, authentifizierten Tab sie strukturiert bedienen kann, statt am DOM zu raten.
+
+Das ist dafür gedacht, ein bestehendes verbatra-Projekt im Dialog zu bedienen: Zustand und Drift prüfen, die Review-Warteschlange abarbeiten, Einträge bearbeiten und (nur wenn du zusätzlich Ausgaben erlaubst) neu übersetzen und ausstehende Keys übersetzen. Es ist nicht für die Projekteinrichtung und nicht für Fernzugriff gedacht.
+
+<Callout title="Experimentell und hinter einem Browser-Flag">
+WebMCP ist eine neue, sich entwickelnde Browser-Fähigkeit. Heute braucht sie einen bestimmten Chrome-Build mit einem experimentellen Flag, und die Oberfläche kann sich ändern, während der Standard reift. Behandle das als Vorschaufunktion.
+</Callout>
+
+## Was WebMCP ist
+
+Mit WebMCP kann eine Seite Tools auf `document.modelContext` registrieren, die ein im Browser ansässiger KI-Agent dann aufrufen kann. Studio nutzt das, um seine Review-Aktionen als benannte Tools anzubieten. Jeder Tool-Aufruf läuft weiterhin über genau denselben authentifizierten RPC wie das Dashboard, über denselben Loopback-Origin, mit derselben Eingabevalidierung und denselben Capability-Gates. Die Registrierung gibt einem Agenten nichts, was der offene, authentifizierte Tab nicht schon hatte: ein Agent, der das DOM bedient, konnte jede dieser Aktionen bereits erreichen. Die Oberfläche reicht genau so weit wie dieser eine offene Tab und fügt keine neue Netzwerk-Exposition hinzu.
+
+### Browser-Voraussetzungen
+
+- Ein WebMCP-fähiger Browser. Heute heißt das Chrome 149 oder neuer mit aktiviertem `chrome://flags/#enable-webmcp-testing`, oder ein späterer Browser mit nativer Unterstützung.
+- `document.modelContext` muss vorhanden sein. Fehlt es, registriert Studio nichts und das Dashboard bleibt unverändert.
+- Ein echter Browsing-Kontext. Headless funktioniert das nicht; der Agent bedient den offenen, laufenden Tab.
+- Keine Konfigurations- oder CSP-Änderung auf Studios Seite. Die WebMCP-Permissions-Policy `tools` steht standardmäßig auf `self`, also genau auf Studios Same-Origin-Fall, sodass nichts freigegeben werden muss.
+
+## Aktiviere es
+
+Agent-Tools sind standardmäßig aus. Schalte sie mit dem Flag am `studio`-Befehl ein:
+
+```bash
+verbatra studio --expose-agent-tools
+```
+
+Oder setze die Umgebungsvariante:
+
+```bash
+VERBATRA_STUDIO_AGENT_TOOLS=1 verbatra studio
+```
+
+Flag und Umgebungsvariable werden genau wie bei `--allow-spend` aufgelöst: `1`, `true`, `yes` oder `on` (unabhängig von Groß- und Kleinschreibung) zählt als an, und das CLI-Flag sticht die Variable. Ist keins von beidem gesetzt, werden keine Tools registriert. Alle Flags stehen unter [`verbatra studio`](/docs/cli/studio).
+
+Öffne dann die ausgegebene Loopback-URL in deinem WebMCP-fähigen Browser. Der Agent auf diesem Tab entdeckt die registrierten Tools und kann sie aufrufen.
+
+## Der Tool-Katalog
+
+Mit aktivierter Freigabe registriert Studio dreizehn Tools, eins pro Dashboard-Aktion. Ohne `--allow-spend` registriert es elf: die beiden Spend-Tools entfallen vollständig. Tool-Namen tragen ein Präfix und nutzen Unterstriche (zum Beispiel `verbatra_project_snapshot`).
+
+### Lese-Tools (zehn)
+
+Prüfen den Projektzustand, ohne etwas zu ändern. Sie sind als schreibgeschützt markiert.
+
+| Tool | Was es zurückgibt |
+| --- | --- |
+| `verbatra_project_snapshot` | aufgelöster Projektzustand und Capabilities |
+| `verbatra_status_check` | Abdeckungsübersicht pro Locale |
+| `verbatra_status_diff` | Drift pro Locale (fehlende, geänderte, verwaiste Keys) |
+| `verbatra_glossary_get` | das aufgelöste Glossar |
+| `verbatra_lock_state` | der Zustand der Lock-Datei |
+| `verbatra_history_list` | jüngste Commit-Historie der Locale-Dateien |
+| `verbatra_key_integrity` | Platzhalter- und ICU-Integrität für einen Key |
+| `verbatra_review_queue` | die Review-Warteschlange |
+| `verbatra_usage_summary` | Token-Verbrauch und Budget des letzten Laufs |
+| `verbatra_key_value` | Quell- und Zielwert für einen Key und ein Locale |
+
+### Schreib-Tool (eins)
+
+`verbatra_translation_editEntry` bearbeitet den Wert eines Locales direkt. Es läuft durch dasselbe Integritäts-Gate wie jeder andere verbatra-Schreibvorgang: ein Wert, der eine seiner Prüfungen nicht besteht, wird abgelehnt und nichts wird geschrieben. Eine akzeptierte Bearbeitung schreibt die Locale-Datei und rückt den Lock-Eintrag des Keys vor, genau wie eine Bearbeitung im Dashboard. Bearbeiten braucht kein Spend-Flag; es berührt nur deine lokalen Dateien und ruft nie einen Provider auf.
+
+### Spend-Tools (zwei)
+
+Diese rufen einen Übersetzungs-Provider auf und werden nur registriert, wenn Studio auch mit `--allow-spend` läuft:
+
+- `verbatra_translation_retranslateEntry`: einen Key und ein Locale neu übersetzen.
+- `verbatra_translation_translatePending`: alles aktuell Ausstehende übersetzen.
+
+Beide schicken ihre Ergebnisse durch das Integritäts-Gate, bevor irgendetwas auf die Platte gelangt, und beide unterliegen Studios bestehenden Rate-Limits (Neuübersetzen 20 pro rollierender Minute, Übersetzen des Ausstehenden 5 pro rollierender Minute plus eine Sperre gegen gleichzeitige Läufe). Ohne `--allow-spend` fehlen sie im Tool-Set und der Server registriert die zugrunde liegenden Endpunkte gar nicht erst, sodass Ausgaben, die du beim Start nicht erlaubt hast, von einem Agenten nicht erreichbar sind.
+
+## Der Degraded-Mode-Hinweis
+
+Die Registrierung hat drei mögliche Ausgänge, und nur einer davon ist ein Problem.
+
+**Nichts versucht, nichts gemeldet.** Fehlt `document.modelContext` (ein Browser ohne WebMCP oder Chrome ohne das Flag) oder hast du die Freigabe nicht gesetzt, versucht Studio überhaupt keine Registrierung. Das Dashboard bleibt unverändert und die Konsole bleibt still. Das ist der vorgesehene No-Op, kein Fehler.
+
+**Elf Tools und kein Hinweis.** Ohne `--allow-spend` versucht Studio elf Registrierungen statt dreizehn: die beiden Spend-Tools werden übersprungen, bevor sie überhaupt versucht werden. Elf Tools sind die gesunde Zahl für eine Sitzung ohne Ausgaben, ihr Fehlen ist also der erwartete Zustand und löst nie einen Hinweis aus.
+
+**Der Hinweis.** Hat Studio eine Registrierung versucht und der Browser sie abgelehnt, zeigt das Dashboard oben im Inhaltsbereich eine Warnung, auf jeder Ansicht:
+
+> Agent tools degraded: 2 of the agent tool registrations failed with SecurityError. The dashboard itself is unaffected. The browser console lists every failing tool.
+
+Zahl und Fehlername sind die echten aus diesem Durchlauf. Der Hinweis hat kein Bedienelement zum Schließen und bleibt für die Lebensdauer der Seite stehen. Ein Neuladen des Tabs startet einen frischen Registrierungsdurchlauf, denn der Status wird nur im Speicher gehalten.
+
+### Was im Degraded-Modus weiterhin funktioniert
+
+Ein fehlschlagendes Tool bricht nie die nachfolgenden ab, also bleibt jedes Tool, das sich registriert hat, aufrufbar und die Oberfläche ist meist teilweise nutzbar statt ausgefallen. Das Dashboard bleibt unberührt: die menschliche Oberfläche, die RPCs und jedes Capability-Gate verhalten sich genau so, wie sie es mit ausgeschalteter Freigabe täten, und keine Locale-Datei ist betroffen.
+
+### Die Konsole lesen
+
+Studio schreibt eine einzige zusammengefasste Zeile auf Error-Ebene, nicht eine Zeile pro Tool, denn eine gemeinsame Ursache lässt jedes Tool identisch scheitern:
+
+```text
+Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+```
+
+Der erste Satz nennt, wie viele der versuchten Registrierungen fehlgeschlagen sind, und von wie vielen Versuchen. Danach folgt jedes fehlschlagende Tool als `name (ErrorName: message)`, getrennt durch Semikolons. Der Fehlername benennt die Ursache: es ist der `name` des Werts, mit dem der Browser abgelehnt hat, meist eine `DOMException` wie `SecurityError` oder `InvalidStateError`.
+
+Ein Durchlauf, der die Tool-Schleife nie erreicht hat, meldet eine andere Zeile und löst den Hinweis nicht aus:
+
+```text
+Verbatra agent tools: registration did not start (TypeError: Failed to fetch).
+```
+
+Das heißt, der Projekt-Snapshot-Aufruf, der über die Freigabe entscheidet, ist beim Laden fehlgeschlagen, sodass kein Tool versucht wurde.
+
+### Was du dagegen tun kannst
+
+Keine Studio-Einstellung behebt eine abgelehnte Registrierung, denn die Ablehnung kommt vom Browser. In der Praxis:
+
+- Lies zuerst den Fehlernamen in der Konsole. Er benennt die Ursache genauer als der Hinweis.
+- Lade den Tab neu. Die Registrierung läuft einmal pro Seitenaufruf, eine vorübergehende Ablehnung verschwindet also.
+- Prüfe die Browser-Voraussetzungen oben erneut. Ein fehlendes Flag oder ein Browser ohne WebMCP führt zum stillen No-Op, nie zu diesem Hinweis; wenn du den Hinweis siehst, ist die Oberfläche also angelaufen.
+- Nutze weiter die Tools, die sich registriert haben, oder arbeite im Dashboard, das ohnehin unbetroffen ist.
+
+## Sicherheitsmodell
+
+Behalte diese Punkte im Kopf, bevor du Agent-Tools aktivierst.
+
+- **Standardmäßig aus.** Du schaltest sie ausdrücklich mit `--expose-agent-tools` (oder `VERBATRA_STUDIO_AGENT_TOOLS`) frei.
+- **Ausgaben brauchen beide Flags.** Die beiden Spend-Tools erscheinen nur, wenn du sowohl `--expose-agent-tools` als auch `--allow-spend` übergibst. Keins der beiden impliziert das andere. Lese- und Schreib-Tools geben nichts aus.
+- **Keine neue Netzwerk-Exposition.** Jeder Tool-Aufruf nutzt denselben authentifizierten Loopback-RPC wie das Dashboard. Studio bindet weiterhin nur an `127.0.0.1`, und das Browser-Session-Token authentifiziert weiterhin jede Anfrage.
+- **Übersetzbare Strings sind nicht vertrauenswürdig.** Tools, die projektabgeleiteten Text zurückgeben können (Locale-Strings, Key-Namen, Glossarbegriffe, Commit-Betreffzeilen, Platzhalter-Tokens), markieren ihren Inhalt als nicht vertrauenswürdig, sodass ein konsumierender Agent diese Werte als Daten behandelt, nicht als Anweisungen.
+
+### Das akzeptierte Ausgaben-Risiko
+
+Das gehört klar gesagt. Mit `--allow-spend` und `--expose-agent-tools` gleichzeitig an kann ein autonomer Agent Provider-Ausgaben auslösen, ohne dass ein Mensch pro Klick bestätigt. Studio fügt keinen Bestätigungsdialog pro Aufruf hinzu: der Server kann einen vom Agenten stammenden Aufruf nicht von einem menschlichen Klick in derselben Sitzung unterscheiden, ein solcher Dialog gäbe also falsche Sicherheit und würde den Sinn der Funktion untergraben. Die obigen Rate-Limits begrenzen die Kosten weiterhin, aber ein Agent kann von sich aus bis an diese Obergrenze laufen.
+
+Aktiviere agentengetriebene Ausgaben bewusst. Wenn ein Agent nur Zustand prüfen und Einträge von Hand korrigieren soll, starte Studio ohne `--allow-spend`: Agent-Tools funktionieren in diesem Lese- und Bearbeitungsmodus vollständig, und kein Tool erreicht einen Provider.
+
+## Weiter
+
+- [Review in Studio](/docs/review-in-studio): derselbe Ablauf, von einem Menschen gesteuert.
+- [`verbatra studio`](/docs/cli/studio): jedes Flag und der Startvertrag.
+- [Übersetzungssicherheit](/docs/translation-safety): das Integritäts-Gate, durch das jede Bearbeitung und jede Neuübersetzung läuft.
