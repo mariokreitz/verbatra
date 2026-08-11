@@ -218,6 +218,7 @@ Un échec de fournisseur ne remonte jamais comme une erreur SDK brute, qui pourr
 | Code | Signification |
 | --- | --- |
 | `MISSING_API_KEY` | La variable d'environnement requise est absente ou vide. Le message nomme la variable, jamais une valeur. |
+| `INVALID_REQUEST` | La requête a échoué à la validation avant tout appel réseau : un champ malformé, ou un code de locale que DeepL n'accepte pas (un code source régional, ou un `en` ou `pt` nu en cible). Corrige la configuration ou la requête ; réessayer n'aidera pas. |
 | `RATE_LIMITED` | HTTP 429 ou une erreur de limite de débit du SDK. Attends et réessaie plus tard. |
 | `TIMEOUT` | Un délai réseau ou de requête dépassé ; aucune réponse n'est arrivée à temps. Réessayer peut aider, et [`requestTimeoutMs`](#délai-de-requête) relève la borne. |
 | `AUTH_FAILED` | HTTP 401 ou 403 : la clé est invalide, révoquée ou sans permission. Réessayer n'aidera pas. |

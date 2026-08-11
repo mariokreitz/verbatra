@@ -56,7 +56,8 @@ Eingabe: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache
   frei, bevor `translate` fehlschlägt; der Fehlschlag kommt also nach dem langsamsten von ihnen an
   statt sofort.
 - `cache` ist standardmäßig true und verwendet den lokalen [Translation-Memory-Cache](/docs/the-cache)
-  wieder; setze ihn auf false, um den Cache für den Lauf zu umgehen (das `--no-cache` der CLI).
+  (`verbatra.cache.json`, ebenfalls exportiert als `CACHE_FILE_NAME`) wieder; setze ihn auf false, um
+  den Cache für den Lauf zu umgehen (das `--no-cache` der CLI).
 - `onProgress` wird aufgerufen, während der Lauf fortschreitet (pro Locale-Start und -Ende sowie pro
   Provider-Sub-Batch), und `onLockWait` feuert, während die Schreibsperre eines Locales umkämpft
   ist. Beides sind Benachrichtigungs-Callbacks; das SDK gibt selbst nichts aus. `lockAcquireTimeoutMs`

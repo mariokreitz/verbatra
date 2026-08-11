@@ -50,8 +50,9 @@ Input: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?,
   are already running stops any further locale from being started, and the locales in flight finish
   and release their write locks before `translate` rejects, so the rejection arrives after the
   slowest one rather than instantly.
-- `cache` defaults to true and reuses the local [translation-memory cache](/docs/the-cache); set it
-  to false to bypass the cache for the run (the CLI's `--no-cache`).
+- `cache` defaults to true and reuses the local [translation-memory cache](/docs/the-cache)
+  (`verbatra.cache.json`, also exported as `CACHE_FILE_NAME`); set it to false to bypass the cache
+  for the run (the CLI's `--no-cache`).
 - `onProgress` is called as the run advances (per locale start and finish, and per provider
   sub-batch), and `onLockWait` fires while a locale's write lock is contended. Both are
   notification callbacks; the SDK writes no output itself. `lockAcquireTimeoutMs` overrides how long
