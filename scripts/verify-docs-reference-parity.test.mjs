@@ -9,10 +9,27 @@
  * not complete stops being trustworthy for every other lookup too, so the promise is asserted here
  * rather than left to review.
  *
- * The two checks read the source of truth directly (the `ProviderErrorCode` union and the index
- * export list) and compare it against the rendered MDX, in every locale: the codes and export names
- * are code tokens kept verbatim across translations, so a mirror that drops one is as much a drift
- * as an English page that does.
+ * Both checks read the source of truth directly rather than the built `dist`: the published surface
+ * is generated from `packages/sdk/src/index.ts`, that file is what a reviewer edits, and nothing
+ * builds the workspace before this guard runs.
+ *
+ * The SDK surface splits in two by how the page documents it, and each half is asserted the
+ * strongest way its shape allows:
+ *
+ * - Entry points (the camelCase value exports) must each own a section heading, and the set of such
+ *   headings must equal the set of entry points exactly. Two-way equality is what catches an export
+ *   that left `index.ts` and lingers on the page as a ghost, and requiring the heading form is what
+ *   stops a short name like `check` or `diff` from being satisfied by unrelated prose elsewhere on
+ *   the page. Headings that are not a bare camelCase identifier are ordinary prose and ignored.
+ * - The remaining value exports (the file-name constants and the `SdkError` class) are documented
+ *   inline, where a heading would not make sense. Their names cannot collide with prose, so presence
+ *   as a code span is enough; on top of that, every constant that resolves to a string literal must
+ *   have that literal on the page, so the page is checked against the value it publishes and not
+ *   only against the name.
+ *
+ * Every locale mirror is checked, not the English source alone: error codes, export names, and file
+ * names are code tokens that stay verbatim across translations, so a mirror that drops a section is
+ * as much a drift as an English page that does.
  */
 
 import { readFileSync } from "node:fs";
@@ -24,6 +41,9 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** The locale suffixes every doc page is mirrored into, `""` being the English source. */
 const LOCALE_SUFFIXES = ["", ".de", ".es", ".fr"];
+
+/** A heading counts as documenting an entry point only when its whole text is one such name. */
+const ENTRY_POINT_NAME = /^[a-z][A-Za-z0-9]*$/;
 
 /** Read a repository-relative file as text. */
 function readRepoFile(relativePath) {
@@ -51,34 +71,62 @@ function documentedErrorCodes(suffix) {
   return [...page.matchAll(/^\| `([A-Z_]+)` \|/gm)].map((match) => match[1]).sort();
 }
 
-/**
- * The runtime (non-type) export names of the SDK entry point, sorted. `export type { ... }` blocks
- * are skipped whole, and `type`-prefixed members are dropped from mixed blocks, so only the values
- * a consumer can actually import at runtime are required to appear in the reference.
- */
-function sdkValueExports() {
-  const source = readRepoFile("packages/sdk/src/index.ts");
-  const names = new Set();
-  for (const block of source.matchAll(/export\s+(type\s+)?\{([\s\S]*?)\}\s+from\s+"[^"]+";/g)) {
-    if (block[1] !== undefined) {
-      continue;
-    }
-    for (const raw of block[2].split(",")) {
-      const member = raw.trim();
-      if (member !== "" && !member.startsWith("type ")) {
-        names.add(member.split(/\s+as\s+/)[0].trim());
-      }
+/** The runtime export names one `export { ... } from "..."` block contributes. */
+function blockExportNames(members) {
+  const names = [];
+  for (const raw of members.split(",")) {
+    const member = raw.trim();
+    if (member !== "" && !member.startsWith("type ")) {
+      names.push(member.split(/\s+as\s+/)[0].trim());
     }
   }
-  return [...names].sort();
+  return names;
 }
 
 /**
- * Whether the SDK reference mentions an export, either as an inline code span or as the heading of
- * the section documenting it (entry points get a `### name` heading, constants a code span).
+ * The runtime (non-type) exports of the SDK entry point as `{ name, module }` pairs, sorted by name.
+ * `export type { ... }` blocks are skipped whole, and `type`-prefixed members are dropped from mixed
+ * blocks, so only the values a consumer can actually import at runtime are required to appear in the
+ * reference. The module specifier is kept so a constant's declared value can be resolved later.
  */
-function mentionsExport(page, name) {
-  return page.includes(`\`${name}\``) || new RegExp(`^#{2,4} ${name}\\s*$`, "m").test(page);
+function sdkValueExports() {
+  const source = readRepoFile("packages/sdk/src/index.ts");
+  const exports = [];
+  for (const block of source.matchAll(/export\s+(type\s+)?\{([\s\S]*?)\}\s+from\s+"([^"]+)";/g)) {
+    if (block[1] !== undefined) {
+      continue;
+    }
+    for (const name of blockExportNames(block[2])) {
+      exports.push({ name, module: block[3] });
+    }
+  }
+  return exports.sort((left, right) => left.name.localeCompare(right.name));
+}
+
+/**
+ * The string literal a locally declared `export const NAME = "value";` binds, or `undefined` when
+ * the export is not a local string constant (a class, an object, or a re-export from another
+ * package).
+ */
+function resolveStringConstant({ name, module }) {
+  if (!module.startsWith("./")) {
+    return undefined;
+  }
+  const source = readRepoFile(`packages/sdk/src/${module.slice(2).replace(/\.js$/, ".ts")}`);
+  return new RegExp(`export const ${name} = "([^"]*)";`).exec(source)?.[1];
+}
+
+/** The export names the SDK reference gives a section heading of their own, sorted. */
+function headingDocumentedExports(page) {
+  return [...page.matchAll(/^#{2,4}\s+(\S+)[ \t]*$/gm)]
+    .map((match) => match[1])
+    .filter((text) => ENTRY_POINT_NAME.test(text))
+    .sort();
+}
+
+/** Whether the page carries a token as an inline code span. */
+function mentionsCodeSpan(page, token) {
+  return page.includes(`\`${token}\``);
 }
 
 describe("the providers page documents every provider error code", () => {
@@ -95,16 +143,57 @@ describe("the providers page documents every provider error code", () => {
 });
 
 describe("the SDK reference catalogs the whole public surface", () => {
-  const exportNames = sdkValueExports();
+  const valueExports = sdkValueExports();
+  const entryPoints = valueExports
+    .map(({ name }) => name)
+    .filter((name) => ENTRY_POINT_NAME.test(name))
+    .sort();
+  const inlineExports = valueExports.filter(({ name }) => !ENTRY_POINT_NAME.test(name));
+  const constants = inlineExports
+    .map((entry) => ({ name: entry.name, value: resolveStringConstant(entry) }))
+    .filter((entry) => entry.value !== undefined);
 
   it("extracts a non-trivial export list, so the comparisons cannot pass vacuously", () => {
-    expect(exportNames.length).toBeGreaterThanOrEqual(25);
-    expect(exportNames).toContain("translate");
+    expect(entryPoints.length).toBeGreaterThanOrEqual(15);
+    expect(entryPoints).toContain("translate");
+    expect(inlineExports.map(({ name }) => name)).toContain("SdkError");
+    expect(constants.length).toBeGreaterThanOrEqual(4);
   });
 
-  it.each(LOCALE_SUFFIXES)("mentions every value export in sdk%s.mdx", (suffix) => {
+  it.each(LOCALE_SUFFIXES)("heads one section per entry point in sdk%s.mdx", (suffix) => {
+    expect(headingDocumentedExports(readDocPage("(sdk)/sdk", suffix))).toEqual(entryPoints);
+  });
+
+  it.each(LOCALE_SUFFIXES)("names every inline value export in sdk%s.mdx", (suffix) => {
     const page = readDocPage("(sdk)/sdk", suffix);
 
-    expect(exportNames.filter((name) => !mentionsExport(page, name))).toEqual([]);
+    expect(inlineExports.filter(({ name }) => !mentionsCodeSpan(page, name))).toEqual([]);
+  });
+
+  it.each(LOCALE_SUFFIXES)("prints the value each constant holds in sdk%s.mdx", (suffix) => {
+    const page = readDocPage("(sdk)/sdk", suffix);
+
+    expect(constants.filter(({ value }) => !mentionsCodeSpan(page, value))).toEqual([]);
+  });
+});
+
+describe("the SDK heading rule separates real drift from ordinary prose", () => {
+  const page = readDocPage("(sdk)/sdk", "");
+
+  it("sees an export that left index.ts but kept its section", () => {
+    expect(headingDocumentedExports(`${page}\n### resetLockFile\n`)).toContain("resetLockFile");
+  });
+
+  it("is not satisfied by an incidental code span once the section is gone", () => {
+    const stripped = page.replace(/^### check$/m, "### Inspecting state without writing");
+
+    expect(stripped).toContain("`check`");
+    expect(headingDocumentedExports(stripped)).not.toContain("check");
+  });
+
+  it("ignores prose headings, so ordinary documentation cannot trip the check", () => {
+    const prose = "## Install\n\n### The workbook pair\n\n#### Notes on Config\n";
+
+    expect(headingDocumentedExports(prose)).toEqual([]);
   });
 });
