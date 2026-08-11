@@ -1,6 +1,6 @@
 ---
-"@verbatra/sdk": patch
-"@verbatra/cli": patch
+"@verbatra/sdk": minor
+"@verbatra/cli": minor
 ---
 
 Stop a narrower delimited re-export from leaving locale files a later import reads as fresh.
