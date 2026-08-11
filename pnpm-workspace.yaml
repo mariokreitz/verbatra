@@ -83,11 +83,13 @@ overrides:
   # The <8 ceiling is required: @google/genai declares protobufjs ^7.5.4, so an unbounded ">=7.6.5"
   # would resolve the 8.x major (8.7.1) and break it.
   protobufjs@<7.6.5: ">=7.6.5 <8"
-  # GHSA-52cp-r559-cp3m (high): quadratic-complexity DoS in js-yaml merge-key handling on the v4 line.
-  # Vulnerable >=4.0.0 <4.3.0; lifts the 4.2.0 copy on the published sdk path (via cosmiconfig config
-  # loading), and in @commitlint/cli (dev) and fumadocs-mdx (docs). The <5 ceiling keeps it on the v4
-  # API those consumers expect.
-  "js-yaml@>=4.0.0 <4.3.0": ">=4.3.0 <5"
+  # GHSA-52cp-r559-cp3m (high): quadratic-complexity DoS in js-yaml merge-key handling on the v4 line,
+  # vulnerable >=4.0.0 <4.3.0. GHSA-5p4m-2wfm-xmqj / CVE-2026-59870 (high): quadratic CPU consumption
+  # in !!omap resolution, which extends the vulnerable range to >=4.0.0 <4.3.1 and so makes the 4.3.0
+  # this override used to pin vulnerable in its own right. Lifts the copy on the published sdk path
+  # (via cosmiconfig config loading), and in @commitlint/cli (dev) and fumadocs-mdx (docs). The <5
+  # ceiling keeps it on the v4 API those consumers expect.
+  "js-yaml@>=4.0.0 <4.3.1": ">=4.3.1 <5"
   # GHSA-724g-mxrg-4qvm (quadratic-complexity DoS via a crafted !!omap, <=5.2.0) and
   # GHSA-pm4m-ph32-ghv5 (exponential parsing time in flow collections, <=5.2.1) on the v5 line.
   # Lifts the copy fumadocs-core pulls (apps/docs, private) to the patched release.
