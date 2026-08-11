@@ -11,8 +11,8 @@ const ITEM = "button:not([aria-haspopup])";
 
 function actionItems(onSelect = vi.fn()): readonly DropdownItem[] {
   return [
-    { label: "Export", onSelect },
-    { label: "Import", onSelect },
+    { id: "export", label: "Export", onSelect },
+    { id: "import", label: "Import", onSelect },
   ];
 }
 
@@ -75,7 +75,9 @@ describe("Dropdown", () => {
 
   it("calls the chosen item's handler and closes the list", () => {
     const onSelect = vi.fn();
-    const view = render(<Dropdown label="Actions" items={[{ label: "Export", onSelect }]} />);
+    const view = render(
+      <Dropdown label="Actions" items={[{ id: "export", label: "Export", onSelect }]} />,
+    );
 
     click(view.get(TRIGGER));
     click(view.getByText(ITEM, "Export"));
@@ -87,7 +89,10 @@ describe("Dropdown", () => {
   it("does not run a disabled item's handler", () => {
     const onSelect = vi.fn();
     const view = render(
-      <Dropdown label="Actions" items={[{ label: "Export", onSelect, disabled: true }]} />,
+      <Dropdown
+        label="Actions"
+        items={[{ id: "export", label: "Export", onSelect, disabled: true }]}
+      />,
     );
 
     click(view.get(TRIGGER));
@@ -130,8 +135,8 @@ describe("Dropdown", () => {
       <Dropdown
         label="Theme"
         items={[
-          { label: "Light", onSelect: vi.fn(), selected: true },
-          { label: "Dark", onSelect: vi.fn(), selected: false },
+          { id: "light", label: "Light", onSelect: vi.fn(), selected: true },
+          { id: "dark", label: "Dark", onSelect: vi.fn(), selected: false },
         ]}
       />,
     );
@@ -150,8 +155,8 @@ describe("Dropdown", () => {
       <Dropdown
         label="Theme"
         items={[
-          { label: "Light", onSelect: vi.fn(), selected: true },
-          { label: "Dark", onSelect: vi.fn(), selected: false },
+          { id: "light", label: "Light", onSelect: vi.fn(), selected: true },
+          { id: "dark", label: "Dark", onSelect: vi.fn(), selected: false },
         ]}
       />,
     );
@@ -195,6 +200,48 @@ describe("Dropdown", () => {
     click(view.get(TRIGGER));
 
     expect(view.get("[role='dialog']").classList.contains("end-0")).toBe(true);
+  });
+
+  it("keeps two items that share a label independent, without a duplicate-key warning", () => {
+    const warnings: string[] = [];
+    const consoleError = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    });
+    const onBritish = vi.fn();
+    const onAmerican = vi.fn();
+
+    try {
+      // Two locales that read the same and differ only by identity: the case a label key collides on.
+      const view = render(
+        <Dropdown
+          label="Locale"
+          items={[
+            { id: "en-GB", label: "English", onSelect: onBritish },
+            { id: "en-US", label: "English", onSelect: onAmerican },
+          ]}
+        />,
+      );
+
+      click(view.get(TRIGGER));
+      expect(view.all(ITEM).map((item) => item.textContent)).toEqual(["English", "English"]);
+
+      const first = view.all(ITEM)[0];
+      expect(first).toBeDefined();
+      click(first as HTMLElement);
+      expect(onBritish).toHaveBeenCalledTimes(1);
+      expect(onAmerican).not.toHaveBeenCalled();
+
+      click(view.get(TRIGGER));
+      const second = view.all(ITEM)[1];
+      expect(second).toBeDefined();
+      click(second as HTMLElement);
+      expect(onAmerican).toHaveBeenCalledTimes(1);
+      expect(onBritish).toHaveBeenCalledTimes(1);
+
+      expect(warnings.filter((message) => message.includes("same key"))).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("renders an empty list without an item, rather than failing", () => {
