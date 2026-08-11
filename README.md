@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/assets/banner.png" alt="verbatra: automated i18n translation for modern applications" />
+  <img src=".github/assets/banner.webp" alt="verbatra: automated i18n translation for modern applications" />
 </p>
 
 <h1 align="center">verbatra</h1>
@@ -17,6 +17,27 @@
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
+## Quick start
+
+Needs Node.js `>=22.14.0`. verbatra installs as a development dependency, which puts the `verbatra` binary in `node_modules/.bin` rather than on your PATH, so the commands below call it through `npx`:
+
+```bash
+# 1. Install as a dev dependency
+pnpm add -D @verbatra/cli
+
+# 2. Scaffold verbatra.config.ts and .env.example (choose your provider)
+npx verbatra init --provider anthropic
+
+# 3. Provide the provider's API key. init created .env.example and gitignored
+#    .env, so you can set it in .env, or export it (Anthropic shown):
+export ANTHROPIC_API_KEY=your-key-here
+
+# 4. Translate every target locale once
+npx verbatra translate
+```
+
+`npx` runs the locally installed binary whichever package manager put it there, so step 1 works the same as `npm install -D @verbatra/cli` or `yarn add -D @verbatra/cli`. Yarn users can also run `yarn verbatra ...`.
+
 ## Description
 
 verbatra translates your application's locale files for you. You maintain the source locale by hand, and as strings are added or change, verbatra fills in every target locale through the AI or machine-translation provider you choose. It records what it has already translated, so each run touches only what actually changed.
@@ -25,54 +46,19 @@ It ships in three packages. `@verbatra/cli` gives you a `verbatra` command for t
 
 ## Features
 
-- **Many locale formats.** JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, ARB, and Java/Spring properties.
-- **Five providers** behind one interface: Anthropic, OpenAI, Gemini, and openai-compatible (a local or self-hosted server such as LM Studio, Ollama, or vLLM) as LLMs, plus DeepL (machine translation).
+- **Many locale formats.** JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, ARB, and Java/Spring properties ([Formats](https://verbatra.kreitz-webdev.de/docs/formats)).
+- **Five providers behind one interface.** Anthropic, OpenAI, Gemini, and openai-compatible (a local or self-hosted server such as LM Studio, Ollama, or vLLM) as LLMs, plus DeepL (machine translation) ([Providers](https://verbatra.kreitz-webdev.de/docs/providers)).
 - **Incremental by default.** A lock file records what has been translated, so each run sends only new or changed strings to the provider.
 - **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project, and gitignores the local files it must not commit.
 - **Dry runs.** `--dry-run` previews what would change without calling a provider or writing files.
-- **Read-only status and diff.** `verbatra check` reports per-locale missing, stale, and up-to-date counts, and `verbatra diff` lists the exact keys that would be added, re-translated, or are orphaned. Both write nothing and exit non-zero when a locale has a missing or stale key (orphaned keys alone never do), so they slot into CI.
+- **Read-only status and diff.** `verbatra check` counts per-locale missing, stale, and up-to-date keys and `verbatra diff` names the keys that would be added, re-translated, or are orphaned; both write nothing and exit non-zero when a locale has a missing or stale key (orphaned keys alone never do), so they slot into CI ([CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)).
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
-- **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run.
-- **Integrity gate on every translation.** Every candidate translation is re-checked from the value itself before it is written, never taken on trust from whatever produced it. A candidate that fails any check (a dropped or altered placeholder, for example) is withheld and reported rather than written. It is the single accept/reject point every write path calls: a provider result, a workbook import, a manual edit, and any translation reused for another key, whether that reuse comes from the cache or from grouping keys that share source content.
-- **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape. A genuine collision, where one file expresses the same effective path both as a literal dotted leaf and as a real nested path, errors with `INVALID_STRUCTURE` rather than guessing or corrupting data. See the [Formats page](https://verbatra.kreitz-webdev.de/docs/formats) for the full behavior.
-- **Document key order preserved.** JSON-family, YAML, and ARB files round-trip in exact document key order: integer-like keys keep their position, and new keys append in source-document order. A YAML composite key (a map or sequence used as a mapping key) fails with a structured error instead of being silently mangled.
-- **Opt-in cleanup and plural generation.** Orphan pruning (`--prune` / `prune`) and CLDR plural-category generation (`generatePlurals`) are off by default and documented on the [Configuration page](https://verbatra.kreitz-webdev.de/docs/config-file).
+- **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run ([Manual translation](https://verbatra.kreitz-webdev.de/docs/manual-translation)).
+- **Integrity gate on every translation.** Every candidate value is re-checked from the value itself at the single accept/reject point every write path calls (a provider result, a workbook import, a manual edit, and any translation reused for another key, whether from the cache or from grouping keys that share source content), and one that fails a check, a dropped or altered placeholder for example, is withheld and reported rather than written.
+- **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape, and a file that expresses the same effective path both ways errors with `INVALID_STRUCTURE` rather than guessing or corrupting data ([Formats](https://verbatra.kreitz-webdev.de/docs/formats)).
+- **Document key order preserved.** JSON-family, YAML, and ARB files round-trip in exact document key order (integer-like keys keep their position, new keys append in source-document order), and a YAML composite key (a map or sequence used as a mapping key) fails with a structured error instead of being silently mangled.
+- **Opt-in cleanup and plural generation.** Orphan pruning (`--prune` / `prune`) and CLDR plural-category generation (`generatePlurals`) are off by default ([Configuration](https://verbatra.kreitz-webdev.de/docs/config-file)).
 - **Keys stay in your environment.** API keys are read only from environment variables, never from the config.
-
-## Requirements
-
-Node.js `>=22.14.0`.
-
-## Installation
-
-verbatra is a development dependency:
-
-```bash
-pnpm add -D @verbatra/cli
-# npm
-npm install -D @verbatra/cli
-# yarn
-yarn add -D @verbatra/cli
-```
-
-## Quick start
-
-```bash
-# 1. Install as a dev dependency
-pnpm add -D @verbatra/cli
-
-# 2. Scaffold verbatra.config.ts and .env.example (choose your provider)
-verbatra init --provider anthropic
-
-# 3. Provide the provider's API key. init created .env.example and gitignored
-#    .env, so you can set it in .env, or export it (Anthropic shown):
-export ANTHROPIC_API_KEY=your-key-here
-
-# 4. Translate every target locale once
-verbatra translate
-```
-
-Invoke the binary through your package manager: `pnpm verbatra ...`, `npx verbatra ...`, or `yarn verbatra ...`.
 
 ## Configuration
 
@@ -143,7 +129,7 @@ Run `verbatra <command> --help` for the full option list. The complete command r
 Local editing is always on: an edit from the Review queue goes through the same integrity gate as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only, and every request must carry the exact `127.0.0.1:PORT` `Host` header, match `Origin` when it changes state, and authenticate: the printed URL's bootstrap token is redeemed once to mint an HttpOnly, `SameSite=Strict` session cookie that every later request uses.
 
 ```bash
-verbatra studio
+npx verbatra studio
 # Verbatra Studio running at http://127.0.0.1:5849/?token=...
 ```
 
