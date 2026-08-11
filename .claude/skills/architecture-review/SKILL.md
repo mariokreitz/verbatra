@@ -12,7 +12,7 @@ Use the `software-architect` agent in
 2. Dispatch the architect agent with the spec or design question and the relevant
    code.
 3. The agent validates against SDK-first layering, the acyclic dependency direction,
-   the provider Strategy plus Factory plus Registry layer, and the shared adapter
+   the provider Strategy plus Factory layer, and the shared adapter
    factories (`createTreeFileAdapter` and `createFlatFileAdapter`), then returns a
    concise design note. For a
    significant change it writes an ADR under `.verbatra/adr/`.

@@ -105,7 +105,7 @@ Entrée : `{ config, cwd?, locale, key, value }`. Renvoie un résultat à deux b
 
 ### retranslateEntry
 
-Relance le fournisseur pour exactement une clé et une locale : un appel à entrée unique via le même registre de fournisseurs que `translate`, passé par les mêmes vérifications d'intégrité. À l'acceptation, il écrit le fichier de locale et l'entrée de verrou pour cette clé seulement.
+Relance le fournisseur pour exactement une clé et une locale : un appel à entrée unique via le même chemin de fournisseur que `translate`, passé par les mêmes vérifications d'intégrité. À l'acceptation, il écrit le fichier de locale et l'entrée de verrou pour cette clé seulement.
 
 Entrée : `{ config, cwd?, locale, key }`. Renvoie `{ accepted: true, value, reviewReasons }` (les codes de raison de révision, s'il y en a, qui s'appliquent à la nouvelle valeur) ou `{ accepted: false, reason: "placeholder" | "icu" | "degenerate" | "empty", value }`. Contrairement à `translate`, un échec de fournisseur lève ici : une `ProviderError` de `@verbatra/ai-providers` avec un code stable comme `RATE_LIMITED` ou `AUTH_FAILED`.
 

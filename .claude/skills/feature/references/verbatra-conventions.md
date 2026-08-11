@@ -31,13 +31,16 @@ and route the issue back rather than shipping around it.
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
   github-action / framework-adapters. Never import against the arrow. Never
   introduce a cycle.
-- Abstract provider layer (Strategy + Factory + Registry) for OpenAI, Anthropic,
+- Abstract provider layer (Strategy + Factory) for OpenAI, Anthropic,
   Gemini (@google/genai), and DeepL. The three LLM providers run through the shared
   `runLlmTranslation` layer with one canonical zod schema fed to each SDK's
   structured-output mechanism. DeepL is an MT API and implements `translateBatch`
   directly, reusing only cross-cutting pieces. All providers sit behind one
-  shape-agnostic `TranslationProvider` interface resolved through a
-  `ProviderRegistry`.
+  shape-agnostic `TranslationProvider` interface, constructed by the id-to-factory
+  table in `packages/sdk/src/config/provider-config.ts` (`buildProvider`) and
+  wrapped by `selectProvider`. `ProviderRegistry` is exported from
+  `@verbatra/ai-providers` but is not on that path today; keep it, do not treat it
+  as the resolution mechanism.
 - Format-adapter pattern (Reader / Writer / Parser) over a format-neutral
   intermediate representation. Eight adapters ship today: i18next, vue-i18n,
   next-intl, ngx-translate, XLIFF, YAML, Flutter ARB, and Java/Spring properties.
@@ -53,7 +56,7 @@ and route the issue back rather than shipping around it.
 - `@verbatra/core` pure domain center (model, diffing, hashing, placeholder
   integrity, validation). No I/O, no network, no file system. Depends only on zod.
 - `@verbatra/format-adapters` file to neutral-IR adapters for JSON i18n formats.
-- `@verbatra/ai-providers` translation provider strategies behind a registry.
+- `@verbatra/ai-providers` translation provider strategies behind one interface.
 - `@verbatra/sdk` central orchestration API: one-shot `translate()`, long-running
   `watch()`, config loading.
 - `@verbatra/cli` the `verbatra` binary, a thin wrapper over the SDK.

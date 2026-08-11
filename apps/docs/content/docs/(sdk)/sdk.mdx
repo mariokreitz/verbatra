@@ -170,7 +170,7 @@ cannot express clearing a key, so use the workbook's `[[CLEAR]]` sentinel for th
 ### retranslateEntry
 
 Re-runs the provider for exactly one key and locale: a single-entry call through the same provider
-registry `translate` uses, gated through the same integrity checks. On acceptance it writes the
+path `translate` uses, gated through the same integrity checks. On acceptance it writes the
 locale file and lock entry for that key only.
 
 Input: `{ config, cwd?, locale, key }`. Returns `{ accepted: true, value, reviewReasons }` (the
