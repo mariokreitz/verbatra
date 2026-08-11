@@ -51,15 +51,16 @@ before that first run:
   project is taken as up to date and will not be revisited. Fix or delete those keys before the
   first run.
 
-Plural generation follows the same adoption rule. A plural form the target file already holds is
-kept as it is, never regenerated and never sent to the provider, so `generatePlurals` is safe to
-leave on while adopting a project that carries hand-written plural forms; only forms genuinely
-absent from the target are synthesized.
+Plural generation follows the same adoption rule. A plural form the target file already holds and
+that verbatra did not generate itself is kept as it is, never regenerated and never sent to the
+provider (a form the lock already tracks is still regenerated when its source changes), so
+`generatePlurals` is safe to leave on while adopting a project that carries hand-written plural
+forms; only forms genuinely absent from the target are synthesized.
 
 You can see all of this before spending anything: `verbatra diff` lists the exact missing and
 changed keys per locale, `verbatra check` reports the same as counts, and
 `verbatra translate --dry-run` gives you the full run summary. None of the three calls a provider,
-writes a locale file, or touches the lock.
+writes a locale file, or writes the lock.
 
 ## How it is updated
 

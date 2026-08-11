@@ -297,8 +297,8 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
   unfilled: string[];            // import only: blank rows whose key still needs a translation
-  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
-  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
+  malformedRows: { row: number; line?: number; column: string }[]; // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number; line?: number }[];    // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -331,7 +331,9 @@ The parts worth knowing:
   the provider. **unfilled**, **malformedRows**, and **duplicateKeys** are populated only by
   `importWorkbook` (a `translate` run leaves them empty): a blank row whose key still needs a
   translation at import time (whether it was exported as `new` or as `changed`), a workbook row the
-  reader could not parse, and a duplicated key whose first occurrence won.
+  reader could not parse, and a duplicated key whose first occurrence won. The optional `line` on
+  the last two is the file line the record starts on, present only for a delimited (`csv` or `tsv`)
+  import.
 
 ## The error model
 

@@ -54,14 +54,16 @@ zwei Dinge, die du vor diesem ersten Lauf kennen solltest:
   lösche solche Keys vor dem ersten Lauf.
 
 Die Plural-Generierung folgt derselben Übernahmeregel. Eine Pluralform, die die Zieldatei schon
-enthält, bleibt so, wie sie ist: Sie wird weder neu generiert noch an den Provider geschickt.
-`generatePlurals` kannst du also gefahrlos anlassen, während du ein Projekt mit handgeschriebenen
-Pluralformen übernimmst; synthetisiert werden nur Formen, die im Ziel wirklich fehlen.
+enthält und die verbatra nicht selbst generiert hat, bleibt so, wie sie ist: Sie wird weder neu
+generiert noch an den Provider geschickt (eine Form, die die Lock-Datei bereits führt, wird sehr
+wohl neu generiert, sobald sich ihre Quelle ändert). `generatePlurals` kannst du also gefahrlos
+anlassen, während du ein Projekt mit handgeschriebenen Pluralformen übernimmst; synthetisiert
+werden nur Formen, die im Ziel wirklich fehlen.
 
 Das alles kannst du dir ansehen, bevor du etwas ausgibst: `verbatra diff` listet pro Locale genau
 die fehlenden und geänderten Keys, `verbatra check` meldet dasselbe als Zahlen, und
 `verbatra translate --dry-run` gibt dir die vollständige Lauf-Zusammenfassung. Keiner der drei ruft
-einen Provider auf, schreibt eine Locale-Datei oder fasst die Lock-Datei an.
+einen Provider auf, schreibt eine Locale-Datei oder schreibt die Lock-Datei.
 
 ## Wie sie aktualisiert wird
 

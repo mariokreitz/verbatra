@@ -322,8 +322,8 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
   unfilled: string[];            // import only: blank rows whose key still needs a translation
-  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
-  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
+  malformedRows: { row: number; line?: number; column: string }[]; // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number; line?: number }[];    // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -360,7 +360,9 @@ Die Teile, die du kennen solltest:
   `importWorkbook` befüllt (ein `translate`-Lauf lässt sie leer): eine leere Zeile, deren Key zum
   Importzeitpunkt weiterhin eine Übersetzung braucht (egal ob sie als `new` oder als `changed`
   exportiert wurde), eine Arbeitsmappen-Zeile, die der Reader nicht parsen konnte, und ein
-  doppelter Key, dessen erstes Vorkommen gewonnen hat.
+  doppelter Key, dessen erstes Vorkommen gewonnen hat. Das optionale `line` bei den letzten beiden
+  ist die Dateizeile, in der der Datensatz beginnt; es ist nur bei einem CSV- oder TSV-Import
+  vorhanden.
 
 ## Das Fehlermodell
 
