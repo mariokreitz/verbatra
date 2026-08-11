@@ -171,3 +171,15 @@ methods are not registered at all; local file editing is always on and needs no 
 `VERBATRA_STUDIO_ALLOW_SPEND=1` (also `true`, `yes`, or `on`). Rapid repeated actions can also hit
 Studio's own throttle, `METHOD_RATE_LIMITED: Too many calls to this method; wait before
 retrying.`; that clears on its own. See [Review in Studio](/docs/review-in-studio).
+
+## Undoing a run (no error code)
+
+**Symptom**: a run produced translations you do not want, and you need the previous state back.
+
+**Cause**: verbatra rewrites locale files in place and updates the lock file. There is no undo
+command and no backup; version control is the recovery mechanism.
+
+**Fix**: revert the locale files and `verbatra.lock.json` together. Reverting only the locale files
+leaves the lock claiming the reverted translations are current, so nothing retranslates them and
+`check` and `diff` still report the locale as clean. See
+[Recovery and rollback](/docs/recovery-and-rollback).

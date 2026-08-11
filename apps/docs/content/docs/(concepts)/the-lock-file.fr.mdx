@@ -118,3 +118,9 @@ restaurer plutôt que de perdre la référence.
 Commite `verbatra.lock.json` avec tes fichiers de locale. C'est la référence partagée avec laquelle
 tes coéquipiers et ta CI comparent ; le garder sous contrôle de version est ce qui rend les
 exécutions incrémentales reproductibles d'une machine à l'autre. Ne le modifie jamais à la main.
+
+Commiter les deux est aussi ce qui rend un retour en arrière possible. Comme le fichier de
+verrouillage enregistre des hashs de la source et rien sur les valeurs traduites, si tu reviens en
+arrière sur tes fichiers de locale sans lui, il continuera d'affirmer que les traductions restaurées
+sont à jour, et rien ne les retraduira. Voir
+[Récupération et retour en arrière](/docs/recovery-and-rollback).

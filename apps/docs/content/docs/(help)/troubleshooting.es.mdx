@@ -181,3 +181,17 @@ necesita opción alguna.
 también pueden toparse con el propio limitador de Studio, `METHOD_RATE_LIMITED: Too many calls to
 this method; wait before retrying.`; eso se despeja solo. Consulta
 [Revisión en Studio](/docs/review-in-studio).
+
+## Deshacer una ejecución (sin código de error)
+
+**Síntoma**: una ejecución produjo traducciones que no quieres y necesitas recuperar el estado
+anterior.
+
+**Causa**: verbatra reescribe los archivos de locale en el sitio y actualiza el archivo de bloqueo.
+No hay comando de deshacer ni copia de seguridad; el control de versiones es el mecanismo de
+recuperación.
+
+**Solución**: revierte los archivos de locale y `verbatra.lock.json` juntos. Si solo reviertes los
+archivos de locale, el archivo de bloqueo sigue afirmando que las traducciones revertidas están al
+día: nada las retraduce, y `check` y `diff` siguen informando de que el locale está limpio. Consulta
+[Recuperación y reversión](/docs/recovery-and-rollback).

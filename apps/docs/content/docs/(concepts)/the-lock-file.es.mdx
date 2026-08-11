@@ -115,3 +115,8 @@ inspeccionarlo o restaurarlo en vez de perder la línea base.
 Confirma `verbatra.lock.json` junto a tus archivos de locale. Es la línea base compartida contra la
 que hacen diff tus compañeros y tu CI; mantenerlo en control de versiones es lo que hace que las
 ejecuciones incrementales sean reproducibles entre máquinas. Nunca lo edites a mano.
+
+Confirmar ambos es también lo que hace posible una reversión. Como el archivo de bloqueo registra
+hashes del origen y nada sobre los valores traducidos, si reviertes tus archivos de locale sin él
+seguirá afirmando que las traducciones revertidas están al día, y nada las retraducirá. Consulta
+[Recuperación y reversión](/docs/recovery-and-rollback).
