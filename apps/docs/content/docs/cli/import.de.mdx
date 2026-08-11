@@ -37,6 +37,8 @@ verbatra import handoff --format csv
 
 Bei `csv` und `tsv` kommt die Locale aus dem Dateinamen, nicht aus einem Blattnamen. Lass also jede Datei genau so heißen, wie sie exportiert wurde. Eine konfigurierte Ziel-Locale ohne Datei wird als Fehler dieser Locale gemeldet, nie stillschweigend übersprungen.
 
+Eine Datei aus einem früheren Export mit einer breiteren `--locales`-Auswahl wird nie angewendet. Der Import gleicht das Verzeichnis mit dem Manifest ab, das der jüngste Export dorthin geschrieben hat, und meldet eine solche Locale als Fehler mit `HANDOFF_FILE_STALE`. So kann sich keine veraltete Übersetzung unbemerkt zurückschleichen. Exportiere die Locale neu, um ihre Datei aufzufrischen, oder lösche die Datei. Ein Verzeichnis ohne lesbares Manifest (von Hand zusammengestellt oder auf dem Weg durch ein Archiv um die versteckte Datei gebracht) wird wie bisher gelesen, jede vorhandene Datei wird importiert. Eine direkt benannte Einzeldatei wird ebenso beim Wort genommen.
+
 ## Exit-Codes
 
 | Code | Bedeutung |

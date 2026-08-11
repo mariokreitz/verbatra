@@ -31,6 +31,7 @@ import { failureSummary, partition } from "../locale-failure.js";
 import { readSource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
 import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
+import { readExportedLocales } from "./export-manifest.js";
 import { type ImportLocaleResult, importLocale } from "./import-locale.js";
 
 /** On-disk size cap enforced before the untrusted workbook bytes reach `@verbatra/exchange`. */
@@ -82,6 +83,13 @@ interface DelimitedSource {
   readonly text: string;
 }
 
+/** What a delimited directory yielded: the files to import, and the leftovers refused as stale. */
+interface DelimitedHandoff {
+  readonly sources: readonly DelimitedSource[];
+  /** Configured locales whose file is present but was not written by the most recent export. */
+  readonly staleLocales: readonly string[];
+}
+
 /** Read one interchange file, bounded; `undefined` when nothing readable is at the path. */
 async function readDelimitedText(path: string, fs: SdkFs): Promise<string | undefined> {
   const read = await fs.readFileBounded(path, MAX_DELIMITED_FILE_BYTES);
@@ -103,6 +111,13 @@ async function readDelimitedText(path: string, fs: SdkFs): Promise<string | unde
  * configured target locale, which is exactly the layout the export writes. A configured locale with no
  * file is not an error here: it is reconciled with every other absent locale after the sheet loop.
  *
+ * A directory is reconciled against the export manifest before anything is read from it. A locale file
+ * the most recent export into that directory did not write is a leftover from an earlier run with a
+ * wider selection: its rows are outdated and nothing in the file says so, so it is refused as stale
+ * rather than parsed. Without a readable manifest no such claim can be made and every present file is
+ * read, exactly as before manifests existed. Naming a single file directly is always taken at face
+ * value: that path is a deliberate act by the person running the import.
+ *
  * @throws {@link SdkError} `SOURCE_UNREADABLE` when the path is neither a readable file nor a
  *   directory holding an interchange file for any configured target locale
  */
@@ -111,25 +126,32 @@ async function collectDelimitedSources(
   config: VerbatraConfig,
   fs: SdkFs,
   format: DelimitedFormat,
-): Promise<readonly DelimitedSource[]> {
+): Promise<DelimitedHandoff> {
   const single = await readDelimitedText(path, fs);
   if (single !== undefined) {
-    return [{ locale: basename(path, `.${format}`), text: single }];
+    return { sources: [{ locale: basename(path, `.${format}`), text: single }], staleLocales: [] };
   }
+  const exported = await readExportedLocales(fs, path, format);
   const sources: DelimitedSource[] = [];
+  const staleLocales: string[] = [];
   for (const locale of config.targetLocales) {
     const text = await readDelimitedText(join(path, delimitedFileName(locale, format)), fs);
-    if (text !== undefined) {
-      sources.push({ locale, text });
+    if (text === undefined) {
+      continue;
     }
+    if (exported !== undefined && !exported.has(locale)) {
+      staleLocales.push(locale);
+      continue;
+    }
+    sources.push({ locale, text });
   }
-  if (sources.length === 0) {
+  if (sources.length === 0 && staleLocales.length === 0) {
     throw new SdkError(
       "SOURCE_UNREADABLE",
       `No ${format} file was found at ${path}, and it holds no <locale>.${format} file for any configured target locale.`,
     );
   }
-  return sources;
+  return { sources, staleLocales };
 }
 
 /**
@@ -152,6 +174,12 @@ function parseDelimitedSources(
   return { sheets, malformedRows, duplicateKeys };
 }
 
+/** The parsed handoff plus the locales whose file was refused as a leftover from an earlier export. */
+interface ImportRead {
+  readonly data: WorkbookData;
+  readonly staleLocales: readonly string[];
+}
+
 /**
  * Read the filled handoff at the path into the neutral row model, whichever format it is in. An
  * `SdkError` (a missing, oversized, or unresolvable path) is rethrown as it is; any structural failure
@@ -164,12 +192,16 @@ async function readImportData(
   config: VerbatraConfig,
   fs: SdkFs,
   format: ExchangeFormat,
-): Promise<WorkbookData> {
+): Promise<ImportRead> {
   try {
     if (isDelimitedFormat(format)) {
-      return parseDelimitedSources(await collectDelimitedSources(path, config, fs, format), format);
+      const handoff = await collectDelimitedSources(path, config, fs, format);
+      return {
+        data: parseDelimitedSources(handoff.sources, format),
+        staleLocales: handoff.staleLocales,
+      };
     }
-    return await readWorkbook(await readWorkbookBytes(path, fs));
+    return { data: await readWorkbook(await readWorkbookBytes(path, fs)), staleLocales: [] };
   } catch (error) {
     if (error instanceof SdkError) {
       throw error;
@@ -285,6 +317,51 @@ class MissingSheetError extends Error {
 }
 
 /**
+ * An interchange file left behind by an earlier export with a wider locale selection: present in the
+ * directory, but absent from the manifest the most recent export into it wrote. Its rows carry that
+ * older run's state and nothing in the file, its name, or its contents marks them as outdated, so they
+ * are refused rather than applied, and the locale is reported as this structured failure.
+ */
+class StaleHandoffFileError extends Error {
+  readonly code = "HANDOFF_FILE_STALE";
+  constructor(locale: string, format: DelimitedFormat) {
+    super(
+      `The file "${delimitedFileName(locale, format)}" is left over from an earlier export that included the target locale "${locale}"; ` +
+        "the most recent export into this directory did not. Its rows were not applied, because they " +
+        "reflect that earlier run. Re-export the locale to refresh the file, or delete it.",
+    );
+    this.name = "StaleHandoffFileError";
+  }
+}
+
+/**
+ * Reconcile every configured target locale the handoff delivered no sheet for: a leftover file refused
+ * as stale is reported as such, and anything else absent stays the missing-sheet failure it always was.
+ * Both are per-locale failures, so one locale's problem never hides another locale's accepted work.
+ */
+function absentLocaleFailures(
+  config: VerbatraConfig,
+  sheets: readonly WorkbookSheet[],
+  format: ExchangeFormat,
+  staleLocales: readonly string[],
+): readonly LocaleSummary[] {
+  const present = new Set(sheets.map((sheet) => sheet.locale));
+  const stale = new Set(staleLocales);
+  const failures: LocaleSummary[] = [];
+  for (const locale of config.targetLocales) {
+    if (present.has(locale)) {
+      continue;
+    }
+    const error =
+      stale.has(locale) && isDelimitedFormat(format)
+        ? new StaleHandoffFileError(locale, format)
+        : new MissingSheetError(locale, format);
+    failures.push(failureSummary(locale, error));
+  }
+  return failures;
+}
+
+/**
  * Run one data sheet: judge its rows with {@link importLocale}, and on a non-dry-run write the merged
  * target file when anything was accepted. The file write is skipped when nothing was accepted, but the
  * lock entries are still recomputed so the locale's existing baseline is never wiped just because this
@@ -362,8 +439,10 @@ async function runSheet(
  * throw; per-row rejections are withheld and reported on the locale. A configured target locale with
  * no sheet at all (a deleted, renamed, or reordered tab) is reconciled after the sheet loop and
  * reported as that locale's `status: "failed"` (`WORKBOOK_SHEET_MISSING`) rather than silently
- * dropped. Dry-run validates and reports without writing any locale or lock file, and skips lock
- * acquisition (there is nothing to protect).
+ * dropped. For a delimited directory, a locale file the most recent export into that directory did not
+ * write is a leftover from an earlier, wider selection: it is never applied and is reported as that
+ * locale's `status: "failed"` (`HANDOFF_FILE_STALE`). Dry-run validates and reports without writing any
+ * locale or lock file, and skips lock acquisition (there is nothing to protect).
  *
  * The lock-file is read once, up front, for every sheet's diff baseline. On a non-dry-run, each
  * sheet's write-and-lock-update step then holds that locale's `withLocaleWriteLock` for its whole
@@ -386,7 +465,12 @@ export async function importWorkbook(
 
   const source = await readSource(config, cwd, fs, adapter);
   const format = input.format ?? "xlsx";
-  const data = await readImportData(resolve(cwd, input.workbook), config, fs, format);
+  const { data, staleLocales } = await readImportData(
+    resolve(cwd, input.workbook),
+    config,
+    fs,
+    format,
+  );
 
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
@@ -427,12 +511,7 @@ export async function importWorkbook(
     }
   }
 
-  const presentLocales = new Set(data.sheets.map((sheet) => sheet.locale));
-  for (const locale of config.targetLocales) {
-    if (!presentLocales.has(locale)) {
-      summaries.push(failureSummary(locale, new MissingSheetError(locale, format)));
-    }
-  }
+  summaries.push(...absentLocaleFailures(config, data.sheets, format, staleLocales));
 
   if (!dryRun) {
     await feedTranslationMemory(cwd, fs, computeFingerprint(config), cacheAdditions);

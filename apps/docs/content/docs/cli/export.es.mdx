@@ -43,6 +43,8 @@ verbatra export --format csv --out handoff
 
 Un archivo delimitado se puede diffear y se abre en cualquier parte, pero no lleva protección de celdas: todas las columnas son editables y la columna `Source hash` es visible. Un hash editado nunca se da por bueno, la importación lo compara con la fuente actual y retiene la fila.
 
+Cada exportación delimitada escribe además un manifiesto oculto en el directorio, `.verbatra-export-csv.json` o `.verbatra-export-tsv.json`, que nombra los locales que acaba de escribir. Es lo que permite que una reexportación con una selección `--locales` más estrecha retire los locales que ha dejado fuera: sus archivos siguen en disco, y [`verbatra import`](/docs/cli/import) los rechaza como restos en lugar de aplicar una traducción desactualizada. La exportación no borra nada del directorio de salida, así que un archivo tuyo que esté ahí nunca corre peligro.
+
 ## Códigos de salida
 
 | Código | Significado |
