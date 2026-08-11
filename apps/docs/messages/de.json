@@ -43,7 +43,9 @@
       "tablistLabel": "Paketmanager",
       "copy": "kopieren",
       "copied": "kopiert",
-      "copyAria": "Installationsbefehl kopieren"
+      "copyAria": "Installationsbefehl kopieren",
+      "pnpmNote": "pnpm installiert korrekt, beendet sich aber mit 1 und ERR_PNPM_IGNORED_BUILDS, weil es die Installationsskripte einer Abhängigkeit sperrt. Führe einmal pnpm approve-builds aus, oder siehe",
+      "pnpmNoteLink": "Fehlerbehebung"
     },
     "compat": {
       "heading": "Ein Werkzeug, jedes Framework.",

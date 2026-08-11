@@ -8,6 +8,50 @@ ganzen Laufs tragen einen stabilen Code (`SdkError`); verzweige oder suche über
 [CI und Exit-Codes](/docs/ci-and-exit-codes); die vollständige Code-Tabelle in der
 [SDK-Referenz](/docs/sdk).
 
+## pnpm blockiert die Installationsskripte einer Abhängigkeit (ERR_PNPM_IGNORED_BUILDS)
+
+**Symptom**: `pnpm add -D @verbatra/cli` gibt seine Installationszusammenfassung aus und beendet
+sich dann mit `1`:
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @google/genai@2.15.0, protobufjs@7.6.5
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+pnpm schreibt außerdem eine `pnpm-workspace.yaml` in dein Projekt, die eine unbeantwortete
+Entscheidung enthält:
+
+```yaml
+allowBuilds:
+  '@google/genai': set this to true or false
+  protobufjs: set this to true or false
+```
+
+Solange du sie nicht beantwortest, scheitert jeder spätere pnpm-Befehl in diesem Projekt auf
+dieselbe Weise, auch `pnpm exec verbatra init`.
+
+**Ursache**: pnpm führt die Installationsskripte einer Drittanbieter-Abhängigkeit nur aus, wenn du
+es erlaubst. `@google/genai` und das transitive `protobufjs` deklarieren solche Skripte, und das
+Gemini-SDK wird unabhängig vom konfigurierten Provider installiert, also trifft es jeden
+pnpm-Installationsweg. verbatra selbst deklariert kein Installationsskript, und npm und yarn
+installieren dasselbe Paket ohne Nachfrage. Die Installation ist tatsächlich durchgelaufen:
+`node_modules/.bin/verbatra` funktioniert bereits.
+
+**Lösung**: beantworte die Entscheidung einmal. Interaktiv führst du `pnpm approve-builds` aus und
+bestätigst keinen der beiden Einträge. Nicht-interaktiv, was du in CI willst, hinterlegst du die
+Antwort vor der Installation, indem du das hier in die `pnpm-workspace.yaml` im Wurzelverzeichnis
+des Projekts schreibst:
+
+```yaml
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+```
+
+verbatra braucht diese Skripte nicht, und dieses Repository lehnt beide ab. Mit der hinterlegten
+Antwort beendet sich `pnpm add -D @verbatra/cli` mit `0` und spätere pnpm-Befehle laufen normal.
+Die Paketversionen in der Meldung folgen dem Release; die Lösung bleibt dieselbe.
+
 ## Die Konfiguration ist ungültig (CONFIG_INVALID)
 
 **Symptom**: `The verbatra configuration is invalid: ...`, mit einem Problem pro Feld.
@@ -172,7 +216,9 @@ Studio nutzt standardmäßig 5849 auf 127.0.0.1.
 **Ursache**: `@verbatra/studio` ist ein separates Paket, das der `studio`-Befehl dynamisch lädt,
 der Rest der CLI funktioniert also ohne es.
 
-**Lösung**: Installiere es, wie der Hinweis sagt, und führe `verbatra studio` erneut aus.
+**Lösung**: Installiere es, wie der Hinweis sagt, und führe `verbatra studio` erneut aus. Der
+Hinweis nennt den pnpm-Befehl, also lies bei einer Installation mit pnpm zuerst
+[pnpm blockiert die Installationsskripte einer Abhängigkeit](#pnpm-blockiert-die-installationsskripte-einer-abhängigkeit-err_pnpm_ignored_builds).
 
 ## Studio: Retranslate- und Translate-Aktionen fehlen
 
