@@ -26,9 +26,9 @@ Node.js `>=22.14.0`.
 ## Installation
 
 ```bash
+npm install --save-dev @verbatra/sdk
+# pnpm
 pnpm add -D @verbatra/sdk
-# npm
-npm install -D @verbatra/sdk
 # yarn
 yarn add -D @verbatra/sdk
 ```
@@ -41,7 +41,7 @@ import { loadConfig, translate } from "@verbatra/sdk";
 // Discovers and validates verbatra.config.ts (or .verbatrarc.json, or a package.json "verbatra" key).
 const config = await loadConfig();
 
-// The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY). No key is passed.
+// The provider reads its API key from the environment (e.g. GEMINI_API_KEY). No key is passed.
 const summary = await translate({ config });
 
 console.log(
@@ -64,10 +64,10 @@ export default defineConfig({
     pattern: "locales/{locale}.json",
   },
   provider: {
-    id: "anthropic",
+    id: "gemini",
     options: {
-      model: "claude-sonnet-4-6", // replace with your provider's model id
-      maxTokens: 4096,
+      model: "gemini-2.5-flash", // replace with your provider's model id
+      maxOutputTokens: 4096,
     },
   },
 });

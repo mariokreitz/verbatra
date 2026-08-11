@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { NPM_CLI } from "./links";
 
 const MANAGERS = [
-  { id: "pnpm", label: "pnpm", command: "pnpm add -D @verbatra/cli" },
   { id: "npm", label: "npm", command: "npm i -D @verbatra/cli" },
+  { id: "pnpm", label: "pnpm", command: "pnpm add -D @verbatra/cli" },
   { id: "yarn", label: "yarn", command: "yarn add -D @verbatra/cli" },
   { id: "bun", label: "bun", command: "bun add -d @verbatra/cli" },
 ] as const;
@@ -17,7 +17,7 @@ const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
 
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
-  const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("pnpm");
+  const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("npm");
   const [copied, setCopied] = useState(false);
   const current = MANAGERS.find((m) => m.id === active) ?? MANAGERS[0];
 
