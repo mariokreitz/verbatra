@@ -639,7 +639,7 @@ function buildProgram(
   program
     .name("verbatra")
     .description(
-      "Automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers",
+      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
     )
     .version(CLI_VERSION)
     .exitOverride()
