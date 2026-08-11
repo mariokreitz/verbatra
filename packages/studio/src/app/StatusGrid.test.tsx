@@ -194,6 +194,29 @@ describe("StatusGrid", () => {
     expect(view.get("thead th:nth-child(2)").textContent).toBe("de50% up to date");
   });
 
+  it("marks coverage as last known when a re-read fails, without dropping the percentage", async () => {
+    let call = 0;
+    stubRpc({
+      "status.check": () => {
+        call += 1;
+        return call === 1
+          ? { ok: true, result: checkResult([checkRow("de", 1, 0, 1)]) }
+          : rpcError("LOCK_FILE_INVALID", "lock file broken");
+      },
+    });
+
+    const view = await renderAsync(
+      <StatusGrid locales={[DE_DRIFT]} refreshToken={0} onSelectKey={vi.fn()} />,
+    );
+    view.rerender(<StatusGrid locales={[DE_DRIFT]} refreshToken={1} onSelectKey={vi.fn()} />);
+    await flush();
+
+    expect(view.get('[role="alert"]').textContent).toBe(
+      "Showing the last known coverage. The lock file is missing, corrupt, or at an unsupported version.",
+    );
+    expect(view.get("thead th:nth-child(2)").textContent).toBe("de50% up to date");
+  });
+
   it("reports the row's key when a cell is clicked", async () => {
     stubRpc({ "status.check": { ok: true, result: checkResult([]) } });
     const onSelectKey = vi.fn();
