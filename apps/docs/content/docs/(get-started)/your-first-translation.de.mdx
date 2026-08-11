@@ -65,7 +65,7 @@ Schlüssel kommen aus der Umgebung, nie aus der Konfigurationsdatei. Jeder gehos
 cp .env.example .env
 ```
 
-Öffne dann `.env` und füge deinen Schlüssel nach `GEMINI_API_KEY=` ein. verbatra lädt vor einem Lauf `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die schon in deiner Shell gesetzt ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
+Öffne dann `.env` und füge deinen Schlüssel nach `GEMINI_API_KEY=` ein. `translate`, `watch` und `studio` laden vor einem Lauf `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, und eine Variable, die schon in deiner Shell gesetzt ist, gewinnt immer. Siehe [Provider](/docs/providers) für die Variable jedes Providers.
 
 <Callout title="Noch kein Schlüssel? Gemini hat ein kostenloses Kontingent.">
 Geminis API hat ein wirklich kostenloses Kontingent und ist damit der günstigste Weg, verbatra auszuprobieren. Hol dir einen Schlüssel im [Google AI Studio](https://aistudio.google.com/apikey) und setze `GEMINI_API_KEY`. Das kostenlose Kontingent hat Anfragelimits pro Minute und pro Tag, verteile eine große Erstübersetzung also über die Zeit.

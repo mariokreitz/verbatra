@@ -151,4 +151,4 @@ Si prefieres no escribir este job tú mismo, la [GitHub Action](/docs/github-act
 - **Las claves son variables de entorno, nunca flags.** La CLI no acepta ningún argumento de clave y no lee ninguna clave de la configuración; los proveedores leen solo su variable de entorno (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`). Guarda la clave en el almacén de secretos de tu CI y mapéala en `env`. Los mensajes de error nombran la variable pero nunca contienen el valor de una clave.
 - **Las puertas de solo lectura no necesitan clave.** `check`, `diff` y `export` nunca llaman a un proveedor, así que deja los secretos completamente fuera de esos jobs.
 
-verbatra también carga `.env.local` y `.env` desde el directorio de trabajo antes de ejecutarse, y las variables de entorno reales siempre ganan; en CI normalmente dependerás solo de `env:`.
+`translate`, `watch` y `studio` también cargan `.env.local` y luego `.env` desde el directorio de trabajo antes de ejecutarse, y las variables de entorno reales siempre ganan; `check`, `diff`, `export` e `import` no cargan archivos `.env`, así que en CI normalmente dependerás solo de `env:`.

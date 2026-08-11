@@ -65,7 +65,7 @@ Keys come from the environment, never from the config file. Each hosted provider
 cp .env.example .env
 ```
 
-Then open `.env` and paste your key after `GEMINI_API_KEY=`. verbatra loads `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
+Then open `.env` and paste your key after `GEMINI_API_KEY=`. `translate`, `watch`, and `studio` load `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
 
 <Callout title="No key yet? Gemini has a free tier.">
 Gemini's API has a genuinely free tier, which makes it the cheapest way to try verbatra. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier has per-minute and per-day request limits, so pace a large first-time translation.

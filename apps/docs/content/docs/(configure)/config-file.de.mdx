@@ -135,7 +135,7 @@ Um stattdessen genau eine Datei zu laden, übergib `--config <path>`; ein relati
 
 ## Das Arbeitsverzeichnis und .env
 
-Führe verbatra aus deinem Projektstamm aus, oder lass `--cwd` darauf zeigen. Das Arbeitsverzeichnis ist der eine Anker für alles, was verbatra auflöst: Die Konfigurationssuche startet dort und läuft aufwärts, `.env.local` und `.env` werden von dort geladen, und jeder Locale-Dateipfad wird dagegen aufgelöst. Alle drei am selben Ort zu halten ist es, was ein schlichtes `verbatra translate` funktionieren lässt.
+Führe verbatra aus deinem Projektstamm aus, oder lass `--cwd` darauf zeigen. Das Arbeitsverzeichnis ist der eine Anker für alles, was verbatra auflöst: Die Konfigurationssuche startet dort und läuft aufwärts, `.env.local` und `.env` werden von dort für `translate`, `watch` und `studio` geladen, und jeder Locale-Dateipfad wird dagegen aufgelöst. Alle drei am selben Ort zu halten ist es, was ein schlichtes `verbatra translate` funktionieren lässt.
 
 Die Präzedenz der Umgebung ist, höchste zuerst: eine Variable, die schon in deiner echten Umgebung gesetzt ist, dann `.env.local`, dann `.env`. Eine bereits vorhandene Variable wird nie überschrieben.
 

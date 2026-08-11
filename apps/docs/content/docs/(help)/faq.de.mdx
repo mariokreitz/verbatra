@@ -90,8 +90,8 @@ separate, optionale Installation, dynamisch geladen vom `studio`-Befehl.
 ## Wo leben API-Schlüssel?
 
 Nur in Umgebungsvariablen: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder
-`DEEPL_API_KEY`, plus die Variable, die du für `openai-compatible` benennst. Die CLI lädt `.env`
-und `.env.local` aus dem Arbeitsverzeichnis (echte Umgebungsvariablen gewinnen). Das
-Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis nicht in einer
-committeten Datei landen kann, und Fehlermeldungen nennen die Variable, aber nie einen Wert. Siehe
-[Provider](/docs/providers).
+`DEEPL_API_KEY`, plus die Variable, die du für `openai-compatible` benennst. `translate`, `watch`
+und `studio` laden `.env` und `.env.local` aus dem Arbeitsverzeichnis (echte Umgebungsvariablen
+gewinnen). Das Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis
+nicht in einer committeten Datei landen kann, und Fehlermeldungen nennen die Variable, aber nie
+einen Wert. Siehe [Provider](/docs/providers).

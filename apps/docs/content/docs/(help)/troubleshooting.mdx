@@ -61,9 +61,9 @@ is not set.` (or the matching variable for your provider).
 variable is unset or empty. Error messages name the variable but never contain a key value, and
 keys are never read from the config or CLI arguments.
 
-**Fix**: set the variable the message names. The CLI loads `.env` and `.env.local` from the
-working directory; the SDK does not, so in your own script use `node --env-file=.env` or export
-the variable. `openai-compatible` only raises this when the config names an `apiKeyEnvVar` that is
+**Fix**: set the variable the message names. `translate`, `watch`, and `studio` load `.env` and
+`.env.local` from the working directory; the SDK does not, so in your own script use
+`node --env-file=.env` or export the variable. `openai-compatible` only raises this when the config names an `apiKeyEnvVar` that is
 unset; without one it falls back to a keyless placeholder for local servers.
 
 ## Rate limits, timeouts, and auth failures mid-run (RATE_LIMITED, TIMEOUT, AUTH_FAILED)
