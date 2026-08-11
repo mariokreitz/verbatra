@@ -30,7 +30,7 @@
     "check:dts": "node scripts/check-build-output.mjs dts",
     "check:studio-bundle": "node scripts/check-build-output.mjs studio-bundle",
     "check:dependency-changeset": "node scripts/check-dependency-changeset.mjs",
-    "test:scripts": "vitest run scripts",
+    "test:scripts": "vitest run --dir scripts",
     "typecheck:configs": "tsc -p tsconfig.configs.json",
     "changeset": "changeset",
     "release": "changeset publish"
