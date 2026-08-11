@@ -43,6 +43,39 @@ describe("run export: SDK delegation and rendering", () => {
     });
   });
 
+  it("passes --format csv through to the SDK", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    await run(["export", "--format", "csv", "--out", "handoff"], deps, cap.streams);
+
+    expect(calls.exportWorkbook[0]).toMatchObject({ format: "csv", out: "handoff" });
+  });
+
+  it("omits the format entirely when the flag is absent, so the SDK default applies", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    await run(["export"], deps, cap.streams);
+
+    expect(calls.exportWorkbook[0]).not.toHaveProperty("format");
+  });
+
+  it("rejects an unknown --format as a usage error: exit 2, clean stdout, no SDK call", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["export", "--format", "ods"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(calls.exportWorkbook).toHaveLength(0);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).toContain('The --format option must be one of xlsx, csv, tsv, got "ods".');
+    expect(cap.err()).not.toContain("invalid_value");
+    expect(cap.err()).not.toContain('"path"');
+  });
+
   it("--json prints the export result as one JSON line", async () => {
     const result = makeExportResult({ path: "/p/wb.xlsx", locales: [{ locale: "de", rows: 1 }] });
     const { deps } = recordingDeps({ exportWorkbook: async () => result });
@@ -135,6 +168,51 @@ describe("run import: SDK delegation and rendering", () => {
     await run(["import", "wb.xlsx", "--dry-run"], deps, cap.streams);
 
     expect(calls.importWorkbook[0]).toMatchObject({ workbook: "wb.xlsx", dryRun: true });
+  });
+
+  it("passes --format tsv through to the SDK with the path argument", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    await run(["import", "handoff", "--format", "tsv"], deps, cap.streams);
+
+    expect(calls.importWorkbook[0]).toMatchObject({ workbook: "handoff", format: "tsv" });
+  });
+
+  it("omits the format entirely when the flag is absent, so the SDK default applies", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    await run(["import", "wb.xlsx"], deps, cap.streams);
+
+    expect(calls.importWorkbook[0]).not.toHaveProperty("format");
+  });
+
+  it("rejects an unknown --format as a usage error: exit 2, clean stdout, no SDK call", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["import", "wb.csv", "--format", "ods"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(calls.importWorkbook).toHaveLength(0);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).toContain('The --format option must be one of xlsx, csv, tsv, got "ods".');
+    expect(cap.err()).not.toContain("invalid_value");
+    expect(cap.err()).not.toContain('"path"');
+  });
+
+  it("rejects --format json, the likely typo for the --json flag, with the same usage error", async () => {
+    const { deps, calls } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["import", "wb.csv", "--format", "json"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.err()).toContain("[INVALID_FORMAT]");
+    expect(cap.err()).not.toContain("invalid_value");
+    expect(calls.importWorkbook).toHaveLength(0);
   });
 
   it("exits 1 when a locale failed (same rule as translate)", async () => {

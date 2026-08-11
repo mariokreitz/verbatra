@@ -1,18 +1,31 @@
 /**
  * The dashboard browser entry point: it applies the stored theme, mounts the React app into the
- * `#root` container, and then hands off to the WebMCP adapter.
+ * `#root` container behind an error boundary, and then hands off to the WebMCP adapter.
+ *
+ * The boundary is the outermost element of the mounted tree, so it covers every panel and the
+ * shell alike. Nothing below it is expected to catch a render throw on its own.
  *
  * The `registerAgentTools` call is fire-and-forget. It attaches the agent tools only when the
  * browser and the server-side opt-in both allow it and no-ops otherwise (see `registerAgentTools`
- * for the exact conditions), but it must never block or break the dashboard render. So its promise
- * is deliberately not awaited, and a rejected snapshot fetch at load is swallowed rather than left
- * as an unhandled rejection.
+ * for the exact conditions), but it must never block or break the dashboard render, so its promise
+ * is deliberately not awaited.
+ *
+ * Not awaited is not the same as not observed. Its outcome is reported to the console and published
+ * to the store the dashboard's degraded-mode notice reads, so a failed registration names itself
+ * instead of leaving a surface that merely appears to do nothing. The trailing `catch` covers the
+ * pass that never reached the per-tool loop at all, a rejected snapshot fetch at load being the
+ * likely case; a failure of one tool is not a rejection and travels in the report instead.
  */
 import { createRoot } from "react-dom/client";
 import { rpcParamsSchemas } from "../shared/rpc/contract.js";
 import { type ModelContext, registerAgentTools } from "../webmcp/register-tools.js";
+import {
+  reportAgentToolsRegistration,
+  reportAgentToolsStartupFailure,
+} from "../webmcp/registration-report.js";
 import { App } from "./App.js";
-import { rpcClient } from "./api.js";
+import { agentToolsStatusStore, rpcClient } from "./api.js";
+import { ErrorBoundary } from "./ErrorBoundary.js";
 import { initTheme } from "./lib/theme-dom.js";
 import "./styles.css";
 
@@ -27,11 +40,20 @@ initTheme();
 
 const container = document.getElementById("root");
 if (container !== null) {
-  createRoot(container).render(<App />);
+  createRoot(container).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
 }
 
 registerAgentTools({
   modelContext: document.modelContext,
   rpcClient,
   schemas: rpcParamsSchemas,
-}).catch(() => {});
+})
+  .then((registration) => {
+    reportAgentToolsRegistration(registration);
+    agentToolsStatusStore.publish(registration.failures);
+  })
+  .catch(reportAgentToolsStartupFailure);

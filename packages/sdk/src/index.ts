@@ -22,9 +22,9 @@
  * {@link retranslateEntry} re-runs the provider for one key; both hold the same per-locale write
  * lock as a full run.
  *
- * Excel handoff: {@link exportWorkbook} writes untranslated strings to an `.xlsx` workbook, and
- * {@link importWorkbook} reads a filled workbook back through the same diff, lock, and integrity
- * checks.
+ * Translator handoff: {@link exportWorkbook} writes untranslated strings to an `.xlsx` workbook, or
+ * to one `.csv` or `.tsv` file per target locale, and {@link importWorkbook} reads a filled handoff
+ * of either shape back through the same diff, lock, and integrity checks.
  *
  * Whole-run failures throw a structured, secret-free {@link SdkError}; per-locale failures,
  * provider notices, and integrity findings are surfaced as data on the {@link RunSummary} rather
@@ -133,7 +133,9 @@ export {
   type TranslateInput,
   translate,
 } from "./flow/translate-project.js";
+export type { ExchangeFormat } from "./flow/workbook/exchange-format.js";
 export {
+  DEFAULT_DELIMITED_PATH,
   DEFAULT_WORKBOOK_PATH,
   type ExportWorkbookDeps,
   type ExportWorkbookInput,

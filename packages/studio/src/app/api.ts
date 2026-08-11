@@ -17,6 +17,10 @@ import type { FetchLike, RpcClient } from "../client/rpc-client.js";
 import { createRpcClient } from "../client/rpc-client.js";
 import { createSessionStore, type SessionStore } from "../client/state.js";
 import type { RefreshEvent } from "../shared/sse-events.js";
+import {
+  type AgentToolsStatusStore,
+  createAgentToolsStatusStore,
+} from "../webmcp/registration-store.js";
 
 const browserFetch: FetchLike = (url, init) => fetch(url, init);
 
@@ -35,6 +39,13 @@ export const rpcClient: RpcClient = createRpcClient({
  * only on a full page reload.
  */
 export const reviewOverlayStore: ReviewOverlayStore = createReviewOverlayStore();
+
+/**
+ * The agent-tools registration outcome, held at module scope because the registration pass
+ * finishes after the dashboard has already mounted. It stays empty unless a tool registration
+ * failed, so nothing renders for the users who never opted the surface in.
+ */
+export const agentToolsStatusStore: AgentToolsStatusStore = createAgentToolsStatusStore();
 
 const refreshListeners = new Set<(event: RefreshEvent) => void>();
 

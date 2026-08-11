@@ -83,3 +83,19 @@ describe("defaultFs.deleteFile", () => {
     await expect(defaultFs.deleteFile(join(dir, "absent.json"))).resolves.toBeUndefined();
   });
 });
+
+describe("defaultFs.mkdir", () => {
+  it("creates the directory and every missing parent, then writes into it", async () => {
+    const dir = await makeTempDir();
+    const target = join(dir, "handoff", "nested");
+    await defaultFs.mkdir?.(target);
+    await defaultFs.writeFile(join(target, "de.csv"), "Key");
+    expect(await readFile(join(target, "de.csv"), "utf8")).toBe("Key");
+  });
+
+  it("is a no-op when the directory already exists", async () => {
+    const dir = await makeTempDir();
+    await defaultFs.mkdir?.(dir);
+    await expect(defaultFs.mkdir?.(dir)).resolves.toBeUndefined();
+  });
+});

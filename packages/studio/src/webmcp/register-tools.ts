@@ -28,6 +28,8 @@ import { REVIEW_QUEUE_METHOD } from "../shared/rpc/review-queue.js";
 import { PROJECT_SNAPSHOT_METHOD } from "../shared/rpc/snapshot.js";
 import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
 import { USAGE_SUMMARY_METHOD } from "../shared/rpc/usage-summary.js";
+import type { AgentToolsRegistration, ToolRegistrationFailure } from "./registration-report.js";
+import { NOTHING_ATTEMPTED, toRegistrationFailure } from "./registration-report.js";
 
 /** The annotations a WebMCP host reads to render a tool's consequence surface. */
 export interface WebMcpToolAnnotations {
@@ -50,7 +52,14 @@ export interface WebMcpTool {
 
 /** The minimal `document.modelContext` surface this adapter needs: register one tool at a time. */
 export interface ModelContext {
-  registerTool(tool: WebMcpTool): void;
+  /**
+   * Registers one tool. The WebMCP surface answers with a promise (it is specified as returning
+   * `Promise<undefined>`, and a browser running the surface was observed doing so), which is why
+   * the caller awaits the result instead of discarding it: a discarded rejection is a floating
+   * promise that no caller-side try/catch can ever see. The `void` arm keeps a synchronous host or
+   * a test double representable, and awaiting covers both.
+   */
+  registerTool(tool: WebMcpTool): PromiseLike<void> | void;
 }
 
 /** Everything {@link registerAgentTools} needs, injected by the app so the module stays DOM-free. */
@@ -210,25 +219,41 @@ function buildTool<M extends RpcMethodName>(
 /**
  * Registers the WebMCP agent tools when, and only when, all three conditions hold: the browser
  * exposes `document.modelContext`, the `project.snapshot` result carries `exposeAgentTools: true`,
- * and (for the two spend tools) `capabilities.spend` is true. Any condition unmet is a silent
- * no-op, leaving the dashboard byte-for-byte unchanged. It never gates the server: the same RPCs
- * are reachable with or without this call.
+ * and (for the two spend tools) `capabilities.spend` is true. Any condition unmet is a no-op that
+ * reports nothing attempted, leaving the dashboard byte-for-byte unchanged. It never gates the
+ * server: the same RPCs are reachable with or without this call.
+ *
+ * Each registration is awaited inside its own try/catch, so a rejection is caught while the failing
+ * tool name is still in hand, and a failing tool is collected rather than allowed to abort the
+ * tools after it: the surface is worth more partially registered than not at all, and the returned
+ * report is what makes both the partial outcome and its cause visible to the caller.
  */
-export async function registerAgentTools(deps: RegisterAgentToolsDeps): Promise<void> {
+export async function registerAgentTools(
+  deps: RegisterAgentToolsDeps,
+): Promise<AgentToolsRegistration> {
   const { modelContext } = deps;
   if (modelContext === undefined) {
-    return;
+    return NOTHING_ATTEMPTED;
   }
   const snapshot = await deps.rpcClient.call(PROJECT_SNAPSHOT_METHOD, {});
   if (!snapshot.ok || snapshot.result.exposeAgentTools !== true) {
-    return;
+    return NOTHING_ATTEMPTED;
   }
   const spendGranted = snapshot.result.capabilities.spend;
+  const registered: string[] = [];
+  const failures: ToolRegistrationFailure[] = [];
   for (const method of RPC_METHOD_NAMES) {
     const descriptor = TOOL_DESCRIPTORS[method];
     if (descriptor.spendGated && !spendGranted) {
       continue;
     }
-    modelContext.registerTool(buildTool(method, descriptor, deps));
+    const tool = buildTool(method, descriptor, deps);
+    try {
+      await modelContext.registerTool(tool);
+      registered.push(tool.name);
+    } catch (error) {
+      failures.push(toRegistrationFailure(tool.name, error));
+    }
   }
+  return { attempted: registered.length + failures.length, registered, failures };
 }

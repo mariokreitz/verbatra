@@ -199,7 +199,7 @@ current)` returns `{ added, changed, removed }`. Counts only, never key names.
 
 ## The workbook pair
 
-The Excel handoff for human translators; see [Manual translation](/docs/manual-translation).
+The translator handoff, as an Excel workbook or as delimited text; see [Manual translation](/docs/manual-translation).
 
 ### exportWorkbook
 
@@ -207,9 +207,12 @@ Writes the strings that still need translating (missing and changed keys per loc
 ones with `includeUnchanged`) into a styled `.xlsx` workbook. Rows carry the same review-flag
 signal a translate run computes. No provider call, no lock write.
 
-Input: `{ config, cwd?, out?, locales?, includeUnchanged? }`. `out` defaults to
-`DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`), exported as a constant. Returns
-`{ path, locales }`: the absolute path written and a per-locale row count.
+Input: `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format` is `xlsx` by
+default; `csv` and `tsv` write one `<locale>.csv` or `<locale>.tsv` per locale instead, so `out`
+names a directory for them (created if missing) and a file path for `xlsx`. `out` defaults to
+`DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) or `DEFAULT_DELIMITED_PATH`
+(`verbatra-translations`), both exported as constants. Returns `{ path, locales }`: the absolute
+path written and a per-locale row count.
 
 ### importWorkbook
 
@@ -217,7 +220,9 @@ Reads a filled workbook back into the locale files, running the same source-drif
 checks as `translate`. Only accepted rows advance their lock baseline; a blank or rejected
 row keeps re-exporting until it is genuinely resolved.
 
-Input: `{ config, workbook, cwd?, dryRun? }`. Returns the same `RunSummary` shape as `translate`
+Input: `{ config, workbook, cwd?, dryRun?, format? }`. With `csv` or `tsv`, `workbook` is either
+one interchange file or the directory holding one per locale, and the locale comes from the file
+name. Returns the same `RunSummary` shape as `translate`
 (with `needsReview` always empty, since no provider is involved). A sheet for a locale that is not
 a configured target fails that locale with `CONFIG_INVALID` as data on the summary, not a throw.
 

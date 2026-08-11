@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
+import type { ExchangeFormat, LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
@@ -75,12 +75,21 @@ const watchOptsSchema = z.object({
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
 
+/**
+ * The interchange format flag shared by export and import; omitted means the xlsx workbook. It is
+ * accepted here as a plain optional string and narrowed by {@link parseExchangeFormat}, so an
+ * unsupported value is a {@link UsageError} with a readable sentence rather than a raw `ZodError`
+ * rendered at the user.
+ */
+const exchangeFormatSchema = z.string().optional();
+
 const exportOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   out: z.string().optional(),
   locales: localeListSchema,
   includeUnchanged: z.boolean().optional(),
+  format: exchangeFormatSchema,
   json: z.boolean().optional(),
 });
 
@@ -88,6 +97,7 @@ const importOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
   dryRun: z.boolean().optional(),
+  format: exchangeFormatSchema,
   json: z.boolean().optional(),
 });
 
@@ -230,6 +240,30 @@ function parseDebounce(value: string | undefined): number | undefined {
     );
   }
   return Number.parseInt(value, 10);
+}
+
+/** The handoff formats `export` and `import` accept, in the order the help text lists them. */
+const EXCHANGE_FORMATS: readonly ExchangeFormat[] = ["xlsx", "csv", "tsv"];
+
+/**
+ * Narrows `--format` to a supported handoff format. An omitted flag stays `undefined`, leaving the
+ * SDK's own `xlsx` default in force. Any other value is a usage error, checked in the parse step so
+ * the user reads one plain sentence instead of a schema dump.
+ *
+ * @throws {@link UsageError} `INVALID_FORMAT` when `value` is not a supported handoff format.
+ */
+function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const format = EXCHANGE_FORMATS.find((candidate) => candidate === value);
+  if (format === undefined) {
+    throw new UsageError(
+      "INVALID_FORMAT",
+      `The --format option must be one of ${EXCHANGE_FORMATS.join(", ")}, got "${value}".`,
+    );
+  }
+  return format;
 }
 
 /**
@@ -466,34 +500,44 @@ async function runStudioCommand(
  * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  return withLocaleOpts(exportOptsSchema, rawOpts, streams, async (opts) => {
-    const cwd = opts.cwd ?? process.cwd();
-    return withWholeRunErrors(
-      deps,
-      streams,
-      loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
-      async (config) => {
-        const result = await deps.exportWorkbook({
-          config,
-          cwd,
-          ...(opts.out !== undefined ? { out: opts.out } : {}),
-          ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
-          ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
-        });
-        streams.out(
-          opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
-        );
-        return 0;
-      },
-    );
-  });
+  return withParsedOpts(
+    () => {
+      const opts = parseLocaleCommandOpts(exportOptsSchema, rawOpts);
+      return { ...opts, format: parseExchangeFormat(opts.format) };
+    },
+    streams,
+    async (opts) => {
+      const cwd = opts.cwd ?? process.cwd();
+      return withWholeRunErrors(
+        deps,
+        streams,
+        loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+        async (config) => {
+          const result = await deps.exportWorkbook({
+            config,
+            cwd,
+            ...(opts.out !== undefined ? { out: opts.out } : {}),
+            ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
+            ...(opts.includeUnchanged === true ? { includeUnchanged: true } : {}),
+            ...(opts.format !== undefined ? { format: opts.format } : {}),
+          });
+          streams.out(
+            opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+          );
+          return 0;
+        },
+      );
+    },
+  );
 }
 
 /**
  * Runs the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
  * failed, `2` the run could not start. Exported for the same reason as {@link runTranslate}: every
- * field on `importOptsSchema` is an optional string or boolean, so no CLI flag can organically trigger
- * a `ZodError`; a test calls this directly with a malformed `rawOpts` instead.
+ * field on `importOptsSchema` is an optional string or boolean, and the one value with a closed set,
+ * `--format`, is narrowed afterwards by {@link parseExchangeFormat} as a {@link UsageError} rather
+ * than by the schema, so no CLI flag can organically trigger a `ZodError`; a test calls this directly
+ * with a malformed `rawOpts` instead.
  */
 export async function runImport(
   workbook: string,
@@ -502,7 +546,10 @@ export async function runImport(
   streams: Streams,
 ): Promise<number> {
   return withParsedOpts(
-    () => importOptsSchema.parse(rawOpts),
+    () => {
+      const opts = importOptsSchema.parse(rawOpts);
+      return { ...opts, format: parseExchangeFormat(opts.format) };
+    },
     streams,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
@@ -517,6 +564,7 @@ export async function runImport(
             workbook,
             cwd,
             ...(opts.dryRun === true ? { dryRun: true } : {}),
+            ...(opts.format !== undefined ? { format: opts.format } : {}),
           });
           streams.out(
             opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
@@ -664,12 +712,18 @@ function buildProgram(
 
   program
     .command("export")
-    .description("Export untranslated strings into a styled Excel workbook for a human translator")
+    .description(
+      "Export untranslated strings into a translator handoff (Excel workbook, CSV, or TSV)",
+    )
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
-    .option("--out <path>", "write the workbook to this path (default verbatra-translations.xlsx)")
+    .option(
+      "--out <path>",
+      "write the handoff here: a file for xlsx (default verbatra-translations.xlsx), a directory for csv and tsv (default verbatra-translations)",
+    )
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--include-unchanged", "also export already up-to-date strings (off by default)")
+    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the export result as JSON")
     .action(async (opts: unknown) => {
       setCode(await runExport(opts, deps, streams));
@@ -682,18 +736,23 @@ function buildProgram(
         "  $ verbatra export                       write the workbook with missing and changed strings",
         "  $ verbatra export --locales de,fr       only the German and French sheets",
         "  $ verbatra export --include-unchanged   include already up-to-date strings",
+        "  $ verbatra export --format csv          write one <locale>.csv per locale into a directory",
       ].join("\n"),
     );
 
   program
     .command("import")
-    .argument("<workbook>", "path to the filled workbook to import")
+    .argument(
+      "<workbook>",
+      "path to the filled handoff: a workbook file, one csv or tsv file, or a directory of them",
+    )
     .description(
-      "Import a filled workbook back into the locale files, running the same safety checks",
+      "Import a filled handoff back into the locale files, running the same safety checks",
     )
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--dry-run", "validate and report without writing locale files or updating the lock")
+    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the run summary as JSON")
     .action(async (workbook: string, opts: unknown) => {
       setCode(await runImport(workbook, opts, deps, streams));
@@ -705,6 +764,7 @@ function buildProgram(
         "Examples:",
         "  $ verbatra import translations.xlsx             import the filled workbook",
         "  $ verbatra import translations.xlsx --dry-run   validate and report, write nothing",
+        "  $ verbatra import handoff --format csv          import every <locale>.csv in the directory",
       ].join("\n"),
     );
 

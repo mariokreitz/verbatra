@@ -7,6 +7,7 @@ import {
 } from "../client/refresh-toast.js";
 import { visibleReviewQueueRows } from "../client/review-queue-data.js";
 import { PAGE_IDS, type PageId, pageHash, parsePageHash } from "../client/routes.js";
+import { AgentToolsAlert } from "./AgentToolsAlert.js";
 import { refreshBus, reviewOverlayStore, sessionStore } from "./api.js";
 import type { IconName } from "./Icon.js";
 import { readStoredSidebarCollapsed, storeSidebarCollapsed } from "./lib/sidebar-dom.js";
@@ -19,6 +20,7 @@ import { RefreshToast } from "./RefreshToast.js";
 import { DesktopSidebar, MobileNavDrawer } from "./Sidebar.js";
 import { TopBar } from "./TopBar.js";
 import { Container } from "./ui.js";
+import { useAgentToolsFailures } from "./use-agent-tools-status.js";
 import { useReviewOverlaySignal } from "./use-review-overlay-signal.js";
 import { useReviewQueue } from "./use-review-queue.js";
 
@@ -171,6 +173,7 @@ function AppShell({
   readonly onToggleSidebar: () => void;
 }): ReactNode {
   const reviewQueue = useReviewQueue(refreshToken);
+  const agentToolsFailures = useAgentToolsFailures();
   useReviewOverlaySignal();
   const reviewCount =
     reviewQueue.kind === "data"
@@ -215,6 +218,7 @@ function AppShell({
         <TopBar pageLabel={PAGE_LABELS[page]} onOpenNav={() => onSetMobileNavOpen(true)} />
         <main className="min-w-0 flex-1 overflow-y-auto">
           <Container>
+            <AgentToolsAlert failures={agentToolsFailures} />
             <ActivePanel refreshToken={refreshToken} />
           </Container>
         </main>

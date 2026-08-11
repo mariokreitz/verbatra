@@ -1,10 +1,9 @@
 import ExcelJS from "exceljs";
-import { z } from "zod";
 import { ExchangeError } from "./errors.js";
 import { COLUMN, HEADER_ROW, HEADERS, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
 import { DEFAULT_WORKBOOK_LIMITS, type WorkbookLimits } from "./limits.js";
+import { parseRowCells, type RowOutcome } from "./row-shape.js";
 import type {
-  RowStatus,
   WorkbookData,
   WorkbookDuplicateKey,
   WorkbookRow,
@@ -17,23 +16,6 @@ import { guardWorkbookBytes } from "./zip-guard.js";
 export interface ReadWorkbookOptions {
   readonly limits?: WorkbookLimits;
 }
-
-/**
- * The zod boundary check on untrusted workbook content: key non-empty, status a known bucket.
- * The review fields fall back via `.catch` ("ok" / "") instead of rejecting, so a legacy workbook
- * exported before the review columns existed, or an unrecognized review-status cell, still imports.
- */
-const rowSchema = z.object({
-  key: z.string().min(1),
-  source: z.string(),
-  currentTarget: z.string(),
-  status: z.enum(["new", "changed", "unchanged"]),
-  sourceHash: z.string(),
-  translation: z.string(),
-  context: z.string(),
-  reviewStatus: z.enum(["ok", "review"]).catch("ok"),
-  reviewReasons: z.string().catch(""),
-});
 
 /**
  * Coerce a cell value to a string verbatim, falling back to the cell's rendered text for object cells.
@@ -73,45 +55,12 @@ function assertHeader(sheet: ExcelJS.Worksheet): void {
 }
 
 /**
- * The header label of the only column the row-shape check can reject a data row on. A blank-key row is
- * skipped before the shape check (see {@link readDataSheet}), and every other schema field is either an
- * unconstrained string or a tolerant `.catch` fallback, so the status enum is the sole reachable
- * failure. Named here so a malformed row can be reported by column without embedding any cell content.
- */
-const MALFORMED_ROW_COLUMN = "Status";
-
-/** The outcome of shape-checking one row: the parsed row, or the header label it was rejected on. */
-type RowOutcome =
-  | { readonly ok: true; readonly row: WorkbookRow }
-  | { readonly ok: false; readonly column: string };
-
-/**
- * Shape-check one worksheet row against the zod row schema at this untrusted boundary. Returns the
- * parsed row on success, or the offending column's header label on failure: the read layer reports the
- * failure as structured data instead of throwing, so one malformed row never aborts the whole sheet.
- *
- * Only the Translation value is trimmed: it is the sole editable column, so trimming is the single
- * normalization point that makes a whitespace-only cell read back as "" (treated exactly like an empty
- * cell) and lets the `[[CLEAR]]` unset sentinel match on trimmed content. Every other column, above all
- * the Key and Source-hash identifiers, is read verbatim so it round-trips exactly.
+ * Shape-check one worksheet row through the shared row-shape check at this untrusted boundary: the
+ * worksheet's cells are read left to right into the positional cell list {@link parseRowCells} maps to
+ * fields, so the xlsx reader and the delimited reader share one column-to-field mapping and one schema.
  */
 function parseRow(row: ExcelJS.Row): RowOutcome {
-  const candidate = {
-    key: cellString(row.getCell(COLUMN.key)),
-    source: cellString(row.getCell(COLUMN.source)),
-    currentTarget: cellString(row.getCell(COLUMN.current)),
-    status: cellString(row.getCell(COLUMN.status)) as RowStatus,
-    sourceHash: cellString(row.getCell(COLUMN.sourceHash)),
-    translation: cellString(row.getCell(COLUMN.translation)).trim(),
-    context: cellString(row.getCell(COLUMN.context)),
-    reviewStatus: cellString(row.getCell(COLUMN.reviewStatus)),
-    reviewReasons: cellString(row.getCell(COLUMN.reviewReasons)),
-  };
-  const result = rowSchema.safeParse(candidate);
-  if (!result.success) {
-    return { ok: false, column: MALFORMED_ROW_COLUMN };
-  }
-  return { ok: true, row: result.data };
+  return parseRowCells(HEADERS.map((_, index) => cellString(row.getCell(index + 1))));
 }
 
 /** One data sheet's parsed rows plus the structural problems the SDK import layer will judge. */
