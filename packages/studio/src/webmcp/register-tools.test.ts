@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import type { RpcCallResult, RpcClient } from "../client/rpc-client.js";
-import { rpcParamsSchemas } from "../shared/rpc/contract.js";
+import { RPC_METHOD_NAMES, type RpcMethodName, rpcParamsSchemas } from "../shared/rpc/contract.js";
 import type { ProjectSnapshotResult } from "../shared/rpc/snapshot.js";
 import { type ModelContext, registerAgentTools, type WebMcpTool } from "./register-tools.js";
 import type { AgentToolsRegistration } from "./registration-report.js";
@@ -408,6 +408,111 @@ describe("registerAgentTools failure reporting", () => {
       expectedName("project.snapshot"),
     );
     expect(tools).toHaveLength(11);
+  });
+});
+
+/** The floor the recorded description standard sets; a future one-liner has to fail this. */
+const MINIMUM_SENTENCES = 3;
+
+/** Splits on a period followed by whitespace. No description may use a period for anything else. */
+function sentencesOf(description: string): readonly string[] {
+  return description.split(/(?<=\.)\s+/).filter((sentence) => sentence.length > 0);
+}
+
+/** The backticked tokens in a description, which the standard reserves for parameter names. */
+function backtickedTokens(description: string): Set<string> {
+  return new Set(Array.from(description.matchAll(/`([^`]+)`/g), (match) => match[1] ?? ""));
+}
+
+/** The parameter names in a method's params schema, read from the JSON Schema the agent is shown. */
+function schemaParamNames(method: RpcMethodName): Set<string> {
+  const schema = z.toJSONSchema(rpcParamsSchemas[method]) as {
+    readonly properties?: Readonly<Record<string, unknown>>;
+  };
+  return new Set(Object.keys(schema.properties ?? {}));
+}
+
+async function describedTools(): Promise<ReadonlyMap<RpcMethodName, string>> {
+  const { tools } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
+  return new Map(
+    RPC_METHOD_NAMES.map((method) => [method, toolByName(tools, expectedName(method)).description]),
+  );
+}
+
+describe("registerAgentTools tool descriptions", () => {
+  it("gives every tool at least three whole sentences", async () => {
+    const descriptions = await describedTools();
+
+    for (const [method, description] of descriptions) {
+      const sentences = sentencesOf(description);
+      expect(sentences.length, method).toBeGreaterThanOrEqual(MINIMUM_SENTENCES);
+      expect(description.endsWith("."), method).toBe(true);
+    }
+  });
+
+  it("names exactly the parameters of its own schema, in backticks, and no others", async () => {
+    const descriptions = await describedTools();
+
+    for (const [method, description] of descriptions) {
+      expect(backtickedTokens(description), method).toEqual(schemaParamNames(method));
+    }
+  });
+
+  it("tells a parameterless tool that it takes no parameters", async () => {
+    const descriptions = await describedTools();
+
+    for (const [method, description] of descriptions) {
+      if (schemaParamNames(method).size > 0) {
+        continue;
+      }
+      expect(description.toLowerCase(), method).toContain("takes no parameters");
+    }
+  });
+
+  it("refers to a sibling tool by its advertised name, never by the dotted rpc method name", async () => {
+    const descriptions = await describedTools();
+
+    for (const [method, description] of descriptions) {
+      for (const other of RPC_METHOD_NAMES) {
+        expect(description, `${method} names ${other}`).not.toContain(other);
+      }
+    }
+  });
+
+  it("states in every spend-gated description that the call costs money, repeats, and cannot be undone", async () => {
+    const descriptions = await describedTools();
+
+    for (const method of SPEND_TOOLS) {
+      const description = (descriptions.get(method) ?? "").toLowerCase();
+      expect(description, method).toContain("spends provider budget");
+      expect(description, method).toContain("not idempotent");
+      expect(description, method).toContain("cannot be undone");
+    }
+  });
+
+  it("states that the retranslate call is billed even when the result is rejected", async () => {
+    const descriptions = await describedTools();
+
+    const description = (descriptions.get("translation.retranslateEntry") ?? "").toLowerCase();
+    expect(description).toContain("billed before the integrity check");
+  });
+
+  it("states that editing writes immediately and is never gated behind the spend flag", async () => {
+    const descriptions = await describedTools();
+
+    const description = (descriptions.get("translation.editEntry") ?? "").toLowerCase();
+    expect(description).toContain("immediately");
+    expect(description).toContain("spends no provider budget");
+    expect(description).toContain("always registered");
+    expect(description).toContain("never gated behind the spend flag");
+  });
+
+  it("has every read-only tool say that it calls no provider", async () => {
+    const descriptions = await describedTools();
+
+    for (const method of READ_TOOLS) {
+      expect((descriptions.get(method) ?? "").toLowerCase(), method).toContain("calls no provider");
+    }
   });
 });
 
