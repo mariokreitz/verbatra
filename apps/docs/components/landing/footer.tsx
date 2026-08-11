@@ -9,6 +9,7 @@ import {
   NPM_CLI,
   NPM_SDK,
   NPM_STUDIO,
+  RELEASES_URL,
   SECURITY_URL,
 } from "./links";
 
@@ -44,6 +45,7 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { labelKey: "cols.project.configFile", href: "/docs/config-file" },
       { labelKey: "cols.project.codeOfConduct", href: CODE_OF_CONDUCT_URL, external: true },
       { labelKey: "cols.project.security", href: SECURITY_URL, external: true },
+      { labelKey: "cols.project.releases", href: RELEASES_URL, external: true },
       { labelKey: "cols.project.llmsIndex", href: "/llms.txt" },
       { labelKey: "cols.project.llmsFull", href: "/llms-full.txt" },
       { literal: "GitHub", href: GITHUB_URL, external: true },

@@ -130,6 +130,18 @@ export function breadcrumbListLd(args: {
 
 export type FaqItem = { question: string; answer: string };
 
+const RICH_TEXT_TAG = /<\/?[a-z][a-z0-9]*>/gi;
+
+/**
+ * Drops the ICU rich-text tags a FAQ answer may carry for the UI (the landing accordion renders
+ * them through `t.rich`, for example to turn a word into a link). The JSON-LD answer must be the
+ * prose alone, so this runs on every answer rather than at the call site: no caller can then leak
+ * markup into `acceptedAnswer.text`. Answers without tags pass through unchanged.
+ */
+function plainAnswer(answer: string): string {
+  return answer.replace(RICH_TEXT_TAG, "");
+}
+
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;
@@ -141,7 +153,7 @@ export function faqPageLd(args: {
     mainEntity: args.items.map((item) => ({
       "@type": "Question",
       name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
+      acceptedAnswer: { "@type": "Answer", text: plainAnswer(item.answer) },
     })),
   };
 }

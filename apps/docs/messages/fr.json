@@ -151,7 +151,7 @@
         },
         "production": {
           "question": "verbatra est-il prêt pour la production ?",
-          "answer": "Il est jeune et activement développé, alors fige une version et lis le changelog lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution est comparée à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
+          "answer": "Il est jeune et activement développé, alors fige une version et lis le <releases>changelog</releases> lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution est comparée à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
         }
       }
     },
@@ -182,6 +182,7 @@
           "configFile": "Fichier de config",
           "codeOfConduct": "Code de conduite",
           "security": "Politique de sécurité",
+          "releases": "Notes de version",
           "llmsFull": "llms-full.txt (texte intégral)",
           "llmsIndex": "llms.txt (index)"
         },

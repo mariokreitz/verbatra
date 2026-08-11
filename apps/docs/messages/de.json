@@ -151,7 +151,7 @@
         },
         "production": {
           "question": "Ist verbatra produktionsreif?",
-          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das Changelog, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf wird mit einer festgeschriebenen Lock-Datei verglichen, überprüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
+          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das <releases>Changelog</releases>, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf wird mit einer festgeschriebenen Lock-Datei verglichen, überprüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
         }
       }
     },
@@ -182,6 +182,7 @@
           "configFile": "Konfigurationsdatei",
           "codeOfConduct": "Verhaltenskodex",
           "security": "Sicherheitsrichtlinie",
+          "releases": "Versionshinweise",
           "llmsFull": "llms-full.txt (vollständiger Text)",
           "llmsIndex": "llms.txt (Index)"
         },

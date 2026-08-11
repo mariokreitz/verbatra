@@ -151,7 +151,7 @@
         },
         "production": {
           "question": "¿Está verbatra listo para producción?",
-          "answer": "Es joven y está en desarrollo activo, así que fija una versión y lee el changelog cuando actualices. El modelo de seguridad ya es sólido: cada ejecución compara los cambios con un archivo de bloqueo confirmado, verifica la integridad de los placeholders y de ICU en cada resultado, y retiene cualquier cosa que falle en lugar de escribirla. Los equipos lo ejecutan en CI hoy en día; fija las versiones y estarás sobre terreno estable."
+          "answer": "Es joven y está en desarrollo activo, así que fija una versión y lee el <releases>changelog</releases> cuando actualices. El modelo de seguridad ya es sólido: cada ejecución compara los cambios con un archivo de bloqueo confirmado, verifica la integridad de los placeholders y de ICU en cada resultado, y retiene cualquier cosa que falle en lugar de escribirla. Los equipos lo ejecutan en CI hoy en día; fija las versiones y estarás sobre terreno estable."
         }
       }
     },
@@ -182,6 +182,7 @@
           "configFile": "Archivo de configuración",
           "codeOfConduct": "Código de conducta",
           "security": "Política de seguridad",
+          "releases": "Notas de la versión",
           "llmsFull": "llms-full.txt (texto completo)",
           "llmsIndex": "llms.txt (índice)"
         },
