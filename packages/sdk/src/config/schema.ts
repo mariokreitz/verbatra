@@ -65,8 +65,9 @@ export const verbatraConfigSchema = z
      * Opt-in plural-category generation, off by default. When true, and only for an i18next-JSON project
      * translated by an LLM provider, verbatra synthesizes the CLDR plural forms a target language
      * requires but the source does not supply (for example Polish few/many). The per-run
-     * `generatePlurals` option on `translate` overrides this. Unsupported cases (DeepL, non-i18next, an
-     * unknown language) fall back to the per-locale plural warning.
+     * `generatePlurals` option on `translate` overrides this. A plural form the target file already holds
+     * is adopted, never generated over. Unsupported cases (DeepL, non-i18next, an unknown language) fall
+     * back to the per-locale plural warning.
      */
     generatePlurals: z.boolean().optional(),
     /**
