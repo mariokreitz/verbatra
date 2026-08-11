@@ -56,14 +56,15 @@ consecuencias que conviene conocer antes de esa primera ejecución:
   antes de la primera ejecución.
 
 La generación de plurales sigue la misma regla de adopción. Una forma plural que el archivo de
-destino ya tiene se conserva tal cual: ni se regenera ni se envía al proveedor. Así que puedes dejar
-`generatePlurals` activado mientras adoptas un proyecto que lleva formas plurales escritas a mano;
-solo se sintetizan las formas que de verdad faltan en el destino.
+destino ya tiene y que verbatra no generó se conserva tal cual: ni se regenera ni se envía al
+proveedor (una forma que el bloqueo ya registra sí se regenera cuando su origen cambia). Así que
+puedes dejar `generatePlurals` activado mientras adoptas un proyecto que lleva formas plurales
+escritas a mano; solo se sintetizan las formas que de verdad faltan en el destino.
 
 Puedes verlo todo antes de gastar nada: `verbatra diff` lista por locale las claves faltantes y
 modificadas exactas, `verbatra check` informa de lo mismo en forma de recuentos y
 `verbatra translate --dry-run` te da el resumen completo de la ejecución. Ninguno de los tres llama
-a un proveedor, escribe un archivo de locale ni toca el bloqueo.
+a un proveedor, escribe un archivo de locale ni escribe el bloqueo.
 
 ## Cómo se actualiza
 

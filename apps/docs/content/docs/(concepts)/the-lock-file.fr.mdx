@@ -56,14 +56,16 @@ Qu'une clé soit adoptée se décide par sa présence, jamais par sa valeur, ce 
   la première exécution.
 
 La génération de pluriels suit la même règle d'adoption. Une forme plurielle que le fichier cible
-contient déjà est gardée telle quelle : elle n'est ni régénérée ni envoyée au fournisseur. Tu peux
-donc laisser `generatePlurals` activé pendant que tu adoptes un projet qui porte des formes
-plurielles écrites à la main ; seules les formes réellement absentes de la cible sont synthétisées.
+contient déjà et que verbatra n'a pas générée est gardée telle quelle : elle n'est ni régénérée ni
+envoyée au fournisseur (une forme que le fichier de verrouillage suit déjà est bien régénérée quand
+sa source change). Tu peux donc laisser `generatePlurals` activé pendant que tu adoptes un projet
+qui porte des formes plurielles écrites à la main ; seules les formes réellement absentes de la
+cible sont synthétisées.
 
 Tu peux voir tout cela avant de dépenser quoi que ce soit : `verbatra diff` liste par locale les
 clés manquantes et modifiées exactes, `verbatra check` rapporte la même chose sous forme de
 compteurs, et `verbatra translate --dry-run` te donne le résumé complet de l'exécution. Aucun des
-trois n'appelle de fournisseur, n'écrit de fichier de locale ni ne touche au fichier de
+trois n'appelle de fournisseur, n'écrit de fichier de locale ni n'écrit le fichier de
 verrouillage.
 
 ## Comment il est mis à jour

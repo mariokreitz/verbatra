@@ -191,8 +191,8 @@ interface LocaleSummary {
   budgetWithheld: string[];      // keys never sent because a "stop" budget already tripped
   generated: string[];           // CLDR plural forms synthesized this run
   unfilled: string[];            // import only: blank rows whose key still needs a translation
-  malformedRows: { row: number; column: string }[];  // import only: rows the reader could not parse
-  duplicateKeys: { key: string; row: number }[];      // import only: later rows for a duplicated key
+  malformedRows: { row: number; line?: number; column: string }[]; // import only: rows the reader could not parse
+  duplicateKeys: { key: string; row: number; line?: number }[];    // import only: later rows for a duplicated key
   notices: LocaleNotice[];       // provider notices and SDK notices for this locale
   needsReview: { key: string; reasons: string[] }[]; // accepted keys flagged for a second look
   usage?: UsageSummary;          // this locale's summed tokens; absent if nothing reported usage
@@ -207,7 +207,7 @@ Les parties à connaître :
 - **usage** est `undefined`, jamais un zéro fabriqué, dès que rien dans ce périmètre n'a rapporté d'usage : un dry run n'appelle jamais de fournisseur, et DeepL ne rapporte jamais de tokens. `RunSummary.usage` est la somme sur les locales.
 - **budget** n'apparaît que quand `maxTokens` est configuré : `{ maxTokens, behavior, supported, tokensUsed, exceeded }`. Face à un fournisseur sans tokens ou à un dry run, il est quand même présent avec `supported: false`, donc le garde-fou est visiblement inerte plutôt que faussement déclenché.
 - **error.code** sur une locale échouée est une chaîne préservée (le code du fournisseur ou de l'adaptateur sous-jacent, avec `LOCALE_FAILED` seulement en dernier recours), donc ne le traite pas comme un ensemble fermé.
-- **cacheHits** liste les clés servies depuis le [cache de mémoire de traduction](/docs/the-cache) plutôt que par le fournisseur. **unfilled**, **malformedRows** et **duplicateKeys** ne sont remplis que par `importWorkbook` (une exécution `translate` les laisse vides) : une ligne vide dont la clé demande toujours une traduction au moment de l'import (qu'elle ait été exportée comme `new` ou comme `changed`), une ligne du classeur que le lecteur n'a pas pu analyser, et une clé en double dont la première occurrence a gagné.
+- **cacheHits** liste les clés servies depuis le [cache de mémoire de traduction](/docs/the-cache) plutôt que par le fournisseur. **unfilled**, **malformedRows** et **duplicateKeys** ne sont remplis que par `importWorkbook` (une exécution `translate` les laisse vides) : une ligne vide dont la clé demande toujours une traduction au moment de l'import (qu'elle ait été exportée comme `new` ou comme `changed`), une ligne du classeur que le lecteur n'a pas pu analyser, et une clé en double dont la première occurrence a gagné. Le `line` optionnel des deux derniers est la ligne du fichier où commence l'enregistrement, présent uniquement pour un import délimité (`csv` ou `tsv`).
 
 ## Le modèle d'erreur
 
