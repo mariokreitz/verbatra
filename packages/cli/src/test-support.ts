@@ -122,6 +122,25 @@ export function captureStreams(): { streams: Streams; out: () => string; err: ()
   };
 }
 
+/**
+ * One parsed `--json` envelope, as a test reads it back off a captured stdout line. Deliberately
+ * looser than the source `SuccessEnvelope`/`ErrorEnvelope` union: a test asserts on the fields it
+ * cares about without first having to narrow on `ok`.
+ */
+export interface ParsedEnvelope {
+  readonly ok: boolean;
+  readonly version: number;
+  readonly command: string | null;
+  readonly result?: unknown;
+  readonly code?: string;
+  readonly message?: string;
+}
+
+/** Parses one captured `--json` stdout line (trailing newline included) back into its envelope. */
+export function parseEnvelope(line: string): ParsedEnvelope {
+  return JSON.parse(line.trim()) as ParsedEnvelope;
+}
+
 /** The recorded inputs of every `recordingDeps` call, one array per SDK entry point. */
 export interface DepCalls {
   loadConfig: LoadConfigOptions[];

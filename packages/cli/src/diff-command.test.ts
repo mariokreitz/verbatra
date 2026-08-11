@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run } from "./run.js";
-import { captureStreams, makeDiffSummary, recordingDeps } from "./test-support.js";
+import { captureStreams, makeDiffSummary, parseEnvelope, recordingDeps } from "./test-support.js";
 
 describe("run diff: SDK delegation, rendering, and exit codes", () => {
   it("delegates to diff with the resolved cwd and exits 0 when nothing is pending", async () => {
@@ -93,7 +94,12 @@ describe("run diff: SDK delegation, rendering, and exit codes", () => {
     const code = await run(["diff", "--json"], deps, cap.streams);
 
     expect(code).toBe(1);
-    expect(JSON.parse(cap.out())).toEqual(summary);
+    expect(parseEnvelope(cap.out())).toEqual({
+      ok: true,
+      version: JSON_ENVELOPE_VERSION,
+      command: "diff",
+      result: summary,
+    });
   });
 
   it("forwards --config to loadConfig", async () => {
