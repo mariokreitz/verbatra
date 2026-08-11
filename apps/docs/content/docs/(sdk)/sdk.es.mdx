@@ -54,7 +54,8 @@ Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache
   ningún locale más, y los locales en vuelo terminan y liberan sus bloqueos de escritura antes de que
   `translate` rechace, así que el rechazo llega después del más lento en vez de al instante.
 - `cache` está activado por defecto y reutiliza la [caché de memoria de traducción](/docs/the-cache)
-  local; ponlo en false para omitir la caché en la ejecución (el `--no-cache` de la CLI).
+  local (`verbatra.cache.json`, exportada también como `CACHE_FILE_NAME`); ponlo en false para omitir
+  la caché en la ejecución (el `--no-cache` de la CLI).
 - `onProgress` se llama a medida que avanza la ejecución (por inicio y fin de cada locale, y por
   sub-lote del proveedor), y `onLockWait` se dispara mientras el bloqueo de escritura de un locale
   está en disputa. Ambos son callbacks de notificación; el SDK no escribe nada por sí mismo.

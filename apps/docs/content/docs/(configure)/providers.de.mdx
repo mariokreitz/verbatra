@@ -218,6 +218,7 @@ Ein Provider-Fehlschlag erscheint nie als roher SDK-Fehler, der Request-Header o
 | Code | Bedeutung |
 | --- | --- |
 | `MISSING_API_KEY` | Die erforderliche Umgebungsvariable ist ungesetzt oder leer. Die Meldung nennt die Variable, nie einen Wert. |
+| `INVALID_REQUEST` | Die Anfrage ist vor jedem Netzwerkaufruf an der Validierung gescheitert: ein fehlerhaftes Feld oder ein Locale-Code, den DeepL nicht akzeptiert (ein regionaler Quell-Code oder ein bloßes `en` oder `pt` als Ziel). Korrigiere die Konfiguration oder die Anfrage; Wiederholen hilft nicht. |
 | `RATE_LIMITED` | HTTP 429 oder ein SDK-Rate-Limit-Fehler. Warte und versuche es später erneut. |
 | `TIMEOUT` | Ein Netzwerk- oder Anfrage-Timeout; keine Antwort kam rechtzeitig an. Wiederholen kann helfen, und [`requestTimeoutMs`](#anfrage-timeout) hebt die Grenze an. |
 | `AUTH_FAILED` | HTTP 401 oder 403: Der Schlüssel ist ungültig, widerrufen oder ohne Berechtigung. Wiederholen hilft nicht. |

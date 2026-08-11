@@ -218,6 +218,7 @@ Un fallo de proveedor nunca aflora como un error crudo del SDK, que podría llev
 | Código | Significado |
 | --- | --- |
 | `MISSING_API_KEY` | La variable de entorno requerida no está definida o está vacía. El mensaje nombra la variable, nunca un valor. |
+| `INVALID_REQUEST` | La solicitud falló la validación antes de cualquier llamada de red: un campo malformado, o un código de locale que DeepL no acepta (un código de origen regional, o un `en` o `pt` escueto como destino). Corrige la configuración o la solicitud; reintentar no ayudará. |
 | `RATE_LIMITED` | HTTP 429 o un error de límite de tasa del SDK. Espera y reintenta más tarde. |
 | `TIMEOUT` | Un tiempo de espera de red o de solicitud; no llegó respuesta a tiempo. Reintentar puede ayudar, y [`requestTimeoutMs`](#tiempo-de-espera-de-solicitud) sube el límite. |
 | `AUTH_FAILED` | HTTP 401 o 403: la clave es inválida, está revocada o carece de permisos. Reintentar no ayudará. |
