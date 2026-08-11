@@ -20,6 +20,33 @@ Alle vier lesen verschachtelte JSON-Objekte mit String-Blättern. Die Unterschie
 - **next-intl**-Werte sind ICU MessageFormat: Die Platzhalter sind die ICU-Argument- und Rich-Text-Tag-Namen, der Plural folgt einem ICU-plural- oder selectordinal-Argument, und der ICU-Körper wird wortgetreu durch die Pipeline getragen. Ein Wert, der nicht als ICU parst, wird als ungültig gemeldet und übersprungen, nie geworfen.
 - **ngx-translate** teilt i18nexts `{{double-brace}}`-Interpolation, hat aber kein `$t()`-Nesting, keinen eingebauten Plural und kein ICU. Seine Dateien dürfen flach (gepunktete Keys) oder verschachtelt sein, und verbatra erhält beim Schreiben den Stil, den die Datei verwendet; eine neue Zieldatei wird verschachtelt geschrieben. Einzigartig: Eine Datei, die flache gepunktete Keys mit verschachtelten Objekten mischt, lässt das Lesen mit `MIXED_STRUCTURE` fehlschlagen, weil so eine Datei mehrdeutig statt erratbar ist.
 
+## Namespace-Layouts
+
+Strings über mehrere Namespace-Dateien pro Locale zu verteilen, ist in i18next-Projekten üblich: `common.json`, `auth.json` und so weiter liegen nebeneinander in einem Locale-Verzeichnis. Eine verbatra-Konfiguration adressiert genau eine Datei pro Locale: `files.pattern` ist ein wörtlicher Pfad mit eingesetztem `{locale}`, er wird nie als Glob expandiert, und es gibt kein Namespace-Token. Ein Muster wie `public/locales/{locale}/*.json` wird als Datei mit dem wörtlichen Namen `*.json` gesucht und schlägt mit `SOURCE_UNREADABLE` fehl.
+
+Ein Layout mit einem einzigen Namespace funktioniert wie konfiguriert:
+
+```ts
+files: {
+  pattern: "public/locales/{locale}/common.json",
+},
+```
+
+### Eine Konfiguration pro Namespace
+
+Schreibe für ein Projekt mit mehreren Namespaces eine Konfiguration pro Namespace und starte verbatra einmal pro Konfiguration. Jeder Dateiname funktioniert, da `--config` einen expliziten Pfad anhand seiner Endung lädt:
+
+```bash
+verbatra translate --config verbatra.common.config.ts
+verbatra translate --config verbatra.auth.config.ts
+```
+
+Jeder Lauf behandelt seinen eigenen Namespace: Keys, die in einer Zieldatei fehlen, werden wie gewohnt übersetzt.
+
+<Callout type="warn" title="Nur der zuletzt gelaufene Namespace behält die Änderungserkennung">
+Alle Konfigurationen im selben Arbeitsverzeichnis teilen sich eine `verbatra.lock.json`, und jeder `translate`-Lauf ersetzt die aufgezeichnete Baseline dieser Locale durch die Keys, die er gerade verarbeitet hat. Nach dem zweiten Lauf hat der erste Namespace keine Baseline mehr, eine Änderung an einem seiner Quellstrings gilt für `check` und `diff` also als synchron und wird nicht neu übersetzt. Eine andere Reihenfolge der Läufe hilft nicht; wer zuletzt läuft, überschreibt den anderen. Um einen geänderten String in diesem Aufbau neu zu übersetzen, lösche diesen Key aus der Zieldatei (oder lösche die ganze Zieldatei), damit er als fehlend statt als geändert zählt.
+</Callout>
+
 ## XLIFF
 
 Das `xliff`-Format deckt `.xlf`- und `.xliff`-Dateien ab, XLIFF 1.2 (`file/body/trans-unit`) und 2.0 (`file/unit/segment`). Anders als die Baum-Formate ist ein XLIFF-Dokument eine flache Liste von Trans-Units.

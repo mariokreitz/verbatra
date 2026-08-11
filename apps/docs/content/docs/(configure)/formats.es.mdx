@@ -20,6 +20,33 @@ Los cuatro leen objetos JSON anidados de hojas string. Sus diferencias son la si
 - Los valores de **next-intl** son ICU MessageFormat: los marcadores de posición son los nombres de argumentos y de etiquetas de texto enriquecido ICU, el plural sigue un argumento ICU plural o selectordinal, y el cuerpo ICU se mantiene textual a través de la canalización. Un valor que no parsea como ICU se informa como inválido y se omite, nunca se lanza.
 - **ngx-translate** comparte la interpolación `{{double-brace}}` de i18next pero no tiene anidamiento `$t()` ni plural o ICU integrados. Sus archivos pueden ser planos (claves con puntos) o anidados, y verbatra preserva al escribir el estilo que use el archivo; un archivo de destino nuevo se escribe anidado. De forma única, un archivo que mezcla claves planas con puntos y objetos anidados falla la lectura con `MIXED_STRUCTURE`, porque un archivo así es ambiguo y no adivinable.
 
+## Diseños con namespaces
+
+Repartir las cadenas entre varios archivos de namespace por locale es habitual en los proyectos i18next, con `common.json`, `auth.json` y demás uno al lado del otro dentro de un directorio de locale. Una configuración de verbatra direcciona exactamente un archivo por locale: `files.pattern` es una ruta literal con `{locale}` sustituido, nunca se expande como un glob, y no hay token de namespace. Un patrón como `public/locales/{locale}/*.json` se busca como un archivo llamado literalmente `*.json` y falla con `SOURCE_UNREADABLE`.
+
+Un diseño de un solo namespace funciona tal cual se configura:
+
+```ts
+files: {
+  pattern: "public/locales/{locale}/common.json",
+},
+```
+
+### Una configuración por namespace
+
+Para un proyecto con varios namespaces, escribe una configuración por namespace y ejecuta verbatra una vez por configuración. Cualquier nombre de archivo sirve, ya que `--config` carga una ruta explícita por su extensión:
+
+```bash
+verbatra translate --config verbatra.common.config.ts
+verbatra translate --config verbatra.auth.config.ts
+```
+
+Cada ejecución se ocupa de su propio namespace: las claves que faltan en un archivo de destino se traducen como siempre.
+
+<Callout type="warn" title="Solo el namespace que se ejecutó en último lugar conserva la detección de cambios">
+Todas las configuraciones del mismo directorio de trabajo comparten un único `verbatra.lock.json`, y cada ejecución de `translate` reemplaza la línea base registrada de ese locale con las claves que acaba de procesar. Tras la segunda ejecución, el primer namespace se queda sin línea base, así que editar una de sus cadenas de origen se informa como sincronizado en `check` y `diff` y no se vuelve a traducir. Cambiar el orden de las ejecuciones no ayuda; la que va última borra a la otra. Para volver a traducir una cadena editada con este montaje, borra esa clave del archivo de destino (o borra el archivo de destino entero) para que cuente como faltante en lugar de modificada.
+</Callout>
+
 ## XLIFF
 
 El formato `xliff` cubre archivos `.xlf` y `.xliff`, XLIFF 1.2 (`file/body/trans-unit`) y 2.0 (`file/unit/segment`). A diferencia de los formatos de árbol, un documento XLIFF es una lista plana de trans-units.

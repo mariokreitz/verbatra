@@ -52,6 +52,10 @@ a structural problem (`SOURCE_INVALID`, wrapping the adapter's message).
 directory, so a wrong `--cwd` is a common cause. For structural rejections, see the
 `INVALID_STRUCTURE` entry below.
 
+A wildcard in the pattern is another cause: `files.pattern` is a literal path, not a glob, so
+`public/locales/{locale}/*.json` is looked up as a file named `*.json`. See
+[Namespace layouts](/docs/formats#namespace-layouts).
+
 ## Missing API key (PROVIDER_CONSTRUCTION_FAILED)
 
 **Symptom**: `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable
