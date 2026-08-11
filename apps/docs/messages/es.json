@@ -65,7 +65,7 @@
         },
         "diff": {
           "title": "Compara",
-          "body": "Cada ejecución compara tu locale de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana."
+          "body": "Cada ejecución compara tu locale de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana. Las claves huérfanas, las que ya no están en tu origen, se informan y se dejan donde están: no se elimina nada de tus archivos de locale a menos que actives --prune."
         },
         "translate": {
           "title": "Traduce",

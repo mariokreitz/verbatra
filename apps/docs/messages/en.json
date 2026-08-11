@@ -81,7 +81,7 @@
         },
         "diff": {
           "title": "Diff",
-          "body": "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned."
+          "body": "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned. Orphaned keys, the ones no longer in your source, are reported and left in place: nothing is removed from your locale files unless you opt in with --prune."
         },
         "translate": {
           "title": "Translate",
