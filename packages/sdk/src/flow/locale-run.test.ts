@@ -419,7 +419,9 @@ describe("runLocale: plural generation", () => {
     expect(summary.orphaned).toEqual(["orphan"]);
     expect(summary.pruned).toEqual([]);
     expect(lockEntries.orphan).toBeUndefined();
-    expect(lockEntries.items_few).toBeDefined();
+    const pl = (await readJsonFile(targetPath(dir, "pl"))) as Record<string, string>;
+    expect(pl.items_few).toBe("x");
+    expect(lockEntries.items_few).toBeUndefined();
   });
 
   it("carries the prior baseline lock hash for a previously generated plural key not regenerated", async () => {
