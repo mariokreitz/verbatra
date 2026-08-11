@@ -17,7 +17,7 @@ import type { FormatAdapter } from "@verbatra/format-adapters";
 import { lookupMemory } from "../cache/translation-memory.js";
 import type { CacheAddition, TranslationMemory } from "../cache/types.js";
 import type { SdkFs } from "../fs.js";
-import { localeFilePath } from "../paths.js";
+import type { LocalePathResolver } from "../locale-path/resolver.js";
 import type { ProgressListener } from "../progress/types.js";
 import { chunk, subBatchFailedNotice } from "./batching.js";
 import {
@@ -54,7 +54,8 @@ export interface LocaleRunParams {
   /** Undefined signals dry-run: the provider is neither constructed nor called. */
   readonly provider: TranslationProvider | undefined;
   readonly cwd: string;
-  readonly filesPattern: string;
+  /** The project's locale-to-path resolver, created once per run from the config. */
+  readonly resolver: LocalePathResolver;
   readonly sourceLocale: string;
   readonly targetLocale: string;
   readonly format: SupportedFormat;
@@ -387,8 +388,7 @@ async function shouldWriteTarget(
  */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
   const target = await readTargetResource({
-    cwd: params.cwd,
-    filesPattern: params.filesPattern,
+    resolver: params.resolver,
     format: params.format,
     locale: params.targetLocale,
     adapter: params.adapter,
@@ -483,7 +483,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     merged.set(form.targetKey, { ...form.entry, namespace: target.namespace });
   }
 
-  const path = localeFilePath(params.cwd, params.filesPattern, params.targetLocale);
+  const path = params.resolver.pathFor(params.targetLocale);
   const writeNeeded = await shouldWriteTarget(params, path, {
     accepted: accepted.size,
     pruned: pruned.length,

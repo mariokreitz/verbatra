@@ -2,7 +2,7 @@ import type { FormatAdapter, ReadResult } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { errorMessage, SdkError } from "../errors.js";
 import type { SdkFs } from "../fs.js";
-import { localeFilePath } from "../paths.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 
 /**
  * Read the source locale file into core's IR. An absent file is a structured `SOURCE_UNREADABLE`; an
@@ -14,7 +14,7 @@ export async function readSource(
   fs: SdkFs,
   adapter: FormatAdapter,
 ): Promise<ReadResult> {
-  const sourcePath = localeFilePath(cwd, config.files.pattern, config.sourceLocale);
+  const sourcePath = createLocalePathResolver(cwd, config).pathFor(config.sourceLocale);
   if (!(await fs.fileExists(sourcePath))) {
     throw new SdkError(
       "SOURCE_UNREADABLE",

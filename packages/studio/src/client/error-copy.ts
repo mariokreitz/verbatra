@@ -37,6 +37,10 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   UNKNOWN_KEY: "The requested key was not found in the source resource. It may have been removed.",
   LOCK_CONTENDED:
     "This locale's write lock is held by another process. Wait a moment and try again.",
+  LOCALE_LAYOUT_INVALID:
+    "The files pattern and locale style in the verbatra config cannot produce a path for every configured locale. Check the files section of the config.",
+  LOCALE_PATH_COLLISION:
+    "Two configured locales resolve to the same file path. Check the locales and the files pattern in the verbatra config.",
   INVALID_JSON: "A target locale file is not valid JSON.",
   INVALID_YAML: "A target locale file is not valid YAML.",
   INVALID_XML: "A target locale file is not valid XML.",

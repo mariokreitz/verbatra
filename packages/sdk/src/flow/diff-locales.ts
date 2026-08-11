@@ -2,6 +2,7 @@ import { type DiffResult, diffResources, type LocaleResource } from "@verbatra/c
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import { baselineFor, lockFilePath, readLockFile } from "../lock/lock-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { readTargetResource } from "./read-target.js";
@@ -41,8 +42,7 @@ export async function readTarget(
   locale: string,
 ): Promise<LocaleResource> {
   return readTargetResource({
-    cwd,
-    filesPattern: config.files.pattern,
+    resolver: createLocalePathResolver(cwd, config),
     format: config.format,
     locale,
     adapter,

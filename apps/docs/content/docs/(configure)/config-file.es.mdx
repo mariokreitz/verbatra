@@ -44,6 +44,7 @@ Cuando escribes la configuración en TypeScript, tu editor ofrece para `options.
 | `targetLocales` | array de strings | obligatoria | Los locales a los que traducir. |
 | `format` | string | obligatoria | El adaptador de formato de tus archivos de locale. |
 | `files.pattern` | string | obligatoria | La ruta de cada archivo de locale, con un token `{locale}`. |
+| `files.localeStyle` | `"literal"`, `"posix"` o `"android"` | `"literal"` | Cómo se escribe el token `{locale}` para cada locale. |
 | `provider` | objeto | obligatoria | El proveedor de traducción, seleccionado por `id`. |
 | `glossary` | objeto o string | ninguno | Términos de origen a términos de destino preferidos, en línea o como ruta a un archivo JSON. |
 | `tone` | `"formal"`, `"informal"` o `"neutral"` | ninguno | El registro que deben usar las traducciones. |
@@ -61,6 +62,7 @@ Las claves de nivel superior desconocidas se rechazan. Por eso mismo una clave d
 - **`targetLocales`** debe contener al menos un locale, no debe incluir `sourceLocale`, y dos entradas no pueden ser iguales sin distinguir mayúsculas de minúsculas (por ejemplo `["de", "DE"]` se rechaza), porque cada locale se convierte en el nombre de su propia hoja de Excel al exportar.
 - **`format`** es uno de `i18next-json`, `vue-i18n-json`, `next-intl-json`, `ngx-translate-json`, `xliff`, `yaml`, `arb` o `properties`. Consulta [Formatos](/docs/formats).
 - **`files.pattern`** debe contener el token `{locale}`, que verbatra reemplaza con cada locale: `locales/{locale}.json` se resuelve a `locales/de.json`. Las rutas se resuelven contra el directorio de trabajo.
+- **`files.localeStyle`** decide en qué se expande el token. `literal`, el valor por defecto, usa la etiqueta configurada tal cual, que es lo que necesitan los diseños JSON, YAML, XLIFF, ARB, properties y `.lproj` de Apple. `posix` reemplaza `-` por `_`, para gettext (`locale/pt_BR/LC_MESSAGES/messages.po`) y el diseño Java `messages_{locale}.properties`. `android` expande el token a un directorio de recursos completo de Android, escrito como `res/{locale}/strings.xml`: `values` para el locale de origen, y luego `values-de`, `values-pt-rBR` y `values-b+zh+Hans`. Un estilo rechaza un locale para el que no tiene una escritura correcta, en lugar de escribir un directorio que la plataforma ignoraría en silencio.
 
 ### provider
 

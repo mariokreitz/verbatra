@@ -13,6 +13,7 @@ import {
 } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import { defaultFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import {
   makeIntegrityProvider,
   makeStubProvider,
@@ -101,7 +102,11 @@ function makeParams(
     adapter,
     provider: makeStubProvider().provider,
     cwd: base.cwd,
-    filesPattern: "locales/{locale}.json",
+    resolver: createLocalePathResolver(base.cwd, {
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      files: { pattern: "locales/{locale}.json" },
+    }),
     sourceLocale: "en",
     targetLocale: "de",
     format: "i18next-json",

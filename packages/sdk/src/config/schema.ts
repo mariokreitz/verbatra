@@ -1,6 +1,7 @@
 import { supportedFormatSchema } from "@verbatra/core";
 import { z } from "zod";
-import { LOCALE_TOKEN } from "../paths.js";
+import { LOCALE_TOKEN } from "../locale-path/pattern.js";
+import { LOCALE_STYLES } from "../locale-path/style.js";
 import { providerConfigSchema } from "./provider-config.js";
 
 /**
@@ -45,6 +46,12 @@ export const verbatraConfigSchema = z
     format: supportedFormatSchema,
     files: z.strictObject({
       pattern: z.string().min(1),
+      /**
+       * How the `{locale}` token in `pattern` is spelled for each locale. Absent means `"literal"`,
+       * the configured tag verbatim, which is what every layout except Android and the POSIX
+       * underscore layouts needs. See `LocaleStyle` for what each style produces.
+       */
+      localeStyle: z.enum(LOCALE_STYLES).optional(),
     }),
     provider: providerConfigSchema,
     /**
