@@ -1,8 +1,8 @@
 ---
 title: Ta première traduction
-description: Installe la CLI, génère une configuration avec verbatra init, définis ta clé d'API, et lance ta première commande translate. Moins de dix minutes entre rien et un fichier de locale traduit.
+description: Installe la CLI, génère une configuration avec verbatra init, prévisualise l'exécution sans clé d'API, puis définis ta clé et lance ta première commande translate. Moins de dix minutes entre rien et un fichier de locale traduit.
 ---
-Quatre étapes te mènent d'un projet vide à un fichier de locale traduit. Il te faut seulement Node.js `>=22.14.0` et une clé d'API pour un fournisseur.
+Cinq étapes te mènent d'un projet vide à un fichier de locale traduit. Il te faut seulement Node.js `>=22.14.0` et une clé d'API pour un fournisseur une fois que tu veux traduire pour de vrai. Les trois premières étapes ne coûtent rien et ne demandent aucun compte.
 
 ## 1. Installe
 
@@ -57,7 +57,30 @@ export default defineConfig({
 });
 ```
 
-## 3. Définis ta clé d'API
+## 3. Prévisualise sans clé d'API
+
+Si tu n'as pas encore de fichier source, crée-en un au motif configuré, par exemple `locales/en.json` :
+
+```json
+{
+  "greeting": "Hello, {{name}}!",
+  "cart": {
+    "empty": "Your cart is empty."
+  }
+}
+```
+
+Prévisualise maintenant l'exécution :
+
+```bash
+verbatra translate --dry-run
+```
+
+Un dry run ne construit aucun fournisseur, il ne demande donc aucune clé d'API et ne peut rien dépenser. Il lit tes fichiers, les compare et affiche le même résumé par locale qu'une vraie exécution, sans envoyer une seule chaîne ni écrire un seul fichier. Utilise-le pour vérifier le format, le motif de fichiers et les locales avant de t'inscrire où que ce soit.
+
+[`verbatra check`](/docs/cli/check) et [`verbatra diff`](/docs/cli/diff) se passent aussi du fournisseur : `check` signale les compteurs par locale, `diff` liste les clés exactes.
+
+## 4. Définis ta clé d'API
 
 Les clés viennent de l'environnement, jamais du fichier de configuration. Chaque fournisseur hébergé lit exactement une variable ; pour Gemini c'est `GEMINI_API_KEY`. Copie l'exemple généré et renseigne ta clé :
 
@@ -71,20 +94,9 @@ Puis ouvre `.env` et colle ta clé après `GEMINI_API_KEY=`. `translate`, `watch
 L'API de Gemini a une offre réellement gratuite, ce qui en fait la façon la moins chère d'essayer verbatra. Récupère une clé sur [Google AI Studio](https://aistudio.google.com/apikey) et définis `GEMINI_API_KEY`. L'offre gratuite a des limites de requêtes par minute et par jour, donc étale une grosse première traduction.
 </Callout>
 
-## 4. Traduis
+## 5. Traduis
 
-Si tu n'as pas encore de fichier source, crée-en un au motif configuré, par exemple `locales/en.json` :
-
-```json
-{
-  "greeting": "Hello, {{name}}!",
-  "cart": {
-    "empty": "Your cart is empty."
-  }
-}
-```
-
-Puis lance :
+Une fois la clé en place, lance la même commande pour de vrai :
 
 ```bash
 verbatra translate
@@ -113,7 +125,7 @@ Trois choses sont maintenant sur le disque :
 
 - `.verbatra-local/` : l'état local au processus (l'instantané de statut d'exécution et les verrous d'écriture par locale). `init` l'a ajouté au `.gitignore` ; ne le commite jamais.
 
-Le fichier de verrouillage est la référence de chaque exécution future. Relance `verbatra translate` sans rien modifier et rien n'est envoyé : chaque clé est déjà à jour. Modifie une seule chaîne source et seule cette clé est retraduite. Pour prévisualiser n'importe quelle exécution sans appel fournisseur ni la moindre écriture, utilise `verbatra translate --dry-run`.
+Le fichier de verrouillage est la référence de chaque exécution future. Relance `verbatra translate` sans rien modifier et rien n'est envoyé : chaque clé est déjà à jour. Modifie une seule chaîne source et seule cette clé est retraduite.
 
 <Callout title="Commite le fichier de verrouillage">
 Commite `verbatra.lock.json` avec tes fichiers de locale, pour que chaque machine et ta CI comparent avec la même référence. Voir [Le fichier de verrouillage](/docs/the-lock-file).

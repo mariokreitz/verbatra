@@ -1,8 +1,8 @@
 ---
 title: Your first translation
-description: Install the CLI, scaffold a config with verbatra init, set your API key, and run your first translate. Under ten minutes from nothing to a translated locale file.
+description: Install the CLI, scaffold a config with verbatra init, preview the run with no API key, then set your key and run your first translate. Under ten minutes from nothing to a translated locale file.
 ---
-Four steps take you from an empty project to a translated locale file. All you need is Node.js `>=22.14.0` and an API key for one provider.
+Five steps take you from an empty project to a translated locale file. All you need is Node.js `>=22.14.0`, and an API key for one provider once you are ready to translate for real. The first three steps cost nothing and need no account.
 
 ## 1. Install
 
@@ -57,7 +57,30 @@ export default defineConfig({
 });
 ```
 
-## 3. Set your API key
+## 3. Preview without an API key
+
+If you do not have a source file yet, create one at the configured pattern, for example `locales/en.json`:
+
+```json
+{
+  "greeting": "Hello, {{name}}!",
+  "cart": {
+    "empty": "Your cart is empty."
+  }
+}
+```
+
+Now preview the run:
+
+```bash
+verbatra translate --dry-run
+```
+
+A dry run constructs no provider at all, so it needs no API key and cannot spend anything. It reads your files, diffs them, and prints the same per-locale summary a real run would, without sending a single string or writing a single file. Use it to confirm your format, file pattern, and locales are right before you sign up for anything.
+
+[`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff) are provider-free in the same way: `check` reports per-locale counts, `diff` lists the exact keys.
+
+## 4. Set your API key
 
 Keys come from the environment, never from the config file. Each hosted provider reads exactly one variable; for Gemini that is `GEMINI_API_KEY`. Copy the scaffolded example and fill in your key:
 
@@ -71,20 +94,9 @@ Then open `.env` and paste your key after `GEMINI_API_KEY=`. `translate`, `watch
 Gemini's API has a genuinely free tier, which makes it the cheapest way to try verbatra. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier has per-minute and per-day request limits, so pace a large first-time translation.
 </Callout>
 
-## 4. Translate
+## 5. Translate
 
-If you do not have a source file yet, create one at the configured pattern, for example `locales/en.json`:
-
-```json
-{
-  "greeting": "Hello, {{name}}!",
-  "cart": {
-    "empty": "Your cart is empty."
-  }
-}
-```
-
-Then run:
+With the key in place, run the same command for real:
 
 ```bash
 verbatra translate
@@ -113,7 +125,7 @@ Three things are now on disk:
 
 - `.verbatra-local/`: process-local state (the run-status snapshot and per-locale write locks). `init` gitignored it; never commit it.
 
-The lock file is the baseline for every future run. Run `verbatra translate` again without editing anything and nothing is sent: every key is already current. Edit one source string and only that key is retranslated. To preview any run without a provider call or a single write, use `verbatra translate --dry-run`.
+The lock file is the baseline for every future run. Run `verbatra translate` again without editing anything and nothing is sent: every key is already current. Edit one source string and only that key is retranslated.
 
 <Callout title="Commit the lock file">
 Commit `verbatra.lock.json` alongside your locale files, so every machine and your CI diff against the same baseline. See [The lock file](/docs/the-lock-file).
