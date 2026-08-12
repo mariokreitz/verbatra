@@ -7,7 +7,7 @@
   "license": "MIT",
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
-    "./biome.json": "./biome.json",
+    "./tsconfig.package.json": "./tsconfig.package.json",
     "./tsup": {
       "types": "./tsup.base.d.mts",
       "default": "./tsup.base.mjs"
@@ -19,6 +19,7 @@
   },
   "files": [
     "tsconfig.base.json",
+    "tsconfig.package.json",
     "biome.json",
     "tsup.base.mjs",
     "tsup.base.d.mts",
