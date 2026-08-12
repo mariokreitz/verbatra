@@ -12,10 +12,7 @@
  * Build the shared Vitest config: the locked coverage gate plus the per-package include and exclude
  * globs.
  *
- * @param {object} [options] per-package include and exclude globs; everything else is locked.
- * @param {string[]} [options.testInclude] test file globs (default `["src/**\/*.test.ts"]`).
- * @param {string[]} [options.coverageInclude] measured source globs (default `["src/**\/*.ts"]`).
- * @param {string[]} [options.coverageExclude] extra excludes appended to the baked base excludes (default `[]`).
+ * @param {import("./vitest.base.d.mts").CreateVitestConfigOptions} [options] per-package include and exclude globs; everything else is locked.
  * @returns {import("vitest/config").ViteUserConfig} The resolved Vitest config for a package's `vitest.config.ts`.
  * @example
  * ```js
@@ -28,11 +25,13 @@
  * export default createVitestConfig({ coverageExclude: ["src/client.ts"] });
  * ```
  */
-export function createVitestConfig({
-  testInclude = ["src/**/*.test.ts"],
-  coverageInclude = ["src/**/*.ts"],
-  coverageExclude = [],
-} = {}) {
+export function createVitestConfig(options = {}) {
+  const {
+    testInclude = ["src/**/*.test.ts"],
+    coverageInclude = ["src/**/*.ts"],
+    coverageExclude = [],
+  } = options;
+
   return {
     test: {
       include: testInclude,

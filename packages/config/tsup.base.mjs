@@ -11,7 +11,7 @@
  * Build the shared tsup preset with per-package overrides merged on top.
  *
  * @param {import("tsup").Options} [overrides] tsup options merged over the preset; keys present here win over the defaults.
- * @returns {import("tsup").Options} The resolved tsup options for a package's `tsup.config.ts`.
+ * @returns {import("./tsup.base.d.mts").TsupConfig} The resolved tsup options for a package's `tsup.config.ts`.
  * @example
  * ```js
  * import { createTsupConfig } from "@verbatra/config/tsup";
