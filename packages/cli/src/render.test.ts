@@ -304,6 +304,61 @@ describe("render: human run summary", () => {
     expect(text).not.toContain("[");
   });
 
+  it("names the cause of a locale that failed with withheld keys and no error object", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [
+          makeLocale({
+            status: "failed",
+            unchanged: ["farewell", "greeting"],
+            providerFailures: ["welcome"],
+            notices: [
+              {
+                code: "SUB_BATCH_FAILED",
+                message:
+                  "A sub-batch of 1 entries failed (RATE_LIMITED: rate-limited) and was withheld; it will be retried next run.",
+              },
+            ],
+          }),
+        ],
+        failed: ["de"],
+      }),
+    );
+
+    expect(text).toContain("de: failed");
+    expect(text).toContain("provider-failed:");
+    expect(text).toContain("welcome");
+    expect(text).toContain("[SUB_BATCH_FAILED]");
+    expect(text).toContain("RATE_LIMITED");
+  });
+
+  it("counts provider-failed keys on a partial locale and lists them under it", () => {
+    const text = renderHuman(
+      makeSummary({
+        locales: [
+          makeLocale({
+            status: "partial",
+            translated: ["alpha"],
+            providerFailures: ["welcome"],
+          }),
+        ],
+        partial: ["de"],
+      }),
+    );
+
+    expect(text).toContain("1 provider-failed");
+    expect(text).toContain("provider-failed: welcome");
+  });
+
+  it("adds no detail group for a locale with no provider failures and no notices", () => {
+    const text = renderHuman(
+      makeSummary({ locales: [makeLocale({ translated: ["a"] })], succeeded: ["de"] }),
+    );
+
+    expect(text).not.toContain("provider-failed");
+    expect(text).not.toContain("notices");
+  });
+
   it("shows the budget-withheld count only when non-zero", () => {
     const withheld = renderHuman(
       makeSummary({ locales: [makeLocale({ budgetWithheld: ["a", "b"] })] }),

@@ -72,10 +72,13 @@ function renderBudgetLine(budget: RunBudget): string {
   return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
-/** Column width that aligns the import detail group keys past the longest label ("duplicates:"). */
-const DETAIL_GROUP_WIDTH = 13;
+/** Column width that aligns the detail group keys past the longest label ("provider-failed:"). */
+const DETAIL_GROUP_WIDTH = 17;
 
-/** One indented import-detail group (`unfilled:`, `malformed:`, `duplicates:`), or nothing when empty. */
+/**
+ * One indented detail group (`provider-failed:`, `notices:`, `unfilled:`, `malformed:`,
+ * `duplicates:`), or nothing when empty.
+ */
 function renderDetailGroup(label: string, values: readonly string[]): string | undefined {
   if (values.length === 0) {
     return undefined;
@@ -94,12 +97,24 @@ function renderPosition(at: { readonly row: number; readonly line?: number }): s
 }
 
 /**
- * The import-only detail groups under a locale line: the unfilled `changed` keys, the malformed rows
- * (by position and column), and the duplicate-key conflicts (by key and losing position). Empty for a
- * provider run, which never populates any of these buckets.
+ * The detail groups under a locale line: the keys withheld because the provider call produced
+ * nothing, each notice's code and message, then the import-only groups (the unfilled `changed` keys,
+ * the malformed rows by position and column, and the duplicate-key conflicts by key and losing
+ * position). A provider run populates the first two and none of the import ones.
+ *
+ * The notice group carries the only human-readable account of why a sub-batch was withheld. A locale
+ * that failed because every one of its sub-batches failed has no `error` to render (see the SDK's
+ * `LocaleSummary.error`: a locale withheld via `providerFailures`, `integrityMismatches`, or
+ * `budgetWithheld` reports through those lists and its notices instead), so without this group the
+ * human output named no code, no message, and no cause at all.
  */
 function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
   return [
+    renderDetailGroup("provider-failed", locale.providerFailures),
+    renderDetailGroup(
+      "notices",
+      locale.notices.map((notice) => `[${notice.code}] ${notice.message}`),
+    ),
     renderDetailGroup("unfilled", locale.unfilled),
     renderDetailGroup(
       "malformed",
@@ -120,7 +135,7 @@ function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
 function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   if (locale.status === "failed") {
     const suffix = locale.error ? ` [${locale.error.code}] ${locale.error.message}` : "";
-    return [`  ${locale.locale}: failed${suffix}`];
+    return [`  ${locale.locale}: failed${suffix}`, ...renderLocaleDetail(locale)];
   }
   const counts: ReadonlyArray<readonly [number, string, boolean]> = [
     [locale.translated.length, "translated", true],
@@ -131,6 +146,7 @@ function renderLocaleLine(locale: LocaleSummary): readonly string[] {
     [locale.pruned.length, "pruned", false],
     [locale.invalidIcuSource.length, "invalid-ICU skipped", false],
     [locale.integrityMismatches.length, "integrity-withheld", false],
+    [locale.providerFailures.length, "provider-failed", false],
     [locale.budgetWithheld.length, "budget-withheld", false],
     [locale.unfilled.length, "unfilled", false],
     [locale.malformedRows.length, "malformed-rows", false],
