@@ -226,3 +226,18 @@ fichiers est toujours active et n'a besoin d'aucune option.
 peuvent aussi atteindre le propre régulateur de Studio, `METHOD_RATE_LIMITED: Too many calls to
 this method; wait before retrying.` ; cela se dissipe tout seul. Voir
 [Réviser les traductions dans Studio](/docs/review-in-studio).
+
+## Annuler une exécution (aucun code d'erreur)
+
+**Symptôme** : une exécution a produit des traductions dont tu ne veux pas, et tu as besoin de
+retrouver l'état précédent.
+
+**Cause** : verbatra réécrit les fichiers de locale sur place et met à jour le fichier de
+verrouillage. Il n'y a ni commande d'annulation ni sauvegarde ; le contrôle de version est le
+mécanisme de récupération.
+
+**Solution** : reviens en arrière sur les fichiers de locale et sur `verbatra.lock.json` ensemble.
+Si tu ne reviens en arrière que sur les fichiers de locale, le fichier de verrouillage continue
+d'affirmer que les traductions restaurées sont à jour : rien ne les retraduit, et `check` et `diff`
+signalent toujours la locale comme propre. Voir
+[Récupération et retour en arrière](/docs/recovery-and-rollback).

@@ -234,3 +234,16 @@ von Dateien ist immer an und braucht kein Flag.
 können außerdem Studios eigene Drossel treffen, `METHOD_RATE_LIMITED: Too many calls to this
 method; wait before retrying.`; das löst sich von selbst. Siehe
 [Review in Studio](/docs/review-in-studio).
+
+## Einen Lauf rückgängig machen (kein Fehlercode)
+
+**Symptom**: Ein Lauf hat Übersetzungen erzeugt, die du nicht willst, und du brauchst den vorherigen
+Stand zurück.
+
+**Ursache**: verbatra schreibt Locale-Dateien direkt um und aktualisiert die Lock-Datei. Es gibt
+keinen Undo-Befehl und kein Backup; die Versionskontrolle ist der Wiederherstellungsweg.
+
+**Lösung**: Setze die Locale-Dateien und `verbatra.lock.json` gemeinsam zurück. Setzt du nur die
+Locale-Dateien zurück, behauptet die Lock-Datei weiterhin, die zurückgesetzten Übersetzungen seien
+aktuell: nichts übersetzt sie neu, und `check` und `diff` melden die Locale weiterhin als sauber.
+Siehe [Wiederherstellung und Rollback](/docs/recovery-and-rollback).
