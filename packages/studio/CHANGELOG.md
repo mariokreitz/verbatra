@@ -1,5 +1,92 @@
 # @verbatra/studio
 
+## 0.3.0
+
+### Minor Changes
+
+- 21459a6: Resolve locale file paths through the SDK's `createLocalePathResolver` instead of Studio's own copy
+  of the substitution. The live-refresh watcher and the history view now honor the project's
+  `files.localeStyle`, so a project on the `"posix"` or `"android"` layout is watched and reported at
+  the paths it actually writes.
+- 095db28: Show a recoverable notice instead of a blank page when the dashboard fails to render.
+
+  Studio mounted its React tree with nothing above it to catch a render throw. React's response to an
+  uncaught throw during render is to unmount the whole tree, so a fault in any single panel took the
+  entire dashboard down to an empty page: no message, no indication that anything had happened, and
+  no hint that a reload was the way out.
+
+  The tree is now mounted behind an error boundary. A render throw is caught at the top and replaced
+  by a full-screen notice in the style of the existing session-expired screen: it is announced with
+  `role="alert"`, it names the error so the fault can be identified without opening devtools, and it
+  carries a button that reloads the dashboard. The full error and its component stack are also logged
+  to the browser console, which is where the faulting component is actually named. Nothing is
+  reported anywhere off the machine.
+
+  This covers throws raised while React renders the tree, which is the case that blanked the page.
+  Errors thrown from event handlers, from async callbacks, and from work scheduled outside a render
+  pass happen where React is not rendering, so they do not reach the boundary and are unaffected.
+
+- c3ebf27: Support WebMCP agent-tool unregistration through an abort signal. `registerAgentTools` now accepts
+  an optional `signal` and passes it to every `registerTool` call, which is the only unregistration
+  mechanism the WebMCP specification offers. A signal that has already aborted registers nothing and
+  skips the snapshot call entirely, and an abort that lands mid-pass stops it where it stands. With no
+  signal supplied, the registered tool set is unchanged.
+
+### Patch Changes
+
+- 70d86b4: Rewrite the WebMCP agent tool descriptions so an agent can choose between them. Every tool now states what it does, when to use it, when not to use it, what each parameter means, and the caveats that change a decision. The two spend-gated tools say plainly that they spend provider budget, that they are not idempotent, and that they cannot be undone, and the retranslate tool says that the provider is billed before the integrity check runs, so a rejected result still costs money. Tool names, schemas, annotations, gating, and behavior are unchanged.
+- 6dafda6: Read the agent-tools registration status through `useSyncExternalStore` so a publish landing between the render and the effect commit is no longer missed. The hook previously seeded its state in a `useState` initializer during render and subscribed in a `useEffect` after commit; a publish in that gap was lost permanently and the degraded-mode notice would silently never appear.
+- 81c22ab: Key dropdown list items on a stable per-item id instead of the display label. Labels are display strings with no uniqueness guarantee, so two entries reading the same collided on their React key. `DropdownItem` now carries a required `id`.
+- bc5f980: Make the Studio theme initializer idempotent. It now detaches the OS scheme listener a
+  previous call registered before attaching a new one, so repeated calls leave at most one
+  active listener instead of accumulating one per call.
+- 2d119f8: Refresh the npm package metadata. The cli and sdk descriptions now name the providers, including running against an openai-compatible local or self-hosted model, and their keywords cover the supported formats (XLIFF, YAML, ARB, Flutter, Java properties) alongside the i18n libraries. The studio keywords gained the terms its dashboard is searched by, and its homepage now points at the Verbatra Studio documentation page. `verbatra --help` prints the same positioning as the package listing, so the banner no longer contradicts it.
+- 5384af2: Publish exactly one lock refresh for one atomic lock-file write. An atomic write (temp sibling, then rename over the target) reaches chokidar as an "add" followed by a "change" on the same path, released on chokidar's own 50ms per-path change throttle. Both map onto the studio watcher's single listener, so once that gap exceeded the debounce window the trailing timer fired twice and one logical write published two refresh events, costing consumers a redundant refetch. The lock entry now compares the watched file's identity (inode, size, and modification time) at settle time and drops a refresh that reports the same file state as the one it last published. The check fails open: an identity that cannot be read is never treated as a duplicate.
+- 45c3991: Report failed agent tool registrations instead of silently dropping them. The WebMCP surface
+  answers `registerTool` with a promise, whose result the dashboard discarded, so a rejected
+  registration escaped as an unhandled rejection and a failing tool simply appeared to do nothing.
+  Each registration is now awaited and caught individually: one refused tool no longer stops the
+  tools after it, the outcome is written to the browser console naming every failing tool with its
+  error name, and the dashboard shows a `role="alert"` degraded-mode notice. A run in which every
+  registration succeeds stays entirely silent.
+- 2867106: Mark the status grid's coverage as last known when a re-read fails. The locale
+  headers previously rendered stale percentages exactly like freshly fetched ones,
+  so a failed background refresh left outdated coverage looking current. The
+  percentages now stay on screen under the same stale notice the activity, review,
+  and translations panels already render.
+- 877f399: Bring the dashboard's React layer under the package's test and coverage gates.
+
+  `src/app`, the entire user-facing half of Studio, sat outside both the test-discovery and the
+  coverage globs. The package reported a healthy figure against the shared 90 percent gate while
+  every panel, overlay, primitive and hook contributed nothing to either side of the ratio, so the
+  number described the server and client halves only.
+
+  The React layer is now discovered and measured like the rest of the package: its components and
+  hooks are covered by co-located Vitest tests running against a real DOM, and the same unchanged 90
+  percent thresholds on lines, functions, statements and branches now apply to them. The few files
+  that stay unmeasured are named individually in the config with the reason each is excluded, so
+  nothing is invisible by omission rather than by decision.
+
+  No dashboard behavior changes. This is test and configuration work: the only new dependency is a
+  development-time DOM environment, and nothing new reaches the published bundle.
+
+- 7085769: Show specific copy when a provider-spending action fails because the provider itself is down.
+
+  The provider boundary now reports a server-side outage as `PROVIDER_UNAVAILABLE` rather than the
+  generic unclassified code. Studio's error table gains a matching entry, so retranslate and
+  translate-pending failures during an outage explain that the fault is on the provider's side and
+  the action is worth retrying later, instead of falling back to the generic server message.
+
+- Updated dependencies [7085769]
+- Updated dependencies [6fb1941]
+- Updated dependencies [6871028]
+- Updated dependencies [21459a6]
+- Updated dependencies [2d119f8]
+- Updated dependencies [6b911af]
+- Updated dependencies [1d3d92d]
+- Updated dependencies [4720494]
+  - @verbatra/sdk@0.7.0
+
 ## 0.2.4
 
 ### Patch Changes
