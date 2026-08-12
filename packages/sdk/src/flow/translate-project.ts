@@ -42,7 +42,7 @@ import type { BudgetTracker } from "./budget.js";
 import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
-import { readSource } from "./source.js";
+import { readSourceResource } from "./source.js";
 import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
 
@@ -645,7 +645,7 @@ export async function translate(
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const cache = await createRunCacheState(input, config, cwd, dryRun, fs);
   const context: LocaleRunContext = {
     source,

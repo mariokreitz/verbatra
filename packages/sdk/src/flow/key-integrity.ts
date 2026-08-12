@@ -7,11 +7,12 @@ import {
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import { baselineFor, lockFilePath, readLockFile } from "../lock/lock-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
-import { readTarget } from "./diff-locales.js";
+import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
-import { readSource } from "./source.js";
+import { readSourceResource } from "./source.js";
 
 /**
  * One key's placeholder and ICU integrity result for one target locale. Only ever computed for a
@@ -134,13 +135,20 @@ export async function keyIntegrity(
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   return Promise.all(
     selectLocales(config, input.locales).map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
+      const target = await readTargetResource({
+        resolver,
+        format: config.format,
+        locale,
+        adapter,
+        fs,
+      });
       const diffResult = diffResources(source.resource, target, {
         baseline: baselineFor(lock, locale),
       });

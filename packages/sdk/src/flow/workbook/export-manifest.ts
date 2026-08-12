@@ -18,7 +18,7 @@ const MAX_MANIFEST_BYTES = 1024 * 1024;
  * Hidden and tool-branded, so it neither clutters the handoff a translator sees nor collides with a
  * plausible file of the user's own.
  */
-export function exportManifestFileName(format: DelimitedFormat): string {
+function exportManifestFileName(format: DelimitedFormat): string {
   return `.verbatra-export-${format}.json`;
 }
 

@@ -1,9 +1,4 @@
-import type {
-  Tone,
-  TranslateRequest,
-  TranslateResult,
-  TranslationProvider,
-} from "@verbatra/ai-providers";
+import type { Tone, TranslateResult, TranslationProvider } from "@verbatra/ai-providers";
 import { contentHash, type LocaleResource, type TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 import { chunk, subBatchFailedNotice } from "./batching.js";
@@ -16,6 +11,7 @@ import {
   planPluralGeneration,
 } from "./plural-categories.js";
 import type { LocaleNotice, UsageSummary } from "./summary.js";
+import { buildTranslateRequest } from "./translate-request.js";
 import { createUsageAccumulator, foldUsage } from "./usage.js";
 
 /** Everything plural generation needs from the locale run, without depending on the run module. */
@@ -103,7 +99,7 @@ const EMPTY_RESULT: PluralGenerationResult = {
  * Reuses {@link contentHash} over a throwaway entry whose value encodes the category and the sorted
  * governing-form hashes.
  */
-export function generatedLockHash(
+function generatedLockHash(
   governingEntries: readonly TranslationEntry[],
   category: CldrPluralCategory,
 ): string {
@@ -155,23 +151,6 @@ function staleItems(
     const hash = generatedLockHash(item.governingEntries, item.category);
     return baseline.get(item.targetKey) !== hash;
   });
-}
-
-function buildRequest(
-  context: PluralGenerationContext,
-  entries: readonly TranslationEntry[],
-): TranslateRequest {
-  return {
-    sourceLocale: context.sourceLocale,
-    targetLocale: context.targetLocale,
-    entries,
-    extractPlaceholders: context.adapter.extractPlaceholders,
-    ...(context.glossary !== undefined ? { glossary: context.glossary } : {}),
-    ...(context.tone !== undefined ? { tone: context.tone } : {}),
-    ...(context.adapter.comparePlaceholders !== undefined
-      ? { comparePlaceholders: context.adapter.comparePlaceholders }
-      : {}),
-  };
 }
 
 /**
@@ -258,7 +237,7 @@ async function runGenerationSubBatch(
   let result: TranslateResult;
   try {
     const entries = batch.map(syntheticEntry);
-    result = await context.provider.translateBatch(buildRequest(context, entries));
+    result = await context.provider.translateBatch(buildTranslateRequest(context, entries));
   } catch (error) {
     for (const item of batch) {
       providerFailures.push(item.targetKey);

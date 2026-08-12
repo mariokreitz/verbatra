@@ -2,7 +2,6 @@ import {
   ProviderError,
   type ReviewFlag,
   type Tone,
-  type TranslateRequest,
   type TranslateResult,
   type TranslationProvider,
 } from "@verbatra/ai-providers";
@@ -43,6 +42,7 @@ import {
 } from "./plural-generation.js";
 import { readTargetResource } from "./read-target.js";
 import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
+import { buildTranslateRequest } from "./translate-request.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
 /** Everything {@link runLocale} needs to process one target locale, resolved by the orchestrator. */
@@ -323,29 +323,6 @@ function withheldBucketFor(representative: string, outcome: TranslationOutcome):
 }
 
 /**
- * Assembles one provider request for `entries`. The adapter's `extractPlaceholders` always travels
- * with the request; `glossary`, `tone`, and the adapter's optional `comparePlaceholders` are spread
- * in only when defined rather than passed as an explicit undefined, which
- * `exactOptionalPropertyTypes` rejects.
- */
-function buildRequest(
-  params: LocaleRunParams,
-  entries: readonly TranslationEntry[],
-): TranslateRequest {
-  return {
-    sourceLocale: params.sourceLocale,
-    targetLocale: params.targetLocale,
-    entries,
-    extractPlaceholders: params.adapter.extractPlaceholders,
-    ...(params.glossary !== undefined ? { glossary: params.glossary } : {}),
-    ...(params.tone !== undefined ? { tone: params.tone } : {}),
-    ...(params.adapter.comparePlaceholders !== undefined
-      ? { comparePlaceholders: params.adapter.comparePlaceholders }
-      : {}),
-  };
-}
-
-/**
  * Whether this locale's target file has to be written at all.
  *
  * A run that accepted, pruned and generated nothing leaves the merged resource exactly as it was
@@ -396,8 +373,9 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   });
   const diff = diffResources(params.source, target, { baseline: params.baseline });
 
+  const sourceBaseKeys = sourcePluralBaseKeys(params.source);
   const orphaned = params.generatePlurals
-    ? diff.orphaned.filter((key) => !isGeneratedPluralKey(key, sourcePluralBaseKeys(params.source)))
+    ? diff.orphaned.filter((key) => !isGeneratedPluralKey(key, sourceBaseKeys))
     : diff.orphaned;
 
   const pruned: readonly string[] = params.prune ? orphaned : [];
@@ -695,6 +673,13 @@ async function translateAndCheck(
   const notices: LocaleNotice[] = [];
   const usage = createUsageAccumulator();
   let tripped = false;
+  const outcome: TranslationOutcome = {
+    accepted,
+    integrityMismatches,
+    providerFailures,
+    budgetWithheld,
+    reviewFlags,
+  };
   const batches = chunk(entries, params.maxBatchSize);
   let batchIndex = 0;
   for (const batch of batches) {
@@ -711,15 +696,7 @@ async function translateAndCheck(
       }
       continue;
     }
-    const subResult = await runSubBatch(
-      provider,
-      params,
-      batch,
-      accepted,
-      integrityMismatches,
-      providerFailures,
-      reviewFlags,
-    );
+    const subResult = await runSubBatch(provider, params, batch, outcome);
     notices.push(...subResult.notices);
     foldUsage(usage, subResult.usage);
     foldTrackerUsage(params.budget, subResult.usage);
@@ -750,32 +727,27 @@ async function runSubBatch(
   provider: TranslationProvider,
   params: LocaleRunParams,
   batch: readonly TranslationEntry[],
-  accepted: Map<string, Accepted>,
-  integrityMismatches: string[],
-  providerFailures: string[],
-  reviewFlags: Map<string, ReviewFlag>,
+  outcome: TranslationOutcome,
 ): Promise<SubBatchResult> {
   let result: TranslateResult;
   try {
-    result = await provider.translateBatch(buildRequest(params, batch));
+    result = await provider.translateBatch(buildTranslateRequest(params, batch));
   } catch (error) {
-    return handleSubBatchFailure(
-      error,
-      provider,
-      params,
-      batch,
-      accepted,
-      integrityMismatches,
-      providerFailures,
-      reviewFlags,
-    );
+    return handleSubBatchFailure(error, provider, params, batch, outcome);
   }
   for (const entry of batch) {
-    foldEntryResult(entry, result, params.adapter, accepted, integrityMismatches, providerFailures);
+    foldEntryResult(
+      entry,
+      result,
+      params.adapter,
+      outcome.accepted,
+      outcome.integrityMismatches,
+      outcome.providerFailures,
+    );
   }
   if (result.reviewFlags !== undefined) {
     for (const [key, flag] of result.reviewFlags) {
-      reviewFlags.set(key, flag);
+      outcome.reviewFlags.set(key, flag);
     }
   }
   return { notices: readNotices(result), usage: result.usage };
@@ -800,24 +772,13 @@ async function handleSubBatchFailure(
   provider: TranslationProvider,
   params: LocaleRunParams,
   batch: readonly TranslationEntry[],
-  accepted: Map<string, Accepted>,
-  integrityMismatches: string[],
-  providerFailures: string[],
-  reviewFlags: Map<string, ReviewFlag>,
+  outcome: TranslationOutcome,
 ): Promise<SubBatchResult> {
   if (isOutputTruncated(error) && batch.length > 1) {
-    return retryTruncatedSplit(
-      provider,
-      params,
-      batch,
-      accepted,
-      integrityMismatches,
-      providerFailures,
-      reviewFlags,
-    );
+    return retryTruncatedSplit(provider, params, batch, outcome);
   }
   for (const entry of batch) {
-    providerFailures.push(entry.key);
+    outcome.providerFailures.push(entry.key);
   }
   return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
 }
@@ -832,23 +793,12 @@ async function retryTruncatedSplit(
   provider: TranslationProvider,
   params: LocaleRunParams,
   batch: readonly TranslationEntry[],
-  accepted: Map<string, Accepted>,
-  integrityMismatches: string[],
-  providerFailures: string[],
-  reviewFlags: Map<string, ReviewFlag>,
+  outcome: TranslationOutcome,
 ): Promise<SubBatchResult> {
   const notices: LocaleNotice[] = [];
   let usage: TranslateResult["usage"];
   for (const half of chunk(batch, Math.ceil(batch.length / 2))) {
-    const sub = await runSubBatch(
-      provider,
-      params,
-      half,
-      accepted,
-      integrityMismatches,
-      providerFailures,
-      reviewFlags,
-    );
+    const sub = await runSubBatch(provider, params, half, outcome);
     notices.push(...sub.notices);
     usage = combineUsage(usage, sub.usage);
   }
@@ -883,8 +833,13 @@ function foldEntryResult(
 /**
  * Computes the lock entries for the written target: the current source hash for every
  * source-present key, except keys withheld this run (those keep their prior baseline hash so they
- * retry). Generated plural keys are source-absent and instead carry their own governing-source
- * hash ({@link GeneratedForm.lockHash}).
+ * retry, or carry no lock entry at all when there was no prior baseline to fall back to). Generated
+ * plural keys are source-absent and instead carry their own governing-source hash
+ * ({@link GeneratedForm.lockHash}).
+ *
+ * Deliberately distinct from `computeSheetLockEntries` in `import-workbook.ts`: that function falls
+ * back to the current source hash for a baseline-less, not-accepted key instead of leaving it
+ * unset. Do not unify the two; each matches its own flow's retry semantics.
  */
 function computeLockEntries(
   params: LocaleRunParams,

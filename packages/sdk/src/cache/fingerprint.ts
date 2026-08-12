@@ -1,6 +1,7 @@
 import { stableStringHash } from "@verbatra/core";
 import type { ProviderConfig } from "../config/provider-config.js";
 import type { VerbatraConfig } from "../config/schema.js";
+import { sortRecordKeys } from "../record-utils.js";
 
 /**
  * The provider's model as it enters the fingerprint, or null when the provider has none (DeepL). Read
@@ -17,10 +18,7 @@ function fingerprintModel(provider: ProviderConfig): string | null {
 function sortGlossary(
   glossary: Readonly<Record<string, string>> | undefined,
 ): Record<string, string> {
-  if (glossary === undefined) {
-    return {};
-  }
-  return Object.fromEntries(Object.entries(glossary).sort(([a], [b]) => (a < b ? -1 : 1)));
+  return glossary === undefined ? {} : sortRecordKeys(glossary);
 }
 
 /**

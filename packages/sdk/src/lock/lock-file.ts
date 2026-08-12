@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { SdkError } from "../errors.js";
 import type { BoundedFileRead, SdkFs } from "../fs.js";
+import { sortRecordKeys } from "../record-utils.js";
 import { withLockFileGuard } from "./locale-write-lock.js";
 import type { LockEntries, LockFile } from "./types.js";
 
@@ -78,26 +79,18 @@ export function baselineFor(lock: LockFile, locale: string): ReadonlyMap<string,
 }
 
 /** Return a new lock with one locale's entries replaced. */
-export function updateLockLocale(lock: LockFile, locale: string, entries: LockEntries): LockFile {
+function updateLockLocale(lock: LockFile, locale: string, entries: LockEntries): LockFile {
   return {
     version: lock.version,
     locales: { ...lock.locales, [locale]: entries },
   };
 }
 
-function byKey(a: readonly [string, unknown], b: readonly [string, unknown]): number {
-  return a[0] < b[0] ? -1 : 1;
-}
-
-function sortRecord(record: Readonly<Record<string, string>>): Record<string, string> {
-  return Object.fromEntries(Object.entries(record).sort(byKey));
-}
-
 /** Serialize the lock-file deterministically (sorted keys) for human-readable diffs. */
 function serializeLockFile(lock: LockFile): string {
   const locales: Record<string, Record<string, string>> = {};
-  for (const [locale, entries] of Object.entries(lock.locales).sort(byKey)) {
-    locales[locale] = sortRecord(entries);
+  for (const [locale, entries] of Object.entries(sortRecordKeys(lock.locales))) {
+    locales[locale] = sortRecordKeys(entries);
   }
   const ordered = { version: lock.version, locales };
   return `${JSON.stringify(ordered, null, 2)}\n`;

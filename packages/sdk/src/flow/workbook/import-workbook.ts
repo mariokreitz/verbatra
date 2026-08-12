@@ -16,7 +16,7 @@ import { feedTranslationMemory } from "../../cache/translation-memory.js";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { errorMessage, SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
-import { createLocalePathResolver } from "../../locale-path/resolver.js";
+import { createLocalePathResolver, type LocalePathResolver } from "../../locale-path/resolver.js";
 import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
@@ -26,9 +26,9 @@ import {
 } from "../../lock/lock-file.js";
 import type { LockFile } from "../../lock/types.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
-import { readTarget } from "../diff-locales.js";
 import { failureSummary, partition } from "../locale-failure.js";
-import { readSource } from "../source.js";
+import { readTargetResource } from "../read-target.js";
+import { readSourceResource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
 import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
 import { readExportedLocales } from "./export-manifest.js";
@@ -258,8 +258,12 @@ function collectSheetAdditions(
  * blank) keeps its prior baseline hash so it keeps re-exporting until it is genuinely resolved: a
  * blank cell must never silently hide a source change by advancing the baseline past it. A key with
  * no prior baseline at all falls back to the current hash, matching first-run bootstrap.
+ *
+ * Deliberately distinct from `computeLockEntries` in `locale-run.ts`: that function leaves a
+ * withheld, baseline-less key out of the lock entirely, while this one falls back to the current
+ * source hash for it. Do not unify the two; each matches its own flow's retry semantics.
  */
-function computeLockEntries(
+function computeSheetLockEntries(
   source: LocaleResource,
   merged: ReadonlyMap<string, TranslationEntry>,
   baseline: ReadonlyMap<string, string>,
@@ -283,7 +287,7 @@ function computeLockEntries(
 
 interface SheetContext {
   readonly config: VerbatraConfig;
-  readonly cwd: string;
+  readonly resolver: LocalePathResolver;
   readonly adapter: FormatAdapter;
   readonly fs: SdkFs;
   readonly source: LocaleResource;
@@ -395,7 +399,13 @@ async function runSheet(
             "It may be a renamed, added, or reordered tab; leave every language tab named exactly as exported.",
     );
   }
-  const target = await readTarget(ctx.cwd, ctx.config, ctx.adapter, ctx.fs, sheet.locale);
+  const target = await readTargetResource({
+    resolver: ctx.resolver,
+    format: ctx.config.format,
+    locale: sheet.locale,
+    adapter: ctx.adapter,
+    fs: ctx.fs,
+  });
   const baseline = baselineFor(lock, sheet.locale);
   const { summary, accepted } = importLocale({
     sheet,
@@ -418,7 +428,7 @@ async function runSheet(
 
   const merged = mergeAccepted(target, accepted);
   if (accepted.size > 0) {
-    const path = createLocalePathResolver(ctx.cwd, ctx.config).pathFor(sheet.locale);
+    const path = ctx.resolver.pathFor(sheet.locale);
     await ctx.adapter.write(
       {
         locale: sheet.locale,
@@ -431,7 +441,7 @@ async function runSheet(
   }
   return {
     summary,
-    lockEntries: computeLockEntries(ctx.source, merged, baseline, accepted),
+    lockEntries: computeSheetLockEntries(ctx.source, merged, baseline, accepted),
     cacheAdditions: sheetCacheAdditions(accepted),
   };
 }
@@ -461,6 +471,17 @@ async function runSheet(
  * @param deps - Optional composition seams (registry, file system) for tests.
  * @returns A {@link RunSummary} with one locale per data sheet, in workbook order.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`.
+ * @example
+ * ```ts
+ * import { loadConfig, importWorkbook } from "@verbatra/sdk";
+ *
+ * const config = await loadConfig();
+ * const summary = await importWorkbook({ config, workbook: "handoff.xlsx" });
+ *
+ * for (const locale of summary.locales) {
+ *   console.log(`${locale.locale}: ${locale.status}, ${locale.translated.length} applied`);
+ * }
+ * ```
  */
 export async function importWorkbook(
   input: ImportWorkbookInput,
@@ -471,8 +492,9 @@ export async function importWorkbook(
   const dryRun = input.dryRun ?? false;
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const format = input.format ?? "xlsx";
   const { data, staleLocales } = await readImportData(
     resolve(cwd, input.workbook),
@@ -485,7 +507,7 @@ export async function importWorkbook(
 
   const ctx: SheetContext = {
     config,
-    cwd,
+    resolver,
     adapter,
     fs,
     source: source.resource,

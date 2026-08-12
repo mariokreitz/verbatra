@@ -14,11 +14,12 @@ import {
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { createLocalePathResolver } from "../../locale-path/resolver.js";
 import { baselineFor, lockFilePath, readLockFile } from "../../lock/lock-file.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
-import { readTarget } from "../diff-locales.js";
+import { readTargetResource } from "../read-target.js";
 import { selectLocales } from "../select-locales.js";
-import { readSource } from "../source.js";
+import { readSourceResource } from "../source.js";
 import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
 import { writeExportManifest } from "./export-manifest.js";
 
@@ -219,6 +220,18 @@ async function writeDelimitedFiles(
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
  *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
  *   among the configured target locales.
+ * @example
+ * ```ts
+ * import { loadConfig, exportWorkbook } from "@verbatra/sdk";
+ *
+ * const config = await loadConfig();
+ * const result = await exportWorkbook({ config, out: "handoff.xlsx" });
+ *
+ * console.log(`wrote ${result.path}`);
+ * for (const locale of result.locales) {
+ *   console.log(`${locale.locale}: ${locale.rows} rows to translate`);
+ * }
+ * ```
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
@@ -228,14 +241,21 @@ export async function exportWorkbook(
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const locales = selectLocales(config, input.locales);
   const sheets = await Promise.all(
     locales.map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
+      const target = await readTargetResource({
+        resolver,
+        format: config.format,
+        locale,
+        adapter,
+        fs,
+      });
       const rows = buildRows(
         source.resource,
         target,

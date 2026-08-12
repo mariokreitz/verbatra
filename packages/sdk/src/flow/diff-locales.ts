@@ -7,7 +7,7 @@ import { baselineFor, lockFilePath, readLockFile } from "../lock/lock-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
-import { readSource } from "./source.js";
+import { readSourceResource } from "./source.js";
 
 /** A target locale paired with its core diff against the source. */
 export interface LocaleDiffResult {
@@ -63,13 +63,20 @@ export async function diffLocales(
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   return Promise.all(
     selectLocales(config, input.locales).map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
+      const target = await readTargetResource({
+        resolver,
+        format: config.format,
+        locale,
+        adapter,
+        fs,
+      });
       const diff = diffResources(source.resource, target, { baseline: baselineFor(lock, locale) });
       return { locale, diff };
     }),

@@ -1,10 +1,6 @@
-import {
-  ProviderError,
-  type ReviewReasonCode,
-  type TranslateRequest,
-} from "@verbatra/ai-providers";
-import { contentHash, type TranslationEntry } from "@verbatra/core";
-import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
+import { ProviderError, type ReviewReasonCode } from "@verbatra/ai-providers";
+import { contentHash } from "@verbatra/core";
+import type { AdapterRegistry } from "@verbatra/format-adapters";
 import { computeFingerprint } from "../cache/fingerprint.js";
 import { feedTranslationMemory } from "../cache/translation-memory.js";
 import type { VerbatraConfig } from "../config/schema.js";
@@ -19,6 +15,7 @@ import { readTarget } from "./diff-locales.js";
 import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
+import { buildTranslateRequest } from "./translate-request.js";
 
 /** Input for {@link retranslateEntry}: the validated config and exactly one target locale/key pair. */
 export interface RetranslateEntryInput {
@@ -55,25 +52,6 @@ export type RetranslateEntryResult =
       readonly reason: IntegrityGateReason;
       readonly value: string;
     };
-
-function buildSingleEntryRequest(
-  config: VerbatraConfig,
-  locale: string,
-  sourceEntry: TranslationEntry,
-  adapter: FormatAdapter,
-): TranslateRequest {
-  return {
-    sourceLocale: config.sourceLocale,
-    targetLocale: locale,
-    entries: [sourceEntry],
-    extractPlaceholders: adapter.extractPlaceholders,
-    ...(config.glossary !== undefined ? { glossary: config.glossary } : {}),
-    ...(config.tone !== undefined ? { tone: config.tone } : {}),
-    ...(adapter.comparePlaceholders !== undefined
-      ? { comparePlaceholders: adapter.comparePlaceholders }
-      : {}),
-  };
-}
 
 /**
  * Retranslate exactly one key for exactly one target locale: a single-entry `translateBatch` call
@@ -152,7 +130,16 @@ export async function retranslateEntry(
     const target = await readTarget(cwd, config, adapter, fs, locale);
 
     const result = await provider.translateBatch(
-      buildSingleEntryRequest(config, locale, sourceEntry, adapter),
+      buildTranslateRequest(
+        {
+          sourceLocale: config.sourceLocale,
+          targetLocale: locale,
+          adapter,
+          glossary: config.glossary,
+          tone: config.tone,
+        },
+        [sourceEntry],
+      ),
     );
     const value = result.values.get(input.key);
     if (value === undefined) {

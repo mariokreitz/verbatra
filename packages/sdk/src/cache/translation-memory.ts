@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 import type { BoundedFileRead, SdkFs } from "../fs.js";
+import { sortRecordKeys } from "../record-utils.js";
 import type { CacheAddition, TranslationMemory } from "./types.js";
 
 /** The cache file's name, a sibling of the lock file and obviously JSON. */
@@ -144,17 +145,13 @@ export function additionsToRecord(additions: readonly CacheAddition[]): Record<s
   return record;
 }
 
-function sortEntries<T>(record: Readonly<Record<string, T>>): [string, T][] {
-  return Object.entries(record).sort(([a], [b]) => (a < b ? -1 : 1));
-}
-
 /** Serialize deterministically with every level's keys sorted, for a stable file across runs. */
 function serialize(memory: TranslationMemory): string {
   const entries: Record<string, Record<string, Record<string, string>>> = {};
-  for (const [fingerprint, locales] of sortEntries(memory.entries)) {
+  for (const [fingerprint, locales] of Object.entries(sortRecordKeys(memory.entries))) {
     const localeMap: Record<string, Record<string, string>> = {};
-    for (const [locale, hashes] of sortEntries(locales)) {
-      localeMap[locale] = Object.fromEntries(sortEntries(hashes));
+    for (const [locale, hashes] of Object.entries(sortRecordKeys(locales))) {
+      localeMap[locale] = sortRecordKeys(hashes);
     }
     entries[fingerprint] = localeMap;
   }
