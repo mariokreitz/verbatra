@@ -9,6 +9,7 @@ import { clampGridPosition, moveGridFocus } from "../client/roving-tabindex.js";
 import type { RefreshableView } from "../client/state.js";
 import { Badge } from "./Badge.js";
 import { DiffBadge } from "./DiffBadge.js";
+import { ErrorMessage } from "./ErrorMessage.js";
 import { cn } from "./lib/cn.js";
 import { ProgressBar } from "./ProgressBar.js";
 import { TableCard } from "./Table.js";
@@ -202,6 +203,10 @@ function GridBodyRow({
  * `moveGridFocus`), and Enter, Space, or a click calls `onSelectKey` with the
  * row's key. Native `<table>` semantics with row and column scopes describe
  * the structure; no ARIA grid role is claimed.
+ *
+ * A coverage re-read that fails keeps the last good percentages in the locale
+ * headers rather than blanking them, under the same stale notice the other
+ * panels render, so an outdated percentage never reads as a current one.
  */
 export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridProps): ReactNode {
   const keys = useMemo(() => driftKeys(locales), [locales]);
@@ -240,51 +245,56 @@ export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridPro
   }
 
   return (
-    <TableCard>
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr>
-            <th
-              scope="col"
-              className={cn(
-                gridHeaderClassName,
-                "min-w-[160px] font-mono text-[11px] uppercase tracking-wider",
-              )}
-            >
-              Key
-            </th>
-            {locales.map((locale) => (
+    <>
+      {status.kind === "data" && status.stale && (
+        <ErrorMessage error={status.error} prefix="Showing the last known coverage." />
+      )}
+      <TableCard>
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
               <th
-                key={locale.locale}
                 scope="col"
-                className={cn(gridHeaderClassName, "min-w-[140px]")}
-                dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
+                className={cn(
+                  gridHeaderClassName,
+                  "min-w-[160px] font-mono text-[11px] uppercase tracking-wider",
+                )}
               >
-                <span className="font-mono">{locale.locale}</span>
-                <CompletenessBar
-                  percent={percentForLocale(status, locale.locale)}
-                  unavailable={status.kind === "error"}
-                />
+                Key
               </th>
+              {locales.map((locale) => (
+                <th
+                  key={locale.locale}
+                  scope="col"
+                  className={cn(gridHeaderClassName, "min-w-[140px]")}
+                  dir={isRtlLocale(locale.locale) ? "rtl" : undefined}
+                >
+                  <span className="font-mono">{locale.locale}</span>
+                  <CompletenessBar
+                    percent={percentForLocale(status, locale.locale)}
+                    unavailable={status.kind === "error"}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {keys.map((keyName, row) => (
+              <GridBodyRow
+                key={keyName}
+                keyName={keyName}
+                row={row}
+                locales={locales}
+                position={safePosition}
+                onActivate={onSelectKey}
+                onArrow={handleArrow}
+                onFocusCell={handleFocusCell}
+                registerCell={registerCell}
+              />
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {keys.map((keyName, row) => (
-            <GridBodyRow
-              key={keyName}
-              keyName={keyName}
-              row={row}
-              locales={locales}
-              position={safePosition}
-              onActivate={onSelectKey}
-              onArrow={handleArrow}
-              onFocusCell={handleFocusCell}
-              registerCell={registerCell}
-            />
-          ))}
-        </tbody>
-      </table>
-    </TableCard>
+          </tbody>
+        </table>
+      </TableCard>
+    </>
   );
 }
