@@ -67,7 +67,7 @@
         },
         "diff": {
           "title": "Compare",
-          "body": "Chaque exécution compare ta locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline."
+          "body": "Chaque exécution compare ta locale source au fichier de verrouillage validé et trie chaque clé en nouvelle, modifiée, inchangée ou orpheline. Les clés orphelines, celles qui ne sont plus dans ta source, sont signalées et laissées en place : rien n'est supprimé de tes fichiers de locale, sauf si tu actives --prune."
         },
         "translate": {
           "title": "Traduis",

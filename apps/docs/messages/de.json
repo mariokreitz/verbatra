@@ -67,7 +67,7 @@
         },
         "diff": {
           "title": "Vergleichen",
-          "body": "Jeder Lauf vergleicht deine Quell-Locale mit der eingecheckten Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist ein."
+          "body": "Jeder Lauf vergleicht deine Quell-Locale mit der eingecheckten Lock-Datei und sortiert jeden Schlüssel in neu, geändert, unverändert oder verwaist ein. Verwaiste Schlüssel, also solche, die nicht mehr in deiner Quelle stehen, werden gemeldet und bleiben erhalten: Aus deinen Locale-Dateien wird nichts entfernt, es sei denn, du aktivierst --prune."
         },
         "translate": {
           "title": "Übersetzen",
