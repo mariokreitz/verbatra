@@ -2,8 +2,10 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { HighlightedCommand } from "@/components/ui/command-line";
+import { TabList } from "@/components/ui/tabs";
 import { type Locale, localizedPath } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { useCopyToClipboard } from "@/lib/use-copy-to-clipboard";
 import { NPM_CLI } from "./links";
 
 const MANAGERS = [
@@ -15,23 +17,15 @@ const MANAGERS = [
 
 const CLI_TOKEN = "@verbatra/cli";
 const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
+const TAB_CLASS =
+  "rounded px-3 py-1.5 font-mono text-xs lowercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]";
 
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
   const locale = useLocale() as Locale;
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("npm");
-  const [copied, setCopied] = useState(false);
+  const [copied, copy] = useCopyToClipboard();
   const current = MANAGERS.find((m) => m.id === active) ?? MANAGERS[0];
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(current.command);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  }
-
-  const tokenAt = current.command.indexOf(CLI_TOKEN);
 
   return (
     <div
@@ -44,29 +38,14 @@ export function PackageInstall(): ReactNode {
             <span key={color} className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
           ))}
         </span>
-        <div role="tablist" aria-label={t("tablistLabel")} className="flex">
-          {MANAGERS.map((m) => {
-            const selected = m.id === active;
-            return (
-              <button
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                key={m.id}
-                onClick={() => setActive(m.id)}
-                className={cn(
-                  "rounded px-3 py-1.5 font-mono text-xs lowercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
-                  selected
-                    ? "text-fd-foreground"
-                    : "text-fd-muted-foreground hover:text-fd-foreground",
-                )}
-                style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
-              >
-                {m.label}
-              </button>
-            );
-          })}
-        </div>
+        <TabList
+          tabs={MANAGERS}
+          active={active}
+          onSelect={(id) => setActive(id as (typeof MANAGERS)[number]["id"])}
+          ariaLabel={t("tablistLabel")}
+          className="flex"
+          tabClassName={TAB_CLASS}
+        />
       </div>
       <div
         className="flex items-center gap-3 px-4 py-3 font-mono text-sm"
@@ -76,27 +55,14 @@ export function PackageInstall(): ReactNode {
           $
         </span>
         <code className="text-fd-foreground">
-          {tokenAt >= 0 ? (
-            <>
-              {current.command.slice(0, tokenAt)}
-              <a
-                href={NPM_CLI}
-                target="_blank"
-                rel="noreferrer noopener"
-                onClick={(event) => event.stopPropagation()}
-                className="rounded underline decoration-fd-border underline-offset-4 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-              >
-                {CLI_TOKEN}
-              </a>
-              {current.command.slice(tokenAt + CLI_TOKEN.length)}
-            </>
-          ) : (
-            current.command
-          )}
+          <HighlightedCommand
+            command={current.command}
+            link={{ token: CLI_TOKEN, href: NPM_CLI }}
+          />
         </code>
         <button
           type="button"
-          onClick={copy}
+          onClick={() => copy(current.command)}
           aria-label={t("copyAria")}
           className="ms-auto rounded-md border border-fd-border px-2 py-1 text-xs text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
         >

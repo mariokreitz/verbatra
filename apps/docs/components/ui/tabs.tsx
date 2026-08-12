@@ -1,14 +1,68 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
+import { cn } from "@/lib/utils";
+
+export type TabItem = { id: string; label: string };
+
+export type TabListProps = {
+  tabs: ReadonlyArray<TabItem>;
+  active: string;
+  onSelect: (id: string) => void;
+  ariaLabel?: string;
+  className?: string;
+  tabClassName?: string;
+};
+
+/**
+ * The bare `role="tablist"` markup, shared by the default `Tabs` wrapper below and
+ * by callers that need the tablist embedded inside their own layout (for example
+ * beside other controls in the same header row) rather than wrapped in `Tabs`'
+ * own container.
+ */
+export function TabList({
+  tabs,
+  active,
+  onSelect,
+  ariaLabel,
+  className,
+  tabClassName,
+}: TabListProps): ReactNode {
+  return (
+    <div role="tablist" aria-label={ariaLabel} className={className}>
+      {tabs.map((tab) => {
+        const selected = tab.id === active;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={selected}
+            onClick={() => onSelect(tab.id)}
+            className={cn(
+              tabClassName,
+              selected ? "text-fd-foreground" : "text-fd-muted-foreground hover:text-fd-foreground",
+            )}
+            style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export type TabsProps = {
-  tabs: ReadonlyArray<{ id: string; label: string }>;
+  tabs: ReadonlyArray<TabItem>;
   value?: string;
   defaultValue?: string;
   onChange?: (id: string) => void;
   children?: ReactNode;
 };
+
+const TAB_LIST_CLASS = "flex gap-4 border-b border-fd-border";
+const TAB_CLASS = "pb-2 font-mono lowercase text-sm transition-colors";
 
 export default function Tabs({
   tabs,
@@ -29,28 +83,13 @@ export default function Tabs({
 
   return (
     <div className="not-prose">
-      <div role="tablist" className="flex gap-4 border-b border-fd-border">
-        {tabs.map((tab) => {
-          const selected = tab.id === active;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              onClick={() => select(tab.id)}
-              className={`pb-2 font-mono lowercase text-sm transition-colors ${
-                selected
-                  ? "text-fd-foreground"
-                  : "text-fd-muted-foreground hover:text-fd-foreground"
-              }`}
-              style={selected ? { boxShadow: "inset 0 -2px 0 var(--v-glow)" } : undefined}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
+      <TabList
+        tabs={tabs}
+        active={active}
+        onSelect={select}
+        className={TAB_LIST_CLASS}
+        tabClassName={TAB_CLASS}
+      />
       {children}
     </div>
   );
