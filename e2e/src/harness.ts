@@ -164,22 +164,63 @@ export function spawnVerbatra(
 /** The execa subprocess handle returned by {@link spawnVerbatra}. */
 export type Subprocess = ReturnType<typeof spawnVerbatra>;
 
-/** One line of `watch --json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
-export interface WatchRunResultJson {
-  status: "succeeded" | "failed";
+/**
+ * The `--json` envelope version this suite is written against. Pinned rather than accepted as any
+ * number: the CLI bumps it only when an existing field changes meaning or disappears, so a bump is
+ * a deliberate contract break that must fail here and be re-read, not absorbed silently.
+ */
+export const JSON_ENVELOPE_VERSION = 1;
+
+/** The `--json` record a command writes when it produced a result. */
+export interface SuccessEnvelope<TResult> {
+  /** Always `true`; the discriminator to branch on. */
+  ok: true;
+  version: number;
+  /** The subcommand that produced the record, for example `"check"`. */
+  command: string;
+  /** The command's own payload, for example a check summary. */
+  result: TResult;
 }
 
 /**
- * Parses `watch --json` stdout into one record per non-empty NDJSON line.
+ * The `--json` record a command writes when it failed. It carries the same stable, secret-free code
+ * and message the human-readable stderr line renders.
+ */
+export interface ErrorEnvelope {
+  /** Always `false`; the discriminator to branch on. */
+  ok: false;
+  version: number;
+  /** The failing subcommand, or `null` when the failure preceded subcommand resolution. */
+  command: string | null;
+  code: string;
+  message: string;
+}
+
+/** One `--json` stdout record. Every command writes one of these two shapes per line. */
+export type JsonEnvelope<TResult> = SuccessEnvelope<TResult> | ErrorEnvelope;
+
+/**
+ * Parses one line of `--json` stdout into an envelope.
+ *
+ * @throws When the line is not valid JSON.
+ */
+export function parseEnvelope<TResult = unknown>(line: string): JsonEnvelope<TResult> {
+  return JSON.parse(line) as JsonEnvelope<TResult>;
+}
+
+/**
+ * Parses `watch --json` stdout into one envelope per non-empty NDJSON line. A succeeded run is a
+ * success envelope carrying its run summary; a failed run is an error envelope, and watch keeps
+ * running either way, so the stream continues past a failure.
  *
  * @throws When a non-empty line is not valid JSON.
  */
-export function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
+export function parseNdjsonEnvelopes<TResult = unknown>(stdout: string): JsonEnvelope<TResult>[] {
   return stdout
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as WatchRunResultJson);
+    .map((line) => parseEnvelope<TResult>(line));
 }
 
 /** Resolves after `ms` milliseconds. */
