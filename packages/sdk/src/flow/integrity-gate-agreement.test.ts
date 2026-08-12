@@ -9,6 +9,7 @@ import {
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
 import { defaultFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import {
   baseConfig,
   makeStubProvider,
@@ -103,7 +104,11 @@ describe.each(cases)("gateCandidateValue agreement: $name", (testCase) => {
       adapter: testCase.adapter,
       provider,
       cwd: dir,
-      filesPattern: "locales/{locale}.json",
+      resolver: createLocalePathResolver(dir, {
+        sourceLocale: "en",
+        targetLocales: ["de"],
+        files: { pattern: "locales/{locale}.json" },
+      }),
       sourceLocale: "en",
       targetLocale: "de",
       format: testCase.format,

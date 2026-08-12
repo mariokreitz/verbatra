@@ -5,9 +5,9 @@ import { feedTranslationMemory } from "../cache/translation-memory.js";
 import type { VerbatraConfig } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import { withLocaleWriteLock } from "../lock/locale-write-lock.js";
 import { updateLockFileLocale } from "../lock/lock-file.js";
-import { localeFilePath } from "../paths.js";
 import { selectAdapter } from "../selection/select-adapter.js";
 import { readTarget } from "./diff-locales.js";
 import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.js";
@@ -122,7 +122,7 @@ export async function editEntry(
 
     const merged = new Map(target.entries);
     merged.set(input.key, { ...sourceEntry, value: input.value, namespace: target.namespace });
-    const path = localeFilePath(cwd, config.files.pattern, locale);
+    const path = createLocalePathResolver(cwd, config).pathFor(locale);
     await adapter.write(
       { locale, namespace: target.namespace, format: config.format, entries: merged },
       path,

@@ -1,12 +1,11 @@
-import type { VerbatraConfig } from "@verbatra/sdk";
+import { createLocalePathResolver, type VerbatraConfig } from "@verbatra/sdk";
 import { defaultExecFileImpl, resolveWatchedPaths, runGitLog } from "../git.js";
-import { localeFilePath } from "../locale-paths.js";
 import type { RpcHandler } from "../rpc.js";
 
 /** The source file and every configured target locale file: the files the history view scopes `git log` to. */
 function watchedLocalePaths(config: VerbatraConfig, projectRoot: string): string[] {
-  const locales = [config.sourceLocale, ...config.targetLocales];
-  return locales.map((locale) => localeFilePath(projectRoot, config.files.pattern, locale));
+  const resolver = createLocalePathResolver(projectRoot, config);
+  return [config.sourceLocale, ...config.targetLocales].map((locale) => resolver.pathFor(locale));
 }
 
 /**

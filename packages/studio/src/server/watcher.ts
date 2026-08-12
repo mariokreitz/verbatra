@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import {
+  createLocalePathResolver,
   diffLocaleSnapshots,
   LOCK_FILE_NAME,
   type LocaleFileSnapshot,
@@ -11,7 +12,6 @@ import {
 } from "@verbatra/sdk";
 import { watch as chokidarWatch } from "chokidar";
 import type { RefreshEvent, RefreshReason } from "../shared/sse-events.js";
-import { localeFilePath } from "./locale-paths.js";
 import type { CreateStudioWatcher, StudioWatcher } from "./types.js";
 
 const DEFAULT_DEBOUNCE_MS = 300;
@@ -26,10 +26,11 @@ interface WatchedEntry {
 
 /** The source file, every configured target locale file as its own entry, and the lock file. */
 function watchedEntries(config: VerbatraConfig, projectRoot: string): readonly WatchedEntry[] {
-  const source = localeFilePath(projectRoot, config.files.pattern, config.sourceLocale);
+  const resolver = createLocalePathResolver(projectRoot, config);
+  const source = resolver.pathFor(config.sourceLocale);
   const targets: WatchedEntry[] = config.targetLocales.map((locale) => ({
     reason: "targets",
-    paths: [localeFilePath(projectRoot, config.files.pattern, locale)],
+    paths: [resolver.pathFor(locale)],
     locale,
   }));
   const lock = resolve(projectRoot, LOCK_FILE_NAME);

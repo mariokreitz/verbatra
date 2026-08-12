@@ -7,6 +7,11 @@
  * Runs: {@link translate} performs the one-shot read, diff, translate, write flow over all target
  * locales; {@link watch} re-runs it on each debounced source change.
  *
+ * Paths: {@link createLocalePathResolver} turns the configured files pattern, locales, and
+ * {@link LocaleStyle} into the project's locale-to-path mapping, in both directions. Every SDK flow
+ * resolves paths through it, and a consumer that watches or reports on locale files (such as
+ * Studio) uses the same resolver rather than re-deriving the mapping.
+ *
  * Read-only reporting: {@link check} and {@link diff} report pending work without writing;
  * {@link keyIntegrity} reports, per changed key, whether its placeholders or ICU structure still
  * match the source; {@link lockState} reports the lock-file's existence, version, and per-locale
@@ -148,6 +153,12 @@ export {
   importWorkbook,
 } from "./flow/workbook/import-workbook.js";
 export type { SdkFs } from "./fs.js";
+export {
+  createLocalePathResolver,
+  type LocalePathResolver,
+  type LocalePathResolverConfig,
+} from "./locale-path/resolver.js";
+export type { LocaleStyle } from "./locale-path/style.js";
 export {
   type LoadLockFileDeps,
   type LoadLockFileInput,

@@ -215,6 +215,22 @@ zwischen ihnen hinzugefügten, geänderten und entfernten Keys. Eine schlichte s
 `diffLocaleSnapshots(previous, current)` gibt `{ added, changed, removed }` zurück. Nur Zähler,
 nie Key-Namen.
 
+## Locale-Pfade
+
+### createLocalePathResolver
+
+Löst die Locale-zu-Pfad-Zuordnung des Projekts in beide Richtungen auf, aus `files.pattern`, den
+konfigurierten Locales und `files.localeStyle`. `createLocalePathResolver(cwd, config)` liefert
+`{ pathFor, localeFor }`: `pathFor(locale)` ist der absolute Pfad der Datei einer Locale, und
+`localeFor(path)` ist die Locale, zu der ein Pfad gehört, oder `undefined` für einen Pfad, der
+nicht zu diesem Projekt gehört. Jeder SDK-Einstiegspunkt löst Pfade darüber auf, sodass ein
+Watcher oder ein Dashboard auf Basis des SDK genau die Pfade sieht, die ein Lauf schreibt.
+
+Alle Prüfungen laufen beim Erzeugen des Resolvers, bevor eine Datei gelesen wird: ein Pattern und
+ein Style, die sich nicht kombinieren lassen, oder eine Locale, für die der Style keine korrekte
+Schreibweise hat, werfen `LOCALE_LAYOUT_INVALID`; zwei Locales, die auf denselben Pfad auflösen,
+werfen `LOCALE_PATH_COLLISION`.
+
 ## Das Arbeitsmappen-Paar
 
 Die Übergabe für menschliche Übersetzerinnen, als Excel-Arbeitsmappe oder als Textdateien; siehe
@@ -383,6 +399,8 @@ geworfen.
 | `SOURCE_INVALID` | die Quell-Locale-Datei konnte nicht gelesen oder geparst werden; umhüllt den Lesefehler des Adapters |
 | `LOCK_FILE_INVALID` | die Lock-Datei ist vorhanden, aber korrupt, übergroß oder in einer nicht unterstützten Version |
 | `LOCK_CONTENDED` | das Schreib-Lock eines Locales konnte nicht vor seinem Timeout erworben werden; die Message nennt den Pfad der Lock-Datei |
+| `LOCALE_LAYOUT_INVALID` | `files.pattern` und `files.localeStyle` lassen sich nicht kombinieren, oder der Style hat keine gültige Pfadschreibweise für eine konfigurierte Locale |
+| `LOCALE_PATH_COLLISION` | zwei konfigurierte Locales lösen auf denselben absoluten Dateipfad auf |
 | `CONCURRENCY_INVALID` | `concurrency` wurde gesetzt, ist aber keine Ganzzahl von mindestens 1; wird geworfen, bevor ein Locale läuft |
 | `CONCURRENCY_BUDGET_CONFLICT` | ein Live-Lauf setzte `concurrency` über 1, während `maxTokens` konfiguriert ist; wird vor jedem Provider-Aufruf geworfen (ein Dry-Run ist ausgenommen) |
 | `LOCALE_FAILED` | wird nie geworfen: der Rückfall-`code` auf dem `error` eines fehlgeschlagenen Locales |

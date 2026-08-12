@@ -29,6 +29,15 @@
  *   its timeout elapsed, because another process is holding it (or an orphaned lock file was left
  *   behind by a killed process); the message names the lock file's path (thrown by `translate`,
  *   `importWorkbook`, `editEntry`, and `retranslateEntry`).
+ * - `LOCALE_LAYOUT_INVALID`: the configured `files.pattern` and `files.localeStyle` cannot be
+ *   combined (a segment style needs the `{locale}` token to stand alone between separators), or the
+ *   declared style has no valid path spelling for a configured locale (`zh-Hans` under `posix`, for
+ *   instance), or a locale expands to something that is not a single path segment. Thrown by
+ *   `createLocalePathResolver`, and so by every entry point that resolves a locale to a path, before
+ *   any file is read and before any provider call.
+ * - `LOCALE_PATH_COLLISION`: two configured locales resolve to the same absolute file path, which
+ *   would make the path-to-locale direction meaningless and would let two concurrent locale workers
+ *   race on one file (thrown by `createLocalePathResolver`, at the same point as the above).
  * - `CONCURRENCY_INVALID`: the `concurrency` input is not an integer of at least 1 (thrown by
  *   `translate` and, per run, by `watch`, before any locale runs).
  * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested `concurrency` greater than 1 while a token
@@ -51,6 +60,8 @@ export type SdkErrorCode =
   | "SOURCE_INVALID"
   | "LOCK_FILE_INVALID"
   | "LOCK_CONTENDED"
+  | "LOCALE_LAYOUT_INVALID"
+  | "LOCALE_PATH_COLLISION"
   | "CONCURRENCY_INVALID"
   | "CONCURRENCY_BUDGET_CONFLICT"
   | "LOCALE_FAILED";

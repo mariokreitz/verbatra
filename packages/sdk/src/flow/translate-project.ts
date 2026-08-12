@@ -17,6 +17,7 @@ import {
 } from "../config/schema.js";
 import { SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver, type LocalePathResolver } from "../locale-path/resolver.js";
 import {
   type LocaleWriteLockOptions,
   type LockWaitListener,
@@ -242,6 +243,8 @@ interface LocaleRunContext {
   readonly provider: TranslationProvider | undefined;
   readonly cwd: string;
   readonly config: VerbatraConfig;
+  /** The project's locale-to-path resolver, created once for the whole run. */
+  readonly resolver: LocalePathResolver;
   readonly prune: boolean;
   readonly generatePlurals: boolean;
   readonly maxBatchSize: number;
@@ -270,7 +273,7 @@ function buildLocaleRunParams(
     adapter: context.adapter,
     provider: context.provider,
     cwd: context.cwd,
-    filesPattern: context.config.files.pattern,
+    resolver: context.resolver,
     sourceLocale: context.config.sourceLocale,
     targetLocale,
     format: context.config.format,
@@ -638,6 +641,7 @@ export async function translate(
     config.budgetBehavior ?? DEFAULT_BUDGET_BEHAVIOR,
   );
 
+  const resolver = createLocalePathResolver(cwd, config);
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
@@ -649,6 +653,7 @@ export async function translate(
     provider,
     cwd,
     config,
+    resolver,
     prune,
     generatePlurals,
     maxBatchSize,

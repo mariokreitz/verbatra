@@ -16,6 +16,7 @@ import { feedTranslationMemory } from "../../cache/translation-memory.js";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { errorMessage, SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { createLocalePathResolver } from "../../locale-path/resolver.js";
 import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
@@ -24,7 +25,6 @@ import {
   updateLockFileLocale,
 } from "../../lock/lock-file.js";
 import type { LockFile } from "../../lock/types.js";
-import { localeFilePath } from "../../paths.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
 import { readTarget } from "../diff-locales.js";
 import { failureSummary, partition } from "../locale-failure.js";
@@ -418,7 +418,7 @@ async function runSheet(
 
   const merged = mergeAccepted(target, accepted);
   if (accepted.size > 0) {
-    const path = localeFilePath(ctx.cwd, ctx.config.files.pattern, sheet.locale);
+    const path = createLocalePathResolver(ctx.cwd, ctx.config).pathFor(sheet.locale);
     await ctx.adapter.write(
       {
         locale: sheet.locale,
