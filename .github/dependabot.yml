@@ -77,6 +77,34 @@ updates:
           - "minor"
           - "patch"
 
+  # The end-to-end harness in /e2e is deliberately outside the pnpm workspace: it installs the
+  # published tarballs with npm to mimic a real consumer, so it carries its own package.json and
+  # committed package-lock.json. Security updates already reach it without this entry, because that
+  # engine scans every manifest Dependabot detects (commit 7c3b619 bumped postcss in /e2e with no
+  # config block present). Version updates do not: they run only for the ecosystem and directory
+  # pairs listed here, which is why the harness drifted behind the workspace catalog. This entry
+  # covers that gap and nothing else.
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+    ignore:
+      # Same reasoning as the root entry above: the repository stays on the TypeScript 6.x line, and
+      # accepting a 7.x proposal here would only reopen the drift against the workspace catalog.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
+    groups:
+      e2e-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
