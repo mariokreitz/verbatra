@@ -1,4 +1,5 @@
 import type { SupportedFormat } from "@verbatra/sdk";
+import { plainAnswer } from "@/lib/plain-answer";
 import { SITE_URL } from "@/lib/site";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
@@ -130,18 +131,11 @@ export function breadcrumbListLd(args: {
 
 export type FaqItem = { question: string; answer: string };
 
-const RICH_TEXT_TAG = /<\/?[a-z][a-z0-9]*>/gi;
-
 /**
- * Drops the ICU rich-text tags a FAQ answer may carry for the UI (the landing accordion renders
- * them through `t.rich`, for example to turn a word into a link). The JSON-LD answer must be the
- * prose alone, so this runs on every answer rather than at the call site: no caller can then leak
- * markup into `acceptedAnswer.text`. Answers without tags pass through unchanged.
+ * Builds the FAQPage block. Every answer goes through `plainAnswer` here rather than at the call
+ * site, so no caller can leak the rich-text markup an answer carries for the UI into
+ * `acceptedAnswer.text`.
  */
-function plainAnswer(answer: string): string {
-  return answer.replace(RICH_TEXT_TAG, "");
-}
-
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;
