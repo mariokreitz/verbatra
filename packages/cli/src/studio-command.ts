@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { CliUsageError } from "./cli-usage-error.js";
 import { loadEnvFiles } from "./env.js";
 import { renderError, toRenderableError } from "./render.js";
 import type { CliDeps, Streams, StudioSession } from "./types.js";
@@ -82,25 +83,18 @@ function resolveExposeAgentTools(opts: StudioOpts): boolean {
   return isEnvValueTruthy(process.env[AGENT_TOOLS_ENV_VAR]);
 }
 
-/** A CLI-local usage error for a malformed `--port` value; routed to exit 2 like an `SdkError`. */
-class InvalidPortError extends Error {
-  /** Stable, secret-free code read by {@link toRenderableError}; branch on this, not the message. */
-  readonly code = "INVALID_PORT";
-
-  constructor() {
-    super("The --port option must be an integer between 1 and 65535.");
-    this.name = "InvalidPortError";
-  }
-}
+/** The stable message for a malformed `--port` value. */
+const INVALID_PORT_MESSAGE = "The --port option must be an integer between 1 and 65535.";
 
 /**
- * Parses the `studio` options. Any schema failure maps to {@link InvalidPortError}: `--port` is the
- * only field real commander argv can fail on (the rest are optional strings and booleans).
+ * Parses the `studio` options. Any schema failure maps to a {@link CliUsageError} `INVALID_PORT`:
+ * `--port` is the only field real commander argv can fail on (the rest are optional strings and
+ * booleans).
  */
 function parseStudioOpts(rawOpts: unknown): StudioOpts {
   const result = studioOptsSchema.safeParse(rawOpts);
   if (!result.success) {
-    throw new InvalidPortError();
+    throw new CliUsageError("INVALID_PORT", INVALID_PORT_MESSAGE);
   }
   return result.data;
 }

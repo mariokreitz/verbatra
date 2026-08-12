@@ -1,6 +1,7 @@
 import type {
   CheckSummary,
   DiffSummary,
+  ExportWorkbookResult,
   LocaleDiff,
   LocaleSummary,
   LockWaitEvent,
@@ -171,19 +172,13 @@ export function renderRunResultHuman(result: WatchRunResult): string {
   return result.status === "succeeded" ? renderHuman(result.summary) : renderError(result.error);
 }
 
-/** The export outcome the CLI renders: where the workbook went and the per-locale row counts. */
-export interface ExportRenderable {
-  readonly path: string;
-  readonly locales: readonly { readonly locale: string; readonly rows: number }[];
-}
-
 /**
  * Human-readable export report: the output path, then one line per locale with its row count.
  *
  * @param result - The SDK export result.
  * @returns The multi-line human report (no trailing newline).
  */
-export function renderExportHuman(result: ExportRenderable): string {
+export function renderExportHuman(result: ExportWorkbookResult): string {
   const localeLines = result.locales.map((l) => `  ${l.locale}: ${l.rows} rows`);
   const total = result.locales.reduce((sum, l) => sum + l.rows, 0);
   return [

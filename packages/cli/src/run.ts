@@ -1,11 +1,13 @@
-import { readFileSync } from "node:fs";
 import type { ExchangeFormat, LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
+import { CliUsageError } from "./cli-usage-error.js";
 import { loadEnvFiles } from "./env.js";
 import { appendMissingGitignoreEntries } from "./gitignore.js";
 import { runInit } from "./init.js";
 import { renderErrorEnvelope, renderSuccessEnvelope } from "./json-envelope.js";
+import { readPackageManifest } from "./package-manifest.js";
+import { parsePositiveIntegerOption } from "./positive-integer-option.js";
 import {
   renderCheckHuman,
   renderDiffHuman,
@@ -20,17 +22,7 @@ import { runStudio } from "./studio-command.js";
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-/**
- * Reads this package's version for `--version`. The "../package.json" offset must resolve from both
- * src/run.ts and the bundled dist/index.js; preserve it if the tsup output depth changes.
- */
-function readPackageVersion(): string {
-  const manifestUrl = new URL("../package.json", import.meta.url);
-  const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
-  return version;
-}
-
-const CLI_VERSION = readPackageVersion();
+const CLI_VERSION = readPackageManifest().version;
 
 interface SharedOpts {
   readonly cwd?: string;
@@ -50,79 +42,56 @@ const localeListSchema = z
           .filter((entry) => entry.length > 0),
   );
 
-const translateOptsSchema = z.object({
+/** The cwd/config/json trio every command option schema accepts; every other schema `.extend()`s it. */
+const sharedCommandOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
+  json: z.boolean().optional(),
+});
+
+const translateOptsSchema = sharedCommandOptsSchema.extend({
   dryRun: z.boolean().optional(),
   prune: z.boolean().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
   cache: z.boolean().optional(),
-  json: z.boolean().optional(),
 });
 
-const watchOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const watchOptsSchema = sharedCommandOptsSchema.extend({
   debounce: z.string().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
   cache: z.boolean().optional(),
-  json: z.boolean().optional(),
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
 
 /**
  * The interchange format flag shared by export and import; omitted means the xlsx workbook. It is
  * accepted here as a plain optional string and narrowed by {@link parseExchangeFormat}, so an
- * unsupported value is a {@link UsageError} with a readable sentence rather than a raw `ZodError`
+ * unsupported value is a {@link CliUsageError} with a readable sentence rather than a raw `ZodError`
  * rendered at the user.
  */
 const exchangeFormatSchema = z.string().optional();
 
-const exportOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const exportOptsSchema = sharedCommandOptsSchema.extend({
   out: z.string().optional(),
   locales: localeListSchema,
   includeUnchanged: z.boolean().optional(),
   format: exchangeFormatSchema,
-  json: z.boolean().optional(),
 });
 
-const importOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const importOptsSchema = sharedCommandOptsSchema.extend({
   dryRun: z.boolean().optional(),
   format: exchangeFormatSchema,
-  json: z.boolean().optional(),
 });
 
-const checkOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const checkOptsSchema = sharedCommandOptsSchema.extend({
   locales: localeListSchema,
-  json: z.boolean().optional(),
 });
 
-const diffOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const diffOptsSchema = sharedCommandOptsSchema.extend({
   locales: localeListSchema,
-  json: z.boolean().optional(),
 });
-
-/** A CLI-local usage error for a malformed option value; routed to exit 2 like an `SdkError`. */
-class UsageError extends Error {
-  /** Stable, secret-free code read by {@link toRenderableError}; branch on this, not the message. */
-  readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "UsageError";
-    this.code = code;
-  }
-}
 
 /**
  * Everything the shared failure scaffolds need to report an error: where to write it, which
@@ -246,7 +215,7 @@ async function withParsedOpts<T>(
  * normalizes `""` and `","` to an empty array (defined, not undefined), which would otherwise select no
  * locales and let a CI drift gate exit 0. An omitted flag stays `undefined` and is allowed.
  *
- * @throws {@link UsageError} `INVALID_LOCALES` when `locales` is provided but lists no locale.
+ * @throws {@link CliUsageError} `INVALID_LOCALES` when `locales` is provided but lists no locale.
  */
 function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[] | undefined }>(
   schema: z.ZodType<T>,
@@ -254,7 +223,7 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
 ): T {
   const opts = schema.parse(rawOpts);
   if (opts.locales !== undefined && opts.locales.length === 0) {
-    throw new UsageError(
+    throw new CliUsageError(
       "INVALID_LOCALES",
       "The --locales option was provided but lists no locale. Pass a comma-separated list of " +
         "configured target locales, or omit --locales to use all of them.",
@@ -315,19 +284,14 @@ async function withWholeRunErrors(
  * zero, negative, or a unit suffix like "250ms") is a usage error, never a silent fallback to the
  * default.
  *
- * @throws {@link UsageError} `INVALID_DEBOUNCE` when `value` is not a positive integer string.
+ * @throws {@link CliUsageError} `INVALID_DEBOUNCE` when `value` is not a positive integer string.
  */
 function parseDebounce(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
-    throw new UsageError(
-      "INVALID_DEBOUNCE",
-      `The --debounce option must be a positive whole number of milliseconds, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10);
+  return parsePositiveIntegerOption(value, {
+    code: "INVALID_DEBOUNCE",
+    describe: "--debounce option must be a positive whole number of milliseconds",
+    min: 1,
+  });
 }
 
 /** The handoff formats `export` and `import` accept, in the order the help text lists them. */
@@ -338,7 +302,7 @@ const EXCHANGE_FORMATS: readonly ExchangeFormat[] = ["xlsx", "csv", "tsv"];
  * SDK's own `xlsx` default in force. Any other value is a usage error, checked in the parse step so
  * the user reads one plain sentence instead of a schema dump.
  *
- * @throws {@link UsageError} `INVALID_FORMAT` when `value` is not a supported handoff format.
+ * @throws {@link CliUsageError} `INVALID_FORMAT` when `value` is not a supported handoff format.
  */
 function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefined {
   if (value === undefined) {
@@ -346,7 +310,7 @@ function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefi
   }
   const format = EXCHANGE_FORMATS.find((candidate) => candidate === value);
   if (format === undefined) {
-    throw new UsageError(
+    throw new CliUsageError(
       "INVALID_FORMAT",
       `The --format option must be one of ${EXCHANGE_FORMATS.join(", ")}, got "${value}".`,
     );
@@ -360,19 +324,15 @@ function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefi
  * integer string; anything else (non-numeric, zero, negative, or a suffix like "60s") is a usage error,
  * never a silent fallback to the default.
  *
- * @throws {@link UsageError} `INVALID_LOCK_TIMEOUT` when `value` is not a positive integer string.
+ * @throws {@link CliUsageError} `INVALID_LOCK_TIMEOUT` when `value` is not a positive integer string.
  */
 function parseLockTimeout(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
-    throw new UsageError(
-      "INVALID_LOCK_TIMEOUT",
-      `The --lock-timeout option must be a positive whole number of seconds, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10) * 1000;
+  const seconds = parsePositiveIntegerOption(value, {
+    code: "INVALID_LOCK_TIMEOUT",
+    describe: "--lock-timeout option must be a positive whole number of seconds",
+    min: 1,
+  });
+  return seconds === undefined ? undefined : seconds * 1000;
 }
 
 /**
@@ -381,19 +341,14 @@ function parseLockTimeout(value: string | undefined): number | undefined {
  * string; anything else (non-numeric, zero, negative, or a decimal) is a usage error, never a silent
  * fallback to the default.
  *
- * @throws {@link UsageError} `INVALID_CONCURRENCY` when `value` is not a positive integer string.
+ * @throws {@link CliUsageError} `INVALID_CONCURRENCY` when `value` is not a positive integer string.
  */
 function parseConcurrency(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) < 1) {
-    throw new UsageError(
-      "INVALID_CONCURRENCY",
-      `The --concurrency option must be a positive whole number, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10);
+  return parsePositiveIntegerOption(value, {
+    code: "INVALID_CONCURRENCY",
+    describe: "--concurrency option must be a positive whole number",
+    min: 1,
+  });
 }
 
 /** `translateOptsSchema`'s shape plus the lock timeout and concurrency already parsed to numbers. */
@@ -630,7 +585,7 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
  * Runs the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
  * failed, `2` the run could not start. Exported for the same reason as {@link runTranslate}: every
  * field on `importOptsSchema` is an optional string or boolean, and the one value with a closed set,
- * `--format`, is narrowed afterwards by {@link parseExchangeFormat} as a {@link UsageError} rather
+ * `--format`, is narrowed afterwards by {@link parseExchangeFormat} as a {@link CliUsageError} rather
  * than by the schema, so no CLI flag can organically trigger a `ZodError`; a test calls this directly
  * with a malformed `rawOpts` instead.
  */

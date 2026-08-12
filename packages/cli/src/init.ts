@@ -8,6 +8,7 @@ import {
   verbatraConfigSchema,
 } from "@verbatra/sdk";
 import { ensureGitignore } from "./gitignore.js";
+import { readPackageManifest } from "./package-manifest.js";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
@@ -81,13 +82,6 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
     return { format: first, detected: true };
   }
   return { format: DEFAULT_FORMAT, detected: false };
-}
-
-/** Reads this package's name at runtime so the scaffolded import stays correct if the package is renamed. */
-function readPackageName(): string {
-  const manifestUrl = new URL("../package.json", import.meta.url);
-  const { name } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { name: string };
-  return name;
 }
 
 /**
@@ -295,7 +289,7 @@ export async function runInit(
     return 2;
   }
 
-  const importName = readPackageName();
+  const importName = readPackageManifest().name;
   const force = opts.force === true;
   writeFileIfAllowed(
     resolve(cwd, "verbatra.config.ts"),
