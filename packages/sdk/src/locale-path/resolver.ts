@@ -117,6 +117,8 @@ function buildForwardMap(
  *
  * @param cwd - Directory the files pattern resolves against.
  * @param config - The project's locales, files pattern, and locale style.
+ * @returns The resolver: `pathFor` maps a locale to its absolute file path, and `localeFor` maps an
+ * absolute path back to the configured locale it belongs to, or `undefined` when it belongs to none.
  * @throws SdkError `LOCALE_LAYOUT_INVALID` when the pattern and style cannot be combined, or the
  * style cannot spell a configured locale.
  * @throws SdkError `LOCALE_PATH_COLLISION` when two configured locales resolve to the same path.

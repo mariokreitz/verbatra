@@ -65,6 +65,18 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
  *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
  *   among the configured target locales.
+ * @example
+ * ```ts
+ * import { loadConfig, diff } from "@verbatra/sdk";
+ *
+ * const config = await loadConfig();
+ * const result = await diff({ config, locales: ["de"] });
+ *
+ * for (const locale of result.locales) {
+ *   console.log(`${locale.locale}: missing ${locale.missing.join(", ")}`);
+ *   console.log(`${locale.locale}: changed ${locale.changed.join(", ")}`);
+ * }
+ * ```
  */
 export async function diff(input: DiffInput, deps: DiffDeps = {}): Promise<DiffSummary> {
   const results = await diffLocales(input, deps);

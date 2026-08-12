@@ -65,6 +65,22 @@ function toCheckSummary(locale: string, diff: DiffResult): LocaleCheckSummary {
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
  *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
  *   among the configured target locales.
+ * @example
+ * ```ts
+ * import { loadConfig, check } from "@verbatra/sdk";
+ *
+ * const config = await loadConfig();
+ * const status = await check({ config });
+ *
+ * if (!status.inSync) {
+ *   for (const locale of status.locales) {
+ *     if (!locale.inSync) {
+ *       console.log(`${locale.locale}: ${locale.missing} missing, ${locale.stale} stale`);
+ *     }
+ *   }
+ *   process.exitCode = 1;
+ * }
+ * ```
  */
 export async function check(input: CheckInput, deps: CheckDeps = {}): Promise<CheckSummary> {
   const results = await diffLocales(input, deps);
