@@ -687,23 +687,16 @@ async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promi
   });
 }
 
-/** Builds the commander program: every subcommand with its flags, help text, and action wiring. */
-function buildProgram(
-  deps: CliDeps,
-  streams: Streams,
-  hooks: RunHooks,
-  setCode: (code: number) => void,
-): Command {
-  const program = new Command();
-  program
-    .name("verbatra")
-    .description(
-      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
-    )
-    .version(CLI_VERSION)
-    .exitOverride()
-    .configureOutput({ writeOut: (s) => streams.out(s), writeErr: (s) => streams.err(s) });
+/** Everything a per-command registration function needs: where to dispatch and how to report the exit code. */
+interface ProgramContext {
+  readonly deps: CliDeps;
+  readonly streams: Streams;
+  readonly hooks: RunHooks;
+  readonly setCode: (code: number) => void;
+}
 
+/** Registers `translate`: its flags, help examples, and action wiring. */
+function registerTranslateCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("translate")
     .description("Translate every target locale once, then exit")
@@ -728,7 +721,7 @@ function buildProgram(
     )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runTranslate(opts, deps, streams));
+      ctx.setCode(await runTranslate(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -742,7 +735,10 @@ function buildProgram(
         "  $ verbatra translate --json          machine-readable summary on stdout",
       ].join("\n"),
     );
+}
 
+/** Registers `watch`: its flags and action wiring. */
+function registerWatchCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("watch")
     .description("Re-translate on every source change until interrupted")
@@ -766,9 +762,12 @@ function buildProgram(
     )
     .option("--json", "print each run as one NDJSON record")
     .action(async (opts: unknown) => {
-      setCode(await runWatchCommand(opts, deps, streams, hooks));
+      ctx.setCode(await runWatchCommand(opts, ctx.deps, ctx.streams, ctx.hooks));
     });
+}
 
+/** Registers `export`: its flags, help examples, and action wiring. */
+function registerExportCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("export")
     .description(
@@ -785,7 +784,7 @@ function buildProgram(
     .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the export result as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runExport(opts, deps, streams));
+      ctx.setCode(await runExport(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -798,7 +797,10 @@ function buildProgram(
         "  $ verbatra export --format csv          write one <locale>.csv per locale into a directory",
       ].join("\n"),
     );
+}
 
+/** Registers `import`: its argument, flags, help examples, and action wiring. */
+function registerImportCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("import")
     .argument(
@@ -814,7 +816,7 @@ function buildProgram(
     .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
     .option("--json", "print the run summary as JSON")
     .action(async (workbook: string, opts: unknown) => {
-      setCode(await runImport(workbook, opts, deps, streams));
+      ctx.setCode(await runImport(workbook, opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -826,7 +828,10 @@ function buildProgram(
         "  $ verbatra import handoff --format csv          import every <locale>.csv in the directory",
       ].join("\n"),
     );
+}
 
+/** Registers `check`: its flags, help examples, and action wiring. */
+function registerCheckCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("check")
     .description("Report which keys are missing or stale per locale without writing files")
@@ -835,7 +840,7 @@ function buildProgram(
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--json", "print the check summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runCheck(opts, deps, streams));
+      ctx.setCode(await runCheck(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -847,7 +852,10 @@ function buildProgram(
         "  $ verbatra check --json           machine-readable status on stdout for CI",
       ].join("\n"),
     );
+}
 
+/** Registers `diff`: its flags, help examples, and action wiring. */
+function registerDiffCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("diff")
     .description(
@@ -858,7 +866,7 @@ function buildProgram(
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--json", "print the diff summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runDiff(opts, deps, streams));
+      ctx.setCode(await runDiff(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -870,7 +878,10 @@ function buildProgram(
         "  $ verbatra diff --json           machine-readable key lists on stdout for CI",
       ].join("\n"),
     );
+}
 
+/** Registers `studio`: its flags, help examples, and action wiring. */
+function registerStudioCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("studio")
     .description("Start Verbatra Studio, the local translation dashboard")
@@ -886,7 +897,7 @@ function buildProgram(
       "register Studio's RPC methods as WebMCP agent tools in the browser (also: VERBATRA_STUDIO_AGENT_TOOLS)",
     )
     .action(async (opts: unknown) => {
-      setCode(await runStudioCommand(opts, deps, streams, hooks));
+      ctx.setCode(await runStudioCommand(opts, ctx.deps, ctx.streams, ctx.hooks));
     })
     .addHelpText(
       "after",
@@ -899,7 +910,10 @@ function buildProgram(
         "  $ verbatra studio --expose-agent-tools start Studio with the WebMCP agent tools enabled",
       ].join("\n"),
     );
+}
 
+/** Registers `init`: its flags, help examples, and action wiring. */
+function registerInitCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("init")
     .description("Create a verbatra config and .env example for this project")
@@ -917,7 +931,7 @@ function buildProgram(
     .option("--yes", "skip prompts and accept the defaults")
     .option("--force", "overwrite an existing config or .env.example")
     .action(async (opts: InitOpts) => {
-      setCode(await runInit(opts, streams));
+      ctx.setCode(await runInit(opts, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -928,6 +942,34 @@ function buildProgram(
         "  $ verbatra init --provider deepl --yes      non-interactive, accept all defaults",
       ].join("\n"),
     );
+}
+
+/** Builds the commander program: every subcommand with its flags, help text, and action wiring. */
+function buildProgram(
+  deps: CliDeps,
+  streams: Streams,
+  hooks: RunHooks,
+  setCode: (code: number) => void,
+): Command {
+  const program = new Command();
+  program
+    .name("verbatra")
+    .description(
+      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
+    )
+    .version(CLI_VERSION)
+    .exitOverride()
+    .configureOutput({ writeOut: (s) => streams.out(s), writeErr: (s) => streams.err(s) });
+
+  const ctx: ProgramContext = { deps, streams, hooks, setCode };
+  registerTranslateCommand(program, ctx);
+  registerWatchCommand(program, ctx);
+  registerExportCommand(program, ctx);
+  registerImportCommand(program, ctx);
+  registerCheckCommand(program, ctx);
+  registerDiffCommand(program, ctx);
+  registerStudioCommand(program, ctx);
+  registerInitCommand(program, ctx);
 
   return program;
 }
