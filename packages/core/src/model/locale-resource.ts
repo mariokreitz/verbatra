@@ -24,24 +24,3 @@ export interface LocaleResource {
   /** Entries addressable by key. */
   readonly entries: ReadonlyMap<string, TranslationEntry>;
 }
-
-/**
- * Validate an unknown value into a {@link LocaleResource}.
- *
- * @param input - The value to validate, typically parsed JSON of unknown shape.
- * @returns The validated resource.
- * @throws If `input` does not satisfy {@link localeResourceSchema}; zod raises a `ZodError`
- *   describing the failing fields.
- * @example
- * ```ts
- * const resource = parseLocaleResource({
- *   locale: "de",
- *   namespace: "common",
- *   format: "i18next-json",
- *   entries: new Map([["greeting", entry]]),
- * });
- * ```
- */
-export function parseLocaleResource(input: unknown): LocaleResource {
-  return localeResourceSchema.parse(input);
-}
