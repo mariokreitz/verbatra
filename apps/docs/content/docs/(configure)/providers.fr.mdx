@@ -222,6 +222,7 @@ Un échec de fournisseur ne remonte jamais comme une erreur SDK brute, qui pourr
 | `RATE_LIMITED` | HTTP 429 ou une erreur de limite de débit du SDK. Attends et réessaie plus tard. |
 | `TIMEOUT` | Un délai réseau ou de requête dépassé ; aucune réponse n'est arrivée à temps. Réessayer peut aider, et [`requestTimeoutMs`](#délai-de-requête) relève la borne. |
 | `AUTH_FAILED` | HTTP 401 ou 403 : la clé est invalide, révoquée ou sans permission. Réessayer n'aidera pas. |
+| `PROVIDER_UNAVAILABLE` | HTTP 5xx : le fournisseur a échoué de son côté, et la requête elle-même n'a jamais été en cause. Les réessais des couches inférieures absorbent déjà un 5xx transitoire, donc un 5xx qui atteint ce code est une panne durable. Attends et réessaie plus tard. |
 | `OUTPUT_TRUNCATED` | Le modèle a atteint sa limite de tokens de sortie ; voir plus bas. |
 | `INVALID_RESPONSE` | La sortie était malformée, incomplète, ou a échoué à la réconciliation avec la requête. |
 | `PROVIDER_REFUSED` | Le modèle a refusé de répondre. |

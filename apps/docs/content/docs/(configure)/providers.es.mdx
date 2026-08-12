@@ -222,6 +222,7 @@ Un fallo de proveedor nunca aflora como un error crudo del SDK, que podría llev
 | `RATE_LIMITED` | HTTP 429 o un error de límite de tasa del SDK. Espera y reintenta más tarde. |
 | `TIMEOUT` | Un tiempo de espera de red o de solicitud; no llegó respuesta a tiempo. Reintentar puede ayudar, y [`requestTimeoutMs`](#tiempo-de-espera-de-solicitud) sube el límite. |
 | `AUTH_FAILED` | HTTP 401 o 403: la clave es inválida, está revocada o carece de permisos. Reintentar no ayudará. |
+| `PROVIDER_UNAVAILABLE` | HTTP 5xx: el proveedor falló en su propio lado, y la solicitud en sí nunca tuvo la culpa. Los reintentos de las capas inferiores ya absorben un 5xx transitorio, así que uno que llega a este código es una caída sostenida. Espera y reintenta más tarde. |
 | `OUTPUT_TRUNCATED` | El modelo alcanzó su límite de tokens de salida; mira abajo. |
 | `INVALID_RESPONSE` | La salida era malformada, incompleta o falló la reconciliación contra la solicitud. |
 | `PROVIDER_REFUSED` | El modelo se negó a responder. |

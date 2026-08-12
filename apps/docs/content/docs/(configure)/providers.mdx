@@ -222,6 +222,7 @@ A provider failure never surfaces as a raw SDK error, which could carry request 
 | `RATE_LIMITED` | HTTP 429 or an SDK rate-limit error. Back off and retry later. |
 | `TIMEOUT` | A network or request timeout; no response arrived in time. Retrying may help, and [`requestTimeoutMs`](#request-timeout) raises the bound. |
 | `AUTH_FAILED` | HTTP 401 or 403: the key is invalid, revoked, or lacks permission. Retrying will not help. |
+| `PROVIDER_UNAVAILABLE` | HTTP 5xx: the provider failed on its own side, and the request itself was never at fault. The retry layers below already absorb a transient 5xx, so one that reaches this code is a sustained outage. Wait and retry later. |
 | `OUTPUT_TRUNCATED` | The model hit its output-token limit; see below. |
 | `INVALID_RESPONSE` | The output was malformed, incomplete, or failed reconciliation against the request. |
 | `PROVIDER_REFUSED` | The model declined to answer. |

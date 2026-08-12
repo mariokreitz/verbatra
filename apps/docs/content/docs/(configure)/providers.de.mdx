@@ -222,6 +222,7 @@ Ein Provider-Fehlschlag erscheint nie als roher SDK-Fehler, der Request-Header o
 | `RATE_LIMITED` | HTTP 429 oder ein SDK-Rate-Limit-Fehler. Warte und versuche es später erneut. |
 | `TIMEOUT` | Ein Netzwerk- oder Anfrage-Timeout; keine Antwort kam rechtzeitig an. Wiederholen kann helfen, und [`requestTimeoutMs`](#anfrage-timeout) hebt die Grenze an. |
 | `AUTH_FAILED` | HTTP 401 oder 403: Der Schlüssel ist ungültig, widerrufen oder ohne Berechtigung. Wiederholen hilft nicht. |
+| `PROVIDER_UNAVAILABLE` | HTTP 5xx: Der Provider ist auf seiner eigenen Seite gescheitert, die Anfrage selbst war nie schuld. Die darunterliegenden Wiederholungen fangen ein vorübergehendes 5xx bereits ab; ein 5xx, das diesen Code erreicht, ist also eine anhaltende Störung. Warte und versuche es später erneut. |
 | `OUTPUT_TRUNCATED` | Das Modell hat sein Ausgabe-Token-Limit erreicht; siehe unten. |
 | `INVALID_RESPONSE` | Die Ausgabe war fehlerhaft, unvollständig oder scheiterte am Abgleich mit der Anfrage. |
 | `PROVIDER_REFUSED` | Das Modell hat die Antwort verweigert. |
