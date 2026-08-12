@@ -1,12 +1,14 @@
 # syntax=docker/dockerfile:1
 
-# Base image is pinned to a specific multi-arch Node 22 LTS patch tag. We do not pin by
-# digest here: a digest resolved on one architecture would not cover the others, and the
-# build/runtime arch must match (sharp's native binary is traced into the bundle). A later
-# hardening step can pin the manifest-list digest against the registry, on the target arch.
+# Base image is pinned by digest to a specific Node 22 LTS patch release. The digest is the
+# OCI image index (manifest list) for the tag, not a single-architecture image manifest, so
+# the daemon still resolves the entry matching the build platform: amd64, arm/v7, arm64/v8,
+# ppc64le, and s390x all remain available, and the build/runtime arch still matches (sharp's
+# native binary is traced into the bundle). The tag is kept alongside the digest for
+# readability; the digest is what actually resolves. Update both together.
 
 # ---- Builder ----
-FROM node:22.22.3-bookworm-slim AS builder
+FROM node:22.22.3-bookworm-slim@sha256:e21fc383b50d5347dc7a9f1cae45b8f4e2f0d39f7ade28e4eef7d2934522b752 AS builder
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 WORKDIR /app
 
@@ -26,7 +28,7 @@ RUN pnpm install --frozen-lockfile --filter @verbatra/docs...
 RUN pnpm --filter @verbatra/docs... build
 
 # ---- Runner ----
-FROM node:22.22.3-bookworm-slim AS runner
+FROM node:22.22.3-bookworm-slim@sha256:e21fc383b50d5347dc7a9f1cae45b8f4e2f0d39f7ade28e4eef7d2934522b752 AS runner
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
 WORKDIR /app
 USER node
