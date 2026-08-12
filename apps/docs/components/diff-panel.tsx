@@ -31,15 +31,21 @@ export function DiffPanel({
   const changed = rows.find((r) => r.changed);
   const full = changed?.target ?? "";
 
-  const [count, setCount] = useState(full.length);
-  const [settled, setSettled] = useState(true);
+  // The cell starts empty and unsettled so the typewriter can play from nothing once the panel
+  // scrolls into view. Seeding it that way, rather than resetting inside the effect, is what keeps
+  // a reader from seeing the finished string flash before it retypes.
+  const [count, setCount] = useState(0);
+  const [settled, setSettled] = useState(false);
   const [ref, inView] = useInViewOnce<HTMLElement>(0.5);
 
   useEffect(() => {
-    if (!full || !inView || prefersReducedMotion()) return;
-
-    setCount(0);
-    setSettled(false);
+    // Nothing to animate, or animation is unwanted: show the final state immediately.
+    if (!full || prefersReducedMotion()) {
+      setCount(full.length);
+      setSettled(true);
+      return;
+    }
+    if (!inView) return;
 
     let i = 0;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;

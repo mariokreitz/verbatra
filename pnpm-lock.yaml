@@ -121,7 +121,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.11)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.11)(yaml@2.9.0))
 
   apps/docs:
     dependencies:
@@ -186,6 +186,9 @@ importers:
       '@verbatra/studio':
         specifier: workspace:*
         version: link:../../packages/studio
+      jsdom:
+        specifier: 30.0.1
+        version: 30.0.1
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -311,7 +314,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: 'catalog:'
-        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.11)(yaml@2.9.0))
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.11)(yaml@2.9.0))
 
   packages/exchange:
     dependencies:
