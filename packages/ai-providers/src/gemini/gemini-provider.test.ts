@@ -6,7 +6,7 @@ import type { TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
   entry,
-  firstGeminiCall,
+  firstCallOf,
   geminiResult,
   geminiStubClient,
   regexExtractor,
@@ -73,7 +73,7 @@ describe("createGeminiProvider: request building", () => {
     await createGeminiProvider(config, { client }).translateBatch(
       request({ tone: "formal", glossary: { Hello: "Servus" } }),
     );
-    const body = firstGeminiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.config.systemInstruction).toBe(GEMINI_SYSTEM_RULES);
     expect(body.config.systemInstruction).not.toContain("formal");
     expect(body.config.systemInstruction).not.toContain("Servus");
@@ -92,7 +92,7 @@ describe("createGeminiProvider: request building", () => {
         entries: [entry("post", "Post", [], { description: "a verb", meaning: "publish" })],
       }),
     );
-    const payload = payloadOf(firstGeminiCall(calls));
+    const payload = payloadOf(firstCallOf(calls));
     expect(payload.tone).toBe("informal");
     expect(payload.glossary).toEqual({ Hello: "Hi" });
     expect(payload.items[0]?.description).toBe("a verb");
@@ -112,7 +112,7 @@ describe("createGeminiProvider: prompt-injection defense", () => {
         glossary: { [hostile]: hostile },
       }),
     );
-    const body = firstGeminiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.config.systemInstruction).toBe(GEMINI_SYSTEM_RULES);
     expect(body.config.systemInstruction).not.toContain("ignore previous instructions");
     const payload = payloadOf(body);
@@ -360,7 +360,7 @@ describe("createGeminiProvider: cancellation", () => {
     await createGeminiProvider(config, { client }).translateBatch(
       request({ signal: controller.signal }),
     );
-    const composed = firstGeminiCall(calls).config.abortSignal;
+    const composed = firstCallOf(calls).config.abortSignal;
     expect(composed).toBeInstanceOf(AbortSignal);
     expect(composed?.aborted).toBe(false);
     controller.abort();
@@ -372,7 +372,7 @@ describe("createGeminiProvider: cancellation", () => {
       geminiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createGeminiProvider(config, { client }).translateBatch(request());
-    const composed = firstGeminiCall(calls).config.abortSignal;
+    const composed = firstCallOf(calls).config.abortSignal;
     expect(composed).toBeInstanceOf(AbortSignal);
     expect(composed?.aborted).toBe(false);
   });

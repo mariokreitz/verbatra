@@ -6,7 +6,7 @@ import type { TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
   entry,
-  firstOpenAiCall,
+  firstCallOf,
   openAiCompletion,
   openAiResult,
   openAiStubClient,
@@ -62,7 +62,7 @@ describe("createOpenAiCompatibleProvider: request building", () => {
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
-    const body = firstOpenAiCall(calls);
+    const body = firstCallOf(calls);
     expect(body).not.toHaveProperty("max_completion_tokens");
     expect("max_tokens" in body && body.max_tokens).toBe(1024);
   });
@@ -72,7 +72,7 @@ describe("createOpenAiCompatibleProvider: request building", () => {
       openAiResult([{ key: "greeting", value: "Hallo {{name}}" }]),
     );
     await createOpenAiCompatibleProvider(config, { client }).translateBatch(request());
-    const body = firstOpenAiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.response_format).toEqual({
       type: "json_schema",
       json_schema: {
@@ -153,7 +153,7 @@ describe("createOpenAiCompatibleProvider: trust boundary, same validation path a
     const result = await createOpenAiCompatibleProvider(config, { client }).translateBatch(
       request({ entries: [entry("greeting", hostile)] }),
     );
-    const body = firstOpenAiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.messages[0].content).not.toContain("ignore previous instructions");
     expect(result.values.get("greeting")).toBe("harmlos");
   });

@@ -1,7 +1,7 @@
 import { ProviderError } from "../errors.js";
 import type { LlmCompletion } from "../llm/run.js";
 import { assertNotTruncated } from "../llm/truncation.js";
-import type { Usage } from "../provider.js";
+import { toUsage } from "../llm/usage.js";
 import type { GeminiResponse } from "./types.js";
 
 /** Candidate finish reasons that indicate the response was filtered/blocked. */
@@ -20,17 +20,6 @@ function parseContent(text: string): unknown {
   } catch {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned unparseable content.");
   }
-}
-
-function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
-  if (usage === undefined) {
-    return undefined;
-  }
-  const { promptTokenCount, candidatesTokenCount } = usage;
-  if (typeof promptTokenCount !== "number" || typeof candidatesTokenCount !== "number") {
-    return undefined;
-  }
-  return { inputTokens: promptTokenCount, outputTokens: candidatesTokenCount };
 }
 
 /**
@@ -66,6 +55,9 @@ export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no translation content.");
   }
   const raw = parseContent(text);
-  const usage = toUsage(response.usageMetadata);
+  const usage = toUsage(
+    response.usageMetadata?.promptTokenCount,
+    response.usageMetadata?.candidatesTokenCount,
+  );
   return usage === undefined ? { raw } : { raw, usage };
 }

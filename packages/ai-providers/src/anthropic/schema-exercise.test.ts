@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { deriveJsonSchema, translationsResultSchema } from "../llm/schema.js";
 import type { TranslateRequest } from "../provider.js";
-import { entry, firstCall, regexExtractor, stubClient, toolMessage } from "../test-support.js";
+import { entry, firstCallOf, regexExtractor, stubClient, toolMessage } from "../test-support.js";
 import { createAnthropicProvider } from "./anthropic-provider.js";
 
 const config = { model: "m", maxTokens: 64 };
@@ -22,7 +22,7 @@ describe("Anthropic derived-schema is exercised through the provider", () => {
     );
     const result = await createAnthropicProvider(config, { client }).translateBatch(request());
 
-    const body = firstCall(calls);
+    const body = firstCallOf(calls);
     expect(body.tools[0].input_schema).toEqual(deriveJsonSchema(translationsResultSchema));
     expect(body.tools[0].name).toBe("submit_translations");
 

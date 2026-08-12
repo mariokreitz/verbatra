@@ -1,4 +1,4 @@
-import type { PlaceholderIntegrityResult } from "@verbatra/core";
+import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
 import type { ProviderNotice, ReviewFlag, ReviewReasonCode } from "./provider.js";
 
 /** Below this ratio, the translation is suspiciously short relative to the source. */
@@ -115,6 +115,48 @@ export function computeReviewFlags(input: ReviewFlagInput): ReviewFlag | undefin
     reasons.push("INTEGRITY_REORDERED");
   }
   return reasons.length > 0 ? { status: "review", reasons } : undefined;
+}
+
+/**
+ * Compute a {@link ReviewFlag} for every entry with a translated value, skipping an entry with none.
+ * Shared by `runLlmTranslation` (called with every requested entry) and the DeepL provider (called
+ * with only its placeholder-free, protectable subset), so the per-entry loop cannot drift between them.
+ *
+ * @param entries - The entries to compute flags for; only a value present in `values` is flagged.
+ * @param values - The translated value per key.
+ * @param integrity - The placeholder-integrity result per key.
+ * @param sourceLocale - BCP-47 source locale, forwarded to {@link computeReviewFlags}.
+ * @param targetLocale - BCP-47 target locale, forwarded to {@link computeReviewFlags}.
+ * @param glossary - Optional source-term to target-term glossary map, forwarded to {@link computeReviewFlags}.
+ */
+export function buildEntryReviewFlags(
+  entries: readonly TranslationEntry[],
+  values: ReadonlyMap<string, string>,
+  integrity: ReadonlyMap<string, PlaceholderIntegrityResult>,
+  sourceLocale: string,
+  targetLocale: string,
+  glossary: Readonly<Record<string, string>> | undefined,
+): Map<string, ReviewFlag> {
+  const reviewFlags = new Map<string, ReviewFlag>();
+  for (const entry of entries) {
+    const translatedValue = values.get(entry.key);
+    const entryIntegrity = integrity.get(entry.key);
+    if (translatedValue === undefined || entryIntegrity === undefined) {
+      continue;
+    }
+    const flag = computeReviewFlags({
+      sourceValue: entry.value,
+      translatedValue,
+      sourceLocale,
+      targetLocale,
+      integrity: entryIntegrity,
+      glossary,
+    });
+    if (flag !== undefined) {
+      reviewFlags.set(entry.key, flag);
+    }
+  }
+  return reviewFlags;
 }
 
 /**

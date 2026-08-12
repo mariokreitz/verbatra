@@ -6,7 +6,7 @@ import type { TranslateRequest } from "../provider.js";
 import { ProviderRegistry } from "../registry.js";
 import {
   entry,
-  firstOpenAiCall,
+  firstCallOf,
   openAiCompletion,
   openAiResult,
   openAiStubClient,
@@ -74,7 +74,7 @@ describe("createOpenAiProvider: request building", () => {
     await createOpenAiProvider(config, { client }).translateBatch(
       request({ tone: "formal", glossary: { Hello: "Servus" } }),
     );
-    const body = firstOpenAiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[0].content).toBe(OPENAI_SYSTEM_RULES);
     expect(body.messages[0].content).not.toContain("formal");
@@ -97,7 +97,7 @@ describe("createOpenAiProvider: request building", () => {
         entries: [entry("post", "Post", [], { description: "a verb", meaning: "publish" })],
       }),
     );
-    const payload = payloadOf(firstOpenAiCall(calls));
+    const payload = payloadOf(firstCallOf(calls));
     expect(payload.tone).toBe("informal");
     expect(payload.glossary).toEqual({ Hello: "Hi" });
     expect(payload.items[0]?.description).toBe("a verb");
@@ -117,7 +117,7 @@ describe("createOpenAiProvider: prompt-injection defense", () => {
         glossary: { [hostile]: hostile },
       }),
     );
-    const body = firstOpenAiCall(calls);
+    const body = firstCallOf(calls);
     expect(body.messages[0].content).toBe(OPENAI_SYSTEM_RULES);
     expect(body.messages[0].content).not.toContain("ignore previous instructions");
     const payload = payloadOf(body);

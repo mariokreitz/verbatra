@@ -1,7 +1,7 @@
 import { ProviderError } from "../errors.js";
 import type { LlmCompletion } from "../llm/run.js";
 import { assertNotTruncated } from "../llm/truncation.js";
-import type { Usage } from "../provider.js";
+import { toUsage } from "../llm/usage.js";
 import type { OpenAiCompletion } from "./types.js";
 
 interface StringScanState {
@@ -124,17 +124,6 @@ function parseContent(content: string, tolerant: boolean): unknown {
   }
 }
 
-function toUsage(usage: OpenAiCompletion["usage"]): Usage | undefined {
-  if (usage === undefined) {
-    return undefined;
-  }
-  const { prompt_tokens, completion_tokens } = usage;
-  if (typeof prompt_tokens !== "number" || typeof completion_tokens !== "number") {
-    return undefined;
-  }
-  return { inputTokens: prompt_tokens, outputTokens: completion_tokens };
-}
-
 /**
  * Extract schema-bound raw output from a Chat Completions response. A refusal is
  * surfaced as PROVIDER_REFUSED, never parsed as a translation. Errors raised here
@@ -166,6 +155,6 @@ export function extractOpenAiResult(completion: OpenAiCompletion, tolerant = fal
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no translation content.");
   }
   const raw = parseContent(message.content, tolerant);
-  const usage = toUsage(completion.usage);
+  const usage = toUsage(completion.usage?.prompt_tokens, completion.usage?.completion_tokens);
   return usage === undefined ? { raw } : { raw, usage };
 }

@@ -1,15 +1,14 @@
-import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
+import type { TranslationEntry } from "@verbatra/core";
 import { checkBatchIntegrity } from "../integrity.js";
 import {
   type ProviderNotice,
-  type ReviewFlag,
   type TranslateRequest,
   type TranslateResult,
   type Usage,
   type ValidatedRequestData,
   validateRequest,
 } from "../provider.js";
-import { applyProviderDegraded, computeReviewFlags } from "../review-flags.js";
+import { applyProviderDegraded, buildEntryReviewFlags } from "../review-flags.js";
 import { toIntegrityInputs } from "./integrity-inputs.js";
 import { buildDataPayload } from "./payload.js";
 import { type ReconcileOutcome, reconcileResult } from "./response.js";
@@ -148,40 +147,21 @@ export async function runLlmTranslation(
     request.comparePlaceholders,
   );
   const notices: readonly ProviderNotice[] = [];
-  const reviewFlags = applyProviderDegraded(buildReviewFlags(data, values, integrity), notices, [
-    ...values.keys(),
-  ]);
+  const reviewFlags = applyProviderDegraded(
+    buildEntryReviewFlags(
+      data.entries,
+      values,
+      integrity,
+      data.sourceLocale,
+      data.targetLocale,
+      data.glossary,
+    ),
+    notices,
+    [...values.keys()],
+  );
   return usage === undefined
     ? { values, integrity, notices, reviewFlags }
     : { values, integrity, usage, notices, reviewFlags };
-}
-
-/** Compute a {@link ReviewFlag} for every key with a translated value, skipping keys with none. */
-function buildReviewFlags(
-  data: ValidatedRequestData,
-  values: ReadonlyMap<string, string>,
-  integrity: ReadonlyMap<string, PlaceholderIntegrityResult>,
-): Map<string, ReviewFlag> {
-  const reviewFlags = new Map<string, ReviewFlag>();
-  for (const entry of data.entries) {
-    const translatedValue = values.get(entry.key);
-    const entryIntegrity = integrity.get(entry.key);
-    if (translatedValue === undefined || entryIntegrity === undefined) {
-      continue;
-    }
-    const flag = computeReviewFlags({
-      sourceValue: entry.value,
-      translatedValue,
-      sourceLocale: data.sourceLocale,
-      targetLocale: data.targetLocale,
-      integrity: entryIntegrity,
-      glossary: data.glossary,
-    });
-    if (flag !== undefined) {
-      reviewFlags.set(entry.key, flag);
-    }
-  }
-  return reviewFlags;
 }
 
 /** Call the mechanism for the given entries and reconcile its output against them. */

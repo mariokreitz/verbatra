@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PROVIDER_ENV } from "../env.js";
+import { requestTimeoutConfigSchema } from "../request-timeout-config.js";
 
 const HOSTED_PROVIDER_ENV_VARS: ReadonlySet<string> = new Set(
   Object.values(PROVIDER_ENV).map((name) => name.toUpperCase()),
@@ -39,27 +40,26 @@ function isHttpOrHttpsUrl(value: string): boolean {
  * real key is configured (`apiKeyEnvVar` or `OPENAI_COMPATIBLE_API_KEY` resolves to a non-empty value)
  * and `baseUrl` is plaintext `http:` to a non-loopback host, that key travels over the network in
  * cleartext. Not enforced or warned about at runtime here; documented as a residual risk instead.
+ *
+ * The shared requestTimeoutMs field bounds each outbound request so a hung-but-alive local server
+ * (the reported stuck-LM-Studio case) cannot hold a locale's write lock open forever.
  */
-export const openAiCompatibleConfigSchema = z.object({
-  baseUrl: z
-    .url({ message: "baseUrl must be a valid absolute URL." })
-    .refine(isHttpOrHttpsUrl, { message: "baseUrl must use the http or https scheme." }),
-  model: z.string().min(1),
-  maxOutputTokens: z.number().int().positive(),
-  apiKeyEnvVar: z
-    .string()
-    .min(1)
-    .refine(isNotHostedProviderEnvVar, {
-      message: "apiKeyEnvVar must not name a hosted provider's environment variable.",
-    })
-    .optional(),
-  /**
-   * Optional verbatra-imposed per-request timeout in milliseconds. A positive integer; when absent,
-   * the shared default request timeout applies. Bounds each outbound request so a hung-but-alive local
-   * server (the reported stuck-LM-Studio case) cannot hold a locale's write lock open forever.
-   */
-  requestTimeoutMs: z.number().int().positive().optional(),
-});
+export const openAiCompatibleConfigSchema = z
+  .object({
+    baseUrl: z
+      .url({ message: "baseUrl must be a valid absolute URL." })
+      .refine(isHttpOrHttpsUrl, { message: "baseUrl must use the http or https scheme." }),
+    model: z.string().min(1),
+    maxOutputTokens: z.number().int().positive(),
+    apiKeyEnvVar: z
+      .string()
+      .min(1)
+      .refine(isNotHostedProviderEnvVar, {
+        message: "apiKeyEnvVar must not name a hosted provider's environment variable.",
+      })
+      .optional(),
+  })
+  .extend(requestTimeoutConfigSchema.shape);
 
 /**
  * The validated openai-compatible provider configuration, inferred from

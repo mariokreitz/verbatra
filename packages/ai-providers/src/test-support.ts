@@ -61,13 +61,13 @@ export function stubClient(message: AnthropicMessage): {
   return { client, calls };
 }
 
-/** Return the first recorded request body, or throw if the client was not called. */
-export function firstCall(calls: readonly BuiltRequest[]): BuiltRequest {
-  const body = calls[0];
-  if (body === undefined) {
+/** Return the first recorded call, or throw if the client was not called. Shared by every stub client above. */
+export function firstCallOf<T>(calls: readonly T[]): T {
+  const call = calls[0];
+  if (call === undefined) {
     throw new Error("expected the client to have been called at least once");
   }
-  return body;
+  return call;
 }
 
 /** Build a Chat Completions response as the openai SDK would return it. */
@@ -115,15 +115,6 @@ export function openAiStubClient(completion: OpenAiCompletion): {
   return { client, calls };
 }
 
-/** Return the first recorded OpenAI request body, or throw if the client was not called. */
-export function firstOpenAiCall(calls: readonly OpenAiRequest[]): OpenAiRequest {
-  const body = calls[0];
-  if (body === undefined) {
-    throw new Error("expected the client to have been called at least once");
-  }
-  return body;
-}
-
 /** A schema-conforming Gemini response carrying the given per-key translations. */
 export function geminiResult(
   translations: ReadonlyArray<{ key: string; value: string }>,
@@ -153,15 +144,6 @@ export function geminiStubClient(response: GeminiResponse): {
   return { client, calls };
 }
 
-/** Return the first recorded Gemini request, or throw if the client was not called. */
-export function firstGeminiCall(calls: readonly GeminiRequest[]): GeminiRequest {
-  const body = calls[0];
-  if (body === undefined) {
-    throw new Error("expected the client to have been called at least once");
-  }
-  return body;
-}
-
 /** A recorded DeepL translateText call. */
 export interface DeepLCall {
   readonly texts: readonly string[];
@@ -188,13 +170,4 @@ export function deeplStubClient(results: readonly DeepLTextResult[]): {
     },
   };
   return { client, calls };
-}
-
-/** Return the first recorded DeepL call, or throw if the client was not called. */
-export function firstDeeplCall(calls: readonly DeepLCall[]): DeepLCall {
-  const call = calls[0];
-  if (call === undefined) {
-    throw new Error("expected the client to have been called at least once");
-  }
-  return call;
 }

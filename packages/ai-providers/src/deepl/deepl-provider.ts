@@ -3,14 +3,13 @@ import { checkBatchIntegrity } from "../integrity.js";
 import {
   type PlaceholderComparator,
   type PlaceholderExtractor,
-  type ReviewFlag,
   type TranslateRequest,
   type TranslationProvider,
   type ValidatedRequestData,
   validateRequest,
 } from "../provider.js";
 import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
-import { applyProviderDegraded, computeReviewFlags } from "../review-flags.js";
+import { applyProviderDegraded, buildEntryReviewFlags } from "../review-flags.js";
 import { createDefaultClient } from "./client.js";
 import { type DeepLConfig, deepLConfigSchema } from "./config.js";
 import { chunkTextsForDeepL } from "./limits.js";
@@ -128,41 +127,18 @@ async function translate(
     notices.push({ code: "PLACEHOLDER_UNSUPPORTED", message: PLACEHOLDER_UNSUPPORTED_MESSAGE });
   }
   const reviewFlags = applyProviderDegraded(
-    buildReviewFlags(protectable, data, values, integrity, request.glossary),
+    buildEntryReviewFlags(
+      protectable,
+      values,
+      integrity,
+      data.sourceLocale,
+      data.targetLocale,
+      request.glossary,
+    ),
     notices,
     [...values.keys()],
   );
   return { values, integrity, notices, reviewFlags };
-}
-
-/** Compute a {@link ReviewFlag} for every translated (protectable) entry. */
-function buildReviewFlags(
-  protectable: readonly TranslationEntry[],
-  data: ValidatedRequestData,
-  values: ReadonlyMap<string, string>,
-  integrity: ReadonlyMap<string, PlaceholderIntegrityResult>,
-  glossary: Readonly<Record<string, string>> | undefined,
-): Map<string, ReviewFlag> {
-  const reviewFlags = new Map<string, ReviewFlag>();
-  for (const entry of protectable) {
-    const translatedValue = values.get(entry.key);
-    const entryIntegrity = integrity.get(entry.key);
-    if (translatedValue === undefined || entryIntegrity === undefined) {
-      continue;
-    }
-    const flag = computeReviewFlags({
-      sourceValue: entry.value,
-      translatedValue,
-      sourceLocale: data.sourceLocale,
-      targetLocale: data.targetLocale,
-      integrity: entryIntegrity,
-      glossary,
-    });
-    if (flag !== undefined) {
-      reviewFlags.set(entry.key, flag);
-    }
-  }
-  return reviewFlags;
 }
 
 /**

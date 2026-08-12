@@ -7,7 +7,7 @@ import {
   deeplResult,
   deeplStubClient,
   entry,
-  firstDeeplCall,
+  firstCallOf,
   regexExtractor,
 } from "../test-support.js";
 import { createDeepLProvider } from "./deepl-provider.js";
@@ -72,9 +72,9 @@ describe("createDeepLProvider: ordered send and positional zip", () => {
     const result = await createDeepLProvider(config, { client }).translateBatch(
       request({ entries: [entry("a", "A?"), entry("b", "B?")] }),
     );
-    expect(firstDeeplCall(calls).texts).toEqual(["A?", "B?"]);
-    expect(firstDeeplCall(calls).sourceLang).toBe("en");
-    expect(firstDeeplCall(calls).targetLang).toBe("de");
+    expect(firstCallOf(calls).texts).toEqual(["A?", "B?"]);
+    expect(firstCallOf(calls).sourceLang).toBe("en");
+    expect(firstCallOf(calls).targetLang).toBe("de");
     expect(result.values.get("a")).toBe("A");
     expect(result.values.get("b")).toBe("B");
     expect(result.usage).toBeUndefined();
@@ -105,19 +105,19 @@ describe("createDeepLProvider: tone -> formality", () => {
     await createDeepLProvider(config, { client: a.client }).translateBatch(
       request({ tone: "formal", entries: [entry("k", "v")] }),
     );
-    expect(firstDeeplCall(a.calls).options.formality).toBe("more");
+    expect(firstCallOf(a.calls).options.formality).toBe("more");
 
     const b = deeplStubClient(deeplResult(["x"]));
     await createDeepLProvider(config, { client: b.client }).translateBatch(
       request({ tone: "informal", entries: [entry("k", "v")] }),
     );
-    expect(firstDeeplCall(b.calls).options.formality).toBe("less");
+    expect(firstCallOf(b.calls).options.formality).toBe("less");
 
     const c = deeplStubClient(deeplResult(["x"]));
     await createDeepLProvider(config, { client: c.client }).translateBatch(
       request({ tone: "neutral", entries: [entry("k", "v")] }),
     );
-    expect(firstDeeplCall(c.calls).options.formality).toBeUndefined();
+    expect(firstCallOf(c.calls).options.formality).toBeUndefined();
   });
 });
 
@@ -131,7 +131,7 @@ describe("createDeepLProvider: free-key formality degradation", () => {
       request({ tone: "formal", entries: [entry("k", "v")] }),
     )) as DeepLTranslateResult;
 
-    expect(firstDeeplCall(calls).options.formality).toBeUndefined();
+    expect(firstCallOf(calls).options.formality).toBeUndefined();
     expect(noticeCodes(result)).toContain("FORMALITY_DOWNGRADED");
     const message = result.notices.map((n) => n.message).join(" ");
     expect(message).not.toContain(":fx");
@@ -154,7 +154,7 @@ describe("createDeepLProvider: glossary", () => {
     await createDeepLProvider({ glossaryId: "gl-123" }, { client }).translateBatch(
       request({ entries: [entry("k", "v")] }),
     );
-    expect(firstDeeplCall(calls).options.glossary).toBe("gl-123");
+    expect(firstCallOf(calls).options.glossary).toBe("gl-123");
   });
 
   it("ignores a supplied generic term-map but signals it observably (not an error)", async () => {
@@ -162,7 +162,7 @@ describe("createDeepLProvider: glossary", () => {
     const result = (await createDeepLProvider(config, { client }).translateBatch(
       request({ glossary: { Hello: "Hallo" }, entries: [entry("k", "Hello")] }),
     )) as DeepLTranslateResult;
-    expect(firstDeeplCall(calls).options.glossary).toBeUndefined();
+    expect(firstCallOf(calls).options.glossary).toBeUndefined();
     expect(noticeCodes(result)).toContain("GLOSSARY_IGNORED");
     expect(result.values.get("k")).toBe("x");
   });
@@ -176,7 +176,7 @@ describe("createDeepLProvider: description/meaning are context-only, never DeepL
         entries: [entry("greeting", "Hello", [], { description: "a friendly greeting" })],
       }),
     );
-    expect(firstDeeplCall(calls).texts).toEqual(["Hello"]);
+    expect(firstCallOf(calls).texts).toEqual(["Hello"]);
     expect(result.values.get("greeting")).toBe("Hallo");
   });
 });
@@ -209,7 +209,7 @@ describe("createDeepLProvider: placeholder-bearing entries are withheld", () => 
       }),
     )) as DeepLTranslateResult;
 
-    expect(firstDeeplCall(calls).texts).toEqual(["Free"]);
+    expect(firstCallOf(calls).texts).toEqual(["Free"]);
     expect(result.values.get("free")).toBe("Frei");
     expect(result.integrity.get("free")?.matches).toBe(true);
     expect(result.values.has("bearing")).toBe(false);
@@ -531,7 +531,7 @@ describe("createDeepLProvider: locale validation (pre-flight, before any network
     const result = await createDeepLProvider(config, { client }).translateBatch(
       request({ targetLocale: "zh-Hans", entries: [entry("k", "v")] }),
     );
-    expect(firstDeeplCall(calls).targetLang).toBe("zh-Hans");
+    expect(firstCallOf(calls).targetLang).toBe("zh-Hans");
     expect(result.values.get("k")).toBe("x");
   });
 
@@ -540,7 +540,7 @@ describe("createDeepLProvider: locale validation (pre-flight, before any network
     const result = await createDeepLProvider(config, { client }).translateBatch(
       request({ targetLocale: "en-US", entries: [entry("k", "Free")] }),
     );
-    expect(firstDeeplCall(calls).targetLang).toBe("en-US");
+    expect(firstCallOf(calls).targetLang).toBe("en-US");
     expect(result.values.get("k")).toBe("Frei");
   });
 

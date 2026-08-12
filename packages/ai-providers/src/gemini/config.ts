@@ -1,19 +1,16 @@
 import { z } from "zod";
+import { requestTimeoutConfigSchema } from "../request-timeout-config.js";
 
 /**
- * Provider-specific configuration for the Gemini provider. The API key is deliberately
- * not here: it is read only from the environment.
+ * Provider-specific configuration for the Gemini provider, plus the shared requestTimeoutMs field.
+ * The API key is deliberately not here: it is read only from the environment.
  */
-export const geminiConfigSchema = z.object({
-  model: z.string().min(1),
-  maxOutputTokens: z.number().int().positive(),
-  /**
-   * Optional verbatra-imposed per-request timeout in milliseconds. A positive integer; when absent,
-   * the shared default request timeout applies. Bounds each outbound request so a hung-but-alive
-   * server cannot hold a locale's write lock open forever.
-   */
-  requestTimeoutMs: z.number().int().positive().optional(),
-});
+export const geminiConfigSchema = z
+  .object({
+    model: z.string().min(1),
+    maxOutputTokens: z.number().int().positive(),
+  })
+  .extend(requestTimeoutConfigSchema.shape);
 
 /** The validated Gemini provider configuration, inferred from {@link geminiConfigSchema}. */
 export type GeminiConfig = z.infer<typeof geminiConfigSchema>;

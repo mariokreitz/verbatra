@@ -1,5 +1,6 @@
 import { type LlmCompletion, type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import { assertNotTruncated } from "../llm/truncation.js";
+import { toUsage as toUsageFromCounts } from "../llm/usage.js";
 import type { TranslateRequest, TranslateResult, TranslationProvider, Usage } from "../provider.js";
 import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { createDefaultClient } from "./client.js";
@@ -7,9 +8,6 @@ import { type AnthropicConfig, anthropicConfigSchema } from "./config.js";
 import { type BuiltRequest, buildRequest } from "./request.js";
 import { requireToolInput } from "./response.js";
 import type { AnthropicMessage, MessagesClient } from "./types.js";
-
-/** Re-exported so existing imports of this path keep resolving. */
-export { toIntegrityInputs } from "../llm/integrity-inputs.js";
 
 const PROVIDER_ID = "anthropic";
 
@@ -88,12 +86,5 @@ function callClient(
 
 /** Map Anthropic usage to our Usage shape, or undefined when not fully reported. */
 export function toUsage(usage: AnthropicMessage["usage"]): Usage | undefined {
-  if (usage === undefined) {
-    return undefined;
-  }
-  const { input_tokens, output_tokens } = usage;
-  if (typeof input_tokens !== "number" || typeof output_tokens !== "number") {
-    return undefined;
-  }
-  return { inputTokens: input_tokens, outputTokens: output_tokens };
+  return toUsageFromCounts(usage?.input_tokens, usage?.output_tokens);
 }
