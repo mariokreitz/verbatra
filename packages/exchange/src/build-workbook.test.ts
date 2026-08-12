@@ -2,31 +2,21 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { buildWorkbook, spliceWorkbookProtection } from "./build-workbook.js";
-import { ExchangeError } from "./errors.js";
 import { COLUMN, HEADER_ROW, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
 import { readWorkbook } from "./read-workbook.js";
+import { expectWorkbookInvalid, row, singleLocaleModel } from "./test-support.js";
 import type { WorkbookModel } from "./types.js";
 
-const model: WorkbookModel = {
-  sheets: [
-    {
-      locale: "de",
-      rows: [
-        {
-          key: "greeting",
-          source: "Hello {name}",
-          currentTarget: "Hallo",
-          status: "changed",
-          sourceHash: "abc123",
-          translation: "",
-          context: "A friendly greeting shown on the home screen",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
-      ],
-    },
-  ],
-};
+const model = singleLocaleModel([
+  row({
+    key: "greeting",
+    source: "Hello {name}",
+    currentTarget: "Hallo",
+    status: "changed",
+    sourceHash: "abc123",
+    context: "A friendly greeting shown on the home screen",
+  }),
+]);
 
 /** Build the model and load it back with exceljs to inspect the styling exceljs preserves. */
 async function loadBuilt(input: WorkbookModel = model): Promise<ExcelJS.Workbook> {
@@ -257,23 +247,17 @@ describe("buildWorkbook: translation column text format", () => {
 describe("buildWorkbook: worksheet-name coupling guard", () => {
   it("rejects a locale longer than 31 characters", async () => {
     const bad: WorkbookModel = { sheets: [{ locale: "a".repeat(32), rows: [] }] };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => buildWorkbook(bad));
   });
 
   it("rejects a locale with a forbidden worksheet-name character", async () => {
     const bad: WorkbookModel = { sheets: [{ locale: "de/at", rows: [] }] };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => buildWorkbook(bad));
   });
 
   it("rejects an empty locale", async () => {
     const bad: WorkbookModel = { sheets: [{ locale: "", rows: [] }] };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => buildWorkbook(bad));
   });
 });
 
@@ -285,10 +269,8 @@ describe("buildWorkbook: worksheet-name collision guard", () => {
         { locale: "DE", rows: [] },
       ],
     };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
-    expect((error as ExchangeError).message).toContain("DE");
+    const error = await expectWorkbookInvalid(() => buildWorkbook(bad));
+    expect(error.message).toContain("DE");
   });
 
   it("rejects two identical target locales", async () => {
@@ -298,19 +280,15 @@ describe("buildWorkbook: worksheet-name collision guard", () => {
         { locale: "de", rows: [] },
       ],
     };
-    const error = await buildWorkbook(bad).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => buildWorkbook(bad));
   });
 
   it.each(["Instructions", "instructions", "INSTRUCTIONS"])(
     "rejects a locale colliding with the reserved instructions sheet name (%s)",
     async (locale) => {
       const bad: WorkbookModel = { sheets: [{ locale, rows: [] }] };
-      const error = await buildWorkbook(bad).catch((e) => e);
-      expect(error).toBeInstanceOf(ExchangeError);
-      expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
-      expect((error as ExchangeError).message).toContain(locale);
+      const error = await expectWorkbookInvalid(() => buildWorkbook(bad));
+      expect(error.message).toContain(locale);
     },
   );
 
@@ -324,13 +302,12 @@ describe("buildWorkbook: worksheet-name collision guard", () => {
     const reservedName: WorkbookModel = { sheets: [{ locale: "Instructions", rows: [] }] };
 
     const errors = await Promise.all([
-      buildWorkbook(duplicateLocales).catch((e) => e),
-      buildWorkbook(reservedName).catch((e) => e),
+      expectWorkbookInvalid(() => buildWorkbook(duplicateLocales)),
+      expectWorkbookInvalid(() => buildWorkbook(reservedName)),
     ]);
 
     for (const error of errors) {
-      expect(error).toBeInstanceOf(ExchangeError);
-      expect((error as Error).message).not.toContain("Worksheet name already exists");
+      expect(error.message).not.toContain("Worksheet name already exists");
     }
   });
 

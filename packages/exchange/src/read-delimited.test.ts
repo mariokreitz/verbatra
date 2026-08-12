@@ -4,6 +4,7 @@ import { DEFAULT_DELIMITED_LIMITS } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
 import { HEADERS } from "./layout.js";
 import { readDelimited } from "./read-delimited.js";
+import { expectWorkbookInvalid } from "./test-support.js";
 
 const HEADER_LINE = HEADERS.join(",");
 
@@ -24,15 +25,6 @@ function csv(...records: readonly string[]): string {
 
 function read(text: string, format: "csv" | "tsv" = "csv") {
   return readDelimited({ text, locale: "de", format });
-}
-
-function caught(text: string): ExchangeError {
-  try {
-    read(text);
-  } catch (error) {
-    return error as ExchangeError;
-  }
-  throw new Error("expected readDelimited to throw");
 }
 
 describe("readDelimited", () => {
@@ -148,20 +140,19 @@ describe("readDelimited structural problems", () => {
     ]);
   });
 
-  it("rejects a file with no header line", () => {
-    expect(caught("").code).toBe("WORKBOOK_INVALID");
+  it("rejects a file with no header line", async () => {
+    await expectWorkbookInvalid(() => read(""));
   });
 
-  it("rejects a header line with the wrong number of columns", () => {
-    const error = caught(["Key,Source", record("a")].join("\n"));
-    expect(error).toBeInstanceOf(ExchangeError);
+  it("rejects a header line with the wrong number of columns", async () => {
+    const error = await expectWorkbookInvalid(() => read(["Key,Source", record("a")].join("\n")));
     expect(error.message).not.toContain("Hello");
   });
 
-  it("rejects a header line whose columns were renamed or reordered", () => {
+  it("rejects a header line whose columns were renamed or reordered", async () => {
     const swapped = [...HEADERS];
     swapped[1] = "Original";
-    expect(caught([swapped.join(","), record("a")].join("\n")).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => read([swapped.join(","), record("a")].join("\n")));
   });
 });
 
@@ -272,17 +263,15 @@ describe("readDelimited bounds", () => {
     ).toThrow(/maximum of 8 characters/);
   });
 
-  it("embeds no field content in a cap failure", () => {
+  it("embeds no field content in a cap failure", async () => {
     const text = csv(record("secret-key", "secret source text"));
-    try {
+    const error = await expectWorkbookInvalid(() =>
       readDelimited(
         { text, locale: "de", format: "csv" },
         { limits: { ...DEFAULT_DELIMITED_LIMITS, maxInputBytes: 16 } },
-      );
-    } catch (error) {
-      expect((error as ExchangeError).message).not.toContain("secret");
-    }
-    expect.assertions(1);
+      ),
+    );
+    expect(error.message).not.toContain("secret");
   });
 });
 

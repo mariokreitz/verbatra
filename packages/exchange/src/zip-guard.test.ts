@@ -2,50 +2,11 @@ import { Readable } from "node:stream";
 import JSZip from "jszip";
 import { describe, expect, it, vi } from "vitest";
 import { buildWorkbook } from "./build-workbook.js";
-import { ExchangeError } from "./errors.js";
 import { DEFAULT_WORKBOOK_LIMITS } from "./limits.js";
-import type { WorkbookModel } from "./types.js";
+import { expectWorkbookInvalid, row, singleLocaleModel } from "./test-support.js";
 import { declaredSize, guardWorkbookBytes, streamEntryBounded } from "./zip-guard.js";
 
-const model: WorkbookModel = {
-  sheets: [
-    {
-      locale: "de",
-      rows: [
-        {
-          key: "k1",
-          source: "Hello",
-          currentTarget: "",
-          status: "new",
-          sourceHash: "h1",
-          translation: "",
-          context: "",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
-      ],
-    },
-  ],
-};
-
-/**
- * Run the guard and return whatever it rejects with, failing the test if it resolves. Every
- * assertion below checks the rejection is a structured ExchangeError, never a raw JSZip throw.
- */
-async function rejection(promise: Promise<unknown>): Promise<unknown> {
-  return promise.then(
-    () => {
-      throw new Error("expected guardWorkbookBytes to reject");
-    },
-    (error: unknown) => error,
-  );
-}
-
-/** Assert the value is the structured exchange error with the WORKBOOK_INVALID code. */
-function expectWorkbookInvalid(error: unknown): void {
-  expect(error).toBeInstanceOf(ExchangeError);
-  expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
-}
+const model = singleLocaleModel([row({ key: "k1", source: "Hello", sourceHash: "h1" })]);
 
 describe("guardWorkbookBytes: reject matrix", () => {
   it("rejects a container whose entry count exceeds maxEntryCount", async () => {
@@ -55,7 +16,7 @@ describe("guardWorkbookBytes: reject matrix", () => {
     }
     const bytes = await zip.generateAsync({ type: "uint8array" });
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxEntryCount: 3 };
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, limits));
   });
 
   it("rejects in the declared-size pass when the summed declared sizes exceed the cap", async () => {
@@ -63,26 +24,26 @@ describe("guardWorkbookBytes: reject matrix", () => {
     zip.file("big.txt", "A".repeat(5000));
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 1000 };
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, limits));
   });
 
   it("rejects a part that declares a DTD via DOCTYPE", async () => {
     const zip = new JSZip();
     zip.file("doctype.xml", '<?xml version="1.0"?><!DOCTYPE root><root></root>');
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS));
   });
 
   it("rejects a part that declares an entity (XXE defense)", async () => {
     const zip = new JSZip();
     zip.file("entity.xml", '<?xml version="1.0"?><!ENTITY x "y">');
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS));
   });
 
   it("rejects bytes that are not a loadable zip container", async () => {
     const bytes = new TextEncoder().encode("this is not a zip container at all");
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, DEFAULT_WORKBOOK_LIMITS));
   });
 
   it("rejects a real high-ratio DEFLATE bomb end to end", async () => {
@@ -90,7 +51,7 @@ describe("guardWorkbookBytes: reject matrix", () => {
     zip.file("bomb.bin", "A".repeat(2 * 1024 * 1024));
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 4096 };
-    expectWorkbookInvalid(await rejection(guardWorkbookBytes(bytes, limits)));
+    await expectWorkbookInvalid(() => guardWorkbookBytes(bytes, limits));
   }, 30_000);
 });
 
@@ -121,7 +82,7 @@ describe("streamEntryBounded", () => {
     }
     const stub = { nodeStream: () => Readable.from(gen()) };
     const remaining = 64 * 1024;
-    expectWorkbookInvalid(await rejection(streamEntryBounded(stub, remaining)));
+    await expectWorkbookInvalid(() => streamEntryBounded(stub, remaining));
     expect(pulls).toBeLessThan(200);
   });
 
@@ -134,7 +95,7 @@ describe("streamEntryBounded", () => {
           },
         }),
     };
-    expectWorkbookInvalid(await rejection(streamEntryBounded(stub, 64 * 1024)));
+    await expectWorkbookInvalid(() => streamEntryBounded(stub, 64 * 1024));
   });
 
   it("accumulates string chunks and returns the raw byte count with the decoded UTF-8 content", async () => {
@@ -174,7 +135,7 @@ describe("streamEntryBounded", () => {
     });
 
     try {
-      expectWorkbookInvalid(await rejection(streamEntryBounded(realFile, 64 * 1024)));
+      await expectWorkbookInvalid(() => streamEntryBounded(realFile, 64 * 1024));
       expect(producedBytes).toBeGreaterThan(0);
       expect(producedBytes).toBeLessThan(1024 * 1024);
       expect(producedBytes).toBeLessThan(uncompressedBytes);
