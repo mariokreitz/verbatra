@@ -16,31 +16,46 @@ project, `npm install`s both tarballs, and runs the binary via `src/harness.ts`.
 
 ## Tiers
 
-The suite is split by trust boundary so a provider secret never reaches code that a pull
-request can modify.
+The suite is split by determinism, which is also the trust boundary: a provider secret never
+reaches code a pull request can modify, and only the deterministic half is allowed to gate a
+release.
 
-- **No-key tier** (`tests/read-only.e2e.test.ts`, `tests/structure-lock-import.e2e.test.ts`, and
-  `tests/progress-flags.e2e.test.ts`, run with `npm run test:nokey`): packaging smoke, `init`
-  scaffolding, `check` across i18next, YAML, Flutter ARB, and `.properties` projects, `diff` and
-  `export` on the i18next project, `translate --dry-run`, `export` then `import` round-trips for
-  i18next and `.properties` (a workbook filled in code the way a translator would) plus an
-  import of the untouched, structure-locked bytes `export` wrote, the keyless flag surface
-  (`--dry-run --concurrency 2` with progress on stderr and a clean stdout summary, `--no-cache`,
-  and the `--concurrency` versus `maxTokens` refusal exiting 2 on `CONCURRENCY_BUDGET_CONFLICT`
-  before any provider is constructed), structured exit-2 boundary errors (missing config, invalid
-  config values, an invalid `--debounce`, an unreadable `.env`), and the `watch` SIGINT
-  contract: the watcher starts without a provider key, and a single interrupt stops it cleanly
-  with exit 0 after at least one NDJSON record. It makes no provider call, so it is
-  deterministic and free, and gates every pull request and push to `main` as the `e2e` job in
-  `.github/workflows/ci.yml`.
-- **Live tier** (`tests/translate.e2e.test.ts`, `tests/watch.e2e.test.ts`, run with `npm test`):
-  real `translate` and `watch` against a live provider. `translate` fills a missing key and
-  leaves the project in sync; `watch` translates on startup, again on a source change, and
-  stops on interrupt. It needs `E2E_PROVIDER` (default
-  `gemini`) and the matching API key, and skips otherwise. `.github/workflows/e2e-live.yml`
-  runs it on a nightly schedule, on push to `main`, and on manual dispatch only, never on a
-  pull request, with the key scoped to the `live-e2e` GitHub Environment. Its status is not a
-  required check, so a provider outage never blocks a merge.
+A live-tier file is named `*.live.e2e.test.ts`. That name is the whole split: `npm run test:nokey`
+runs everything else, via `vitest.nokey.config.ts`. Nothing keeps a list of files to run, so a new
+deterministic test joins the required gate automatically.
+
+- **No-key tier** (everything except `tests/*.live.e2e.test.ts`, run with `npm run test:nokey`):
+  packaging smoke, `init` scaffolding, `check` across i18next, YAML, Flutter ARB, and `.properties`
+  projects, `diff` and `export` on the i18next project, `translate --dry-run`, `export` then
+  `import` round-trips for i18next and `.properties` (a workbook filled in code the way a
+  translator would) plus an import of the untouched, structure-locked bytes `export` wrote, the
+  keyless flag surface (`--dry-run --concurrency 2` with progress on stderr and a clean stdout
+  summary, `--no-cache`, and the `--concurrency` versus `maxTokens` refusal exiting 2 on
+  `CONCURRENCY_BUDGET_CONFLICT` before any provider is constructed), structured exit-2 boundary
+  errors (missing config, invalid config values, an invalid `--debounce`, an unreadable `.env`),
+  the `watch` SIGINT contract, and the full `watch` lifecycle: a successful startup run, a second
+  run triggered by a source change, and a clean exit 0 on a single interrupt
+  (`tests/watch-lifecycle.e2e.test.ts`, which stays keyless by giving the run nothing to translate,
+  so no provider is ever called). It makes no provider call and no network request, so it is
+  deterministic and free.
+
+  **This tier is the required release gate.** It runs as the `e2e` job in
+  `.github/workflows/ci.yml`, feeds the `Build and test gate` job, and `release.yml` publishes only
+  when the CI workflow concludes successfully. A broken CLI cannot reach npm.
+
+- **Live tier** (`tests/translate.live.e2e.test.ts`, `tests/watch.live.e2e.test.ts`; `npm test`
+  runs it alongside the no-key tier): real `translate` and `watch` against a live provider.
+  `translate` fills a missing key and leaves the project in sync; `watch` translates on startup,
+  again on a source change, and stops on interrupt. It needs `E2E_PROVIDER` (default `gemini`) and
+  the matching API key, and skips otherwise. `.github/workflows/e2e-live.yml` runs it on a nightly
+  schedule, on push to `main`, and on manual dispatch only, never on a pull request, with the key
+  scoped to the `live-e2e` GitHub Environment.
+
+  **This tier is advisory and never gates a publish**, because its result depends on a third
+  party's rate limiter. That is not licence to ignore it: the live `watch` test reads each run's
+  `--json` record, so a key the SDK withheld after a `RATE_LIMITED` sub-batch failure is retried
+  with a backoff and, if the throttling persists, reported as a skipped test. Every other cause
+  still fails. A red run here therefore means the CLI is genuinely broken against a real provider.
 
 ## Running locally
 

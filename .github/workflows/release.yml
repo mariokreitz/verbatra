@@ -2,6 +2,13 @@ name: Release
 
 # Release fires via workflow_run after CI completes (never directly on push) so it only runs against a
 # commit CI validated, and splits work into a write-free build pre-flight and a least-privilege publish.
+#
+# What "CI validated" covers, since it is the whole release gate: the CI workflow's conclusion is
+# success only when every one of its jobs succeeded, and those include the `e2e` job, which installs
+# the packed tarballs and drives the real binary. So a broken CLI cannot publish. That tier is
+# deliberately the deterministic, keyless one; the live-provider tier in e2e-live.yml is advisory and
+# is deliberately NOT wired in here, because a publish must not be blocked by a third party's rate
+# limiter. See .verbatra/adr for the argument.
 
 on:
   workflow_run:
