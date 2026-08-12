@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, toLocale } from "@/lib/i18n";
 import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
 
 const UMAMI_DOCS = "https://umami.is/docs/";
@@ -24,18 +24,19 @@ export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await props.params;
-  const t = await getTranslations({ locale: lang, namespace: "legal.privacy.meta" });
+  const locale = toLocale(lang);
+  const t = await getTranslations({ locale, namespace: "legal.privacy.meta" });
   return {
     title: t("title"),
     description: t("description"),
     robots: { index: true },
-    alternates: localeAlternates(lang as Locale, "/privacy"),
+    alternates: localeAlternates(locale, "/privacy"),
   };
 }
 
 export default async function PrivacyPage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
-  const locale = lang as Locale;
+  const locale = toLocale(lang);
   const t = await getTranslations({ locale, namespace: "legal.privacy" });
   const isAuthoritative = locale === i18n.defaultLanguage;
 

@@ -23,6 +23,30 @@ export function localeAlternates(locale: Locale, path: string) {
 }
 
 /**
+ * The site root's path for a locale: the default language is unprefixed, every
+ * other language gets a bare `/{locale}` segment. Kept separate from
+ * `localizedPath` because the root has no path segment to append, so the generic
+ * `/{locale}{path}` concatenation would leave a trailing slash here.
+ */
+export function homePath(locale: Locale): string {
+  return locale === i18n.defaultLanguage ? "/" : `/${locale}`;
+}
+
+/**
+ * Next.js `alternates` for the site root: self-referential canonical plus the full
+ * hreflang set with x-default, derived from `i18n.languages` so the locale list has
+ * one source of truth instead of being re-enumerated at each call site.
+ */
+export function homeAlternates(locale: Locale) {
+  const languages: Record<string, string> = {};
+  for (const lang of i18n.languages) {
+    languages[lang] = homePath(lang);
+  }
+  languages["x-default"] = homePath(i18n.defaultLanguage);
+  return { canonical: homePath(locale), languages };
+}
+
+/**
  * Open Graph locale in the `language_TERRITORY` form the OG spec expects (for example `en_US`),
  * rather than the bare language tag. Maps each supported UI locale to a representative territory.
  */

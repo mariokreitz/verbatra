@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import { isLocale, localizeHref, toLocale } from "./i18n";
+
+describe("localizeHref", () => {
+  it("passes an undefined href through unchanged", () => {
+    expect(localizeHref("de", undefined)).toBeUndefined();
+  });
+
+  it("passes a non-internal href through unchanged", () => {
+    expect(localizeHref("de", "https://example.com/docs")).toBe("https://example.com/docs");
+    expect(localizeHref("de", "mailto:mario.kreitz@web.de")).toBe("mailto:mario.kreitz@web.de");
+    expect(localizeHref("de", "#section")).toBe("#section");
+  });
+
+  it("passes a protocol-relative href through unchanged", () => {
+    expect(localizeHref("de", "//example.com/docs")).toBe("//example.com/docs");
+  });
+
+  it("passes an href already carrying the active locale prefix through unchanged", () => {
+    expect(localizeHref("de", "/de")).toBe("/de");
+    expect(localizeHref("de", "/de/docs")).toBe("/de/docs");
+  });
+
+  it("prefixes an internal absolute path with the active locale", () => {
+    expect(localizeHref("de", "/docs/config-file")).toBe("/de/docs/config-file");
+  });
+
+  it("leaves an internal absolute path unprefixed for the default locale", () => {
+    expect(localizeHref("en", "/docs/config-file")).toBe("/docs/config-file");
+  });
+});
+
+describe("isLocale", () => {
+  it("accepts every configured locale", () => {
+    expect(isLocale("en")).toBe(true);
+    expect(isLocale("de")).toBe(true);
+    expect(isLocale("es")).toBe(true);
+    expect(isLocale("fr")).toBe(true);
+  });
+
+  it("rejects a string outside the configured locale set", () => {
+    expect(isLocale("xx")).toBe(false);
+  });
+});
+
+describe("toLocale", () => {
+  it("returns a valid locale unchanged", () => {
+    expect(toLocale("de")).toBe("de");
+  });
+
+  it("throws for a value outside the configured locale set", () => {
+    expect(() => toLocale("xx")).toThrow();
+  });
+});

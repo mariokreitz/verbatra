@@ -14,7 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
 import { extractFaqItems } from "@/lib/extract-faq";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, type Locale, toLocale } from "@/lib/i18n";
 import { ogAlternateLocales, ogLocale } from "@/lib/site";
 import { source } from "@/lib/source";
 import {
@@ -113,7 +113,7 @@ async function LocaleNotice({
 
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
-  const lang = params.lang as Locale;
+  const lang = toLocale(params.lang);
   const page = source.getPage(params.slug, lang);
   if (!page) notFound();
 
@@ -162,7 +162,8 @@ export async function generateMetadata(props: {
   params: Promise<{ slug?: string[]; lang: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug, params.lang as Locale);
+  const lang = toLocale(params.lang);
+  const page = source.getPage(params.slug, lang);
   if (!page) notFound();
 
   const languages: Record<string, string> = {};
@@ -179,8 +180,8 @@ export async function generateMetadata(props: {
     openGraph: {
       type: "article",
       siteName: "verbatra",
-      locale: ogLocale(params.lang as Locale),
-      alternateLocale: ogAlternateLocales(params.lang as Locale),
+      locale: ogLocale(lang),
+      alternateLocale: ogAlternateLocales(lang),
       title: page.data.title,
       description: page.data.description,
       url: page.url,

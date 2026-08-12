@@ -1,4 +1,5 @@
 import { defineI18n } from "fumadocs-core/i18n";
+import { notFound } from "next/navigation";
 
 export const i18n = defineI18n({
   defaultLanguage: "en",
@@ -8,6 +9,22 @@ export const i18n = defineI18n({
 });
 
 export type Locale = (typeof i18n.languages)[number];
+
+/** Narrows a string to a Locale, matching the configured `i18n.languages` set. */
+export function isLocale(value: string): value is Locale {
+  return (i18n.languages as readonly string[]).includes(value);
+}
+
+/**
+ * Validates a route's `params.lang` against `i18n.languages`. Every nested route
+ * under `[lang]` renders behind the root layout's own guard, which already calls
+ * `notFound()` for anything outside the configured locales, so this mirrors that
+ * same fallback rather than inventing a second one for the routes underneath it.
+ */
+export function toLocale(value: string): Locale {
+  if (!isLocale(value)) notFound();
+  return value;
+}
 
 /**
  * Prefix an internal absolute path with the active locale, matching the Fumadocs loader's URL scheme:
