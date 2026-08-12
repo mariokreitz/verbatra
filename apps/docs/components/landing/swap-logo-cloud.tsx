@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -24,21 +24,8 @@ export function SwapLogoCloud({
   const reduced = useReducedMotion() ?? false;
   const rootRef = useRef<HTMLDivElement>(null);
   const [offset, setOffset] = useState(0);
-  const [inView, setInView] = useState(false);
+  const inView = useInView(rootRef, { amount: 0.2 });
   const canSwap = !reduced && logos.length > visibleCount;
-
-  useEffect(() => {
-    const node = rootRef.current;
-    if (!node || !canSwap) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) setInView(entry.isIntersecting);
-      },
-      { threshold: 0.2 },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [canSwap]);
 
   useEffect(() => {
     if (!canSwap || !inView) return;

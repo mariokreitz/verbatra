@@ -1,6 +1,50 @@
 import Link from "next/link";
 
-export function VMark({ size = 44 }: { size?: number }) {
+export type VMarkProps = {
+  size?: number;
+  blur?: number;
+  decorative?: boolean;
+};
+
+function VMarkPath() {
+  return (
+    <path
+      d="M4 4 L12 20 L20 4"
+      stroke="var(--v-glow)"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  );
+}
+
+/**
+ * The verbatra V-mark glyph. Decorative usages (inline beside visible text) pass
+ * `decorative`, which swaps the labeled `role="img"`/`aria-label` pair for
+ * `aria-hidden` so the mark isn't announced twice. The two branches render distinct
+ * literal attributes (rather than spreading a computed object) so the accessibility
+ * linter can verify the labeled case statically.
+ */
+export function VMark({ size = 44, blur = 6, decorative = false }: VMarkProps) {
+  const style = {
+    filter: `drop-shadow(0 0 ${blur}px color-mix(in srgb, var(--v-glow) 60%, transparent))`,
+  };
+
+  if (decorative) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden="true"
+        style={style}
+      >
+        <VMarkPath />
+      </svg>
+    );
+  }
+
   return (
     <svg
       width={size}
@@ -9,17 +53,9 @@ export function VMark({ size = 44 }: { size?: number }) {
       fill="none"
       role="img"
       aria-label="verbatra"
-      style={{
-        filter: "drop-shadow(0 0 6px color-mix(in srgb, var(--v-glow) 60%, transparent))",
-      }}
+      style={style}
     >
-      <path
-        d="M4 4 L12 20 L20 4"
-        stroke="var(--v-glow)"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <VMarkPath />
     </svg>
   );
 }

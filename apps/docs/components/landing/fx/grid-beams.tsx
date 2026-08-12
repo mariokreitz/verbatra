@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { GRID_PATTERN_STYLE } from "./grid-pattern";
 
 const BEAMS = [0, 1, 2] as const;
 
@@ -16,9 +17,7 @@ export function GridBeams({
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage:
-            "linear-gradient(var(--border-default) 1px, transparent 1px), linear-gradient(90deg, var(--border-default) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
+          ...GRID_PATTERN_STYLE,
           opacity: 0.5,
           WebkitMaskImage: fade,
           maskImage: fade,

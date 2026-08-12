@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { prefersReducedMotion } from "@/lib/reduced-motion";
+import { useInViewOnce } from "@/lib/use-in-view-once";
 
 type Row = {
   key: string;
@@ -31,49 +33,30 @@ export function DiffPanel({
 
   const [count, setCount] = useState(full.length);
   const [settled, setSettled] = useState(true);
-  const ref = useRef<HTMLElement>(null);
+  const [ref, inView] = useInViewOnce<HTMLElement>(0.5);
 
   useEffect(() => {
-    if (!full) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) return;
-
-    const node = ref.current;
-    if (!node) return;
-
-    let started = false;
-    let typer: ReturnType<typeof setInterval> | undefined;
-    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    if (!full || !inView || prefersReducedMotion()) return;
 
     setCount(0);
     setSettled(false);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting || started) continue;
-          started = true;
-          let i = 0;
-          typer = setInterval(() => {
-            i += 1;
-            setCount(i);
-            if (i >= full.length) {
-              if (typer) clearInterval(typer);
-              settleTimer = setTimeout(() => setSettled(true), 450);
-            }
-          }, 55);
-        }
-      },
-      { threshold: 0.5 },
-    );
+    let i = 0;
+    let settleTimer: ReturnType<typeof setTimeout> | undefined;
+    const typer: ReturnType<typeof setInterval> = setInterval(() => {
+      i += 1;
+      setCount(i);
+      if (i >= full.length) {
+        clearInterval(typer);
+        settleTimer = setTimeout(() => setSettled(true), 450);
+      }
+    }, 55);
 
-    observer.observe(node);
     return () => {
-      observer.disconnect();
-      if (typer) clearInterval(typer);
+      clearInterval(typer);
       if (settleTimer) clearTimeout(settleTimer);
     };
-  }, [full]);
+  }, [full, inView]);
 
   const typed = full.slice(0, count);
   const typing = count > 0 && count < full.length;
