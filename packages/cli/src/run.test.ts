@@ -641,6 +641,14 @@ describe("run: usage errors, help, version", () => {
     expect(await run(["translate", "--nope"], deps, captureStreams().streams)).toBe(2);
   });
 
+  it("writes nothing to stdout for a usage error without --json", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    expect(await run(["check", "--nope"], deps, cap.streams)).toBe(2);
+    expect(cap.out()).toBe("");
+  });
+
   it("--help and --version exit 0, and --version reports the package version", async () => {
     const { deps } = recordingDeps();
     expect(await run(["--help"], deps, captureStreams().streams)).toBe(0);
@@ -870,5 +878,70 @@ describe("run: init command", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("run: the --json error envelope for a commander usage error", () => {
+  it("emits one error envelope naming the resolved command for an unknown option", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["check", "--json", "--nope"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    const envelope = parseEnvelope(cap.out());
+    expect(envelope).toMatchObject({
+      ok: false,
+      version: JSON_ENVELOPE_VERSION,
+      command: "check",
+      code: "USAGE_ERROR",
+    });
+    expect(envelope.message).toContain("--nope");
+  });
+
+  it("emits one error envelope for a missing required argument", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["import", "--json"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(parseEnvelope(cap.out())).toMatchObject({
+      ok: false,
+      command: "import",
+      code: "USAGE_ERROR",
+    });
+  });
+
+  it("reports command null when the failure happened before a command was resolved", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["frobnicate", "--json"], deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(parseEnvelope(cap.out())).toMatchObject({
+      ok: false,
+      command: null,
+      code: "USAGE_ERROR",
+    });
+  });
+
+  it("writes exactly one line, and stdout stays parseable as a single envelope", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    await run(["diff", "--json", "--nope"], deps, cap.streams);
+
+    expect(cap.out().trimEnd().split("\n")).toHaveLength(1);
+    expect(cap.out().endsWith("\n")).toBe(true);
+  });
+
+  it("still exits 0 with no envelope for --help, which is not a failure", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    expect(await run(["--help", "--json"], deps, cap.streams)).toBe(0);
+    expect(cap.out()).not.toContain('"ok":false');
   });
 });

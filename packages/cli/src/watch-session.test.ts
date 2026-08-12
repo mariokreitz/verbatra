@@ -1,6 +1,7 @@
 import type { LockWaitEvent, WatchController } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { captureStreams, flush, makeConfig, recordingDeps } from "./test-support.js";
+import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
+import { captureStreams, flush, makeConfig, parseEnvelope, recordingDeps } from "./test-support.js";
 import type { WatchOptions } from "./watch-session.js";
 import { runWatch } from "./watch-session.js";
 
@@ -174,5 +175,71 @@ describe("runWatch: lock-wait progress and timeout threading", () => {
     const lines = err().trim().split("\n");
     const lastLine = lines.at(-1) ?? "";
     expect(JSON.parse(lastLine)).toEqual({ type: "run-finished", localesCompleted: 2 });
+  });
+});
+
+describe("runWatch: the --json error envelope for a session failure", () => {
+  const jsonOptions = (): WatchOptions => ({ ...options(), json: true });
+
+  it("emits one error envelope on stdout when the watcher fails to start", async () => {
+    const { streams, out, err } = captureStreams();
+    const startupError = Object.assign(new Error("no source"), { code: "SOURCE_UNREADABLE" });
+    const { deps } = recordingDeps({
+      watch: async () => {
+        throw startupError;
+      },
+    });
+
+    const session = runWatch(jsonOptions(), deps, streams);
+    const code = await session.done;
+
+    expect(code).toBe(2);
+    expect(parseEnvelope(out())).toMatchObject({
+      ok: false,
+      version: JSON_ENVELOPE_VERSION,
+      command: "watch",
+      code: "SOURCE_UNREADABLE",
+      message: "no source",
+    });
+    expect(err()).toContain("SOURCE_UNREADABLE");
+  });
+
+  it("emits one error envelope on stdout when the watcher fails to stop", async () => {
+    const { streams, out } = captureStreams();
+    const { deps } = recordingDeps({
+      watch: async () =>
+        ({
+          stop: async () => {
+            throw Object.assign(new Error("watcher close failed"), { code: "WATCH_CLOSE" });
+          },
+        }) satisfies WatchController,
+    });
+
+    const session = runWatch(jsonOptions(), deps, streams);
+    await flush();
+    session.requestStop();
+    const code = await session.done;
+
+    expect(code).toBe(2);
+    expect(parseEnvelope(out())).toMatchObject({
+      ok: false,
+      command: "watch",
+      code: "WATCH_CLOSE",
+    });
+  });
+
+  it("writes no envelope without --json, leaving stdout empty", async () => {
+    const { streams, out, err } = captureStreams();
+    const { deps } = recordingDeps({
+      watch: async () => {
+        throw Object.assign(new Error("no source"), { code: "SOURCE_UNREADABLE" });
+      },
+    });
+
+    const code = await runWatch(options(), deps, streams).done;
+
+    expect(code).toBe(2);
+    expect(out()).toBe("");
+    expect(err()).toContain("SOURCE_UNREADABLE");
   });
 });

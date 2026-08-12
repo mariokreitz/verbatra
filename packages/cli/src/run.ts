@@ -177,6 +177,51 @@ function renderFailureExit2(error: unknown, context: CommandContext): number {
   return 2;
 }
 
+/** The stable code carried by the error envelope for a commander usage failure. */
+const USAGE_ERROR_CODE = "USAGE_ERROR";
+
+/** True when raw argv asks for `--json`, read before commander could parse anything. */
+function argvRequestsJson(argv: readonly string[]): boolean {
+  return argv.includes("--json");
+}
+
+/**
+ * The subcommand named in raw argv, or `null` when none of the program's commands appears in it.
+ * Read from argv rather than from a parsed result because a usage error can happen before commander
+ * resolves a command at all, which is exactly the case {@link ErrorEnvelope.command}'s `null` is for.
+ */
+function resolveCommandName(program: Command, argv: readonly string[]): string | null {
+  const names = new Set(program.commands.map((command) => command.name()));
+  return argv.find((token) => names.has(token)) ?? null;
+}
+
+/**
+ * Reports a commander usage failure (an unknown option, a missing required argument, an unknown
+ * command) and returns exit `2`.
+ *
+ * Commander has already written its own human-readable line to stderr through the configured
+ * output, so this adds nothing there. Under `--json` it writes the one error envelope the contract
+ * promises for a whole-run failure, which this is: without it a `--json` consumer piping stdout got
+ * an empty stream and a bare exit code, the very gap the envelope exists to close. `--json` and the
+ * command name are recovered from raw argv, since the failure happened before commander produced a
+ * parsed result; an unknown command yields `null`, the documented no-command-resolved case.
+ */
+function renderUsageFailureExit2(
+  error: CommanderError,
+  program: Command,
+  argv: readonly string[],
+  streams: Streams,
+): number {
+  if (argvRequestsJson(argv)) {
+    const envelope = renderErrorEnvelope(resolveCommandName(program, argv), {
+      code: USAGE_ERROR_CODE,
+      message: error.message,
+    });
+    streams.out(`${envelope}\n`);
+  }
+  return 2;
+}
+
 /**
  * Runs a synchronous option-parsing step inside a try that reports any parse or usage failure and
  * returns exit `2`. On success the parsed options are handed to `body`. This is the single copy of
@@ -963,7 +1008,7 @@ export async function run(
     await program.parseAsync([...argv], { from: "user" });
   } catch (error) {
     if (error instanceof CommanderError) {
-      return error.exitCode === 0 ? 0 : 2;
+      return error.exitCode === 0 ? 0 : renderUsageFailureExit2(error, program, argv, streams);
     }
     throw error;
   }
