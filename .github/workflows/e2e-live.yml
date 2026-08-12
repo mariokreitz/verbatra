@@ -4,6 +4,15 @@ name: E2E (live)
 # It never triggers on pull_request, so the secret is only ever exposed to already-merged or
 # maintainer-triggered code. The live-e2e environment gates the job, and the secret is scoped
 # to the final test step only, so the install, build, and pack steps never see it.
+#
+# ADVISORY, by design: this workflow never gates a publish. Its outcome depends on a third party's
+# rate limiter, and release.yml keys on the CI workflow's conclusion alone, so a provider outage
+# can never block shipping. The deterministic no-key tier in ci.yml is the required gate.
+#
+# Advisory is not the same as ignorable. The suite now reads each run's `--json` record and reports
+# a rate-limited, SDK-withheld key as a skipped test rather than a failure, so this workflow no
+# longer goes red for quota. A red run here means the CLI is genuinely broken against a real
+# provider, and must be investigated before the next release.
 
 on:
   push:
@@ -74,8 +83,36 @@ jobs:
         run: npm run typecheck
 
       - name: Run full E2E suite (no-key and live)
+        id: suite
         working-directory: e2e
         run: npm test
         env:
           E2E_PROVIDER: gemini
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      # Says on the run itself what this tier is for and what its result means, so nobody has to
+      # reconstruct the gating policy from the workflow file. The outcome arrives through env
+      # rather than direct interpolation, keeping the expression out of the shell.
+      #
+      # The warning fires on "failure" specifically, never on "not success". A step that never ran
+      # because an earlier one failed (a flaky install, a build error) has an empty outcome, and
+      # blaming the CLI for that would make this warning exactly the noise it exists to replace.
+      - name: Report what this tier's result means
+        if: always()
+        env:
+          SUITE_OUTCOME: ${{ steps.suite.outcome }}
+        run: |
+          {
+            echo "## E2E (live)"
+            echo
+            echo "Result: \`${SUITE_OUTCOME:-not reached, an earlier step failed}\`."
+            echo
+            echo "This tier is advisory and never gates a publish. The required release gate is the"
+            echo "deterministic no-key tier, reported as \"Build and test gate\" on the CI workflow."
+            echo
+            echo "A provider rate limit is reported as a skipped test, not a failure, so a failure"
+            echo "here means the CLI is genuinely broken against a real provider."
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$SUITE_OUTCOME" = "failure" ]; then
+            echo "::warning title=Live E2E failed::The CLI failed against a real provider for a reason other than throttling. Investigate before the next release."
+          fi

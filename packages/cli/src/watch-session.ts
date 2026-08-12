@@ -1,5 +1,5 @@
 import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
-import { renderRunResultEnvelope } from "./json-envelope.js";
+import { renderErrorEnvelope, renderRunResultEnvelope } from "./json-envelope.js";
 import {
   renderError,
   renderLockWait,
@@ -48,15 +48,31 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
   let stopping = false;
   let startupFailed = false;
 
-  /** A clean stop resolves 0; a rejected stop renders the error and resolves 2. */
+  /**
+   * Reports a session-level failure (the watcher never started, or it failed to stop) and resolves
+   * the session with exit `2`.
+   *
+   * The human-readable line goes to stderr in both modes, unchanged. Under `--json` the same
+   * secret-free projection is also written to stdout as one error envelope, matching what every
+   * other command does for a whole-run failure and what a failed run already emits on this stream.
+   * Without it a `--json` consumer parsing stdout saw nothing at all for a watch that failed to
+   * start, while the identical error under `translate --json` produced an envelope.
+   */
+  const failSession = (error: unknown): void => {
+    const renderable = toRenderableError(error);
+    streams.err(`${renderError(renderable)}\n`);
+    if (options.json) {
+      streams.out(`${renderErrorEnvelope("watch", renderable)}\n`);
+    }
+    resolveDone(2);
+  };
+
+  /** A clean stop resolves 0; a rejected stop reports the error and resolves 2. */
   const stopController = (c: { stop(): Promise<void> }): void => {
     void c
       .stop()
       .then(() => resolveDone(0))
-      .catch((error: unknown) => {
-        streams.err(`${renderError(toRenderableError(error))}\n`);
-        resolveDone(2);
-      });
+      .catch(failSession);
   };
 
   const onRun = (result: WatchRunResult): void => {
@@ -97,8 +113,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     })
     .catch((error: unknown) => {
       startupFailed = true;
-      streams.err(`${renderError(toRenderableError(error))}\n`);
-      resolveDone(2);
+      failSession(error);
     });
 
   const requestStop = (): void => {

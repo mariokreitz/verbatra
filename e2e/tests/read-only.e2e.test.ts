@@ -10,8 +10,7 @@ import {
   type JsonEnvelope,
   makeConsumer,
   parseEnvelope,
-  parseNdjsonEnvelopes,
-  pollUntil,
+  readEnvelopeStream,
   readJsonIn,
   runVerbatra,
   type Subprocess,
@@ -497,19 +496,10 @@ describe("watch SIGINT contract (no provider key needed)", () => {
     const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
       env: { ANTHROPIC_API_KEY: "" },
     });
-
-    let stdoutBuf = "";
-    watcher.stdout?.on("data", (chunk: Buffer) => {
-      stdoutBuf += chunk.toString();
-    });
+    const stream = readEnvelopeStream(watcher);
 
     try {
-      await pollUntil(() => stdoutBuf.trim().length > 0, { timeoutMs: 30_000, intervalMs: 250 });
-
-      const [first] = parseNdjsonEnvelopes(stdoutBuf);
-      if (first === undefined) {
-        throw new Error("Expected watch --json to emit at least one NDJSON record");
-      }
+      const first = await stream.next({ timeoutMs: 30_000 });
       const failure = expectErrorEnvelope(first, "watch");
       expect(failure.code.length).toBeGreaterThan(0);
       expect(failure.message.length).toBeGreaterThan(0);

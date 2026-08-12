@@ -63,6 +63,19 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "yaml"
         update-types: ["version-update:semver-major"]
+      # cosmiconfig is not a catalog entry: packages/sdk/package.json pins it as a literal
+      # "9.0.2", which is why it was missed when the list above was derived from the catalog. It
+      # still reaches a consumer's node_modules the same way, so it needs the same treatment.
+      # The specific hold: cosmiconfig 10 declares engines node "^22.18 || >= 24", while this
+      # repository declares ">=22.14.0". Merging a major would publish an sdk whose manifest
+      # contradicts its own dependency tree, and CI would not catch it, because engines is
+      # advisory at install time unless a consumer sets engine-strict. Raising the floor is a
+      # platform-support decision across three manifests, the CI node pins and the docs, not a
+      # routine weekly proposal. See .verbatra/specs/cosmiconfig-10-upgrade-evaluation.md.
+      # Remove this entry when the repository's own Node floor moves to ^22.18 || >= 24 or
+      # later, and take the cosmiconfig major in that same pull request.
+      - dependency-name: "cosmiconfig"
+        update-types: ["version-update:semver-major"]
     groups:
       deepl-logging:
         patterns:

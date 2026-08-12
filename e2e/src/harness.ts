@@ -228,6 +228,86 @@ export function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** How often {@link EnvelopeStream.next} re-checks for a record that has not arrived yet. */
+const ENVELOPE_POLL_INTERVAL_MS = 100;
+
+/** A long-running command's `--json` stdout, handed out one record at a time as it arrives. */
+export interface EnvelopeStream<TResult> {
+  /**
+   * Resolves the next record this stream has not handed out yet, waiting for it to arrive.
+   *
+   * @param options - `timeoutMs` bounds the wait for a record that has not arrived.
+   * @throws When no further record arrives within `timeoutMs`, or when the command wrote a stdout
+   *   line that is not a `--json` envelope.
+   */
+  next(options: { timeoutMs: number }): Promise<JsonEnvelope<TResult>>;
+}
+
+/**
+ * Reads a spawned command's `--json` NDJSON stdout live, so a test can assert on each run's
+ * reported outcome instead of polling the file system and guessing why a file never changed.
+ *
+ * Attaching a passive `data` listener leaves execa's own buffering untouched, so the awaited
+ * {@link RunResult} still carries the complete `stdout` for the end-of-test assertions.
+ *
+ * @param subprocess - A subprocess started by {@link spawnVerbatra} with `--json`.
+ * @throws When the subprocess was started without a readable stdout.
+ */
+export function readEnvelopeStream<TResult = unknown>(
+  subprocess: Subprocess,
+): EnvelopeStream<TResult> {
+  const stdout = subprocess.stdout;
+  if (stdout === null) {
+    throw new Error("The subprocess was started without a readable stdout.");
+  }
+
+  const arrived: JsonEnvelope<TResult>[] = [];
+  let handedOut = 0;
+  let incompleteLine = "";
+  // Held rather than thrown from the listener, where nothing could catch it, and reported from the
+  // next `next()` call instead. The offending text is never quoted back: stdout is untrusted here.
+  let malformed: Error | undefined;
+
+  stdout.on("data", (chunk: Buffer) => {
+    incompleteLine += chunk.toString();
+    const lines = incompleteLine.split("\n");
+    incompleteLine = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.length === 0) {
+        continue;
+      }
+      try {
+        arrived.push(parseEnvelope<TResult>(trimmed));
+      } catch {
+        malformed ??= new Error(
+          `Expected one --json envelope per stdout line; got ${trimmed.length} characters that are not JSON.`,
+        );
+      }
+    }
+  });
+
+  return {
+    async next(options: { timeoutMs: number }): Promise<JsonEnvelope<TResult>> {
+      const deadline = Date.now() + options.timeoutMs;
+      for (;;) {
+        if (malformed !== undefined) {
+          throw malformed;
+        }
+        const envelope = arrived[handedOut];
+        if (envelope !== undefined) {
+          handedOut += 1;
+          return envelope;
+        }
+        if (Date.now() >= deadline) {
+          throw new Error(`No --json record arrived within ${options.timeoutMs}ms.`);
+        }
+        await delay(ENVELOPE_POLL_INTERVAL_MS);
+      }
+    },
+  };
+}
+
 /**
  * Polls `predicate` every `intervalMs` until it returns true.
  *
