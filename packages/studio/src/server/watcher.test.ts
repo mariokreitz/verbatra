@@ -56,6 +56,30 @@ function emptyReadLocaleSnapshot(locale: string): Promise<LocaleFileSnapshot> {
 }
 
 /**
+ * A readFileIdentity fake that reports every file as unreadable, which the identity gate treats as
+ * "unknown" and never as a duplicate. Used by tests that predate the gate and assert emit wiring
+ * rather than deduplication, so they never touch the real file system under fake timers.
+ */
+function unknownFileIdentity(): Promise<string | undefined> {
+  return Promise.resolve(undefined);
+}
+
+/**
+ * Builds a readFileIdentity fake that returns the queued tokens in call order, repeating the last
+ * one once exhausted. One call happens per settled trigger of a tracker-less entry.
+ */
+function sequencedFileIdentity(
+  tokens: readonly (string | undefined)[],
+): () => Promise<string | undefined> {
+  let index = 0;
+  return () => {
+    const token = tokens[Math.min(index, tokens.length - 1)];
+    index += 1;
+    return Promise.resolve(token);
+  };
+}
+
+/**
  * Flushes pending microtasks (the async settle chain: readSnapshot, diff, and the trigger's own
  * `.then(emit)`) without advancing the debounce timer. Mirrors the sdk's own watch.test.ts settle().
  */
@@ -163,7 +187,11 @@ describe("createProjectWatcher: debounce and coalescing", () => {
     const config: VerbatraConfig = baseStudioConfig({ targetLocales: ["de"] });
     const watcher = await createProjectWatcher(
       { config, projectRoot: PROJECT_ROOT, debounceMs: 50 },
-      { createWatcher: harness.createWatcher, readLocaleSnapshot: emptyReadLocaleSnapshot },
+      {
+        createWatcher: harness.createWatcher,
+        readLocaleSnapshot: emptyReadLocaleSnapshot,
+        readFileIdentity: unknownFileIdentity,
+      },
     );
     watcher.onRefresh(refresh.listener);
 
@@ -197,6 +225,105 @@ describe("createProjectWatcher: debounce and coalescing", () => {
     await vi.advanceTimersByTimeAsync(50);
     await flushMicrotasks();
     expect(refresh.events).toHaveLength(2);
+  });
+});
+
+describe("createProjectWatcher: duplicate-state suppression", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Wires a watcher with no target locales, so harness call 0 is the source file and call 1 the lock file. */
+  async function lockWatcher(
+    harness: ReturnType<typeof multiWatcherHarness>,
+    readFileIdentity: () => Promise<string | undefined>,
+  ): Promise<{ events: RefreshEvent[] }> {
+    const refresh = collectRefresh();
+    const config: VerbatraConfig = baseStudioConfig({ targetLocales: [] });
+    const watcher = await createProjectWatcher(
+      { config, projectRoot: PROJECT_ROOT, debounceMs: 50 },
+      {
+        createWatcher: harness.createWatcher,
+        readLocaleSnapshot: emptyReadLocaleSnapshot,
+        readFileIdentity,
+      },
+    );
+    watcher.onRefresh(refresh.listener);
+    return refresh;
+  }
+
+  it("publishes one lock refresh for two raw events that straddle separate debounce windows over one unchanged file", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await lockWatcher(harness, sequencedFileIdentity(["4711:64:1700.5"]));
+
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+
+    expect(refresh.events).toEqual([{ reason: "lock", at: expect.any(String) }]);
+  });
+
+  it("publishes a second lock refresh once the lock file's identity actually changes", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await lockWatcher(
+      harness,
+      sequencedFileIdentity(["4711:64:1700.5", "4712:70:1900.5"]),
+    );
+
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+
+    expect(refresh.events).toHaveLength(2);
+    expect(refresh.events.every((event) => event.reason === "lock")).toBe(true);
+  });
+
+  it("fails open and publishes both refreshes when the lock file's identity cannot be read", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await lockWatcher(harness, sequencedFileIdentity([undefined]));
+
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+
+    expect(refresh.events).toHaveLength(2);
+  });
+
+  it("fails open and publishes both refreshes when the identity read itself rejects", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await lockWatcher(harness, () => Promise.reject(new Error("stat exploded")));
+
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+    harness.emit(1);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+
+    expect(refresh.events).toHaveLength(2);
+  });
+
+  it("never suppresses a locale refresh: a snapshot-tracked entry reports its own delta and is not identity-gated", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await lockWatcher(harness, sequencedFileIdentity(["4711:64:1700.5"]));
+
+    harness.emit(0);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+    harness.emit(0);
+    await vi.advanceTimersByTimeAsync(50);
+    await flushMicrotasks();
+
+    expect(refresh.events).toHaveLength(2);
+    expect(refresh.events.every((event) => event.reason === "source")).toBe(true);
   });
 });
 
@@ -359,7 +486,11 @@ describe("createProjectWatcher: per-locale key delta", () => {
     const config: VerbatraConfig = baseStudioConfig({ targetLocales: ["de"] });
     const watcher = await createProjectWatcher(
       { config, projectRoot: PROJECT_ROOT, debounceMs: 50 },
-      { createWatcher: harness.createWatcher, readLocaleSnapshot: emptyReadLocaleSnapshot },
+      {
+        createWatcher: harness.createWatcher,
+        readLocaleSnapshot: emptyReadLocaleSnapshot,
+        readFileIdentity: unknownFileIdentity,
+      },
     );
     watcher.onRefresh(refresh.listener);
 
@@ -788,4 +919,71 @@ describe("defaultCreateStudioWatcher: real chokidar behavior", () => {
     expect(refresh.events).toEqual([]);
     await watcher.close();
   }, 5000);
+});
+
+describe("createProjectWatcher: default file identity read against a real file system", () => {
+  let root: string;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "verbatra-studio-identity-"));
+    await mkdir(join(root, "locales"), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+
+  /** Wires a watcher with no target locales over `root`, leaving the default (real stat) identity read in place. */
+  async function realIdentityWatcher(
+    harness: ReturnType<typeof multiWatcherHarness>,
+  ): Promise<{ events: RefreshEvent[] }> {
+    const refresh = collectRefresh();
+    const config: VerbatraConfig = baseStudioConfig({ targetLocales: [] });
+    const watcher = await createProjectWatcher(
+      { config, projectRoot: root, debounceMs: 5 },
+      { createWatcher: harness.createWatcher, readLocaleSnapshot: emptyReadLocaleSnapshot },
+    );
+    watcher.onRefresh(refresh.listener);
+    return refresh;
+  }
+
+  it("publishes one refresh for two triggers over a lock file that did not change in between", async () => {
+    const harness = multiWatcherHarness();
+    await writeFile(join(root, LOCK_FILE_NAME), JSON.stringify({ version: 1, locales: {} }));
+    const refresh = await realIdentityWatcher(harness);
+
+    harness.emit(1);
+    await wait(60);
+    harness.emit(1);
+    await wait(60);
+
+    expect(refresh.events).toEqual([{ reason: "lock", at: expect.any(String) }]);
+  });
+
+  it("publishes both refreshes when the lock file is rewritten between the two triggers", async () => {
+    const harness = multiWatcherHarness();
+    const lockPath = join(root, LOCK_FILE_NAME);
+    await writeFile(lockPath, JSON.stringify({ version: 1, locales: {} }));
+    const refresh = await realIdentityWatcher(harness);
+
+    harness.emit(1);
+    await wait(60);
+    await writeFile(lockPath, JSON.stringify({ version: 1, locales: { de: {} } }));
+    harness.emit(1);
+    await wait(60);
+
+    expect(refresh.events).toHaveLength(2);
+  });
+
+  it("fails open and publishes both refreshes while the lock file does not exist at all", async () => {
+    const harness = multiWatcherHarness();
+    const refresh = await realIdentityWatcher(harness);
+
+    harness.emit(1);
+    await wait(60);
+    harness.emit(1);
+    await wait(60);
+
+    expect(refresh.events).toHaveLength(2);
+  });
 });
