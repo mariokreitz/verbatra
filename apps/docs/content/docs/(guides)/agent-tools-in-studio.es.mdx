@@ -1,0 +1,95 @@
+---
+title: Opera Studio con un agente del navegador
+description: Expón las acciones de revisión de Verbatra Studio como herramientas WebMCP para que un agente de IA del navegador pueda ejecutar esas mismas operaciones desde tu pestaña del panel abierta y autenticada.
+---
+Verbatra Studio es normalmente una superficie para personas: abres el panel de loopback y recorres a clics el estado del proyecto, el desfase, la cola de revisión y las ediciones. Con el flag opcional `--expose-agent-tools`, Studio registra además esas mismas acciones de revisión como herramientas WebMCP, de modo que un agente de IA del navegador (por ejemplo Gemini o Claude ejecutándose dentro de Chrome) situado en esa misma pestaña abierta y autenticada puede operarlas de forma estructurada en lugar de adivinar sobre el DOM.
+
+Esto sirve para operar de forma conversacional un proyecto de verbatra ya existente: inspeccionar el estado y el desfase, trabajar la cola de revisión, editar entradas y (solo cuando además permites el gasto) retraducir y traducir las claves pendientes. No sirve para montar el proyecto ni para el acceso remoto.
+
+<Callout title="Experimental y detrás de un flag del navegador">
+WebMCP es una capacidad del navegador nueva y en evolución. Hoy exige una compilación concreta de Chrome con un flag experimental, y la superficie puede cambiar a medida que el estándar madure. Trátalo como una función en vista previa.
+</Callout>
+
+## Qué es WebMCP
+
+WebMCP permite que una página registre herramientas en `document.modelContext` que un agente de IA residente en el navegador puede luego invocar. Studio lo usa para anunciar sus acciones de revisión como herramientas con nombre. Cada llamada a una herramienta sigue viajando por exactamente el mismo RPC autenticado que el panel, sobre el mismo origen de loopback, con la misma validación de entrada y las mismas puertas de capacidades. Registrar las herramientas no concede al agente nada que la pestaña abierta y autenticada no tuviera ya: un agente que manejara el DOM ya podía alcanzar cada una de estas acciones. La superficie coincide con esa única pestaña abierta y no añade ninguna exposición de red nueva.
+
+### Requisitos del navegador
+
+- Un navegador compatible con WebMCP. Hoy eso significa Chrome 149 o posterior con `chrome://flags/#enable-webmcp-testing` activado, o un navegador posterior con soporte nativo.
+- `document.modelContext` debe estar presente. Cuando falta, Studio no registra nada y el panel queda igual.
+- Un contexto de navegación real. Esto no funciona en modo headless; el agente opera la pestaña abierta y viva.
+- Ningún cambio de configuración ni de CSP por parte de Studio. La Permissions-Policy `tools` de WebMCP vale `self` por defecto, que es exactamente el caso de mismo origen de Studio, así que no hay nada que conceder.
+
+## Actívalo
+
+Las herramientas para agentes están desactivadas por defecto. Actívalas con el flag en el comando `studio`:
+
+```bash
+verbatra studio --expose-agent-tools
+```
+
+O define la alternativa por entorno:
+
+```bash
+VERBATRA_STUDIO_AGENT_TOOLS=1 verbatra studio
+```
+
+El flag y la variable de entorno se resuelven exactamente como `--allow-spend`: `1`, `true`, `yes` u `on` (sin distinguir mayúsculas) cuenta como activado, y el flag de la CLI gana sobre la variable. Sin ninguno de los dos, no se registra ninguna herramienta. Consulta [`verbatra studio`](/docs/cli/studio) para todos los flags.
+
+Después abre en tu navegador compatible con WebMCP la URL de loopback que se imprime. El agente de esa pestaña descubre las herramientas registradas y puede invocarlas.
+
+## El catálogo de herramientas
+
+Con la opción activada, Studio registra trece herramientas, una por acción del panel. Sin `--allow-spend` registra once: las dos herramientas de gasto se omiten por completo. Los nombres de herramienta llevan prefijo y usan guiones bajos (por ejemplo `verbatra_project_snapshot`).
+
+### Herramientas de lectura (diez)
+
+Inspeccionan el estado del proyecto sin cambiar nada. Están marcadas como de solo lectura.
+
+| Herramienta | Qué devuelve |
+| --- | --- |
+| `verbatra_project_snapshot` | el estado y las capacidades resueltos del proyecto |
+| `verbatra_status_check` | resumen de cobertura por locale |
+| `verbatra_status_diff` | desfase por locale (claves faltantes, modificadas, huérfanas) |
+| `verbatra_glossary_get` | el glosario resuelto |
+| `verbatra_lock_state` | el estado del archivo de bloqueo |
+| `verbatra_history_list` | historial reciente de commits de los archivos de locale |
+| `verbatra_key_integrity` | integridad de marcadores de posición e ICU para una clave |
+| `verbatra_review_queue` | la cola de revisión |
+| `verbatra_usage_summary` | el uso de tokens y el presupuesto de la última ejecución |
+| `verbatra_key_value` | los valores de origen y destino para una clave y un locale |
+
+### Herramienta de escritura (una)
+
+`verbatra_translation_editEntry` edita en el sitio el valor de un locale. Pasa por la misma puerta de integridad que cualquier otra escritura de verbatra: un valor que no supera alguna de sus comprobaciones se rechaza y no se escribe nada. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como lo hace una edición desde el panel. Editar no necesita ningún flag de gasto; toca solo tus archivos locales y nunca llama a un proveedor.
+
+### Herramientas de gasto (dos)
+
+Estas llaman a un proveedor de traducción y se registran solo cuando Studio se ejecuta además con `--allow-spend`:
+
+- `verbatra_translation_retranslateEntry`: retraduce una clave y un locale.
+- `verbatra_translation_translatePending`: traduce todo lo que esté pendiente ahora mismo.
+
+Ambas pasan sus resultados por la puerta de integridad antes de que nada llegue al disco, y ambas están sujetas a los límites de tasa que Studio ya tiene (retraducción a 20 por minuto deslizante, traducción de lo pendiente a 5 por minuto deslizante más un guardia de concurrencia única). Sin `--allow-spend`, están ausentes del conjunto de herramientas y el servidor ni siquiera registra los endpoints subyacentes, así que un gasto que no concediste al arrancar no se puede alcanzar desde un agente.
+
+## Modelo de seguridad
+
+Ten presentes estos puntos antes de activar las herramientas para agentes.
+
+- **Desactivadas por defecto.** Optas por ellas de forma explícita con `--expose-agent-tools` (o `VERBATRA_STUDIO_AGENT_TOOLS`).
+- **El gasto exige ambos flags.** Las dos herramientas de gasto aparecen solo cuando pasas a la vez `--expose-agent-tools` y `--allow-spend`. Ninguno de los dos flags implica el otro. Las herramientas de lectura y de escritura no gastan.
+- **Ninguna exposición de red nueva.** Cada llamada a una herramienta usa el mismo RPC de loopback autenticado que el panel. Studio sigue escuchando solo en `127.0.0.1`, y el token de sesión del navegador sigue autenticando cada petición.
+- **Las cadenas traducibles no son de confianza.** Las herramientas que pueden devolver texto derivado del proyecto (cadenas de locale, nombres de clave, términos del glosario, asuntos de commit, tokens de marcadores de posición) marcan su contenido como no confiable, de modo que un agente consumidor trate esos valores como datos y no como instrucciones.
+
+### El riesgo de gasto aceptado
+
+Dicho sin rodeos: con `--allow-spend` y `--expose-agent-tools` activados a la vez, un agente autónomo puede provocar gasto en el proveedor sin una confirmación humana por cada clic. Studio no añade un diálogo de aprobación por llamada: el servidor no puede distinguir una llamada originada por un agente de un clic humano en la misma sesión, así que ese diálogo daría una seguridad falsa y echaría a perder el sentido de la función. Los límites de tasa de arriba siguen acotando el coste, pero un agente puede iterar por su cuenta hasta ese techo.
+
+Activa el gasto dirigido por un agente de forma deliberada. Si solo quieres que un agente inspeccione el estado y arregle entradas a mano, ejecuta Studio sin `--allow-spend`: las herramientas para agentes funcionan por completo en ese modo de lectura y edición, y ninguna herramienta puede alcanzar un proveedor.
+
+## Siguientes pasos
+
+- [Revisa traducciones en Studio](/docs/review-in-studio): el mismo flujo de trabajo, llevado por una persona.
+- [`verbatra studio`](/docs/cli/studio): todos los flags y el contrato de arranque.
+- [Seguridad de la traducción](/docs/translation-safety): la puerta de integridad por la que pasa cada edición y cada retraducción.
