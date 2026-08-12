@@ -1,3 +1,5 @@
+import { scanTokens } from "../shell.js";
+
 /** Double-brace interpolation tokens. The brace-excluding inner class keeps matching linear (no backtracking) on adversarial input. */
 const DOUBLE_BRACE_PATTERN = /\{\{[^{}]*\}\}/g;
 
@@ -7,17 +9,6 @@ const DOUBLE_BRACE_PATTERN = /\{\{[^{}]*\}\}/g;
  * prefix is matched.
  */
 const I18NEXT_PATTERN = /\{\{[^{}]*\}\}|\$t\([^()]*\)/g;
-
-function scanTokens(value: string, pattern: RegExp): readonly string[] {
-  const result: string[] = [];
-  for (const match of value.matchAll(pattern)) {
-    const token = match[0];
-    if (token !== undefined) {
-      result.push(token);
-    }
-  }
-  return result;
-}
 
 /**
  * Extract i18next double-brace interpolation tokens ({{name}}, {{val, number}}), without $t()

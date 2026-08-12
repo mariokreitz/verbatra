@@ -7,26 +7,10 @@ import {
   TYPE,
 } from "@formatjs/icu-messageformat-parser";
 import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
-import { icuPlaceholders } from "./analyze.js";
+import { icuPlaceholders, tokenOf } from "./analyze.js";
 
 /** An ICU plural or select element, the two node kinds with named CLDR-category branches. */
 type BranchingElement = PluralElement | SelectElement;
-
-function tokenOf(element: MessageFormatElement): string | undefined {
-  switch (element.type) {
-    case TYPE.argument:
-    case TYPE.number:
-    case TYPE.date:
-    case TYPE.time:
-    case TYPE.select:
-    case TYPE.plural:
-      return `{${element.value}}`;
-    case TYPE.tag:
-      return `<${element.value}>`;
-    default:
-      return undefined;
-  }
-}
 
 function isBranching(element: MessageFormatElement): element is BranchingElement {
   return element.type === TYPE.plural || element.type === TYPE.select;

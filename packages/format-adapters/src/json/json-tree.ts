@@ -88,3 +88,8 @@ export function serializeJsonTree(tree: OrderedRecord): string {
 export function isJsonNode(value: unknown): value is JsonRecord {
   return value instanceof Map;
 }
+
+/** A content sniff for a JSON-object file: the leading non-whitespace character is `{`. */
+export function sniffJsonObject(sample: string): boolean {
+  return sample.trimStart().startsWith("{");
+}

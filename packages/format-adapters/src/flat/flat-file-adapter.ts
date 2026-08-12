@@ -4,20 +4,14 @@ import { atomicWriteFile } from "../json/atomic-write.js";
 import { readFileContent } from "../json/bounded-read.js";
 import {
   buildCanHandle,
+  type ComputeInvalidIcuKeys,
   computeIcu,
+  type ExtractPlaceholders,
   namespaceOf,
   rethrowStructured,
   type Sniff,
+  type ValidateMessage,
 } from "../shell.js";
-
-/** Per-value placeholder extraction, exposed on the adapter for consumers. */
-type ExtractPlaceholders = (value: string) => readonly string[];
-
-/** Derives the keys whose values are invalid for the format's message syntax. */
-type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) => readonly string[];
-
-/** Validates a single value against the format's message syntax (one value, before write). */
-type ValidateMessage = (value: string) => boolean;
 
 /** The format-specific behavior {@link createFlatFileAdapter} builds an adapter from. */
 export interface FlatFileAdapterOptions {

@@ -1,6 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import { type BoundedReadOutcome, readBounded } from "../json/bounded-read.js";
+import { type BoundedReadOutcome, outcomeToContent, readBounded } from "../json/bounded-read.js";
+import { isEnoent } from "../shell.js";
 import { extractPropertiesPlaceholders } from "./placeholders.js";
 
 /**
@@ -291,10 +292,6 @@ function formatEntry(key: string, value: string): string {
   return `${escapeString(key, true)}=${escapeString(value, false)}`;
 }
 
-function isFileNotFound(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
 /** A destination's existing shape: what to rewrite, and the terminator to rewrite it with. */
 interface DestinationStructure {
   readonly items: ParsedItem[];
@@ -312,20 +309,15 @@ async function readStructure(filePath: string): Promise<DestinationStructure> {
   try {
     outcome = await readBounded(filePath);
   } catch (error) {
-    if (isFileNotFound(error)) {
+    if (isEnoent(error)) {
       return { items: [], terminator: "\n" };
     }
     throw new AdapterError("INVALID_STRUCTURE", "The destination file could not be read.");
   }
-  if (outcome.kind === "not-a-file") {
-    throw new AdapterError("INVALID_STRUCTURE", "The destination path is not a regular file.");
-  }
-  if (outcome.kind === "too-large") {
-    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
-  }
+  const content = outcomeToContent(outcome, "The destination path is not a regular file.");
   return {
-    items: parseItems(outcome.content),
-    terminator: detectLineTerminator(outcome.content),
+    items: parseItems(content),
+    terminator: detectLineTerminator(content),
   };
 }
 

@@ -1,16 +1,16 @@
-import type {
-  LocaleResource,
-  PlaceholderIntegrityResult,
-  SupportedFormat,
-  TranslationEntry,
-} from "@verbatra/core";
+import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
 import {
   buildCanHandle,
+  type ComparePlaceholders,
+  type ComputeInvalidIcuKeys,
   computeIcu,
+  type ExtractPlaceholders,
   namespaceOf,
   rethrowStructured,
   type Sniff,
+  type ValidateMessage,
+  type ValidateTree,
 } from "../shell.js";
 import { atomicWriteFile } from "./atomic-write.js";
 import { readFileContent } from "./bounded-read.js";
@@ -18,21 +18,6 @@ import { type DeriveEntry, type FlattenResult, flattenTree, type KeyMode } from 
 import type { JsonRecord } from "./json-tree.js";
 import type { OrderedRecord } from "./ordered-json.js";
 import { unflattenEntries } from "./unflatten.js";
-
-/** Per-value placeholder extraction, exposed on the adapter for consumers. */
-type ExtractPlaceholders = (value: string) => readonly string[];
-
-/** Derives the keys whose values are invalid for the format's message syntax. */
-type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) => readonly string[];
-
-/** Validates a single value against the format's message syntax (one value, before write). */
-type ValidateMessage = (value: string) => boolean;
-
-/** Optional branch-aware placeholder comparison; see `FormatAdapter.comparePlaceholders`. */
-type ComparePlaceholders = (sourceValue: string, targetValue: string) => PlaceholderIntegrityResult;
-
-/** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
-type ValidateTree = (tree: JsonRecord) => void;
 
 /** Optional builder for the ordered tree to write, allowing formats to control on-disk structure. */
 type BuildWriteTree = (

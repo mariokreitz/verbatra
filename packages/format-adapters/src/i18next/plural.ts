@@ -6,6 +6,10 @@ const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 /**
  * True when a key uses an i18next CLDR plural suffix (_zero, _one, _two, _few,
  * _many, _other). Context suffixes (for example _male) and ordinary keys do not match.
+ *
+ * i18next encodes a plural as several sibling keys (one per CLDR category); this tests the key.
+ * Compare {@link isPluralValue} in `vue-i18n/plural.ts`, which instead tests a single value for the
+ * pipe-delimited form vue-i18n encodes a plural in.
  */
 export function isPluralKey(key: string): boolean {
   return PLURAL_SUFFIX.test(key);

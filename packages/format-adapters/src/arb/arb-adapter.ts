@@ -1,7 +1,12 @@
 import type { FormatAdapter } from "../adapter.js";
 import { icuDeriveEntry, icuInvalidKeys, icuIsValid, icuPlaceholders } from "../icu/analyze.js";
 import { compareIcuPlaceholders } from "../icu/compare.js";
-import { assertJsonRecord, type JsonRecord, serializeJsonTree } from "../json/json-tree.js";
+import {
+  assertJsonRecord,
+  type JsonRecord,
+  serializeJsonTree,
+  sniffJsonObject,
+} from "../json/json-tree.js";
 import { createTreeFileAdapter } from "../json/tree-file-adapter.js";
 import {
   buildArbWriteTree,
@@ -36,7 +41,7 @@ export function createArbAdapter(): FormatAdapter {
   return createTreeFileAdapter({
     format: "arb",
     extensions: [".arb"],
-    sniff: (sample) => sample.trimStart().startsWith("{"),
+    sniff: sniffJsonObject,
     parse: parseArb,
     serialize: serializeJsonTree,
     extractPlaceholders: icuPlaceholders,

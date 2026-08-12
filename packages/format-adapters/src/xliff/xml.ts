@@ -1,7 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { DOMParser, type Document, type Element, type Node, XMLSerializer } from "@xmldom/xmldom";
 import { AdapterError } from "../errors.js";
-import { type BoundedReadOutcome, readBounded } from "../json/bounded-read.js";
+import { type BoundedReadOutcome, outcomeToContent, readBounded } from "../json/bounded-read.js";
 import { extractXliffPlaceholders } from "./placeholders.js";
 
 const ELEMENT_NODE = 1;
@@ -212,13 +212,7 @@ async function readDestination(filePath: string): Promise<string> {
   } catch {
     throw new AdapterError("INVALID_STRUCTURE", "The destination XLIFF file does not exist.");
   }
-  if (outcome.kind === "not-a-file") {
-    throw new AdapterError("INVALID_STRUCTURE", "The destination path is not a regular file.");
-  }
-  if (outcome.kind === "too-large") {
-    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
-  }
-  return outcome.content;
+  return outcomeToContent(outcome, "The destination path is not a regular file.");
 }
 
 /**

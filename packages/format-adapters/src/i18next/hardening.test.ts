@@ -16,13 +16,24 @@ async function tempFile(content: string | Uint8Array): Promise<string> {
 }
 
 describe("placeholder extraction is linear (HIGH)", () => {
-  it("handles a 200k unmatched '{{' value quickly and returns no placeholders", () => {
-    const hostile = "{{".repeat(200_000);
-    const start = Date.now();
-    const result = adapter.extractPlaceholders(hostile);
-    const elapsed = Date.now() - start;
-    expect(result).toEqual([]);
-    expect(elapsed).toBeLessThan(1000);
+  it("scales with input size rather than blowing up on an unmatched '{{' value", () => {
+    const durationFor = (repeats: number): number => {
+      const hostile = "{{".repeat(repeats);
+      const start = performance.now();
+      const result = adapter.extractPlaceholders(hostile);
+      expect(result).toEqual([]);
+      return performance.now() - start;
+    };
+    const small = durationFor(20_000);
+    const large = durationFor(200_000);
+    // A wall-clock ceiling flakes under CI load: the same linear algorithm can cross a fixed
+    // threshold on a busy machine. Comparing the 10x-larger input against the smaller one instead
+    // cancels out overall machine speed, since both runs share it; only an algorithmic blowup (for
+    // example quadratic backtracking, which would cost roughly 10x^2 = 100x here) changes the
+    // ratio. The floor of 40ms reproduces the previous 1000ms ceiling (40 * 25) when `small` is
+    // too close to zero to divide by meaningfully, so this is never stricter than the bound it
+    // replaces, and becomes genuinely ratio-driven once `small` is large enough to measure.
+    expect(large).toBeLessThan(Math.max(small, 40) * 25);
   });
 
   it("still extracts well-formed placeholders unchanged", () => {

@@ -1,3 +1,5 @@
+import { scanTokens } from "../shell.js";
+
 /**
  * vue-i18n named (`{name}`) and list (`{0}`) interpolation tokens, captured for normalization to
  * `{key}` since the compiler skips inner whitespace. The lookbehind/lookahead reject a brace from a
@@ -14,12 +16,8 @@ const PLACEHOLDER_PATTERN = /(?<!\{)\{\s*([A-Za-z_][\w$-]*|\d+)\s*\}(?!\})/g;
  * ({'...'}), and double-brace text ({{...}}) are not placeholders and are not extracted.
  */
 export function extractVueI18nPlaceholders(value: string): readonly string[] {
-  const result: string[] = [];
-  for (const match of value.matchAll(PLACEHOLDER_PATTERN)) {
+  return scanTokens(value, PLACEHOLDER_PATTERN, (match) => {
     const key = match[1];
-    if (key !== undefined) {
-      result.push(`{${key}}`);
-    }
-  }
-  return result;
+    return key !== undefined ? `{${key}}` : undefined;
+  });
 }

@@ -70,11 +70,6 @@ export function tempFileName(path: string): string {
  * cannot find. `recursive: true` makes it a no-op in the overwhelmingly common case where the
  * directory is already there.
  *
- * Note that the SDK's own atomic write does NOT do this, so its callers each handle a missing
- * directory themselves or fail: only the run-status snapshot creates one (at its own call site),
- * while the lock file and cache resolve flat into a directory that always exists, and
- * `export --out` into a missing directory still fails. Do not read this paragraph as describing
- * both write paths.
  * Same-directory placement keeps source and destination on one filesystem so the rename is
  * atomic; a reader never sees a truncated file. The temp-file fsync happens before the rename,
  * so by the time the rename is issued its bytes are already flushed to storage; a crash after
@@ -103,10 +98,6 @@ export function tempFileName(path: string): string {
  * mode, so a target created at a restrictive mode comes back at the process umask. Locale files are
  * committed source that git resets to 0644 on checkout, and nothing written through here is a
  * credential, so preserving the mode would add a stat and a chmod to every write for no benefit.
- *
- * The same policy applies to the SDK's own atomic write in `packages/sdk/src/fs.ts`, which covers
- * the lock file, cache, run-status and workbook. The two implementations are separate on purpose
- * (this one fsyncs, that one does not) but must not diverge on symlink or mode behaviour.
  */
 export async function atomicWriteFile(
   path: string,

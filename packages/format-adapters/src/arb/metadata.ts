@@ -3,6 +3,7 @@ import { AdapterError } from "../errors.js";
 import { readFileContent } from "../json/bounded-read.js";
 import { decodeKeyToSegments, encodeSegment } from "../json/key-encoding.js";
 import { type OrderedRecord, type OrderedValue, parseOrderedJson } from "../json/ordered-json.js";
+import { isEnoent } from "../shell.js";
 
 /** Both per-message (`@id`) and global (`@@locale`) ARB metadata keys start with `@`. */
 function isMetadataKey(key: string): boolean {
@@ -97,15 +98,6 @@ function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Ma
     out.set(originalKey(key), entry.value);
   }
   return out;
-}
-
-function isEnoent(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    (error as NodeJS.ErrnoException).code === "ENOENT"
-  );
 }
 
 /**

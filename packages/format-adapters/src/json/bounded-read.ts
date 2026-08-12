@@ -52,6 +52,24 @@ export async function readBounded(filePath: string): Promise<BoundedReadOutcome>
 }
 
 /**
+ * Map a non-`ok` {@link BoundedReadOutcome} to its structured {@link AdapterError}, or return the
+ * content unchanged for `ok`. `notAFileMessage` lets each call site phrase the not-a-regular-file
+ * case for its own context (reading a source versus rewriting a destination); the too-large message
+ * is fixed, since every caller reports the same size cap the same way.
+ *
+ * @throws {@link AdapterError} `INVALID_STRUCTURE` for `not-a-file`, or `INPUT_TOO_LARGE` for `too-large`.
+ */
+export function outcomeToContent(outcome: BoundedReadOutcome, notAFileMessage: string): string {
+  if (outcome.kind === "not-a-file") {
+    throw new AdapterError("INVALID_STRUCTURE", notAFileMessage);
+  }
+  if (outcome.kind === "too-large") {
+    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
+  }
+  return outcome.content;
+}
+
+/**
  * Run the bounded read and map its non-`ok` outcomes to structured {@link AdapterError}s. A missing or
  * unopenable path still rejects with the underlying filesystem error from {@link readBounded}.
  *
@@ -62,11 +80,5 @@ export async function readBounded(filePath: string): Promise<BoundedReadOutcome>
  */
 export async function readFileContent(filePath: string): Promise<string> {
   const outcome = await readBounded(filePath);
-  if (outcome.kind === "not-a-file") {
-    throw new AdapterError("INVALID_STRUCTURE", "The path is not a regular file.");
-  }
-  if (outcome.kind === "too-large") {
-    throw new AdapterError("INPUT_TOO_LARGE", "The file exceeds the maximum allowed size.");
-  }
-  return outcome.content;
+  return outcomeToContent(outcome, "The path is not a regular file.");
 }

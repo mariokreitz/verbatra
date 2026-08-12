@@ -1,16 +1,60 @@
 import { basename, extname } from "node:path";
-import type { TranslationEntry } from "@verbatra/core";
+import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "./errors.js";
+import type { JsonRecord } from "./json/json-tree.js";
+
+/** Per-value placeholder extraction, exposed on the adapter for consumers. */
+export type ExtractPlaceholders = (value: string) => readonly string[];
 
 /** Derives the keys whose values are invalid for the format's message syntax. */
-type ComputeInvalidIcuKeys = (entries: ReadonlyMap<string, TranslationEntry>) => readonly string[];
+export type ComputeInvalidIcuKeys = (
+  entries: ReadonlyMap<string, TranslationEntry>,
+) => readonly string[];
+
+/** Validates a single value against the format's message syntax (one value, before write). */
+export type ValidateMessage = (value: string) => boolean;
+
+/** Optional branch-aware placeholder comparison; see `FormatAdapter.comparePlaceholders`. */
+export type ComparePlaceholders = (
+  sourceValue: string,
+  targetValue: string,
+) => PlaceholderIntegrityResult;
+
+/** Optional check on the parsed tree before flattening (for example, reject mixed structure). */
+export type ValidateTree = (tree: JsonRecord) => void;
 
 /** A content sniff: inspect a leading sample and decide whether this adapter could handle it. */
 export type Sniff = (sample: string) => boolean;
 
+/**
+ * Scan `value` for every match of `pattern` and collect the token each match contributes, in
+ * document order with every occurrence preserved (not deduplicated). `extract` defaults to the
+ * whole match (`match[0]`); a format that instead normalizes a capture group (vue-i18n) supplies
+ * its own. A match that yields no token (`extract` returns `undefined`) is skipped.
+ */
+export function scanTokens(
+  value: string,
+  pattern: RegExp,
+  extract: (match: RegExpMatchArray) => string | undefined = (match) => match[0],
+): readonly string[] {
+  const result: string[] = [];
+  for (const match of value.matchAll(pattern)) {
+    const token = extract(match);
+    if (token !== undefined) {
+      result.push(token);
+    }
+  }
+  return result;
+}
+
 /** The base name of a file with its extension stripped, used as the resource namespace. */
 export function namespaceOf(filePath: string): string {
   return basename(filePath, extname(filePath));
+}
+
+/** True when `error` is a Node filesystem error reporting a missing path (`ENOENT`). */
+export function isEnoent(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 /**

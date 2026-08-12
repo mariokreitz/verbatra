@@ -1,3 +1,5 @@
+import { scanTokens } from "../shell.js";
+
 /**
  * Opening tags of XLIFF inline placeholder elements plus single-brace interpolation. The `\b` stops
  * a name-prefixed element such as `<source>` from matching, and the character classes keep matching
@@ -13,12 +15,5 @@ const XLIFF_PATTERN = /<(?:x|g|bx|ex|ph|it|mrk)\b[^>]*>|\{[^{}]+\}/g;
  * @returns The placeholder tokens found, in document order.
  */
 export function extractXliffPlaceholders(value: string): readonly string[] {
-  const result: string[] = [];
-  for (const match of value.matchAll(XLIFF_PATTERN)) {
-    const token = match[0];
-    if (token !== undefined) {
-      result.push(token);
-    }
-  }
-  return result;
+  return scanTokens(value, XLIFF_PATTERN);
 }

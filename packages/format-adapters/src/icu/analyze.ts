@@ -22,7 +22,8 @@ export interface IcuAnalysis {
 const VALID_EMPTY: IcuAnalysis = { placeholders: [], isPlural: false, valid: true };
 const INVALID: IcuAnalysis = { placeholders: [], isPlural: false, valid: false };
 
-function tokenOf(element: MessageFormatElement): string | undefined {
+/** The placeholder token an ICU element contributes: `{name}` for arguments, `<name>` for tags. */
+export function tokenOf(element: MessageFormatElement): string | undefined {
   switch (element.type) {
     case TYPE.argument:
     case TYPE.number:
