@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildWorkbook, spliceWorkbookProtection } from "./build-workbook.js";
 import { COLUMN, HEADER_ROW, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
 import { readWorkbook } from "./read-workbook.js";
@@ -321,5 +321,17 @@ describe("buildWorkbook: worksheet-name collision guard", () => {
     };
     const bytes = await buildWorkbook(good);
     expect(bytes.length).toBeGreaterThan(0);
+  });
+});
+
+describe("buildWorkbook: structure-protection re-serialization guard", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("wraps a JSZip.loadAsync failure while reopening the just-built xlsx as WORKBOOK_INVALID", async () => {
+    vi.spyOn(JSZip, "loadAsync").mockRejectedValueOnce(new Error("corrupt zip"));
+    const error = await expectWorkbookInvalid(() => buildWorkbook(model));
+    expect(error.message).toBe("The workbook could not be serialized.");
   });
 });

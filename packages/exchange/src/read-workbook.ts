@@ -33,6 +33,7 @@ function cellString(cell: ExcelJS.Cell): string {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
+  /* v8 ignore next -- exceljs's Cell#text always returns Value#toString(), which is always a string; this fallback guards a case the public exceljs API cannot produce, kept only because the input is untrusted. */
   return typeof cell.text === "string" ? cell.text : "";
 }
 
