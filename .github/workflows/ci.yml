@@ -129,6 +129,14 @@ jobs:
   e2e:
     # No-key tier only. It never receives a provider secret, so it is safe to run on
     # pull requests, including from forks. Live provider coverage lives in e2e-live.yml.
+    #
+    # This is the tier that gates a release. It installs the packed tarballs and drives every
+    # command surface, including a full watch lifecycle (successful startup run, a second run
+    # triggered by a source change, clean exit 0 on SIGINT) with no provider key and no network
+    # call, so it is deterministic: a failure here is always the product, never a third-party
+    # quota. e2e-live.yml covers the same commands against a real provider but stays advisory
+    # precisely because it is not deterministic; gating a publish on somebody else's rate limiter
+    # would make every release hostage to it. See .verbatra/adr for the full argument.
     name: Install tarballs and drive the CLI
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -180,6 +188,10 @@ jobs:
     # Stable required status check. Aggregates the build-and-test matrix and the e2e
     # job so the branch-protection context stays "Build and test gate" regardless of
     # which Node versions the matrix runs, and release can trust a single CI result.
+    #
+    # This is also the release gate for end-to-end coverage, and it is a hard one: release.yml
+    # fires on workflow_run for THIS workflow and publishes only when its conclusion is success,
+    # so a failed e2e job fails this job, fails the workflow, and no publish happens.
     name: Build and test gate
     needs: [build-and-test, e2e, dependency-disclosure]
     runs-on: ubuntu-latest
