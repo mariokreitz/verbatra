@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createVitestConfig } from "./vitest.base.mjs";
@@ -47,25 +47,26 @@ describe("createVitestConfig", () => {
     expect(coverage?.thresholds).toEqual(lockedThresholds);
   });
 
-  it("exposes no parameter that can change the locked thresholds", () => {
-    const config = createVitestConfig(
-      /** @type {Record<string, unknown>} */ ({ thresholds: { lines: 0 } }),
-    );
+  it("ignores a conflicting thresholds key even when it is spread alongside valid per-package options", () => {
+    const optionsWithThresholdsOverride = /** @type {Record<string, unknown>} */ ({
+      testInclude: ["custom/**/*.test.ts"],
+      thresholds: { lines: 0, functions: 0, statements: 0, branches: 0 },
+    });
 
+    const config = createVitestConfig(optionsWithThresholdsOverride);
+
+    expect(config.test?.include).toEqual(["custom/**/*.test.ts"]);
     expect(config.test?.coverage?.thresholds).toEqual(lockedThresholds);
   });
 });
 
-describe("AC3 guard: every consumer vitest.config goes through the preset", () => {
+describe("every consumer package's vitest config imports the shared preset", () => {
   const packagesDir = join(import.meta.dirname, "..");
 
   /**
    * Every consumer package's vitest config, one entry per file that exists. The `config` package
    * itself is skipped: it owns the preset and imports it by relative path, so it is not a consumer.
-   * Both config file names are probed per package and a package normally carries only one, so the
-   * read of the name it does not use is expected to throw; that failure is swallowed and the sweep
-   * keeps looking. A package that has dropped out of the sweep entirely is caught by the count
-   * assertion below, not here.
+   * Both config file names are probed per package and a package normally carries only one.
    *
    * @returns {{ pkg: string, path: string, source: string }[]}
    */
@@ -80,9 +81,9 @@ describe("AC3 guard: every consumer vitest.config goes through the preset", () =
 
       for (const file of ["vitest.config.ts", "vitest.config.mjs"]) {
         const path = join(packagesDir, entry.name, file);
-        try {
+        if (existsSync(path)) {
           configs.push({ pkg: entry.name, path, source: readFileSync(path, "utf8") });
-        } catch {}
+        }
       }
     }
 
@@ -90,9 +91,15 @@ describe("AC3 guard: every consumer vitest.config goes through the preset", () =
   }
 
   const consumerConfigs = collectConsumerConfigs();
+  const consumerPackageDirs = readdirSync(packagesDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name !== "config")
+    .map((entry) => entry.name)
+    .sort();
 
-  it("finds a vitest config in every consumer package", () => {
-    expect(consumerConfigs.length).toBeGreaterThanOrEqual(7);
+  it("finds a vitest config in every workspace package directory", () => {
+    const packagesWithConfig = [...new Set(consumerConfigs.map((config) => config.pkg))].sort();
+
+    expect(packagesWithConfig).toEqual(consumerPackageDirs);
   });
 
   it.each(consumerConfigs)("$pkg imports the @verbatra/config/vitest preset", ({ source }) => {
