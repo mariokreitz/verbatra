@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { UTF8_BOM } from "./build-delimited.js";
+import { UTF8_BOM } from "./delimited-format.js";
 import { DEFAULT_DELIMITED_LIMITS } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
 import { HEADERS } from "./layout.js";

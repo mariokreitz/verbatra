@@ -1,10 +1,9 @@
-import { DELIMITER, type DelimitedFormat } from "./delimited-format.js";
+import { DELIMITER, type DelimitedFormat, QUOTE, UTF8_BOM } from "./delimited-format.js";
 import { HEADERS } from "./layout.js";
 import { rowCells } from "./row-shape.js";
 import type { WorkbookSheet } from "./types.js";
 
-/** The RFC 4180 field quote, and its doubled form inside a quoted field. */
-const QUOTE = '"';
+/** The quote character doubled: its escaped form inside a quoted field. */
 const ESCAPED_QUOTE = '""';
 
 /**
@@ -14,14 +13,6 @@ const ESCAPED_QUOTE = '""';
  * file a Windows editor rewrote still imports.
  */
 const LINE_BREAK = "\n";
-
-/**
- * The UTF-8 byte order mark. Excel reads a `.csv` without one as the system code page and mangles every
- * non-ASCII character, so `csv` is written with it. `tsv` is written without: its consumers are
- * pipelines and parsers, which a leading BOM confuses. The reader consumes a leading BOM either way,
- * so both round-trip and a hand-edited file of either shape imports.
- */
-export const UTF8_BOM = "\ufeff";
 
 /**
  * Whether a field has to be quoted: it carries the delimiter, a quote, or a line break, or it has

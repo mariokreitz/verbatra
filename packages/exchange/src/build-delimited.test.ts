@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDelimited, UTF8_BOM } from "./build-delimited.js";
+import { buildDelimited } from "./build-delimited.js";
+import { UTF8_BOM } from "./delimited-format.js";
 import { HEADERS } from "./layout.js";
 import type { WorkbookRow, WorkbookSheet } from "./types.js";
 

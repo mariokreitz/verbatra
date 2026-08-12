@@ -1,20 +1,14 @@
-import { UTF8_BOM } from "./build-delimited.js";
-import { DELIMITER, type DelimitedFormat } from "./delimited-format.js";
+import { DELIMITER, type DelimitedFormat, QUOTE, UTF8_BOM } from "./delimited-format.js";
 import { DEFAULT_DELIMITED_LIMITS, type DelimitedLimits } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
-import { COLUMN, HEADERS } from "./layout.js";
-import { MALFORMED_ROW_COLUMN, parseRowCells } from "./row-shape.js";
-import type {
-  WorkbookData,
-  WorkbookDuplicateKey,
-  WorkbookRow,
-  WorkbookRowProblem,
-} from "./types.js";
-
-const QUOTE = '"';
-
-/** The 1-based record number the header occupies; data records start at the next one. */
-const HEADER_RECORD = 1;
+import { HEADER_ROW, HEADERS } from "./layout.js";
+import {
+  judgeRow,
+  MALFORMED_ROW_COLUMN,
+  type RowAccumulator,
+  type RowPosition,
+} from "./row-shape.js";
+import type { WorkbookData } from "./types.js";
 
 /** What {@link readDelimited} needs: the file text, the locale its name carried, and its format. */
 export interface ReadDelimitedInput {
@@ -255,7 +249,7 @@ function assertFieldCount(count: number, limits: DelimitedLimits): void {
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the file has more data records than allowed
  */
 function assertRecordCount(count: number, limits: DelimitedLimits): void {
-  if (count - HEADER_RECORD > limits.maxRowsPerFile) {
+  if (count - HEADER_ROW > limits.maxRowsPerFile) {
     throw new ExchangeError(
       "WORKBOOK_INVALID",
       `The interchange file has more than the maximum of ${limits.maxRowsPerFile} rows.`,
@@ -308,29 +302,13 @@ function isBlankRecord(fields: readonly string[]): boolean {
   return fields.length === 1 && fields[0] === "";
 }
 
-/** Everything the record loop accumulates for the one locale the file carries. */
-interface DelimitedAccumulator {
-  readonly rows: WorkbookRow[];
-  readonly malformed: WorkbookRowProblem[];
-  readonly duplicates: WorkbookDuplicateKey[];
-  readonly seenKeys: Set<string>;
-}
-
-/** Where a reported record sits in the file: its record number and the line it starts on. */
-interface RecordPosition {
-  /** The 1-based record number, counting the header as record 1. */
-  readonly row: number;
-  /** The 1-based file line the record starts on. */
-  readonly line: number;
-}
-
 /**
- * Judge one data record: report a field-count mismatch or a failed shape check as a malformed row,
- * report a repeated key as a duplicate (the first occurrence already won its place), and otherwise keep
- * the row. Skips a blank line and a record whose Key field is empty, exactly like the xlsx reader.
+ * Judge one data record: report a field-count mismatch as a malformed row, skip a blank line, and hand
+ * everything else to the shared {@link judgeRow} step both readers use for the blank-key skip, the
+ * shape check, and the duplicate-key bookkeeping.
  *
- * A problem carries both numbers, because a delimited file has two honest answers to "which one is
- * it". `row` is the 1-based record number, counting the header as record 1, which is the row a
+ * A problem carries both `row` and `line`, because a delimited file has two honest answers to "which
+ * one is it". `row` is the 1-based record number, counting the header as record 1, which is the row a
  * spreadsheet shows: a quoted line break keeps a record on one spreadsheet row. `line` is the file
  * line the record starts on, which is what a text editor shows, and the two diverge from the first
  * quoted line break onwards. Reporting both, each labelled where it is rendered, means a translator
@@ -339,31 +317,17 @@ interface RecordPosition {
 function readRecord(
   fields: readonly string[],
   locale: string,
-  at: RecordPosition,
-  into: DelimitedAccumulator,
+  at: RowPosition,
+  into: RowAccumulator,
 ): void {
-  const { row, line } = at;
   if (isBlankRecord(fields)) {
     return;
   }
   if (fields.length !== HEADERS.length) {
-    into.malformed.push({ locale, row, line, column: fieldCountColumn(fields.length) });
+    into.malformed.push({ locale, ...at, column: fieldCountColumn(fields.length) });
     return;
   }
-  if (fields[COLUMN.key - 1] === "") {
-    return;
-  }
-  const outcome = parseRowCells(fields);
-  if (!outcome.ok) {
-    into.malformed.push({ locale, row, line, column: outcome.column });
-    return;
-  }
-  if (into.seenKeys.has(outcome.row.key)) {
-    into.duplicates.push({ locale, key: outcome.row.key, row, line });
-    return;
-  }
-  into.seenKeys.add(outcome.row.key);
-  into.rows.push(outcome.row);
+  judgeRow(fields, locale, at, into);
 }
 
 /**
@@ -405,14 +369,14 @@ export function readDelimited(
   const records = scanRecords(text, DELIMITER[input.format], limits);
   assertHeaderRecord(records);
 
-  const into: DelimitedAccumulator = {
+  const into: RowAccumulator = {
     rows: [],
     malformed: [],
     duplicates: [],
     seenKeys: new Set<string>(),
   };
   for (const [index, record] of records.entries()) {
-    if (index >= HEADER_RECORD) {
+    if (index >= HEADER_ROW) {
       readRecord(record.fields, input.locale, { row: index + 1, line: record.line }, into);
     }
   }

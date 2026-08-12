@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { COLUMN, HEADERS } from "./layout.js";
-import type { WorkbookRow } from "./types.js";
+import type { WorkbookDuplicateKey, WorkbookRow, WorkbookRowProblem } from "./types.js";
 
 /**
  * The zod boundary check on untrusted row content: key non-empty, status a known bucket. The review
@@ -66,6 +66,59 @@ export function parseRowCells(cells: readonly string[]): RowOutcome {
     return { ok: false, column: MALFORMED_ROW_COLUMN };
   }
   return { ok: true, row: result.data };
+}
+
+/**
+ * Where a judged row sits. Every reader reports the row number a spreadsheet would show; a delimited
+ * file also reports the file line the record starts on, since a quoted line break makes those two
+ * numbers diverge (see {@link WorkbookRowProblem.line}). Left absent rather than optional-and-undefined
+ * by the xlsx reader, which has no line to report.
+ */
+export interface RowPosition {
+  readonly row: number;
+  readonly line?: number;
+}
+
+/** What a reader accumulates as it judges its rows: the surviving rows, the malformed ones, the duplicate keys, and the keys already seen (to detect the next duplicate). */
+export interface RowAccumulator {
+  readonly rows: WorkbookRow[];
+  readonly malformed: WorkbookRowProblem[];
+  readonly duplicates: WorkbookDuplicateKey[];
+  readonly seenKeys: Set<string>;
+}
+
+/**
+ * Judge one row already reduced to its positional cells: skip a row whose Key cell is empty, shape-check
+ * the rest, report a repeated key as a duplicate (the first occurrence already won its place), and
+ * otherwise keep the row. Shared by both readers so a malformed row and a duplicate key are judged
+ * identically regardless of which format produced the cells; each reader still runs its own
+ * format-specific checks (a cell cap, a field-count mismatch) before calling this.
+ *
+ * `at` is spread into the reported problem rather than assigned by name, so the xlsx reader (whose `at`
+ * carries only `row`) never emits a `line` key and the delimited reader (whose `at` carries `row` and
+ * `line`) always does. `exactOptionalPropertyTypes` rejects an explicit `line: undefined`, which is what
+ * keeps this spread rather than a named assignment.
+ */
+export function judgeRow(
+  cells: readonly string[],
+  locale: string,
+  at: RowPosition,
+  into: RowAccumulator,
+): void {
+  if (cellAt(cells, COLUMN.key) === "") {
+    return;
+  }
+  const outcome = parseRowCells(cells);
+  if (!outcome.ok) {
+    into.malformed.push({ locale, ...at, column: outcome.column });
+    return;
+  }
+  if (into.seenKeys.has(outcome.row.key)) {
+    into.duplicates.push({ locale, key: outcome.row.key, ...at });
+    return;
+  }
+  into.seenKeys.add(outcome.row.key);
+  into.rows.push(outcome.row);
 }
 
 /**

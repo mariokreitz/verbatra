@@ -12,6 +12,17 @@ export const DELIMITER: Readonly<Record<DelimitedFormat, string>> = {
   tsv: "\t",
 };
 
+/** The RFC 4180 field quote, shared by the writer (which doubles it inside a quoted field) and the reader (which scans for it). */
+export const QUOTE = '"';
+
+/**
+ * The UTF-8 byte order mark. Excel reads a `.csv` without one as the system code page and mangles every
+ * non-ASCII character, so `csv` is written with it. `tsv` is written without: its consumers are
+ * pipelines and parsers, which a leading BOM confuses. The reader consumes a leading BOM either way, so
+ * both round-trip and a hand-edited file of either shape imports.
+ */
+export const UTF8_BOM = "\ufeff";
+
 /**
  * Characters a locale must not contain for `<locale>.<format>` to stay a plain file name inside the
  * output directory: the path separators of either platform, the characters Windows forbids in a file

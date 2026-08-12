@@ -2,11 +2,10 @@ import ExcelJS from "exceljs";
 import { ExchangeError } from "./errors.js";
 import { COLUMN, HEADER_ROW, HEADERS, INSTRUCTIONS_SHEET_NAME } from "./layout.js";
 import { DEFAULT_WORKBOOK_LIMITS, type WorkbookLimits } from "./limits.js";
-import { parseRowCells, type RowOutcome } from "./row-shape.js";
+import { judgeRow, type RowAccumulator } from "./row-shape.js";
 import type {
   WorkbookData,
   WorkbookDuplicateKey,
-  WorkbookRow,
   WorkbookRowProblem,
   WorkbookSheet,
 } from "./types.js";
@@ -55,12 +54,11 @@ function assertHeader(sheet: ExcelJS.Worksheet): void {
 }
 
 /**
- * Shape-check one worksheet row through the shared row-shape check at this untrusted boundary: the
- * worksheet's cells are read left to right into the positional cell list {@link parseRowCells} maps to
- * fields, so the xlsx reader and the delimited reader share one column-to-field mapping and one schema.
+ * Read one worksheet row's cells left to right into the positional cell list {@link judgeRow} judges,
+ * so the xlsx reader and the delimited reader share one column-to-field mapping.
  */
-function parseRow(row: ExcelJS.Row): RowOutcome {
-  return parseRowCells(HEADERS.map((_, index) => cellString(row.getCell(index + 1))));
+function sheetRowCells(row: ExcelJS.Row): readonly string[] {
+  return HEADERS.map((_, index) => cellString(row.getCell(index + 1)));
 }
 
 /** One data sheet's parsed rows plus the structural problems the SDK import layer will judge. */
@@ -71,11 +69,26 @@ interface DataSheetRead {
 }
 
 /**
- * Read one data sheet: verify the header, enforce the per-sheet and per-row caps, skip blank rows, and
- * shape-check the rest. The locale is taken from the sheet name. This decides no policy: a malformed
- * row and a duplicate key are reported as structured data (never thrown), the first occurrence of a
- * key wins its place in `rows` and every later occurrence is reported as a duplicate, and the SDK
- * import layer judges what to do with all of it.
+ * Enforce the per-row cell cap on one worksheet row, before its cells are read into the shared judge
+ * step.
+ *
+ * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a cells-per-row breach
+ */
+function assertRowCellCap(row: ExcelJS.Row, sheetName: string, limits: WorkbookLimits): void {
+  if (row.cellCount > limits.maxCellsPerRow) {
+    throw new ExchangeError(
+      "WORKBOOK_INVALID",
+      `The sheet "${sheetName}" has a row with more than the maximum of ${limits.maxCellsPerRow} cells.`,
+    );
+  }
+}
+
+/**
+ * Read one data sheet: verify the header, enforce the per-sheet and per-row caps, then judge every row
+ * through the shared {@link judgeRow} step. The locale is taken from the sheet name. This decides no
+ * policy: a malformed row and a duplicate key are reported as structured data (never thrown), the first
+ * occurrence of a key wins its place in `rows` and every later occurrence is reported as a duplicate,
+ * and the SDK import layer judges what to do with all of it.
  *
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` on a missing header or a per-sheet/per-row cap breach
  */
@@ -87,34 +100,22 @@ function readDataSheet(sheet: ExcelJS.Worksheet, limits: WorkbookLimits): DataSh
       `The sheet "${sheet.name}" has more than the maximum of ${limits.maxRowsPerSheet} rows.`,
     );
   }
-  const rows: WorkbookRow[] = [];
-  const malformed: WorkbookRowProblem[] = [];
-  const duplicates: WorkbookDuplicateKey[] = [];
-  const seenKeys = new Set<string>();
+  const into: RowAccumulator = {
+    rows: [],
+    malformed: [],
+    duplicates: [],
+    seenKeys: new Set<string>(),
+  };
   for (let rowNumber = HEADER_ROW + 1; rowNumber <= sheet.rowCount; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
-    if (row.cellCount > limits.maxCellsPerRow) {
-      throw new ExchangeError(
-        "WORKBOOK_INVALID",
-        `The sheet "${sheet.name}" has a row with more than the maximum of ${limits.maxCellsPerRow} cells.`,
-      );
-    }
-    if (cellString(row.getCell(COLUMN.key)) === "") {
-      continue;
-    }
-    const outcome = parseRow(row);
-    if (!outcome.ok) {
-      malformed.push({ locale: sheet.name, row: rowNumber, column: outcome.column });
-      continue;
-    }
-    if (seenKeys.has(outcome.row.key)) {
-      duplicates.push({ locale: sheet.name, key: outcome.row.key, row: rowNumber });
-      continue;
-    }
-    seenKeys.add(outcome.row.key);
-    rows.push(outcome.row);
+    assertRowCellCap(row, sheet.name, limits);
+    judgeRow(sheetRowCells(row), sheet.name, { row: rowNumber }, into);
   }
-  return { sheet: { locale: sheet.name, rows }, malformed, duplicates };
+  return {
+    sheet: { locale: sheet.name, rows: into.rows },
+    malformed: into.malformed,
+    duplicates: into.duplicates,
+  };
 }
 
 /**
