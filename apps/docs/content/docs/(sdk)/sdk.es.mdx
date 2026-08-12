@@ -19,6 +19,13 @@ yarn add -D @verbatra/sdk
 
 Requiere Node.js `>=22.14.0`.
 
+La línea de pnpm instala bien, pero sale con `1` y `ERR_PNPM_IGNORED_BUILDS`: pnpm bloquea los
+scripts de instalación del SDK de Gemini incluido y de su `protobufjs`, y deja un
+`pnpm-workspace.yaml` sin responder con el que cualquier comando pnpm posterior del proyecto falla
+igual. Ejecuta `pnpm approve-builds` una vez y no apruebes ninguna de las dos entradas, o consulta
+la [Solución de problemas](/docs/troubleshooting) para la solución no interactiva. Aquí no hay
+atajo con `npx` como en la CLI, porque estás importando una biblioteca, no ejecutando un binario.
+
 <Callout title="Las claves API y el entorno">
 El SDK nunca lee, guarda ni acepta una clave API. El proveedor lee su clave del entorno
 (por ejemplo `ANTHROPIC_API_KEY`) cuando se construye. A diferencia de la CLI, el SDK no carga

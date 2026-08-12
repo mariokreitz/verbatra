@@ -43,7 +43,9 @@
       "tablistLabel": "Gestor de paquetes",
       "copy": "copiar",
       "copied": "copiado",
-      "copyAria": "Copiar el comando de instalación"
+      "copyAria": "Copiar el comando de instalación",
+      "pnpmNote": "pnpm instala bien, pero sale con 1 y ERR_PNPM_IGNORED_BUILDS, porque bloquea los scripts de instalación de una dependencia. Ejecuta pnpm approve-builds una vez, o consulta la",
+      "pnpmNoteLink": "Solución de problemas"
     },
     "compat": {
       "heading": "Una herramienta, todos los frameworks.",

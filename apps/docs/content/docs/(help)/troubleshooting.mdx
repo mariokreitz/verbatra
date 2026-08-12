@@ -7,6 +7,46 @@ Each entry below matches a real error code or message. Whole-run failures carry 
 codes, see [CI and exit codes](/docs/ci-and-exit-codes); for the full code table, see the
 [SDK reference](/docs/sdk).
 
+## pnpm blocks a dependency's install scripts (ERR_PNPM_IGNORED_BUILDS)
+
+**Symptom**: `pnpm add -D @verbatra/cli` prints its install summary and then exits `1`:
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @google/genai@2.15.0, protobufjs@7.6.5
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+pnpm also writes a `pnpm-workspace.yaml` into your project holding an unanswered choice:
+
+```yaml
+allowBuilds:
+  '@google/genai': set this to true or false
+  protobufjs: set this to true or false
+```
+
+Until you answer it, every later pnpm command in that project fails the same way, including
+`pnpm exec verbatra init`.
+
+**Cause**: pnpm does not run a third-party dependency's install scripts unless you allow them.
+`@google/genai` and its transitive `protobufjs` declare such scripts, and the Gemini SDK is
+installed whichever provider you configure, so every pnpm install path hits this. Nothing in
+verbatra declares an install script of its own, and npm and yarn install the same package without
+a prompt. The install itself did complete: `node_modules/.bin/verbatra` already works.
+
+**Fix**: answer the choice once. Interactively, run `pnpm approve-builds` and approve neither
+entry. Non-interactively, which is what you want in CI, write the answer before you install by
+putting this in `pnpm-workspace.yaml` at the project root:
+
+```yaml
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+```
+
+verbatra does not need those scripts, and this repository declines both. With the answer in place
+`pnpm add -D @verbatra/cli` exits `0` and later pnpm commands run normally. The package versions
+in the message track the release; the fix does not change.
+
 ## The configuration is invalid (CONFIG_INVALID)
 
 **Symptom**: `The verbatra configuration is invalid: ...`, listing one issue per field.
@@ -157,7 +197,10 @@ defaults to 5849 on 127.0.0.1.
 **Cause**: `@verbatra/studio` is a separate package the `studio` command loads dynamically, so the
 rest of the CLI works without it.
 
-**Fix**: install it as the hint says, then re-run `verbatra studio`.
+**Fix**: install it as the hint says, then re-run `verbatra studio`. The hint spells out the pnpm
+command, so if you install with pnpm, see
+[pnpm blocks a dependency's install scripts](#pnpm-blocks-a-dependencys-install-scripts-err_pnpm_ignored_builds)
+first.
 
 ## Studio: retranslate and translate actions are missing
 

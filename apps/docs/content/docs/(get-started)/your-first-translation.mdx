@@ -14,6 +14,8 @@ npm install --save-dev @verbatra/cli
 
 pnpm and yarn work too. The package ships the `verbatra` binary; run it through your package manager (`npx verbatra ...`, `pnpm verbatra ...`, or `yarn verbatra ...`). The code blocks below use the bare name.
 
+pnpm takes one extra step. `pnpm add -D @verbatra/cli` installs correctly but exits `1` with `ERR_PNPM_IGNORED_BUILDS`, and leaves an unanswered `pnpm-workspace.yaml` behind that makes every later pnpm command in the project fail the same way. Run `pnpm approve-builds` once and approve neither entry, or see [Troubleshooting](/docs/troubleshooting) for the non-interactive fix.
+
 ## 2. Scaffold a config
 
 ```bash

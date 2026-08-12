@@ -59,7 +59,9 @@
       "tablistLabel": "Package manager",
       "copy": "copy",
       "copied": "copied",
-      "copyAria": "Copy install command"
+      "copyAria": "Copy install command",
+      "pnpmNote": "pnpm installs correctly but exits 1 with ERR_PNPM_IGNORED_BUILDS, because it gates a dependency's install scripts. Run pnpm approve-builds once, or see",
+      "pnpmNoteLink": "Troubleshooting"
     },
     "compat": {
       "heading": "One tool, every framework.",

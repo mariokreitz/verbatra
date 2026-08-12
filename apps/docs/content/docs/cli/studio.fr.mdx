@@ -39,6 +39,8 @@ Ouvre exactement cette URL : le token dans la chaîne de requête initialise ta 
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
 ```
 
+Cette commande pnpm installe correctement mais sort en `1` avec `ERR_PNPM_IGNORED_BUILDS`, et laisse un `pnpm-workspace.yaml` sans réponse qui fait échouer de la même façon les commandes pnpm suivantes ; la correction, à faire une seule fois, est dans le [Dépannage](/docs/troubleshooting). npm et yarn installent le paquet sans cela.
+
 ## Exemples
 
 ```bash
