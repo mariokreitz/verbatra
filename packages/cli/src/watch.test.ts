@@ -5,8 +5,15 @@ import {
   type WatchRunResult,
 } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
+import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run } from "./run.js";
-import { captureStreams, flush, makeSummary, recordingDeps } from "./test-support.js";
+import {
+  captureStreams,
+  flush,
+  makeSummary,
+  parseEnvelope,
+  recordingDeps,
+} from "./test-support.js";
 import type { WatchSession } from "./types.js";
 
 /** A watch() stub that captures onRun and lets the test control stop() timing. */
@@ -91,7 +98,7 @@ describe("run watch: wiring and rendering", () => {
     await done;
   });
 
-  it("--json emits one NDJSON record per run on stdout", async () => {
+  it("--json emits one envelope record per run on stdout, ok mirroring the run status", async () => {
     const h = watchHarness();
     const { deps } = recordingDeps({ watch: h.watch });
     const cap = captureStreams();
@@ -102,8 +109,18 @@ describe("run watch: wiring and rendering", () => {
 
     const lines = cap.out().trim().split("\n");
     expect(lines).toHaveLength(2);
-    expect(JSON.parse(lines[0] ?? "").status).toBe("succeeded");
-    expect(JSON.parse(lines[1] ?? "").status).toBe("failed");
+    expect(parseEnvelope(lines[0] ?? "")).toMatchObject({
+      ok: true,
+      version: JSON_ENVELOPE_VERSION,
+      command: "watch",
+    });
+    expect(parseEnvelope(lines[1] ?? "")).toEqual({
+      ok: false,
+      version: JSON_ENVELOPE_VERSION,
+      command: "watch",
+      code: "SOURCE_INVALID",
+      message: "x",
+    });
 
     session.requestStop();
     h.finishStop();

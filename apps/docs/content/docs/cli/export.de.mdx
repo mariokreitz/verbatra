@@ -20,7 +20,7 @@ verbatra export [flags]
 | `--format` | `<format>` | `xlsx` | eine Excel-Arbeitsmappe (`xlsx`) oder eine Datei pro Locale (`csv`, `tsv`) schreiben |
 | `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die exportiert wird |
 | `--include-unchanged` | keins | aus | auch bereits aktuelle Strings exportieren |
-| `--json` | keins | aus | das Export-Ergebnis (Pfad und Zeilenzahlen pro Locale) als ein JSON-Objekt auf stdout ausgeben; Fehler gehen weiter auf stderr |
+| `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der das Export-Ergebnis (Pfad und Zeilenzahlen pro Locale) unter `result` trägt, oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
 Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu exportieren.
 

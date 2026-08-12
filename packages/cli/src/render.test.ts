@@ -2,14 +2,10 @@ import type { LockWaitEvent, ProgressEvent, WatchRunResult } from "@verbatra/sdk
 import { describe, expect, it } from "vitest";
 import {
   renderCheckHuman,
-  renderCheckJson,
   renderDiffHuman,
-  renderDiffJson,
   renderError,
   renderExportHuman,
-  renderExportJson,
   renderHuman,
-  renderJson,
   renderLockWait,
   renderLockWaitHuman,
   renderLockWaitJson,
@@ -17,7 +13,6 @@ import {
   renderProgressHuman,
   renderProgressJson,
   renderRunResultHuman,
-  renderRunResultNdjson,
   toRenderableError,
 } from "./render.js";
 import { makeLocale, makeSummary } from "./test-support.js";
@@ -34,11 +29,6 @@ describe("render: export result", () => {
     expect(text).toContain("verbatra export -> /p/wb.xlsx");
     expect(text).toContain("de: 2 rows");
     expect(text).toContain("5 rows across 2 locales");
-  });
-
-  it("renders the export result as compact JSON", () => {
-    const result = { path: "/p/wb.xlsx", locales: [{ locale: "de", rows: 1 }] };
-    expect(JSON.parse(renderExportJson(result))).toEqual(result);
   });
 });
 
@@ -64,14 +54,6 @@ describe("render: check summary", () => {
     });
     expect(text).toContain("all locales in sync");
     expect(text).not.toContain("out of sync");
-  });
-
-  it("renders the check summary as compact JSON", () => {
-    const summary = {
-      inSync: false,
-      locales: [{ locale: "de", missing: 1, stale: 0, upToDate: 2, inSync: false }],
-    };
-    expect(JSON.parse(renderCheckJson(summary))).toEqual(summary);
   });
 });
 
@@ -144,22 +126,6 @@ describe("render: diff summary", () => {
     expect(text).toContain("orphaned:");
     expect(text).toContain("legacy.banner");
     expect(text).toContain("1 locale, no pending changes");
-  });
-
-  it("renders the diff summary as compact JSON", () => {
-    const summary = {
-      hasPendingChanges: true,
-      locales: [
-        {
-          locale: "de",
-          missing: ["a"],
-          changed: [],
-          orphaned: [],
-          hasPendingChanges: true,
-        },
-      ],
-    };
-    expect(JSON.parse(renderDiffJson(summary))).toEqual(summary);
   });
 });
 
@@ -425,12 +391,7 @@ describe("render: human run summary", () => {
   });
 });
 
-describe("render: json and errors", () => {
-  it("renderJson round-trips the summary", () => {
-    const summary = makeSummary({ succeeded: ["de"] });
-    expect(JSON.parse(renderJson(summary))).toEqual(summary);
-  });
-
+describe("render: errors", () => {
   it("renderError is a one-line structured message, never a stack", () => {
     expect(renderError({ code: "CONFIG_INVALID", message: "bad" })).toBe(
       "verbatra: error [CONFIG_INVALID] bad",
@@ -529,29 +490,13 @@ describe("render: progress", () => {
 });
 
 describe("render: watch run result", () => {
-  it("NDJSON is the serialized result; human renders summary or error", () => {
+  it("renders the summary on success and the one-line error on failure", () => {
     const ok: WatchRunResult = { status: "succeeded", summary: makeSummary({ succeeded: ["de"] }) };
     const bad: WatchRunResult = {
       status: "failed",
       error: { code: "SOURCE_INVALID", message: "x" },
     };
-    expect(JSON.parse(renderRunResultNdjson(ok))).toEqual(ok);
     expect(renderRunResultHuman(ok)).toContain("1 succeeded");
     expect(renderRunResultHuman(bad)).toBe("verbatra: error [SOURCE_INVALID] x");
-  });
-
-  it("carries the pruned count and keys in the watch NDJSON record", () => {
-    const result: WatchRunResult = {
-      status: "succeeded",
-      summary: makeSummary({
-        locales: [makeLocale({ orphaned: ["x"], pruned: ["x"] })],
-        succeeded: ["de"],
-      }),
-    };
-    const parsed = JSON.parse(renderRunResultNdjson(result)) as typeof result;
-    expect(parsed.status).toBe("succeeded");
-    if (parsed.status === "succeeded") {
-      expect(parsed.summary.locales[0]?.pruned).toEqual(["x"]);
-    }
   });
 });

@@ -20,9 +20,9 @@ verbatra watch [flags]
 | `--lock-timeout` | `<seconds>` | `600` | cuánto esperar por un bloqueo de escritura de locale que otro proceso mantiene antes de fallar; debe ser un entero positivo sin sufijo, en segundos (un valor como `60s`, `0` o `-1` es un error de uso, salida `2`) |
 | `--concurrency` | `<n>` | `1` | traduce hasta `n` locales de destino a la vez por ejecución; debe ser un entero positivo |
 | `--no-cache` | ninguno | desactivado (caché activada) | omite la [caché de memoria de traducción](/docs/the-cache) local (`verbatra.cache.json`) en cada ejecución |
-| `--json` | ninguno | desactivado | imprime cada ejecución como un registro NDJSON (un objeto JSON por línea) en stdout |
+| `--json` | ninguno | desactivado | imprime cada ejecución como un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout, al estilo NDJSON (un objeto por línea) |
 
-Con `--json`, cada ejecución emite un registro [`WatchRunResult`](/docs/sdk): un éxito que lleva el resumen de la ejecución, o un fallo que lleva un código de error y un mensaje. La línea de arranque, el aviso de parada y el progreso de cada ejecución van a stderr, así que el flujo de stdout se mantiene como NDJSON limpio. Una ejecución fallida es solo un registro en el flujo: ni detiene el watcher ni cambia el código de salida.
+Con `--json`, cada ejecución emite un registro [envoltorio](/docs/ci-and-exit-codes#salida-json) con `command: "watch"`: un registro `ok: true` que lleva el [`RunSummary`](/docs/sdk) de esa ejecución bajo `result`, o un registro `ok: false` que lleva un código de error y un mensaje. La línea de arranque, el aviso de parada y el progreso de cada ejecución van a stderr, así que el flujo de stdout se mantiene como NDJSON limpio. Una ejecución fallida es solo un registro en el flujo: ni detiene el watcher ni cambia el código de salida.
 
 `--lock-timeout` se aplica a cada ciclo: ajusta cuánto espera un locale por un [bloqueo de escritura](/docs/the-lock-file) disputado antes de que esa ejecución falle con `LOCK_CONTENDED`. Una ejecución fallida es solo un registro en el flujo, así que el watcher sigue de todas formas.
 

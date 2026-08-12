@@ -21,7 +21,7 @@ verbatra translate [flags]
 | `--lock-timeout` | `<seconds>` | `600` | wie lange auf eine gehaltene Schreibsperre eines Locales gewartet wird, bevor der Lauf scheitert; muss eine reine positive Ganzzahl von Sekunden sein (ein Wert wie `60s`, `0` oder `-1` ist ein Nutzungsfehler, Exit `2`) |
 | `--concurrency` | `<n>` | `1` | bis zu `n` Ziel-Locales gleichzeitig übersetzen; muss eine positive Ganzzahl sein |
 | `--no-cache` | keins | aus (Cache an) | den lokalen [Translation-Memory-Cache](/docs/the-cache) (`verbatra.cache.json`) für diesen Lauf umgehen |
-| `--json` | keins | aus | die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben (die [`RunSummary`-Form](/docs/sdk)); Fehler gehen weiter auf stderr |
+| `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der die Lauf-Zusammenfassung unter `result` trägt (die [`RunSummary`-Form](/docs/sdk)), oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
 Standardmäßig löscht ein Lauf nichts: verwaiste Keys werden gemeldet und bleiben stehen. `--prune` entfernt genau diese Keys und sonst nichts und übersteuert für diesen Lauf die `prune`-Option der Konfiguration. Vor dem Lauf lädt `translate` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis; eine bereits in der echten Umgebung gesetzte Variable gewinnt.
 

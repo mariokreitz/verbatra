@@ -21,7 +21,7 @@ verbatra translate [flags]
 | `--lock-timeout` | `<seconds>` | `600` | how long to wait for a held per-locale write lock before failing; must be a bare positive integer of seconds (a value like `60s`, `0`, or `-1` is a usage error, exit `2`) |
 | `--concurrency` | `<n>` | `1` | translate up to `n` target locales at once; must be a positive integer |
 | `--no-cache` | none | off (cache on) | bypass the local [translation-memory cache](/docs/the-cache) (`verbatra.cache.json`) for this run |
-| `--json` | none | off | print the run summary as one JSON object on stdout (the [`RunSummary` shape](/docs/sdk)); errors still go to stderr |
+| `--json` | none | off | print one [JSON envelope](/docs/ci-and-exit-codes#json-output) on stdout carrying the run summary under `result` (the [`RunSummary` shape](/docs/sdk)), or the error code on a failed run; the human-readable error line still goes to stderr |
 
 By default a run deletes nothing: orphaned keys are reported and left in place. `--prune` removes exactly those keys and nothing else, and overrides the config's `prune` option for this run. Before it runs, `translate` loads `.env.local` and then `.env` from the working directory; a variable already set in the real environment wins.
 

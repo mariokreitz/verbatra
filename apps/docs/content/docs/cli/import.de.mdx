@@ -20,7 +20,7 @@ verbatra import <workbook> [flags]
 | `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
 | `--dry-run` | keins | aus | validieren und melden, ohne Locale-Dateien zu schreiben oder das Lock zu aktualisieren |
 | `--format` | `<format>` | `xlsx` | eine Excel-Arbeitsmappe (`xlsx`) oder Textdateien (`csv`, `tsv`) lesen |
-| `--json` | keins | aus | die Lauf-Zusammenfassung als ein JSON-Objekt auf stdout ausgeben (dieselbe [`RunSummary`-Form](/docs/sdk) wie bei `translate`); Fehler gehen weiter auf stderr |
+| `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der die Lauf-Zusammenfassung unter `result` trägt (dieselbe [`RunSummary`-Form](/docs/sdk) wie bei `translate`), oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
 ## Beispiele
 

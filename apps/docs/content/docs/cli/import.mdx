@@ -20,7 +20,7 @@ verbatra import <workbook> [flags]
 | `--config` | `<path>` | search for one | load this config file instead of searching for one |
 | `--dry-run` | none | off | validate and report without writing locale files or updating the lock |
 | `--format` | `<format>` | `xlsx` | read an Excel workbook (`xlsx`) or delimited files (`csv`, `tsv`) |
-| `--json` | none | off | print the run summary as one JSON object on stdout (the same [`RunSummary` shape](/docs/sdk) as `translate`); errors still go to stderr |
+| `--json` | none | off | print one [JSON envelope](/docs/ci-and-exit-codes#json-output) on stdout carrying the run summary under `result` (the same [`RunSummary` shape](/docs/sdk) as `translate`), or the error code on a failed run; the human-readable error line still goes to stderr |
 
 ## Examples
 

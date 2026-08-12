@@ -43,9 +43,29 @@ Both take `--locales de,fr` to gate a subset. Passing `--locales` with no valid 
 
 ## JSON output
 
-Six commands accept `--json` for machine-readable output on stdout: `translate`, `watch`, `check`, `diff`, `export`, and `import`. Errors always go to stderr as one structured line (`verbatra: error [CODE] message`), so stdout stays parseable.
+Six commands accept `--json` for machine-readable output on stdout: `translate`, `watch`, `check`, `diff`, `export`, and `import`. Every record is one line, and every record has the same envelope around it, so you branch on one field and never have to guess which command's payload you are holding:
 
-`verbatra translate --json` and `verbatra import --json` print one `RunSummary` object:
+```ts
+type Envelope<TResult> =
+  | { ok: true; version: 1; command: string; result: TResult }
+  | { ok: false; version: 1; command: string | null; code: string; message: string };
+```
+
+`version` is the version of this envelope shape, not the package version. It is an integer so you compare it with `===` rather than range-parsing it, and it changes only when an existing field changes meaning or disappears. New fields can appear without a bump, so ignore the ones you do not recognize.
+
+A run that fails as a whole writes exactly one `ok: false` record to stdout and exits `2`. Its `code` is the same stable error code the stderr line carries, so it is what you branch on:
+
+```json
+{ "ok": false, "version": 1, "command": "translate", "code": "CONFIG_INVALID", "message": "..." }
+```
+
+`command` is `null` only when the failure happened before a subcommand was resolved.
+
+Errors also go to stderr as one structured line (`verbatra: error [CODE] message`) in both modes, unchanged, so a script that reads the exit code and stderr needs no update. Without `--json`, a failing run still writes nothing at all to stdout. Progress and lock-wait records always go to stderr, so stdout carries nothing but envelopes.
+
+The rest of this section describes the `result` each command puts inside a successful envelope.
+
+`verbatra translate --json` and `verbatra import --json` carry one `RunSummary`:
 
 ```ts
 interface RunSummary {
@@ -60,15 +80,9 @@ interface RunSummary {
 
 Each `LocaleSummary` carries the per-locale key lists (translated, unchanged, orphaned, withheld, flagged for review, and more); see [the SDK reference](/docs/sdk) for the full anatomy.
 
-`verbatra watch --json` prints one record per run as NDJSON (one JSON object per line):
+`verbatra watch --json` prints one envelope per run as NDJSON (one JSON object per line), with `command: "watch"`. A succeeded run is an `ok: true` record carrying that run's `RunSummary`; a failed run is an `ok: false` record carrying its code and message. A failed run is just a record on the stream: it neither stops the watcher nor changes the exit code.
 
-```ts
-type WatchRunResult =
-  | { status: "succeeded"; summary: RunSummary }
-  | { status: "failed"; error: { code: string; message: string } };
-```
-
-`verbatra check --json` prints one status document. The top-level `inSync` is true exactly when the command exits `0`:
+`verbatra check --json` carries one status document. The top-level `inSync` is true exactly when the command exits `0`:
 
 ```ts
 interface CheckSummary {
@@ -85,7 +99,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` gives you key lists instead of counts. The top-level `hasPendingChanges` is true exactly when the command exits `1`:
+`verbatra diff --json` carries key lists instead of counts. The top-level `hasPendingChanges` is true exactly when the command exits `1`:
 
 ```ts
 interface DiffSummary {
@@ -102,7 +116,7 @@ interface LocaleDiff {
 }
 ```
 
-`verbatra export --json` prints where the workbook went and the per-locale row counts:
+`verbatra export --json` carries where the workbook went and the per-locale row counts:
 
 ```ts
 {

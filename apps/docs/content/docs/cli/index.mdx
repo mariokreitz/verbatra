@@ -30,7 +30,7 @@ You need Node.js `>=22.14.0`.
 
 - `--cwd <path>` resolves the config and locale files from that directory instead of the current one. Every command takes it.
 - `--config <path>` loads that config file instead of searching for one. Every command except `init` takes it; the search order is described in [The config file](/docs/config-file).
-- `--json` prints a machine-readable result on stdout, keeping stdout clean for piping: errors go to stderr. `translate`, `watch`, `check`, `diff`, `export`, and `import` support it; `init` and `studio` do not.
+- `--json` prints a machine-readable [envelope](/docs/ci-and-exit-codes#json-output) on stdout, one line per record, keeping stdout clean for piping. Branch on its `ok` field: a success carries the command's payload under `result`, and a failed run carries the same stable error code the stderr line names. The human-readable error line goes to stderr either way. `translate`, `watch`, `check`, `diff`, `export`, and `import` support it; `init` and `studio` do not.
 - `--help` and `--version` print and exit `0`. An unknown command or flag exits `2`.
 
 ## Environment files

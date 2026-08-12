@@ -8,6 +8,7 @@ import {
   type WatchController,
 } from "@verbatra/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run, runTranslate } from "./run.js";
 import {
   captureStreams,
@@ -16,9 +17,10 @@ import {
   makeConfig,
   makeLocale,
   makeSummary,
+  parseEnvelope,
   recordingDeps,
 } from "./test-support.js";
-import type { WatchSession } from "./types.js";
+import type { CliDeps, WatchSession } from "./types.js";
 
 describe("run translate: SDK delegation and rendering", () => {
   it("calls the SDK translate() with the resolved config and renders the summary human-readably", async () => {
@@ -78,7 +80,7 @@ describe("run translate: SDK delegation and rendering", () => {
     expect(code).toBe(0);
   });
 
-  it("--json emits only the RunSummary JSON on stdout, nothing else; stderr stays empty", async () => {
+  it("--json emits one success envelope on stdout, nothing else; stderr stays empty", async () => {
     const summary = makeSummary({ succeeded: ["de"] });
     const { deps } = recordingDeps({ translate: async () => summary });
     const cap = captureStreams();
@@ -86,7 +88,12 @@ describe("run translate: SDK delegation and rendering", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(parseEnvelope(cap.out())).toEqual({
+      ok: true,
+      version: JSON_ENVELOPE_VERSION,
+      command: "translate",
+      result: summary,
+    });
     expect(cap.err()).toBe("");
   });
 
@@ -120,7 +127,7 @@ describe("run translate: SDK delegation and rendering", () => {
 
     const json = captureStreams();
     await run(["translate", "--prune", "--json"], deps, json.streams);
-    const parsed = JSON.parse(json.out().trim()) as typeof summary;
+    const parsed = parseEnvelope(json.out()).result as typeof summary;
     expect(parsed.locales[0]?.pruned).toEqual(["x", "y"]);
   });
 
@@ -148,7 +155,7 @@ describe("run translate: SDK delegation and rendering", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(parseEnvelope(cap.out()).result).toEqual(summary);
   });
 });
 
@@ -178,7 +185,7 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
     expect(cap.out()).not.toContain("waiting for the write lock");
   });
 
-  it("under --json, keeps stdout to the one summary object and emits the wait event as JSON on stderr", async () => {
+  it("under --json, keeps stdout to the one envelope and emits the wait event as JSON on stderr", async () => {
     const summary = makeSummary({ succeeded: ["de"] });
     const { deps } = recordingDeps({
       translate: async (input) => {
@@ -191,7 +198,7 @@ describe("run translate: lock-wait progress and --lock-timeout", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(parseEnvelope(cap.out()).result).toEqual(summary);
     expect(JSON.parse(cap.err().trim())).toMatchObject({
       type: "lock-wait",
       lockPath: waitEvent.lockPath,
@@ -368,7 +375,7 @@ describe("run translate: progress reporting", () => {
     expect(cap.out()).not.toContain("translating de");
   });
 
-  it("under --json, emits one JSON record per event on stderr and keeps stdout the summary object", async () => {
+  it("under --json, emits one JSON record per event on stderr and keeps stdout the one envelope", async () => {
     const summary = makeSummary({ succeeded: ["de"] });
     const { deps } = recordingDeps({
       translate: async (input) => {
@@ -383,7 +390,7 @@ describe("run translate: progress reporting", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(0);
-    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(parseEnvelope(cap.out()).result).toEqual(summary);
     const lines = cap.err().trim().split("\n");
     expect(lines).toHaveLength(events.length);
     expect(lines.map((line) => JSON.parse(line))).toEqual(events);
@@ -465,7 +472,7 @@ describe("run translate: exit codes", () => {
     expect(cap.out()).toBe("");
   });
 
-  it("under --json a whole-run error leaves stdout EMPTY and the error on stderr", async () => {
+  it("under --json a whole-run error emits one error envelope on stdout and still exits 2", async () => {
     const { deps } = recordingDeps({
       loadConfig: async () => {
         throw new SdkError("CONFIG_INVALID", "bad config");
@@ -476,8 +483,97 @@ describe("run translate: exit codes", () => {
     const code = await run(["translate", "--json"], deps, cap.streams);
 
     expect(code).toBe(2);
+    expect(cap.out().split("\n").filter(Boolean)).toHaveLength(1);
+    expect(parseEnvelope(cap.out())).toEqual({
+      ok: false,
+      version: JSON_ENVELOPE_VERSION,
+      command: "translate",
+      code: "CONFIG_INVALID",
+      message: "bad config",
+    });
+  });
+
+  it("under --json the stderr line is byte-identical to the non-json run's", async () => {
+    const failing = (): { deps: CliDeps } =>
+      recordingDeps({
+        loadConfig: async () => {
+          throw new SdkError("CONFIG_INVALID", "bad config");
+        },
+      });
+
+    const human = captureStreams();
+    expect(await run(["translate"], failing().deps, human.streams)).toBe(2);
+    const json = captureStreams();
+    expect(await run(["translate", "--json"], failing().deps, json.streams)).toBe(2);
+
+    expect(human.err()).toBe("verbatra: error [CONFIG_INVALID] bad config\n");
+    expect(json.err()).toBe(human.err());
+    expect(human.out()).toBe("");
+  });
+
+  it("a usage error caught while parsing options produces the same envelope shape", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+
+    const code = await run(["check", "--json", "--locales", ""], deps, cap.streams);
+
+    expect(code).toBe(2);
+    const parsed = parseEnvelope(cap.out());
+    expect(parsed.ok).toBe(false);
+    expect(parsed.command).toBe("check");
+    expect(parsed.code).toBe("INVALID_LOCALES");
+    expect(parsed.version).toBe(JSON_ENVELOPE_VERSION);
+    expect(cap.err()).toContain("verbatra: error [INVALID_LOCALES]");
+  });
+
+  it("names the failing command in the envelope for every command that takes --json", async () => {
+    const failing = (): { deps: CliDeps } =>
+      recordingDeps({
+        loadConfig: async () => {
+          throw new SdkError("CONFIG_NOT_FOUND", "no config");
+        },
+      });
+    const argvByCommand: ReadonlyArray<readonly [string, readonly string[]]> = [
+      ["translate", ["translate", "--json"]],
+      ["watch", ["watch", "--json"]],
+      ["export", ["export", "--json"]],
+      ["import", ["import", "wb.xlsx", "--json"]],
+      ["check", ["check", "--json"]],
+      ["diff", ["diff", "--json"]],
+    ];
+
+    for (const [command, argv] of argvByCommand) {
+      const cap = captureStreams();
+      expect(await run(argv, failing().deps, cap.streams)).toBe(2);
+      expect(parseEnvelope(cap.out())).toMatchObject({
+        ok: false,
+        command,
+        code: "CONFIG_NOT_FOUND",
+      });
+    }
+  });
+
+  it("writes nothing to stdout on failure without --json", async () => {
+    const { deps } = recordingDeps({
+      loadConfig: async () => {
+        throw new SdkError("CONFIG_INVALID", "bad config");
+      },
+    });
+    const cap = captureStreams();
+
+    expect(await run(["check"], deps, cap.streams)).toBe(2);
     expect(cap.out()).toBe("");
-    expect(cap.err()).toContain("[CONFIG_INVALID] bad config");
+  });
+
+  it("emits no envelope when --json is present but the raw options are malformed", async () => {
+    const cap = captureStreams();
+    const { deps } = recordingDeps();
+
+    const code = await runTranslate({ json: "yes" }, deps, cap.streams);
+
+    expect(code).toBe(2);
+    expect(cap.out()).toBe("");
+    expect(cap.err()).toContain("verbatra: error [CLI_ERROR]");
   });
 });
 
@@ -657,7 +753,7 @@ describe("run: .env loading is wired before the SDK flow", () => {
     expect(existsSync(join(dir, ".gitignore"))).toBe(false);
   });
 
-  it("keeps stdout to the summary object under --json while topping up .gitignore", async () => {
+  it("keeps stdout to the one envelope under --json while topping up .gitignore", async () => {
     writeFileSync(join(dir, ".gitignore"), ".env\n");
     const summary = makeSummary({ succeeded: ["de"] });
     const { deps } = recordingDeps({ translate: async () => summary });
@@ -665,7 +761,7 @@ describe("run: .env loading is wired before the SDK flow", () => {
 
     await run(["translate", "--json", "--cwd", dir], deps, cap.streams);
 
-    expect(JSON.parse(cap.out().trim())).toEqual(summary);
+    expect(parseEnvelope(cap.out()).result).toEqual(summary);
   });
 
   it("translate loads .env from the --cwd directory before calling the SDK", async () => {

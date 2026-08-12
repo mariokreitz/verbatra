@@ -1,10 +1,10 @@
 import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
+import { renderRunResultEnvelope } from "./json-envelope.js";
 import {
   renderError,
   renderLockWait,
   renderProgress,
   renderRunResultHuman,
-  renderRunResultNdjson,
   toRenderableError,
 } from "./render.js";
 import type { CliDeps, Streams, WatchSession } from "./types.js";
@@ -61,7 +61,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
 
   const onRun = (result: WatchRunResult): void => {
     streams.out(
-      options.json ? `${renderRunResultNdjson(result)}\n` : `${renderRunResultHuman(result)}\n`,
+      options.json ? `${renderRunResultEnvelope(result)}\n` : `${renderRunResultHuman(result)}\n`,
     );
   };
 
