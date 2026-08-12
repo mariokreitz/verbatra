@@ -5,7 +5,7 @@
 <h1 align="center">verbatra</h1>
 
 <p align="center">
-  Automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.
+  Automate i18n translation and keep your locale files in sync across languages, using OpenAI, Anthropic, Gemini, DeepL, or an openai-compatible local or self-hosted model.
 </p>
 
 <p align="center">
