@@ -96,9 +96,9 @@ export function parseSummaryJson(stdout) {
  *
  * The regex itself is unanchored, so it matches the first "error [CODE] message"-shaped text
  * anywhere in stderr, not necessarily the genuine error line: preceding noise (for example from an
- * npx install step) that happens to match would win instead. This is a known, deliberate-for-now
- * deviation, left bug-for-bug compatible rather than fixed here; see .verbatra/refactor-findings.md
- * entry 1.
+ * npx install step) that happens to match would win instead. Anchoring the regex would change which
+ * text the action reports for such runs, so the loose match is preserved deliberately rather than
+ * tightened in passing.
  *
  * @param stderrText - The CLI's captured stderr.
  * @returns The extracted `{ code, message }`, or `null` when no error line is present.

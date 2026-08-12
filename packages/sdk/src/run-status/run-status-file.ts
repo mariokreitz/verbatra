@@ -132,9 +132,10 @@ export async function readRunStatusFile(
  * Write the run-status file, creating `.verbatra-local/` first if it does not already exist. The
  * directory is created directly through node's fs instead of through the injected `SdkFs.mkdir` seam
  * that every other file-touching function in this package uses (for example `export-workbook.ts`).
- * This is a known, deliberate-for-now deviation, bug-for-bug compatible; see
- * `.verbatra/refactor-findings.md` entry 2. Throws on failure; the caller in `translate()` is
- * responsible for catching and swallowing it, since this write is best-effort by design.
+ * Routing it through the seam would change what an injected `SdkFs` observes, so the direct call is
+ * kept as-is: a known deviation, preserved deliberately rather than corrected in passing. Throws on
+ * failure; the caller in `translate()` is responsible for catching and swallowing it, since this
+ * write is best-effort by design.
  */
 export async function writeRunStatusFile(
   path: string,
