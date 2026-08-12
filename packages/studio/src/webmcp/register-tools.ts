@@ -50,6 +50,17 @@ export interface WebMcpTool {
   readonly annotations?: WebMcpToolAnnotations;
 }
 
+/**
+ * The per-registration options a WebMCP host reads. `signal` is the specification's only
+ * unregistration mechanism: there is no `unregisterTool`, so a host takes a tool back when the
+ * signal it was registered with aborts. Declared optional so a host that ignores it, and a test
+ * double that never reads it, both stay valid.
+ */
+export interface RegisterToolOptions {
+  /** Aborting it asks the host to unregister the tool it was passed with. */
+  readonly signal?: AbortSignal;
+}
+
 /** The minimal `document.modelContext` surface this adapter needs: register one tool at a time. */
 export interface ModelContext {
   /**
@@ -58,8 +69,11 @@ export interface ModelContext {
    * the caller awaits the result instead of discarding it: a discarded rejection is a floating
    * promise that no caller-side try/catch can ever see. The `void` arm keeps a synchronous host or
    * a test double representable, and awaiting covers both.
+   *
+   * `options` is optional on both sides: a host that implements only the one-argument form still
+   * satisfies this type, since a function of fewer parameters is assignable to one of more.
    */
-  registerTool(tool: WebMcpTool): PromiseLike<void> | void;
+  registerTool(tool: WebMcpTool, options?: RegisterToolOptions): PromiseLike<void> | void;
 }
 
 /** Everything {@link registerAgentTools} needs, injected by the app so the module stays DOM-free. */
@@ -70,6 +84,12 @@ export interface RegisterAgentToolsDeps {
   readonly rpcClient: RpcClient;
   /** The single source of truth for each method's params schema, injected for testability. */
   readonly schemas: typeof rpcParamsSchemas;
+  /**
+   * The caller's teardown signal, passed straight through to every `registerTool` call so the
+   * host unregisters the whole set when it aborts. Optional, and the controller stays with the
+   * caller: lifecycle policy is the app's to decide, not this module's.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -302,12 +322,22 @@ function buildTool<M extends RpcMethodName>(
   };
 }
 
+/** True only for a signal the caller supplied and already aborted. */
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
+}
+
 /**
  * Registers the WebMCP agent tools when, and only when, all three conditions hold: the browser
  * exposes `document.modelContext`, the `project.snapshot` result carries `exposeAgentTools: true`,
  * and (for the two spend tools) `capabilities.spend` is true. Any condition unmet is a no-op that
  * reports nothing attempted, leaving the dashboard byte-for-byte unchanged. It never gates the
  * server: the same RPCs are reachable with or without this call.
+ *
+ * An aborted `deps.signal` is a fourth such condition, checked before the snapshot fetch, again
+ * after it, and once per loop turn. A caller that has already torn the surface down gets nothing
+ * registered at all, rather than a set the host has to take back a tick later, and an abort that
+ * lands mid-pass stops the pass where it is instead of registering against a dead signal.
  *
  * Each registration is awaited inside its own try/catch, so a rejection is caught while the failing
  * tool name is still in hand, and a failing tool is collected rather than allowed to abort the
@@ -317,25 +347,29 @@ function buildTool<M extends RpcMethodName>(
 export async function registerAgentTools(
   deps: RegisterAgentToolsDeps,
 ): Promise<AgentToolsRegistration> {
-  const { modelContext } = deps;
-  if (modelContext === undefined) {
+  const { modelContext, signal } = deps;
+  if (modelContext === undefined || isAborted(signal)) {
     return NOTHING_ATTEMPTED;
   }
   const snapshot = await deps.rpcClient.call(PROJECT_SNAPSHOT_METHOD, {});
-  if (!snapshot.ok || snapshot.result.exposeAgentTools !== true) {
+  if (!snapshot.ok || snapshot.result.exposeAgentTools !== true || isAborted(signal)) {
     return NOTHING_ATTEMPTED;
   }
+  const options = signal === undefined ? undefined : { signal };
   const spendGranted = snapshot.result.capabilities.spend;
   const registered: string[] = [];
   const failures: ToolRegistrationFailure[] = [];
   for (const method of RPC_METHOD_NAMES) {
     const descriptor = TOOL_DESCRIPTORS[method];
+    if (isAborted(signal)) {
+      break;
+    }
     if (descriptor.spendGated && !spendGranted) {
       continue;
     }
     const tool = buildTool(method, descriptor, deps);
     try {
-      await modelContext.registerTool(tool);
+      await modelContext.registerTool(tool, options);
       registered.push(tool.name);
     } catch (error) {
       failures.push(toRegistrationFailure(tool.name, error));
