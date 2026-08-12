@@ -26,8 +26,6 @@ function summary(over = {}) {
   return { dryRun: false, locales: [], succeeded: [], failed: [], ...over };
 }
 
-const noEmoji = (text) => expect(/\p{Extended_Pictographic}/u.test(text)).toBe(false);
-
 describe("buildReport: exit code is a literal pass-through", () => {
   it("clean (exit 0): no annotations, exitStatus 0, a summary", () => {
     const s = summary({
@@ -39,7 +37,6 @@ describe("buildReport: exit code is a literal pass-through", () => {
     expect(report.exitStatus).toBe(0);
     expect(report.summary).toContain("1 locales: 1 succeeded, 0 failed");
     expect(report.summary).toContain("| de | ok | 2 | 1 |");
-    noEmoji(report.summary);
   });
 
   it("exitStatus mirrors the CLI code exactly, not re-derived from summary.failed", () => {
@@ -79,7 +76,6 @@ describe("buildReport: per-locale failure (exit 1): the conjunction criterion", 
     expect(report.annotations[1]).toContain("[SOURCE_INVALID] bad icu");
     expect(report.summary).toContain("Failed locales:");
     expect(report.summary).toContain("- fr: [LOCALE_FAILED] provider 503");
-    noEmoji(report.summary);
   });
 });
 
@@ -93,7 +89,6 @@ describe("buildReport: whole-run error (exit 2, empty stdout)", () => {
     expect(report.exitStatus).toBe(2);
     expect(report.summary).toContain("verbatra run failed");
     expect(report.summary).toContain("exit 2");
-    noEmoji(report.summary);
   });
 
   it("falls back to a generic message when stderr has no recognizable error line", () => {
@@ -101,6 +96,59 @@ describe("buildReport: whole-run error (exit 2, empty stdout)", () => {
     expect(report.annotations).toHaveLength(1);
     expect(report.annotations[0]).toContain("[VERBATRA_FAILED]");
     expect(report.exitStatus).toBe(2);
+  });
+});
+
+describe("buildReport: whole-run fallback chain, pinned per stderr class", () => {
+  it("recognizable stderr line: annotation and summary both use the extracted code and message", () => {
+    const stderr = "verbatra: error [CONFIG_NOT_FOUND] No config found.";
+    const report = buildReport(null, 2, stderr);
+    expect(report.annotations[0]).toBe(
+      "::error title=verbatra::[CONFIG_NOT_FOUND] No config found.",
+    );
+    expect(report.summary).toBe(
+      [
+        "## verbatra run failed",
+        "",
+        "The verbatra run could not complete (exit 2).",
+        "",
+        "[CONFIG_NOT_FOUND] No config found.",
+      ].join("\n"),
+    );
+  });
+
+  it("non-empty stderr with no recognizable error line: raw trimmed stderr, un-bracketed in the summary", () => {
+    const report = buildReport(null, 2, "boom");
+    expect(report.annotations[0]).toBe("::error title=verbatra::[VERBATRA_FAILED] boom");
+    expect(report.summary).toBe(
+      [
+        "## verbatra run failed",
+        "",
+        "The verbatra run could not complete (exit 2).",
+        "",
+        "boom",
+      ].join("\n"),
+    );
+  });
+
+  it("empty stderr: annotation and summary each fall back to their own generic sentence", () => {
+    const report = buildReport(null, 2, "");
+    expect(report.annotations[0]).toBe(
+      "::error title=verbatra::[VERBATRA_FAILED] The verbatra run failed (exit 2).",
+    );
+    expect(report.summary).toBe(
+      [
+        "## verbatra run failed",
+        "",
+        "The verbatra run could not complete (exit 2).",
+        "",
+        "The run could not complete (exit 2).",
+      ].join("\n"),
+    );
+  });
+
+  it("undefined stderr behaves identically to empty stderr", () => {
+    expect(buildReport(null, 2)).toEqual(buildReport(null, 2, ""));
   });
 });
 
@@ -134,7 +182,48 @@ describe("buildReport: dry-run mirrors the CLI", () => {
     expect(report.summary).toContain("(dry run)");
     expect(report.summary).toContain("dry run: nothing written");
     expect(report.summary).toContain("| de | ok | 2 |");
-    noEmoji(report.summary);
+  });
+});
+
+describe("buildReport: rendered summaries never contain emoji", () => {
+  it("clean, per-locale-failure, whole-run, and dry-run summaries are all emoji-free", () => {
+    const clean = buildReport(
+      summary({
+        locales: [locale({ translated: ["a", "b"], unchanged: ["c"] })],
+        succeeded: ["de"],
+      }),
+      0,
+    ).summary;
+    const perLocaleFailure = buildReport(
+      summary({
+        locales: [
+          locale({
+            locale: "fr",
+            status: "failed",
+            error: { code: "LOCALE_FAILED", message: "provider 503" },
+          }),
+        ],
+        failed: ["fr"],
+      }),
+      1,
+    ).summary;
+    const wholeRun = buildReport(
+      null,
+      2,
+      "verbatra: error [CONFIG_NOT_FOUND] No verbatra configuration found. Create a verbatra.config.ts.",
+    ).summary;
+    const dryRun = buildReport(
+      summary({
+        dryRun: true,
+        locales: [locale({ translated: ["pending1", "pending2"] })],
+        succeeded: ["de"],
+      }),
+      0,
+    ).summary;
+
+    for (const rendered of [clean, perLocaleFailure, wholeRun, dryRun]) {
+      expect(/\p{Extended_Pictographic}/u.test(rendered)).toBe(false);
+    }
   });
 });
 

@@ -56,8 +56,8 @@ function errorAnnotation(title, code, message) {
  * caller falls through to the same stderr-driven whole-run reporting it has always used.
  *
  * A CLI older than the envelope printed the bare RunSummary instead. The action's
- * `verbatra-version` input can pin any published version, so that shape is still accepted: a record
- * without a boolean `ok` is treated as the summary itself.
+ * `version` input can pin any published version, so that shape is still accepted: a record without
+ * a boolean `ok` is treated as the summary itself.
  *
  * @param record - One parsed JSON record from stdout.
  * @returns The RunSummary, or `null` when the record carries none.
@@ -94,6 +94,12 @@ export function parseSummaryJson(stdout) {
  * message is matched with `.*`, which stops at the newline, so trailing stderr noise printed after
  * the error line is not folded into the extracted message.
  *
+ * The regex itself is unanchored, so it matches the first "error [CODE] message"-shaped text
+ * anywhere in stderr, not necessarily the genuine error line: preceding noise (for example from an
+ * npx install step) that happens to match would win instead. This is a known, deliberate-for-now
+ * deviation, left bug-for-bug compatible rather than fixed here; see .verbatra/refactor-findings.md
+ * entry 1.
+ *
  * @param stderrText - The CLI's captured stderr.
  * @returns The extracted `{ code, message }`, or `null` when no error line is present.
  */
@@ -126,16 +132,31 @@ export function resolveExitCode(exitCodeArg) {
 }
 
 /**
+ * Resolve a failed locale's `{ code, message }`, falling back to a generic pair when the locale
+ * carries no structured error. Shared by the job-summary "Failed locales" list and the per-locale
+ * annotations, which must report the identical fallback for a locale with no error object.
+ *
+ * @param entry - One failed locale entry of the RunSummary.
+ * @returns The `{ code, message }` to report for that locale.
+ */
+function resolveLocaleError(entry) {
+  return {
+    code: entry.error?.code ?? "LOCALE_FAILED",
+    message: entry.error?.message ?? "locale failed",
+  };
+}
+
+/**
  * Render one locale as a row of the job-summary counts table. The column order here has to stay in
  * step with the header and separator built in `summaryMarkdown`; only the "failed" status is
  * reported as a failure, every other status reads as "ok".
  *
- * @param locale - One locale entry of the RunSummary.
+ * @param entry - One locale entry of the RunSummary.
  * @returns The markdown table row for that locale.
  */
-function countsRow(locale) {
-  const status = locale.status === "failed" ? "failed" : "ok";
-  return `| ${locale.locale} | ${status} | ${locale.translated.length} | ${locale.unchanged.length} | ${locale.orphaned.length} | ${locale.invalidIcuSource.length} | ${locale.integrityMismatches.length} | ${locale.providerFailures.length} | ${locale.notices.length} |`;
+function countsRow(entry) {
+  const status = entry.status === "failed" ? "failed" : "ok";
+  return `| ${entry.locale} | ${status} | ${entry.translated.length} | ${entry.unchanged.length} | ${entry.orphaned.length} | ${entry.invalidIcuSource.length} | ${entry.integrityMismatches.length} | ${entry.providerFailures.length} | ${entry.notices.length} |`;
 }
 
 /**
@@ -164,12 +185,29 @@ function summaryMarkdown(summary) {
   if (failedLocales.length > 0) {
     lines.push("", "Failed locales:");
     for (const locale of failedLocales) {
-      const code = locale.error?.code ?? "LOCALE_FAILED";
-      const message = locale.error?.message ?? "locale failed";
+      const { code, message } = resolveLocaleError(locale);
       lines.push(`- ${locale.locale}: [${code}] ${message}`);
     }
   }
   return lines.join("\n");
+}
+
+/**
+ * Resolve the CLI-derived parts shared by the whole-run annotation and job summary: the structured
+ * error extracted from stderr, if any, and the raw-stderr-or-generic-sentence fallback used when
+ * there is none. The two callers differ in their generic sentence and in how they format the
+ * fallback (bracketed code or not), so only this shared derivation is factored out; each caller
+ * keeps its own formatting.
+ *
+ * @param stderrText - The CLI's captured stderr.
+ * @param genericMessage - The caller's own generic sentence, used when stderr has no recognizable
+ *   error line and is itself empty.
+ * @returns The extracted `cliError` (or `null`) and the `fallback` text to use in its place.
+ */
+function resolveWholeRunError(stderrText, genericMessage) {
+  const cliError = extractCliError(stderrText);
+  const fallback = String(stderrText ?? "").trim() || genericMessage;
+  return { cliError, fallback };
 }
 
 /**
@@ -183,12 +221,15 @@ function summaryMarkdown(summary) {
  * @returns The workflow-command line for the whole-run failure.
  */
 function wholeRunAnnotation(exitCode, stderrText) {
-  const cliError = extractCliError(stderrText);
-  const code = cliError?.code ?? "VERBATRA_FAILED";
-  const message =
-    cliError?.message ??
-    (String(stderrText ?? "").trim() || `The verbatra run failed (exit ${exitCode}).`);
-  return errorAnnotation("verbatra", code, message);
+  const { cliError, fallback } = resolveWholeRunError(
+    stderrText,
+    `The verbatra run failed (exit ${exitCode}).`,
+  );
+  return errorAnnotation(
+    "verbatra",
+    cliError?.code ?? "VERBATRA_FAILED",
+    cliError?.message ?? fallback,
+  );
 }
 
 /**
@@ -201,10 +242,11 @@ function wholeRunAnnotation(exitCode, stderrText) {
  * @returns The markdown document, without a trailing newline.
  */
 function wholeRunMarkdown(exitCode, stderrText) {
-  const cliError = extractCliError(stderrText);
-  const detail = cliError
-    ? `[${cliError.code}] ${cliError.message}`
-    : String(stderrText ?? "").trim() || `The run could not complete (exit ${exitCode}).`;
+  const { cliError, fallback } = resolveWholeRunError(
+    stderrText,
+    `The run could not complete (exit ${exitCode}).`,
+  );
+  const detail = cliError ? `[${cliError.code}] ${cliError.message}` : fallback;
   return [
     "## verbatra run failed",
     "",
@@ -236,13 +278,10 @@ export function buildReport(summary, exitCode, stderrText = "") {
     exitCode === 1
       ? summary.locales
           .filter((locale) => locale.status === "failed")
-          .map((locale) =>
-            errorAnnotation(
-              `verbatra: ${locale.locale}`,
-              locale.error?.code ?? "LOCALE_FAILED",
-              locale.error?.message ?? "locale failed",
-            ),
-          )
+          .map((locale) => {
+            const { code, message } = resolveLocaleError(locale);
+            return errorAnnotation(`verbatra: ${locale.locale}`, code, message);
+          })
       : [];
   return { annotations, summary: summaryMarkdown(summary), exitStatus };
 }
