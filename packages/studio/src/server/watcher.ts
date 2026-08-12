@@ -1,3 +1,4 @@
+import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
   diffLocaleSnapshots,
@@ -106,10 +107,98 @@ async function buildRefreshEvent(
   }
 }
 
-/** A debounced trigger for one entry: coalesces a burst of raw events into one emitted refresh. */
-function createDebouncedTrigger(
+/**
+ * Reads a stable identity for one watched file: its inode, byte size, and modification time joined
+ * into one opaque token, or undefined when the file cannot be stat'd at all. Two reads that return
+ * the same defined token describe the same file, unmodified in between, so the second raw event
+ * that produced the later read reports no state the first one did not already report.
+ */
+export type ReadFileIdentity = (path: string) => Promise<string | undefined>;
+
+/** Default {@link ReadFileIdentity}: a real stat, reporting an unreadable or missing file as undefined. */
+const readFileIdentityFromDisk: ReadFileIdentity = async (path) => {
+  try {
+    const info = await stat(path);
+    return `${info.ino}:${info.size}:${info.mtimeMs}`;
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Rejects a settled trigger whose watched files are in exactly the state the last emitted event
+ * already reported.
+ *
+ * One atomic write (write a temp sibling, then rename it over the target) reaches chokidar as two
+ * raw events on the watched path: an "add" from the parent-directory pass that first sees the new
+ * file, then a "change" from the per-file watcher chokidar attaches during that same pass, which
+ * chokidar releases on its own 50ms per-path change throttle. Both map onto the one listener in
+ * {@link defaultCreateStudioWatcher}, so once that gap exceeds the debounce window, whether because
+ * the window is short or because a loaded event loop stretched the gap, the trailing timer fires
+ * twice and one logical write publishes two refreshes. Comparing file identity collapses them:
+ * the second settle sees the same inode, size, and mtime the first one emitted on and is dropped.
+ *
+ * Fails open. An identity that cannot be read is never treated as equal to anything, so a stat
+ * failure costs a redundant refresh rather than a lost one. Settles are serialized through `tail`
+ * for the same reason {@link createSnapshotTracker} serializes its reads: two settles whose
+ * identity reads overlap would otherwise record the wrong one as the last emitted state. The tail
+ * chain itself never rejects, or every later settle for the entry would be skipped.
+ */
+function createIdentityGate(
+  paths: readonly string[],
+  readIdentity: ReadFileIdentity,
+): { readonly admit: () => Promise<boolean> } {
+  let lastEmitted: string | undefined;
+  let tail: Promise<void> = Promise.resolve();
+
+  async function readEntryIdentity(): Promise<string | undefined> {
+    try {
+      const tokens = await Promise.all(paths.map((path) => readIdentity(path)));
+      return tokens.every((token) => token !== undefined) ? tokens.join("|") : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function admit(): Promise<boolean> {
+    const attempt = tail.then(async () => {
+      const current = await readEntryIdentity();
+      const duplicate = current !== undefined && current === lastEmitted;
+      lastEmitted = current;
+      return !duplicate;
+    });
+    tail = attempt.then(
+      () => undefined,
+      () => undefined,
+    );
+    return attempt;
+  }
+
+  return { admit };
+}
+
+type IdentityGate = ReturnType<typeof createIdentityGate>;
+
+/**
+ * Resolves one settled trigger into the event to publish, or undefined when the gate recognizes the
+ * trigger as a duplicate of the one already published. Only entries with no snapshot tracker carry
+ * a gate: a locale entry publishes a per-key delta a consumer can read, while a lock event carries
+ * no payload at all, so a duplicate there is indistinguishable from a real second write.
+ */
+async function settleTrigger(
   entry: WatchedEntry,
   tracker: SnapshotTracker | undefined,
+  gate: IdentityGate | undefined,
+): Promise<RefreshEvent | undefined> {
+  if (gate !== undefined && !(await gate.admit())) {
+    return undefined;
+  }
+  return buildRefreshEvent(entry, tracker);
+}
+
+/** A debounced trigger for one entry: coalesces a burst of raw events into one emitted refresh. */
+function createDebouncedTrigger(
+  settle: () => Promise<RefreshEvent | undefined>,
   debounceMs: number,
   emit: (event: RefreshEvent) => void,
 ): { readonly trigger: () => void; readonly clear: () => void } {
@@ -121,7 +210,11 @@ function createDebouncedTrigger(
       }
       timer = setTimeout(() => {
         timer = undefined;
-        void buildRefreshEvent(entry, tracker).then(emit);
+        void settle().then((event) => {
+          if (event !== undefined) {
+            emit(event);
+          }
+        });
       }, debounceMs);
     },
     clear(): void {
@@ -155,6 +248,12 @@ export interface ProjectWatcherDeps {
    * can control exactly when a snapshot read resolves.
    */
   readonly readLocaleSnapshot?: ReadLocaleSnapshot;
+  /**
+   * Reads the identity of a watched file that has no snapshot tracker (the lock file), used to drop
+   * a duplicate refresh for one unchanged file state. Defaults to a real stat. Overridable so a
+   * test can state an identity outright instead of staging one on disk.
+   */
+  readonly readFileIdentity?: ReadFileIdentity;
 }
 
 /** A running live-refresh watcher over one project's source, target, and lock files. */
@@ -224,7 +323,10 @@ async function readInitialSnapshot(
  * different files raise two distinct, correctly tagged refresh events. Before any watcher is
  * created, an initial snapshot of every locale file is read (a missing or unreadable file reads
  * as empty, never throwing), establishing the baseline the first change after startup is diffed
- * against; no raw change can race the initial snapshot. Emitted events carry only a reason, a
+ * against; no raw change can race the initial snapshot. An entry with no snapshot tracker (the lock
+ * file) additionally drops a settled trigger whose file identity matches the one it last emitted on,
+ * so one atomic write publishes exactly one lock refresh however its raw events happen to be spaced;
+ * see {@link createIdentityGate}. Emitted events carry only a reason, a
  * timestamp, and (for locale files) per-locale added/changed/removed key counts: never file
  * content, a key name, or a translated value. No translation ever runs from this module, and the
  * config is not watched: it is resolved once for the process lifetime.
@@ -247,8 +349,15 @@ export async function createProjectWatcher(
     watchedEntries(input.config, input.projectRoot).map((entry) => primeEntry(entry, readSnapshot)),
   );
 
+  const readIdentity = deps.readFileIdentity ?? readFileIdentityFromDisk;
+
   const entries = primed.map(({ entry, tracker }) => {
-    const debounced = createDebouncedTrigger(entry, tracker, debounceMs, emit);
+    const gate = tracker === undefined ? createIdentityGate(entry.paths, readIdentity) : undefined;
+    const debounced = createDebouncedTrigger(
+      () => settleTrigger(entry, tracker, gate),
+      debounceMs,
+      emit,
+    );
     const watcher = deps.createWatcher(entry.paths);
     watcher.onChange(debounced.trigger);
     return { debounced, watcher };
