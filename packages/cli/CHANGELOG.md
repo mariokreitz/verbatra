@@ -1,5 +1,163 @@
 # @verbatra/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- 7085769: Classify a provider HTTP 5xx as its own `PROVIDER_UNAVAILABLE` error code instead of the generic
+  `PROVIDER_ERROR` fallback.
+
+  A hard provider outage returns 5xx, which previously matched none of the status or error-class
+  checks and fell through to `PROVIDER_ERROR`, the code reserved for failures nothing could classify.
+  An outage and an unrecognized failure are different things, and only the first is worth retrying
+  later or routing to another provider, so they now carry different codes.
+
+  The new code is deliberately separate rather than folded into `TIMEOUT` or `RATE_LIMITED`: both of
+  those name a specific, different failure, and reporting an outage as "the request timed out" or
+  "you were rate-limited" would be untrue in the text a user reads. A sub-batch withheld during an
+  outage now names `PROVIDER_UNAVAILABLE` in its notice.
+
+  Classification of every other failure is unchanged. In particular 401 and 403 still classify as
+  `AUTH_FAILED`, which remains permanent and not worth retrying.
+
+- 6fb1941: Add a CSV and TSV translator interchange alongside the Excel workbook.
+
+  `export` and `import` take a `--format` flag (`xlsx` by default, plus `csv` and `tsv`), and the SDK's
+  `exportWorkbook` and `importWorkbook` take the matching optional `format` field. Passing no format
+  keeps the existing xlsx behavior exactly as it was.
+
+  A delimited export writes one `<locale>.csv` or `<locale>.tsv` per target locale, so `--out` names a
+  directory for those formats (default `verbatra-translations`) and stays a file path for `xlsx`. The
+  directory is created if it is missing. Import accepts either that directory or a single interchange
+  file, and takes the locale from the file name. Files carry the same columns as the workbook, are
+  written with LF line endings (and a UTF-8 BOM for `csv`, which Excel needs), and are quoted per
+  RFC 4180, so a value containing the delimiter, a quote, a line break, or padding whitespace
+  round-trips exactly.
+
+  Every imported row runs the same source-drift, placeholder, and ICU gate as the workbook path. A
+  delimited file has no cell protection, so its source-hash column is visible and editable: an edited
+  or blanked hash is never trusted, the row is withheld as drift and reported. Parsing is bounded by
+  explicit input-byte, row, field-count, and field-length caps, and a malformed row or a duplicate key
+  is reported per row instead of aborting the file.
+
+- 6871028: Report the file line as well as the record number for a malformed row or duplicate key in a csv or tsv
+  import.
+
+  A delimited record that holds a quoted line break covers one spreadsheet row but several editor lines,
+  so the record number alone stopped matching what a translator saw in a text editor as soon as any
+  earlier row contained such a break. Both numbers are now reported and labelled: `row` is the record
+  number a spreadsheet shows, and the new optional `line` on `MalformedRowReport` and
+  `DuplicateKeyReport` is the file line the record starts on. The line is correct for LF, CRLF, and lone
+  CR breaks, and is derived from the same single scan of the file.
+
+  The CLI renders `row 4, line 7 (Status)` for a delimited import and the unchanged `row 4 (Status)` for
+  an xlsx one, which carries rows rather than lines and reports no `line` at all.
+
+- e2157a3: Wrap every `--json` record on stdout in one discriminated envelope, and emit one for a failed run.
+
+  Before this change a caller driving the CLI with `--json` could parse a success but not a failure:
+  a whole-run error left stdout empty, so the only machine-usable signal was the exit code and the
+  only way to learn why was to scrape the human-readable stderr line. The success payloads had the
+  matching gap in the other direction: they were a bare summary object with no marker of which command
+  produced them or which shape version they followed.
+
+  Every `--json` record on stdout is now one line of one shape:
+
+  - success: `{ "ok": true, "version": 1, "command": "check", "result": { ...the previous payload } }`
+  - failure: `{ "ok": false, "version": 1, "command": "check", "code": "CONFIG_INVALID", "message": "..." }`
+
+  Three contract decisions worth stating, since consumers depend on them:
+
+  - `version` is the version of the envelope shape, not the package version, and it is an integer so
+    a consumer compares it with `===` and is never tempted to range-parse it. Adding a field does not
+    bump it, so ignore fields you do not recognize.
+  - The command payload is nested under `result` rather than spread next to `ok`, so an envelope field
+    can never collide with a payload field and the payload stays versionable on its own.
+  - `watch --json` keeps one NDJSON record per run and now uses the same envelope for each, with
+    `ok` carrying what the old `status` field carried. A failed run does not terminate the stream.
+
+  A failing run writes exactly one envelope line to stdout and still exits `2`. Exit codes are
+  unchanged in every case. The human-readable stderr line is unchanged in both modes, byte for byte,
+  so consumers that read the exit code and stderr are unaffected. The envelope carries the same
+  secret-free `{ code, message }` projection the stderr line renders, so it can disclose nothing the
+  stderr line would not have. Progress and lock-wait records stay on stderr.
+
+  This is a breaking change for anything parsing `--json` stdout: read `result` instead of the bare
+  object, and branch on `ok`. The bundled GitHub action already understands both shapes, so a pinned
+  older `verbatra-version` keeps working.
+
+- 21459a6: Add locale directory layout styles and the locale path resolver.
+
+  `files` gains an optional `localeStyle` of `"literal"`, `"posix"`, or `"android"`. It controls what
+  the `{locale}` token in `files.pattern` expands to for each locale:
+
+  - `"literal"` is the default and what a config without the field gets: the configured tag verbatim.
+    Every existing project resolves to exactly the paths it did before, byte for byte.
+  - `"posix"` replaces `-` with `_`, for gettext directories (`locale/pt_BR/LC_MESSAGES/messages.po`)
+    and the Java `messages_{locale}.properties` suffix layout.
+  - `"android"` expands the token to a complete Android resource-directory segment, `values` prefix
+    included: `values` for the source locale, `values-de`, `values-pt-rBR`, `values-fil-rPH`, and the
+    modified BCP-47 form `values-b+zh+Hans`, `values-b+es+419`, `values-b+sr+Latn+RS` where the legacy
+    qualifier cannot express the tag. The pattern is `res/{locale}/strings.xml`, and the token must
+    occupy a whole path segment under this style.
+
+  The new `createLocalePathResolver(cwd, config)` is exported from the package root. It resolves a
+  locale to its absolute file path (`pathFor`) and a path back to the locale that owns it
+  (`localeFor`, `undefined` for a path the project does not own). Every SDK flow now resolves paths
+  through it, so a consumer that watches or reports on locale files uses the same mapping rather than
+  re-deriving it.
+
+  `SdkErrorCode` gains two members, both raised when the resolver is created and so before any file is
+  read and before any provider call:
+
+  - `LOCALE_LAYOUT_INVALID`: the pattern and style cannot be combined, or the style has no valid
+    spelling for a configured locale (`zh-Hans` under `"posix"`, for instance), or a locale expands to
+    something that is not a single path segment. A style refuses rather than guesses, because a wrong
+    directory name is written successfully and then silently ignored at runtime.
+  - `LOCALE_PATH_COLLISION`: two configured locales resolve to the same absolute path.
+
+- 4720494: Stop a narrower delimited re-export from leaving locale files a later import reads as fresh.
+
+  A `csv` or `tsv` export writes one file per locale into a directory, so re-exporting into a directory
+  that still holds output from an earlier run with a wider `--locales` selection left the dropped
+  locales' files behind, indistinguishable from the ones just written. The next import read them and
+  applied outdated translations silently.
+
+  A delimited export now records the locales it wrote in a hidden per-format manifest in the output
+  directory (`.verbatra-export-csv.json` or `.verbatra-export-tsv.json`), written after the locale
+  files. Import reconciles a handoff directory against it: a locale file the most recent export did not
+  write is refused as a leftover and reported as that locale's failure (`HANDOFF_FILE_STALE`) instead
+  of being applied. A directory with no readable manifest (assembled by hand, or round-tripped through
+  an archive that dropped the hidden file) is read exactly as before, and naming a single interchange
+  file directly is still taken at face value.
+
+  The export deletes nothing. Nothing in the output directory is removed or overwritten except the
+  per-locale files this export writes and its own manifest, so an unrelated file placed there is never
+  at risk.
+
+### Patch Changes
+
+- 2d119f8: Refresh the npm package metadata. The cli and sdk descriptions now name the providers, including running against an openai-compatible local or self-hosted model, and their keywords cover the supported formats (XLIFF, YAML, ARB, Flutter, Java properties) alongside the i18n libraries. The studio keywords gained the terms its dashboard is searched by, and its homepage now points at the Verbatra Studio documentation page. `verbatra --help` prints the same positioning as the package listing, so the banner no longer contradicts it.
+- 1d3d92d: Refresh the bundled provider SDKs to their current patch and minor releases.
+
+  `@anthropic-ai/sdk` moves from 0.115.0 to 0.116.0, `@google/genai` from 2.15.0 to 2.16.0, and
+  `openai` from 7.3.0 to 7.4.0. These are the versions a consumer installs alongside
+  `@verbatra/sdk`, so they reach the consumer lockfile, audit surface, and SBOM.
+
+  This is a routine dependency refresh with no verbatra API change: the provider strategies, the
+  shared `runLlmTranslation` layer, and the translation response schema are all untouched, and no
+  configuration or CLI behavior changes.
+
+- Updated dependencies [7085769]
+- Updated dependencies [6fb1941]
+- Updated dependencies [6871028]
+- Updated dependencies [21459a6]
+- Updated dependencies [2d119f8]
+- Updated dependencies [6b911af]
+- Updated dependencies [1d3d92d]
+- Updated dependencies [4720494]
+  - @verbatra/sdk@0.7.0
+
 ## 0.6.4
 
 ### Patch Changes
