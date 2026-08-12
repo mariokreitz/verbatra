@@ -1,4 +1,4 @@
-import type { VerbatraConfig, WatchInput, WatchRunResult } from "@verbatra/sdk";
+import type { VerbatraConfig, WatchController, WatchInput, WatchRunResult } from "@verbatra/sdk";
 import { renderErrorEnvelope, renderRunResultEnvelope } from "./json-envelope.js";
 import {
   renderError,
@@ -7,6 +7,7 @@ import {
   renderRunResultHuman,
   toRenderableError,
 } from "./render.js";
+import { stoppableSession } from "./stoppable-session.js";
 import type { CliDeps, Streams, WatchSession } from "./types.js";
 
 /** Inputs for a watch session: the validated config, where to run, the debounce window, and output mode. */
@@ -39,42 +40,6 @@ export interface WatchOptions {
  *   2 startup or stop failure); `requestStop` is wired to the interrupt signals by the bin shim.
  */
 export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams): WatchSession {
-  let resolveDone!: (code: number) => void;
-  const done = new Promise<number>((resolve) => {
-    resolveDone = resolve;
-  });
-
-  let controller: { stop(): Promise<void> } | undefined;
-  let stopping = false;
-  let startupFailed = false;
-
-  /**
-   * Reports a session-level failure (the watcher never started, or it failed to stop) and resolves
-   * the session with exit `2`.
-   *
-   * The human-readable line goes to stderr in both modes, unchanged. Under `--json` the same
-   * secret-free projection is also written to stdout as one error envelope, matching what every
-   * other command does for a whole-run failure and what a failed run already emits on this stream.
-   * Without it a `--json` consumer parsing stdout saw nothing at all for a watch that failed to
-   * start, while the identical error under `translate --json` produced an envelope.
-   */
-  const failSession = (error: unknown): void => {
-    const renderable = toRenderableError(error);
-    streams.err(`${renderError(renderable)}\n`);
-    if (options.json) {
-      streams.out(`${renderErrorEnvelope("watch", renderable)}\n`);
-    }
-    resolveDone(2);
-  };
-
-  /** A clean stop resolves 0; a rejected stop reports the error and resolves 2. */
-  const stopController = (c: { stop(): Promise<void> }): void => {
-    void c
-      .stop()
-      .then(() => resolveDone(0))
-      .catch(failSession);
-  };
-
   const onRun = (result: WatchRunResult): void => {
     streams.out(
       options.json ? `${renderRunResultEnvelope(result)}\n` : `${renderRunResultHuman(result)}\n`,
@@ -103,33 +68,26 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     ...(options.cache === false ? { cache: false } : {}),
   };
 
-  deps
-    .watch(watchInput)
-    .then((c) => {
-      controller = c;
-      if (stopping) {
-        stopController(c);
-      }
-    })
-    .catch((error: unknown) => {
-      startupFailed = true;
-      failSession(error);
-    });
-
-  const requestStop = (): void => {
-    if (startupFailed) {
-      return;
-    }
-    if (!stopping) {
-      stopping = true;
+  return stoppableSession<WatchController>({
+    getController: () => deps.watch(watchInput),
+    onStopRequested: () => {
       streams.err("verbatra: stopping, finishing current run...\n");
-      if (controller !== undefined) {
-        stopController(controller);
+    },
+    /**
+     * Reports a session-level failure (the watcher never started, or it failed to stop). The
+     * human-readable line goes to stderr in both modes, unchanged. Under `--json` the same
+     * secret-free projection is also written to stdout as one error envelope, matching what every
+     * other command does for a whole-run failure and what a failed run already emits on this stream.
+     * Without it a `--json` consumer parsing stdout saw nothing at all for a watch that failed to
+     * start, while the identical error under `translate --json` produced an envelope.
+     */
+    onFailure: (error) => {
+      const renderable = toRenderableError(error);
+      streams.err(`${renderError(renderable)}\n`);
+      if (options.json) {
+        streams.out(`${renderErrorEnvelope("watch", renderable)}\n`);
       }
-      return;
-    }
-    resolveDone(130);
-  };
-
-  return { done, requestStop };
+      return 2;
+    },
+  });
 }

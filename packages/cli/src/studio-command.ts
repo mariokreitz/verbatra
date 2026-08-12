@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CliUsageError } from "./cli-usage-error.js";
 import { loadEnvFiles } from "./env.js";
 import { renderError, toRenderableError } from "./render.js";
+import { stoppableSession } from "./stoppable-session.js";
 import type { CliDeps, Streams, StudioSession } from "./types.js";
 
 /** 32 bytes (256 bits) of randomness for the bootstrap token, well above the 128-bit floor. */
@@ -120,35 +121,18 @@ function failed(code: number): StudioSession {
 
 /**
  * Wires a running server's shutdown to `requestStop`, mirroring the `watch` command's session
- * contract: the first call closes the server and resolves the exit code (`0` clean, `1` if closing
- * itself throws); a second call while the first is still in flight forces `130`.
+ * contract via {@link stoppableSession}: the first call closes the server and resolves the exit code
+ * (`0` clean, `1` if closing itself throws); a second call while the first is still in flight forces
+ * `130`. The server is already running by the time this is called, so its controller is always ready.
  */
-function watchForStop(
-  server: { close(): Promise<void> },
-  streams: Streams,
-): { done: Promise<number>; requestStop: () => void } {
-  let resolveDone!: (code: number) => void;
-  const done = new Promise<number>((resolve) => {
-    resolveDone = resolve;
+function watchForStop(server: { close(): Promise<void> }, streams: Streams): StudioSession {
+  return stoppableSession({
+    getController: () => Promise.resolve({ stop: () => server.close() }),
+    onFailure: (error) => {
+      streams.err(`${renderError(toRenderableError(error))}\n`);
+      return 1;
+    },
   });
-  let stopping = false;
-
-  const requestStop = (): void => {
-    if (stopping) {
-      resolveDone(130);
-      return;
-    }
-    stopping = true;
-    void server
-      .close()
-      .then(() => resolveDone(0))
-      .catch((error: unknown) => {
-        streams.err(`${renderError(toRenderableError(error))}\n`);
-        resolveDone(1);
-      });
-  };
-
-  return { done, requestStop };
 }
 
 /**
