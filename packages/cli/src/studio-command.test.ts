@@ -301,6 +301,33 @@ describe("run studio: success path and shutdown", () => {
     expect(code).toBe(0);
   });
 
+  it("silences the studio server's own output sink so it prints no second banner or log line", async () => {
+    const { deps } = recordingDeps({
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            expect(options.output).toBeTypeOf("function");
+            options.output?.("studio server internal log line");
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run(["studio"], deps, cap.streams, captured.hooks);
+    await flush();
+
+    const out = cap.out();
+    expect(out).toMatch(
+      /^Verbatra Studio running at http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64}\n$/,
+    );
+    expect(cap.err()).toBe("");
+
+    captured.session()?.requestStop();
+    await donePromise;
+  });
+
   it("a second requestStop while the first is closing forces exit 130", async () => {
     const { deps } = recordingDeps({
       importStudio: async () =>

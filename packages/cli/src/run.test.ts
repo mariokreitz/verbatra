@@ -661,6 +661,22 @@ describe("run: usage errors, help, version", () => {
   });
 });
 
+describe("run: a non-CommanderError escaping a command handler is re-thrown", () => {
+  it("propagates a plain error thrown from a run hook instead of mapping it to an exit code", async () => {
+    const { deps } = recordingDeps();
+    const cap = captureStreams();
+    const hookError = new Error("hook exploded");
+
+    await expect(
+      run(["watch"], deps, cap.streams, {
+        onWatchSession: () => {
+          throw hookError;
+        },
+      }),
+    ).rejects.toBe(hookError);
+  });
+});
+
 /**
  * The pre-flight work a run-path command does at its `--cwd` before handing off to the SDK: loading
  * `.env` files, and topping up an existing `.gitignore`. The top-up is here because `init` was the
