@@ -73,6 +73,51 @@ Diese rufen einen Übersetzungs-Provider auf und werden nur registriert, wenn St
 
 Beide schicken ihre Ergebnisse durch das Integritäts-Gate, bevor irgendetwas die Platte erreicht, und für beide gelten Studios bestehende Ratenlimits (Neuübersetzen 20 pro gleitender Minute, Translate-pending 5 pro gleitender Minute plus eine Sperre gegen parallele Läufe). Ohne `--allow-spend` fehlen sie im Tool-Set, und der Server registriert die zugrunde liegenden Endpunkte gar nicht erst: Ausgaben, die du beim Start nicht gewährt hast, sind für einen Agenten nicht erreichbar.
 
+## Der Degraded-Mode-Hinweis
+
+Die Registrierung hat drei mögliche Ausgänge, und nur einer davon ist ein Problem.
+
+**Nichts versucht, nichts gemeldet.** Fehlt `document.modelContext` (ein Browser ohne WebMCP oder Chrome ohne das Flag) oder hast du die Freigabe nicht gesetzt, versucht Studio überhaupt keine Registrierung. Das Dashboard bleibt unverändert und die Konsole bleibt still. Das ist der vorgesehene No-Op, kein Fehler.
+
+**Elf Tools und kein Hinweis.** Ohne `--allow-spend` versucht Studio elf Registrierungen statt dreizehn: die beiden Ausgaben-Tools werden übersprungen, bevor sie überhaupt versucht werden. Elf Tools sind die gesunde Zahl für eine Sitzung ohne Ausgaben, ihr Fehlen ist also der erwartete Zustand und löst nie einen Hinweis aus.
+
+**Der Hinweis.** Hat Studio eine Registrierung versucht und der Browser sie abgelehnt, zeigt das Dashboard oben im Inhaltsbereich eine Warnung, auf jeder Ansicht:
+
+> Agent tools degraded: 2 of the agent tool registrations failed with SecurityError. The dashboard itself is unaffected. The browser console lists every failing tool.
+
+Zahl und Fehlername sind die echten aus diesem Durchlauf. Der Hinweis hat kein Bedienelement zum Schließen und bleibt für die Lebensdauer der Seite stehen. Ein Neuladen des Tabs startet einen frischen Registrierungsdurchlauf, denn der Status wird nur im Speicher gehalten.
+
+### Was im Degraded-Modus weiterhin funktioniert
+
+Ein fehlschlagendes Tool bricht nie die nachfolgenden ab, also bleibt jedes Tool, das sich registriert hat, aufrufbar und die Oberfläche ist meist teilweise nutzbar statt ausgefallen. Das Dashboard bleibt unberührt: die menschliche Oberfläche, die RPCs und jedes Capability-Gate verhalten sich genau so, wie sie es mit ausgeschalteter Freigabe täten, und keine Locale-Datei ist betroffen.
+
+### Die Konsole lesen
+
+Studio schreibt eine einzige zusammengefasste Zeile auf Error-Ebene, nicht eine Zeile pro Tool, denn eine gemeinsame Ursache lässt jedes Tool identisch scheitern:
+
+```text
+Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+```
+
+Der erste Satz nennt, wie viele der versuchten Registrierungen fehlgeschlagen sind, und von wie vielen Versuchen. Danach folgt jedes fehlschlagende Tool als `name (ErrorName: message)`, getrennt durch Semikolons. Der Fehlername benennt die Ursache: es ist der `name` des Werts, mit dem der Browser abgelehnt hat, meist eine `DOMException` wie `SecurityError` oder `InvalidStateError`.
+
+Ein Durchlauf, der die Tool-Schleife nie erreicht hat, meldet eine andere Zeile und löst den Hinweis nicht aus:
+
+```text
+Verbatra agent tools: registration did not start (TypeError: Failed to fetch).
+```
+
+Das heißt, der Projekt-Snapshot-Aufruf, der über die Freigabe entscheidet, ist beim Laden fehlgeschlagen, sodass kein Tool versucht wurde.
+
+### Was du dagegen tun kannst
+
+Keine Studio-Einstellung behebt eine abgelehnte Registrierung, denn die Ablehnung kommt vom Browser. In der Praxis:
+
+- Lies zuerst den Fehlernamen in der Konsole. Er benennt die Ursache genauer als der Hinweis.
+- Lade den Tab neu. Die Registrierung läuft einmal pro Seitenaufruf, eine vorübergehende Ablehnung verschwindet also.
+- Prüfe die Voraussetzungen im Browser oben erneut. Ein fehlendes Flag oder ein Browser ohne WebMCP führt zum stillen No-Op, nie zu diesem Hinweis; wenn du den Hinweis siehst, ist die Oberfläche also angelaufen.
+- Nutze weiter die Tools, die sich registriert haben, oder arbeite im Dashboard, das ohnehin unbetroffen ist.
+
 ## Sicherheitsmodell
 
 Behalte diese Punkte im Kopf, bevor du Agent-Tools einschaltest.

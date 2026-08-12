@@ -73,6 +73,51 @@ Ceux-ci appellent un fournisseur de traduction et ne sont enregistrés que si St
 
 Tous deux font passer leurs résultats par le contrôle d'intégrité avant que quoi que ce soit n'atteigne le disque, et tous deux sont soumis aux limites de débit déjà en place dans Studio (retraduction à 20 par minute glissante, traduction de l'attente à 5 par minute glissante, plus un garde contre les appels concurrents). Sans `--allow-spend`, ils sont absents du jeu d'outils et le serveur n'enregistre même pas les points de terminaison sous-jacents, donc une dépense que tu n'as pas accordée au démarrage reste hors de portée d'un agent.
 
+## L'avis de mode dégradé
+
+L'enregistrement a trois issues possibles, et une seule est un problème.
+
+**Rien de tenté, rien de signalé.** Quand `document.modelContext` est absent (un navigateur sans WebMCP, ou Chrome sans le flag) ou quand tu n'as pas activé l'exposition, Studio ne tente aucun enregistrement. Le tableau de bord reste inchangé et la console reste muette. C'est le no-op prévu, pas un échec.
+
+**Onze outils et aucun avis.** Sans `--allow-spend`, Studio tente onze enregistrements plutôt que treize : les deux outils de dépense sont écartés avant même d'être tentés. Onze outils est le compte sain d'une session sans dépense, leur absence est donc l'état attendu et ne déclenche jamais d'avis.
+
+**L'avis.** Si Studio a tenté un enregistrement et que le navigateur l'a rejeté, le tableau de bord affiche un avertissement en haut de la zone de contenu, sur toutes les vues :
+
+> Agent tools degraded: 2 of the agent tool registrations failed with SecurityError. The dashboard itself is unaffected. The browser console lists every failing tool.
+
+Le décompte et le nom d'erreur sont les vrais, ceux de cette passe. L'avis n'a pas de commande de fermeture et reste affiché tant que vit la page. Recharger l'onglet lance une nouvelle passe d'enregistrement, puisque l'état n'est gardé qu'en mémoire.
+
+### Ce qui fonctionne encore en mode dégradé
+
+Un outil qui échoue n'annule jamais ceux qui suivent, donc tout outil bien enregistré reste appelable et la surface est le plus souvent partiellement utilisable plutôt que hors service. Le tableau de bord n'est pas touché : l'interface humaine, les RPC et chaque contrôle de capacité se comportent exactement comme si l'exposition était coupée, et aucun fichier de locale n'est affecté.
+
+### Lire la console
+
+Studio écrit une seule ligne agrégée au niveau erreur, et non une ligne par outil, parce qu'une cause commune fait échouer tous les outils de façon identique :
+
+```text
+Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+```
+
+La première phrase indique combien des enregistrements tentés ont échoué, et sur combien de tentatives. Chaque outil en échec suit ensuite sous la forme `name (ErrorName: message)`, séparés par des points-virgules. Le nom d'erreur identifie la cause : c'est le `name` de la valeur avec laquelle le navigateur a rejeté, en général une `DOMException` comme `SecurityError` ou `InvalidStateError`.
+
+Une passe qui n'a jamais atteint la boucle par outil signale une ligne différente et ne déclenche pas l'avis :
+
+```text
+Verbatra agent tools: registration did not start (TypeError: Failed to fetch).
+```
+
+Cela veut dire que l'appel d'instantané du projet qui décide si l'exposition est activée a échoué au chargement, donc aucun outil n'a été tenté.
+
+### Ce que tu peux faire
+
+Aucun réglage de Studio ne corrige un enregistrement rejeté, car le rejet vient du navigateur. En pratique :
+
+- Lis d'abord le nom d'erreur dans la console. Il nomme la cause plus précisément que l'avis.
+- Recharge l'onglet. L'enregistrement s'exécute une fois par chargement de page, donc un rejet passager disparaît.
+- Revérifie les prérequis du navigateur ci-dessus. Un flag manquant ou un navigateur sans WebMCP produit le no-op silencieux, jamais cet avis ; si tu vois l'avis, c'est que la surface a bien démarré.
+- Continue d'utiliser les outils qui se sont enregistrés, ou travaille dans le tableau de bord, qui n'est de toute façon pas affecté.
+
 ## Modèle de sécurité
 
 Garde ces points en tête avant d'activer les outils pour agents.
