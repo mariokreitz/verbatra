@@ -5,7 +5,7 @@
 <h1 align="center">verbatra</h1>
 
 <p align="center">
-  Automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.
+  Automate i18n translation and keep your locale files in sync across languages, using OpenAI, Anthropic, Gemini, DeepL, or an openai-compatible local or self-hosted model.
 </p>
 
 <p align="center">
@@ -38,7 +38,17 @@ npx verbatra translate
 
 Gemini is the cheapest way to try verbatra: its API has a real free tier, so you can create a key at [Google AI Studio](https://aistudio.google.com/apikey) without setting up billing. Pass `anthropic`, `openai`, or `deepl` to `--provider` instead if you prefer one of those; switching later means editing one `id` in your config.
 
-`npx` runs the locally installed binary whichever package manager put it there, so step 1 works the same as `pnpm add -D @verbatra/cli` or `yarn add -D @verbatra/cli`. Yarn users can also run `yarn verbatra ...`.
+`npx` runs the locally installed binary whichever package manager put it there, so `yarn add -D @verbatra/cli` covers step 1 just as well, and yarn users can also run `yarn verbatra ...`.
+
+pnpm needs one extra step. `pnpm add -D @verbatra/cli` installs correctly but exits `1` with `ERR_PNPM_IGNORED_BUILDS`, because pnpm does not run the install scripts of third-party dependencies (here the Gemini SDK and its `protobufjs`) until you allow or decline them, and it leaves an unanswered `pnpm-workspace.yaml` behind that makes every later pnpm command in the project fail the same way. Answer it once with `pnpm approve-builds`, or put this in `pnpm-workspace.yaml` before installing:
+
+```yaml
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+```
+
+verbatra does not need those scripts; this repository declines both. See [Troubleshooting](https://verbatra.kreitz-webdev.de/docs/troubleshooting) for the full message and fix.
 
 ## Description
 

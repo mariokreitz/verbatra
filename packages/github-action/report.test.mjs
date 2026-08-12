@@ -148,6 +148,41 @@ describe("parseSummaryJson: empty-stdout handling (no JSON.parse crash)", () => 
     });
   });
 
+  it("unwraps the result out of a success envelope", () => {
+    const stdout = JSON.stringify({
+      ok: true,
+      version: 1,
+      command: "translate",
+      result: summary({ succeeded: ["de"] }),
+    });
+    expect(parseSummaryJson(stdout)).toMatchObject({ succeeded: ["de"] });
+  });
+
+  it("returns null for a failure envelope, so the stderr whole-run path still reports it", () => {
+    const stdout = JSON.stringify({
+      ok: false,
+      version: 1,
+      command: "translate",
+      code: "CONFIG_INVALID",
+      message: "bad config",
+    });
+    expect(parseSummaryJson(stdout)).toBeNull();
+
+    const report = buildReport(
+      parseSummaryJson(stdout),
+      2,
+      "verbatra: error [CONFIG_INVALID] bad config",
+    );
+    expect(report.exitStatus).toBe(2);
+    expect(report.annotations[0]).toContain("[CONFIG_INVALID] bad config");
+  });
+
+  it("returns null for a success envelope carrying no result", () => {
+    expect(parseSummaryJson(JSON.stringify({ ok: true, version: 1, command: "translate" }))).toBe(
+      null,
+    );
+  });
+
   it("empty stdout + exit 2 routes through the whole-run path end to end", () => {
     const report = buildReport(
       parseSummaryJson(""),

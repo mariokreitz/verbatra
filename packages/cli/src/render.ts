@@ -146,26 +146,6 @@ function renderLocaleLine(locale: LocaleSummary): readonly string[] {
 }
 
 /**
- * The `translate --json` output contract: the SDK's `RunSummary` as one compact JSON object on a line.
- *
- * @param summary - The SDK run summary.
- * @returns A single-line JSON object string.
- */
-export function renderJson(summary: RunSummary): string {
-  return JSON.stringify(summary);
-}
-
-/**
- * The `watch --json` output contract: one `WatchRunResult` per run as a single NDJSON record.
- *
- * @param result - The outcome of one watch run.
- * @returns A single-line JSON record string (one NDJSON line).
- */
-export function renderRunResultNdjson(result: WatchRunResult): string {
-  return JSON.stringify(result);
-}
-
-/**
  * Human rendering of a single watch run.
  *
  * @param result - The outcome of one watch run.
@@ -197,11 +177,6 @@ export function renderExportHuman(result: ExportRenderable): string {
   ].join("\n");
 }
 
-/** The `export --json` contract: the SDK export result as one compact JSON object on one line. */
-export function renderExportJson(result: ExportRenderable): string {
-  return JSON.stringify(result);
-}
-
 /**
  * Human-readable check report: a header, one line per locale with its missing, stale, and up-to-date
  * counts plus an in-sync marker, then an overall in-sync line.
@@ -220,11 +195,6 @@ export function renderCheckHuman(summary: CheckSummary): string {
     ? "all locales in sync"
     : "out of sync (run verbatra translate to update)";
   return ["verbatra check", ...localeLines, overall].join("\n");
-}
-
-/** The `check --json` contract: the SDK check summary as one compact JSON object on one line. */
-export function renderCheckJson(summary: CheckSummary): string {
-  return JSON.stringify(summary);
 }
 
 /** Column width that aligns the diff group keys past the longest label ("re-translate:"). */
@@ -268,11 +238,6 @@ export function renderDiffHuman(summary: DiffSummary): string {
     summary.hasPendingChanges ? "pending changes" : "no pending changes"
   }`;
   return ["verbatra diff", ...localeLines, trailer].join("\n");
-}
-
-/** The `diff --json` contract: the SDK diff summary as one compact JSON object on one line. */
-export function renderDiffJson(summary: DiffSummary): string {
-  return JSON.stringify(summary);
 }
 
 /** The "held by pid X since T" fragment of the human waiting line, or empty when the holder is unknown. */

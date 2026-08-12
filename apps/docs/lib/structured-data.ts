@@ -1,4 +1,5 @@
 import type { SupportedFormat } from "@verbatra/sdk";
+import { plainAnswer } from "@/lib/plain-answer";
 import { SITE_URL } from "@/lib/site";
 
 const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
@@ -130,6 +131,11 @@ export function breadcrumbListLd(args: {
 
 export type FaqItem = { question: string; answer: string };
 
+/**
+ * Builds the FAQPage block. Every answer goes through `plainAnswer` here rather than at the call
+ * site, so no caller can leak the rich-text markup an answer carries for the UI into
+ * `acceptedAnswer.text`.
+ */
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;
@@ -141,7 +147,7 @@ export function faqPageLd(args: {
     mainEntity: args.items.map((item) => ({
       "@type": "Question",
       name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
+      acceptedAnswer: { "@type": "Answer", text: plainAnswer(item.answer) },
     })),
   };
 }

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, type ReactNode } from "react";
+import { act, type ReactNode, useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ToolRegistrationFailure } from "../webmcp/registration-report.js";
 import { agentToolsStatusStore, render } from "./test-support.js";
@@ -24,6 +24,19 @@ let seen: readonly ToolRegistrationFailure[] = [];
 function Probe(): ReactNode {
   seen = useAgentToolsFailures();
   return <span data-testid="count">{seen.length}</span>;
+}
+
+/**
+ * Publishes during the commit phase, which lands strictly after every sibling has rendered and
+ * strictly before any passive effect runs. That is the exact window a subscription registered from
+ * a `useEffect` cannot cover, so it reproduces the interleaving rather than merely publishing
+ * before or after the mount.
+ */
+function PublishDuringCommit(): ReactNode {
+  useLayoutEffect(() => {
+    agentToolsStatusStore.publish([REFUSED]);
+  }, []);
+  return null;
 }
 
 /**
@@ -70,6 +83,18 @@ describe("useAgentToolsFailures", () => {
 
     expect(seen).toEqual([]);
     expect(view.text()).toBe("0");
+  });
+
+  it("reflects a publish that lands between the render and the effect commit", () => {
+    const view = render(
+      <>
+        <PublishDuringCommit />
+        <Probe />
+      </>,
+    );
+
+    expect(seen).toEqual([REFUSED]);
+    expect(view.text()).toBe("1");
   });
 
   it("unsubscribes on unmount, so a later publish no longer reaches the caller", () => {

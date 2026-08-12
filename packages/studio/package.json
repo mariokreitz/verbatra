@@ -9,6 +9,9 @@
     "localization",
     "l10n",
     "translation",
+    "locale",
+    "translation-management",
+    "review",
     "dashboard",
     "studio",
     "verbatra"
@@ -20,7 +23,7 @@
     "url": "git+https://github.com/mariokreitz/verbatra.git",
     "directory": "packages/studio"
   },
-  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/studio",
+  "homepage": "https://verbatra.kreitz-webdev.de/docs/cli/studio",
   "bugs": {
     "url": "https://github.com/mariokreitz/verbatra/issues"
   },

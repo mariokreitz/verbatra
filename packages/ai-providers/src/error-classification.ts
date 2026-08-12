@@ -8,13 +8,16 @@ import type { ProviderErrorCode } from "./errors.js";
  */
 export type ClassifiedProviderErrorCode = Extract<
   ProviderErrorCode,
-  "RATE_LIMITED" | "TIMEOUT" | "AUTH_FAILED" | "PROVIDER_ERROR"
+  "RATE_LIMITED" | "TIMEOUT" | "AUTH_FAILED" | "PROVIDER_UNAVAILABLE" | "PROVIDER_ERROR"
 >;
 
 /** HTTP status codes recognized by {@link classifyProviderError}. */
 const RATE_LIMITED_STATUS = 429;
 const TIMEOUT_STATUS = 408;
 const AUTH_FAILED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
+/** Inclusive bounds of the server-error status range, every member of which is a provider outage. */
+const SERVER_OUTAGE_MIN_STATUS = 500;
+const SERVER_OUTAGE_MAX_STATUS = 599;
 
 /**
  * SDK error class names recognized by {@link classifyProviderError}, matched via
@@ -76,6 +79,20 @@ export function getErrorStatus(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
+/**
+ * Whether `status` is a server-error status (any 5xx), meaning the provider failed on its own side
+ * rather than rejecting the request. Extracted from {@link classifyProviderError} so the range test
+ * reads as one named condition there.
+ *
+ * Only reached after the 429, 401, 403 and 408 checks have already returned, so this can never
+ * swallow a rate limit, an auth failure, or a timeout.
+ */
+function isServerOutageStatus(status: number | undefined): boolean {
+  return (
+    status !== undefined && status >= SERVER_OUTAGE_MIN_STATUS && status <= SERVER_OUTAGE_MAX_STATUS
+  );
+}
+
 /** Read the thrown value's constructor name, or undefined if it is not a class instance. */
 function readClassName(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null) {
@@ -88,8 +105,12 @@ function readClassName(error: unknown): string | undefined {
  * Classify a raw provider SDK error into a stable {@link ProviderErrorCode}, using only its HTTP
  * status code or its SDK error class identity, never its message text (message text can carry
  * provider-specific details and is unstable across SDK versions). Recognizes RATE_LIMITED (429),
- * AUTH_FAILED (401, 403), and TIMEOUT (408, or a connection/timeout error class with no status)
- * across the four v1 provider SDKs; anything else falls back to PROVIDER_ERROR.
+ * AUTH_FAILED (401, 403), TIMEOUT (408, or a connection/timeout error class with no status), and
+ * PROVIDER_UNAVAILABLE (any other 5xx) across the four v1 provider SDKs; anything else falls back
+ * to PROVIDER_ERROR.
+ *
+ * The status checks are ordered most specific first, so the 5xx range test can only see a status no
+ * earlier check claimed. 401 and 403 stay AUTH_FAILED regardless of the range test's presence.
  *
  * @param error - The raw value caught from an SDK call; never inspected beyond status/class identity.
  * @returns The best-matching {@link ProviderErrorCode}; `PROVIDER_ERROR` when nothing matches.
@@ -104,6 +125,13 @@ export function classifyProviderError(error: unknown): ClassifiedProviderErrorCo
   }
   if (status === TIMEOUT_STATUS) {
     return "TIMEOUT";
+  }
+  // A transient 5xx is already absorbed below this layer: `withGeminiRetry` retries one twice
+  // (3 attempts total), and the openai and @anthropic-ai/sdk clients retry twice by default. A 5xx
+  // that reaches this classifier has therefore already survived those retries, so it is a sustained
+  // outage on the provider's side, not a blip.
+  if (isServerOutageStatus(status)) {
+    return "PROVIDER_UNAVAILABLE";
   }
 
   const className = readClassName(error);

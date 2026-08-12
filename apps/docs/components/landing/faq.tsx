@@ -6,10 +6,33 @@ import { type ReactNode, useState } from "react";
 import Button from "@/components/ui/button";
 import { type Locale, localizedPath } from "@/lib/i18n";
 import type { FaqItem } from "@/lib/structured-data";
-import { GITHUB_ISSUES_URL } from "./links";
+import { GITHUB_ISSUES_URL, RELEASES_URL } from "./links";
 import { SectionHead } from "./section-head";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+
+/**
+ * A FAQ item plus the message key it came from, which `FaqRow` needs to resolve the answer as
+ * rich text. `item.answer` still carries the raw message, so the JSON-LD keeps reading it.
+ */
+export type FaqEntry = FaqItem & { id: string };
+
+/**
+ * Rich-text tags an answer may use. `releases` links the word an answer uses for the changelog
+ * to GitHub Releases, so the upgrade advice in the "production ready" answer is followable.
+ */
+const answerTags = {
+  releases: (chunks: ReactNode) => (
+    <a
+      href={RELEASES_URL}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="underline underline-offset-4 transition-colors hover:text-[color:var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+    >
+      {chunks}
+    </a>
+  ),
+};
 
 function FaqRow({
   item,
@@ -18,12 +41,13 @@ function FaqRow({
   onToggle,
   reduced,
 }: {
-  item: FaqItem;
+  item: FaqEntry;
   index: number;
   isOpen: boolean;
   onToggle: () => void;
   reduced: boolean;
 }): ReactNode {
+  const t = useTranslations("landing.faq");
   const panelId = `faq-panel-${index}`;
   const buttonId = `faq-button-${index}`;
   return (
@@ -62,14 +86,14 @@ function FaqRow({
         transition={reduced ? { duration: 0 } : { duration: 0.3, ease: EASE_OUT }}
       >
         <p className="max-w-[60ch] pb-5 text-sm leading-relaxed text-fd-muted-foreground">
-          {item.answer}
+          {t.rich(`items.${item.id}.answer`, answerTags)}
         </p>
       </motion.section>
     </div>
   );
 }
 
-export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
+export function Faq({ items }: { items: ReadonlyArray<FaqEntry> }): ReactNode {
   const t = useTranslations("landing.faq");
   const locale = useLocale() as Locale;
   const [open, setOpen] = useState(0);
@@ -103,7 +127,7 @@ export function Faq({ items }: { items: ReadonlyArray<FaqItem> }): ReactNode {
         <div className="border-t border-fd-border md:col-span-3">
           {items.map((item, i) => (
             <FaqRow
-              key={item.question}
+              key={item.id}
               item={item}
               index={i}
               isOpen={open === i}

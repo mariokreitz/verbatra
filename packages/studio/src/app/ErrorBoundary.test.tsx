@@ -1,44 +1,28 @@
 // @vitest-environment jsdom
-import { act, type ReactNode } from "react";
-import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
+import type { ReactNode } from "react";
+import { afterEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary.js";
-
-// React reads this flag to decide whether `act` is legal in this environment.
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
-let container: HTMLDivElement;
-let root: Root;
-
-beforeEach(() => {
-  container = document.createElement("div");
-  document.body.appendChild(container);
-  root = createRoot(container);
-});
-
-afterEach(() => {
-  act(() => {
-    root.unmount();
-  });
-  container.remove();
-  vi.restoreAllMocks();
-});
-
-function render(node: ReactNode): void {
-  act(() => {
-    root.render(node);
-  });
-}
+import { click, render } from "./test-support.js";
 
 /**
  * React logs every error it hands to a boundary through `console.error`, and
  * `componentDidCatch` logs a second time. Silencing it keeps the throwing tests
  * from burying real output, and returns the spy so a test can read what was
  * reported.
+ *
+ * This is the one piece of setup specific to this file. Every other suite here
+ * renders components that do not throw, so the shared harness in
+ * `test-support.tsx` has no reason to carry it.
  */
 function silenceConsoleError(): MockInstance<typeof console.error> {
   return vi.spyOn(console, "error").mockImplementation(() => {});
 }
+
+// Deliberate: the shared preset does not set `restoreMocks`, so the console spy
+// installed above would stay in place for the rest of the file without this.
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function Exploding(): ReactNode {
   throw new Error("panel blew up");
@@ -48,26 +32,26 @@ describe("ErrorBoundary", () => {
   it("renders a visible notice instead of a blank container when a child throws", () => {
     silenceConsoleError();
 
-    render(
+    const view = render(
       <ErrorBoundary>
         <Exploding />
       </ErrorBoundary>,
     );
 
-    expect(container.innerHTML).not.toBe("");
-    expect(container.textContent).toContain("Something went wrong");
+    expect(view.container.innerHTML).not.toBe("");
+    expect(view.text()).toContain("Something went wrong");
   });
 
   it("announces the notice with role=alert", () => {
     silenceConsoleError();
 
-    render(
+    const view = render(
       <ErrorBoundary>
         <Exploding />
       </ErrorBoundary>,
     );
 
-    const alert = container.querySelector('[role="alert"]');
+    const alert = view.query('[role="alert"]');
     expect(alert).not.toBeNull();
     expect(alert?.textContent).toContain("Something went wrong");
   });
@@ -75,31 +59,29 @@ describe("ErrorBoundary", () => {
   it("surfaces the thrown message so the fault can be diagnosed", () => {
     silenceConsoleError();
 
-    render(
+    const view = render(
       <ErrorBoundary>
         <Exploding />
       </ErrorBoundary>,
     );
 
-    expect(container.textContent).toContain("panel blew up");
+    expect(view.text()).toContain("panel blew up");
   });
 
   it("offers a recovery action that is present and operable", () => {
     silenceConsoleError();
     const reload = vi.fn();
 
-    render(
+    const view = render(
       <ErrorBoundary reload={reload}>
         <Exploding />
       </ErrorBoundary>,
     );
 
-    const button = container.querySelector("button");
-    expect(button?.textContent).toBe("Reload the dashboard");
+    const button = view.get("button");
+    expect(button.textContent).toBe("Reload the dashboard");
 
-    act(() => {
-      button?.click();
-    });
+    click(button);
 
     expect(reload).toHaveBeenCalledTimes(1);
   });
@@ -126,13 +108,13 @@ describe("ErrorBoundary", () => {
       throw "just a string";
     }
 
-    render(
+    const view = render(
       <ErrorBoundary>
         <ThrowsAString />
       </ErrorBoundary>,
     );
 
-    expect(container.textContent).toContain("just a string");
+    expect(view.text()).toContain("just a string");
   });
 
   it("falls back to generic copy when the thrown value carries no message", () => {
@@ -142,24 +124,24 @@ describe("ErrorBoundary", () => {
       throw new Error("");
     }
 
-    render(
+    const view = render(
       <ErrorBoundary>
         <ThrowsNothingUseful />
       </ErrorBoundary>,
     );
 
-    expect(container.textContent).toContain("An unknown error was thrown during render.");
+    expect(view.text()).toContain("An unknown error was thrown during render.");
   });
 
   it("renders a non-throwing child unchanged and stays out of the way", () => {
-    render(
+    const view = render(
       <ErrorBoundary>
         <p data-testid="child">all good</p>
       </ErrorBoundary>,
     );
 
-    expect(container.querySelector('[data-testid="child"]')?.textContent).toBe("all good");
-    expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.querySelector("button")).toBeNull();
+    expect(view.query('[data-testid="child"]')?.textContent).toBe("all good");
+    expect(view.query('[role="alert"]')).toBeNull();
+    expect(view.query("button")).toBeNull();
   });
 });

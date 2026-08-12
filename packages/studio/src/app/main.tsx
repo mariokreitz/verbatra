@@ -15,6 +15,9 @@
  * instead of leaving a surface that merely appears to do nothing. The trailing `catch` covers the
  * pass that never reached the per-tool loop at all, a rejected snapshot fetch at load being the
  * likely case; a failure of one tool is not a rejection and travels in the report instead.
+ *
+ * The pass is handed the shared agent-tools abort signal, which is the only unregistration
+ * mechanism the WebMCP specification offers. See `api.ts` for why nothing aborts it today.
  */
 import { createRoot } from "react-dom/client";
 import { rpcParamsSchemas } from "../shared/rpc/contract.js";
@@ -24,7 +27,7 @@ import {
   reportAgentToolsStartupFailure,
 } from "../webmcp/registration-report.js";
 import { App } from "./App.js";
-import { agentToolsStatusStore, rpcClient } from "./api.js";
+import { agentToolsAbortController, agentToolsStatusStore, rpcClient } from "./api.js";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { initTheme } from "./lib/theme-dom.js";
 import "./styles.css";
@@ -51,6 +54,7 @@ registerAgentTools({
   modelContext: document.modelContext,
   rpcClient,
   schemas: rpcParamsSchemas,
+  signal: agentToolsAbortController.signal,
 })
   .then((registration) => {
     reportAgentToolsRegistration(registration);

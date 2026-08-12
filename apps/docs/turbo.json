@@ -4,6 +4,9 @@
   "tasks": {
     "build": {
       "outputs": [".next/**", "!.next/cache/**", "lib/version.generated.json"]
+    },
+    "test": {
+      "outputs": []
     }
   }
 }

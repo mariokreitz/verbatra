@@ -39,6 +39,8 @@ Verbatra Studio running at http://127.0.0.1:5849/?token=<token>
 Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio
 ```
 
+Dieser pnpm-Befehl installiert korrekt, beendet sich aber mit `1` und `ERR_PNPM_IGNORED_BUILDS` und hinterlässt eine unbeantwortete `pnpm-workspace.yaml`, an der spätere pnpm-Befehle genauso scheitern; die einmalige Lösung steht in der [Fehlerbehebung](/docs/troubleshooting). npm und yarn installieren das Paket ohne das.
+
 ## Beispiele
 
 ```bash

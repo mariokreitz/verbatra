@@ -8,6 +8,46 @@ du message. Pour la correspondance entre échecs et codes de sortie de la CLI, v
 [CI et codes de sortie](/docs/ci-and-exit-codes) ; pour la table complète des codes, voir la
 [référence du SDK](/docs/sdk).
 
+## pnpm bloque les scripts d'installation d'une dépendance (ERR_PNPM_IGNORED_BUILDS)
+
+**Symptôme** : `pnpm add -D @verbatra/cli` affiche son résumé d'installation puis sort en `1` :
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @google/genai@2.15.0, protobufjs@7.6.5
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+pnpm écrit aussi un `pnpm-workspace.yaml` dans ton projet, contenant un choix sans réponse :
+
+```yaml
+allowBuilds:
+  '@google/genai': set this to true or false
+  protobufjs: set this to true or false
+```
+
+Tant que tu n'y réponds pas, chaque commande pnpm suivante dans ce projet échoue de la même
+façon, y compris `pnpm exec verbatra init`.
+
+**Cause** : pnpm n'exécute les scripts d'installation d'une dépendance tierce que si tu
+l'autorises. `@google/genai` et son `protobufjs` transitif déclarent de tels scripts, et le SDK
+Gemini est installé quel que soit le fournisseur configuré, donc chaque installation pnpm y passe.
+verbatra ne déclare aucun script d'installation à lui, et npm et yarn installent le même paquet
+sans rien demander. L'installation a bien abouti : `node_modules/.bin/verbatra` fonctionne déjà.
+
+**Solution** : réponds une fois au choix. En interactif, lance `pnpm approve-builds` et n'approuve
+aucune des deux entrées. En non interactif, ce que tu veux en CI, écris la réponse avant
+d'installer en mettant ceci dans le `pnpm-workspace.yaml` à la racine du projet :
+
+```yaml
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+```
+
+verbatra n'a pas besoin de ces scripts, et ce dépôt les refuse tous les deux. Une fois la réponse
+en place, `pnpm add -D @verbatra/cli` sort en `0` et les commandes pnpm suivantes s'exécutent
+normalement. Les versions de paquets du message suivent la release ; la solution ne change pas.
+
 ## La configuration est invalide (CONFIG_INVALID)
 
 **Symptôme** : `The verbatra configuration is invalid: ...`, listant un problème par champ.
@@ -56,6 +96,10 @@ JSON invalide ou un problème structurel (`SOURCE_INVALID`, enveloppant le messa
 **Solution** : vérifie le chemin que le message affiche ; c'est le motif résolu contre le
 répertoire de travail, donc un mauvais `--cwd` est une cause fréquente. Pour les rejets
 structurels, voir l'entrée `INVALID_STRUCTURE` plus bas.
+
+Un joker dans le motif est une autre cause : `files.pattern` est un chemin littéral, pas un glob,
+donc `public/locales/{locale}/*.json` est cherché comme un fichier nommé `*.json`. Voir
+[Dispositions avec espaces de noms](/docs/formats#dispositions-avec-espaces-de-noms).
 
 ## Clé d'API manquante (PROVIDER_CONSTRUCTION_FAILED)
 
@@ -168,7 +212,9 @@ utilise par défaut 5849 sur 127.0.0.1.
 **Cause** : `@verbatra/studio` est un paquet séparé que la commande `studio` charge dynamiquement,
 donc le reste de la CLI fonctionne sans lui.
 
-**Solution** : installe-le comme l'indice le dit, puis relance `verbatra studio`.
+**Solution** : installe-le comme l'indice le dit, puis relance `verbatra studio`. L'indice donne la
+commande pnpm, donc si tu installes avec pnpm, lis d'abord
+[pnpm bloque les scripts d'installation d'une dépendance](#pnpm-bloque-les-scripts-dinstallation-dune-dépendance-err_pnpm_ignored_builds).
 
 ## Studio : les actions de retraduction et de traduction manquent
 
@@ -184,3 +230,18 @@ fichiers est toujours active et n'a besoin d'aucune option.
 peuvent aussi atteindre le propre régulateur de Studio, `METHOD_RATE_LIMITED: Too many calls to
 this method; wait before retrying.` ; cela se dissipe tout seul. Voir
 [Réviser les traductions dans Studio](/docs/review-in-studio).
+
+## Annuler une exécution (aucun code d'erreur)
+
+**Symptôme** : une exécution a produit des traductions dont tu ne veux pas, et tu as besoin de
+retrouver l'état précédent.
+
+**Cause** : verbatra réécrit les fichiers de locale sur place et met à jour le fichier de
+verrouillage. Il n'y a ni commande d'annulation ni sauvegarde ; le contrôle de version est le
+mécanisme de récupération.
+
+**Solution** : reviens en arrière sur les fichiers de locale et sur `verbatra.lock.json` ensemble.
+Si tu ne reviens en arrière que sur les fichiers de locale, le fichier de verrouillage continue
+d'affirmer que les traductions restaurées sont à jour : rien ne les retraduit, et `check` et `diff`
+signalent toujours la locale comme propre. Voir
+[Récupération et retour en arrière](/docs/recovery-and-rollback).

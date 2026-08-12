@@ -5,6 +5,11 @@ import { Popover } from "./Popover.js";
 
 /** One entry in a {@link Dropdown} list. */
 export interface DropdownItem {
+  /** Stable identity, unique among the items of one list and independent of the
+   * displayed text: a value, a locale code, a command name. This is the React
+   * key, so `label` is deliberately not usable for it: labels are display
+   * strings that repeat across entries and change whenever copy changes. */
+  readonly id: string;
   readonly label: string;
   readonly onSelect: () => void;
   readonly disabled?: boolean;
@@ -67,7 +72,7 @@ export function Dropdown({
       <div className="m-0 flex flex-col p-0">
         {items.map((item) => (
           <button
-            key={item.label}
+            key={item.id}
             type="button"
             disabled={item.disabled}
             aria-current={item.selected === true || undefined}

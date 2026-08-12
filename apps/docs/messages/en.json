@@ -59,7 +59,9 @@
       "tablistLabel": "Package manager",
       "copy": "copy",
       "copied": "copied",
-      "copyAria": "Copy install command"
+      "copyAria": "Copy install command",
+      "pnpmNote": "pnpm installs correctly but exits 1 with ERR_PNPM_IGNORED_BUILDS, because it gates a dependency's install scripts. Run pnpm approve-builds once, or see",
+      "pnpmNoteLink": "Troubleshooting"
     },
     "compat": {
       "heading": "One tool, every framework.",
@@ -81,7 +83,7 @@
         },
         "diff": {
           "title": "Diff",
-          "body": "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned."
+          "body": "Each run compares your source locale against the committed lock file and sorts every key into new, changed, unchanged, or orphaned. Orphaned keys, the ones no longer in your source, are reported and left in place: nothing is removed from your locale files unless you opt in with --prune."
         },
         "translate": {
           "title": "Translate",
@@ -167,7 +169,7 @@
         },
         "production": {
           "question": "Is verbatra production-ready?",
-          "answer": "It is young and actively developed, so pin a version and read the changelog when you upgrade. The safety model is already solid: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks rather than writing it. Teams run it in CI today; pin versions and you are on stable ground."
+          "answer": "It is young and actively developed, so pin a version and read the <releases>changelog</releases> when you upgrade. The safety model is already solid: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks rather than writing it. Teams run it in CI today; pin versions and you are on stable ground."
         }
       }
     },
@@ -198,6 +200,7 @@
           "configFile": "Config file",
           "codeOfConduct": "Code of conduct",
           "security": "Security policy",
+          "releases": "Release notes",
           "llmsIndex": "llms.txt (index)",
           "llmsFull": "llms-full.txt (full text)"
         },

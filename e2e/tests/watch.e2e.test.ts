@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
   makeConsumer,
-  parseNdjsonLines,
+  parseNdjsonEnvelopes,
   pollUntil,
   providerConfigBlock,
   providerFromEnv,
@@ -85,7 +85,7 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     expect(stopResult.signal).toBeUndefined();
     expect(stopResult.exitCode).toBe(0);
 
-    const records = parseNdjsonLines(stopResult.stdout);
+    const records = parseNdjsonEnvelopes(stopResult.stdout);
     expect(records.length).toBeGreaterThan(0);
 
     expect(stopResult.stdout).not.toContain(provider.key);

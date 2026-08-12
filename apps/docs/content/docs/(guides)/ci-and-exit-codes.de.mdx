@@ -43,9 +43,29 @@ Beide nehmen `--locales de,fr`, um nur eine Teilmenge abzusichern. `--locales` o
 
 ## JSON-Ausgabe
 
-Sechs Befehle akzeptieren `--json` für maschinenlesbare Ausgabe auf stdout: `translate`, `watch`, `check`, `diff`, `export` und `import`. Fehler gehen immer als eine strukturierte Zeile (`verbatra: error [CODE] message`) auf stderr, stdout bleibt also parsebar.
+Sechs Befehle akzeptieren `--json` für maschinenlesbare Ausgabe auf stdout: `translate`, `watch`, `check`, `diff`, `export` und `import`. Jeder Datensatz ist eine Zeile, und jeder Datensatz steckt im selben Envelope. Du verzweigst also auf ein einziges Feld und musst nie raten, von welchem Befehl die Daten stammen, die du gerade in der Hand hast:
 
-`verbatra translate --json` und `verbatra import --json` geben ein `RunSummary`-Objekt aus:
+```ts
+type Envelope<TResult> =
+  | { ok: true; version: 1; command: string; result: TResult }
+  | { ok: false; version: 1; command: string | null; code: string; message: string };
+```
+
+`version` ist die Version dieser Envelope-Form, nicht die Version des Pakets. Es ist eine ganze Zahl, du vergleichst sie also mit `===`, statt einen Bereich zu parsen, und sie ändert sich nur, wenn ein bestehendes Feld seine Bedeutung ändert oder verschwindet. Neue Felder können ohne Erhöhung dazukommen, ignoriere also die, die du nicht kennst.
+
+Ein Lauf, der als Ganzes fehlschlägt, schreibt genau einen `ok: false`-Datensatz auf stdout und endet mit `2`. Sein `code` ist derselbe stabile Fehlercode, den auch die stderr-Zeile trägt, und damit das, worauf du verzweigst:
+
+```json
+{ "ok": false, "version": 1, "command": "translate", "code": "CONFIG_INVALID", "message": "..." }
+```
+
+`command` ist nur dann `null`, wenn der Fehlschlag eintrat, bevor ein Unterbefehl aufgelöst war.
+
+Fehler gehen zusätzlich in beiden Modi unverändert als eine strukturierte Zeile (`verbatra: error [CODE] message`) auf stderr, ein Skript, das Exit-Code und stderr liest, braucht also keine Änderung. Ohne `--json` schreibt ein fehlgeschlagener Lauf weiterhin überhaupt nichts auf stdout. Datensätze zu Fortschritt und Lock-Wartezeit gehen immer auf stderr, auf stdout stehen also ausschließlich Envelopes.
+
+Der Rest dieses Abschnitts beschreibt das `result`, das jeder Befehl in einen erfolgreichen Envelope legt.
+
+`verbatra translate --json` und `verbatra import --json` tragen ein `RunSummary`:
 
 ```ts
 interface RunSummary {
@@ -60,15 +80,9 @@ interface RunSummary {
 
 Jedes `LocaleSummary` trägt die Key-Listen pro Locale (übersetzt, unverändert, verwaist, zurückgehalten, für Review markiert und mehr); die vollständige Anatomie steht in der [SDK-Referenz](/docs/sdk).
 
-`verbatra watch --json` gibt pro Lauf einen Datensatz als NDJSON aus (ein JSON-Objekt pro Zeile):
+`verbatra watch --json` gibt pro Lauf einen Envelope als NDJSON aus (ein JSON-Objekt pro Zeile), mit `command: "watch"`. Ein erfolgreicher Lauf ist ein `ok: true`-Datensatz mit dem `RunSummary` dieses Laufs; ein fehlgeschlagener Lauf ist ein `ok: false`-Datensatz mit seinem Code und seiner Meldung. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom: er stoppt weder den Watcher noch ändert er den Exit-Code.
 
-```ts
-type WatchRunResult =
-  | { status: "succeeded"; summary: RunSummary }
-  | { status: "failed"; error: { code: string; message: string } };
-```
-
-`verbatra check --json` gibt ein Statusdokument aus. Das oberste `inSync` ist genau dann true, wenn der Befehl mit `0` endet:
+`verbatra check --json` trägt ein Statusdokument. Das oberste `inSync` ist genau dann true, wenn der Befehl mit `0` endet:
 
 ```ts
 interface CheckSummary {
@@ -85,7 +99,7 @@ interface LocaleCheckSummary {
 }
 ```
 
-`verbatra diff --json` liefert dir Key-Listen statt Zähler. Das oberste `hasPendingChanges` ist genau dann true, wenn der Befehl mit `1` endet:
+`verbatra diff --json` trägt Key-Listen statt Zähler. Das oberste `hasPendingChanges` ist genau dann true, wenn der Befehl mit `1` endet:
 
 ```ts
 interface DiffSummary {
@@ -102,7 +116,7 @@ interface LocaleDiff {
 }
 ```
 
-`verbatra export --json` gibt aus, wohin die Arbeitsmappe geschrieben wurde, plus die Zeilenzahlen pro Locale:
+`verbatra export --json` trägt den Pfad, unter dem die Arbeitsmappe geschrieben wurde, plus die Zeilenzahlen pro Locale:
 
 ```ts
 {

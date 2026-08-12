@@ -41,3 +41,43 @@ describe("verbatraConfigSchema: targetLocales case-insensitive duplicates", () =
     }
   });
 });
+
+describe("verbatraConfigSchema: files.localeStyle", () => {
+  it("accepts a config that omits it, which is every config written before styles existed", () => {
+    const result = verbatraConfigSchema.safeParse(baseConfig());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.files.localeStyle).toBeUndefined();
+    }
+  });
+
+  it.each(["literal", "posix", "android"])("accepts the %s style", (style) => {
+    const result = verbatraConfigSchema.safeParse(
+      baseConfig({ files: { pattern: "locales/{locale}.json", localeStyle: style as "literal" } }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown style", () => {
+    const result = verbatraConfigSchema.safeParse(
+      baseConfig({
+        files: { pattern: "locales/{locale}.json", localeStyle: "apple" as "literal" },
+      }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("still requires the locale token in the pattern", () => {
+    const result = verbatraConfigSchema.safeParse(
+      baseConfig({ files: { pattern: "locales/common.json", localeStyle: "android" } }),
+    );
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts the android source pattern, whose token expands to the default directory", () => {
+    const result = verbatraConfigSchema.safeParse(
+      baseConfig({ files: { pattern: "res/{locale}/strings.xml", localeStyle: "android" } }),
+    );
+    expect(result.success).toBe(true);
+  });
+});

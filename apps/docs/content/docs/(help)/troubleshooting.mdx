@@ -7,6 +7,46 @@ Each entry below matches a real error code or message. Whole-run failures carry 
 codes, see [CI and exit codes](/docs/ci-and-exit-codes); for the full code table, see the
 [SDK reference](/docs/sdk).
 
+## pnpm blocks a dependency's install scripts (ERR_PNPM_IGNORED_BUILDS)
+
+**Symptom**: `pnpm add -D @verbatra/cli` prints its install summary and then exits `1`:
+
+```
+[ERR_PNPM_IGNORED_BUILDS] Ignored build scripts: @google/genai@2.15.0, protobufjs@7.6.5
+Run "pnpm approve-builds" to pick which dependencies should be allowed to run scripts.
+```
+
+pnpm also writes a `pnpm-workspace.yaml` into your project holding an unanswered choice:
+
+```yaml
+allowBuilds:
+  '@google/genai': set this to true or false
+  protobufjs: set this to true or false
+```
+
+Until you answer it, every later pnpm command in that project fails the same way, including
+`pnpm exec verbatra init`.
+
+**Cause**: pnpm does not run a third-party dependency's install scripts unless you allow them.
+`@google/genai` and its transitive `protobufjs` declare such scripts, and the Gemini SDK is
+installed whichever provider you configure, so every pnpm install path hits this. Nothing in
+verbatra declares an install script of its own, and npm and yarn install the same package without
+a prompt. The install itself did complete: `node_modules/.bin/verbatra` already works.
+
+**Fix**: answer the choice once. Interactively, run `pnpm approve-builds` and approve neither
+entry. Non-interactively, which is what you want in CI, write the answer before you install by
+putting this in `pnpm-workspace.yaml` at the project root:
+
+```yaml
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
+```
+
+verbatra does not need those scripts, and this repository declines both. With the answer in place
+`pnpm add -D @verbatra/cli` exits `0` and later pnpm commands run normally. The package versions
+in the message track the release; the fix does not change.
+
 ## The configuration is invalid (CONFIG_INVALID)
 
 **Symptom**: `The verbatra configuration is invalid: ...`, listing one issue per field.
@@ -51,6 +91,10 @@ a structural problem (`SOURCE_INVALID`, wrapping the adapter's message).
 **Fix**: check the path the message prints; it is the pattern resolved against the working
 directory, so a wrong `--cwd` is a common cause. For structural rejections, see the
 `INVALID_STRUCTURE` entry below.
+
+A wildcard in the pattern is another cause: `files.pattern` is a literal path, not a glob, so
+`public/locales/{locale}/*.json` is looked up as a file named `*.json`. See
+[Namespace layouts](/docs/formats#namespace-layouts).
 
 ## Missing API key (PROVIDER_CONSTRUCTION_FAILED)
 
@@ -157,7 +201,10 @@ defaults to 5849 on 127.0.0.1.
 **Cause**: `@verbatra/studio` is a separate package the `studio` command loads dynamically, so the
 rest of the CLI works without it.
 
-**Fix**: install it as the hint says, then re-run `verbatra studio`.
+**Fix**: install it as the hint says, then re-run `verbatra studio`. The hint spells out the pnpm
+command, so if you install with pnpm, see
+[pnpm blocks a dependency's install scripts](#pnpm-blocks-a-dependencys-install-scripts-err_pnpm_ignored_builds)
+first.
 
 ## Studio: retranslate and translate actions are missing
 
@@ -171,3 +218,15 @@ methods are not registered at all; local file editing is always on and needs no 
 `VERBATRA_STUDIO_ALLOW_SPEND=1` (also `true`, `yes`, or `on`). Rapid repeated actions can also hit
 Studio's own throttle, `METHOD_RATE_LIMITED: Too many calls to this method; wait before
 retrying.`; that clears on its own. See [Review in Studio](/docs/review-in-studio).
+
+## Undoing a run (no error code)
+
+**Symptom**: a run produced translations you do not want, and you need the previous state back.
+
+**Cause**: verbatra rewrites locale files in place and updates the lock file. There is no undo
+command and no backup; version control is the recovery mechanism.
+
+**Fix**: revert the locale files and `verbatra.lock.json` together. Reverting only the locale files
+leaves the lock claiming the reverted translations are current, so nothing retranslates them and
+`check` and `diff` still report the locale as clean. See
+[Recovery and rollback](/docs/recovery-and-rollback).

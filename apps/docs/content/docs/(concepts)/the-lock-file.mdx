@@ -108,3 +108,8 @@ inspect or restore it rather than losing the baseline.
 Commit `verbatra.lock.json` alongside your locale files. It is the shared baseline your teammates
 and your CI diff against; keeping it in version control is what makes incremental runs reproducible
 across machines. Never hand-edit it.
+
+Committing both is also what makes a rollback possible. Because the lock records source hashes and
+nothing about the translated values, reverting your locale files without this file leaves it
+claiming the reverted translations are current, and nothing will retranslate them. See
+[Recovery and rollback](/docs/recovery-and-rollback).

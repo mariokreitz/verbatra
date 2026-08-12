@@ -17,7 +17,7 @@ verbatra diff [flags]
 | `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
 | `--locales` | `<list>` | todos los destinos configurados | subconjunto de locales de destino separado por comas sobre el que hacer el diff |
-| `--json` | ninguno | desactivado | imprime el resumen del diff como un objeto JSON en stdout; los errores siguen yendo a stderr |
+| `--json` | ninguno | desactivado | imprime un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout que lleva el resumen del diff bajo `result`, o el código de error si la ejecución falla; la línea de error legible por humanos sigue yendo a stderr |
 
 Un locale tiene cambios pendientes cuando tiene al menos una clave que añadir o retraducir. Las claves huérfanas se informan pero nunca cuentan como pendientes, porque una ejecución por defecto no las elimina (solo lo hace [`verbatra translate --prune`](/docs/cli/translate)). Un valor `--locales` vacío o desconocido se rechaza con salida `2` en lugar de comparar nada en silencio. Donde [`verbatra check`](/docs/cli/check) responde "cuánto se ha desfasado" con contadores, `diff` responde "qué claves" con las listas.
 

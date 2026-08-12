@@ -1,0 +1,149 @@
+---
+title: Estimating cost
+description: "Size a translation run before you spend: count the keys with a dry run, turn them into requests and tokens, then price them with your provider's own rates."
+---
+Before you point an AI tool at a real locale file, you want an order-of-magnitude answer to what it will spend. This page gives you a method rather than a price list: verbatra does not track provider rates, and rates change, so the durable part is knowing which units you are billed for and how to count them. Every number below is an assumption you replace with your own.
+
+The short version for a typical project: a few hundred keys into a few locales on a cheap model costs cents, not dollars, and the run after that costs almost nothing because verbatra only sends what changed.
+
+## Step 1: size the job with a dry run
+
+A dry run is the tool-supported answer to "how much work is there". It computes exactly which keys would be sent, without constructing a provider, reading an API key, making a network call, or writing anything:
+
+```bash
+verbatra translate --dry-run
+```
+
+```
+verbatra translate (dry run)
+  de: 400 translated, 0 unchanged
+  es: 400 translated, 0 unchanged
+  fr: 400 translated, 0 unchanged
+3 succeeded, 0 partial, 0 failed (dry run: nothing written)
+```
+
+On a dry run, the `translated` count is the number of keys that **would** be sent to the provider: the keys missing from the target file plus the keys whose source text changed since the lock baseline, minus any skipped for invalid ICU. That count is the input to everything below.
+
+Treat it as an **upper bound**, for two reasons. A dry run never reads [the cache](/docs/the-cache), so keys a live run would serve from translation memory are still counted here. And a dry run does not deduplicate: on a live run, keys whose source text is identical are grouped and only one representative is sent, so a file with repeated strings bills for fewer keys than the dry run shows.
+
+A dry run reports counts, not tokens and not money. Turning the count into a number is the rest of this page. See [`verbatra translate`](/docs/cli/translate) for the full flag list.
+
+## Step 2: count the requests
+
+verbatra does not send one request per key. It splits each locale's work into sequential sub-batches of at most `maxBatchSize` keys (default `50`), and each sub-batch is one provider request:
+
+```
+requests per locale = ceil(keys to translate / maxBatchSize)
+```
+
+Batch size matters more than key count for the fixed overhead, because part of every request is constant (see the next step). Two adjustments:
+
+- A response that comes back missing keys triggers **at most one** bounded repair request for the still-missing subset. In normal operation this is zero extra requests.
+- `generatePlurals` adds its own batched requests for the plural forms it fills in, counted the same way.
+
+## Step 3: count the tokens in a request
+
+An LLM request carries four things. Only one of them scales with your key count:
+
+| Part | Scales with | Approximate size |
+| --- | --- | --- |
+| System rules | nothing: constant per request | ~250 tokens |
+| Output schema | nothing: constant per request | ~100 tokens |
+| Items payload | keys in the sub-batch | key + value + JSON punctuation, per item |
+| Response | keys in the sub-batch | key + translated value, per item |
+
+The system rules are a compile-time constant, identical on every request, which is why the per-request overhead is knowable rather than a guess. The items payload is a JSON object holding the source and target locale, an optional tone and glossary, and one item per key with its `key`, `value`, and optional `description` and `meaning`. The response repeats each key alongside its translation, so output size tracks input size closely.
+
+For counting, the usual rule of thumb is **~4 characters per token** for English prose. Non-Latin scripts and heavily punctuated strings run denser, so treat this as an order of magnitude, not a measurement.
+
+## Step 4: price it with your provider's rates
+
+verbatra deliberately publishes no prices. Look up the current rate for your model on the provider's own page, which is the only authority:
+
+| Provider | Billed by | Pricing |
+| --- | --- | --- |
+| Gemini | input and output tokens (free tier available) | [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| Anthropic | input and output tokens | [Anthropic pricing](https://www.anthropic.com/pricing) |
+| OpenAI | input and output tokens | [OpenAI API pricing](https://openai.com/api/pricing/) |
+| DeepL | source **characters**, not tokens | [DeepL Pro pricing](https://www.deepl.com/pro) |
+| openai-compatible | nothing: your own hardware | no API cost |
+
+## A worked example
+
+Substitute your own numbers for every assumption in this block.
+
+**Assumptions**
+
+- 400 keys to translate per locale (the dry-run count above), 3 target locales
+- average source value 40 characters, average key name 20 characters
+- no `description`, `meaning`, glossary, or tone
+- `maxBatchSize` at its default of `50`
+- provider `gemini`, model `gemini-2.5-flash`
+- 4 characters per token
+- translated values roughly the same length as the source
+- **illustrative** rate of `$0.10` per million input tokens and `$0.40` per million output tokens: this is a placeholder to make the arithmetic concrete, not a quoted price. Look up the real one.
+
+**Requests**
+
+`ceil(400 / 50)` = 8 requests per locale, 24 requests in total.
+
+**Input tokens per request**
+
+| | |
+| --- | --- |
+| System rules | 250 |
+| Output schema | 100 |
+| 50 items x (20 + 40 + ~20 punctuation) chars / 4 | 1,000 |
+| **Total** | **~1,350** |
+
+**Output tokens per request**
+
+50 items x (20 char key + 40 char value + ~15 punctuation) / 4 = **~950**.
+
+**Totals across 3 locales**
+
+- Input: 24 x 1,350 = **~32,400 tokens**
+- Output: 24 x 950 = **~22,800 tokens**
+- Cost: (32,400 / 1,000,000 x $0.10) + (22,800 / 1,000,000 x $0.40) = $0.0032 + $0.0091 = **about 1.2 cents**
+
+Note where the fixed overhead lands: the system rules and schema account for 24 x 350 = 8,400 of the 32,400 input tokens, about a quarter. Raising `maxBatchSize` spreads that constant over more keys; lowering it (to stay under a rate limit, say) costs proportionally more.
+
+## The accurate method: calibrate on one locale
+
+Any estimate above is arithmetic on assumptions. The precise number comes from translating one locale for real and reading the tokens verbatra reports.
+
+`translate` has no locale-selection flag, so narrow the run through the config instead. Copy your config, cut `targetLocales` down to a single locale, and point at the copy with `--config`:
+
+```bash
+verbatra translate --config verbatra.one-locale.config.ts
+```
+
+```
+verbatra translate
+  de: 400 translated, 0 unchanged, 18400 tokens (10800 in, 7600 out)
+  total: 18400 tokens (10800 in, 7600 out)
+1 succeeded, 0 partial, 0 failed
+```
+
+Multiply that measured figure by your remaining locale count. Token usage is also on the `--json` output as `usage.inputTokens` and `usage.outputTokens`, so a script can do the scaling. This is the number to bring to whoever approves the spend.
+
+The calibration run is a real run: it spends real money and writes real translations for that locale. That is the point, and the work is not wasted, because the remaining locales pick up from the same source and the calibrated locale is now done.
+
+To cap a run rather than predict it, set `maxTokens` with `budgetBehavior: "stop"`, which withholds every key not yet attempted once the ceiling is crossed; withheld keys are retried automatically on the next run. See [the configuration reference](/docs/config-file).
+
+## DeepL is billed differently
+
+DeepL is a machine-translation API, not a token-billed LLM, so it does not share the formula above:
+
+- The billable unit is **source characters**. For the example project that is 400 keys x 40 characters = 16,000 characters per locale, 48,000 across three.
+- verbatra sends DeepL only the source text. There are no system rules, no key names, and no JSON envelope in the billed payload, so there is no per-request constant to amortize.
+- DeepL withholds strings carrying placeholders or ICU syntax rather than risking them, so the characters actually sent can be lower than the raw total.
+- DeepL reports no token usage, so a configured `maxTokens` budget is reported as unsupported rather than silently appearing to work.
+
+## Why the second run is nearly free
+
+The single biggest factor in what verbatra costs over time is that runs are incremental. Only keys that are missing or whose source text changed since [the lock file](/docs/the-lock-file) baseline are sent. Re-running an unchanged project sends nothing and costs nothing.
+
+So the worked example above is the **first-run** cost, the one-time bill for translating a project from scratch. Day to day you are paying for the handful of strings you edited since the last run, which is why the ongoing cost of keeping a project translated is far below the initial number. [The cache](/docs/the-cache) removes repeat cost further, by reusing an identical earlier translation instead of paying for it twice.
+
+To rehearse the whole thing at zero cost first, use Gemini's free tier or point the `openai-compatible` provider at a local model. See [Providers](/docs/providers).

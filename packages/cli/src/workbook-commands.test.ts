@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run, runImport } from "./run.js";
 import {
   captureStreams,
   makeExportResult,
   makeLocale,
   makeSummary,
+  parseEnvelope,
   recordingDeps,
 } from "./test-support.js";
 
@@ -76,14 +78,19 @@ describe("run export: SDK delegation and rendering", () => {
     expect(cap.err()).not.toContain('"path"');
   });
 
-  it("--json prints the export result as one JSON line", async () => {
+  it("--json prints the export result as one success envelope", async () => {
     const result = makeExportResult({ path: "/p/wb.xlsx", locales: [{ locale: "de", rows: 1 }] });
     const { deps } = recordingDeps({ exportWorkbook: async () => result });
     const cap = captureStreams();
 
     await run(["export", "--json"], deps, cap.streams);
 
-    expect(JSON.parse(cap.out())).toEqual(result);
+    expect(parseEnvelope(cap.out())).toEqual({
+      ok: true,
+      version: JSON_ENVELOPE_VERSION,
+      command: "export",
+      result,
+    });
   });
 
   it("a whole-run error renders to stderr and exits 2", async () => {

@@ -39,6 +39,7 @@ export function ThemeSwitcher(): ReactNode {
       ariaLabel={`Theme: ${activeLabel}`}
       label={<Icon name={PREFERENCE_ICON[preference]} />}
       items={THEME_OPTIONS.map((option) => ({
+        id: option.value,
         label: option.label,
         selected: option.value === preference,
         onSelect: () => handleSelect(option.value),

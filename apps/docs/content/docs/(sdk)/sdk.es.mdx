@@ -19,6 +19,13 @@ yarn add -D @verbatra/sdk
 
 Requiere Node.js `>=22.14.0`.
 
+La línea de pnpm instala bien, pero sale con `1` y `ERR_PNPM_IGNORED_BUILDS`: pnpm bloquea los
+scripts de instalación del SDK de Gemini incluido y de su `protobufjs`, y deja un
+`pnpm-workspace.yaml` sin responder con el que cualquier comando pnpm posterior del proyecto falla
+igual. Ejecuta `pnpm approve-builds` una vez y no apruebes ninguna de las dos entradas, o consulta
+la [Solución de problemas](/docs/troubleshooting) para la solución no interactiva. Aquí no hay
+atajo con `npx` como en la CLI, porque estás importando una biblioteca, no ejecutando un binario.
+
 <Callout title="Las claves API y el entorno">
 El SDK nunca lee, guarda ni acepta una clave API. El proveedor lee su clave del entorno
 (por ejemplo `ANTHROPIC_API_KEY`) cuando se construye. A diferencia de la CLI, el SDK no carga
@@ -208,6 +215,22 @@ Compara dos instantáneas del mismo archivo, tomadas en momentos distintos, y cu
 modificadas y eliminadas entre ambas. Una función síncrona normal: `diffLocaleSnapshots(previous,
 current)` devuelve `{ added, changed, removed }`. Solo contadores, nunca nombres de claves.
 
+## Rutas de locale
+
+### createLocalePathResolver
+
+Resuelve la correspondencia entre locales y rutas del proyecto en ambos sentidos, a partir de
+`files.pattern`, los locales configurados y `files.localeStyle`. `createLocalePathResolver(cwd,
+config)` devuelve `{ pathFor, localeFor }`: `pathFor(locale)` es la ruta absoluta del archivo de un
+locale, y `localeFor(path)` es el locale al que pertenece una ruta, o `undefined` para una ruta que
+este proyecto no posee. Todos los puntos de entrada del SDK resuelven rutas a través de él, así que
+un watcher o un panel construido sobre el SDK ve exactamente las rutas que escribe una ejecución.
+
+Todas las comprobaciones se ejecutan al crear el resolver, antes de leer ningún archivo: un patrón
+y un estilo que no se pueden combinar, o un locale para el que el estilo no tiene una escritura
+correcta, lanzan `LOCALE_LAYOUT_INVALID`, y dos locales que resuelven a la misma ruta lanzan
+`LOCALE_PATH_COLLISION`.
+
 ## El par de libro
 
 La entrega para traductores humanos, como libro de Excel o como texto delimitado; consulta [Traducción humana](/docs/manual-translation).
@@ -365,6 +388,8 @@ proveedor y los hallazgos de integridad se comunican como datos en el `RunSummar
 | `SOURCE_INVALID` | el archivo del locale de origen no se pudo leer o parsear; envuelve el error de lectura del adaptador |
 | `LOCK_FILE_INVALID` | el archivo de bloqueo está presente pero corrupto, sobredimensionado o en una versión no admitida |
 | `LOCK_CONTENDED` | el bloqueo de escritura de un locale no se pudo adquirir antes de su tiempo límite; el mensaje nombra la ruta del archivo de bloqueo |
+| `LOCALE_LAYOUT_INVALID` | `files.pattern` y `files.localeStyle` no se pueden combinar, o el estilo no tiene una escritura de ruta válida para un locale configurado |
+| `LOCALE_PATH_COLLISION` | dos locales configurados resuelven al mismo archivo absoluto |
 | `CONCURRENCY_INVALID` | se definió `concurrency` pero no es un entero de al menos 1; se lanza antes de que corra ningún locale |
 | `CONCURRENCY_BUDGET_CONFLICT` | una ejecución real fijó `concurrency` por encima de 1 con `maxTokens` configurado; se lanza antes de cualquier llamada al proveedor (un dry-run queda exento) |
 | `LOCALE_FAILED` | nunca se lanza: el `code` de reserva registrado en el `error` de un locale fallido |

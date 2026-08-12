@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { buildRequest } from "../anthropic/request.js";
 import { buildGeminiRequest } from "../gemini/request.js";
 import { toGeminiSchema } from "../gemini/schema.js";
@@ -30,5 +30,12 @@ describe("canonical schema single source of truth", () => {
       properties: { translations: { type: "array" } },
     });
     expect(schema).not.toHaveProperty("$schema");
+  });
+
+  it("carries the object type keyword Anthropic's tool input_schema requires", () => {
+    const schema = deriveJsonSchema(translationsResultSchema);
+
+    expect(schema.type).toBe("object");
+    expectTypeOf(schema.type).toEqualTypeOf<"object">();
   });
 });

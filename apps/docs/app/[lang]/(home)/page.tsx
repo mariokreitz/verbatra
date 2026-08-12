@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
-import { Faq } from "@/components/landing/faq";
+import { Faq, type FaqEntry } from "@/components/landing/faq";
 import { Features } from "@/components/landing/features";
 import { FinalCta } from "@/components/landing/final-cta";
 import { FullFooter } from "@/components/landing/footer";
@@ -26,7 +26,11 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
   const locale = lang as Locale;
   const t = await getTranslations({ locale, namespace: "landing" });
 
-  const faqItems = Object.values(t.raw("faq.items") as Record<string, FaqItem>);
+  // The id is carried through so the accordion can resolve each answer as rich text, which is
+  // how the "changelog" wording becomes a link. faqPageLd strips that markup back out.
+  const faqItems: ReadonlyArray<FaqEntry> = Object.entries(
+    t.raw("faq.items") as Record<string, FaqItem>,
+  ).map(([id, item]) => ({ ...item, id }));
 
   const howStepCopy = t.raw("how.steps") as Record<string, { title: string; body: string }>;
   const howSteps: ReadonlyArray<HowToStepItem> = HOW_STEP_KEYS.map((key) => {

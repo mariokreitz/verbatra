@@ -1,7 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
+import { type Locale, localizedPath } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { NPM_CLI } from "./links";
 
@@ -17,6 +18,7 @@ const WINDOW_DOTS = ["#ff5f56", "#ffbd2e", "#27c93f"] as const;
 
 export function PackageInstall(): ReactNode {
   const t = useTranslations("landing.install");
+  const locale = useLocale() as Locale;
   const [active, setActive] = useState<(typeof MANAGERS)[number]["id"]>("npm");
   const [copied, setCopied] = useState(false);
   const current = MANAGERS.find((m) => m.id === active) ?? MANAGERS[0];
@@ -101,6 +103,20 @@ export function PackageInstall(): ReactNode {
           {copied ? t("copied") : t("copy")}
         </button>
       </div>
+      {active === "pnpm" ? (
+        <p
+          className="border-t border-fd-border px-4 py-2.5 text-xs leading-relaxed text-fd-muted-foreground"
+          style={{ background: "var(--surface-bg)" }}
+        >
+          {t("pnpmNote")}{" "}
+          <a
+            href={localizedPath(locale, "/docs/troubleshooting")}
+            className="underline decoration-fd-border underline-offset-4 transition-colors hover:text-[var(--accent)] hover:decoration-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          >
+            {t("pnpmNoteLink")}
+          </a>
+        </p>
+      ) : null}
     </div>
   );
 }

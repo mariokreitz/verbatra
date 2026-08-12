@@ -1,0 +1,122 @@
+---
+title: Recuperación y reversión
+description: Cómo deshacer una ejecución de translate, por qué los archivos de locale y el archivo de bloqueo deben revertirse juntos, y qué deja atrás una ejecución interrumpida.
+---
+verbatra no tiene comando de deshacer ni guarda copias de seguridad. Una ejecución reescribe tus
+archivos de locale en el sitio y actualiza `verbatra.lock.json`, y nada en el disco recuerda el
+estado anterior. El control de versiones es el mecanismo de recuperación, que es la razón práctica
+por la que se confirman tanto los archivos de locale como el archivo de bloqueo: juntos son la
+instantánea a la que puedes volver.
+
+## Qué escribe una ejecución
+
+Una ejecución de `translate`, `watch` o `import` escribe dos archivos que a una reversión le
+importan:
+
+- los archivos de locale de destino, uno por locale, en la ruta de tu `files.pattern`
+- `verbatra.lock.json`, un hash de contenido del origen por cada clave traducida
+
+Lo demás que escribe es estado lateral regenerable que nunca restauras: `verbatra.cache.json` y el
+directorio `.verbatra-local/`, ambos excluidos de git. Una ejecución también puede añadir esas
+entradas a un `.gitignore` existente al que le falten, lo cual es mantenimiento puntual y no parte
+de ninguna reversión.
+
+Ambos archivos versionados se escriben de forma atómica (un archivo temporal y luego un renombrado),
+así que un lector ve o el archivo antiguo o el nuevo, nunca un intermedio a medio escribir. No hay
+ningún archivo parcial que reparar.
+
+## Revertir una ejecución completada
+
+Si la ejecución todavía no está confirmada, descarta ambos archivos juntos:
+
+```bash
+git checkout HEAD -- locales verbatra.lock.json
+```
+
+Si la ejecución ya está confirmada, revierte esa confirmación:
+
+```bash
+git revert <commit>
+```
+
+En cualquier caso, restaura los archivos de locale y `verbatra.lock.json` en la misma operación. La
+siguiente sección explica por qué.
+
+## Por qué ambos archivos, o ninguno
+
+El archivo de bloqueo registra un hash del valor **de origen** que produjo cada traducción. No
+registra nada sobre el valor traducido en sí. Por eso revertir tus archivos de locale no le comunica
+nada al archivo de bloqueo, ni puede hacerlo.
+
+**Revertir solo los archivos de locale.** El bloqueo sigue conteniendo el hash del origen tal como
+está ahora. En la siguiente ejecución, una clave que la reversión restauró está presente en el
+archivo de destino, así que no es faltante; y su hash registrado sigue coincidiendo con el origen
+actual, así que no es modificada. Cuenta como sin cambios, nunca se envía al proveedor, y el valor
+al que volviste se queda ahí de forma permanente. Las claves que la ejecución creó de nuevo son la
+excepción: la reversión las eliminó del archivo, así que vuelven como faltantes y se traducen otra
+vez. Lo que queda varado es todo lo que la ejecución *reemplazó*.
+
+Que el fallo sea silencioso es consecuencia del diseño, no un accidente. `verbatra check` y
+`verbatra diff` comparan contra la misma línea base del bloqueo, así que informan de que el locale
+está limpio. Ningún comando te dirá que esas traducciones están desactualizadas, porque para la
+línea base registrada no lo están.
+
+**Revertir solo el archivo de bloqueo.** La imagen especular, y destructiva en el otro sentido. Los
+hashes restaurados son más antiguos que el origen actual, así que las claves afectadas cuentan como
+modificadas, y la siguiente ejecución las traduce de nuevo y sobrescribe lo que hay en tus archivos
+de locale, incluidas las ediciones manuales hechas desde entonces. Pagas las llamadas al proveedor
+una segunda vez y pierdes las correcciones a mano.
+
+**Revertir ambos.** Los hashes de origen y las traducciones que describen vuelven al mismo punto en
+el tiempo, la línea base es coherente de nuevo, y la siguiente ejecución se comporta exactamente
+como lo habría hecho si la mala ejecución nunca hubiera ocurrido.
+
+## Volver a ejecutar tras una reversión
+
+Revertir y ejecutar `verbatra translate` otra vez es una repetición, no una segunda opinión. Con el
+mismo proveedor, modelo, tono y glosario, la huella de la [caché](/docs/the-cache) no cambia, así
+que la ejecución devuelve las mismas traducciones desde `verbatra.cache.json` sin llamar al
+proveedor en absoluto.
+
+Para obtener un resultado distinto, cambia lo que hizo que el primero estuviera mal. Editar el tono
+o el glosario, o cambiar de modelo, cambia la huella y retraduce por sí solo. Si quieres reenviar la
+misma configuración al proveedor, pasa `--no-cache` a [`translate`](/docs/cli/translate).
+
+Para reconstruir un locale desde cero en vez de revertir una ejecución, consulta
+[¿Cómo lo retraduzco todo?](/docs/faq#cómo-lo-retraduzco-todo) en las preguntas frecuentes. Ten en
+cuenta que borrar el archivo de bloqueo no es un reinicio: sin línea base nada puede detectarse como
+desactualizado, así que una ejecución tras borrarlo no traduce nada.
+
+## Una ejecución interrumpida o fallida
+
+Una ejecución interrumpida no necesita reversión. Basta con volver a ejecutarla.
+
+Cada locale se consolida por su cuenta: se escribe su archivo de destino y luego se registran sus
+entradas de bloqueo. Interrumpir el comando deja por tanto los locales ya terminados completamente
+escritos y registrados, y los que no llegó a alcanzar totalmente intactos. Una nueva ejecución
+retoma los intactos y se salta los terminados.
+
+El único hueco, entre la escritura del archivo de un locale y la actualización de su bloqueo, se
+resuelve solo en la siguiente ejecución. Las claves que la ejecución había añadido están ahora en el
+archivo de destino sin entrada de bloqueo, así que se adoptan tal cual; las claves cuyo origen se
+había desviado siguen llevando su hash antiguo, así que se detectan como modificadas y se traducen
+de nuevo. En ninguno de los dos casos se pierde trabajo.
+
+Las claves que se retienen durante una ejecución (una comprobación de integridad fallida, una
+llamada al proveedor fallida, un origen con ICU inválido o un presupuesto de tokens detenido)
+conservan su hash anterior en vez de registrarse como hechas, así que la siguiente ejecución las
+reintenta. Consulta [Solución de problemas](/docs/troubleshooting) para saber qué significa cada uno
+de esos casos.
+
+Si el proceso interrumpido murió de golpe, puede haber dejado un bloqueo de escritura bajo
+`.verbatra-local/`. La siguiente ejecución informa de `LOCK_CONTENDED` e imprime la ruta que hay que
+borrar.
+
+## Antes de una ejecución que no puedas deshacer con facilidad
+
+- Confirma primero tus archivos de locale y `verbatra.lock.json`, para que `git checkout HEAD --`
+  esté disponible.
+- Previsualiza con `verbatra translate --dry-run`, o con `verbatra diff` para las listas exactas de
+  claves y `verbatra check` para los recuentos. Ninguno de los tres llama a un proveedor ni escribe
+  un archivo.
+- Añade `--locales <locale>` para probar un locale antes de ejecutar el resto.

@@ -1,0 +1,149 @@
+---
+title: Estimer le coût
+description: "Dimensionne une exécution de traduction avant de dépenser : compte les clés avec une exécution à blanc, convertis-les en requêtes et en tokens, puis chiffre-les avec les tarifs de ton fournisseur."
+---
+Avant de pointer un outil d'IA vers un vrai fichier de langue, tu veux un ordre de grandeur de ce qu'il va dépenser. Cette page te donne une méthode plutôt qu'une liste de prix : verbatra ne suit pas les tarifs des fournisseurs, et les tarifs changent. Ce qui dure, c'est donc de savoir quelles unités te sont facturées et comment les compter. Chaque nombre ci-dessous est une hypothèse que tu remplaces par la tienne.
+
+La version courte pour un projet typique : quelques centaines de clés vers quelques langues sur un modèle bon marché coûte des centimes, pas des euros, et l'exécution suivante ne coûte presque rien parce que verbatra n'envoie que ce qui a changé.
+
+## Étape 1 : dimensionner le travail avec une exécution à blanc
+
+Une exécution à blanc est la réponse que l'outil lui-même apporte à la question "combien de travail y a-t-il". Elle calcule exactement quelles clés seraient envoyées, sans construire de fournisseur, sans lire de clé d'API, sans appel réseau et sans rien écrire :
+
+```bash
+verbatra translate --dry-run
+```
+
+```
+verbatra translate (dry run)
+  de: 400 translated, 0 unchanged
+  es: 400 translated, 0 unchanged
+  fr: 400 translated, 0 unchanged
+3 succeeded, 0 partial, 0 failed (dry run: nothing written)
+```
+
+Lors d'une exécution à blanc, le compte `translated` est le nombre de clés qui **seraient** envoyées au fournisseur : les clés absentes du fichier cible, plus les clés dont le texte source a changé depuis la référence du fichier de verrouillage, moins celles ignorées pour cause d'ICU invalide. Ce compte est l'entrée de tout ce qui suit.
+
+Traite-le comme une **borne supérieure**, pour deux raisons. Une exécution à blanc ne lit jamais [le cache](/docs/the-cache) : les clés qu'une exécution réelle servirait depuis la mémoire de traduction sont donc comptées ici. Et une exécution à blanc ne déduplique pas : lors d'une exécution réelle, les clés dont le texte source est identique sont regroupées et un seul représentant est envoyé, si bien qu'un fichier avec des chaînes répétées facture moins de clés que ce que montre l'exécution à blanc.
+
+Une exécution à blanc rapporte des comptes, pas des tokens ni de l'argent. Transformer le compte en montant, c'est tout le reste de cette page. Voir [`verbatra translate`](/docs/cli/translate) pour la liste complète des options.
+
+## Étape 2 : compter les requêtes
+
+verbatra n'envoie pas une requête par clé. Il découpe le travail de chaque langue en sous-lots séquentiels d'au plus `maxBatchSize` clés (`50` par défaut), et chaque sous-lot est une requête au fournisseur :
+
+```
+requêtes par langue = ceil(clés à traduire / maxBatchSize)
+```
+
+Pour la surcharge fixe, la taille du lot compte davantage que le nombre de clés, car une partie de chaque requête est constante (voir l'étape suivante). Deux ajustements :
+
+- Une réponse qui revient avec des clés manquantes déclenche **au plus une** requête de réparation bornée pour le sous-ensemble encore manquant. En fonctionnement normal, cela fait zéro requête supplémentaire.
+- `generatePlurals` ajoute ses propres requêtes par lots pour les formes plurielles qu'il complète, comptées de la même façon.
+
+## Étape 3 : compter les tokens d'une requête
+
+Une requête LLM transporte quatre choses. Une seule d'entre elles évolue avec ton nombre de clés :
+
+| Partie | Évolue avec | Taille approximative |
+| --- | --- | --- |
+| Règles système | rien : constant par requête | ~250 tokens |
+| Schéma de sortie | rien : constant par requête | ~100 tokens |
+| Charge utile des items | clés du sous-lot | clé + valeur + ponctuation JSON, par item |
+| Réponse | clés du sous-lot | clé + valeur traduite, par item |
+
+Les règles système sont une constante de compilation, identique à chaque requête : c'est pourquoi la surcharge par requête est connue plutôt que devinée. La charge utile des items est un objet JSON contenant la langue source et la langue cible, un ton et un glossaire facultatifs, et un item par clé avec ses champs `key`, `value` et, facultativement, `description` et `meaning`. La réponse répète chaque clé à côté de sa traduction : la taille de sortie suit donc de près celle de l'entrée.
+
+Pour compter, la règle habituelle est de **~4 caractères par token** pour de la prose anglaise. Les écritures non latines et les chaînes très ponctuées sont plus denses : traite cela comme un ordre de grandeur, pas comme une mesure.
+
+## Étape 4 : chiffrer avec les tarifs de ton fournisseur
+
+verbatra ne publie délibérément aucun prix. Consulte le tarif courant de ton modèle sur la page du fournisseur lui-même, qui est la seule autorité :
+
+| Fournisseur | Facturé selon | Tarifs |
+| --- | --- | --- |
+| Gemini | tokens d'entrée et de sortie (palier gratuit disponible) | [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing) |
+| Anthropic | tokens d'entrée et de sortie | [Anthropic pricing](https://www.anthropic.com/pricing) |
+| OpenAI | tokens d'entrée et de sortie | [OpenAI API pricing](https://openai.com/api/pricing/) |
+| DeepL | **caractères** source, pas tokens | [DeepL Pro pricing](https://www.deepl.com/pro) |
+| openai-compatible | rien : ton propre matériel | aucun coût d'API |
+
+## Un exemple chiffré
+
+Remplace chaque hypothèse de ce bloc par tes propres nombres.
+
+**Hypothèses**
+
+- 400 clés à traduire par langue (le compte de l'exécution à blanc ci-dessus), 3 langues cibles
+- valeur source moyenne de 40 caractères, nom de clé moyen de 20 caractères
+- pas de `description`, `meaning`, glossaire ni ton
+- `maxBatchSize` à sa valeur par défaut de `50`
+- fournisseur `gemini`, modèle `gemini-2.5-flash`
+- 4 caractères par token
+- valeurs traduites à peu près de la même longueur que la source
+- tarif **illustratif** de `$0.10` par million de tokens d'entrée et `$0.40` par million de tokens de sortie : c'est un espace réservé pour rendre le calcul concret, pas un prix cité. Consulte le vrai.
+
+**Requêtes**
+
+`ceil(400 / 50)` = 8 requêtes par langue, 24 requêtes au total.
+
+**Tokens d'entrée par requête**
+
+| | |
+| --- | --- |
+| Règles système | 250 |
+| Schéma de sortie | 100 |
+| 50 items x (20 + 40 + ~20 de ponctuation) caractères / 4 | 1 000 |
+| **Total** | **~1 350** |
+
+**Tokens de sortie par requête**
+
+50 items x (20 caractères de clé + 40 de valeur + ~15 de ponctuation) / 4 = **~950**.
+
+**Totaux sur 3 langues**
+
+- Entrée : 24 x 1 350 = **~32 400 tokens**
+- Sortie : 24 x 950 = **~22 800 tokens**
+- Coût : (32 400 / 1 000 000 x $0.10) + (22 800 / 1 000 000 x $0.40) = $0.0032 + $0.0091 = **environ 1,2 centime**
+
+Note où tombe la surcharge fixe : les règles système et le schéma représentent 24 x 350 = 8 400 des 32 400 tokens d'entrée, soit environ un quart. Augmenter `maxBatchSize` répartit cette constante sur davantage de clés ; la baisser (pour rester sous une limite de débit, par exemple) coûte proportionnellement plus cher.
+
+## La méthode exacte : calibrer sur une langue
+
+Toute estimation ci-dessus n'est que de l'arithmétique sur des hypothèses. Le chiffre précis vient d'une traduction réelle d'une langue et de la lecture des tokens que verbatra rapporte.
+
+`translate` n'a aucune option de sélection de langue : restreins donc l'exécution via la configuration. Copie ta configuration, réduis `targetLocales` à une seule langue, puis pointe vers la copie avec `--config` :
+
+```bash
+verbatra translate --config verbatra.one-locale.config.ts
+```
+
+```
+verbatra translate
+  de: 400 translated, 0 unchanged, 18400 tokens (10800 in, 7600 out)
+  total: 18400 tokens (10800 in, 7600 out)
+1 succeeded, 0 partial, 0 failed
+```
+
+Multiplie ce chiffre mesuré par le nombre de langues restantes. L'usage de tokens figure aussi dans la sortie `--json` sous `usage.inputTokens` et `usage.outputTokens` : un script peut donc faire la mise à l'échelle. C'est le chiffre à présenter à qui approuve la dépense.
+
+L'exécution de calibrage est une exécution réelle : elle dépense de l'argent réel et écrit de vraies traductions pour cette langue. C'est précisément l'intérêt, et le travail n'est pas perdu, car les langues restantes partent de la même source et la langue calibrée est désormais terminée.
+
+Pour plafonner une exécution plutôt que la prédire, définis `maxTokens` avec `budgetBehavior: "stop"`, qui retient toute clé pas encore tentée dès que le plafond est franchi ; les clés retenues sont automatiquement réessayées à l'exécution suivante. Voir [la référence de configuration](/docs/config-file).
+
+## DeepL est facturé différemment
+
+DeepL est une API de traduction automatique, pas un LLM facturé au token : il ne partage donc pas la formule ci-dessus.
+
+- L'unité facturable, ce sont les **caractères source**. Pour le projet d'exemple, cela fait 400 clés x 40 caractères = 16 000 caractères par langue, 48 000 sur trois.
+- verbatra n'envoie à DeepL que le texte source. Il n'y a ni règles système, ni noms de clés, ni enveloppe JSON dans la charge facturée : il n'y a donc aucune constante par requête à amortir.
+- DeepL retient les chaînes portant des espaces réservés ou de la syntaxe ICU plutôt que de les risquer : les caractères réellement envoyés peuvent donc être inférieurs au total brut.
+- DeepL ne rapporte aucun usage de tokens : un budget `maxTokens` configuré est donc signalé comme non pris en charge, au lieu de sembler fonctionner.
+
+## Pourquoi la deuxième exécution est presque gratuite
+
+Le facteur de loin le plus important dans ce que coûte verbatra sur la durée, c'est que les exécutions sont incrémentales. Seules sont envoyées les clés absentes ou dont le texte source a changé depuis la référence du [fichier de verrouillage](/docs/the-lock-file). Réexécuter un projet inchangé n'envoie rien et ne coûte rien.
+
+L'exemple chiffré ci-dessus est donc le coût de la **première exécution**, la facture unique d'une traduction de projet partie de zéro. Au quotidien, tu paies pour la poignée de chaînes modifiées depuis la dernière exécution : c'est pourquoi le coût courant du maintien d'un projet traduit reste très en dessous du chiffre initial. [Le cache](/docs/the-cache) réduit encore le coût répété, en réutilisant une traduction antérieure identique au lieu de la payer deux fois.
+
+Pour répéter tout cela d'abord à coût nul, utilise le palier gratuit de Gemini ou pointe le fournisseur `openai-compatible` vers un modèle local. Voir [Fournisseurs](/docs/providers).

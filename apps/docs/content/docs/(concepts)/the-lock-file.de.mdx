@@ -116,3 +116,8 @@ die Baseline zu verlieren.
 Committe `verbatra.lock.json` zusammen mit deinen Locale-Dateien. Diese Datei ist die gemeinsame
 Baseline, mit der deine Teamkollegen und deine CI vergleichen; sie in der Versionskontrolle zu
 halten macht inkrementelle Läufe über Maschinen hinweg reproduzierbar. Bearbeite sie nie von Hand.
+
+Beide zu committen ist auch das, was ein Rollback möglich macht. Weil die Lock-Datei Quell-Hashes
+festhält und nichts über die übersetzten Werte, behauptet sie nach einem Zurücksetzen deiner
+Locale-Dateien ohne sie weiterhin, die zurückgesetzten Übersetzungen seien aktuell, und nichts
+übersetzt sie neu. Siehe [Wiederherstellung und Rollback](/docs/recovery-and-rollback).

@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
+import { type RecordedProcessOutput, recordPendingRun, recordRun } from "./diagnostics.js";
 
 const e2eDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = join(e2eDir, ".tarballs.json");
@@ -109,12 +110,19 @@ export async function runVerbatra(
     reject: false,
     ...timeoutOptions,
   });
-  return {
+  const runResult: RunResult = {
     exitCode: result.exitCode ?? null,
     signal: result.signal ?? null,
     stdout: result.stdout,
     stderr: result.stderr,
   };
+  recordRun(commandLabel(args), runResult);
+  return runResult;
+}
+
+/** How a run is identified in a failure report. Arguments never carry the key; the environment does. */
+function commandLabel(args: string[]): string {
+  return `verbatra ${args.join(" ")}`;
 }
 
 /**
@@ -131,32 +139,88 @@ export function spawnVerbatra(
   args: string[],
   options: { cwd?: string; env?: Record<string, string> } = {},
 ) {
-  return execa(consumer.bin, args, {
+  const subprocess = execa(consumer.bin, args, {
     cwd: options.cwd ?? consumer.dir,
     env: { ...process.env, ...options.env },
     reject: false,
   });
+  // Resolved only when a test has already failed, to recover the output of a process that was
+  // still running when the failure was thrown. SIGKILL is a no-op on a process that has already
+  // exited, and the promise never rejects (`reject: false`), so awaiting one the test already
+  // awaited just returns its settled result.
+  recordPendingRun(commandLabel(args), async (): Promise<RecordedProcessOutput> => {
+    subprocess.kill("SIGKILL");
+    const result = await subprocess;
+    return {
+      exitCode: result.exitCode ?? null,
+      signal: result.signal ?? null,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  });
+  return subprocess;
 }
 
 /** The execa subprocess handle returned by {@link spawnVerbatra}. */
 export type Subprocess = ReturnType<typeof spawnVerbatra>;
 
-/** One line of `watch --json` NDJSON output; a subset of the SDK's `WatchRunResult`. */
-export interface WatchRunResultJson {
-  status: "succeeded" | "failed";
+/**
+ * The `--json` envelope version this suite is written against. Pinned rather than accepted as any
+ * number: the CLI bumps it only when an existing field changes meaning or disappears, so a bump is
+ * a deliberate contract break that must fail here and be re-read, not absorbed silently.
+ */
+export const JSON_ENVELOPE_VERSION = 1;
+
+/** The `--json` record a command writes when it produced a result. */
+export interface SuccessEnvelope<TResult> {
+  /** Always `true`; the discriminator to branch on. */
+  ok: true;
+  version: number;
+  /** The subcommand that produced the record, for example `"check"`. */
+  command: string;
+  /** The command's own payload, for example a check summary. */
+  result: TResult;
 }
 
 /**
- * Parses `watch --json` stdout into one record per non-empty NDJSON line.
+ * The `--json` record a command writes when it failed. It carries the same stable, secret-free code
+ * and message the human-readable stderr line renders.
+ */
+export interface ErrorEnvelope {
+  /** Always `false`; the discriminator to branch on. */
+  ok: false;
+  version: number;
+  /** The failing subcommand, or `null` when the failure preceded subcommand resolution. */
+  command: string | null;
+  code: string;
+  message: string;
+}
+
+/** One `--json` stdout record. Every command writes one of these two shapes per line. */
+export type JsonEnvelope<TResult> = SuccessEnvelope<TResult> | ErrorEnvelope;
+
+/**
+ * Parses one line of `--json` stdout into an envelope.
+ *
+ * @throws When the line is not valid JSON.
+ */
+export function parseEnvelope<TResult = unknown>(line: string): JsonEnvelope<TResult> {
+  return JSON.parse(line) as JsonEnvelope<TResult>;
+}
+
+/**
+ * Parses `watch --json` stdout into one envelope per non-empty NDJSON line. A succeeded run is a
+ * success envelope carrying its run summary; a failed run is an error envelope, and watch keeps
+ * running either way, so the stream continues past a failure.
  *
  * @throws When a non-empty line is not valid JSON.
  */
-export function parseNdjsonLines(stdout: string): WatchRunResultJson[] {
+export function parseNdjsonEnvelopes<TResult = unknown>(stdout: string): JsonEnvelope<TResult>[] {
   return stdout
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as WatchRunResultJson);
+    .map((line) => parseEnvelope<TResult>(line));
 }
 
 /** Resolves after `ms` milliseconds. */
@@ -219,7 +283,8 @@ export interface ProviderEnv {
   model?: string;
 }
 
-const PROVIDER_ENV_VARS: Record<ProviderEnv["id"], string> = {
+/** The environment variable each provider reads its API key from. */
+export const PROVIDER_ENV_VARS: Record<ProviderEnv["id"], string> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   gemini: "GEMINI_API_KEY",

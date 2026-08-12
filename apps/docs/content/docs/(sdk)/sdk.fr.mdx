@@ -16,6 +16,8 @@ yarn add -D @verbatra/sdk
 
 Requiert Node.js `>=22.14.0`.
 
+La ligne pnpm installe correctement mais sort en `1` avec `ERR_PNPM_IGNORED_BUILDS` : pnpm bloque les scripts d'installation du SDK Gemini embarqué et de son `protobufjs`, et laisse un `pnpm-workspace.yaml` sans réponse qui fait échouer de la même façon toutes les commandes pnpm suivantes du projet. Lance `pnpm approve-builds` une fois sans approuver aucune des deux entrées, ou consulte le [Dépannage](/docs/troubleshooting) pour la solution non interactive. Il n'y a pas de raccourci `npx` ici comme pour la CLI, puisque tu importes une bibliothèque au lieu de lancer un binaire.
+
 <Callout title="Clés d'API et environnement">
 Le SDK ne lit, ne détient ni n'accepte jamais de clé d'API. Le fournisseur lit sa clé depuis l'environnement (par exemple `ANTHROPIC_API_KEY`) au moment de sa construction. Contrairement à la CLI, le SDK ne charge pas les fichiers `.env` : dans ton propre script, définis la variable toi-même, par exemple avec `node --env-file=.env script.js`.
 </Callout>
@@ -123,6 +125,23 @@ Entrée : `{ config, locale, cwd? }`. Renvoie `{ locale, hashes }`.
 
 Compare deux instantanés du même fichier, pris à des moments différents, et compte les clés ajoutées, modifiées et supprimées entre les deux. Une fonction synchrone ordinaire : `diffLocaleSnapshots(previous, current)` renvoie `{ added, changed, removed }`. Des comptes seulement, jamais de noms de clés.
 
+## Chemins de locale
+
+### createLocalePathResolver
+
+Résout la correspondance entre locales et chemins du projet dans les deux sens, à partir de
+`files.pattern`, des locales configurées et de `files.localeStyle`. `createLocalePathResolver(cwd,
+config)` renvoie `{ pathFor, localeFor }` : `pathFor(locale)` est le chemin absolu du fichier d'une
+locale, et `localeFor(path)` est la locale à laquelle appartient un chemin, ou `undefined` pour un
+chemin qui n'appartient pas à ce projet. Tous les points d'entrée du SDK résolvent les chemins par
+lui, donc un watcher ou un tableau de bord bâti sur le SDK voit exactement les chemins qu'une
+exécution écrit.
+
+Toutes les vérifications ont lieu à la création du resolver, avant toute lecture de fichier : un
+pattern et un style incompatibles, ou une locale pour laquelle le style n'a pas d'écriture
+correcte, lèvent `LOCALE_LAYOUT_INVALID`, et deux locales qui résolvent vers le même chemin lèvent
+`LOCALE_PATH_COLLISION`.
+
 ## La paire classeur
 
 La passation pour les traducteurs humains, sous forme de classeur Excel ou de texte délimité ; voir [Traduction humaine](/docs/manual-translation).
@@ -225,6 +244,8 @@ Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable 
 | `SOURCE_INVALID` | le fichier de la locale source n'a pas pu être lu ou parsé ; enveloppe l'erreur de lecture de l'adaptateur |
 | `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu, trop volumineux ou à une version non prise en charge |
 | `LOCK_CONTENDED` | le verrou d'écriture d'une locale n'a pas pu être acquis avant son délai ; le message nomme le chemin du fichier de verrou |
+| `LOCALE_LAYOUT_INVALID` | `files.pattern` et `files.localeStyle` ne peuvent pas être combinés, ou le style n'a pas d'écriture de chemin valide pour une locale configurée |
+| `LOCALE_PATH_COLLISION` | deux locales configurées résolvent vers le même chemin absolu |
 | `CONCURRENCY_INVALID` | `concurrency` a été défini mais n'est pas un entier d'au moins 1 ; levé avant l'exécution de toute locale |
 | `CONCURRENCY_BUDGET_CONFLICT` | une exécution réelle a défini `concurrency` au-dessus de 1 alors que `maxTokens` est configuré ; levé avant tout appel au fournisseur (un dry-run est exempté) |
 | `LOCALE_FAILED` | jamais levé : le `code` de repli enregistré sur l'`error` d'une locale échouée |

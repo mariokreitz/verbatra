@@ -4,8 +4,8 @@ import { describeError, SdkError } from "../errors.js";
 import type { RunSummary } from "../flow/summary.js";
 import { resolveRunConcurrency, type TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import type { LockWaitListener } from "../lock/locale-write-lock.js";
-import { localeFilePath } from "../paths.js";
 import type { ProgressListener } from "../progress/types.js";
 import type { CreateProvider } from "../selection/select-provider.js";
 import { defaultCreateWatcher, defaultRunTranslate } from "./wiring.js";
@@ -151,7 +151,8 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
 
   resolveRunConcurrency(input.concurrency, false, input.config);
 
-  const sourcePath = localeFilePath(cwd, input.config.files.pattern, input.config.sourceLocale);
+  const resolver = createLocalePathResolver(cwd, input.config);
+  const sourcePath = resolver.pathFor(input.config.sourceLocale);
   if (!(await fs.fileExists(sourcePath))) {
     throw new SdkError(
       "SOURCE_UNREADABLE",

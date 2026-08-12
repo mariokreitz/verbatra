@@ -5,7 +5,7 @@
 <h1 align="center">@verbatra/cli</h1>
 
 <p align="center">
-  Command-line tool to automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers.
+  Command-line tool to automate i18n translation and keep your locale files in sync across languages, using OpenAI, Anthropic, Gemini, DeepL, or an openai-compatible local or self-hosted model.
 </p>
 
 <p align="center">

@@ -5,8 +5,12 @@ import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   type Consumer,
+  type ErrorEnvelope,
+  JSON_ENVELOPE_VERSION,
+  type JsonEnvelope,
   makeConsumer,
-  parseNdjsonLines,
+  parseEnvelope,
+  parseNdjsonEnvelopes,
   pollUntil,
   readJsonIn,
   runVerbatra,
@@ -16,10 +20,46 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-/** The `check --json` shape this suite asserts against; mirrors the SDK's `CheckSummary`. */
+/** The `check --json` payload this suite asserts against; mirrors the SDK's `CheckSummary`. */
 interface CheckSummaryJson {
   inSync: boolean;
   locales: { locale: string; missing: number }[];
+}
+
+/**
+ * Asserts that a one-shot `--json` stdout is exactly one JSON document. The contract is a single
+ * record with no extra newline, and execa has already stripped the one trailing newline, so a
+ * stdout holding no line break at all is what proves nothing else was written to the stream.
+ */
+function expectSingleJsonDocument(stdout: string): void {
+  expect(stdout).not.toContain("\n");
+}
+
+/**
+ * Unwraps a success envelope for `command` and returns its payload, failing the test with the
+ * reported code when the run produced an error envelope instead.
+ */
+function expectSuccessPayload<TResult>(stdout: string, command: string): TResult {
+  expectSingleJsonDocument(stdout);
+  const envelope = parseEnvelope<TResult>(stdout);
+  if (!envelope.ok) {
+    throw new Error(
+      `Expected a ${command} success envelope, got [${envelope.code}] ${envelope.message}`,
+    );
+  }
+  expect(envelope.version).toBe(JSON_ENVELOPE_VERSION);
+  expect(envelope.command).toBe(command);
+  return envelope.result;
+}
+
+/** Narrows an envelope to its failure shape, checking the fields every error record shares. */
+function expectErrorEnvelope(envelope: JsonEnvelope<unknown>, command: string): ErrorEnvelope {
+  if (envelope.ok) {
+    throw new Error(`Expected a ${command} error envelope, got a success record`);
+  }
+  expect(envelope.version).toBe(JSON_ENVELOPE_VERSION);
+  expect(envelope.command).toBe(command);
+  return envelope;
 }
 
 /** Positions coupled to @verbatra/exchange's fixed workbook layout (see its layout.ts). */
@@ -79,10 +119,7 @@ describe("check (read-only, no provider)", () => {
     });
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
-    const summary = JSON.parse(result.stdout) as {
-      inSync: boolean;
-      locales: { locale: string; missing: number }[];
-    };
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
@@ -233,7 +270,7 @@ describe("other formats (read-only, no provider)", () => {
     await writeFileIn(dir, "locales/de.yml", "greeting: Hallo {{name}}\n");
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
-    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
@@ -249,7 +286,7 @@ describe("other formats (read-only, no provider)", () => {
     await writeFileIn(dir, "locales/de.yml", "greeting: Hallo {{name}}\ncount: 5\nenabled: true\n");
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
-    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
@@ -270,7 +307,7 @@ describe("other formats (read-only, no provider)", () => {
     await writeJsonIn(dir, "lib/l10n/app_de.arb", { "@@locale": "de", greeting: "Hallo {name}" });
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
-    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
@@ -286,7 +323,7 @@ describe("other formats (read-only, no provider)", () => {
     await writeFileIn(dir, "locales/de.properties", "greeting=Hallo {0}\n");
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(1);
-    const summary = JSON.parse(result.stdout) as CheckSummaryJson;
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
     expect(summary.inSync).toBe(false);
     const de = summary.locales.find((entry) => entry.locale === "de");
     expect(de?.missing).toBe(1);
@@ -369,12 +406,21 @@ describe("config errors (no provider)", () => {
   /**
    * Uses a fresh temp directory outside the consumer tree, so cosmiconfig's upward search cannot
    * pick up any ambient config.
+   *
+   * Both halves of the failure contract are pinned: under `--json` stdout carries exactly one error
+   * envelope, and the human-readable stderr line stays byte-for-byte what it always was, so an
+   * exit-code-plus-stderr consumer reads the same thing a machine consumer parses.
    */
   it("exits 2 with a config-not-found error when no config file is present", async () => {
     const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-noconfig-"));
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(2);
-    expect(result.stdout).toBe("");
+
+    expectSingleJsonDocument(result.stdout);
+    const envelope = expectErrorEnvelope(parseEnvelope(result.stdout), "check");
+    expect(envelope.code).toBe("CONFIG_NOT_FOUND");
+    expect(envelope.message).toContain("No verbatra configuration found");
+
     expect(result.stderr).toMatch(/\[CONFIG_NOT_FOUND\]/);
     expect(result.stderr).toContain("No verbatra configuration found");
   });
@@ -431,6 +477,11 @@ describe("watch SIGINT contract (no provider key needed)", () => {
    * Without an API key the initial run fails at provider construction (a structured, secret-free
    * ProviderError) but the watcher stays up, which is enough to exercise the SIGINT contract: a
    * single interrupt stops it cleanly with exit 0 after at least one NDJSON record.
+   *
+   * That first record is an error envelope, which is how a failed run reports itself in the stream:
+   * `ok: false` marks the run as failed and the watcher carries on rather than terminating. The code
+   * is only checked for being present, not for a specific value, so the suite does not pin the
+   * provider's error vocabulary.
    */
   it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {
     const dir = join(consumer.dir, "watch-sigint");
@@ -455,9 +506,13 @@ describe("watch SIGINT contract (no provider key needed)", () => {
     try {
       await pollUntil(() => stdoutBuf.trim().length > 0, { timeoutMs: 30_000, intervalMs: 250 });
 
-      const records = parseNdjsonLines(stdoutBuf);
-      expect(records.length).toBeGreaterThan(0);
-      expect(records[0]?.status).toBe("failed");
+      const [first] = parseNdjsonEnvelopes(stdoutBuf);
+      if (first === undefined) {
+        throw new Error("Expected watch --json to emit at least one NDJSON record");
+      }
+      const failure = expectErrorEnvelope(first, "watch");
+      expect(failure.code.length).toBeGreaterThan(0);
+      expect(failure.message.length).toBeGreaterThan(0);
 
       watcher.kill("SIGINT");
       const result = await watcher;

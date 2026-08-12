@@ -2,6 +2,7 @@
   "title": "Guides",
   "defaultOpen": true,
   "pages": [
+    "estimating-cost",
     "ci-and-exit-codes",
     "github-action",
     "manual-translation",

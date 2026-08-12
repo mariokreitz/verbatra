@@ -5,16 +5,13 @@ import { z } from "zod";
 import { loadEnvFiles } from "./env.js";
 import { appendMissingGitignoreEntries } from "./gitignore.js";
 import { runInit } from "./init.js";
+import { renderErrorEnvelope, renderSuccessEnvelope } from "./json-envelope.js";
 import {
   renderCheckHuman,
-  renderCheckJson,
   renderDiffHuman,
-  renderDiffJson,
   renderError,
   renderExportHuman,
-  renderExportJson,
   renderHuman,
-  renderJson,
   renderLockWait,
   renderProgress,
   toRenderableError,
@@ -127,28 +124,74 @@ class UsageError extends Error {
   }
 }
 
-/** Renders a caught error to stderr as one structured line and returns exit `2`. */
-function renderFailureExit2(streams: Streams, error: unknown): number {
-  streams.err(`${renderError(toRenderableError(error))}\n`);
+/**
+ * Everything the shared failure scaffolds need to report an error: where to write it, which
+ * subcommand produced it, and whether the run is in `--json` mode. Built once per command
+ * invocation by {@link commandContext}, before the options are validated, so a failure in the
+ * parse step is reported with the same context a failure in the run body is.
+ */
+interface CommandContext {
+  /** The stdout/stderr sink. */
+  readonly streams: Streams;
+  /** The subcommand name; `null` only when a failure precedes subcommand resolution. */
+  readonly command: string | null;
+  /** Whether `--json` is in force for this invocation. */
+  readonly json: boolean;
+}
+
+/**
+ * The `--json` flag alone, read off the raw commander options. Every command's own schema also
+ * declares `json`, but that schema is what may fail: this minimal parse runs first so a run whose
+ * options are rejected still knows it owes the caller a JSON envelope. Unknown keys are stripped
+ * rather than rejected, so the full commander option object parses cleanly here.
+ */
+const jsonFlagSchema = z.object({ json: z.boolean().optional() });
+
+/**
+ * Builds the {@link CommandContext} for one invocation.
+ *
+ * @param command - The subcommand name, a compile-time constant at each call site.
+ * @param rawOpts - The unvalidated commander options, read only for `--json`.
+ * @param streams - The stdout/stderr sink.
+ */
+function commandContext(command: string, rawOpts: unknown, streams: Streams): CommandContext {
+  const parsed = jsonFlagSchema.safeParse(rawOpts);
+  return { streams, command, json: parsed.success && parsed.data.json === true };
+}
+
+/**
+ * Reports a caught error and returns exit `2`.
+ *
+ * The human-readable line goes to stderr in both modes, unchanged, so an exit-code-plus-stderr
+ * consumer sees exactly what it always did. Under `--json` the same structured projection is also
+ * written to stdout as one error envelope, giving a machine consumer something to parse where it
+ * previously got an empty stream and a bare exit code. Both carry the identical secret-free
+ * `{ code, message }`, so the envelope can leak nothing the stderr line would not have leaked.
+ */
+function renderFailureExit2(error: unknown, context: CommandContext): number {
+  const renderable = toRenderableError(error);
+  context.streams.err(`${renderError(renderable)}\n`);
+  if (context.json) {
+    context.streams.out(`${renderErrorEnvelope(context.command, renderable)}\n`);
+  }
   return 2;
 }
 
 /**
- * Runs a synchronous option-parsing step inside a try that renders any parse or usage failure to
- * stderr and returns exit `2`, keeping stdout clean for `--json`. On success the parsed options are
- * handed to `body`. This is the single copy of the parse/render/return-2 wiring shared by every
- * command's option parsing.
+ * Runs a synchronous option-parsing step inside a try that reports any parse or usage failure and
+ * returns exit `2`. On success the parsed options are handed to `body`. This is the single copy of
+ * the parse/render/return-2 wiring shared by every command's option parsing.
  */
 async function withParsedOpts<T>(
   parse: () => T,
-  streams: Streams,
+  context: CommandContext,
   body: (opts: T) => Promise<number>,
 ): Promise<number> {
   let opts: T;
   try {
     opts = parse();
   } catch (error) {
-    return renderFailureExit2(streams, error);
+    return renderFailureExit2(error, context);
   }
   return body(opts);
 }
@@ -182,10 +225,10 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
 async function withLocaleOpts<T extends { readonly locales?: readonly string[] | undefined }>(
   schema: z.ZodType<T>,
   rawOpts: unknown,
-  streams: Streams,
+  context: CommandContext,
   body: (opts: T) => Promise<number>,
 ): Promise<number> {
-  return withParsedOpts(() => parseLocaleCommandOpts(schema, rawOpts), streams, body);
+  return withParsedOpts(() => parseLocaleCommandOpts(schema, rawOpts), context, body);
 }
 
 function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?: string } {
@@ -197,17 +240,17 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
 
 /**
  * Shared whole-run error scaffold for the one-shot commands: run `beforeLoad` (if given), load the
- * config, then run the body, all in one try, mapping any thrown error to stderr and exit `2` while
- * leaving stdout clean for `--json`. A `1` comes only from a body that returns it without throwing. The
- * `await` on `body` is load-bearing: returning it unawaited would let a rejection escape this try as an
- * unhandled rejection.
+ * config, then run the body, all in one try, mapping any thrown error through
+ * {@link renderFailureExit2} to exit `2`. A `1` comes only from a body that returns it without
+ * throwing. The `await` on `body` is load-bearing: returning it unawaited would let a rejection
+ * escape this try as an unhandled rejection.
  *
  * @param beforeLoad - An optional step (e.g. loading `.env` files) run before `loadConfig`, inside the
  *   same try, so a non-ENOENT read error is rendered structurally instead of escaping unhandled.
  */
 async function withWholeRunErrors(
   deps: CliDeps,
-  streams: Streams,
+  context: CommandContext,
   loadOpts: { cwd: string; configPath?: string },
   body: (config: Awaited<ReturnType<CliDeps["loadConfig"]>>) => Promise<number>,
   beforeLoad?: () => void,
@@ -217,7 +260,7 @@ async function withWholeRunErrors(
     const config = await deps.loadConfig(loadOpts);
     return await body(config);
   } catch (error) {
-    return renderFailureExit2(streams, error);
+    return renderFailureExit2(error, context);
   }
 }
 
@@ -389,20 +432,23 @@ export async function runTranslate(
   deps: CliDeps,
   streams: Streams,
 ): Promise<number> {
+  const context = commandContext("translate", rawOpts, streams);
   return withParsedOpts(
     () => parseTranslateCommandOpts(rawOpts),
-    streams,
+    context,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
       appendMissingGitignoreEntries(cwd, opts.dryRun);
       return withWholeRunErrors(
         deps,
-        streams,
+        context,
         loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
         async (config) => {
           const summary = await deps.translate(buildTranslateInput(opts, config, cwd, streams));
           streams.out(
-            opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary)}\n`,
+            context.json
+              ? `${renderSuccessEnvelope("translate", summary)}\n`
+              : `${renderHuman(summary)}\n`,
           );
           return summary.failed.length > 0 ? 1 : 0;
         },
@@ -443,9 +489,10 @@ async function runWatchCommand(
   streams: Streams,
   hooks: RunHooks,
 ): Promise<number> {
+  const context = commandContext("watch", rawOpts, streams);
   return withParsedOpts(
     () => parseWatchCommandOpts(rawOpts),
-    streams,
+    context,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
       appendMissingGitignoreEntries(cwd);
@@ -456,12 +503,12 @@ async function runWatchCommand(
           loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
         );
       } catch (error) {
-        return renderFailureExit2(streams, error);
+        return renderFailureExit2(error, context);
       }
       const session = runWatch(
         {
           config,
-          json: opts.json === true,
+          json: context.json,
           cwd,
           ...(opts.debounceMs !== undefined ? { debounceMs: opts.debounceMs } : {}),
           ...(opts.lockAcquireTimeoutMs !== undefined
@@ -500,17 +547,18 @@ async function runStudioCommand(
  * no per-locale failure mode, so it never returns `1`.
  */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const context = commandContext("export", rawOpts, streams);
   return withParsedOpts(
     () => {
       const opts = parseLocaleCommandOpts(exportOptsSchema, rawOpts);
       return { ...opts, format: parseExchangeFormat(opts.format) };
     },
-    streams,
+    context,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
       return withWholeRunErrors(
         deps,
-        streams,
+        context,
         loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
         async (config) => {
           const result = await deps.exportWorkbook({
@@ -522,7 +570,9 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
             ...(opts.format !== undefined ? { format: opts.format } : {}),
           });
           streams.out(
-            opts.json === true ? `${renderExportJson(result)}\n` : `${renderExportHuman(result)}\n`,
+            context.json
+              ? `${renderSuccessEnvelope("export", result)}\n`
+              : `${renderExportHuman(result)}\n`,
           );
           return 0;
         },
@@ -545,18 +595,19 @@ export async function runImport(
   deps: CliDeps,
   streams: Streams,
 ): Promise<number> {
+  const context = commandContext("import", rawOpts, streams);
   return withParsedOpts(
     () => {
       const opts = importOptsSchema.parse(rawOpts);
       return { ...opts, format: parseExchangeFormat(opts.format) };
     },
-    streams,
+    context,
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
       appendMissingGitignoreEntries(cwd, opts.dryRun);
       return withWholeRunErrors(
         deps,
-        streams,
+        context,
         loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
         async (config) => {
           const summary = await deps.importWorkbook({
@@ -567,7 +618,9 @@ export async function runImport(
             ...(opts.format !== undefined ? { format: opts.format } : {}),
           });
           streams.out(
-            opts.json === true ? `${renderJson(summary)}\n` : `${renderHuman(summary, "import")}\n`,
+            context.json
+              ? `${renderSuccessEnvelope("import", summary)}\n`
+              : `${renderHuman(summary, "import")}\n`,
           );
           return summary.failed.length > 0 ? 1 : 0;
         },
@@ -581,11 +634,12 @@ export async function runImport(
  * has a missing or stale key, `2` the run could not start.
  */
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  return withLocaleOpts(checkOptsSchema, rawOpts, streams, async (opts) => {
+  const context = commandContext("check", rawOpts, streams);
+  return withLocaleOpts(checkOptsSchema, rawOpts, context, async (opts) => {
     const cwd = opts.cwd ?? process.cwd();
     return withWholeRunErrors(
       deps,
-      streams,
+      context,
       loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
       async (config) => {
         const summary = await deps.check({
@@ -594,7 +648,9 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
           ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
         });
         streams.out(
-          opts.json === true ? `${renderCheckJson(summary)}\n` : `${renderCheckHuman(summary)}\n`,
+          context.json
+            ? `${renderSuccessEnvelope("check", summary)}\n`
+            : `${renderCheckHuman(summary)}\n`,
         );
         return summary.inSync ? 0 : 1;
       },
@@ -607,11 +663,12 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
  * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
  */
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
-  return withLocaleOpts(diffOptsSchema, rawOpts, streams, async (opts) => {
+  const context = commandContext("diff", rawOpts, streams);
+  return withLocaleOpts(diffOptsSchema, rawOpts, context, async (opts) => {
     const cwd = opts.cwd ?? process.cwd();
     return withWholeRunErrors(
       deps,
-      streams,
+      context,
       loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
       async (config) => {
         const summary = await deps.diff({
@@ -620,7 +677,9 @@ async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promi
           ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
         });
         streams.out(
-          opts.json === true ? `${renderDiffJson(summary)}\n` : `${renderDiffHuman(summary)}\n`,
+          context.json
+            ? `${renderSuccessEnvelope("diff", summary)}\n`
+            : `${renderDiffHuman(summary)}\n`,
         );
         return summary.hasPendingChanges ? 1 : 0;
       },
@@ -639,7 +698,7 @@ function buildProgram(
   program
     .name("verbatra")
     .description(
-      "Automate i18n translation and keep your locale files in sync across languages with AI and machine-translation providers",
+      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
     )
     .version(CLI_VERSION)
     .exitOverride()

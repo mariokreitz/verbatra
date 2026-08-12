@@ -49,10 +49,32 @@ function errorAnnotation(title, code, message) {
 }
 
 /**
- * Parse the CLI's stdout into a RunSummary. Empty, blank, or unparseable input returns `null` rather
- * than throwing, since a whole-run error leaves stdout empty.
+ * Unwrap one parsed `--json` record into the RunSummary it carries.
  *
- * @param stdout - The CLI's captured stdout (the --json RunSummary, or empty on a whole-run error).
+ * A current CLI writes an envelope: `{ ok, version, command, result }` on success and
+ * `{ ok, version, command, code, message }` on failure. A failure envelope yields `null`, so the
+ * caller falls through to the same stderr-driven whole-run reporting it has always used.
+ *
+ * A CLI older than the envelope printed the bare RunSummary instead. The action's
+ * `verbatra-version` input can pin any published version, so that shape is still accepted: a record
+ * without a boolean `ok` is treated as the summary itself.
+ *
+ * @param record - One parsed JSON record from stdout.
+ * @returns The RunSummary, or `null` when the record carries none.
+ */
+function unwrapSummaryEnvelope(record) {
+  if (record === null || typeof record !== "object" || typeof record.ok !== "boolean") {
+    return record;
+  }
+  return record.ok ? (record.result ?? null) : null;
+}
+
+/**
+ * Parse the CLI's stdout into a RunSummary. Empty, blank, or unparseable input returns `null` rather
+ * than throwing, as does a run whose envelope reports a failure instead of a result.
+ *
+ * @param stdout - The CLI's captured stdout (the --json envelope, or empty when the CLI died before
+ *   it could write one).
  * @returns The parsed RunSummary, or `null` when there is no usable summary.
  */
 export function parseSummaryJson(stdout) {
@@ -61,7 +83,7 @@ export function parseSummaryJson(stdout) {
     return null;
   }
   try {
-    return JSON.parse(trimmed);
+    return unwrapSummaryEnvelope(JSON.parse(trimmed));
   } catch {
     return null;
   }

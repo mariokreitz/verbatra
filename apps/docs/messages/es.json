@@ -43,7 +43,9 @@
       "tablistLabel": "Gestor de paquetes",
       "copy": "copiar",
       "copied": "copiado",
-      "copyAria": "Copiar el comando de instalación"
+      "copyAria": "Copiar el comando de instalación",
+      "pnpmNote": "pnpm instala bien, pero sale con 1 y ERR_PNPM_IGNORED_BUILDS, porque bloquea los scripts de instalación de una dependencia. Ejecuta pnpm approve-builds una vez, o consulta la",
+      "pnpmNoteLink": "Solución de problemas"
     },
     "compat": {
       "heading": "Una herramienta, todos los frameworks.",
@@ -65,7 +67,7 @@
         },
         "diff": {
           "title": "Compara",
-          "body": "Cada ejecución compara tu locale de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana."
+          "body": "Cada ejecución compara tu locale de origen con el archivo de bloqueo confirmado y clasifica cada clave en nueva, cambiada, sin cambios o huérfana. Las claves huérfanas, las que ya no están en tu origen, se informan y se dejan donde están: no se elimina nada de tus archivos de locale a menos que actives --prune."
         },
         "translate": {
           "title": "Traduce",
@@ -151,7 +153,7 @@
         },
         "production": {
           "question": "¿Está verbatra listo para producción?",
-          "answer": "Es joven y está en desarrollo activo, así que fija una versión y lee el changelog cuando actualices. El modelo de seguridad ya es sólido: cada ejecución compara los cambios con un archivo de bloqueo confirmado, verifica la integridad de los placeholders y de ICU en cada resultado, y retiene cualquier cosa que falle en lugar de escribirla. Los equipos lo ejecutan en CI hoy en día; fija las versiones y estarás sobre terreno estable."
+          "answer": "Es joven y está en desarrollo activo, así que fija una versión y lee el <releases>changelog</releases> cuando actualices. El modelo de seguridad ya es sólido: cada ejecución compara los cambios con un archivo de bloqueo confirmado, verifica la integridad de los placeholders y de ICU en cada resultado, y retiene cualquier cosa que falle en lugar de escribirla. Los equipos lo ejecutan en CI hoy en día; fija las versiones y estarás sobre terreno estable."
         }
       }
     },
@@ -182,6 +184,7 @@
           "configFile": "Archivo de configuración",
           "codeOfConduct": "Código de conducta",
           "security": "Política de seguridad",
+          "releases": "Notas de la versión",
           "llmsFull": "llms-full.txt (texto completo)",
           "llmsIndex": "llms.txt (índice)"
         },

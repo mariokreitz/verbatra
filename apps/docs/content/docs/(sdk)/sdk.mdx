@@ -18,6 +18,14 @@ yarn add -D @verbatra/sdk
 
 Requires Node.js `>=22.14.0`.
 
+The pnpm line installs correctly but exits `1` with `ERR_PNPM_IGNORED_BUILDS`: pnpm gates the
+install scripts of the bundled Gemini SDK and its `protobufjs`, and leaves an unanswered
+`pnpm-workspace.yaml` behind that makes every later pnpm command in the project fail the same way.
+Run `pnpm approve-builds` once and approve neither entry, or see
+[Troubleshooting](/docs/troubleshooting) for the non-interactive fix. There is no `npx` shortcut
+around this the way there is for the CLI, because you are importing a library, not running a
+binary.
+
 <Callout title="API keys and the environment">
 The SDK never reads, holds, or accepts an API key. The provider reads its key from the environment
 (for example `ANTHROPIC_API_KEY`) when it is constructed. Unlike the CLI, the SDK does not load
@@ -198,6 +206,21 @@ Compares two snapshots of the same file, taken at different times, and counts th
 changed, and removed between them. A plain synchronous function: `diffLocaleSnapshots(previous,
 current)` returns `{ added, changed, removed }`. Counts only, never key names.
 
+## Locale paths
+
+### createLocalePathResolver
+
+Resolves the project's locale-to-path mapping in both directions, from `files.pattern`, the
+configured locales, and `files.localeStyle`. `createLocalePathResolver(cwd, config)` returns
+`{ pathFor, localeFor }`: `pathFor(locale)` is the absolute path of one locale's file, and
+`localeFor(path)` is the locale that owns a path, or `undefined` for a path this project does not
+own. Every SDK entry point resolves paths through it, so a watcher or dashboard built on the SDK
+sees exactly the paths a run writes.
+
+Every check runs when the resolver is created, before any file is read: a pattern and style that
+cannot be combined, or a locale the style has no correct spelling for, throws
+`LOCALE_LAYOUT_INVALID`, and two locales resolving to one path throws `LOCALE_PATH_COLLISION`.
+
 ## The workbook pair
 
 The translator handoff, as an Excel workbook or as delimited text; see [Manual translation](/docs/manual-translation).
@@ -353,6 +376,8 @@ are surfaced as data on the `RunSummary`, never thrown.
 | `SOURCE_INVALID` | the source locale file could not be read or parsed; wraps the adapter's read error |
 | `LOCK_FILE_INVALID` | the lock file is present but corrupt, oversized, or at an unsupported version |
 | `LOCK_CONTENDED` | a locale's write lock could not be acquired before its timeout; the message names the lock file's path |
+| `LOCALE_LAYOUT_INVALID` | `files.pattern` and `files.localeStyle` cannot be combined, or the style has no valid path spelling for a configured locale |
+| `LOCALE_PATH_COLLISION` | two configured locales resolve to the same absolute file path |
 | `CONCURRENCY_INVALID` | `concurrency` was set but is not an integer of at least 1; raised before any locale runs |
 | `CONCURRENCY_BUDGET_CONFLICT` | a live run set `concurrency` above 1 while `maxTokens` is configured; raised before any provider call (a dry run is exempt) |
 | `LOCALE_FAILED` | never thrown: the fallback `code` recorded on a failed locale's `error` |
