@@ -112,6 +112,12 @@ overrides:
   # apps/docs/package.json is bumped to 16.2.11; this override lifts any transitive fumadocs copy too,
   # bounded to the 16.2 line to avoid an unintended minor jump.
   "next@>=16.0.0 <16.2.11": ">=16.2.11 <16.3"
+  # GHSA-2v37-7h3g-55p8 (CVE-2026-67213, high): customAlphabet and customRandom loop forever when
+  # called with a size of 0, hanging the calling thread. Vulnerable <3.3.17 on the v3 line; lifts the
+  # 3.3.16 copy postcss pulls (dev-only, via tsup and @tailwindcss/postcss) to the patched release.
+  # The tree already resolves 3.3.18 for the other postcss copies, so this only dedupes onto it. The
+  # <4 ceiling keeps it on the v3 API postcss declares, since v4 dropped the CommonJS entry point.
+  nanoid@<3.3.17: ">=3.3.17 <4"
 
 allowBuilds:
   '@google/genai': false
