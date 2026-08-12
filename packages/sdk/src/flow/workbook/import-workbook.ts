@@ -471,17 +471,6 @@ async function runSheet(
  * @param deps - Optional composition seams (registry, file system) for tests.
  * @returns A {@link RunSummary} with one locale per data sheet, in workbook order.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`.
- * @example
- * ```ts
- * import { loadConfig, importWorkbook } from "@verbatra/sdk";
- *
- * const config = await loadConfig();
- * const summary = await importWorkbook({ config, workbook: "handoff.xlsx" });
- *
- * for (const locale of summary.locales) {
- *   console.log(`${locale.locale}: ${locale.status}, ${locale.translated.length} applied`);
- * }
- * ```
  */
 export async function importWorkbook(
   input: ImportWorkbookInput,

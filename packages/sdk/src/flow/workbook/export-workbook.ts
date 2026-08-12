@@ -220,18 +220,6 @@ async function writeDelimitedFiles(
  * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
  *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
  *   among the configured target locales.
- * @example
- * ```ts
- * import { loadConfig, exportWorkbook } from "@verbatra/sdk";
- *
- * const config = await loadConfig();
- * const result = await exportWorkbook({ config, out: "handoff.xlsx" });
- *
- * console.log(`wrote ${result.path}`);
- * for (const locale of result.locales) {
- *   console.log(`${locale.locale}: ${locale.rows} rows to translate`);
- * }
- * ```
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
