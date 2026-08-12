@@ -15,8 +15,26 @@ describe("classifyProviderError: by status", () => {
     expect(classifyProviderError({ status: 408 })).toBe("TIMEOUT");
   });
 
+  it("classifies server-error statuses as PROVIDER_UNAVAILABLE", () => {
+    expect(classifyProviderError({ status: 500 })).toBe("PROVIDER_UNAVAILABLE");
+    expect(classifyProviderError({ status: 502 })).toBe("PROVIDER_UNAVAILABLE");
+    expect(classifyProviderError({ status: 503 })).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("bounds the server-error range at both ends", () => {
+    expect(classifyProviderError({ status: 499 })).toBe("PROVIDER_ERROR");
+    expect(classifyProviderError({ status: 599 })).toBe("PROVIDER_UNAVAILABLE");
+    expect(classifyProviderError({ status: 600 })).toBe("PROVIDER_ERROR");
+  });
+
+  it("keeps 401 and 403 as AUTH_FAILED rather than letting the server-error range claim them", () => {
+    expect(classifyProviderError({ status: 401 })).toBe("AUTH_FAILED");
+    expect(classifyProviderError({ status: 403 })).toBe("AUTH_FAILED");
+  });
+
   it("falls back to PROVIDER_ERROR for an unrecognized status", () => {
-    expect(classifyProviderError({ status: 500 })).toBe("PROVIDER_ERROR");
+    expect(classifyProviderError({ status: 400 })).toBe("PROVIDER_ERROR");
+    expect(classifyProviderError({ status: 404 })).toBe("PROVIDER_ERROR");
   });
 });
 
