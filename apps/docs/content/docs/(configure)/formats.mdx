@@ -20,6 +20,33 @@ All four read nested JSON objects of string leaves. Their differences are the me
 - **next-intl** values are ICU MessageFormat: the placeholders are the ICU argument and rich-text tag names, plural follows an ICU plural or selectordinal argument, and the ICU body is kept verbatim through the pipeline. A value that fails to parse as ICU is reported as invalid and skipped, never thrown.
 - **ngx-translate** shares i18next's `{{double-brace}}` interpolation but has no `$t()` nesting and no built-in plural or ICU. Its files may be flat (dotted keys) or nested, and verbatra preserves whichever style the file uses on write; a new target file is written nested. Uniquely, a file that mixes flat dotted keys with nested objects fails the read with `MIXED_STRUCTURE`, since such a file is ambiguous rather than guessable.
 
+## Namespace layouts
+
+Splitting strings across several namespace files per locale is common in i18next projects, with `common.json`, `auth.json`, and so on sitting next to each other under a locale directory. One verbatra config addresses exactly one file per locale: `files.pattern` is a literal path with `{locale}` substituted, it is never expanded as a glob, and there is no namespace token. A pattern such as `public/locales/{locale}/*.json` is looked up as a file literally named `*.json` and fails with `SOURCE_UNREADABLE`.
+
+A single-namespace layout is the one that works as configured:
+
+```ts
+files: {
+  pattern: "public/locales/{locale}/common.json",
+},
+```
+
+### One config per namespace
+
+For a multi-namespace project, write one config per namespace and run verbatra once per config. Any filename works, since `--config` loads an explicit path by its extension:
+
+```bash
+verbatra translate --config verbatra.common.config.ts
+verbatra translate --config verbatra.auth.config.ts
+```
+
+Each run handles its own namespace: keys that are missing from a target file are translated as usual.
+
+<Callout type="warn" title="Only the namespace that ran last keeps change detection">
+Every config in the same working directory shares one `verbatra.lock.json`, and each `translate` run replaces that locale's recorded baselines with the keys it just processed. After the second run, the first namespace has no baselines left, so editing one of its source strings is reported as in sync by `check` and `diff` and is not retranslated. Changing the order of the runs does not help; whichever runs last wipes the other. To retranslate an edited string under this setup, delete that key from the target file (or delete the whole target file) so it counts as missing rather than changed.
+</Callout>
+
 ## XLIFF
 
 The `xliff` format covers `.xlf` and `.xliff` files, XLIFF 1.2 (`file/body/trans-unit`) and 2.0 (`file/unit/segment`). Unlike the tree formats, an XLIFF document is a flat list of trans-units.

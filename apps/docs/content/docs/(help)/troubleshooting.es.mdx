@@ -98,6 +98,10 @@ o un problema estructural (`SOURCE_INVALID`, envolviendo el mensaje del adaptado
 de trabajo, así que un `--cwd` equivocado es una causa frecuente. Para los rechazos estructurales,
 mira la entrada `INVALID_STRUCTURE` más abajo.
 
+Un comodín en el patrón es otra causa: `files.pattern` es una ruta literal, no un glob, así que
+`public/locales/{locale}/*.json` se busca como un archivo llamado `*.json`. Mira
+[Diseños con namespaces](/docs/formats#diseños-con-namespaces).
+
 ## Falta la clave de API (PROVIDER_CONSTRUCTION_FAILED)
 
 **Síntoma**: `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable

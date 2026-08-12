@@ -97,6 +97,10 @@ JSON invalide ou un problème structurel (`SOURCE_INVALID`, enveloppant le messa
 répertoire de travail, donc un mauvais `--cwd` est une cause fréquente. Pour les rejets
 structurels, voir l'entrée `INVALID_STRUCTURE` plus bas.
 
+Un joker dans le motif est une autre cause : `files.pattern` est un chemin littéral, pas un glob,
+donc `public/locales/{locale}/*.json` est cherché comme un fichier nommé `*.json`. Voir
+[Dispositions avec espaces de noms](/docs/formats#dispositions-avec-espaces-de-noms).
+
 ## Clé d'API manquante (PROVIDER_CONSTRUCTION_FAILED)
 
 **Symptôme** : `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable

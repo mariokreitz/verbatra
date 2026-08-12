@@ -103,6 +103,10 @@ umhüllt).
 aufgelöste Muster, ein falsches `--cwd` ist also eine häufige Ursache. Für strukturelle
 Ablehnungen siehe den `INVALID_STRUCTURE`-Eintrag unten.
 
+Ein Wildcard-Zeichen im Muster ist eine weitere Ursache: `files.pattern` ist ein wörtlicher Pfad,
+kein Glob, also wird `public/locales/{locale}/*.json` als Datei mit dem Namen `*.json` gesucht.
+Siehe [Namespace-Layouts](/docs/formats#namespace-layouts).
+
 ## Fehlender API-Schlüssel (PROVIDER_CONSTRUCTION_FAILED)
 
 **Symptom**: `Failed to construct provider "anthropic": The ANTHROPIC_API_KEY environment variable

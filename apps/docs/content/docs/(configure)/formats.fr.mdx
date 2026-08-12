@@ -20,6 +20,33 @@ Les quatre lisent des objets JSON imbriqués dont les feuilles sont des chaînes
 - **next-intl** : les valeurs sont du ICU MessageFormat : les placeholders sont les noms d'arguments ICU et de balises rich-text, le pluriel suit un argument plural ou selectordinal ICU, et le corps ICU traverse le pipeline tel quel. Une valeur qui échoue à s'analyser comme ICU est rapportée comme invalide et sautée, jamais levée en erreur.
 - **ngx-translate** partage l'interpolation `{{double-brace}}` d'i18next mais n'a ni imbrication `$t()`, ni pluriel intégré, ni ICU. Ses fichiers peuvent être plats (clés à points) ou imbriqués, et verbatra préserve à l'écriture le style que le fichier utilise ; un nouveau fichier cible est écrit imbriqué. Fait unique, un fichier qui mélange clés à points plates et objets imbriqués échoue à la lecture avec `MIXED_STRUCTURE`, puisqu'un tel fichier est ambigu plutôt que devinable.
 
+## Dispositions avec espaces de noms
+
+Répartir les chaînes sur plusieurs fichiers d'espace de noms par locale est courant dans les projets i18next, avec `common.json`, `auth.json` et les autres côte à côte dans un répertoire de locale. Une configuration verbatra adresse exactement un fichier par locale : `files.pattern` est un chemin littéral avec `{locale}` substitué, il n'est jamais développé comme un glob, et il n'existe pas de jeton d'espace de noms. Un motif comme `public/locales/{locale}/*.json` est cherché comme un fichier nommé littéralement `*.json` et échoue avec `SOURCE_UNREADABLE`.
+
+Une disposition à un seul espace de noms fonctionne telle qu'elle est configurée :
+
+```ts
+files: {
+  pattern: "public/locales/{locale}/common.json",
+},
+```
+
+### Une configuration par espace de noms
+
+Pour un projet à plusieurs espaces de noms, écris une configuration par espace de noms et lance verbatra une fois par configuration. N'importe quel nom de fichier convient, puisque `--config` charge un chemin explicite d'après son extension :
+
+```bash
+verbatra translate --config verbatra.common.config.ts
+verbatra translate --config verbatra.auth.config.ts
+```
+
+Chaque exécution traite son propre espace de noms : les clés absentes d'un fichier cible sont traduites comme d'habitude.
+
+<Callout type="warn" title="Seul l'espace de noms exécuté en dernier conserve la détection des changements">
+Toutes les configurations d'un même répertoire de travail partagent un seul `verbatra.lock.json`, et chaque exécution de `translate` remplace la référence enregistrée de cette locale par les clés qu'elle vient de traiter. Après la deuxième exécution, le premier espace de noms n'a plus de référence, donc modifier une de ses chaînes source est rapporté comme synchronisé par `check` et `diff` et n'est pas retraduit. Changer l'ordre des exécutions n'aide pas ; celle qui passe en dernier efface l'autre. Pour retraduire une chaîne modifiée dans ce montage, supprime cette clé du fichier cible (ou supprime le fichier cible entier) pour qu'elle compte comme manquante plutôt que modifiée.
+</Callout>
+
 ## XLIFF
 
 Le format `xliff` couvre les fichiers `.xlf` et `.xliff`, XLIFF 1.2 (`file/body/trans-unit`) et 2.0 (`file/unit/segment`). Contrairement aux formats en arbre, un document XLIFF est une liste plate de trans-units.
