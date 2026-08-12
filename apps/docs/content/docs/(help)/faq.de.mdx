@@ -21,6 +21,32 @@ Vier Hebel, alle ohne Provider-Aufruf, bis du dich anders entscheidest:
 - Gemini hat ein echtes kostenloses API-Kontingent, und der `openai-compatible`-Provider läuft
   gegen ein lokales Modell ganz ohne API-Kosten.
 
+## Was kostet ein Lauf tatsächlich?
+
+Ein durchgerechnetes Beispiel, um die Größenordnung greifbar zu machen. Ein Projekt mit 400 zu
+übersetzenden Keys in 3 Locales sendet bei der Standard-`maxBatchSize` von 50 acht Requests pro
+Locale, insgesamt also 24. Bei grob 4 Zeichen pro Token, mit 40 Zeichen langen Quellwerten und 20
+Zeichen langen Key-Namen sind das etwa 32.400 Eingabe-Tokens und 22.800 Ausgabe-Tokens, also rund
+55.000 Tokens für den ganzen Lauf. Auf `gemini-2.5-flash` ergibt das bei einer illustrativen Rate
+von $0.10 pro Million Eingabe-Tokens und $0.40 pro Million Ausgabe-Tokens etwa 1,2 Cent.
+
+Die Annahmen hinter dieser Zahl, damit du sie auf dein eigenes Projekt umrechnen kannst: 400 Keys
+pro Locale und 3 Locales; 40 Zeichen lange Werte und 20 Zeichen lange Key-Namen; kein
+`description`, `meaning`, Glossar oder Tone; `maxBatchSize` auf dem Standardwert; 4 Zeichen pro
+Token; Übersetzungen ungefähr so lang wie ihre Quelle. Die Rate ist ein Platzhalter, der die
+Rechnung konkret macht, kein zitierter Preis: schlage den echten auf der Preisseite deines
+Providers nach, denn verbatra verfolgt keine Provider-Raten, und sie ändern sich.
+
+Zwei Dinge bestimmen die echte Rechnung stärker als die Key-Anzahl. Jeder Request trägt einen
+konstanten Overhead von etwa 350 Tokens (die festen Systemregeln und das Ausgabeschema), eine
+größere `maxBatchSize` verteilt diese Konstante also auf mehr Keys, und eine kleinere kostet
+proportional mehr. Und dieser Wert sind nur die Kosten des ersten Laufs: Läufe sind inkrementell,
+im Alltag zahlst du also für die Handvoll geänderter Strings, nicht für die ganze Datei. DeepL
+passt gar nicht in diese Formel, weil es Quellzeichen statt Tokens abrechnet.
+
+Siehe [Kosten abschätzen](/docs/estimating-cost) für die Methode, den DeepL-Fall und das
+Kalibrieren an einem echten gemessenen Lauf.
+
 ## Mit welchem Provider soll ich anfangen?
 
 Gemini: Es hat ein kostenloses API-Kontingent, du kannst also ein ganzes Projekt kostenlos
