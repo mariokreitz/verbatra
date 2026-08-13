@@ -142,6 +142,50 @@ and is consumed via `uses:`. Do not add it back here.
   `@verbatra/studio` is now published like sdk and cli; a `src` change there needs a
   changeset too, even though it used to be private and changeset-exempt.
 
+## Comments and documentation
+
+- No prose comments and no JSDoc on internal code. Names and structure carry the
+  intent. When reasoning has to be preserved, promote it to a test that fails if the
+  behavior regresses, not to a comment.
+- JSDoc belongs only on the published API surface, written to the standard of the
+  OpenAI SDK, NestJS, or Node.js: what it does, when to use it, what each parameter
+  means, every thrown error with the condition that triggers it, and a runnable
+  `@example` on genuine entry points.
+- Published is not the opposite of private. The test is whether the declaration
+  appears in the package's built `.d.ts`. tsup `dts.resolve` inlines types from the
+  private workspace packages into `packages/sdk/dist/index.d.ts`, so a declaration in
+  `@verbatra/core` can be published API. Check the built output, not the package's
+  `private` flag. This distinction is what previous sweeps lost.
+- House style: type-free `@param name - Description.`, type-free `@returns`,
+  ``@throws {@link SdkError} `CODE`: condition.`` with one line per code, `{@link}`
+  for cross-references, and `@example` used sparingly on entry points. Never
+  `@remarks`, `@see`, `@defaultValue`, `@deprecated`, `@internal`, `@public`,
+  `@typeParam`, or `@param {Type}`.
+- Derive every `@throws` from the actual throw sites; never copy one from existing
+  docs. A documented code that is never thrown is worse than a missing one: it tells
+  a consumer to write a catch branch that can never fire.
+- `{@link}` resolves only against symbols exported from the built `.d.ts`. A link to
+  a symbol that is not exported renders silently as plain text; use inline code for
+  those instead.
+- Some comments are functional and must survive any removal pass: coverage
+  directives (`/* v8 ignore ... */`), whose loss drops coverage against the 90% gate;
+  `biome-ignore`, whose reason text after the colon is mandatory syntax in Biome 2.x
+  and cannot be emptied; `@ts-expect-error`, where removing a still-needed one is
+  itself a TS2578 error; the `// @vitest-environment jsdom` pragmas, without which
+  the file runs in node and every DOM test throws; shebangs; the type-bearing JSDoc
+  in the two `checkJs` files, `packages/config/tsup.base.mjs` and `vitest.base.mjs`,
+  where the JSDoc is the type annotation; SHA-pin version comments (`# v7.0.1`) in
+  workflow files, which Dependabot parses to update the pin; JSON that only looks
+  like a comment, namely Turborepo's `"extends": ["//"]` and the real `"//"` key in
+  `tsconfig.configs.json`; and `/// <reference types=... />` in generated files such
+  as `apps/docs/next-env.d.ts`.
+- The rule governs code. CI and supply-chain rationale in workflow and config files
+  (`.github/workflows`, `dependabot.yml`, `pnpm-workspace.yaml`, `lefthook.yml`) is
+  exempt where no test covers the behavior it describes, for example the `head_sha`
+  trust-boundary argument in `release.yml`, the Scorecard two-job-split requirement,
+  and per-override CVE rationales. Promote such rationale to an executable assertion
+  where one is possible; keep the prose where it is not.
+
 ## Security
 
 - API keys come only from environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY,
