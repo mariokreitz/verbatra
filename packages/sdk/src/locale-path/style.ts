@@ -1,8 +1,24 @@
 import { androidSegment } from "./android.js";
 import { NUMERIC_REGION, parseLocaleTag } from "./tag.js";
 
+/** The locale spellings {@link LocaleStyle} is drawn from, in declaration order. */
 export const LOCALE_STYLES = ["literal", "posix", "android"] as const;
 
+/**
+ * How a locale is spelled inside a file path, set through the config's `files.localeStyle`.
+ *
+ * - `literal`: the locale is written into the path exactly as configured, so `pt-BR` yields
+ *   `pt-BR`. This is the default and suits the JSON and YAML layouts most web projects use.
+ * - `posix`: the POSIX spelling, so `pt-BR` yields `pt_BR`. Common for gettext-influenced and
+ *   Java-influenced layouts.
+ * - `android`: the Android resource-qualifier spelling, so `pt-BR` yields `values-pt-rBR` and the
+ *   source locale yields the unqualified `values`. This style expands to a whole path segment, so
+ *   the `{locale}` token must stand alone between separators in the pattern.
+ *
+ * A locale that has no valid spelling under the declared style, or that would expand to something
+ * other than a single path segment, is rejected with `LOCALE_LAYOUT_INVALID` before any file is
+ * read.
+ */
 export type LocaleStyle = (typeof LOCALE_STYLES)[number];
 
 const SEGMENT_STYLES: ReadonlySet<LocaleStyle> = new Set<LocaleStyle>(["android"]);

@@ -1,6 +1,21 @@
 import { assessValueDegeneracy, checkPlaceholders, type TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter } from "@verbatra/format-adapters";
 
+/**
+ * Why a candidate translation was refused before it could be written. The same gate guards
+ * {@link editEntry} and {@link retranslateEntry}, so a hand-typed value and a provider-produced one
+ * are held to identical standards.
+ *
+ * A rejected value is never written to the locale file and never recorded in the lock-file, so the
+ * previous translation stays intact.
+ *
+ * - `placeholder`: the candidate does not carry the same placeholders as the source, so
+ *   interpolation would break at runtime.
+ * - `icu`: the candidate is not a valid ICU message under the configured format's adapter.
+ * - `degenerate`: the candidate is a degenerate rendering of the source, such as an untranslated
+ *   echo or a truncated fragment.
+ * - `empty`: the source has text but the candidate is blank, which would silently erase a string.
+ */
 export type IntegrityGateReason = "placeholder" | "icu" | "degenerate" | "empty";
 
 export type IntegrityGateResult =

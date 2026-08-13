@@ -14,29 +14,47 @@ import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
 import { readSourceResource } from "./source.js";
 
+/** One key's placeholder and ICU verdict in a {@link LocaleKeyIntegrity} report. */
 export interface KeyIntegrityEntry {
+  /** The key this verdict describes. */
   readonly key: string;
+  /** Whether the source text contains any placeholders at all. When false, `matches` is trivially true. */
   readonly hasPlaceholders: boolean;
+  /** True when the translation carries exactly the source's placeholders. */
   readonly matches: boolean;
+  /** Placeholders present in the source but absent from the translation. */
   readonly missing: readonly string[];
+  /** Placeholders present in the translation but not in the source. */
   readonly extra: readonly string[];
+  /** True when the translation parses as a valid ICU message under the configured format. */
   readonly icuValid: boolean;
 }
 
+/** One locale's per-key integrity verdicts. */
 export interface LocaleKeyIntegrity {
+  /** The target locale these verdicts describe. */
   readonly locale: string;
+  /** Verdicts for the changed keys that exist in both the source and this locale. */
   readonly entries: readonly KeyIntegrityEntry[];
 }
 
+/** Input for {@link keyIntegrity}. */
 export interface KeyIntegrityInput {
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /** Restrict the report to these target locales. Defaults to every configured target locale. */
   readonly locales?: readonly string[];
+  /** Restrict the report to these keys. Defaults to every key the diff reports as changed. */
   readonly keys?: readonly string[];
 }
 
+/** Injectable dependencies for {@link keyIntegrity}. Every field has a working default. */
 export interface KeyIntegrityDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
@@ -89,6 +107,33 @@ function integrityEntriesFor(
   return entries;
 }
 
+/**
+ * Reports, per changed key, whether the existing translation still carries the source's
+ * placeholders and still parses as valid ICU. It writes nothing and calls no provider.
+ *
+ * The scope is deliberately the changed keys rather than every key: a key whose source text has not
+ * moved was already gated when it was written, so re-reporting it would bury the keys that a source
+ * edit may have just invalidated. Only keys present in both the source and the target are judged,
+ * since a missing translation has no placeholders to compare.
+ *
+ * This is the read-only counterpart to the gate that {@link editEntry} and
+ * {@link retranslateEntry} enforce at write time, and the data behind a review dashboard's
+ * per-key integrity indicator.
+ *
+ * @param input - The config and the optional locale and key filters.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns One entry per requested locale, each holding its per-key verdicts.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
+ */
 export async function keyIntegrity(
   input: KeyIntegrityInput,
   deps: KeyIntegrityDeps = {},

@@ -4,6 +4,12 @@ import type { BoundedFileRead, SdkFs } from "../fs.js";
 import { sortRecordKeys } from "../record-utils.js";
 import type { CacheAddition, TranslationMemory } from "./types.js";
 
+/**
+ * The file name of the project's translation memory, resolved against the run's working directory.
+ * Commit it to reuse translations across machines and CI runs, or add it to `.gitignore` to treat
+ * the cache as purely local. Deleting it is always safe: the next run simply repays for the strings
+ * it would have reused.
+ */
 export const CACHE_FILE_NAME = "verbatra.cache.json";
 
 const CURRENT_VERSION = 1;

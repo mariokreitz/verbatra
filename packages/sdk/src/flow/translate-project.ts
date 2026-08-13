@@ -46,22 +46,57 @@ import { readSourceResource } from "./source.js";
 import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
 
+/** Input for {@link translate}. Only `config` is required; every other field has a default. */
 export interface TranslateInput {
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /**
+   * Compute the whole run but write nothing and call no provider. The returned
+   * {@link RunSummary} reports what would have happened, which makes this safe to run in CI to
+   * preview work without spending anything. Defaults to false.
+   */
   readonly dryRun?: boolean;
+  /**
+   * Remove keys that no longer exist in the source. Defaults to the config's `prune`, then to
+   * false, so orphaned keys are reported but kept unless removal is asked for explicitly.
+   */
   readonly prune?: boolean;
+  /**
+   * Generate the plural categories a target language requires rather than translating each
+   * category separately. Defaults to the config's `generatePlurals`, then to false.
+   */
   readonly generatePlurals?: boolean;
+  /**
+   * Called while waiting on another process's write lock, so a CLI can explain a stall instead of
+   * appearing to hang.
+   */
   readonly onLockWait?: LockWaitListener;
+  /** Called as locales and sub-batches start and finish, for progress reporting. */
   readonly onProgress?: ProgressListener;
+  /** How long to wait for a locale's write lock before failing with `LOCK_CONTENDED`. */
   readonly lockAcquireTimeoutMs?: number;
+  /**
+   * How many locales to run at once. Must be an integer of at least 1; defaults to 1. On a live
+   * run it cannot be combined with a configured token budget, because concurrent locales would
+   * overshoot the budget nondeterministically.
+   */
   readonly concurrency?: number;
+  /**
+   * Consult and update the translation memory. Defaults to true. Turning it off forces every key
+   * through the provider, which is what to do when you want to re-pay for a fresh translation.
+   */
   readonly cache?: boolean;
 }
 
+/** Injectable dependencies for {@link translate}. Every field has a working default. */
 export interface TranslateDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** Provider factory. Defaults to constructing the provider named in the config. */
   readonly createProvider?: CreateProvider;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
@@ -353,6 +388,67 @@ export function resolveRunConcurrency(
   return concurrency;
 }
 
+/**
+ * Runs the one-shot translation flow over every configured target locale: read the source, diff
+ * each locale against the lock-file baseline, translate what is missing or stale, verify placeholder
+ * and ICU integrity, write the locale files, and update the lock-file and translation memory.
+ *
+ * Failure handling is the contract worth understanding. Whole-run problems, such as an unreadable
+ * source file or a provider that cannot be constructed, throw an {@link SdkError} before any locale
+ * runs. Once locales are running, a per-locale failure is recorded on that locale's
+ * {@link LocaleSummary} and the other locales continue, so one unreachable provider or one
+ * unwritable file never discards work that succeeded. Callers should therefore inspect
+ * {@link RunSummary.failed} rather than relying on a thrown error to detect trouble.
+ *
+ * Each locale takes its own write lock for the read-modify-write, so concurrent runs and
+ * single-key edits cannot interleave on one file. Translations that fail the integrity gate are
+ * refused rather than written, leaving the previous value intact.
+ *
+ * Set `dryRun` to compute the whole plan without writing or spending anything.
+ *
+ * @param input - The config and the per-run options.
+ * @param deps - Optional adapter registry, provider factory, and file-system overrides.
+ * @returns The per-locale account of the run, including usage and budget.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is not an integer of at least 1.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run combined a `concurrency` above
+ * 1 with a configured token budget. A dry run is exempt.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider could not be constructed,
+ * most often because its API key environment variable is unset. Not thrown on a dry run, which
+ * never constructs a provider.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: a locale's write lock could not be acquired before
+ * `lockAcquireTimeoutMs` elapsed.
+ *
+ * @example
+ * ```ts
+ * import { loadConfig, translate } from "@verbatra/sdk";
+ *
+ * const config = await loadConfig();
+ * const summary = await translate({
+ *   config,
+ *   onProgress: (event) => {
+ *     if (event.type === "locale-finished") {
+ *       console.log(`${event.locale}: ${event.translated} keys`);
+ *     }
+ *   },
+ * });
+ *
+ * if (summary.failed.length > 0) {
+ *   for (const locale of summary.locales.filter((entry) => entry.status === "failed")) {
+ *     console.error(`${locale.locale}: ${locale.error?.message}`);
+ *   }
+ *   process.exitCode = 1;
+ * }
+ * ```
+ */
 export async function translate(
   input: TranslateInput,
   deps: TranslateDeps = {},

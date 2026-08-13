@@ -6,6 +6,11 @@ import { sortRecordKeys } from "../record-utils.js";
 import { withLockFileGuard } from "./locale-write-lock.js";
 import type { LockEntries, LockFile } from "./types.js";
 
+/**
+ * The file name of the project's lock-file, resolved against the run's working directory. Commit it
+ * alongside the locale files: it is the baseline that lets verbatra tell a stale translation from a
+ * current one. See {@link LockFile} for its contents.
+ */
 export const LOCK_FILE_NAME = "verbatra.lock.json";
 
 const CURRENT_VERSION = 1;

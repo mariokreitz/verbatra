@@ -1,9 +1,13 @@
 import { ProviderError } from "./errors.js";
 
 export const PROVIDER_ENV = {
+  /** Environment variable holding the Anthropic API key. */
   anthropic: "ANTHROPIC_API_KEY",
+  /** Environment variable holding the OpenAI API key. */
   openai: "OPENAI_API_KEY",
+  /** Environment variable holding the Gemini API key. */
   gemini: "GEMINI_API_KEY",
+  /** Environment variable holding the DeepL API key. */
   deepl: "DEEPL_API_KEY",
 } as const;
 

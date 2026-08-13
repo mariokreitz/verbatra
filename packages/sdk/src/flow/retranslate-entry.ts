@@ -17,31 +17,89 @@ import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 import { buildTranslateRequest } from "./translate-request.js";
 
+/** Input for {@link retranslateEntry}. */
 export interface RetranslateEntryInput {
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /** The target locale to retranslate into. Must be a configured target locale. */
   readonly locale: string;
+  /** The key to retranslate. Must exist in the source resource. */
   readonly key: string;
 }
 
+/** Injectable dependencies for {@link retranslateEntry}. Every field has a working default. */
 export interface RetranslateEntryDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** Provider factory. Defaults to constructing the provider named in the config. */
   readonly createProvider?: CreateProvider;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
+/**
+ * The outcome of {@link retranslateEntry}. As with {@link EditEntryResult}, a value refused by the
+ * integrity gate is reported as data rather than thrown, because it is an expected outcome of
+ * asking a provider for a fresh translation.
+ */
 export type RetranslateEntryResult =
   | {
+      /** The provider's value passed the integrity gate and was written. */
       readonly accepted: true;
+      /** The newly translated value now stored for the key. */
       readonly value: string;
+      /**
+       * Quality signals the provider layer raised for this value, such as a length-ratio outlier or
+       * a value identical to the source. Empty when nothing was flagged. The value is written
+       * either way; these are advisory.
+       */
       readonly reviewReasons: readonly ReviewReasonCode[];
     }
   | {
+      /** The value was refused; nothing was written and the previous translation is intact. */
       readonly accepted: false;
+      /** Which integrity rule the provider's value broke. */
       readonly reason: IntegrityGateReason;
+      /** The rejected value, echoed back so a UI can show what was refused. */
       readonly value: string;
     };
 
+/**
+ * Re-runs the configured provider for a single key and saves the result. This is the paid
+ * counterpart to {@link editEntry}: it calls the provider and therefore spends tokens, which is why
+ * a UI should gate it behind an explicit user action.
+ *
+ * The returned value goes through the same integrity gate as a full run, so a translation that
+ * loses a placeholder or breaks ICU syntax is refused and nothing is written. Provider quality
+ * signals are surfaced on an accepted result as `reviewReasons` rather than blocking the write.
+ *
+ * The write takes the locale's write lock, then updates the lock-file baseline and feeds the
+ * translation memory, so a later {@link translate} run sees the key as up to date.
+ *
+ * @param input - The config, locale, and key to retranslate.
+ * @param deps - Optional adapter registry, provider factory, and file-system overrides.
+ * @returns Whether the new value was accepted, with review reasons or the rejection reason.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: the requested locale is not a configured target locale.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or the locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
+ * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider could not be constructed,
+ * most often because its API key environment variable is unset.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: the locale's write lock could not be acquired before
+ * the timeout elapsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws `ProviderError` `INVALID_RESPONSE`: the provider returned no value for the key. Provider
+ * transport and rate-limit failures propagate as `ProviderError` too, since a single-key call has
+ * no per-locale summary to record them on.
+ */
 export async function retranslateEntry(
   input: RetranslateEntryInput,
   deps: RetranslateEntryDeps = {},

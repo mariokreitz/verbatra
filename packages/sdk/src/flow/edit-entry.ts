@@ -14,30 +14,80 @@ import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.j
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
+/** Input for {@link editEntry}. */
 export interface EditEntryInput {
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /** The target locale to write to. Must be a configured target locale. */
   readonly locale: string;
+  /** The key to edit. Must exist in the source resource. */
   readonly key: string;
+  /** The new translation. It is accepted only if it passes the integrity gate. */
   readonly value: string;
 }
 
+/** Injectable dependencies for {@link editEntry}. Every field has a working default. */
 export interface EditEntryDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
+/**
+ * The outcome of {@link editEntry}. A rejection is data rather than an exception, because a value
+ * that fails the integrity gate is an expected editing outcome that a UI needs to explain, not a
+ * failure of the call.
+ */
 export type EditEntryResult =
   | {
+      /** The value passed the integrity gate and was written. */
       readonly accepted: true;
+      /** The value now stored for the key. */
       readonly value: string;
     }
   | {
+      /** The value was refused; nothing was written and the previous translation is intact. */
       readonly accepted: false;
+      /** Which integrity rule the value broke. */
       readonly reason: IntegrityGateReason;
+      /** The rejected value, echoed back so a UI can show what was refused. */
       readonly value: string;
     };
 
+/**
+ * Saves a manually edited translation for a single key. This is the write path behind a review UI:
+ * a human corrects one string and it is persisted without re-running the whole project.
+ *
+ * The edit is held to the same integrity gate as a provider translation, so a value that drops a
+ * placeholder, breaks ICU syntax, degenerates into an echo of the source, or blanks a non-empty
+ * string is refused. A refusal comes back as `accepted: false` rather than as a thrown error, and
+ * nothing is written.
+ *
+ * An accepted edit takes the locale's write lock for the whole read-modify-write, so it cannot
+ * interleave with a concurrent {@link translate} run on the same locale. It then updates the
+ * lock-file baseline and feeds the translation memory, which means a later run treats the key as
+ * up to date and reuses the edited text rather than paying the provider to translate it again.
+ *
+ * @param input - The config, locale, key, and new value.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns Whether the value was accepted, and on rejection the reason.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: the requested locale is not a configured target locale.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or the locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: the locale's write lock could not be acquired before
+ * the timeout elapsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ */
 export async function editEntry(
   input: EditEntryInput,
   deps: EditEntryDeps = {},

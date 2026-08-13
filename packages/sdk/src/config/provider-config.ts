@@ -13,6 +13,12 @@ import {
 } from "@verbatra/ai-providers";
 import { z } from "zod";
 
+/**
+ * The zod schema for the `provider` block, discriminated on `id`. Each variant's options are
+ * validated strictly, so an option that belongs to a different provider is reported as an error
+ * rather than ignored. It is embedded in {@link verbatraConfigSchema} and produces
+ * {@link ProviderConfig}.
+ */
 export const providerConfigSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("anthropic"), options: anthropicConfigSchema.strict() }),
   z.object({ id: z.literal("openai"), options: openAiConfigSchema.strict() }),
@@ -24,8 +30,22 @@ export const providerConfigSchema = z.discriminatedUnion("id", [
   }),
 ]);
 
+/**
+ * The `provider` block of a verbatra config: a discriminated union on `id`, so each provider
+ * carries exactly the options it supports and nothing else.
+ *
+ * No variant has a field for an API key. Keys are read from the environment by the provider itself
+ * (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`), which is what keeps
+ * them out of config files and out of version control. The `openai-compatible` variant may name a
+ * different environment variable through `apiKeyEnvVar`, but still never holds the key itself.
+ */
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
+/**
+ * The identifier of a supported translation provider: `anthropic`, `openai`, `gemini`, `deepl`, or
+ * `openai-compatible`. The last one targets a local or self-hosted server that speaks the OpenAI
+ * chat-completions API.
+ */
 export type ProviderId = ProviderConfig["id"];
 
 type ProviderFactories = {

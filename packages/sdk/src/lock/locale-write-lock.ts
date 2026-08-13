@@ -6,17 +6,36 @@ const LOCAL_DIR_NAME = ".verbatra-local";
 
 const LOCK_FILE_GUARD_STEM = "_lockfile";
 
+/**
+ * Whatever could be read about the process currently holding a write lock. Both fields are optional
+ * because a lock file left behind by a killed process may be truncated or unreadable, and reporting
+ * a partial holder is more useful than reporting none.
+ */
 export interface LockHolder {
+  /** The process ID recorded when the lock was taken. */
   readonly pid?: number;
+  /** When the lock was taken, as an ISO 8601 timestamp. */
   readonly acquiredAt?: string;
 }
 
+/**
+ * Reported while a run waits for another process to release a locale's write lock. It exists so a
+ * CLI or UI can explain a stall rather than appearing to hang, and can name the lock file a user
+ * may need to delete after a crash.
+ */
 export interface LockWaitEvent {
+  /** Absolute path of the lock file being waited on. */
   readonly lockPath: string;
+  /** How long this acquisition has been waiting, in milliseconds. */
   readonly elapsedMs: number;
+  /** What is known about the holding process, when anything could be read. */
   readonly holder?: LockHolder;
 }
 
+/**
+ * Called on each poll while waiting for a locale's write lock. Passed as `onLockWait` to
+ * {@link translate} and {@link watch}.
+ */
 export type LockWaitListener = (event: LockWaitEvent) => void;
 
 export interface LocaleWriteLockOptions {
