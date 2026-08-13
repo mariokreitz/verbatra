@@ -62,6 +62,18 @@ describe("lock-file", () => {
     });
   });
 
+  it.each([JSON.stringify("nope"), "null", JSON.stringify(["h1"])])(
+    "a locale whose entries are %s is LOCK_FILE_INVALID, not silently accepted",
+    async (entries) => {
+      const dir = await makeTempDir();
+      const path = join(dir, "verbatra.lock.json");
+      await writeFile(path, `{"version":1,"locales":{"de":${entries}}}`, "utf8");
+      await expect(readLockFile(path, defaultFs)).rejects.toMatchObject({
+        code: "LOCK_FILE_INVALID",
+      });
+    },
+  );
+
   it("accepts a lock-file at the current version (regression guard)", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
