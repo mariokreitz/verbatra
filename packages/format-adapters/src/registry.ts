@@ -48,7 +48,8 @@ export interface ResolveOptions {
 
 /**
  * Holds the registered adapters and resolves one for a file. Open for extension: adapters attach
- * through {@link register} without changing resolution logic, and resolution never throws.
+ * through {@link AdapterRegistry.register} without changing resolution logic, and resolution never
+ * throws.
  */
 export class AdapterRegistry {
   private readonly adapters: FormatAdapter[] = [];

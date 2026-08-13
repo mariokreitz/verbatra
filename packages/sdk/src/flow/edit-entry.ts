@@ -62,14 +62,20 @@ export type EditEntryResult =
  * a human corrects one string and it is persisted without re-running the whole project.
  *
  * The edit is held to the same integrity gate as a provider translation, so a value that drops a
- * placeholder, breaks ICU syntax, degenerates into an echo of the source, or blanks a non-empty
- * string is refused. A refusal comes back as `accepted: false` rather than as a thrown error, and
- * nothing is written.
+ * placeholder, breaks ICU syntax, runs away into a hugely oversized or repetition-dominated value,
+ * or blanks a non-empty string is refused. A refusal comes back as `accepted: false` rather than as
+ * a thrown error, and nothing is written.
  *
- * An accepted edit takes the locale's write lock for the whole read-modify-write, so it cannot
- * interleave with a concurrent {@link translate} run on the same locale. It then updates the
- * lock-file baseline and feeds the translation memory, which means a later run treats the key as
- * up to date and reuses the edited text rather than paying the provider to translate it again.
+ * The locale's write lock is taken for the whole read-modify-write, so an edit cannot interleave
+ * with a concurrent {@link translate} run on the same locale. The gate runs inside that lock, so a
+ * refused edit takes and releases the lock as well and can therefore fail with `LOCK_CONTENDED`
+ * even though it would have written nothing. An accepted edit then updates the lock-file baseline
+ * and feeds the translation memory, which means a later run treats the key as up to date and
+ * reuses the edited text rather than paying the provider to translate it again.
+ *
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
  *
  * @param input - The config, locale, key, and new value.
  * @param deps - Optional adapter registry and file-system overrides.

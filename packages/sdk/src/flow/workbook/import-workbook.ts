@@ -43,8 +43,10 @@ export interface ImportWorkbookInput {
   /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
   /**
-   * Path to the filled handoff. For a delimited import this is the shared base path the per-locale
-   * files were written from, not one individual file.
+   * Path to the filled handoff. For a delimited import the path is tried as a single file first,
+   * so one individual `<locale>.<format>` file can be imported on its own, with the locale taken
+   * from its file name. If no file exists there, the path is treated as the directory the
+   * per-locale files were written into and every configured target locale found inside is read.
    */
   readonly workbook: string;
   /** Directory the `files.pattern` and `workbook` are resolved against. Defaults to the process working directory. */
@@ -381,26 +383,25 @@ async function runSheet(
  * baseline, an unreadable row is reported as a {@link MalformedRowReport}, and a repeated key is
  * reported as a {@link DuplicateKeyReport} with the first occurrence winning. All three surface on
  * the returned {@link RunSummary} rather than aborting the import. A sheet or file naming a locale
- * that is not configured is the one structural mistake that does throw, because silently importing
- * it would write to an unmanaged path.
+ * that is not configured is contained the same way: that locale fails with `CONFIG_INVALID` on its
+ * own {@link LocaleSummary}, so nothing is written to an unmanaged path and the configured locales
+ * still import. Once the handoff has been read, every per-locale failure is isolated this way, so
+ * callers should inspect {@link RunSummary.failed} rather than relying on a thrown error.
  *
  * @param input - The config and the handoff path, format, and dry-run flag.
  * @param deps - Optional adapter registry and file-system overrides.
  * @returns The per-locale account of what was applied.
  *
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
- * @throws {@link SdkError} `SOURCE_UNREADABLE`: the handoff file was not found.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the handoff file was not found, or the source
+ * locale file does not exist.
  * @throws {@link SdkError} `SOURCE_INVALID`: the handoff is oversized or could not be parsed, or
- * the source locale file could not be read.
- * @throws {@link SdkError} `CONFIG_INVALID`: the handoff contains a sheet or file whose locale is
- * not a configured target locale, which usually means a tab was renamed or a file added.
+ * the source locale file could not be parsed.
  * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
  * cannot be combined, or a configured locale has no valid path spelling under that style.
  * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
- * unsupported version.
- * @throws {@link SdkError} `LOCK_CONTENDED`: a locale's write lock could not be acquired before the
- * timeout elapsed.
+ * unsupported version. Read once before any locale is applied.
  */
 export async function importWorkbook(
   input: ImportWorkbookInput,

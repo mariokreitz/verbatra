@@ -12,8 +12,11 @@ import type { FormatAdapter } from "@verbatra/format-adapters";
  * - `placeholder`: the candidate does not carry the same placeholders as the source, so
  *   interpolation would break at runtime.
  * - `icu`: the candidate is not a valid ICU message under the configured format's adapter.
- * - `degenerate`: the candidate is a degenerate rendering of the source, such as an untranslated
- *   echo or a truncated fragment.
+ * - `degenerate`: the candidate collapsed into runaway output rather than a translation. Two shapes
+ *   are detected: the candidate is at least twelve times the length of a source of meaningful
+ *   length, or a short unit repeats consecutively enough to dominate the value. An untranslated
+ *   echo of the source is not degenerate by this rule; it surfaces as the `EQUALS_SOURCE` review
+ *   reason instead, which flags rather than refuses.
  * - `empty`: the source has text but the candidate is blank, which would silently erase a string.
  */
 export type IntegrityGateReason = "placeholder" | "icu" | "degenerate" | "empty";

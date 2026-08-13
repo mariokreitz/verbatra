@@ -397,8 +397,15 @@ export function resolveRunConcurrency(
  * source file or a provider that cannot be constructed, throw an {@link SdkError} before any locale
  * runs. Once locales are running, a per-locale failure is recorded on that locale's
  * {@link LocaleSummary} and the other locales continue, so one unreachable provider or one
- * unwritable file never discards work that succeeded. Callers should therefore inspect
- * {@link RunSummary.failed} rather than relying on a thrown error to detect trouble.
+ * unwritable file never discards work that succeeded. A locale whose write lock stays contended is
+ * one of these per-locale failures: it is recorded with code `LOCK_CONTENDED` on that locale's
+ * summary rather than thrown. Callers should therefore inspect {@link RunSummary.failed} rather
+ * than relying on a thrown error to detect trouble.
+ *
+ * A corrupt lock-file is the one exception. On a live run each locale reads the lock-file inside
+ * its own write lock, so `LOCK_FILE_INVALID` escapes as a thrown error even after earlier locales
+ * have already translated and written. No further locale is started, and the locales in flight
+ * finish and release their write locks before the call rejects.
  *
  * Each locale takes its own write lock for the read-modify-write, so concurrent runs and
  * single-key edits cannot interleave on one file. Translations that fail the integrity gate are
@@ -423,9 +430,8 @@ export function resolveRunConcurrency(
  * most often because its API key environment variable is unset. Not thrown on a dry run, which
  * never constructs a provider.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
- * unsupported version.
- * @throws {@link SdkError} `LOCK_CONTENDED`: a locale's write lock could not be acquired before
- * `lockAcquireTimeoutMs` elapsed.
+ * unsupported version. A dry run reads it once before any locale runs; a live run reads it per
+ * locale, so this can abort the run after other locales have already been written.
  *
  * @example
  * ```ts

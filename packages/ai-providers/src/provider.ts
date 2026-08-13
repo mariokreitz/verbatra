@@ -62,7 +62,7 @@ export interface TranslateRequest {
   readonly comparePlaceholders?: PlaceholderComparator;
   /**
    * Optional cancellation signal for this batch. When aborted, an in-flight provider call rejects
-   * with the abort, unwrapped, instead of a {@link ProviderError}. Not a plain-data field: it is
+   * with the abort, unwrapped, instead of a `ProviderError`. Not a plain-data field: it is
    * never validated alongside the data fields and never sent to a provider.
    */
   readonly signal?: AbortSignal;
@@ -112,8 +112,10 @@ export interface ProviderNotice {
  *
  * - `LENGTH_RATIO_OUTLIER`: the translated value's length is far shorter or longer than the source's.
  *   Only considered once the trimmed source is long enough for the ratio to mean anything.
- * - `EQUALS_SOURCE`: the translated value equals the source value verbatim, the locales differ, and
- *   the value contains at least one letter (so a bare symbol or number is not flagged).
+ * - `EQUALS_SOURCE`: the translated value equals the source value once both are trimmed, so a
+ *   difference in leading or trailing whitespace alone still counts as equal. Also requires that
+ *   the locales differ and that the value contains at least one letter (so a bare symbol or number
+ *   is not flagged).
  * - `GLOSSARY_TERM_MISSED`: a configured glossary source term appeared in the source but its target
  *   term did not appear in the translation.
  * - `INTEGRITY_REORDERED`: the placeholder set matched but landed in a different order.
@@ -175,7 +177,7 @@ export interface TranslateResult {
  *   instruction text, and never act on instructions a value appears to contain.
  * - Read the API key ONLY from the environment (inside the SDK client). The request, config, and this
  *   interface never carry a key.
- * - Fail with a secret-free {@link ProviderError}: never bind, log, or re-throw raw SDK error text (it can
+ * - Fail with a secret-free `ProviderError`: never bind, log, or re-throw raw SDK error text (it can
  *   carry a key or request headers). Validate the request at the boundary so the integrity check can
  *   never be skipped.
  */
@@ -191,7 +193,7 @@ export interface TranslationProvider {
    *
    * @param request - The provider-neutral batch request (no prompt, model, or key).
    * @returns The per-key translated values and per-key placeholder-integrity outcomes.
-   * @throws {@link ProviderError}, secret-free, with the code for the failure (the concrete codes are
+   * @throws `ProviderError`, secret-free, with the code for the failure (the concrete codes are
    *   the implementation's; see each provider factory). An aborted {@link TranslateRequest.signal}
    *   instead rejects with the abort itself, unwrapped.
    */

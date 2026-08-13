@@ -103,6 +103,10 @@ export interface WatchController {
  * development-loop counterpart to a one-shot run: edit a string, and the target locales catch up
  * without a manual command.
  *
+ * One run starts immediately once watching is established, without waiting for a change, so the
+ * target locales are brought up to date the moment the session opens. Its outcome arrives through
+ * `onRun` like any other, and it may still be in flight when the returned promise resolves.
+ *
  * The returned promise resolves as soon as watching is established, not when translation finishes,
  * so every run outcome arrives through `onRun`. A run that throws is delivered as a failed
  * {@link WatchRunResult} rather than escaping the session, because a watcher that died on the first

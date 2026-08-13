@@ -27,8 +27,9 @@ import { writeExportManifest } from "./export-manifest.js";
 export const DEFAULT_WORKBOOK_PATH = "verbatra-translations.xlsx";
 
 /**
- * Default output base for a delimited handoff. It carries no extension because the export writes
- * one file per locale, named from this base, the locale, and the chosen format.
+ * Default output directory for a delimited handoff. It carries no extension because it names a
+ * directory, not a file: the export creates it and writes one `<locale>.<format>` file inside it
+ * per exported locale, such as `de.csv`.
  */
 export const DEFAULT_DELIMITED_PATH = "verbatra-translations";
 
@@ -194,6 +195,10 @@ async function writeDelimitedFiles(
  * This is the outbound half of the exchange; {@link importWorkbook} reads the filled handoff back
  * through the same diff, lock, and integrity checks. It writes only the handoff file and never
  * touches the locale files or the lock-file.
+ *
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
  *
  * @param input - The config, output path, locale filter, and handoff format.
  * @param deps - Optional adapter registry and file-system overrides.

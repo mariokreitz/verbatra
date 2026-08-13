@@ -10,8 +10,9 @@
  *   exist. Thrown by {@link loadConfig} and {@link loadConfigWithMeta}.
  * - `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or its glossary
  *   file could not be resolved or parsed. Thrown by {@link loadConfig} and
- *   {@link loadConfigWithMeta}, and also by {@link importWorkbook} when a handoff sheet or file
- *   names a locale that is not a configured target locale.
+ *   {@link loadConfigWithMeta}. {@link importWorkbook} does not throw it: when a handoff sheet or
+ *   file names a locale that is not a configured target locale, it records this code on that
+ *   locale's {@link LocaleSummary} instead.
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
  *   point that selects an adapter, before any file is read.
  * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales. Thrown through
@@ -24,8 +25,8 @@
  *   including a missing `*_API_KEY` environment variable. Thrown by a non-dry-run
  *   {@link translate} and by {@link retranslateEntry}.
  * - `SOURCE_UNREADABLE`: the source locale file is absent. Thrown by every entry point that reads
- *   the source, by {@link watch} at startup, and by {@link importWorkbook} when the handoff file
- *   itself is missing.
+ *   the source, including {@link importWorkbook}, and by {@link watch} at startup.
+ *   {@link importWorkbook} additionally throws it when the handoff file itself is missing.
  * - `SOURCE_INVALID`: the source locale file, or an interchange file, could not be parsed. Wraps
  *   the adapter or reader error.
  * - `LOCK_FILE_INVALID`: the lock-file exists but is corrupt, oversized, or at an unsupported
@@ -35,8 +36,9 @@
  *   {@link retranslateEntry}.
  * - `LOCK_CONTENDED`: a locale's write lock could not be acquired before its timeout elapsed,
  *   because another process holds it or a killed process left the lock file behind. The message
- *   names the lock file's path. Thrown by {@link translate}, {@link importWorkbook},
- *   {@link editEntry}, and {@link retranslateEntry}.
+ *   names the lock file's path. Thrown by {@link editEntry} and {@link retranslateEntry}, which
+ *   act on one locale. {@link translate} and {@link importWorkbook} do not throw it: they record it
+ *   on the contended locale's {@link LocaleSummary} and carry on with the other locales.
  * - `LOCALE_LAYOUT_INVALID`: the configured `files.pattern` and `files.localeStyle` cannot be
  *   combined, or the style has no valid path spelling for a configured locale. Thrown by
  *   {@link createLocalePathResolver}, and so by every entry point that maps a locale to a path,
@@ -45,7 +47,8 @@
  *   make the path-to-locale direction ambiguous and let two locale workers race on one file. Thrown
  *   at the same point as `LOCALE_LAYOUT_INVALID`.
  * - `CONCURRENCY_INVALID`: the `concurrency` input is not an integer of at least 1. Thrown by
- *   {@link translate}, and per run by {@link watch}, before any locale runs.
+ *   {@link translate} before any locale runs, and by {@link watch} once at startup, before any
+ *   watching begins, since the value is fixed for the session rather than re-read per run.
  * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested a `concurrency` above 1 while a token
  *   budget is configured. The two are mutually exclusive because concurrency makes the budget's
  *   stop guarantee nondeterministic. A dry run is exempt, since it never consults the budget.

@@ -163,8 +163,13 @@ export interface LocaleSummary {
   /** Repeated keys from an imported handoff. Always empty for a {@link translate} run. */
   readonly duplicateKeys: readonly DuplicateKeyReport[];
   /**
-   * Why this locale failed, present only when `status` is `failed`. The `code` is the failure's own
-   * code where it has one, and `LOCALE_FAILED` otherwise. Never carries a secret.
+   * Why this locale failed, when the failure came from a thrown error. The `code` is the failure's
+   * own code where it has one, and `LOCALE_FAILED` otherwise. Never carries a secret.
+   *
+   * Absent unless `status` is `failed`, but a `failed` locale does not always carry it: a locale
+   * whose every key was withheld by the integrity gate, a provider failure, or the token budget is
+   * `failed` with nothing thrown, so this stays undefined and the withheld keys are the account of
+   * what went wrong. Treat it as an optional detail on a failure, never as the failure test.
    */
   readonly error?: {
     /** The failure's own code where it had one, and `LOCALE_FAILED` otherwise. */

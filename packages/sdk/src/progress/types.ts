@@ -24,15 +24,21 @@ export interface LocaleStartedEvent {
 }
 
 /**
- * Emitted as each sub-batch of a locale is sent to the provider. Large locales are split into
- * batches, so this is the finer-grained signal to drive a progress bar with.
+ * Emitted as each sub-batch of a locale is reached, immediately before the provider call for it is
+ * attempted. Large locales are split into batches, so this is the finer-grained signal to drive a
+ * progress bar with.
+ *
+ * It announces an attempt rather than confirming a send: a batch withheld because the token budget
+ * has already stopped the run still emits, and no provider call follows it. That is deliberate, so
+ * that `batchIndex` always advances to `totalBatches` and a progress bar reaches its end instead of
+ * stalling at the point the budget tripped.
  */
 export interface SubBatchProgressEvent {
   /** Discriminant for {@link ProgressEvent}. */
   readonly type: "sub-batch";
   /** The locale this batch belongs to. */
   readonly locale: string;
-  /** This batch's 0-based position within the locale. */
+  /** This batch's 1-based position within the locale, counting up to `totalBatches`. */
   readonly batchIndex: number;
   /** How many batches the locale was split into. */
   readonly totalBatches: number;

@@ -44,15 +44,21 @@ export type BoundedBytesRead =
     };
 
 /**
- * The file-system port every SDK entry point uses. Supplying your own implementation through a
- * `deps.fs` option makes a run fully in-memory, which is how the SDK's own tests avoid touching
- * disk and how an embedding application (such as a hosted editor) can back a project with something
- * other than a local disk.
+ * The file-system port the SDK's own I/O goes through. Supplying your own implementation as a
+ * `deps.fs` option redirects that I/O, which is how the SDK's tests avoid touching disk and how an
+ * embedding application can back part of a project with something other than a local disk.
  *
- * Reads are size-bounded by contract so that a hostile or accidentally huge locale file cannot
- * exhaust memory. Writes are expected to be atomic: the default implementation writes to a
- * temporary file and renames it into place, so a crash mid-write never leaves a half-written locale
- * file behind.
+ * Know what the seam does and does not cover before relying on it. It carries the run-status file,
+ * the lock-file, the config glossary, and workbook and interchange I/O. It does not carry the
+ * locale files: those are read and written by `@verbatra/format-adapters`, which uses `node:fs`
+ * directly and is given a path rather than this port. Supplying a `deps.fs` therefore does not make
+ * a run fully in-memory, and a project's translations are still read from and written to real disk.
+ *
+ * Reads are size-bounded by contract so that a hostile or accidentally huge file cannot exhaust
+ * memory. Writes are expected to be atomic: the default implementation writes to a temporary file
+ * and renames it into place, so a crash mid-write never leaves a half-written file behind.
+ * Directory creation is the caller's job, so an implementation whose `writeFile` targets a real
+ * directory tree must also implement `mkdir`.
  */
 export interface SdkFs {
   /** Reports whether a readable file exists at the path. */

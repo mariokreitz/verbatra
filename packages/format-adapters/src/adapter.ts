@@ -25,11 +25,11 @@ export interface ReadResult {
  * The contract every format adapter implements. A new format attaches by implementing this interface
  * and registering it in an {@link AdapterRegistry}.
  *
- * Implement it through a shared factory rather than from scratch: {@link createTreeFileAdapter} for a
- * nested-tree format (with {@link createJsonFileAdapter} as the JSON specialization) and
- * {@link createFlatFileAdapter} for a flat key/value format. A format that fits neither shape
- * implements this interface directly, and either way it first needs its member added to core's
- * {@link SupportedFormat}.
+ * Implement it through one of `@verbatra/format-adapters`' shared factories rather than from
+ * scratch: `createTreeFileAdapter` for a nested-tree format (with `createJsonFileAdapter` as its
+ * JSON specialization) and `createFlatFileAdapter` for a flat key/value format. A format that fits
+ * neither shape implements this interface directly, and either way it first needs its member added
+ * to core's {@link SupportedFormat}.
  */
 export interface FormatAdapter {
   /** The single format this adapter handles (a {@link SupportedFormat} from core). */
@@ -52,7 +52,7 @@ export interface FormatAdapter {
    * @param filePath - The file to read.
    * @param locale - The locale to tag the resource with.
    * @returns The parsed resource and the keys whose values are invalid for the format.
-   * @throws {@link AdapterError} when the content is malformed, oversized, or structurally invalid
+   * @throws `AdapterError` when the content is malformed, oversized, or structurally invalid
    *   (the implementation names the specific codes). A missing or unopenable path instead rejects with
    *   the underlying filesystem error.
    */
@@ -63,7 +63,7 @@ export interface FormatAdapter {
    *
    * @param resource - The resource to serialize.
    * @param filePath - The destination file.
-   * @throws {@link AdapterError} if the resource cannot be represented in the format; rejects with the
+   * @throws `AdapterError` if the resource cannot be represented in the format; rejects with the
    *   underlying filesystem error on a write failure.
    */
   write(resource: LocaleResource, filePath: string): Promise<void>;
