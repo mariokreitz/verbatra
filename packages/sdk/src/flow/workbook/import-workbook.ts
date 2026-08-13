@@ -17,6 +17,7 @@ import type { VerbatraConfig } from "../../config/schema.js";
 import { errorMessage, SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
 import { createLocalePathResolver, type LocalePathResolver } from "../../locale-path/resolver.js";
+import { carrySourcelessLockEntry } from "../../lock/carry-forward.js";
 import { withLocaleWriteLock } from "../../lock/locale-write-lock.js";
 import {
   baselineFor,
@@ -226,6 +227,7 @@ function computeSheetLockEntries(
   for (const key of merged.keys()) {
     const sourceEntry = source.entries.get(key);
     if (sourceEntry === undefined) {
+      carrySourcelessLockEntry(entries, baseline, key);
       continue;
     }
     if (accepted.has(key)) {

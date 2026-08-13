@@ -447,6 +447,47 @@ describe("runLocale: plural generation", () => {
     expect(second.lockEntries.items_many).toBe(first.lockEntries.items_many);
   });
 
+  it("carries the prior baseline lock hash for a generated plural key when generation is off", async () => {
+    const { dir, sourceResource } = await setup({
+      items_one: "{{count}} item",
+      items_other: "{{count}} items",
+    });
+    await writeJsonFile(targetPath(dir, "pl"), {
+      items_one: "{{count}} przedmiot",
+      items_other: "{{count}} przedmiotow",
+      items_few: "{{count}} przedmioty",
+      items_many: "{{count}} przedmiotow",
+    });
+    const stub = makeStubProvider();
+    const baseline = new Map([
+      ["items_few", "generated-few-hash"],
+      ["items_many", "generated-many-hash"],
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, targetLocale: "pl", generatePlurals: false, baseline },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(lockEntries.items_few).toBe("generated-few-hash");
+    expect(lockEntries.items_many).toBe("generated-many-hash");
+  });
+
+  it("drops the baseline hash of a source-less key the user deleted from the target file", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" }, { a: "da" });
+    const stub = makeStubProvider();
+    const baseline = new Map([["deleted_few", "generated-few-hash"]]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, baseline },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(lockEntries.deleted_few).toBeUndefined();
+  });
+
   it("re-emits the incomplete warning when generation cannot complete the plural set", async () => {
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",

@@ -17,6 +17,7 @@ import { lookupMemory } from "../cache/translation-memory.js";
 import type { CacheAddition, TranslationMemory } from "../cache/types.js";
 import type { SdkFs } from "../fs.js";
 import type { LocalePathResolver } from "../locale-path/resolver.js";
+import { carrySourcelessLockEntry } from "../lock/carry-forward.js";
 import type { ProgressListener } from "../progress/types.js";
 import { chunk, subBatchFailedNotice } from "./batching.js";
 import {
@@ -651,13 +652,10 @@ function computeLockEntries(
   generated: readonly GeneratedForm[],
 ): Record<string, string> {
   const lockEntries: Record<string, string> = {};
-  const sourceBaseKeys = sourcePluralBaseKeys(params.source);
   for (const key of merged.keys()) {
     const sourceEntry = params.source.entries.get(key);
     if (sourceEntry === undefined) {
-      if (params.generatePlurals) {
-        carryGeneratedLock(lockEntries, params.baseline, key, sourceBaseKeys);
-      }
+      carrySourcelessLockEntry(lockEntries, params.baseline, key);
       continue;
     }
     if (withheld.has(key)) {
@@ -673,19 +671,4 @@ function computeLockEntries(
     lockEntries[form.targetKey] = form.lockHash;
   }
   return lockEntries;
-}
-
-function carryGeneratedLock(
-  lockEntries: Record<string, string>,
-  baseline: ReadonlyMap<string, string>,
-  key: string,
-  sourceBaseKeys: ReadonlySet<string>,
-): void {
-  if (!isGeneratedPluralKey(key, sourceBaseKeys)) {
-    return;
-  }
-  const prior = baseline.get(key);
-  if (prior !== undefined) {
-    lockEntries[key] = prior;
-  }
 }
