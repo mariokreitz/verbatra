@@ -1,5 +1,162 @@
 # @verbatra/sdk
 
+## 0.8.0
+
+### Minor Changes
+
+- d060201: Export `EXCHANGE_FORMATS` and `DEFAULT_EXCHANGE_FORMAT` from the SDK.
+
+  `EXCHANGE_FORMATS` lists every translator-handoff format at runtime (`xlsx`, `csv`, `tsv`) and
+  `DEFAULT_EXCHANGE_FORMAT` names the one `exportWorkbook` and `importWorkbook` use when the caller
+  passes none. Until now the SDK published only the `ExchangeFormat` type, so anything validating a
+  `--format` argument had to restate the members, and a plain `readonly ExchangeFormat[]` accepts a
+  subset without complaint: a format added to the SDK would have been rejected by such a check with no
+  compile error to catch it. The new export is built from a record keyed by the format type itself, so
+  a member missing from the list is a compile error.
+
+  The CLI now takes both the accepted values and the default from these exports, which also removes
+  the duplicated format list from the `export` and `import` help text. That text now reads
+  `handoff format: one of xlsx, csv, tsv (default xlsx)`.
+
+- ec4c000: Stop `verbatra init` from being able to write a config it just called valid.
+
+  The command encoded which token-limit option each provider takes in two independent places:
+  Anthropic calls it `maxTokens`, OpenAI and Gemini call it `maxOutputTokens`. One copy built the
+  object checked against the config schema; the other produced the `verbatra.config.ts` text that was
+  actually written to disk, and that copy was never validated. Any drift between them, an option
+  renamed or a provider added, would have produced an `init` that reported success and left behind a
+  config that failed to load on the very next command.
+
+  `scaffoldingMetadata` now carries `providerTokenLimitKeys`, so the key is stated once, in the SDK,
+  tied by a type constraint to the option each provider's own schema accepts. The CLI renders the
+  provider block by serializing the exact options object the schema validated, rather than
+  re-describing it, so the written text and the checked value cannot disagree.
+
+  No change to the configs `init` produces for the providers shipped today.
+
+### Patch Changes
+
+- 8a274b0: Neutralize spreadsheet formula injection in the csv and tsv handoff. A value beginning with `=`,
+  `+`, `-`, `@`, a tab, or a carriage return is executed as a formula when the file is opened in Excel
+  or Google Sheets, and the exported `Current translation` and `Context` columns carry earlier
+  provider output, which verbatra treats as untrusted. Tab and carriage return belong in that set
+  because some spreadsheet importers strip them before parsing, so a value that leads with one still
+  reaches the formula parser. The delimited writer now prefixes such a value with an apostrophe, the
+  marker spreadsheets read as "this cell is text". Quoting alone is not a defense: spreadsheets
+  evaluate a quoted formula too. The xlsx handoff was never affected, since it writes typed string
+  cells.
+
+  The escape is always reversed on import, so the guard itself never alters a value. The `Translation`
+  column's long-standing trim on import is unrelated and unchanged: it still strips surrounding
+  whitespace in that column, including a leading tab or carriage return, and that trim, not the guard,
+  is what removes it. The two halves
+  are exact inverses: the writer also escapes a value that already begins with apostrophes followed
+  by a formula lead, so `'=1+1` is written as `''=1+1` and read back as `'=1+1`. A value whose
+  apostrophe does not lead a formula, such as `'tis`, is left alone in both directions. A leading
+  space is not part of the guard and is never escaped.
+
+  Consumer impact: exported csv and tsv files gain a leading apostrophe on affected values, which is
+  visible in a text editor and invisible in a spreadsheet. A translation value beginning with a tab or
+  a carriage return now exports with a leading apostrophe as well. One legacy edge exists. A csv or
+  tsv exported by an earlier version, holding a value that genuinely starts with an apostrophe
+  followed by a formula lead (`'=...`, and now also an apostrophe followed by a tab or a carriage
+  return), loses that apostrophe when imported by this version, because the older export did not
+  escape it. Re-export the handoff before filling it in to avoid that. Values without a leading
+  formula character are unchanged in every direction.
+
+- b0dd696: Internal refactor pass over shared helpers and comments. No behavior, output, or public API
+  changes: every type signature and the CLI surface are unchanged. Documentation comments on the
+  workspace types that bundle into the published declarations were rewritten in this pass; the
+  accompanying documentation entry describes the result.
+- 3e725cc: Fix `translate` and `importWorkbook` deleting the lock-file baseline of a target key that has no
+  source entry. Both paths write the locale's lock entries in replace mode and rebuilt them only from
+  keys the source still has, so a key that lives in the target alone lost its recorded hash on every
+  run. Generated CLDR plural forms are exactly that shape: `items_few` and `items_many` exist in a
+  Polish target while the English source only has `items_one` and `items_other`. `translate` used to
+  protect them, but only while `generatePlurals` was on; an import, or a run with the flag off, wiped
+  them. Once the hash was gone the form counted as adopted rather than generated, so it was never
+  reconsidered again even after its governing source string changed.
+
+  Both paths now carry a source-less key's prior hash forward. The rule is keyed on the merged target
+  content, so a key genuinely deleted from the target file still loses its entry, and a key that never
+  had a hash (an existing plural form verbatra adopted rather than generated) still gets none.
+
+  Consumer impact: lock files will keep entries that earlier versions dropped, so the next
+  `translate` or `import` after upgrading can produce a larger `verbatra.lock.json` diff than usual.
+  That diff is the repair. Hashes that earlier versions already deleted are not
+  reconstructed: for a generated plural form whose baseline was lost, the form is now treated as
+  hand-written and adopted, and re-running with `generatePlurals` on will not regenerate it. Delete
+  that form from the target file to have it generated again.
+
+- 74ac95f: Fix a top-level translation key named `__proto__` never getting a lock-file baseline. The lock
+  entries for a locale were accumulated on a plain object with `entries[key] = hash`, which for that
+  one key name hits the `Object.prototype` setter and is discarded rather than stored, and the
+  lock-file reader then dropped the key a second time because zod's record parser skips it. The key
+  was translated on the first run and, with no baseline to compare against, reported as unchanged
+  from then on, so a later edit to its source text was never picked up. Both the `translate` and the
+  workbook import path now build their lock entries through a `Map`, and the lock-file reader keeps
+  the key as an own property. Nothing is written to `Object.prototype` on either path.
+
+  Consumer impact: a project with a top-level `__proto__` key gets a lock entry for it on the next
+  run, and from then on an edit to that key's source text is reported as changed and retranslated,
+  which it should always have been. Nested keys such as `a.__proto__` were never affected.
+
+- 23a6b1b: Fix the `ngx-translate-json` adapter corrupting a key that contains a backslash. Reading a nested
+  file built the dotted path from the raw object keys, while writing decoded that path with
+  backslashes treated as escape characters. The two halves disagreed, so `{"a":{"b\\c":"hello"}}` was
+  written back as `{"a":{"bc":"hello"}}`: the value moved to a key the app never asks for, the real
+  key looked untranslated on every later run and was paid for again, and the mangled key piled up as
+  an orphan. Backslashes in a key segment are now escaped when the path is built, symmetrically with
+  the decoding the write path already did, and the flat-file writer decodes the path back so a flat
+  file still round-trips byte for byte. Only `ngx-translate-json` uses path-notation keys; the
+  i18next, next-intl, and vue-i18n adapters were never affected.
+
+  Consumer impact, for an ngx-translate project that has a backslash in a key: that key's spelling
+  changes, from `a.b\c` to `a.b\\c`, everywhere verbatra names it (the lock-file, an exported
+  workbook, CLI output). The old lock entry no longer matches and is dropped on the next write. What
+  happens next depends on the file the key lives in. If the target file still holds the value under
+  the right key (flat files always did, since they were written verbatim), the key is adopted as up
+  to date: no provider call, no cost, and a fresh baseline is recorded. If the target was already
+  corrupted by an earlier version, the correct key is genuinely missing and is translated once, and
+  the mangled key is reported as orphaned; remove it, or run with `--prune`. Keys without a backslash
+  are unaffected.
+
+- 3178757: Fix run status writing to go through the injected `SdkFs` instead of calling `node:fs/promises`
+  `mkdir` directly. Before this fix, a run that recorded run status created the `.verbatra-local`
+  directory on the real file system even when a custom `deps.fs` was supplied; that directory
+  creation now goes through the seam. The `SdkFs` interface is unchanged: the existing optional
+  `mkdir` member already carried this capability, so the published declarations are identical.
+
+  A custom `deps.fs` whose `writeFile` targets a real directory tree must now implement the optional
+  `mkdir` member for the run status file to be written, since the SDK no longer creates that directory
+  behind the seam. Run status writing is best-effort, so a fs without it degrades to no run status
+  file rather than failing the run.
+
+- 6b37fe9: Correct factual errors in the published API documentation. No behavior or type-signature change;
+  the corrections ship in the generated declarations, so consumers reading the documented contract
+  get a different answer than before.
+
+  The substantive corrections: `translate` and `importWorkbook` no longer document a thrown
+  `LOCK_CONTENDED`, and `importWorkbook` no longer documents a thrown `CONFIG_INVALID`, because both
+  surface those codes on the affected locale's summary and let the other locales continue.
+  `translate`'s `LOCK_FILE_INVALID` is documented as aborting a live run after locales have started
+  rather than before any locale runs. The `degenerate` integrity-gate reason describes what is
+  actually detected (a large length blowup or runaway repetition) rather than an untranslated echo.
+  `SubBatchProgressEvent.batchIndex` is documented as 1-based, and the event as announcing an
+  attempt, since a batch withheld by an exhausted budget still emits. The `SdkFs` seam no longer
+  claims a custom implementation makes a run fully in-memory: locale files are read and written by
+  the format adapters outside the seam. Also corrected: `LocaleSummary.error` can be absent on a
+  failed locale, `DEFAULT_DELIMITED_PATH` names a directory, a delimited import accepts a single
+  file, `EQUALS_SOURCE` compares trimmed values, `watch` runs once immediately at startup, and the
+  read-only entry points document that a malformed target file surfaces the adapter's own parse
+  error unwrapped.
+
+- d7c7a44: Document the published SDK API. Every declaration that ships in the package's type declarations now
+  carries JSDoc: entry points describe their behavior and the error codes they throw, input, result,
+  and event shapes document each property, and the config, provider, and adapter types inlined from
+  the workspace packages are documented too. Editors show these on hover. No runtime behavior, output,
+  or type signature changes.
+
 ## 0.7.1
 
 ## 0.7.0
