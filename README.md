@@ -14,6 +14,7 @@
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
   <a href="https://www.npmjs.com/package/@verbatra/cli"><img src="https://img.shields.io/npm/dm/@verbatra/cli?label=downloads%2Fmonth" alt="Monthly npm downloads" /></a>
+  <a href="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mariokreitz/verbatra-action/ci.yml?branch=main&amp;label=Action%20CI" alt="verbatra-action CI" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
@@ -158,14 +159,10 @@ See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio
 
 ## GitHub Action
 
-<p align="center">
-  <a href="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml/badge.svg?branch=main" alt="verbatra-action CI" /></a>
-  <a href="https://github.com/mariokreitz/verbatra-action/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="verbatra-action license: MIT" /></a>
-</p>
-
 A composite GitHub Action runs `verbatra translate --json` in CI, turns each failed locale into an error annotation, writes a job summary table, and exits with the CLI's own exit code. It lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), and is consumed with `uses:` rather than installed from npm.
 
 ```yaml
+- uses: actions/checkout@<commit-sha>
 - uses: mariokreitz/verbatra-action@<commit-sha>
   with:
     version: 0.7.1 # pin @verbatra/cli to an exact version
