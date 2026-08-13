@@ -12,13 +12,15 @@ Führe stattdessen die [CLI direkt](/docs/ci-and-exit-codes) aus, wenn du irgend
 
 ## Verfügbarkeit
 
-Die Action lebt im verbatra-Repository und wird per Pfad referenziert, gepinnt auf einen Commit-SHA:
+Die Action lebt in einem eigenen Repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), getrennt vom verbatra-Monorepo. Referenziere sie per Repository, gepinnt auf einen Commit-SHA:
 
 ```text
-uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+uses: mariokreitz/verbatra-action@<commit-sha>
 ```
 
-Es gibt kein npm-Paket, keinen Marketplace-Eintrag und keinen versionierten Action-Tag. Die SHA-gepinnte Pfadreferenz ist der einzige unterstützte Weg, sie zu nutzen.
+`mariokreitz/verbatra-action@v1` ist die bequeme Variante: der `v1`-Tag wandert mit jedem v1-Release mit, Fixes erreichen dich also ohne Änderung am Workflow, dafür weißt du nicht genau, was läuft. Ein SHA-Pin ist die sicherheitsbewusste Wahl und wird in den Beispielen auf dieser Seite verwendet. Es gibt kein npm-Paket; die Action wird nur über `uses:` eingebunden.
+
+Früher wurde sie aus dem verbatra-Monorepo ausgeliefert und per Pfad referenziert. Diese ältere Form löst nicht mehr auf, richte bestehende Workflows also auf das Repository oben aus.
 
 ## Verwendung
 
@@ -36,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+      - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
           version: 0.6.4 # pin @verbatra/cli to an exact version
         env:

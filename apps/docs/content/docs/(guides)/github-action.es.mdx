@@ -12,13 +12,15 @@ Ejecuta la [CLI directamente](/docs/ci-and-exit-codes) cuando quieras cualquier 
 
 ## Disponibilidad
 
-La acción vive en el repositorio de verbatra y se referencia por ruta, fijada a un SHA de commit:
+La acción vive en su propio repositorio, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), separado del monorepo de verbatra. Referénciala por repositorio, fijada a un SHA de commit:
 
 ```text
-uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+uses: mariokreitz/verbatra-action@<commit-sha>
 ```
 
-No hay paquete npm, ni publicación en el Marketplace, ni etiqueta de acción con versión. La referencia por ruta fijada a un SHA es la única forma admitida de consumirla.
+`mariokreitz/verbatra-action@v1` es la forma cómoda: la etiqueta `v1` se mueve con cada versión v1, así que las correcciones te llegan sin tocar el flujo de trabajo, a cambio de no saber exactamente qué se ejecuta. Fijar un SHA es la opción consciente de la seguridad y es la que usan los ejemplos de esta página. No hay paquete npm; la acción solo se consume a través de `uses:`.
+
+Antes se publicaba desde el monorepo de verbatra y se referenciaba por ruta. Esa forma antigua ya no resuelve, así que apunta tus flujos de trabajo existentes al repositorio de arriba.
 
 ## Uso
 
@@ -36,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+      - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
           version: 0.6.4 # pin @verbatra/cli to an exact version
         env:

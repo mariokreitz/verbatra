@@ -12,13 +12,15 @@ Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything e
 
 ## Availability
 
-The action lives in the verbatra repository and is referenced by path, pinned to a commit SHA:
+The action lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), separate from the verbatra monorepo. Reference it by repository, pinned to a commit SHA:
 
 ```text
-uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+uses: mariokreitz/verbatra-action@<commit-sha>
 ```
 
-There is no npm package, no Marketplace listing, and no versioned action tag. The SHA-pinned path reference is the only supported way to consume it.
+`mariokreitz/verbatra-action@v1` is the convenience form: the `v1` tag moves with each v1 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
+
+It used to ship from inside the verbatra monorepo and was referenced by path. That older form no longer resolves, so point existing workflows at the repository above.
 
 ## Usage
 
@@ -36,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+      - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
           version: 0.6.4 # pin @verbatra/cli to an exact version
         env:
