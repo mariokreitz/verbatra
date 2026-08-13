@@ -1,5 +1,27 @@
 # @verbatra/studio
 
+## 0.3.2
+
+### Patch Changes
+
+- a1f9b40: Document the published Studio API and strip internal prose comments from both packages. Every
+  declaration that ships in Studio's type declarations now carries JSDoc: `startStudioServer`
+  describes its startup ordering, the error codes it throws, and a runnable example, and the server
+  option, dependency, watcher, and error shapes document each property. Editors show these on hover.
+  The CLI's published declarations are a re-export of the SDK's config helpers and are documented
+  there. No runtime behavior, output, or type signature changes.
+- Updated dependencies [8a274b0]
+- Updated dependencies [d060201]
+- Updated dependencies [b0dd696]
+- Updated dependencies [3e725cc]
+- Updated dependencies [74ac95f]
+- Updated dependencies [23a6b1b]
+- Updated dependencies [3178757]
+- Updated dependencies [ec4c000]
+- Updated dependencies [6b37fe9]
+- Updated dependencies [d7c7a44]
+  - @verbatra/sdk@0.8.0
+
 ## 0.3.1
 
 ### Patch Changes
