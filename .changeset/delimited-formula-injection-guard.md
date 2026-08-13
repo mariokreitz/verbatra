@@ -13,7 +13,10 @@ marker spreadsheets read as "this cell is text". Quoting alone is not a defense:
 evaluate a quoted formula too. The xlsx handoff was never affected, since it writes typed string
 cells.
 
-The escape is reversed on import, so a translation still arrives exactly as it left. The two halves
+The escape is always reversed on import, so the guard itself never alters a value. The `Translation`
+column's long-standing trim on import is unrelated and unchanged: it still strips surrounding
+whitespace in that column, including a leading tab or carriage return, and that trim, not the guard,
+is what removes it. The two halves
 are exact inverses: the writer also escapes a value that already begins with apostrophes followed
 by a formula lead, so `'=1+1` is written as `''=1+1` and read back as `'=1+1`. A value whose
 apostrophe does not lead a formula, such as `'tis`, is left alone in both directions. A leading
