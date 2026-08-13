@@ -1,4 +1,5 @@
 import { DELIMITER, type DelimitedFormat, QUOTE, UTF8_BOM } from "./delimited-format.js";
+import { escapeFormulaLead } from "./formula-guard.js";
 import { HEADERS } from "./layout.js";
 import { rowCells } from "./row-shape.js";
 import type { WorkbookSheet } from "./types.js";
@@ -17,7 +18,8 @@ function needsQuoting(value: string, delimiter: string): boolean {
   );
 }
 
-function encodeField(value: string, delimiter: string): string {
+function encodeField(raw: string, delimiter: string): string {
+  const value = escapeFormulaLead(raw);
   if (!needsQuoting(value, delimiter)) {
     return value;
   }

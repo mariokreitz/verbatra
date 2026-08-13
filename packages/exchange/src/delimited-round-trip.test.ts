@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDelimited } from "./build-delimited.js";
-import type { DelimitedFormat } from "./delimited-format.js";
+import { DELIMITER, type DelimitedFormat } from "./delimited-format.js";
 import { readDelimited } from "./read-delimited.js";
 import type { WorkbookSheet } from "./types.js";
 
@@ -74,6 +74,12 @@ const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "+49 30 1234567",
   "-5 Grad",
   "@mention this",
+  "=1+1",
+  "=cmd|'/c calc'!A1",
+  "'=1+1",
+  "''=1+1",
+  "'tis a quote",
+  "'",
 ];
 
 describe("buildDelimited + readDelimited round trip: coercion-prone translations", () => {
@@ -96,5 +102,32 @@ describe("buildDelimited + readDelimited round trip: coercion-prone translations
     };
     const data = readDelimited({ text: buildDelimited(one, "csv"), locale: "de", format: "csv" });
     expect(data.sheets[0]?.rows[0]?.translation).toBe(translation);
+  });
+});
+
+describe("buildDelimited + readDelimited round trip: formula-shaped values in every column", () => {
+  it.each(FORMATS)("%s restores every neutralized column to its original text", (format) => {
+    const hostile: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        {
+          key: "risky",
+          source: "=1+1",
+          currentTarget: "+49",
+          status: "new",
+          sourceHash: "abc123",
+          translation: "-5 Grad",
+          context: "@mention, with a delimiter",
+          reviewStatus: "ok",
+          reviewReasons: "",
+        },
+      ],
+    };
+    const text = buildDelimited(hostile, format);
+    const delimiter = DELIMITER[format];
+    expect(text).toContain(`${delimiter}'=1+1${delimiter}`);
+    expect(text).toContain(`${delimiter}'-5 Grad${delimiter}`);
+    const data = readDelimited({ text, locale: "de", format });
+    expect(data.sheets).toEqual([hostile]);
   });
 });

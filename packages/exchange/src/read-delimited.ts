@@ -1,6 +1,7 @@
 import { DELIMITER, type DelimitedFormat, QUOTE, UTF8_BOM } from "./delimited-format.js";
 import { DEFAULT_DELIMITED_LIMITS, type DelimitedLimits } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
+import { unescapeFormulaLead } from "./formula-guard.js";
 import { HEADERS } from "./layout.js";
 import {
   judgeRow,
@@ -59,11 +60,15 @@ function scanPlainField(text: string, start: number, delimiter: string): FieldSc
 
 function scanField(text: string, start: number, delimiter: string): FieldScan {
   if (text[start] !== QUOTE) {
-    return scanPlainField(text, start, delimiter);
+    const plain = scanPlainField(text, start, delimiter);
+    return { value: unescapeFormulaLead(plain.value), next: plain.next };
   }
   const quoted = scanQuotedField(text, start + 1);
   const trailing = scanPlainField(text, quoted.next, delimiter);
-  return { value: `${quoted.value}${trailing.value}`, next: trailing.next };
+  return {
+    value: unescapeFormulaLead(`${quoted.value}${trailing.value}`),
+    next: trailing.next,
+  };
 }
 
 function countLineBreaks(value: string): number {

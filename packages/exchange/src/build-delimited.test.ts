@@ -89,3 +89,28 @@ describe("buildDelimited quoting", () => {
     expect(lines(text)[1]).toContain('"  padded  "');
   });
 });
+
+describe("buildDelimited formula neutralization", () => {
+  it.each(["=", "+", "-", "@"])(
+    "prefixes an apostrophe to a value starting with %j so a spreadsheet cannot execute it",
+    (lead) => {
+      const text = buildDelimited(sheet([row({ currentTarget: `${lead}cmd(1)` })]), "csv");
+      expect(lines(text)[1]).toContain(`,'${lead}cmd(1),`);
+    },
+  );
+
+  it("prefixes an apostrophe to a value that already starts with one before a formula lead", () => {
+    const text = buildDelimited(sheet([row({ context: "'=already quoted" })]), "csv");
+    expect(lines(text)[1]).toContain(",''=already quoted,");
+  });
+
+  it("leaves an apostrophe that does not lead a formula alone", () => {
+    const text = buildDelimited(sheet([row({ context: "'tis fine" })]), "csv");
+    expect(lines(text)[1]).toContain(",'tis fine,");
+  });
+
+  it("neutralizes a formula lead in a tsv too", () => {
+    const text = buildDelimited(sheet([row({ translation: "=1+1" })]), "tsv");
+    expect(lines(text)[1]).toContain("\t'=1+1\t");
+  });
+});
