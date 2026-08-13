@@ -20,7 +20,11 @@ import { selectAdapter } from "../../selection/select-adapter.js";
 import { readTargetResource } from "../read-target.js";
 import { selectLocales } from "../select-locales.js";
 import { readSourceResource } from "../source.js";
-import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
+import {
+  DEFAULT_EXCHANGE_FORMAT,
+  type ExchangeFormat,
+  isDelimitedFormat,
+} from "./exchange-format.js";
 import { writeExportManifest } from "./export-manifest.js";
 
 /** Default output path for an `.xlsx` handoff, used when {@link ExportWorkbookInput.out} is omitted. */
@@ -249,7 +253,7 @@ export async function exportWorkbook(
     }),
   );
 
-  const format = input.format ?? "xlsx";
+  const format = input.format ?? DEFAULT_EXCHANGE_FORMAT;
   const path = resolve(
     cwd,
     input.out ?? (isDelimitedFormat(format) ? DEFAULT_DELIMITED_PATH : DEFAULT_WORKBOOK_PATH),

@@ -150,7 +150,7 @@ La passation pour les traducteurs humains, sous forme de classeur Excel ou de te
 
 Écrit les chaînes encore à traduire (clés manquantes et modifiées par locale ; ajoute les inchangées avec `includeUnchanged`) dans un classeur `.xlsx` stylisé. Les lignes portent le même signal de révision qu'une exécution translate calcule. Aucun appel de fournisseur, aucune écriture du verrou.
 
-Entrée : `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format` vaut `xlsx` par défaut ; `csv` et `tsv` écrivent à la place un `<locale>.csv` ou `<locale>.tsv` par locale, donc `out` désigne pour eux un répertoire (créé s'il manque) et un chemin de fichier pour `xlsx`. `out` vaut par défaut `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) ou `DEFAULT_DELIMITED_PATH` (`verbatra-translations`), tous deux exportés comme constantes. Renvoie `{ path, locales }` : le chemin absolu écrit et un compte de lignes par locale.
+Entrée : `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format` vaut `xlsx` par défaut ; `csv` et `tsv` écrivent à la place un `<locale>.csv` ou `<locale>.tsv` par locale, donc `out` désigne pour eux un répertoire (créé s'il manque) et un chemin de fichier pour `xlsx`. `out` vaut par défaut `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) ou `DEFAULT_DELIMITED_PATH` (`verbatra-translations`), tous deux exportés comme constantes. Les valeurs acceptées sont exportées comme `EXCHANGE_FORMATS` et la valeur par défaut comme `DEFAULT_EXCHANGE_FORMAT`, afin qu'un outil qui enveloppe le SDK puisse valider un argument de format sans coder la liste en dur. Renvoie `{ path, locales }` : le chemin absolu écrit et un compte de lignes par locale.
 
 ### importWorkbook
 

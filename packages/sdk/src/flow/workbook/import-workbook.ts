@@ -31,7 +31,11 @@ import { failureSummary, partition } from "../locale-failure.js";
 import { readTargetResource } from "../read-target.js";
 import { readSourceResource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
-import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
+import {
+  DEFAULT_EXCHANGE_FORMAT,
+  type ExchangeFormat,
+  isDelimitedFormat,
+} from "./exchange-format.js";
 import { readExportedLocales } from "./export-manifest.js";
 import { type ImportLocaleResult, importLocale } from "./import-locale.js";
 
@@ -417,7 +421,7 @@ export async function importWorkbook(
   const resolver = createLocalePathResolver(cwd, config);
 
   const source = await readSourceResource(config, resolver, fs, adapter);
-  const format = input.format ?? "xlsx";
+  const format = input.format ?? DEFAULT_EXCHANGE_FORMAT;
   const { data, staleLocales } = await readImportData(
     resolve(cwd, input.workbook),
     config,

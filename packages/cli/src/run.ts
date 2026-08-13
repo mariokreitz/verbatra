@@ -1,4 +1,11 @@
-import type { ExchangeFormat, LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
+import {
+  DEFAULT_EXCHANGE_FORMAT,
+  EXCHANGE_FORMATS,
+  type ExchangeFormat,
+  type LockWaitEvent,
+  type ProgressEvent,
+  type TranslateInput,
+} from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
 import { CliUsageError } from "./cli-usage-error.js";
@@ -203,7 +210,9 @@ function parseDebounce(value: string | undefined): number | undefined {
   });
 }
 
-const EXCHANGE_FORMATS: readonly ExchangeFormat[] = ["xlsx", "csv", "tsv"];
+const FORMAT_OPTION_DESCRIPTION = `handoff format: one of ${EXCHANGE_FORMATS.join(
+  ", ",
+)} (default ${DEFAULT_EXCHANGE_FORMAT})`;
 
 function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefined {
   if (value === undefined) {
@@ -605,7 +614,7 @@ function registerExportCommand(program: Command, ctx: ProgramContext): void {
     )
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--include-unchanged", "also export already up-to-date strings (off by default)")
-    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
+    .option("--format <format>", FORMAT_OPTION_DESCRIPTION)
     .option("--json", "print the export result as JSON")
     .action(async (opts: unknown) => {
       ctx.setCode(await runExport(opts, ctx.deps, ctx.streams));
@@ -636,7 +645,7 @@ function registerImportCommand(program: Command, ctx: ProgramContext): void {
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--dry-run", "validate and report without writing locale files or updating the lock")
-    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
+    .option("--format <format>", FORMAT_OPTION_DESCRIPTION)
     .option("--json", "print the run summary as JSON")
     .action(async (workbook: string, opts: unknown) => {
       ctx.setCode(await runImport(workbook, opts, ctx.deps, ctx.streams));

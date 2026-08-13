@@ -10,6 +10,26 @@ import type { DelimitedFormat } from "@verbatra/exchange";
  */
 export type ExchangeFormat = "xlsx" | DelimitedFormat;
 
+const exchangeFormatMembers: { [K in ExchangeFormat]: K } = {
+  xlsx: "xlsx",
+  csv: "csv",
+  tsv: "tsv",
+};
+
+/**
+ * Every {@link ExchangeFormat} at runtime, for a tool that has to validate a `--format` argument or
+ * offer the choices to a user. The order is the order to present them in: the workbook first, then
+ * the delimited forms.
+ *
+ * It is derived from a record keyed by {@link ExchangeFormat} itself, so a format added to the type
+ * without being added here fails to compile. A consumer that checks membership against this list can
+ * therefore never silently reject a format the SDK accepts.
+ */
+export const EXCHANGE_FORMATS: readonly ExchangeFormat[] = Object.values(exchangeFormatMembers);
+
+/** The {@link ExchangeFormat} {@link exportWorkbook} and {@link importWorkbook} use when the caller names none. */
+export const DEFAULT_EXCHANGE_FORMAT: ExchangeFormat = "xlsx";
+
 export function isDelimitedFormat(format: ExchangeFormat): format is DelimitedFormat {
   return format === "csv" || format === "tsv";
 }

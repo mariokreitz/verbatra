@@ -97,7 +97,11 @@ export {
   type TranslateInput,
   translate,
 } from "./flow/translate-project.js";
-export type { ExchangeFormat } from "./flow/workbook/exchange-format.js";
+export {
+  DEFAULT_EXCHANGE_FORMAT,
+  EXCHANGE_FORMATS,
+  type ExchangeFormat,
+} from "./flow/workbook/exchange-format.js";
 export {
   DEFAULT_DELIMITED_PATH,
   DEFAULT_WORKBOOK_PATH,
