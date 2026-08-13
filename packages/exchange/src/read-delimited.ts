@@ -1,7 +1,7 @@
 import { DELIMITER, type DelimitedFormat, QUOTE, UTF8_BOM } from "./delimited-format.js";
 import { DEFAULT_DELIMITED_LIMITS, type DelimitedLimits } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
-import { HEADER_ROW, HEADERS } from "./layout.js";
+import { HEADERS } from "./layout.js";
 import {
   judgeRow,
   MALFORMED_ROW_COLUMN,
@@ -19,6 +19,19 @@ export interface ReadDelimitedInput {
   /** The delimited format the file was written in, which decides the field delimiter. */
   readonly format: DelimitedFormat;
 }
+
+/**
+ * How many leading records a delimited interchange file spends on its header, which is what separates
+ * the header from the data: records before this index are header, records from it on are data, and the
+ * record-count cap counts what is left after subtracting it.
+ *
+ * Deliberately local, and deliberately not the xlsx `HEADER_ROW`. That constant is a 1-based worksheet
+ * row index; this one is a count of records to skip in a flat file. They happen to share the value 1
+ * today, so importing one for the other would compile and pass while silently tying a delimited file's
+ * data offset to the worksheet's visual layout: adding a title row above the workbook header would
+ * then drop the first data record of every csv and shift the row cap by one.
+ */
+const HEADER_RECORD_COUNT = 1;
 
 /** Options for {@link readDelimited}; the caps default to {@link DEFAULT_DELIMITED_LIMITS}. */
 export interface ReadDelimitedOptions {
@@ -249,7 +262,7 @@ function assertFieldCount(count: number, limits: DelimitedLimits): void {
  * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the file has more data records than allowed
  */
 function assertRecordCount(count: number, limits: DelimitedLimits): void {
-  if (count - HEADER_ROW > limits.maxRowsPerFile) {
+  if (count - HEADER_RECORD_COUNT > limits.maxRowsPerFile) {
     throw new ExchangeError(
       "WORKBOOK_INVALID",
       `The interchange file has more than the maximum of ${limits.maxRowsPerFile} rows.`,
@@ -376,7 +389,7 @@ export function readDelimited(
     seenKeys: new Set<string>(),
   };
   for (const [index, record] of records.entries()) {
-    if (index >= HEADER_ROW) {
+    if (index >= HEADER_RECORD_COUNT) {
       readRecord(record.fields, input.locale, { row: index + 1, line: record.line }, into);
     }
   }

@@ -77,6 +77,32 @@ describe("readDelimited", () => {
   });
 });
 
+/**
+ * The header-record offset is a delimited-local concept, not the xlsx worksheet's header row index.
+ * These two tests pin it from both directions, so raising it (a title record ahead of the header) or
+ * lowering it (reading the header line as data) fails loudly rather than silently dropping or
+ * inventing a data row.
+ */
+describe("readDelimited header-record offset", () => {
+  it("treats exactly the first record as the header and every later record as data", () => {
+    const data = read(csv(record("a"), record("b"), record("c")));
+    expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["a", "b", "c"]);
+    expect(data.malformedRows).toEqual([]);
+  });
+
+  it("counts data records against maxRowsPerFile without counting the header record", () => {
+    const readWithCap = (text: string) =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxRowsPerFile: 2 } },
+      );
+    expect(readWithCap(csv(record("a"), record("b"))).sheets[0]?.rows).toHaveLength(2);
+    expect(() => readWithCap(csv(record("a"), record("b"), record("c")))).toThrow(
+      /maximum of 2 rows/,
+    );
+  });
+});
+
 describe("readDelimited quoting", () => {
   it("unquotes a field containing the delimiter", () => {
     const data = read(csv(record("a", '"Hello, world"')));
