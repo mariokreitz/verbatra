@@ -4,10 +4,10 @@
 ---
 
 Fix run status writing to go through the injected `SdkFs` instead of calling `node:fs/promises`
-`mkdir` directly. Supplying a custom `deps.fs` now keeps a run fully in-memory as documented; before
-this fix a run that recorded run status still created the `.verbatra-local` directory on the real
-file system. The `SdkFs` interface is unchanged: the existing optional `mkdir` member already
-carried this capability, so the published declarations are identical.
+`mkdir` directly. Before this fix, a run that recorded run status created the `.verbatra-local`
+directory on the real file system even when a custom `deps.fs` was supplied; that directory
+creation now goes through the seam. The `SdkFs` interface is unchanged: the existing optional
+`mkdir` member already carried this capability, so the published declarations are identical.
 
 A custom `deps.fs` whose `writeFile` targets a real directory tree must now implement the optional
 `mkdir` member for the run status file to be written, since the SDK no longer creates that directory
