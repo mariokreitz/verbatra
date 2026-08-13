@@ -19,8 +19,7 @@ Read `CLAUDE.md` at the repository root first.
   English with no emojis and no em dash character (U+2014).
 - Only the intended packages are marked publishable. Published packages are
   `@verbatra/sdk` and `@verbatra/cli`. `@verbatra/config`, `core`, `format-adapters`,
-  `ai-providers`, and `github-action` are internal or private and must not be
-  published by accident.
+  and `ai-providers` are internal or private and must not be published by accident.
 - Publishing security is intact: npm Trusted Publishing via OIDC (no NPM_TOKEN),
   automatic provenance, and `repository.url` matching the repository exactly.
 - The version bump is consistent with the public API change. A breaking change to

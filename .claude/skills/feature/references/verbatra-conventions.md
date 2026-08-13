@@ -24,13 +24,12 @@ and route the issue back rather than shipping around it.
 
 - pnpm workspaces monorepo with Turborepo (task orchestration and caching) and
   Changesets (publishing). Node >=22.14.0, pinned pnpm@11.6.0.
-- SDK-first: `@verbatra/sdk` is the central API. `@verbatra/cli` and
-  `@verbatra/github-action` are thin wrappers. Published packages are
-  `@verbatra/sdk` and `@verbatra/cli`; the others are internal or private.
+- SDK-first: `@verbatra/sdk` is the central API. `@verbatra/cli` is a thin wrapper.
+  Published packages are `@verbatra/sdk` and `@verbatra/cli`; the others are
+  internal or private.
 - Acyclic dependency direction:
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
-  github-action / framework-adapters. Never import against the arrow. Never
-  introduce a cycle.
+  framework-adapters. Never import against the arrow. Never introduce a cycle.
 - Abstract provider layer (Strategy + Factory) for OpenAI, Anthropic,
   Gemini (@google/genai), and DeepL. The three LLM providers run through the shared
   `runLlmTranslation` layer with one canonical zod schema fed to each SDK's
@@ -60,9 +59,10 @@ and route the issue back rather than shipping around it.
 - `@verbatra/sdk` central orchestration API: one-shot `translate()`, long-running
   `watch()`, config loading.
 - `@verbatra/cli` the `verbatra` binary, a thin wrapper over the SDK.
-- `@verbatra/github-action` composite action that runs the CLI in CI (v1.1).
-  Private, consumed via `uses:`, not published to npm.
 - `apps/docs` Fumadocs (Next.js) documentation site.
+
+The composite GitHub Action that runs the CLI in CI is not part of this monorepo.
+It lives in github.com/mariokreitz/verbatra-action and is consumed via `uses:`.
 
 ## Code principles
 

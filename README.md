@@ -198,6 +198,8 @@ See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
 | [`@verbatra/sdk`](./packages/sdk/README.md) | The programmatic API. |
 | [`@verbatra/studio`](./packages/studio/README.md) | The local Verbatra Studio dashboard, served through `verbatra studio`. |
 
+The composite GitHub Action that runs the CLI in CI lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), and is consumed with `uses:` rather than installed from npm.
+
 ## Security
 
 API keys are read only from environment variables, never from the config file. The config schema rejects unknown keys, so a key cannot hide there by accident, and `verbatra init` adds the local files a verbatra project must not commit, `.env` and `.env.local` among them, to your `.gitignore`. `translate`, `watch`, and `import` top up an existing `.gitignore` that is missing one of those entries. To report a vulnerability, see [SECURITY.md](./SECURITY.md).

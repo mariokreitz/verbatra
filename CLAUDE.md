@@ -46,8 +46,8 @@ Run from the repository root unless noted.
 
 Per package (run inside a package directory or with a turbo filter):
 
-- `pnpm typecheck` runs the package tsc check. Most packages have it (config and
-  github-action do not).
+- `pnpm typecheck` runs the package tsc check. Most packages have it (config does
+  not).
 - `pnpm test:watch` runs Vitest in watch mode (most packages have it).
 - Filter a single package from the root, for example:
   `pnpm turbo run test --filter=@verbatra/core`.
@@ -104,19 +104,20 @@ Everything else is private or internal and must not be published by accident.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
   `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
   `check`, `diff`, `export`, `import`, `studio`. Deps: `@verbatra/sdk`, commander, zod.
-- `@verbatra/github-action` (private): composite action that runs the CLI in CI.
-  Consumed via `uses:`, not published to npm.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
   Scripts: dev, build, start, typecheck, i18n.
 
+The composite GitHub Action that runs the CLI in CI is no longer part of this
+monorepo. It lives in its own repository, github.com/mariokreitz/verbatra-action,
+and is consumed via `uses:`. Do not add it back here.
+
 ## Architecture rules (binding)
 
-- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
-  `github-action` stay thin. Do not push logic into the wrappers.
+- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` stays thin.
+  Do not push logic into the wrappers.
 - Acyclic dependency direction:
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
-  github-action / framework-adapters. Never import against the arrow. Never create
-  a cycle.
+  framework-adapters. Never import against the arrow. Never create a cycle.
 - Keep `@verbatra/core` pure: no I/O, no network, no file system.
 - Reuse the provider factory table and the shared adapter factories
   (`createTreeFileAdapter` or `createFlatFileAdapter`). Do not reimplement provider

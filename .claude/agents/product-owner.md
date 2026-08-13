@@ -27,7 +27,7 @@ Produce a spec at `.verbatra/specs/<slug>.md` with these sections:
 - Scope: what is in, and explicitly what is out.
 - Acceptance criteria: a numbered checklist of observable, testable outcomes.
 - Affected packages: which of config, core, format-adapters, ai-providers, sdk, cli,
-  github-action, or apps/docs are touched.
+  or apps/docs are touched.
 - Scope check: confirm the work stays inside v1 (core + sdk + cli, JSON formats, four
   providers, the init/translate/watch/export/import commands). If it does not, say so and flag it.
 
