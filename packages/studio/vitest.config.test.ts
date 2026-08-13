@@ -1,14 +1,8 @@
 import { describe, expect, it } from "vitest";
 import studioVitestConfig from "./vitest.config.ts";
 
-/**
- * The excludes `@verbatra/config/vitest` bakes in ahead of every package's own list, in the order
- * the preset emits them. Restated here on purpose: these tests exist to catch a studio config that
- * has stopped inheriting the shared preset.
- */
 const presetExcludes = ["src/**/*.test.ts", "src/index.ts", "src/**/types.ts"];
 
-/** The four coverage thresholds the shared preset locks and no package may lower. */
 const presetThresholds = { lines: 90, functions: 90, statements: 90, branches: 90 };
 
 const { include: testInclude, coverage } = studioVitestConfig.test ?? {};
