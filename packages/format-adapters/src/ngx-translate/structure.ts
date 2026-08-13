@@ -2,6 +2,7 @@ import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
 import { readBounded } from "../json/bounded-read.js";
 import { isJsonNode, type JsonRecord } from "../json/json-tree.js";
+import { decodePathKey } from "../json/key-encoding.js";
 import type { OrderedRecord } from "../json/ordered-json.js";
 import { unflattenEntries } from "../json/unflatten.js";
 
@@ -66,7 +67,7 @@ async function detectStyle(filePath: string): Promise<Style> {
 function buildFlatTree(entries: ReadonlyMap<string, TranslationEntry>): Map<string, string> {
   const out = new Map<string, string>();
   for (const [key, entry] of entries) {
-    out.set(key, entry.value);
+    out.set(decodePathKey(key), entry.value);
   }
   return out;
 }

@@ -24,6 +24,13 @@ export function encodeSegment(segment: string): string {
   return out;
 }
 
+export function encodePathSegment(segment: string): string {
+  if (!segment.includes(BACKSLASH)) {
+    return segment;
+  }
+  return segment.replaceAll(BACKSLASH, ESCAPED_BACKSLASH);
+}
+
 function decodeSegment(segment: string): string {
   if (!segment.includes(BACKSLASH)) {
     return segment;
@@ -72,4 +79,8 @@ export function decodeKeyToSegments(key: string): string[] {
   }
   segments.push(current);
   return segments.map(decodeSegment);
+}
+
+export function decodePathKey(key: string): string {
+  return decodeKeyToSegments(key).join(DOT);
 }

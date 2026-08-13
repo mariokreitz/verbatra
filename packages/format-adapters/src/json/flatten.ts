@@ -1,7 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
 import { isJsonNode, type JsonRecord } from "./json-tree.js";
-import { encodeSegment, joinEncodedSegments } from "./key-encoding.js";
+import { encodePathSegment, encodeSegment, joinEncodedSegments } from "./key-encoding.js";
 
 export type DeriveEntry = (
   key: string,
@@ -67,7 +67,8 @@ function addPathEntries(
   excluded: string[],
 ): void {
   for (const [key, value] of node) {
-    const path = prefix === "" ? key : `${prefix}.${key}`;
+    const segment = encodePathSegment(key);
+    const path = prefix === "" ? segment : `${prefix}.${segment}`;
     if (claimedPaths.has(path)) {
       throw new AdapterError(
         "INVALID_STRUCTURE",

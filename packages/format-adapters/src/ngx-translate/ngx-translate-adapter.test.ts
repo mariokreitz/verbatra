@@ -142,6 +142,48 @@ describe("ngx-translate adapter: structure-preserving round-trip", () => {
     expect(await readFile(path, "utf8")).toBe(NESTED);
   });
 
+  it("keeps a nested key containing a backslash byte-for-byte", async () => {
+    const dir = await tempDir();
+    const content = `${JSON.stringify({ a: { "b\\c": "hello" } }, null, 2)}\n`;
+    const path = await write(dir, "common.json", content);
+    const { resource } = await adapter.read(path, "en");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe(content);
+  });
+
+  it("keeps a flat dotted key containing a backslash byte-for-byte", async () => {
+    const dir = await tempDir();
+    const content = `${JSON.stringify({ "a.b\\c": "hello", "a.d": "bye" }, null, 2)}\n`;
+    const path = await write(dir, "common.json", content);
+    const { resource } = await adapter.read(path, "en");
+    await adapter.write(resource, path);
+    expect(await readFile(path, "utf8")).toBe(content);
+  });
+
+  it("spells a backslash in a key escaped, so an older lock entry for it no longer matches", async () => {
+    const dir = await tempDir();
+    const path = await write(
+      dir,
+      "common.json",
+      `${JSON.stringify({ a: { "b\\c": "hello" } }, null, 2)}\n`,
+    );
+    const { resource } = await adapter.read(path, "en");
+    expect([...resource.entries.keys()]).toEqual(["a.b\\\\c"]);
+  });
+
+  it("re-reads a written backslash key to the same key, so it is never retranslated", async () => {
+    const dir = await tempDir();
+    const path = await write(
+      dir,
+      "common.json",
+      `${JSON.stringify({ a: { "b\\c": "hello" } }, null, 2)}\n`,
+    );
+    const first = await adapter.read(path, "en");
+    await adapter.write(first.resource, path);
+    const second = await adapter.read(path, "en");
+    expect([...second.resource.entries.keys()]).toEqual([...first.resource.entries.keys()]);
+  });
+
   it("defaults to nested when writing to a new path", async () => {
     const dir = await tempDir();
     const { resource } = await adapter.read(await write(dir, "common.json", FLAT), "en");
