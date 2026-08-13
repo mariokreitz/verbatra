@@ -57,7 +57,8 @@ and route the issue back rather than shipping around it.
 - `@verbatra/core` pure domain center (model, diffing, hashing, placeholder
   integrity, validation). No I/O, no network, no file system. Depends only on zod.
 - `@verbatra/format-adapters` file to neutral-IR adapters for the eight supported
-  i18n formats (JSON, XLIFF, YAML, ARB, and Java/Spring properties).
+  i18n formats (i18next, vue-i18n, next-intl, ngx-translate, XLIFF, YAML, Flutter
+  ARB, and Java/Spring properties).
 - `@verbatra/ai-providers` translation provider strategies behind one interface.
 - `@verbatra/exchange` translator interchange: builds and reads styled Excel
   workbooks over a neutral, format-agnostic row model.

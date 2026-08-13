@@ -83,11 +83,13 @@ Everything else is private or internal and must not be published by accident.
   `createDefaultRegistry`. Adapters: i18next, vue-i18n, next-intl, ngx-translate,
   XLIFF, YAML, Flutter ARB, and Java/Spring properties.
 - `@verbatra/ai-providers` (private): translation provider strategies behind one
-  interface. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
-  `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
-  implements `translateBatch` directly. All sit behind one `TranslationProvider`
-  interface. The SDK constructs the configured provider through the id-to-factory
-  table in `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
+  interface. Five providers ship today: OpenAI, Anthropic, Gemini (@google/genai),
+  DeepL, and openai-compatible (a local or self-hosted OpenAI-compatible server).
+  The four LLM providers run through the shared `runLlmTranslation` layer with one
+  canonical zod schema. DeepL is an MT API and implements `translateBatch`
+  directly. All sit behind one `TranslationProvider` interface. The SDK constructs
+  the configured provider through the id-to-factory table in
+  `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
   `selectProvider`. `ProviderRegistry` is exported from the package but is not on
   that path today; keep it, do not treat it as the resolution mechanism.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
