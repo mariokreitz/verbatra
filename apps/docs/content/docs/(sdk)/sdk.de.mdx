@@ -255,7 +255,7 @@ Eingabe: `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format
 `xlsx`; `csv` und `tsv` schreiben stattdessen eine `<locale>.csv` bzw. `<locale>.tsv` pro Locale, `out`
 benennt dafür also ein Verzeichnis (das angelegt wird, falls es fehlt) und bei `xlsx` einen Dateipfad.
 `out` ist standardmäßig `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) oder
-`DEFAULT_DELIMITED_PATH` (`verbatra-translations`), beide als Konstanten exportiert. Die zulässigen Werte werden als `EXCHANGE_FORMATS` und der Standardwert als `DEFAULT_EXCHANGE_FORMAT` exportiert, damit ein Werkzeug, das das SDK umschließt, ein Format-Argument prüfen kann, ohne die Liste fest zu verdrahten. Gibt
+`DEFAULT_DELIMITED_PATH` (`verbatra-translations`), beide als Konstanten exportiert. Die zulässigen Werte werden als `EXCHANGE_FORMATS` und der Standardwert als `DEFAULT_EXCHANGE_FORMAT` exportiert, damit ein Werkzeug, das als Wrapper über dem SDK sitzt, ein Format-Argument prüfen kann, ohne die Liste fest zu verdrahten. Gibt
 `{ path, locales }` zurück: den absoluten geschriebenen Pfad und eine Zeilenzahl pro Locale.
 
 ### importWorkbook

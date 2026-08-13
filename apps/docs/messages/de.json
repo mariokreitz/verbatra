@@ -1,7 +1,7 @@
 {
   "landing": {
     "meta": {
-      "title": "verbatra: inkrementelle i18n-Übersetzung für Lokalisierungsdateien",
+      "title": "verbatra: inkrementelle i18n-Übersetzung für Locale-Dateien",
       "ogTitle": "verbatra: inkrementelle i18n-Synchronisierung",
       "description": "Halte deine i18n-Locale-Dateien synchron. verbatra übersetzt nur die Schlüssel, die sich geändert haben, über den KI- oder maschinellen Übersetzungsanbieter deiner Wahl. Leg jetzt los.",
       "ogDescription": "Halte deine i18n-Locale-Dateien synchron. Übersetze nur geänderte Schlüssel.",
@@ -49,12 +49,12 @@
     },
     "compat": {
       "heading": "Ein Werkzeug, jedes Framework.",
-      "body": "verbatra liest die Lokalisierungsdateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring .properties-Dateien. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
+      "body": "verbatra liest die Locale-Dateien, die dein Stack bereits verwendet: JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring .properties-Dateien. Es füllt sie über den von dir gewählten Anbieter, ohne dass du ein neues Format übernehmen musst.",
       "labelFrameworks": "Frameworks und Formate"
     },
     "providers": {
       "heading": "Übersetze über das Modell, dem du vertraust.",
-      "lead": "Anthropic, OpenAI, Gemini, DeepL oder jeder OpenAI-kompatible Server, den du selbst hostest. Wähle einen in einer einzigen Konfigurationszeile aus und wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren.",
+      "lead": "Anthropic, OpenAI, Gemini, DeepL oder jeder OpenAI-kompatible Server, den du selbst hostest. Wähle einen in einer einzigen Konfigurationszeile aus und wechsle den Anbieter, ohne deine Locale-Dateien zu berühren.",
       "marqueeLabel": "Übersetzungsanbieter"
     },
     "how": {
@@ -89,7 +89,7 @@
         },
         "provider": {
           "title": "Der Anbieter deiner Wahl",
-          "body": "Anthropic, OpenAI, Gemini, DeepL oder ein lokales OpenAI-kompatibles Modell, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Lokalisierungsdateien zu berühren."
+          "body": "Anthropic, OpenAI, Gemini, DeepL oder ein lokales OpenAI-kompatibles Modell, ausgewählt in einer Zeile der Konfiguration. Wechsle den Anbieter, ohne deine Locale-Dateien zu berühren."
         },
         "safety": {
           "title": "Sicher durch Konstruktion",
@@ -121,7 +121,7 @@
         },
         "providers": {
           "question": "Welche Übersetzungsanbieter kann ich verwenden?",
-          "answer": "Fünf, hinter einer Oberfläche: Anthropic, OpenAI und Gemini (LLMs), DeepL (maschinelle Übersetzung) und openai-compatible, das verbatra auf einen lokalen oder selbst gehosteten Server wie Ollama, LM Studio oder vLLM verweist. Du wählst einen über seine ID in deiner Konfiguration aus und kannst später wechseln, indem du diese eine Zeile bearbeitest. Gemini hat einen echten kostenlosen Tarif, und ein lokales Modell kostet pro Aufruf nichts."
+          "answer": "Fünf, hinter einer Schnittstelle: Anthropic, OpenAI und Gemini (LLMs), DeepL (maschinelle Übersetzung) und openai-compatible, das verbatra auf einen lokalen oder selbst gehosteten Server wie Ollama, LM Studio oder vLLM verweist. Du wählst einen über seine ID in deiner Konfiguration aus und kannst später wechseln, indem du diese eine Zeile bearbeitest. Gemini hat einen echten kostenlosen Tarif, und ein lokales Modell kostet pro Aufruf nichts."
         },
         "formats": {
           "question": "Welche Formate und Frameworks unterstützt verbatra?",
@@ -129,7 +129,7 @@
         },
         "studio": {
           "question": "Was ist Verbatra Studio?",
-          "answer": "Ein lokales Web-Dashboard über deinem Projekt, das den Status jeder Locale live anzeigt, eine Prüfliste markierter Einträge bereithält und dich Übersetzungen direkt korrigieren lässt. Starte es mit verbatra studio (installiere zuerst @verbatra/studio). Das Bearbeiten deiner eigenen Locale-Dateien funktioniert von Haus aus; ein Anbieter-Aufruf aus der Oberfläche ist optional und liegt hinter --allow-spend. Es läuft nur auf 127.0.0.1 und verlässt deinen Rechner nie."
+          "answer": "Ein lokales Web-Dashboard über deinem Projekt, das den Status jeder Locale live anzeigt, eine Review-Warteschlange markierter Einträge bereithält und dich Übersetzungen direkt korrigieren lässt. Starte es mit verbatra studio (installiere zuerst @verbatra/studio). Das Bearbeiten deiner eigenen Locale-Dateien funktioniert von Haus aus; ein Anbieter-Aufruf aus der Oberfläche ist optional und liegt hinter --allow-spend. Es läuft nur auf 127.0.0.1 und verlässt deinen Rechner nie."
         },
         "safety": {
           "question": "Was verhindert, dass eine schlechte Übersetzung meine App kaputtmacht?",
@@ -153,7 +153,7 @@
         },
         "production": {
           "question": "Ist verbatra produktionsreif?",
-          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das <releases>Changelog</releases>, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf wird mit einer festgeschriebenen Lock-Datei verglichen, überprüft die Integrität von Platzhaltern und ICU bei jedem Ergebnis und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
+          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das <releases>Changelog</releases>, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, überprüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
         }
       }
     },

@@ -6,7 +6,7 @@ verbatra incluye una GitHub Action compuesta que ejecuta `verbatra translate --j
 
 ## Cuándo usarla en lugar de un paso de CLI directo
 
-La acción es el paso de translate con los informes ya integrados: anotaciones de error por locale, una tabla de resumen en la página de la ejecución y una propagación del código de salida que nunca se traga un fallo. Prefiérela cuando tu job sea "traduce en cada push y muéstrame qué pasó".
+La acción es el paso de translate con los informes ya integrados: anotaciones de error por locale, una tabla de resumen en la página de la ejecución y una propagación del código de salida que nunca se traga un fallo. Prefiérela cuando tu job sea "traduce al hacer push y muéstrame qué pasó".
 
 Ejecuta la [CLI directamente](/docs/ci-and-exit-codes) cuando quieras cualquier otra cosa: una puerta de solo lectura con `check` o `diff`, flags personalizados como `--prune`, o tu propio manejo de la salida JSON. La acción siempre ejecuta `translate --json` y nada más; nunca ejecuta `init`, `watch` ni `check`.
 
@@ -73,7 +73,7 @@ La acción no define salidas. Sus resultados son las anotaciones, el resumen del
 
 **Resumen del job.** Cada ejecución añade un resumen en Markdown a la página del job: una tabla con una fila por locale (estado, traducidas, sin cambios, huérfanas, ICU inválido, retenidas por integridad, fallos del proveedor, avisos), una línea agregada y una lista de los locales fallidos con sus códigos de error. Una ejecución en seco se etiqueta como tal. Un fallo de toda la ejecución recibe un breve resumen de fallo con el código de salida y el detalle del error.
 
-**Comportamiento de salida.** La acción captura el stdout y el código de salida de la CLI sin abandonar antes de tiempo, emite las anotaciones y el resumen, y solo entonces sale con el código propio de la CLI. Así que el paso falla con `1` o `2`, pero nunca antes de que puedas ver por qué. La página de [códigos de salida](/docs/ci-and-exit-codes) detalla qué significa cada código. Si el cableado interno del código de salida se rompiera alguna vez, la acción falla con `2` en lugar de informar de un falso éxito.
+**Comportamiento de salida.** La acción captura el stdout y el código de salida de la CLI sin abandonar antes de tiempo, emite las anotaciones y el resumen, y solo entonces sale con el código propio de la CLI. Así que el paso falla con `1` o `2`, pero nunca antes de que puedas ver por qué. La página de [códigos de salida](/docs/ci-and-exit-codes) detalla qué significa cada código. Si el cableado interno del código de salida se rompe alguna vez, la acción falla con `2` en lugar de informar de un falso éxito.
 
 ## Conservar las traducciones
 
@@ -81,4 +81,4 @@ Sin `dry-run`, `translate` escribe los archivos de locale actualizados en el che
 
 ## Seguridad
 
-Fija ambas referencias con exactitud: la línea `uses:` a un SHA de commit y la entrada `version` a una versión exacta de `@verbatra/cli`. La acción impone la segunda por sí misma rechazando cualquier cosa que no sea una versión semver exacta, así que una ejecución nunca puede resolver `latest` en silencio. Dale al flujo de trabajo solo el privilegio que necesita: `contents: read` para un informe, más `contents: write` o `pull-requests: write` solo cuando un paso posterior confirme o abra un pull request. Las entradas llegan a la CLI a través del entorno como datos y se expanden en un array de argumentos entre comillas, nunca se empalman en texto de shell, así que un valor de entrada malicioso sigue siendo un argumento y nunca se convierte en código ejecutable.
+Fija ambas referencias con exactitud: la línea `uses:` a un SHA de commit y la entrada `version` a una versión exacta de `@verbatra/cli`. La acción impone la segunda por sí misma rechazando cualquier cosa que no sea una versión semver exacta, así que una ejecución nunca puede resolver `latest` en silencio. Dale al flujo de trabajo solo el privilegio que necesita: `contents: read` para un informe, más `contents: write` o `pull-requests: write` solo cuando un paso posterior confirme o abra un pull request. Las entradas llegan a la CLI a través del entorno como datos y se expanden en un array de argumentos entre comillas, nunca se empalman en texto de shell, así que un valor de entrada manipulado sigue siendo un argumento y nunca se convierte en código ejecutable.

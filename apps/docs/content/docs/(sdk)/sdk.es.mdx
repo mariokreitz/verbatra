@@ -245,7 +245,7 @@ Entrada: `{ config, cwd?, out?, locales?, includeUnchanged?, format? }`. `format
 defecto; `csv` y `tsv` escriben en su lugar un `<locale>.csv` o `<locale>.tsv` por locale, así que `out`
 nombra un directorio para ellos (creado si falta) y una ruta de archivo para `xlsx`. `out` es por
 defecto `DEFAULT_WORKBOOK_PATH` (`verbatra-translations.xlsx`) o `DEFAULT_DELIMITED_PATH`
-(`verbatra-translations`), ambos exportados como constantes. Los valores aceptados se exportan como `EXCHANGE_FORMATS` y el valor por defecto como `DEFAULT_EXCHANGE_FORMAT`, de modo que una herramienta que envuelve el SDK puede validar un argumento de formato sin fijar la lista en el código. Devuelve `{ path, locales }`: la ruta
+(`verbatra-translations`), ambos exportados como constantes. Los valores aceptados se exportan como `EXCHANGE_FORMATS` y el valor por defecto como `DEFAULT_EXCHANGE_FORMAT`, para que una herramienta que envuelve el SDK pueda validar un argumento de formato sin fijar la lista en el código. Devuelve `{ path, locales }`: la ruta
 absoluta escrita y un número de filas por locale.
 
 ### importWorkbook

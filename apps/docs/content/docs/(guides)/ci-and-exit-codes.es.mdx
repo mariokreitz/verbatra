@@ -23,7 +23,7 @@ El código de salida es el contrato sobre el que ramifica tu paso de CI:
 Algunos casos límite que conviene conocer:
 
 - Una sola interrupción es una parada limpia, y tanto `watch` como `studio` salen con `0` ante ella. Más allá de eso no des por hecho que se comportan igual: si la propia parada falla, `watch` sale con `2` y `studio` sale con `1`.
-- Una ejecución fallida durante watch aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
+- Una ejecución fallida durante `watch` aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
 - `export` no tiene modo de fallo por locale: sale con `0` o `2`, nunca con `1`.
 - Hay un modo de fallo que queda fuera del contrato: un fallo de análisis que no es un error de uso se vuelve a lanzar, y el binario no lo captura, así que se aplica el comportamiento por defecto de Node ante un rechazo no gestionado en lugar de cualquiera de los cuatro códigos.
 

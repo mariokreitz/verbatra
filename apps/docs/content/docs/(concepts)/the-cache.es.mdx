@@ -2,13 +2,13 @@
 title: La caché
 description: Qué reutiliza verbatra.cache.json, cómo la acota una huella y por qué nunca hace fallar una ejecución.
 ---
-verbatra mantiene una caché local de memoria de traducción, `verbatra.cache.json`, para que un string que ya tradujo nunca se envíe dos veces a un proveedor, incluso cuando cambia su clave. Mientras [el archivo de bloqueo](/docs/the-lock-file) registra si una clave está al día, la caché se indexa por contenido: recuerda la traducción de un fragmento de texto de origen, con independencia de qué clave lo contenga.
+verbatra mantiene una caché local de memoria de traducción, `verbatra.cache.json`, para que una cadena que ya tradujo nunca se envíe dos veces a un proveedor, incluso cuando cambia su clave. Mientras [el archivo de bloqueo](/docs/the-lock-file) registra si una clave está al día, la caché se indexa por contenido: recuerda la traducción de un fragmento de texto de origen, con independencia de qué clave lo contenga.
 
 ## Qué reutiliza
 
 En una ejecución, antes de que una clave vaya al proveedor, verbatra la busca en la caché por el hash de su contenido de origen actual. Un acierto se sirve gratis, así que nunca vuelves a pagar por él. Como la búsqueda es por contenido, la reutilización sobrevive a casos que el archivo de bloqueo no cubre:
 
-- **Una clave renombrada.** Mueve un string de `home.title` a `landing.title` y su traducción se reutiliza, no se vuelve a traducir.
+- **Una clave renombrada.** Mueve una cadena de `home.title` a `landing.title` y su traducción se reutiliza, no se vuelve a traducir.
 - **Contenido duplicado.** Dos claves con el mismo contenido de origen comparten una traducción; la segunda es un acierto de caché.
 
 Un valor reutilizado no se acepta a ciegas. Sigue pasando las mismas [comprobaciones de integridad](/docs/translation-safety) contra el origen actual antes de escribirse, así que un valor en caché que ya no encaja con su clave se descarta y la clave se traduce de nuevo. Los aciertos de caché se informan por locale en el resumen de la ejecución, aparte de las claves traducidas en esa ejecución.

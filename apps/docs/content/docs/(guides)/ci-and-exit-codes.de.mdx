@@ -17,15 +17,15 @@ Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
 | --- | --- |
 | `0` | Erfolg: `translate` oder `import` war für jedes Locale erfolgreich, `check` fand jedes Locale synchron, `diff` fand keine ausstehenden Änderungen, `export` schrieb seine Arbeitsmappe, `init` legte das Projekt an, `watch` oder `studio` wurde sauber beendet, oder `--help` beziehungsweise `--version` wurde ausgegeben |
 | `1` | der Lauf kam durch, aber das Ergebnis ist nicht sauber: `translate` oder `import` endete mit mindestens einem fehlgeschlagenen Locale, `check` fand ein Locale nicht synchron, `diff` fand einen fehlenden oder geänderten Key, oder `studio` scheiterte beim Herunterfahren seines Servers |
-| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (kaputte Konfiguration, unlesbare Quelle), ein Verwendungsfehler (ein leerer oder unbekannter `--locales`-Wert, ein ungültiges `--debounce` oder `--port`), `init` ohne auflösbaren Provider oder mit einer ungültig zusammengesetzten Konfiguration, ein gescheiterter Start oder Stopp von `watch`, oder `studio`, das die Konfiguration nicht laden, `@verbatra/studio` nicht importieren oder seinen Server nicht starten kann |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (kaputte Konfiguration, unlesbare Quelle), ein Verwendungsfehler (ein leerer oder unbekannter `--locales`-Wert, ein ungültiges `--debounce` oder `--port`), `init` ohne auflösbaren Provider oder wenn es keine gültige Konfiguration anlegen kann, ein gescheiterter Start oder Stopp von `watch`, oder `studio`, das die Konfiguration nicht laden, `@verbatra/studio` nicht importieren oder seinen Server nicht starten kann |
 | `130` | `watch` oder `studio` wurde durch einen zweiten Interrupt zwangsbeendet |
 
 Einige Randfälle, die du kennen solltest:
 
 - Ein einzelner Interrupt ist ein sauberer Stopp, und sowohl `watch` als auch `studio` enden dabei mit `0`. Geh darüber hinaus nicht davon aus, dass sich beide gleich verhalten: scheitert der Stopp selbst, endet `watch` mit `2` und `studio` mit `1`.
-- Ein fehlgeschlagener Lauf während watch erscheint als Datensatz im Ausgabestrom, nie als Exit-Code ungleich null.
+- Ein fehlgeschlagener Lauf während `watch` erscheint als Datensatz im Ausgabestrom, nie als Exit-Code ungleich null.
 - `export` hat keinen Fehlermodus pro Locale: der Befehl endet mit `0` oder `2`, nie mit `1`.
-- Ein Fehlermodus liegt außerhalb des Vertrags: ein Parse-Fehler, der kein Verwendungsfehler ist, wird weitergeworfen, und die Binary fängt ihn nicht ab. Damit greift Nodes Standardverhalten für eine unbehandelte Rejection statt einer der vier Codes.
+- Ein Fehlermodus liegt außerhalb des Vertrags: ein Parse-Fehler, der kein Verwendungsfehler ist, wird weitergeworfen, und die Binary fängt ihn nicht ab. Damit greift Nodes Standardverhalten für eine unbehandelte Rejection statt eines der vier Codes.
 
 ## check oder diff: das Gate wählen
 

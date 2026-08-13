@@ -2,7 +2,7 @@
   "landing": {
     "meta": {
       "title": "verbatra : traduction i18n incrémentielle pour les fichiers de locale",
-      "ogTitle": "verbatra : synchronisation i18n incrémentale",
+      "ogTitle": "verbatra : synchronisation i18n incrémentielle",
       "description": "Garde tes fichiers de locale i18n synchronisés. verbatra traduit seulement les clés qui ont changé, via le fournisseur d'IA ou de traduction automatique de ton choix. Commence maintenant.",
       "ogDescription": "Garde tes fichiers de locale i18n synchronisés. Traduis seulement les clés modifiées.",
       "ogImageAlt": "verbatra garde tes fichiers de locale i18n synchronisés et traduit seulement les clés qui ont changé.",
@@ -75,7 +75,7 @@
         },
         "verifyWrite": {
           "title": "Vérifie et écris",
-          "body": "L'intégrité des espaces réservés et de l'ICU est vérifiée sur chaque résultat. Tout ce qui casse est retenu ; le reste est écrit dans tes fichiers de locale et le fichier de verrouillage est mis à jour."
+          "body": "L'intégrité des placeholders et de l'ICU est vérifiée sur chaque résultat. Tout ce qui casse est retenu ; le reste est écrit dans tes fichiers de locale et le fichier de verrouillage est mis à jour."
         }
       }
     },
@@ -93,7 +93,7 @@
         },
         "safety": {
           "title": "Sûr par conception",
-          "body": "L'intégrité des espaces réservés et de l'ICU est vérifiée après chaque traduction. Un résultat qui casse un espace réservé est retenu, jamais écrit."
+          "body": "L'intégrité des placeholders et de l'ICU est vérifiée après chaque traduction. Un résultat qui casse un placeholder est retenu, jamais écrit."
         },
         "environment": {
           "title": "Les clés restent dans ton environnement",
@@ -133,7 +133,7 @@
         },
         "safety": {
           "question": "Qu'est-ce qui empêche une mauvaise traduction de casser mon app ?",
-          "answer": "Chaque résultat passe une vérification d'intégrité des espaces réservés et de l'ICU avant d'être écrit. Une traduction qui supprime, invente ou réordonne un espace réservé, ou produit une syntaxe de message ICU invalide, est retenue plutôt qu'enregistrée dans ton fichier de locale. La même vérification s'applique aux modifications et aux re-traductions faites dans Verbatra Studio."
+          "answer": "Chaque résultat passe une vérification d'intégrité des placeholders et de l'ICU avant d'être écrit. Une traduction qui supprime, invente ou réordonne un placeholder, ou produit une syntaxe de message ICU invalide, est retenue plutôt qu'enregistrée dans ton fichier de locale. La même vérification s'applique aux modifications et aux re-traductions faites dans Verbatra Studio."
         },
         "keys": {
           "question": "Où sont mes clés d'API, et mon contenu est-il envoyé quelque part que je ne contrôle pas ?",
@@ -153,7 +153,7 @@
         },
         "production": {
           "question": "verbatra est-il prêt pour la production ?",
-          "answer": "Il est jeune et activement développé, alors fige une version et lis le <releases>changelog</releases> lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution est comparée à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
+          "answer": "Il est jeune et activement développé, alors fige une version et lis le <releases>changelog</releases> lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
         }
       }
     },
@@ -162,7 +162,7 @@
       "lead": "Ajoute verbatra, valide le fichier de verrouillage, et laisse chaque exécution ne toucher qu'à ce qui a changé."
     },
     "footer": {
-      "tagline": "Traduis seulement ce qui a changé. Un CLI et un SDK open source qui gardent tes fichiers de locale i18n synchronisés via le fournisseur que tu choisis.",
+      "tagline": "Traduis seulement ce qui a changé. Un CLI et un SDK open source qui garde tes fichiers de locale i18n synchronisés via le fournisseur que tu choisis.",
       "cols": {
         "product": {
           "title": "Produit",
@@ -189,7 +189,7 @@
           "llmsIndex": "llms.txt (index)"
         },
         "legal": {
-          "title": "Mentions légales",
+          "title": "Informations légales",
           "privacy": "Politique de confidentialité",
           "imprint": "Mentions légales"
         }
@@ -239,7 +239,7 @@
       },
       "s6": {
         "heading": "6. Polices et ressources",
-        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment de la compilation, donc aucune requête n'est faite à Google Fonts ou à toute autre tierce partie lorsque tu charges une page. La seule exception concerne les badges de statut : la page d'accueil et la page de test intègrent des images de badges en direct de GitHub, Codecov et shields.io qui affichent la compilation actuelle, la couverture, la version et la licence. Le chargement de ces images transmet ton adresse IP à ces fournisseurs, qui agissent en tant que contrôleurs indépendants selon leurs propres politiques de confidentialité. La base légale est l'art. 6, § 1, point f) du RGPD (notre intérêt légitime à afficher un statut de projet précis). En dehors de ces badges et du script Umami auto-hébergé décrit ci-dessus, aucun script ou élément intégré de tiers ne se charge à l'exécution."
+        "body": "Les polices sont auto-hébergées : elles sont intégrées au moment de la compilation, donc aucune requête n'est faite à Google Fonts ou à toute autre tierce partie lorsque tu charges une page. La seule exception concerne les badges de statut : la page d'accueil et la page de test intègrent des images de badges en direct de GitHub, Codecov et shields.io qui affichent la compilation actuelle, la couverture, la version et la licence. Le chargement de ces images transmet ton adresse IP à ces fournisseurs, qui agissent en tant que responsables du traitement indépendants selon leurs propres politiques de confidentialité. La base légale est l'art. 6, § 1, point f) du RGPD (notre intérêt légitime à afficher un statut de projet précis). En dehors de ces badges et du script Umami auto-hébergé décrit ci-dessus, aucun script ou élément intégré de tiers ne se charge à l'exécution."
       },
       "s7": {
         "heading": "7. GitHub",

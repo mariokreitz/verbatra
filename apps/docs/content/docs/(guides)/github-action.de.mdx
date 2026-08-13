@@ -4,7 +4,7 @@ description: "Führe verbatra translate in GitHub Actions mit der Composite Acti
 ---
 verbatra liefert eine Composite GitHub Action mit, die `verbatra translate --json` in CI ausführt, Fehlschläge in Annotationen auf dem Lauf verwandelt, eine Tabelle in die Job-Zusammenfassung schreibt und mit dem Exit-Code der CLI endet. Diese Seite erklärt die Verdrahtung und was die Action dir zeigt.
 
-## Wann sie statt eines rohen CLI-Schritts
+## Wann sie statt eines rohen CLI-Schritts sinnvoll ist
 
 Die Action ist der translate-Schritt mit fertig eingebautem Reporting: Fehler-Annotationen pro Locale, eine Zusammenfassungstabelle auf der Lauf-Seite und Exit-Code-Weitergabe, die nie einen Fehlschlag verschluckt. Nimm sie, wenn dein Job "bei einem Push übersetzen und mir zeigen, was passiert ist" lautet.
 

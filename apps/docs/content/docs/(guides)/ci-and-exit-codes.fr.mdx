@@ -23,7 +23,7 @@ Le code de sortie est le contrat sur lequel ton étape CI se branche :
 Quelques cas limites à connaître :
 
 - Une interruption unique est un arrêt propre, et `watch` comme `studio` sortent avec `0` dans ce cas. Au-delà, ne suppose pas qu'ils se comportent pareil : si l'arrêt lui-même échoue, `watch` sort avec `2` et `studio` sort avec `1`.
-- Une exécution échouée pendant la surveillance apparaît comme un enregistrement sur le flux de sortie, jamais comme un code de sortie non nul.
+- Une exécution échouée pendant `watch` apparaît comme un enregistrement sur le flux de sortie, jamais comme un code de sortie non nul.
 - `export` n'a pas de mode d'échec par locale : il sort avec `0` ou `2`, jamais `1`.
 - Un mode d'échec sort du contrat : une erreur d'analyse qui n'est pas une erreur d'utilisation est relancée, et le binaire ne l'attrape pas, donc le comportement par défaut de Node face à un rejet non géré s'applique au lieu de l'un des quatre codes.
 
