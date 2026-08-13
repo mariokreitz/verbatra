@@ -164,9 +164,11 @@ and is consumed via `uses:`. Do not add it back here.
 - Derive every `@throws` from the actual throw sites; never copy one from existing
   docs. A documented code that is never thrown is worse than a missing one: it tells
   a consumer to write a catch branch that can never fire.
-- `{@link}` resolves only against symbols exported from the built `.d.ts`. A link to
-  a symbol that is not exported renders silently as plain text; use inline code for
-  those instead.
+- A `{@link}` target must be declared in the built `.d.ts`, whether exported from it
+  or only inlined into it. TypeScript resolves a link by in-file name lookup, so a
+  declared-but-not-exported symbol still resolves and still gives editor hover. A
+  link to a symbol that appears nowhere in the built declarations renders silently as
+  plain text; use inline code for those instead.
 - Some comments are functional and must survive any removal pass: coverage
   directives (`/* v8 ignore ... */`), whose loss drops coverage against the 90% gate;
   `biome-ignore`, whose reason text after the colon is mandatory syntax in Biome 2.x
