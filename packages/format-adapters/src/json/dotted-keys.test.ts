@@ -22,7 +22,6 @@ afterAll(() => {
   dirs.length = 0;
 });
 
-/** Read a file with an adapter and write it back, returning the written text. */
 async function roundTrip(adapter: FormatAdapter, content: string): Promise<string> {
   const inPath = await tempFile("in.json", content);
   const { resource } = await adapter.read(inPath, "en");
@@ -37,14 +36,6 @@ const literalLeafAdapters: ReadonlyArray<readonly [string, () => FormatAdapter]>
   ["next-intl", createNextIntlJsonAdapter],
 ];
 
-/**
- * The shape matrix (single literal leaf, real nested path, multi-dot literal leaf, a mix of both,
- * and both collision orders) is exercised directly against `flattenTree`/`unflattenEntries` in
- * flatten.test.ts and unflatten.test.ts. This suite only needs cases that go through a concrete
- * adapter's full read-write wiring: the entries-Map read surface, a real JSON serialize/parse of
- * the encoding's escape characters, and round-trip determinism (whose input already combines every
- * shape from that matrix in one document).
- */
 describe.each(literalLeafAdapters)("%s adapter: literal dotted leaf round-trip", (_name, make) => {
   const adapter = make();
 
@@ -77,7 +68,6 @@ describe.each(literalLeafAdapters)("%s adapter: literal dotted leaf round-trip",
 describe("ngx-translate adapter: dotted keys stay path notation (unchanged behavior)", () => {
   const adapter = createNgxTranslateJsonAdapter();
 
-  /** ngx preserves the destination's style, so round-trip in place over existing content. */
   async function roundTripInPlace(content: string): Promise<string> {
     const path = await tempFile("ngx.json", content);
     const { resource } = await adapter.read(path, "en");

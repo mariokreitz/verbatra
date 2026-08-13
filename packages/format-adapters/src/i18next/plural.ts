@@ -1,33 +1,16 @@
-/** The six CLDR cardinal plural categories i18next encodes as key suffixes. */
 export type I18nextPluralCategory = "zero" | "one" | "two" | "few" | "many" | "other";
 
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
 
-/**
- * True when a key uses an i18next CLDR plural suffix (_zero, _one, _two, _few,
- * _many, _other). Context suffixes (for example _male) and ordinary keys do not match.
- *
- * i18next encodes a plural as several sibling keys (one per CLDR category); this tests the key.
- * Compare {@link isPluralValue} in `vue-i18n/plural.ts`, which instead tests a single value for the
- * pipe-delimited form vue-i18n encodes a plural in.
- */
 export function isPluralKey(key: string): boolean {
   return PLURAL_SUFFIX.test(key);
 }
 
-/**
- * The CLDR plural category a key encodes, or undefined when the key carries no plural suffix.
- */
 export function pluralCategoryOf(key: string): I18nextPluralCategory | undefined {
   const match = PLURAL_SUFFIX.exec(key);
   return match?.[1] as I18nextPluralCategory | undefined;
 }
 
-/**
- * The base of a plural key with its CLDR suffix removed (for example
- * `items_one` -> `items`, `a.b.items_other` -> `a.b.items`). Returns undefined
- * for a key that is not a plural key.
- */
 export function pluralBaseKey(key: string): string | undefined {
   if (!isPluralKey(key)) {
     return undefined;
@@ -35,10 +18,6 @@ export function pluralBaseKey(key: string): string | undefined {
   return key.replace(PLURAL_SUFFIX, "");
 }
 
-/**
- * Compose the i18next plural key for a base key and a CLDR category (for example
- * `items` + `few` -> `items_few`). The inverse of {@link pluralBaseKey}.
- */
 export function makePluralKey(baseKey: string, category: I18nextPluralCategory): string {
   return `${baseKey}_${category}`;
 }

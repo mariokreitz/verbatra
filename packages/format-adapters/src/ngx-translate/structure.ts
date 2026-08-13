@@ -5,17 +5,8 @@ import { isJsonNode, type JsonRecord } from "../json/json-tree.js";
 import type { OrderedRecord } from "../json/ordered-json.js";
 import { unflattenEntries } from "../json/unflatten.js";
 
-/** ngx-translate's two file styles: flat dotted keys, or nested objects. */
 type Style = "flat" | "nested";
 
-/**
- * Reject a nested object key that itself contains a literal dot, at any depth. Path-notation
- * flatten joins segments with a plain, unescaped dot, so such a key is indistinguishable from a
- * further nested path once flattened: on write, `decodeKeyToSegments` would split it back into
- * separate segments, silently restructuring one object key into nested objects and, when a
- * sibling key already occupies part of that path, merging the two. Rejecting it up front, before
- * flattening, avoids both outcomes.
- */
 function assertNoDottedNestedKey(tree: JsonRecord): void {
   for (const [key, value] of tree) {
     if (!isJsonNode(value)) {
@@ -31,13 +22,6 @@ function assertNoDottedNestedKey(tree: JsonRecord): void {
   }
 }
 
-/**
- * Reject a file that mixes the two styles at the top level (a nested object sibling
- * to a flat dotted string key), since such a file is ambiguous rather than guessable.
- * Also rejects a nested object key that contains a literal dot at any depth (see
- * {@link assertNoDottedNestedKey}), since that is ambiguous with path notation regardless of
- * whether it has a flat-dotted-key sibling at the same level.
- */
 export function assertNotMixed(tree: JsonRecord): void {
   let hasNested = false;
   let hasFlatDottedKey = false;
@@ -57,11 +41,6 @@ export function assertNotMixed(tree: JsonRecord): void {
   assertNoDottedNestedKey(tree);
 }
 
-/**
- * Detect the destination file's structure style. A missing, unreadable, or over-size destination is
- * not read and defaults to nested, so the write path stays bounded by the same limit as the read
- * path.
- */
 async function detectStyle(filePath: string): Promise<Style> {
   let parsed: unknown;
   try {
@@ -84,7 +63,6 @@ async function detectStyle(filePath: string): Promise<Style> {
   return "flat";
 }
 
-/** Flat ordered Map of dotted keys, in entry order; a Map keeps hostile input keys inert. */
 function buildFlatTree(entries: ReadonlyMap<string, TranslationEntry>): Map<string, string> {
   const out = new Map<string, string>();
   for (const [key, entry] of entries) {
@@ -93,10 +71,6 @@ function buildFlatTree(entries: ReadonlyMap<string, TranslationEntry>): Map<stri
   return out;
 }
 
-/**
- * Build the ordered tree to write, preserving the destination file's structure style:
- * flat stays flat, nested stays nested. A new destination is written nested.
- */
 export async function buildNgxWriteTree(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,

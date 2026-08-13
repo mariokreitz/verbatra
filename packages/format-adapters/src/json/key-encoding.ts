@@ -1,11 +1,3 @@
-/**
- * Encoding of a flattened dotted-path key so a literal dot inside one source key segment stays
- * distinguishable from the dot that separates nested path segments. Per segment, `\` becomes `\\`
- * and `.` becomes `\.`; the joining dot is never escaped, so splitting on unescaped dots and
- * unescaping each segment recovers the original text. A segment with no dot or backslash is returned
- * unchanged, so dotted-free keys produce map keys identical to the pre-encoding behavior.
- */
-
 const BACKSLASH = "\\";
 const DOT = ".";
 const ESCAPED_BACKSLASH = "\\\\";
@@ -15,7 +7,6 @@ function needsEncoding(segment: string): boolean {
   return segment.includes(BACKSLASH) || segment.includes(DOT);
 }
 
-/** Escape a single key segment so a later unescaped-dot join keeps it atomic; an unaffected segment is returned unchanged. */
 export function encodeSegment(segment: string): string {
   if (!needsEncoding(segment)) {
     return segment;
@@ -52,12 +43,10 @@ function decodeSegment(segment: string): string {
   return out;
 }
 
-/** Join already-encoded segments into a single flattened key. */
 export function joinEncodedSegments(segments: readonly string[]): string {
   return segments.join(DOT);
 }
 
-/** Split a flattened key on its unescaped dots and decode each segment back to its original literal text. */
 export function decodeKeyToSegments(key: string): string[] {
   if (!key.includes(BACKSLASH)) {
     return key.split(DOT);

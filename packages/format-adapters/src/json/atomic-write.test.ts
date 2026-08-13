@@ -297,14 +297,6 @@ describe("atomicWriteFile: the target directory", () => {
 });
 
 describe("atomicWriteFile: symlink and mode policy", () => {
-  /**
-   * Pinned deliberately, and pinned in this direction. rename(2) does not resolve the destination
-   * symlink, so a link planted in a checkout is clobbered rather than followed. Resolving it would
-   * turn any such link into an arbitrary-file-write primitive.
-   *
-   * If this test ever fails, the fix is NOT to update the expectation. It is to ask why the write
-   * started following links. See the `atomicWriteFile` JSDoc for the full policy.
-   */
   it("replaces a symlinked target instead of writing through it", async () => {
     const dir = await makeDir();
     const outside = join(dir, "outside.json");
@@ -329,10 +321,6 @@ describe("atomicWriteFile: symlink and mode policy", () => {
 
     const after = await lstat(target);
     expect(after.ino).not.toBe(inodeBefore);
-    // The replacement takes the mode a fresh file gets under the current umask, not the target's.
-    // Compared against a sibling created the same way rather than against a literal, because
-    // 0o666 & ~umask equals 0o600 under a hardened umask and a literal would fail there while the
-    // behaviour is unchanged.
     const sibling = join(dir, "fresh.json");
     await writeFile(sibling, "x", "utf8");
     expect(after.mode & 0o777).toBe((await lstat(sibling)).mode & 0o777);

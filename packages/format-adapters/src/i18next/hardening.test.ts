@@ -26,13 +26,6 @@ describe("placeholder extraction is linear (HIGH)", () => {
     };
     const small = durationFor(20_000);
     const large = durationFor(200_000);
-    // A wall-clock ceiling flakes under CI load: the same linear algorithm can cross a fixed
-    // threshold on a busy machine. Comparing the 10x-larger input against the smaller one instead
-    // cancels out overall machine speed, since both runs share it; only an algorithmic blowup (for
-    // example quadratic backtracking, which would cost roughly 10x^2 = 100x here) changes the
-    // ratio. The floor of 40ms reproduces the previous 1000ms ceiling (40 * 25) when `small` is
-    // too close to zero to divide by meaningfully, so this is never stricter than the bound it
-    // replaces, and becomes genuinely ratio-driven once `small` is large enough to measure.
     expect(large).toBeLessThan(Math.max(small, 40) * 25);
   });
 

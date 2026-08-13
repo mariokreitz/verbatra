@@ -7,7 +7,6 @@ import { AdapterError } from "../errors.js";
 import type { JsonLeaf, JsonRecord } from "../json/json-tree.js";
 import { assertNotMixed, buildNgxWriteTree } from "./structure.js";
 
-/** Build an ordered tree from a plain literal; safe here because no literal below has integer-like keys. */
 function toTree(node: Record<string, unknown>): JsonRecord {
   return new Map(
     Object.entries(node).map(([key, value]) => [
@@ -107,7 +106,6 @@ describe("buildNgxWriteTree", () => {
     return { key, namespace: "n", value, placeholders: [], isPlural: false };
   }
 
-  /** Collapse the ordered tree to plain data for order-insensitive shape assertions. */
   function plain(value: unknown): unknown {
     if (value instanceof Map) {
       return Object.fromEntries([...value].map(([key, child]) => [key, plain(child)]));

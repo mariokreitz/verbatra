@@ -5,7 +5,6 @@ import type { JsonLeaf, JsonRecord } from "./json-tree.js";
 
 const derive: DeriveEntry = () => ({ placeholders: [], isPlural: false });
 
-/** Build an ordered tree from a plain literal; fine here because no literal below has integer-like keys, so the literal's own property order is already the intended document order. */
 function toTree(node: Record<string, unknown>): JsonRecord {
   return new Map(
     Object.entries(node).map(([key, value]) => [

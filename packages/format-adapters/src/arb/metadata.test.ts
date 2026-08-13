@@ -16,7 +16,6 @@ function entry(key: string, value: string): TranslationEntry {
   return { key, namespace: "app", value, placeholders: [], isPlural: false };
 }
 
-/** Collapse an ordered tree to plain data for order-insensitive shape assertions. */
 function plain(value: unknown): unknown {
   if (value instanceof Map) {
     return Object.fromEntries([...value].map(([key, child]) => [key, plain(child)]));

@@ -1,7 +1,6 @@
 import type { SupportedFormat } from "@verbatra/core";
 import type { FormatAdapter } from "./adapter.js";
 
-/** Outcome of resolving an adapter for a file. Structured; never throws. */
 export type AdapterResolution =
   | { readonly status: "resolved"; readonly adapter: FormatAdapter }
   | {
@@ -15,27 +14,14 @@ export type AdapterResolution =
       readonly candidates: readonly SupportedFormat[];
     };
 
-/** Options for {@link AdapterRegistry.resolve}: select a format explicitly, or aid detection. */
 export interface ResolveOptions {
-  /** A content sample to aid detection. */
   readonly sample?: string;
-  /** Bypass detection and select this format explicitly. */
   readonly format?: SupportedFormat;
 }
 
-/**
- * Holds the registered adapters and resolves one for a file. Open for extension:
- * adapters attach through register without changing resolution logic.
- */
 export class AdapterRegistry {
   private readonly adapters: FormatAdapter[] = [];
 
-  /**
-   * Register an adapter.
-   *
-   * @param adapter - The adapter to add.
-   * @returns This registry, for chaining.
-   */
   register(adapter: FormatAdapter): this {
     this.adapters.push(adapter);
     return this;
@@ -53,11 +39,6 @@ export class AdapterRegistry {
     return { status: "resolved", adapter };
   }
 
-  /**
-   * Resolve by asking every registered adapter's `canHandle`. Several adapters can claim one file
-   * (all JSON adapters claim `.json`), so more than one match is reported as `ambiguous` rather
-   * than guessed at.
-   */
   private resolveByDetection(filePath: string, sample?: string): AdapterResolution {
     const matches = this.adapters.filter((adapter) => adapter.canHandle(filePath, sample));
     const first = matches[0];
@@ -70,14 +51,6 @@ export class AdapterRegistry {
     return { status: "resolved", adapter: first };
   }
 
-  /**
-   * Resolve the adapter for a file, by explicit format when given, otherwise by detection.
-   *
-   * @param filePath - The file to resolve an adapter for.
-   * @param options - `format` selects explicitly and skips detection; `sample` aids detection.
-   * @returns A structured {@link AdapterResolution}: `resolved`, `no-match`, or `ambiguous`. Never
-   *   throws; an unresolvable file is a status, not an exception.
-   */
   resolve(filePath: string, options: ResolveOptions = {}): AdapterResolution {
     if (options.format !== undefined) {
       return this.resolveByFormat(filePath, options.format);

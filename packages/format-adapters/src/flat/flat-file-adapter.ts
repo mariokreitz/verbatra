@@ -13,20 +13,11 @@ import {
   type ValidateMessage,
 } from "../shell.js";
 
-/** The format-specific behavior {@link createFlatFileAdapter} builds an adapter from. */
 export interface FlatFileAdapterOptions {
   readonly format: SupportedFormat;
-  /** Accepted file extensions, lower-cased and dot-prefixed (for example `[".xlf", ".xliff"]`). */
   readonly extensions: readonly string[];
-  /** Optional content sniff; with none, the extension match alone decides `canHandle`. */
   readonly sniff?: Sniff;
-  /** Parse file content into flat entries keyed by their native id; throws a structured AdapterError. */
   readonly parseEntries: (content: string, namespace: string) => Map<string, TranslationEntry>;
-  /**
-   * Serialize entries to file content. Flat formats that carry non-translatable structure (XLIFF
-   * attributes and notes) re-read the destination here and mutate it in place, so they receive the
-   * destination path and own their own missing-destination policy.
-   */
   readonly serializeEntries: (
     entries: ReadonlyMap<string, TranslationEntry>,
     filePath: string,
@@ -48,18 +39,6 @@ function toEntries(
   }
 }
 
-/**
- * Build a flat-file {@link FormatAdapter} for a format whose entries are a flat list keyed by a native
- * id rather than a nested tree (XLIFF trans-units), supplying only `parseEntries` and
- * `serializeEntries` over the shared detection, bounded read, structured-error, and atomic-write shell.
- *
- * `read` raises {@link AdapterError} with the code `parseEntries` throws, `INVALID_STRUCTURE` (the
- * path is not a regular file, or `parseEntries` throws a non-AdapterError), or `INPUT_TOO_LARGE`.
- * `write` delegates to `serializeEntries` and persists its output atomically.
- *
- * @param options - The format-specific behavior.
- * @returns A ready-to-register `FormatAdapter`.
- */
 export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAdapter {
   const {
     format,
