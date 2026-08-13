@@ -710,3 +710,42 @@ describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () 
     ]);
   });
 });
+
+describe("runLocale: lock entries for prototype-shaped keys", () => {
+  it("records a lock entry for a top-level key named __proto__", async () => {
+    const { dir, sourceResource } = await setup(
+      Object.fromEntries([
+        ["__proto__", "A"],
+        ["b", "B"],
+      ]),
+    );
+    const stub = makeStubProvider();
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toContain("__proto__");
+    expect(Object.keys(lockEntries).sort()).toEqual(["__proto__", "b"]);
+    expect(Object.getPrototypeOf(lockEntries)).toBe(Object.prototype);
+  });
+
+  it("carries a __proto__ baseline forward for a source-less target key", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" }, { a: "da" });
+    await writeJsonFile(
+      targetPath(dir, "de"),
+      Object.fromEntries([
+        ["a", "da"],
+        ["__proto__", "kept"],
+      ]),
+    );
+    const stub = makeStubProvider();
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, baseline: new Map([["__proto__", "prior-hash"]]) },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(Object.keys(lockEntries).sort()).toEqual(["__proto__", "a"]);
+  });
+});

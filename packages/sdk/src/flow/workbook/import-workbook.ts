@@ -223,7 +223,7 @@ function computeSheetLockEntries(
   baseline: ReadonlyMap<string, string>,
   accepted: ImportLocaleResult["accepted"],
 ): Record<string, string> {
-  const entries: Record<string, string> = {};
+  const entries = new Map<string, string>();
   for (const key of merged.keys()) {
     const sourceEntry = source.entries.get(key);
     if (sourceEntry === undefined) {
@@ -231,13 +231,13 @@ function computeSheetLockEntries(
       continue;
     }
     if (accepted.has(key)) {
-      entries[key] = contentHash(sourceEntry);
+      entries.set(key, contentHash(sourceEntry));
       continue;
     }
     const prior = baseline.get(key);
-    entries[key] = prior !== undefined ? prior : contentHash(sourceEntry);
+    entries.set(key, prior !== undefined ? prior : contentHash(sourceEntry));
   }
-  return entries;
+  return Object.fromEntries(entries);
 }
 
 interface SheetContext {

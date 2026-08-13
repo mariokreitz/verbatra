@@ -18,9 +18,16 @@ const EMPTY_LOCK: LockFile = { version: CURRENT_VERSION, locales: {} };
 
 const MAX_LOCK_FILE_BYTES = 16 * 1024 * 1024;
 
+function isLockEntries(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every((hash) => typeof hash === "string");
+}
+
 const lockFileSchema = z.object({
   version: z.number().int().positive(),
-  locales: z.record(z.string(), z.record(z.string(), z.string())),
+  locales: z.record(z.string(), z.custom<LockEntries>(isLockEntries)),
 });
 
 export function lockFilePath(cwd: string): string {

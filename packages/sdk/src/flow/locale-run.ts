@@ -651,7 +651,7 @@ function computeLockEntries(
   withheld: ReadonlySet<string>,
   generated: readonly GeneratedForm[],
 ): Record<string, string> {
-  const lockEntries: Record<string, string> = {};
+  const lockEntries = new Map<string, string>();
   for (const key of merged.keys()) {
     const sourceEntry = params.source.entries.get(key);
     if (sourceEntry === undefined) {
@@ -661,14 +661,14 @@ function computeLockEntries(
     if (withheld.has(key)) {
       const prior = params.baseline.get(key);
       if (prior !== undefined) {
-        lockEntries[key] = prior;
+        lockEntries.set(key, prior);
       }
       continue;
     }
-    lockEntries[key] = contentHash(sourceEntry);
+    lockEntries.set(key, contentHash(sourceEntry));
   }
   for (const form of generated) {
-    lockEntries[form.targetKey] = form.lockHash;
+    lockEntries.set(form.targetKey, form.lockHash);
   }
-  return lockEntries;
+  return Object.fromEntries(lockEntries);
 }
