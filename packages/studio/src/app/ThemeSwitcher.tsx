@@ -15,12 +15,6 @@ const PREFERENCE_ICON: Readonly<Record<ThemePreference, IconName>> = {
   dark: "moon",
 };
 
-/**
- * The System/Light/Dark theme picker, an icon-triggered `Dropdown`. Selecting
- * a preference stores it, applies it to the document root immediately, and
- * updates local state so the trigger icon and the checked item track the
- * choice.
- */
 export function ThemeSwitcher(): ReactNode {
   const [preference, setPreference] = useState<ThemePreference>(readStoredThemePreference);
 

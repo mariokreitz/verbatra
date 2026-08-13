@@ -41,16 +41,6 @@ import {
   usageSummaryParamsSchema,
 } from "./usage-summary.js";
 
-/**
- * The single source of truth for the RPC surface: one params schema per method, keyed by its
- * method name. Everything else in this module (the method name list, the method name type, and
- * the request/result type maps) is derived from this record so the agreed methods can never drift
- * out of step with each other.
- *
- * `translation.retranslateEntry`'s schema is declared here unconditionally, independent of which
- * capability flags a given server instance was started with: contract shape is static and shared,
- * only the handler registry (see `server/rpc.ts`'s `createRpcHandlers`) is capability-built.
- */
 export const rpcParamsSchemas = {
   [PROJECT_SNAPSHOT_METHOD]: projectSnapshotParamsSchema,
   [STATUS_CHECK_METHOD]: statusCheckParamsSchema,
@@ -67,13 +57,10 @@ export const rpcParamsSchemas = {
   [USAGE_SUMMARY_METHOD]: usageSummaryParamsSchema,
 } as const;
 
-/** The exact set of agreed RPC methods, derived from {@link rpcParamsSchemas}. */
 export type RpcMethodName = keyof typeof rpcParamsSchemas;
 
-/** The method name list, derived from the same record every schema lookup uses. */
 export const RPC_METHOD_NAMES = Object.keys(rpcParamsSchemas) as readonly RpcMethodName[];
 
-/** Maps each method name to its result type; each method module owns its own entry. */
 export interface RpcResultMap {
   readonly [PROJECT_SNAPSHOT_METHOD]: ProjectSnapshotResult;
   readonly [STATUS_CHECK_METHOD]: StatusCheckResult;
@@ -90,13 +77,10 @@ export interface RpcResultMap {
   readonly [USAGE_SUMMARY_METHOD]: UsageSummaryResult;
 }
 
-/** The parsed params type for one method, inferred from its schema in {@link rpcParamsSchemas}. */
 export type RpcParamsFor<M extends RpcMethodName> = z.infer<(typeof rpcParamsSchemas)[M]>;
 
-/** The result type for one method, looked up in {@link RpcResultMap}. */
 export type RpcResultFor<M extends RpcMethodName> = RpcResultMap[M];
 
-/** The discriminated union of every valid `{ method, params }` request shape. */
 export type RpcRequest = {
   [M in RpcMethodName]: { readonly method: M; readonly params: RpcParamsFor<M> };
 }[RpcMethodName];

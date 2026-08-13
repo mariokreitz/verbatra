@@ -11,7 +11,6 @@ import { createProjectWatcher, defaultCreateStudioWatcher } from "./watcher.js";
 
 const PROJECT_ROOT = "/proj";
 
-/** Mirrors the sdk's own watch.test.ts watcherHarness, generalized to multiple createWatcher calls. */
 function multiWatcherHarness() {
   const calls: { paths: readonly string[]; listener?: () => void; closed: boolean }[] = [];
   const createWatcher: CreateStudioWatcher = (paths): StudioWatcher => {
@@ -50,24 +49,14 @@ function snapshot(
   return { locale, hashes: new Map(Object.entries(entries)) };
 }
 
-/** A readLocaleSnapshot fake that always reads as an empty file; for tests that only care about wiring, not delta content. */
 function emptyReadLocaleSnapshot(locale: string): Promise<LocaleFileSnapshot> {
   return Promise.resolve(snapshot(locale));
 }
 
-/**
- * A readFileIdentity fake that reports every file as unreadable, which the identity gate treats as
- * "unknown" and never as a duplicate. Used by tests that predate the gate and assert emit wiring
- * rather than deduplication, so they never touch the real file system under fake timers.
- */
 function unknownFileIdentity(): Promise<string | undefined> {
   return Promise.resolve(undefined);
 }
 
-/**
- * Builds a readFileIdentity fake that returns the queued tokens in call order, repeating the last
- * one once exhausted. One call happens per settled trigger of a tracker-less entry.
- */
 function sequencedFileIdentity(
   tokens: readonly (string | undefined)[],
 ): () => Promise<string | undefined> {
@@ -79,21 +68,12 @@ function sequencedFileIdentity(
   };
 }
 
-/**
- * Flushes pending microtasks (the async settle chain: readSnapshot, diff, and the trigger's own
- * `.then(emit)`) without advancing the debounce timer. Mirrors the sdk's own watch.test.ts settle().
- */
 async function flushMicrotasks(): Promise<void> {
   for (let i = 0; i < 25; i += 1) {
     await Promise.resolve();
   }
 }
 
-/**
- * Builds a readLocaleSnapshot fake that returns each locale's queued snapshots in call order: the
- * first call for a locale (the startup priming read) gets that locale's first entry, and each later
- * call (one per settled change) gets the next queued entry. The last entry repeats once exhausted.
- */
 function sequencedReadLocaleSnapshot(
   sequences: Readonly<Record<string, readonly LocaleFileSnapshot[]>>,
 ): (locale: string) => Promise<LocaleFileSnapshot> {
@@ -232,7 +212,6 @@ describe("createProjectWatcher: duplicate-state suppression", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  /** Wires a watcher with no target locales, so harness call 0 is the source file and call 1 the lock file. */
   async function lockWatcher(
     harness: ReturnType<typeof multiWatcherHarness>,
     readFileIdentity: () => Promise<string | undefined>,
@@ -830,7 +809,6 @@ describe("createProjectWatcher: close", () => {
   });
 });
 
-/** Waits for a real (not faked) amount of wall-clock time; used only by the real-chokidar tests below. */
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -933,7 +911,6 @@ describe("createProjectWatcher: default file identity read against a real file s
     await rm(root, { recursive: true, force: true });
   });
 
-  /** Wires a watcher with no target locales over `root`, leaving the default (real stat) identity read in place. */
   async function realIdentityWatcher(
     harness: ReturnType<typeof multiWatcherHarness>,
   ): Promise<{ events: RefreshEvent[] }> {

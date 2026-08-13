@@ -3,43 +3,22 @@ import { Button, type ButtonVariant } from "./Button.js";
 import { Icon } from "./Icon.js";
 import { Popover } from "./Popover.js";
 
-/** One entry in a {@link Dropdown} list. */
 export interface DropdownItem {
-  /** Stable identity, unique among the items of one list and independent of the
-   * displayed text: a value, a locale code, a command name. This is the React
-   * key, so `label` is deliberately not usable for it: labels are display
-   * strings that repeat across entries and change whenever copy changes. */
   readonly id: string;
   readonly label: string;
   readonly onSelect: () => void;
   readonly disabled?: boolean;
-  /** Marks the item as the current choice in a pick-one dropdown: renders a
-   * leading check and `aria-current`. Omit entirely for action lists. */
   readonly selected?: boolean;
 }
 
-/** Props for {@link Dropdown}. */
 export interface DropdownProps {
-  /** The trigger's content: a text label, or an icon for an icon-only trigger
-   * (then pass `ariaLabel` so the button still has an accessible name). */
   readonly label: ReactNode;
-  /** Accessible name for the trigger when `label` is not plain text. */
   readonly ariaLabel?: string;
   readonly items: readonly DropdownItem[];
   readonly variant?: ButtonVariant;
   readonly align?: "start" | "end";
 }
 
-/**
- * A button that opens a list of options, built on `Popover`. Selecting an item
- * calls its `onSelect` and closes the list.
- *
- * Deliberately not the WAI-ARIA `menu`/`menuitem` pattern: that pattern
- * requires arrow-key, Home/End, and typeahead navigation, none of which this
- * component implements. It is a plain, Tab-navigable list of ordinary buttons
- * in a popover, with `aria-haspopup="true"` (a generic popup) rather than
- * `"menu"`.
- */
 export function Dropdown({
   label,
   ariaLabel,

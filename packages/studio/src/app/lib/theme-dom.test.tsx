@@ -8,24 +8,15 @@ import {
   storeThemePreference,
 } from "./theme-dom.js";
 
-/** The stub standing in for `window.matchMedia`, which jsdom does not implement. */
 interface MediaStub {
-  /** Flips what the OS reports, for the next read and for a subsequent change event. */
   setPrefersLight(next: boolean): void;
-  /** Plays one OS scheme change into every registered listener. */
   emitChange(): void;
-  /** How many change listeners are live across every query the stub handed out. */
   listenerCount(): number;
 }
 
 function installMatchMedia(prefersLight: boolean): MediaStub {
   let matches = prefersLight;
-  // A real `matchMedia` returns a new MediaQueryList per call and each one owns its listener
-  // list, so the stub does the same. One shared object would count a listener re-registered on
-  // the same query and one leaked onto a second query alike, and hide the leak.
   const queries: Array<Set<() => void>> = [];
-  // `systemPrefersLight` calls `window.matchMedia` afresh on every read, so each query exposes
-  // `matches` as a getter over the shared flag rather than a snapshot of it.
   const createQuery = (): MediaQueryList => {
     const listeners = new Set<() => void>();
     queries.push(listeners);
@@ -57,7 +48,6 @@ function installMatchMedia(prefersLight: boolean): MediaStub {
   };
 }
 
-/** Makes every read and write on the real storage throw, the way a blocked or full store does. */
 function breakStorage(): void {
   const denied = (): never => {
     throw new Error("storage is not available");
@@ -207,8 +197,6 @@ describe("initTheme", () => {
   });
 
   it("keeps an explicit in-session choice when the OS flips, even though storage never took it", () => {
-    // Storage is unusable, so a listener that re-read storage would see "system" and resolve the
-    // OS scheme, silently discarding the light theme the user picked in this session.
     breakStorage();
     const media = installMatchMedia(false);
     initTheme();

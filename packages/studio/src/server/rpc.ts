@@ -30,31 +30,19 @@ import type { StudioServerDeps } from "./types.js";
 
 export type { StudioCapabilities } from "../shared/rpc/snapshot.js";
 
-/**
- * Everything an RPC handler may read: the config resolved once at startup (never re-loaded per
- * request), the project root it resolves relative paths against, and the remaining
- * {@link StudioServerDeps} forwarded unchanged for handlers that need them.
- */
 export interface RpcHandlerDeps
   extends Omit<StudioServerDeps, "loader" | "token" | "output" | "assetsRoot"> {
   readonly config: LoadedConfig;
   readonly projectRoot: string;
 }
 
-/** The handler function for one RPC method: contract-typed params and deps in, contract-typed result out. */
 export type RpcHandler<M extends RpcMethodName> = (
   params: RpcParamsFor<M>,
   deps: RpcHandlerDeps,
 ) => Promise<RpcResultFor<M>>;
 
-/** A partial handlers record: a method absent here dispatches to `METHOD_UNKNOWN` rather than throwing. */
 export type HandlersRegistry = { readonly [M in RpcMethodName]?: RpcHandler<M> };
 
-/**
- * The nine read handlers present in every registry regardless of capability. None of these ever
- * calls a provider or writes to disk; each is gated only on its underlying data existing, never
- * on a capability flag.
- */
 const readOnlyHandlers: HandlersRegistry = {
   [PROJECT_SNAPSHOT_METHOD]: snapshotHandler,
   [STATUS_CHECK_METHOD]: statusCheckHandler,
@@ -67,19 +55,6 @@ const readOnlyHandlers: HandlersRegistry = {
   [USAGE_SUMMARY_METHOD]: usageSummaryHandler,
 };
 
-/**
- * Builds the capability-gated handlers registry: always the nine read handlers, always
- * `translation.editEntry` and `key.value` (writing a local locale file needs no capability flag,
- * and neither method ever calls a provider), plus `translation.retranslateEntry` and
- * `translation.translatePending` only when `capabilities.spend` is true. Called once by
- * `createStudioServer` before it starts listening; the registry is never rebuilt afterward. A
- * spend-gated method the server was not granted is simply absent from the returned record, and
- * dispatch answers METHOD_UNKNOWN for an absent handler, so absence is the whole gate.
- *
- * The server caches no project data between requests: the config resolved once at startup (see
- * {@link RpcHandlerDeps.config}) is the one value the dashboard holds in memory. Every handler
- * that reads anything else from disk must read it fresh on every call.
- */
 export function createRpcHandlers(capabilities: StudioCapabilities): HandlersRegistry {
   return {
     ...readOnlyHandlers,

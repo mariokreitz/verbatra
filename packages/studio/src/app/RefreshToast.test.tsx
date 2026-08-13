@@ -17,7 +17,6 @@ vi.mock("./api.js", () => import("./test-support.js").then((module) => module.ap
 const ACTION_METHOD = "translation.translatePending";
 const ACTION_LABEL = "Translate pending changes across all locales";
 
-/** A source-file event: the only category whose toast may carry the pending-changes action. */
 const SOURCE_VIEW: RefreshToastView = {
   category: "source",
   label: "Source changed",
@@ -25,7 +24,6 @@ const SOURCE_VIEW: RefreshToastView = {
   actionEligible: true,
 };
 
-/** A target-file event: never action-eligible, whatever the capabilities say. */
 const TARGET_VIEW: RefreshToastView = {
   category: "targets",
   label: "Target changed: de",
@@ -48,11 +46,6 @@ function snapshot(capabilities: StudioCapabilities): {
   };
 }
 
-/**
- * Only the three withheld-key lists `deriveTranslatePendingOutcome` sums; the rest of the sdk's
- * `LocaleSummary` never reaches this component, and the rpc stub takes an `unknown` result, so a
- * fuller fixture would add noise without adding a claim.
- */
 interface WithheldLocale {
   readonly locale: string;
   readonly integrityMismatches: readonly string[];
@@ -60,7 +53,6 @@ interface WithheldLocale {
   readonly budgetWithheld: readonly string[];
 }
 
-/** A locale summary with no withheld keys, the baseline the withheld fixtures vary from. */
 function localeSummary(overrides: Partial<WithheldLocale> = {}): WithheldLocale {
   return {
     locale: "de",
@@ -192,7 +184,6 @@ describe("RefreshToast", () => {
     });
     const view = await mount(SOURCE_VIEW);
 
-    // Deliberately not awaited: the never-settling run is what "in flight" means here.
     void clickAsync(view.getByText("button", ACTION_LABEL));
 
     expect(view.getByText("button", ACTION_LABEL).hasAttribute("disabled")).toBe(true);

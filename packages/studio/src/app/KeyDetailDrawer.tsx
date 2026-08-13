@@ -18,21 +18,11 @@ import { useDialogA11y } from "./use-dialog-a11y.js";
 import { useHistoryList } from "./use-history-list.js";
 import { useKeyIntegrity } from "./use-key-integrity.js";
 
-/** Props for {@link KeyDetailDrawer}. */
 export interface KeyDetailDrawerProps {
-  /** The key this drawer reports on. */
   readonly keyName: string;
-  /** The caller's already-loaded per-locale diff data; never re-fetched here. */
   readonly locales: readonly DiffLocale[];
-  /** Bumped once per live-refresh event; re-fetches the drawer's integrity and value views. */
   readonly refreshToken: number;
   readonly onClose: () => void;
-  /**
-   * Opens the edit dialog for one of this key's locales. The Edit action
-   * renders only when the session can write to disk and the caller passes
-   * this. The caller owns swapping this drawer for the editor rather than
-   * stacking two focus-trapping dialogs.
-   */
   readonly onEditLocale?: (locale: string) => void;
 }
 
@@ -44,12 +34,6 @@ type KeyValuesState =
       readonly targets: ReadonlyMap<string, string | undefined>;
     };
 
-/**
- * The key's current values, one `key.value` call per locale. A locale whose
- * read fails is simply absent from the map, so a partial result degrades to
- * fewer value lines rather than an error. Re-fetched whenever `refreshToken`
- * changes.
- */
 function useKeyValues(
   keyName: string,
   locales: readonly string[],
@@ -87,7 +71,6 @@ function useKeyValues(
   return state;
 }
 
-/** One locale's current value line, rendered in that locale's own direction. */
 function LocaleValue({
   values,
   locale,
@@ -109,12 +92,6 @@ function LocaleValue({
   );
 }
 
-/**
- * The integrity pill for one locale row, or nothing when
- * `deriveIntegrityPillView` yields no pill for that locale. Renders the
- * Retranslate action alongside the pill only when `canRetranslate` allows it;
- * otherwise the action is absent entirely, not merely disabled.
- */
 function IntegrityCell({
   integrity,
   locale,
@@ -143,11 +120,6 @@ function IntegrityCell({
   );
 }
 
-/**
- * One locale's block: the locale code and its status and integrity signals on
- * the header line, the current translation value under it. RTL locales render
- * the whole block in their own direction.
- */
 function LocaleBlock({
   row,
   keyName,
@@ -193,15 +165,6 @@ function LocaleBlock({
   );
 }
 
-/**
- * Per-key detail drawer: one key's status, integrity, and current value per
- * locale, plus the project's commit history. The status rows derive from the
- * diff data the caller already loaded; integrity comes from `key.integrity`
- * and values from one `key.value` call per locale, both re-fetched when the
- * key or `refreshToken` changes. The history section is project-wide, not
- * filtered to this key. Focus trap, Esc-to-close, and focus restoration come
- * from `useDialogA11y`.
- */
 export function KeyDetailDrawer({
   keyName,
   locales,

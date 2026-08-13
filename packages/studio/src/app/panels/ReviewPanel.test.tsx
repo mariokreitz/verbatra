@@ -20,10 +20,6 @@ import { ReviewPanel } from "./ReviewPanel.js";
 
 vi.mock("../api.js", () => import("../test-support.js").then((module) => module.apiMock()));
 
-/**
- * Three flagged rows across two locales, covering all five `ReviewReasonCode` values, so every
- * reason chip label and tone is exercised by the loaded-state assertions.
- */
 const QUEUE: ReviewQueueResult = {
   available: true,
   version: 1,
@@ -75,7 +71,6 @@ function snapshotAnswer(result: ProjectSnapshotResult): {
   return { ok: true, result };
 }
 
-/** The default pair every loaded-state test needs: a populated queue and write-capable session. */
 function stubReview(queue: ReviewQueueResult = QUEUE, snapshot = SNAPSHOT): void {
   stubRpc({ "review.queue": queueAnswer(queue), "project.snapshot": snapshotAnswer(snapshot) });
 }
@@ -100,7 +95,6 @@ function keyFilter(view: RenderResult): HTMLInputElement {
   return element;
 }
 
-/** The action button named `name` in the row whose key cell reads `key`. */
 function rowAction(view: RenderResult, key: string, name: string): HTMLElement {
   const row = view
     .all("tbody tr")
@@ -114,7 +108,6 @@ function rowAction(view: RenderResult, key: string, name: string): HTMLElement {
   return button;
 }
 
-/** Opens the edit dialog for one row, with `key.value` already answering. */
 async function openEditor(view: RenderResult, key: string): Promise<void> {
   stubRpc({ "key.value": { ok: true, result: KEY_VALUE } });
   await clickAsync(rowAction(view, key, "Edit"));
@@ -136,7 +129,6 @@ describe("ReviewPanel", () => {
       "project.snapshot": snapshotAnswer(SNAPSHOT),
     });
 
-    // Deliberately not awaited: the pending call is what "still loading" means.
     const view = render(<ReviewPanel refreshToken={0} />);
 
     expect(view.get('[role="status"]').textContent?.trim()).toBe("Loading review queue…");

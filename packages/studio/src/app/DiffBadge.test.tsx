@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 import { DiffBadge, type DiffTone } from "./DiffBadge.js";
 import { render } from "./test-support.js";
 
-/**
- * The label and background token expected per tone. Typed as a total record over `DiffTone`, so a
- * new kind of pending change cannot be added to the union without being covered here.
- */
 const TONE_EXPECTATIONS: Readonly<
   Record<DiffTone, { readonly label: string; readonly bg: string }>
 > = {

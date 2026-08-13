@@ -6,7 +6,6 @@ import type { RpcHandlerDeps } from "../rpc.js";
 import { type FixtureProject, makeFixtureProject } from "../test-support.js";
 import { translatePendingHandler } from "./translate-pending.js";
 
-/** A minimal real-disk SdkFs whose lock-file write can be made to fail, isolating one locale. */
 function realFsWithFailingLockWrite(failingLocale: string): SdkFs {
   return {
     fileExists: async (path) => {

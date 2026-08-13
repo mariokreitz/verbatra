@@ -1,18 +1,12 @@
 import type { ReactNode } from "react";
 import { microLabelClassName } from "./ui.js";
 
-/**
- * The page-title block a panel opens with: a kicker eyebrow line, an h1, an
- * optional one-line description, and an optional inline-end slot for the
- * page's contextual actions.
- */
 export function PageHeader({
   kicker = "Verbatra Studio",
   title,
   description,
   actions,
 }: {
-  /** The eyebrow line above the title; defaults to the product name. */
   readonly kicker?: string;
   readonly title: string;
   readonly description?: string;

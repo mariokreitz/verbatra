@@ -8,10 +8,6 @@ import { click, flush, render, renderAsync, rpcError, stubRpc } from "./test-sup
 
 vi.mock("./api.js", () => import("./test-support.js").then((module) => module.apiMock()));
 
-/**
- * One locale's `status.diff` entry. `hasPendingChanges` follows the sdk's own rule (orphaned keys
- * do not count), so a fixture never contradicts the shape the real RPC returns.
- */
 function localeDiff(
   locale: string,
   missing: readonly string[],
@@ -27,7 +23,6 @@ function localeDiff(
   };
 }
 
-/** One locale's `status.check` row; the grid reads only `locale` and the three counts. */
 function checkRow(
   locale: string,
   missing: number,
@@ -43,11 +38,6 @@ function checkResult(
   return { inSync: rows.every((row) => row.inSync), locales: rows };
 }
 
-/**
- * The grid's arrow and activation handling is a React `onKeyDown` on the cell button, not a
- * document listener, so the event has to be dispatched on the cell itself rather than through the
- * shared `pressKey` helper.
- */
 function keyDownOn(element: HTMLElement, key: string): void {
   act(() => {
     element.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));

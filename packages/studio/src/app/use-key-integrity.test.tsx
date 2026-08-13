@@ -45,7 +45,6 @@ function Probe({
   return <span data-testid="kind">{seen.kind}</span>;
 }
 
-/** The drawer always passes both the open key and the app's refresh token, so the probe does too. */
 function probe(entryKey: string, token: number): ReactNode {
   return <Probe entryKey={entryKey} token={token} />;
 }

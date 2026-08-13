@@ -66,11 +66,6 @@ function makeSnapshotResult(overrides: Partial<ProjectSnapshotResult> = {}): Pro
   };
 }
 
-/**
- * A mock rpc client that answers `project.snapshot` with the given envelope and echoes every other
- * method back, recording each call so a test can assert the delegation. Cast to the generic client
- * signature since the mock intentionally treats every method uniformly.
- */
 function makeRpcClient(
   snapshot: RpcCallResult<"project.snapshot">,
   calls: RecordedCall[],
@@ -105,22 +100,16 @@ function toolByName(tools: readonly WebMcpTool[], name: string): WebMcpTool {
   return tool;
 }
 
-/** The MCP-safe tool name a raw RPC method is expected to register under. */
 function expectedName(method: string): string {
   return `verbatra_${method.replaceAll(".", "_")}`;
 }
 
-/** A stand-in for the browser's `DOMException`: only the structural `name` matters here. */
 function namedError(name: string, message: string): Error {
   const error = new Error(message);
   error.name = name;
   return error;
 }
 
-/**
- * A model context that refuses one named tool by throwing before it ever returns a promise, the
- * shape a host that validates its argument synchronously would take.
- */
 function makeThrowingModelContext(refused: string): { context: ModelContext; tools: WebMcpTool[] } {
   const tools: WebMcpTool[] = [];
   return {
@@ -136,10 +125,6 @@ function makeThrowingModelContext(refused: string): { context: ModelContext; too
   };
 }
 
-/**
- * A model context that answers with a promise, as the specified surface does, and rejects one
- * named tool. A discarded return value here is a floating rejection no caller can catch.
- */
 function makeRejectingModelContext(refused: string): {
   context: ModelContext;
   tools: WebMcpTool[];
@@ -159,7 +144,6 @@ function makeRejectingModelContext(refused: string): {
   };
 }
 
-/** A promise-answering model context that rejects any name it has already accepted. */
 function makeDuplicateRejectingModelContext(): { context: ModelContext; tools: WebMcpTool[] } {
   const tools: WebMcpTool[] = [];
   return {
@@ -411,20 +395,16 @@ describe("registerAgentTools failure reporting", () => {
   });
 });
 
-/** The floor the recorded description standard sets; a future one-liner has to fail this. */
 const MINIMUM_SENTENCES = 3;
 
-/** Splits on a period followed by whitespace. No description may use a period for anything else. */
 function sentencesOf(description: string): readonly string[] {
   return description.split(/(?<=\.)\s+/).filter((sentence) => sentence.length > 0);
 }
 
-/** The backticked tokens in a description, which the standard reserves for parameter names. */
 function backtickedTokens(description: string): Set<string> {
   return new Set(Array.from(description.matchAll(/`([^`]+)`/g), (match) => match[1] ?? ""));
 }
 
-/** The parameter names in a method's params schema, read from the JSON Schema the agent is shown. */
 function schemaParamNames(method: RpcMethodName): Set<string> {
   const schema = z.toJSONSchema(rpcParamsSchemas[method]) as {
     readonly properties?: Readonly<Record<string, unknown>>;

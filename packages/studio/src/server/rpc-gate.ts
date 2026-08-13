@@ -5,7 +5,6 @@ import type { RpcRateLimiter } from "./rate-limiter.js";
 import { redact } from "./redaction.js";
 import type { HandlersRegistry, RpcHandlerDeps } from "./rpc.js";
 
-/** The transport-level result of a POST /rpc call: a status and a body ready to write as-is. */
 export interface RpcResult {
   readonly statusCode: number;
   readonly body: string;
@@ -19,7 +18,6 @@ const ALREADY_IN_PROGRESS_MESSAGE =
   "A matching call is already in progress; wait for it to finish.";
 const INTERNAL_ERROR_MESSAGE = "An unexpected error occurred.";
 
-/** One failing zod issue, carrying only its path and code: never a message or a received value. */
 interface ParsedIssue {
   readonly path: readonly string[];
   readonly code: string;
@@ -34,7 +32,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Parses the body as JSON and checks it is shaped as `{ method: string, params? }`; anything else is `undefined`. */
 function parseRequestShape(body: Buffer): RawRequestShape | undefined {
   let parsed: unknown;
   try {
@@ -78,19 +75,11 @@ function errorEnvelope(
   return jsonEnvelope(statusCode, { ok: false, error });
 }
 
-/** The minimal shape shared by SdkError, AdapterError, and ProviderError: a string `code` and a message. */
 interface DomainError {
   readonly code: string;
   readonly message: string;
 }
 
-/**
- * Structurally detects an SdkError (`@verbatra/sdk`), an AdapterError (`@verbatra/format-adapters`),
- * or a ProviderError (`@verbatra/ai-providers`) without importing any of the three: studio must
- * never depend on ai-providers, format-adapters, or exchange (dependency direction). All three
- * classes fix `name` to their class name and carry a string `code`, which is exactly what is
- * checked here, so the check stays correct without the import.
- */
 function isDomainError(error: unknown): error is DomainError {
   return (
     error instanceof Error &&
@@ -101,12 +90,6 @@ function isDomainError(error: unknown): error is DomainError {
   );
 }
 
-/**
- * Maps a handler throw to its response: a domain error (SdkError, AdapterError, or ProviderError)
- * rides HTTP 200 with `ok: false`, its code, and its redacted message; anything else is an
- * unexpected failure, answered with a fixed 500 body that never echoes the original error. The
- * error is not logged here either; a caller that wants server-side detail logs it itself.
- */
 function mapHandlerError(error: unknown): RpcResult {
   if (isDomainError(error)) {
     return jsonEnvelope(200, {
@@ -117,16 +100,6 @@ function mapHandlerError(error: unknown): RpcResult {
   return errorEnvelope(500, "INTERNAL", INTERNAL_ERROR_MESSAGE);
 }
 
-/**
- * Validates params, applies the rate limit and in-flight guard, and invokes the handler for one
- * resolved method. The rate limit runs after method resolution (a method absent from the registry
- * already answered METHOD_UNKNOWN) but before the handler, so a limited call never reaches the
- * sdk seam, a provider, or disk; the in-flight guard runs at the same layer, and a call it
- * rejects never marked anything, so only the invoked path calls `leave`. The `as never` assertion
- * is sound at runtime only because `handler` and the params schema are looked up by the same
- * `method` key; the type system cannot express that correlation across a dynamically chosen
- * union key.
- */
 async function invokeHandler(
   method: RpcMethodName,
   params: unknown,
@@ -165,16 +138,6 @@ async function invokeHandler(
   }
 }
 
-/**
- * The complete POST /rpc envelope: parses and shape-checks the body, resolves the method against
- * the shared contract, validates its parameters, applies the per-method rate limit and in-flight
- * guard, dispatches to the matching handler, and maps every outcome (success, domain error, or
- * unexpected throw) to the fixed response envelope. `handlers` is the capability-gated registry
- * built at startup; there is no module-level default, so an absent handler for a disabled write
- * method degrades to METHOD_UNKNOWN exactly like any other unregistered method. `rateLimiter`
- * and `inFlightGuard` are optional so tests exercising other envelope rows need not construct
- * either.
- */
 export async function dispatchRpc(
   body: Buffer,
   deps: RpcHandlerDeps,
@@ -192,11 +155,6 @@ export async function dispatchRpc(
   return invokeHandler(request.method, request.params, deps, handlers, rateLimiter, inFlightGuard);
 }
 
-/**
- * Transport-level entry point for POST /rpc; delegates to {@link dispatchRpc}. A request reaches
- * this function only after passing the host, origin, authentication, content-type, and body-size
- * gates.
- */
 export function handleRpcBody(
   body: Buffer,
   deps: RpcHandlerDeps,

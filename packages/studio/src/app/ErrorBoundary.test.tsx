@@ -4,22 +4,10 @@ import { afterEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { ErrorBoundary } from "./ErrorBoundary.js";
 import { click, render } from "./test-support.js";
 
-/**
- * React logs every error it hands to a boundary through `console.error`, and
- * `componentDidCatch` logs a second time. Silencing it keeps the throwing tests
- * from burying real output, and returns the spy so a test can read what was
- * reported.
- *
- * This is the one piece of setup specific to this file. Every other suite here
- * renders components that do not throw, so the shared harness in
- * `test-support.tsx` has no reason to carry it.
- */
 function silenceConsoleError(): MockInstance<typeof console.error> {
   return vi.spyOn(console, "error").mockImplementation(() => {});
 }
 
-// Deliberate: the shared preset does not set `restoreMocks`, so the console spy
-// installed above would stay in place for the rest of the file without this.
 afterEach(() => {
   vi.restoreAllMocks();
 });

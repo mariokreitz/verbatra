@@ -15,20 +15,13 @@ type SubmitState =
   | { readonly kind: "submitting" }
   | { readonly kind: "settled"; readonly outcome: EditEntryOutcome };
 
-/** Props for {@link EditEntryDialog}. */
 export interface EditEntryDialogProps {
   readonly locale: string;
   readonly keyName: string;
   readonly onClose: () => void;
-  /** Called only when the server accepts the edit; the caller marks the row actioned and may close the dialog. */
   readonly onAccepted: (locale: string, keyName: string) => void;
 }
 
-/**
- * Fetches the key's current source and target via `key.value`, once per
- * (locale, keyName) pair. The response-to-state mapping lives in the pure
- * `deriveKeyValueContext`; this hook only owns the fetch effect.
- */
 function useKeyValueContext(locale: string, keyName: string): KeyValueContext {
   const [state, setState] = useState<KeyValueContext>({ kind: "loading" });
 
@@ -64,13 +57,6 @@ function submitStatusClassName(state: SubmitState): string {
   );
 }
 
-/**
- * The remediation the shared status label deliberately cannot carry. Saving an empty value is
- * refused, and clearing a translation outright is done with the workbook's `[[CLEAR]]` sentinel, so
- * someone who select-all-deletes here needs pointing at it. Kept local to this dialog because the
- * label map is shared with the retranslate button, where an empty value came from the provider and
- * the user typed nothing, making this pointer wrong there.
- */
 function clearRemediationHint(state: SubmitState): string | undefined {
   if (state.kind !== "settled" || state.outcome.kind !== "rejected") {
     return undefined;
@@ -119,13 +105,6 @@ function EditorFields({
   );
 }
 
-/**
- * Drawer-style editor for one translation entry. Pre-populates the text area
- * from `key.value`, submits through `translation.editEntry`, and shows a
- * status label while saving and after the call settles. Calls `onAccepted`
- * only when the server accepts the edit. Uses `useDialogA11y` for the focus
- * trap and Esc-to-close.
- */
 export function EditEntryDialog({
   locale,
   keyName,

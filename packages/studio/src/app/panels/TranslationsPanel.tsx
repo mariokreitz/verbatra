@@ -57,7 +57,6 @@ type DiffState =
       readonly kind: "loaded";
       readonly hasPendingChanges: boolean;
       readonly locales: readonly DiffLocale[];
-      /** Set when the most recent live re-fetch failed: the data shown is the last good read. */
       readonly staleError?: StructuredError;
     };
 
@@ -77,8 +76,6 @@ type LockView =
       readonly locales: readonly LockLocaleState[];
     };
 
-/** Lock-file existence, version, and per-locale drift via `lock.state`,
- * re-fetched whenever `refreshToken` changes. */
 function useLockState(refreshToken: number): LockView {
   const [view, setView] = useState<LockView>({ kind: "loading" });
 
@@ -110,15 +107,8 @@ function useLockState(refreshToken: number): LockView {
   return view;
 }
 
-/** How long the "Copied" confirmation stays visible after a successful clipboard write. */
 const COPY_CONFIRMATION_MS = 2000;
 
-/**
- * The page's contextual action: renders the full, currently loaded diff data
- * (never the on-screen filtered or capped view) as a Markdown review report
- * and copies it to the clipboard. Confirmation is a transient label swap. A
- * failed clipboard write is swallowed; the button simply does not confirm.
- */
 function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale[] }): ReactNode {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<number | undefined>(undefined);
@@ -148,8 +138,6 @@ function ReviewReportButton({ locales }: { readonly locales: readonly DiffLocale
   );
 }
 
-/** The attention tile's figure and copy for each diff state, so the strip
- * never fabricates a zero while the diff is still loading or failed. */
 function attentionTile(
   diff: DiffState,
   rows: readonly StatusRow[] | null,
@@ -179,8 +167,6 @@ function attentionTile(
   return { value: String(pending), hint: across, tone: "danger" };
 }
 
-/** The last-run tile's figure and copy: a one-line summary of the most
- * recent run's token usage; the Activity page carries the full breakdown. */
 function lastRunTile(view: ReturnType<typeof useUsageTicker>): {
   readonly value: string;
   readonly hint: string;
@@ -209,12 +195,6 @@ function lastRunTile(view: ReturnType<typeof useUsageTicker>): {
   };
 }
 
-/**
- * The page's stat strip: four tiles (keys needing attention, average
- * coverage, locales in sync, the last run's usage) plus an all-clear banner
- * when nothing is pending. The tiles resolve independently from the diff,
- * the status data, and the usage ticker rather than blocking on each other.
- */
 function StatStrip({
   status,
   diff,
@@ -290,7 +270,6 @@ function StatStrip({
   );
 }
 
-/** One drift tone's key list, filtered by `query` and capped at `MAX_RENDERED_KEYS`. */
 function KeyList({
   tone,
   keys,
@@ -331,7 +310,6 @@ function KeyList({
   );
 }
 
-/** The at-a-glance drift figures in a locale section's always-visible summary row. */
 function LocaleSectionCounts({ locale }: { readonly locale: DiffLocale }): ReactNode {
   if (!locale.hasPendingChanges) {
     return null;
@@ -344,12 +322,6 @@ function LocaleSectionCounts({ locale }: { readonly locale: DiffLocale }): React
   );
 }
 
-/**
- * One locale's missing, changed, and orphaned key lists in an
- * `AccordionItem`: expanded by default when the locale has pending changes,
- * collapsed when it is up to date. A reader can still expand a synced locale
- * manually.
- */
 function LocaleSection({
   locale,
   query,
@@ -387,12 +359,6 @@ const VIEW_MODE_ITEMS: ReadonlyArray<{ readonly id: DiffViewMode; readonly label
   { id: "flat", label: "List" },
 ];
 
-/**
- * The drift-affected keys: a key-by-locale grid (default) or per-locale
- * collapsible lists, with a key filter in list mode. The caller renders this
- * only while something is pending; the all-clear state is carried by the
- * stat strip.
- */
 function KeysSection({
   locales,
   query,
@@ -446,7 +412,6 @@ function KeysSection({
   );
 }
 
-/** One locale's lock cell: its recorded lock entry's drift state, or "not recorded". */
 function lockCell(lock: LockView, locale: string): ReactNode {
   if (lock.kind !== "loaded") {
     return null;
@@ -485,10 +450,6 @@ function LocaleRow({ row, lock }: { readonly row: StatusRow; readonly lock: Lock
   );
 }
 
-/** The lock file's own record, behind a collapsed disclosure: keys per
- * recorded locale and drift measured against the current files. Its counts
- * are lock-vs-files, distinct from the coverage table's source-vs-targets
- * counts. */
 function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] }): ReactNode {
   return (
     <AccordionItem
@@ -532,11 +493,6 @@ function LockDetail({ locales }: { readonly locales: readonly LockLocaleState[] 
   );
 }
 
-/**
- * Per-locale coverage merged with the lock file's state: one table answers
- * how far along each locale is and whether its lock entry agrees. The lock
- * column and the lock detail render only when a lock file exists.
- */
 function LocalesSection({
   status,
   lock,
@@ -597,17 +553,6 @@ function LocalesSection({
   );
 }
 
-/**
- * The Translations page. Three reads re-fetch on every live-refresh event:
- * `status.check` (coverage) via {@link useStatusData}, `status.diff` (the key
- * lists) driving the stat strip and the key explorer, and `lock.state`
- * driving the lock column and detail. A failed diff re-fetch keeps the last
- * good data on screen with a stale banner; the hard error state only shows
- * before the first successful read. Clicking a key opens
- * {@link KeyDetailDrawer} over the already-loaded diff data; choosing Edit
- * there swaps the drawer for {@link EditEntryDialog} (never stacking two
- * focus-trapping dialogs), and closing the editor returns to the drawer.
- */
 export function TranslationsPanel({ refreshToken }: PanelProps): ReactNode {
   const [diff, setDiff] = useState<DiffState>({ kind: "loading" });
   const [query, setQuery] = useState("");

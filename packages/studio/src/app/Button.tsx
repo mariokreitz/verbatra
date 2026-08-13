@@ -1,10 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
-/** The visual emphasis of a {@link Button}: filled call-to-action, bordered default, or low-emphasis chrome. */
 export type ButtonVariant = "primary" | "secondary" | "ghost";
 
-/** The size of a {@link Button}: `sm` for inline row actions, `md` for page-level actions. */
 export type ButtonSize = "sm" | "md";
 
 const BASE_CLASSNAME =
@@ -24,19 +22,12 @@ const VARIANT_CLASSNAME: Readonly<Record<ButtonVariant, string>> = {
     "border border-transparent bg-transparent text-muted-foreground hover:not-disabled:bg-accent hover:not-disabled:text-accent-foreground",
 };
 
-/** Props for {@link Button}. Extends the native button attributes. */
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   readonly variant?: ButtonVariant;
   readonly size?: ButtonSize;
   readonly children: ReactNode;
 }
 
-/**
- * The shared button for the dashboard's inline and page-level actions.
- * Defaults to the bordered `secondary` variant at the small size. `type`
- * defaults to `"button"` so callers never submit a form by accident, but a
- * caller can still override it.
- */
 export function Button({
   variant = "secondary",
   size = "sm",

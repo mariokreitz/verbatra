@@ -9,7 +9,6 @@ import {
   toRegistrationFailure,
 } from "./registration-report.js";
 
-/** A stand-in for the browser's `DOMException`: only the structural `name` matters here. */
 function namedError(name: string, message: string): Error {
   const error = new Error(message);
   error.name = name;

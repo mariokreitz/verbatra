@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
-/**
- * A horizontal control row between a page's header and its content: one
- * wrapping line with consistent gaps. `end` renders pushed to the inline-end
- * edge.
- */
 export function Toolbar({
   children,
   end,
@@ -25,18 +20,12 @@ export function Toolbar({
   );
 }
 
-/**
- * A control row for filter controls: a native fieldset/legend pair (the
- * legend visually hidden) so assistive technology announces the controls as
- * a named group rather than loose inputs.
- */
 export function FilterBar({
   children,
   label = "Filters",
   className,
 }: {
   readonly children: ReactNode;
-  /** The group's accessible name. */
   readonly label?: string;
   readonly className?: string;
 }): ReactNode {

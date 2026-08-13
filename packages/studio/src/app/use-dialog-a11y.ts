@@ -9,11 +9,8 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(", ");
 
-/** Options for {@link useDialogA11y}. */
 export interface DialogA11yOptions {
-  /** Whether the dialog is currently open; the trap and its listeners are only live while true. */
   readonly isOpen: boolean;
-  /** Called on Escape. The caller owns unmounting or hiding the dialog; this hook never does it itself. */
   readonly onClose: () => void;
 }
 
@@ -37,17 +34,6 @@ function trapTabKey(event: KeyboardEvent, container: HTMLElement): void {
   }
 }
 
-/**
- * Shared accessibility behavior for overlay dialogs: on open, focus moves to
- * the first focusable element inside the returned container ref; Tab and
- * Shift+Tab cycle within the container (a focus trap); Escape calls
- * `onClose`; and on close or unmount, focus returns to the element focused
- * beforehand. The latest `onClose` is tracked through a ref rather than an
- * effect dependency, so a caller may pass a new callback identity on every
- * render without tearing down and rebuilding the trap.
- *
- * @returns The ref to attach to the dialog's container element.
- */
 export function useDialogA11y<T extends HTMLElement>({
   isOpen,
   onClose,

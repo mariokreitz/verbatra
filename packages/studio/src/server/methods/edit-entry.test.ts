@@ -6,7 +6,6 @@ import type { RpcHandlerDeps } from "../rpc.js";
 import { type FixtureProject, makeFixtureProject } from "../test-support.js";
 import { editEntryHandler } from "./edit-entry.js";
 
-/** A minimal real-disk SdkFs, mirroring retranslate-entry.test.ts's own fixture. */
 const realFs: SdkFs = {
   fileExists: async (path) => {
     try {

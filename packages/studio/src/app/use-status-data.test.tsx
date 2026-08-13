@@ -25,7 +25,6 @@ const CAUGHT_UP: StatusCheckResult = {
   ],
 };
 
-/** The rows {@link BEHIND} maps to: the sdk's counts plus the percentage `coveragePercent` derives. */
 const BEHIND_DATA: StatusData = {
   inSync: false,
   rows: [

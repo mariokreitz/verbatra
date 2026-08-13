@@ -83,8 +83,6 @@ describe("CommitList", () => {
       <CommitList state={{ kind: "loaded", commits: [COMMIT, second] }} emptyMessage="none" />,
     );
 
-    // The touched-paths list is also a `ul > li`, so the feed is selected by the absence of the
-    // label that list carries.
     expect(view.all("ul:not([aria-label]) > li")).toHaveLength(2);
   });
 

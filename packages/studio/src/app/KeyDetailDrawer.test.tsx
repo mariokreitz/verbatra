@@ -37,7 +37,6 @@ function localeDiff(
   };
 }
 
-/** One `key.integrity` locale entry; the defaults describe a clean, meaningfully checked key. */
 function integrityEntry(
   locale: string,
   overrides: Partial<Omit<KeyIntegrityLocaleEntry, "locale">> = {},
@@ -63,7 +62,6 @@ function localeOf(params: unknown): string {
   return (params as { readonly locale: string }).locale;
 }
 
-/** Answers `key.value` per locale, so one locale can fail or be absent while others succeed. */
 function keyValuePerLocale(
   answers: Readonly<Record<string, StubRpcResult>>,
 ): (params: unknown) => StubRpcResult {
@@ -80,7 +78,6 @@ function capabilities(spend: boolean, writeToDisk: boolean): StubRpcResult {
   return { ok: true, result: { capabilities: resolved } };
 }
 
-/** The three background reads the drawer always makes, answered so a test only stubs what it varies. */
 function stubBackground(): void {
   stubRpc({
     "history.list": { ok: true, result: { available: false } },
@@ -565,7 +562,6 @@ describe("KeyDetailDrawer", () => {
     await flush();
     pending[1]?.(value("Second source", "Zweiter Wert"));
     await flush();
-    // The abandoned read for the first key answers last; its value must never reach the DOM.
     pending[0]?.(value("First source", "Erster Wert"));
     await flush();
 

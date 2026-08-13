@@ -2,14 +2,12 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSseHub, type SseClientResponse } from "./sse.js";
 
-/** A fake response, real enough to test against: an EventEmitter (for "close"/"error") plus a controllable `write`. */
 interface FakeResponse extends SseClientResponse {
   writes: string[];
   ended: boolean;
   failWrites: boolean;
 }
 
-/** A minimal fake response: a real EventEmitter (for "close"/"error") with a controllable `write`. */
 function fakeResponse(): EventEmitter & FakeResponse {
   const fake = new EventEmitter() as EventEmitter & FakeResponse;
   fake.writes = [];

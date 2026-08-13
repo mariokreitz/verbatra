@@ -335,7 +335,6 @@ describe("EditEntryDialog", () => {
     await flush();
     pending[1]?.(keyValue("Second source", "Zweiter Wert"));
     await flush();
-    // The abandoned read for the first key answers last; it must not overwrite what is on screen.
     pending[0]?.(keyValue("First source", "Erster Wert"));
     await flush();
 

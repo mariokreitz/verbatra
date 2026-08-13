@@ -1,20 +1,12 @@
 import type { ReactNode } from "react";
 import { cn } from "./lib/cn.js";
 
-/**
- * A CSS-only hover/focus label for icon-only controls: shown via group-hover
- * and group-focus-within, with no positioning script or open state. The
- * bubble is `aria-hidden`, so the wrapped control must carry its own
- * accessible name; the tooltip is a sighted-user duplicate, never the only
- * name.
- */
 export function Tooltip({
   label,
   side = "end",
   children,
 }: {
   readonly label: string;
-  /** Where the bubble sits relative to the control: "end" (inline-end) or "bottom" (below). */
   readonly side?: "end" | "bottom";
   readonly children: ReactNode;
 }): ReactNode {

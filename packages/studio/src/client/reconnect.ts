@@ -1,67 +1,39 @@
-/**
- * The client-side reconnect controller for the live-refresh SSE stream (G22/G23). It owns the
- * lifecycle of one `EventSource`-like connection: it forwards "refresh" events, treats the
- * server's "shutdown" event as permanent (the shared session store is marked expired, reusing the
- * exact same terminal state and UI the 401 path already uses, never a second parallel mechanism),
- * and on a native connection error whose `readyState` is `CLOSED` probes the server with one
- * cheap RPC call: a 401 probe raises that same shared terminal state and halts permanently; a
- * network-failure probe schedules the next reconnect attempt with exponential backoff (base 1s,
- * factor 2, capped at 30s). A `readyState` other than `CLOSED` means the connection is still
- * trying on its own, so this controller does nothing and lets it continue.
- */
 import type { RefreshEvent } from "../shared/sse-events.js";
 import { SSE_EVENT_REFRESH, SSE_EVENT_SHUTDOWN } from "../shared/sse-events.js";
 import type { SessionStore } from "./state.js";
 
-/** `EventSource.readyState` value meaning the connection has given up and will not retry on its own. */
 export const EVENT_SOURCE_CLOSED = 2;
 
-/** The minimal message-event shape this module reads: only the raw text payload. */
 export interface MessageEventLike {
   readonly data: string;
 }
 
-/** The minimal `EventSource` surface this module depends on, so a fake never needs the DOM lib. */
 export interface EventSourceLike {
   readonly readyState: number;
   addEventListener(type: string, listener: (event: MessageEventLike) => void): void;
   close(): void;
 }
 
-/** Builds an {@link EventSourceLike} for the given URL; production wraps the real browser global. */
 export type CreateEventSource = (url: string) => EventSourceLike;
 
-/** The two outcomes a reconnect probe distinguishes; everything that is not a 401 counts as a network error. */
 export type ProbeOutcome = "unauthorized" | "network-error";
 
-/** Runs one cheap RPC call solely to distinguish a terminal 401 from a transient network failure. */
 export type ProbeFn = () => Promise<ProbeOutcome>;
 
-/** The live-refresh connection's observable state: streaming, or between attempts. */
 export type ConnectionStatus = "live" | "reconnecting";
 
-/** Options for {@link createReconnectController}. */
 export interface ReconnectControllerOptions {
-  /** The `/events` URL to connect to. */
   readonly url: string;
   readonly createEventSource: CreateEventSource;
   readonly probe: ProbeFn;
   readonly session: SessionStore;
-  /** Called once per refresh event received on the current connection. */
   readonly onRefresh: (event: RefreshEvent) => void;
-  /** Called when the connection's observable state changes: "live" once a connection opens,
-   * "reconnecting" the moment one drops. Drives the dashboard's live indicator; optional so
-   * existing callers and tests that do not observe status stay untouched. */
   readonly onStatusChange?: (status: ConnectionStatus) => void;
-  /** Base backoff delay in milliseconds; defaults to 1000 (1 second). */
   readonly baseDelayMs?: number;
-  /** Backoff cap in milliseconds; defaults to 30000 (30 seconds). */
   readonly maxDelayMs?: number;
 }
 
-/** Handle returned by {@link createReconnectController}. */
 export interface ReconnectController {
-  /** Closes the current connection and cancels any pending reconnect attempt, without touching session state. */
   stop(): void;
 }
 
@@ -73,12 +45,6 @@ function computeBackoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: n
   return Math.min(baseDelayMs * BACKOFF_FACTOR ** attempt, maxDelayMs);
 }
 
-/**
- * Parses a raw `delta` field into a well-formed `RefreshKeyDelta`, or `undefined` if it is absent
- * or malformed (missing a field, or a field that is not a number): a malformed `delta` degrades to
- * absent, consistent with this whole module's "tolerate and degrade, never throw" discipline, and
- * never drops the surrounding frame on its own.
- */
 function parseDelta(raw: unknown): RefreshEvent["delta"] {
   if (typeof raw !== "object" || raw === null) {
     return undefined;
@@ -94,7 +60,6 @@ function parseDelta(raw: unknown): RefreshEvent["delta"] {
   return undefined;
 }
 
-/** Parses one SSE `refresh` frame's data; malformed data is dropped rather than thrown. */
 function parseRefreshEvent(data: string): RefreshEvent | undefined {
   let parsed: unknown;
   try {
@@ -126,11 +91,6 @@ function parseRefreshEvent(data: string): RefreshEvent | undefined {
   return undefined;
 }
 
-/**
- * Starts and owns one live-refresh connection. Every later reconnect after a terminal `CLOSED`
- * error goes through the same probe-and-backoff decision; a successful reconnect resets the
- * backoff attempt counter, so a later, unrelated disconnect starts fresh at the base delay again.
- */
 export function createReconnectController(
   options: ReconnectControllerOptions,
 ): ReconnectController {
@@ -186,13 +146,6 @@ export function createReconnectController(
     scheduleReconnect();
   }
 
-  /**
-   * Any error event means the stream is interrupted, including the browser EventSource's own
-   * native retry (readyState `CONNECTING`, no terminal `CLOSED`), so the status turns
-   * "reconnecting" for both paths. Only the terminal `CLOSED` case additionally hands
-   * reconnection over to this controller's probe-and-backoff; the native retry keeps the source
-   * alive and a later open flips the status back to "live" through `handleOpen`.
-   */
   function handleError(source: EventSourceLike): void {
     if (stopped) {
       return;

@@ -2,12 +2,6 @@ import type { ReactNode, SelectHTMLAttributes } from "react";
 import { Icon } from "./Icon.js";
 import { cn } from "./lib/cn.js";
 
-/**
- * A native `<select>` styled to match the dashboard's bordered form fields,
- * with a custom chevron overlay. `appearance-none` removes the browser's own
- * arrow so the decorative overlay is the only one shown. Sizes to its widest
- * option; pass a width class to override.
- */
 export function Select({
   className,
   children,

@@ -9,7 +9,6 @@ import { createSessionStore } from "./state.js";
 
 const EVENT_SOURCE_CONNECTING = 0;
 
-/** A fake EventSource: records every listener registration and lets a test fire events directly. */
 function fakeEventSourceFactory() {
   const instances: {
     readonly url: string;

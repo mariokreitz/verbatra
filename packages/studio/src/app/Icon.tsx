@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
 
-/**
- * The names of the dashboard's hand-written icon set: stroke-based glyphs
- * drawn on a 24x24 grid, colored by `currentColor`. Not an icon-library
- * dependency; the set is small, fixed, and bundled.
- */
 export type IconName =
   | "activity"
   | "diff"
@@ -174,18 +169,12 @@ const ICON_PATHS: Readonly<Record<IconName, ReactNode>> = {
   zap: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />,
 };
 
-/**
- * Renders one named glyph as an inline SVG, 16px by default. Every icon is
- * decorative (`aria-hidden`); the control it sits in carries the accessible
- * name.
- */
 export function Icon({
   name,
   size = 16,
   className,
 }: {
   readonly name: IconName;
-  /** Rendered width and height in CSS pixels. */
   readonly size?: number;
   readonly className?: string;
 }): ReactNode {

@@ -1,24 +1,15 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { cn } from "./lib/cn.js";
 
-/** Props for {@link Popover}. */
 export interface PopoverProps {
   readonly open: boolean;
   readonly onClose: () => void;
   readonly anchor: ReactNode;
   readonly children: ReactNode;
   readonly align?: "start" | "end";
-  /** Accessible name for the floating panel. When set, the panel exposes `role="dialog"` with
-   * this name; when absent it stays a plain, role-less container, since an unnamed dialog is
-   * worse for a screen reader than no dialog semantics at all. */
   readonly ariaLabel?: string | undefined;
 }
 
-/**
- * A small floating panel anchored under a trigger element, for non-modal
- * disclosures. Dismisses on Escape or a pointer-down outside the
- * anchor-plus-panel pair. Deliberately does not trap focus.
- */
 export function Popover({
   open,
   onClose,

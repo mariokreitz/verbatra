@@ -6,10 +6,6 @@ import { pressKey, render } from "./test-support.js";
 
 const PANEL_SELECTOR = "[class*='shadow-panel-lg']";
 
-/**
- * Dispatches the pointerdown the outside-click guard listens for. A plain `Event` is enough: jsdom
- * has no reliable `PointerEvent` constructor, and the handler only reads `event.target`.
- */
 function pointerDownOn(target: EventTarget): void {
   act(() => {
     target.dispatchEvent(new Event("pointerdown", { bubbles: true }));

@@ -3,18 +3,12 @@ import type { StructuredError } from "../client/state.js";
 import type { HistoryCommit } from "../shared/rpc/history.js";
 import { rpcClient } from "./api.js";
 
-/** The loading, error, unavailable, or loaded state of the commit-history read. */
 export type HistoryState =
   | { readonly kind: "loading" }
   | { readonly kind: "error"; readonly error: StructuredError }
   | { readonly kind: "unavailable" }
   | { readonly kind: "loaded"; readonly commits: readonly HistoryCommit[] };
 
-/**
- * Fetches the project's commit history via `history.list` and exposes it as
- * a {@link HistoryState}. Pass the app's `refreshToken` to re-fetch on every
- * live-refresh event; omit it to fetch once on mount.
- */
 export function useHistoryList(refreshToken?: unknown): HistoryState {
   const [state, setState] = useState<HistoryState>({ kind: "loading" });
 

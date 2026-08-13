@@ -9,10 +9,6 @@ interface RawResponse {
   readonly headers: Record<string, string>;
 }
 
-/**
- * Sends a handcrafted HTTP/1.1 request over a raw socket so tests can set (or omit) headers that
- * fetch will not let a caller control, such as Host, or send no Host header at all.
- */
 function rawRequest(
   port: number,
   requestLine: string,

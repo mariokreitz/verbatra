@@ -18,7 +18,6 @@ import {
 
 vi.mock("./api.js", () => import("./test-support.js").then((module) => module.apiMock()));
 
-/** The h1 each panel opens with, which is how a test names the page that actually rendered. */
 const PAGE_HEADINGS: Readonly<Record<PageId, string>> = {
   translations: "Translations",
   review: "Review",
@@ -26,7 +25,6 @@ const PAGE_HEADINGS: Readonly<Record<PageId, string>> = {
   settings: "Settings",
 };
 
-/** Two flagged entries, so the nav badge has a count worth asserting. */
 const REVIEW_QUEUE = {
   ok: true,
   result: {
@@ -46,11 +44,6 @@ const REVIEW_QUEUE = {
   },
 } as const;
 
-/**
- * Every method the four panels below the shell read on mount. The shell is what these tests are
- * about, so each panel gets a valid, uninteresting answer rather than a hard error that would
- * put an unrelated alert on the page.
- */
 function stubPanelReads(): void {
   stubRpc({
     "project.snapshot": {
@@ -98,10 +91,6 @@ function mount(): Promise<RenderResult> {
   return renderAsync(<App />);
 }
 
-/**
- * One nav item on the desktop rail, matched on the page label its text starts with rather than
- * equals: an item with entries waiting appends its count and an accessible suffix.
- */
 function navItem(view: RenderResult, label: string): HTMLElement {
   const match = view
     .all("aside nav button")

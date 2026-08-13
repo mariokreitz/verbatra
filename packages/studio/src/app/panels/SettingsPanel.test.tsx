@@ -8,11 +8,6 @@ import { SettingsPanel } from "./SettingsPanel.js";
 
 vi.mock("../api.js", () => import("../test-support.js").then((module) => module.apiMock()));
 
-/**
- * The minimal snapshot: every required field, no optional config key set, and provider actions
- * refused. Each test spreads this and overrides only the field it is about, so an unrelated
- * contract change surfaces here once rather than in every case.
- */
 const SNAPSHOT: ProjectSnapshotResult = {
   sourceLocale: "en",
   targetLocales: ["de", "fr"],
@@ -54,7 +49,6 @@ function stubSettings(
   });
 }
 
-/** The `MetricCard` element carrying `label`, reached from its micro-label span. */
 function metricCard(view: RenderResult, label: string): HTMLElement {
   const card = view.getByText("span", label).parentElement?.parentElement;
   if (card === null || card === undefined) {
@@ -67,7 +61,6 @@ function metricValue(view: RenderResult, label: string): string | null {
   return metricCard(view, label).querySelector("div[title]")?.getAttribute("title") ?? null;
 }
 
-/** The `<dd>` text for one configuration row, or null when the row is not rendered at all. */
 function detailValue(view: RenderResult, label: string): string | null {
   const term = view.all("dt").find((node) => node.textContent?.trim() === label);
   return term?.nextElementSibling?.textContent ?? null;
@@ -89,7 +82,6 @@ describe("SettingsPanel", () => {
       "glossary.get": () => new Promise(() => {}),
     });
 
-    // Deliberately not awaited: the pending pair is what "still loading" means.
     const view = render(<SettingsPanel />);
 
     expect(view.get('[role="status"]').textContent?.trim()).toBe("Loading...");
@@ -236,7 +228,6 @@ describe("SettingsPanel", () => {
     const view = await renderAsync(<SettingsPanel />);
 
     expect(view.text()).toContain("No glossary configured");
-    // The count badge is the section's only neutral-toned pill, and an empty glossary has none.
     expect(view.query(".bg-neutral-soft")).toBeNull();
     expect(view.query("ul li")).toBeNull();
   });

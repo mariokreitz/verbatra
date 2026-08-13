@@ -6,11 +6,6 @@ import type { RpcHandlerDeps } from "../rpc.js";
 import { type FixtureProject, makeFixtureProject } from "../test-support.js";
 import { retranslateEntryHandler } from "./retranslate-entry.js";
 
-/**
- * A minimal real-disk SdkFs, to exercise the handler's deps.fs pass-through branch. Includes real
- * createExclusive/deleteFile implementations (mirroring the sdk's own defaultFs), since
- * retranslateEntry now acquires a real per-locale write lock through this same seam.
- */
 const realFs: SdkFs = {
   fileExists: async (path) => {
     try {

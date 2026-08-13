@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
 import { Button } from "./Button.js";
 
-/**
- * The Edit, Approve, and Reject buttons for one review row. Purely
- * presentational: each button calls the matching callback and nothing here
- * issues an RPC call or holds state.
- */
 export function ReviewRowActions({
   onApprove,
   onReject,

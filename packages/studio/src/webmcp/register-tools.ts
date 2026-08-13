@@ -1,16 +1,3 @@
-/**
- * The client-side WebMCP adapter: it registers each existing RPC method as a WebMCP tool on the
- * browser's `document.modelContext`, 1:1 over the shared `rpcClient`. It adds no business logic;
- * every tool is a thin wrapper that delegates to `rpcClient.call(method, params)`, which travels
- * the same authenticated server, the same input validation, and the same capability gate the
- * dashboard uses. Registration confers no authority the open, authenticated tab does not already
- * hold.
- *
- * The module is dependency-injected (the `modelContext` surface, the `rpcClient`, and the params
- * schemas are all passed in) so it is unit-testable without a DOM harness, and it declares its own
- * minimal structural WebMCP types rather than depending on any external types package or the DOM
- * lib.
- */
 import { z } from "zod";
 import type { RpcClient } from "../client/rpc-client.js";
 import { STATUS_CHECK_METHOD } from "../shared/rpc/check.js";
@@ -31,72 +18,34 @@ import { USAGE_SUMMARY_METHOD } from "../shared/rpc/usage-summary.js";
 import type { AgentToolsRegistration, ToolRegistrationFailure } from "./registration-report.js";
 import { NOTHING_ATTEMPTED, toRegistrationFailure } from "./registration-report.js";
 
-/** The annotations a WebMCP host reads to render a tool's consequence surface. */
 export interface WebMcpToolAnnotations {
-  /** True for a read-only method, false for a method that writes or spends provider budget. */
   readonly readOnlyHint?: boolean;
-  /** True when the tool's result can contain project-authored text; over-setting is always safe. */
   readonly untrustedContentHint?: boolean;
 }
 
-/** The subset of a WebMCP tool definition this adapter provides to the host. */
 export interface WebMcpTool {
   readonly name: string;
   readonly description: string;
-  /** The tool input JSON Schema, derived from the method's zod params schema. */
   readonly inputSchema: object;
-  /** Delegates to the shared rpc client and returns the stringified call result. */
   readonly execute: (input: unknown) => Promise<string>;
   readonly annotations?: WebMcpToolAnnotations;
 }
 
-/**
- * The per-registration options a WebMCP host reads. `signal` is the specification's only
- * unregistration mechanism: there is no `unregisterTool`, so a host takes a tool back when the
- * signal it was registered with aborts. Declared optional so a host that ignores it, and a test
- * double that never reads it, both stay valid.
- */
 export interface RegisterToolOptions {
-  /** Aborting it asks the host to unregister the tool it was passed with. */
   readonly signal?: AbortSignal;
 }
 
-/** The minimal `document.modelContext` surface this adapter needs: register one tool at a time. */
 export interface ModelContext {
-  /**
-   * Registers one tool. The WebMCP surface answers with a promise (it is specified as returning
-   * `Promise<undefined>`, and a browser running the surface was observed doing so), which is why
-   * the caller awaits the result instead of discarding it: a discarded rejection is a floating
-   * promise that no caller-side try/catch can ever see. The `void` arm keeps a synchronous host or
-   * a test double representable, and awaiting covers both.
-   *
-   * `options` is optional on both sides: a host that implements only the one-argument form still
-   * satisfies this type, since a function of fewer parameters is assignable to one of more.
-   */
   registerTool(tool: WebMcpTool, options?: RegisterToolOptions): PromiseLike<void> | void;
 }
 
-/** Everything {@link registerAgentTools} needs, injected by the app so the module stays DOM-free. */
 export interface RegisterAgentToolsDeps {
-  /** The browser WebMCP surface, or `undefined` in a browser without WebMCP support. */
   readonly modelContext: ModelContext | undefined;
-  /** The shared rpc client every tool delegates through. */
   readonly rpcClient: RpcClient;
-  /** The single source of truth for each method's params schema, injected for testability. */
   readonly schemas: typeof rpcParamsSchemas;
-  /**
-   * The caller's teardown signal, passed straight through to every `registerTool` call so the
-   * host unregisters the whole set when it aborts. Optional, and the controller stays with the
-   * caller: lifecycle policy is the app's to decide, not this module's.
-   */
   readonly signal?: AbortSignal;
 }
 
-/**
- * The static, DRY descriptor for one tool: everything that varies per method except the params
- * schema (derived) and the name (the method itself). `spendGated` marks the two methods registered
- * only when the server granted the spend capability.
- */
 interface ToolDescriptor {
   readonly description: string;
   readonly readOnlyHint: boolean;
@@ -104,28 +53,6 @@ interface ToolDescriptor {
   readonly spendGated: boolean;
 }
 
-/**
- * One descriptor per method, keyed by the same constants the rpc contract uses so the table can
- * never drift out of step with the method set. `untrustedContentHint` is set on every tool whose
- * result can carry project-authored text (locale strings, key names, glossary terms, placeholder
- * tokens, commit subjects) and omitted only on the four whose payload is provably text-free.
- *
- * The description is the only prose a model ever reads about a tool, so it is a functional surface,
- * not a label. The recorded standard every description here follows, enforced by the tests in
- * `register-tools.test.ts`:
- *
- * 1. At least three sentences, each carrying a fact rather than padding.
- * 2. State what the tool does, when to use it, when not to use it, and any caveat that changes a
- *    decision: cost, mutation, idempotence, reversibility, concurrency, and how an absent or
- *    unavailable result must be read.
- * 3. Name every parameter in the method's params schema, and name nothing else, in backticks.
- *    Backticks are reserved for parameter names so the prose can be checked against the schema in
- *    both directions; a method taking no parameters says so and carries no backticks.
- * 4. Refer to another tool by its advertised, sanitized name (verbatra_status_diff), never by the
- *    dotted rpc method name, since the advertised name is the one an agent can actually call.
- * 5. A spend-gated tool states in its own words that it spends provider budget, that it is not
- *    idempotent, and that it cannot be undone.
- */
 const TOOL_DESCRIPTORS: Record<RpcMethodName, ToolDescriptor> = {
   [PROJECT_SNAPSHOT_METHOD]: {
     description:
@@ -275,19 +202,6 @@ const TOOL_DESCRIPTORS: Record<RpcMethodName, ToolDescriptor> = {
   },
 };
 
-/**
- * Maps an RPC method name to its advertised tool name: the shared `verbatra_` prefix namespaces the
- * tools, and the dot in each method name is replaced with an underscore.
- *
- * The current WebMCP specification allows a tool name of 1 to 128 characters over ASCII
- * alphanumerics, underscore, hyphen, and U+002E FULL STOP, so the dot would be valid and the
- * replacement is not required for validity. It is retained for name stability: the advertised names
- * are already in use, and an agent that knows one must not have it renamed under it. Every generated
- * name is well within both that rule and the stricter `^[a-zA-Z0-9_-]{1,64}$` charset an MCP
- * tool-use pipeline may additionally impose, and the mapping stays collision-free over the fixed
- * thirteen-method set. The raw method name is still what every `rpcClient.call` uses; only the
- * advertised tool name is sanitized.
- */
 function toToolName(method: RpcMethodName): string {
   return `verbatra_${method.replaceAll(".", "_")}`;
 }
@@ -299,12 +213,6 @@ function buildAnnotations(descriptor: ToolDescriptor): WebMcpToolAnnotations {
   };
 }
 
-/**
- * Builds one WebMCP tool for a method. `inputSchema` is derived from the injected params schema by
- * zod's native JSON Schema conversion, so it stays the single source of truth. `execute` returns
- * the whole rpc call result envelope stringified (the same payload the dashboard's own
- * `rpcClient.call` yields), preserving both success results and structured errors for the agent.
- */
 function buildTool<M extends RpcMethodName>(
   method: M,
   descriptor: ToolDescriptor,
@@ -322,28 +230,10 @@ function buildTool<M extends RpcMethodName>(
   };
 }
 
-/** True only for a signal the caller supplied and already aborted. */
 function isAborted(signal: AbortSignal | undefined): boolean {
   return signal?.aborted === true;
 }
 
-/**
- * Registers the WebMCP agent tools when, and only when, all three conditions hold: the browser
- * exposes `document.modelContext`, the `project.snapshot` result carries `exposeAgentTools: true`,
- * and (for the two spend tools) `capabilities.spend` is true. Any condition unmet is a no-op that
- * reports nothing attempted, leaving the dashboard byte-for-byte unchanged. It never gates the
- * server: the same RPCs are reachable with or without this call.
- *
- * An aborted `deps.signal` is a fourth such condition, checked before the snapshot fetch, again
- * after it, and once per loop turn. A caller that has already torn the surface down gets nothing
- * registered at all, rather than a set the host has to take back a tick later, and an abort that
- * lands mid-pass stops the pass where it is instead of registering against a dead signal.
- *
- * Each registration is awaited inside its own try/catch, so a rejection is caught while the failing
- * tool name is still in hand, and a failing tool is collected rather than allowed to abort the
- * tools after it: the surface is worth more partially registered than not at all, and the returned
- * report is what makes both the partial outcome and its cause visible to the caller.
- */
 export async function registerAgentTools(
   deps: RegisterAgentToolsDeps,
 ): Promise<AgentToolsRegistration> {

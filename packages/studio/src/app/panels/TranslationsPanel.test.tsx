@@ -20,10 +20,6 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 
 vi.mock("../api.js", () => import("../test-support.js").then((module) => module.apiMock()));
 
-/**
- * jsdom implements no clipboard API, and the review-report action is this page's only caller. The
- * property is installed once for the file; every test starts from a fresh resolving stub.
- */
 const writeText = vi.fn<(text: string) => Promise<void>>();
 Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 
@@ -38,7 +34,6 @@ interface KeyLists {
   readonly orphaned?: readonly string[];
 }
 
-/** One `status.diff` locale entry, with `hasPendingChanges` derived the way the sdk derives it. */
 function localeDiff(locale: string, lists: KeyLists = {}): DiffLocale {
   const missing = lists.missing ?? [];
   const changed = lists.changed ?? [];
@@ -66,7 +61,6 @@ interface CoverageCounts {
   readonly upToDate: number;
 }
 
-/** One `status.check` result; each locale's `inSync` is derived the way the sdk derives it. */
 function checkResult(rows: readonly CoverageCounts[]): StubRpcResult {
   const locales = rows.map((row) => ({ ...row, inSync: row.missing === 0 && row.stale === 0 }));
   return { ok: true, result: { inSync: locales.every((locale) => locale.inSync), locales } };
@@ -83,7 +77,6 @@ function lockResult(version: number, locales: readonly LockCounts[]): StubRpcRes
 const NO_LOCK: StubRpcResult = { ok: true, result: { exists: false } };
 const NO_USAGE: StubRpcResult = { ok: true, result: { available: false } };
 
-/** A call that never settles, so a test can assert what the page renders while a read is open. */
 const PENDING: StubRpcHandler = () => new Promise<StubRpcResult>(() => {});
 
 const DEFAULT_LOCALES: readonly DiffLocale[] = [
@@ -105,7 +98,6 @@ const IN_SYNC_ROWS: readonly CoverageCounts[] = [
 
 type Stubs = Readonly<Record<string, StubRpcResult | StubRpcHandler>>;
 
-/** Answers every read the page issues on mount, so an unstubbed method never masks the case under test. */
 function stubPage(overrides: Stubs = {}): void {
   stubRpc({
     "status.diff": diffResult(DEFAULT_LOCALES),
@@ -116,11 +108,6 @@ function stubPage(overrides: Stubs = {}): void {
   });
 }
 
-/**
- * The all-clear variant of {@link stubPage}. Used wherever the case under test is about the
- * Locales section: with nothing pending the key explorer stays unmounted, so the page issues
- * exactly one `status.check` rather than a second one from the status grid.
- */
 function stubSyncedPage(overrides: Stubs = {}): void {
   stubPage({
     "status.diff": diffResult(IN_SYNC_LOCALES),
@@ -129,7 +116,6 @@ function stubSyncedPage(overrides: Stubs = {}): void {
   });
 }
 
-/** The further reads the key drawer and the entry editor issue once a key is selected. */
 function drawerStubs(): Stubs {
   return {
     "project.snapshot": { ok: true, result: { capabilities: { spend: false, writeToDisk: true } } },
@@ -139,7 +125,6 @@ function drawerStubs(): Stubs {
   };
 }
 
-/** Answers successive calls to one method in order, repeating the last answer for any call after. */
 function answersInOrder(results: readonly [StubRpcResult, ...StubRpcResult[]]): StubRpcHandler {
   let index = 0;
   return () => {
@@ -149,7 +134,6 @@ function answersInOrder(results: readonly [StubRpcResult, ...StubRpcResult[]]): 
   };
 }
 
-/** Holds every call to one method open, so a test can answer them out of the order they were made. */
 function deferredAnswers(): {
   readonly handler: StubRpcHandler;
   answer(call: number, result: StubRpcResult): void;
@@ -170,7 +154,6 @@ function deferredAnswers(): {
   };
 }
 
-/** One stat tile located by its micro-label: the figure, the hint line, and the meter's width. */
 function metricTile(
   view: RenderResult,
   label: string,
@@ -187,7 +170,6 @@ function metricTile(
   };
 }
 
-/** The per-locale coverage table's body rows, never the lock-detail table nested under it. */
 function coverageRows(view: RenderResult): HTMLElement[] {
   const table = view.getByText("h2", "Locales").closest("section")?.querySelector("table") ?? null;
   if (table === null) {
@@ -211,7 +193,6 @@ function alertTexts(view: RenderResult): string[] {
   return view.all('[role="alert"]').map((alert) => alert.textContent ?? "");
 }
 
-/** The key filter field, narrowed to the element type {@link typeInto} accepts. */
 function filterInput(view: RenderResult): HTMLInputElement {
   const input = view.get('input[type="search"]');
   if (!(input instanceof HTMLInputElement)) {
@@ -220,12 +201,10 @@ function filterInput(view: RenderResult): HTMLInputElement {
   return input;
 }
 
-/** Switches the key explorer from its default grid to the per-locale list view. */
 async function switchToList(view: RenderResult): Promise<void> {
   await clickAsync(view.getByText("button", "List"));
 }
 
-/** Opens the key drawer the way a reader does: by activating that key's cell in the status grid. */
 async function openKeyDrawer(view: RenderResult, key: string, locale: string): Promise<void> {
   await clickAsync(view.get(`button[aria-label^="${key} in ${locale}"]`));
   await flush();

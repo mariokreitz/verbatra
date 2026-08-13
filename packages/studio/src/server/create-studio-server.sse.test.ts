@@ -12,7 +12,6 @@ import type { CreateStudioWatcher, StudioServer, StudioWatcher } from "./types.j
 
 const TOKEN = "sse-test-token-0123456789abcdef01234567";
 
-/** Mirrors the sdk's own watch.test.ts watcherHarness, generalized to the three per-category calls. */
 function multiWatcherHarness() {
   const calls: { paths: readonly string[]; listener?: () => void }[] = [];
   const createWatcher: CreateStudioWatcher = (paths): StudioWatcher => {
@@ -35,7 +34,6 @@ function multiWatcherHarness() {
 
 type SseReader = ReadableStreamDefaultReader<Uint8Array>;
 
-/** Reads raw SSE frames (split on the blank-line boundary) until at least `count` have arrived. */
 async function readFrames(reader: SseReader, count: number): Promise<string[]> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -56,7 +54,6 @@ async function readFrames(reader: SseReader, count: number): Promise<string[]> {
   return frames;
 }
 
-/** Drains a reader to completion, collecting every frame seen before the stream ends. */
 async function readUntilDone(reader: SseReader): Promise<string[]> {
   const decoder = new TextDecoder();
   let buffer = "";

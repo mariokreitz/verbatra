@@ -17,7 +17,6 @@ function Probe(): ReactNode {
   return <span data-testid="tick">{seen}</span>;
 }
 
-/** The overlay is written by row actions outside React, so its notification has to run in `act`. */
 function markActioned(entry: ReviewOverlayEntry): void {
   act(() => {
     reviewOverlayStore.markActioned(entry);

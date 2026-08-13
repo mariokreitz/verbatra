@@ -5,9 +5,7 @@ import { createRpcHandlers, type RpcHandlerDeps } from "./rpc.js";
 import { dispatchRpc } from "./rpc-gate.js";
 import { baseStudioConfig, type FixtureProject, makeFixtureProject } from "./test-support.js";
 
-/** The default registry: the read handlers plus the always-on local write methods, no spend. */
 const defaultHandlers = createRpcHandlers({ spend: false, writeToDisk: true });
-/** The full registry with the spend-gated translation.retranslateEntry also registered. */
 const writeCapableHandlers = createRpcHandlers({ spend: true, writeToDisk: true });
 
 const SENTINELS = {

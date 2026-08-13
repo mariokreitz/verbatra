@@ -1,14 +1,3 @@
-/**
- * The teardown half of the WebMCP adapter: what `deps.signal` does to a registration pass.
- *
- * Kept in its own file rather than appended to `register-tools.test.ts`, both because the concern
- * is self-contained and because that file's untouched pass is itself the evidence for the "no
- * behavior change when nothing aborts" criterion.
- *
- * The fake host here models a specification-conforming one: it stores the options object it was
- * given and drops the tool again when that options object's signal aborts. That is what makes
- * "the tools are gone" a real assertion rather than a flag check.
- */
 import { describe, expect, it } from "vitest";
 import type { RpcCallResult, RpcClient } from "../client/rpc-client.js";
 import { rpcParamsSchemas } from "../shared/rpc/contract.js";
@@ -35,21 +24,14 @@ const SNAPSHOT_RESULT: ProjectSnapshotResult = {
 
 const SNAPSHOT_ON: RpcCallResult<"project.snapshot"> = { ok: true, result: SNAPSHOT_RESULT };
 
-/** The count a pass registers without the spend capability: ten read tools plus the write tool. */
 const TOOLS_WITHOUT_SPEND = 11;
 
 interface FakeHost {
   readonly context: ModelContext;
-  /** The tools the host currently holds, minus every one whose signal has since aborted. */
   readonly tools: WebMcpTool[];
-  /** The second argument of each call, in call order, `undefined` when none was passed. */
   readonly optionsPerCall: (RegisterToolOptions | undefined)[];
 }
 
-/**
- * A host that honours the signal the way the specification says it must: it keeps the tool until
- * the signal it was registered with aborts, then removes it from the surface.
- */
 function makeFakeHost(): FakeHost {
   const tools: WebMcpTool[] = [];
   const optionsPerCall: (RegisterToolOptions | undefined)[] = [];
@@ -71,7 +53,6 @@ function makeFakeHost(): FakeHost {
   };
 }
 
-/** A host that rejects one named tool, to prove an abort seam does not hide a failure. */
 function makeRejectingHost(refused: string): FakeHost {
   const host = makeFakeHost();
   const accept = host.context.registerTool.bind(host.context);
@@ -90,7 +71,6 @@ function makeRejectingHost(refused: string): FakeHost {
   };
 }
 
-/** An rpc client answering the snapshot and echoing everything else, recording every call. */
 function makeRpcClient(methods: string[], onSnapshot?: () => void): RpcClient {
   const call = async (method: string): Promise<unknown> => {
     methods.push(method);

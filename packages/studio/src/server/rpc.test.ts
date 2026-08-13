@@ -14,9 +14,7 @@ const READ_ONLY_METHODS = [
   "usage.summary",
 ] as const;
 
-/** Local-file write methods: always registered, since writing a locale file needs no flag. */
 const ALWAYS_ON_WRITE_METHODS = ["translation.editEntry", "key.value"] as const;
-/** Provider-calling methods: registered only when the spend capability is granted. */
 const SPEND_METHODS = ["translation.retranslateEntry", "translation.translatePending"];
 
 describe("the shared contract's method list", () => {

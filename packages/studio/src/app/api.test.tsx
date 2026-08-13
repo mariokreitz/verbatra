@@ -3,15 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConnectionStatus } from "../client/reconnect.js";
 import type { RefreshEvent } from "../shared/sse-events.js";
 
-/**
- * `api.ts` wires the browser globals: it opens the live-refresh `EventSource` and reads the shared
- * stores at module scope, so importing it is the behavior under test. Each case therefore installs
- * its own fakes, resets the module registry, and imports a fresh copy.
- */
-
 type Listener = (event: { readonly data?: unknown }) => void;
 
-/** A stand-in for the browser `EventSource`, which jsdom does not implement. */
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
 
@@ -35,7 +28,6 @@ class FakeEventSource {
     this.closed = true;
   }
 
-  /** Plays one server-sent frame into every listener registered for `type`. */
   emit(type: string, data?: unknown): void {
     for (const listener of this.listeners.get(type) ?? []) {
       listener(data === undefined ? {} : { data });
@@ -43,7 +35,6 @@ class FakeEventSource {
   }
 }
 
-/** The most recently constructed source; every test drives the connection through it. */
 function latestSource(): FakeEventSource {
   const source = FakeEventSource.instances.at(-1);
   if (source === undefined) {

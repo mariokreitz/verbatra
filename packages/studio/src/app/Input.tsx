@@ -5,7 +5,6 @@ import { cn } from "./lib/cn.js";
 const FIELD_CLASSNAME =
   "mt-1 block w-full max-w-[320px] rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring";
 
-/** A multi-line text field with the dashboard's shared bordered-field look. */
 export function TextArea({
   className,
   ...props
@@ -13,11 +12,6 @@ export function TextArea({
   return <textarea className={cn(FIELD_CLASSNAME, className)} {...props} />;
 }
 
-/**
- * A search-type input with a leading search glyph, for filter-as-you-type
- * fields. The glyph is decorative; the caller still labels the input itself
- * (a visible label or an aria-label).
- */
 export function SearchInput({
   className,
   ...props

@@ -3,10 +3,6 @@ import { describe, expect, it } from "vitest";
 import { Badge, type BadgeTone } from "./Badge.js";
 import { render } from "./test-support.js";
 
-/**
- * The expected class pair per tone. Typed as a total record over `BadgeTone`, so adding a tone to
- * the union without adding it here fails typecheck rather than silently going untested.
- */
 const TONE_CLASSES: Readonly<Record<BadgeTone, readonly [string, string]>> = {
   success: ["bg-success-soft", "text-success"],
   warning: ["bg-warning-soft", "text-warning"],
