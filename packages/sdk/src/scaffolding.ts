@@ -12,10 +12,6 @@ export type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
 const _envCoversAllProviders: Record<ScaffoldableProviderId, string> = PROVIDER_ENV;
 void _envCoversAllProviders;
 
-/**
- * A provider that takes a model and an output token limit. It is every scaffoldable provider except
- * DeepL, which is a machine-translation API rather than a language model and takes neither.
- */
 type ModelProviderId = Exclude<ScaffoldableProviderId, "deepl">;
 
 const _tokenLimitKeysCoverAllModelProviders: Record<ModelProviderId, string> =
