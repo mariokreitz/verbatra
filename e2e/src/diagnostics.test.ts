@@ -12,7 +12,6 @@ import { PROVIDER_ENV_VARS } from "./harness.js";
 
 const SECRET = "super-secret-value-1234";
 
-/** Long enough that seeing it would mean a real prefix of the key survived. */
 const MIN_VISIBLE_PREFIX = 12;
 
 afterEach(() => {

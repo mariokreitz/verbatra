@@ -25,28 +25,14 @@ import {
 
 const provider = providerFromEnv();
 
-/** Relative path of the source locale file, rewritten to retrigger a run. */
 const SOURCE_FILE = "locales/en.json";
 
-/**
- * How long one watch run may take to report its outcome. This is a liveness bound, not a wait for a
- * key to eventually show up: a run reports as soon as it completes, so overrunning this means watch
- * is hung or never triggered, which is a real failure.
- */
 const RUN_RECORD_TIMEOUT_MS = 60_000;
 
-/** How many times a key is asked for before the provider is judged to be throttling persistently. */
 const DELIVERY_ATTEMPTS = 3;
 
-/**
- * Quiet period before a retry. A free-tier rate limit is a short rolling window, so backing off and
- * asking again is what makes this test resilient. Deliberately not a longer single wait: the run
- * that came back rate-limited already answered, and waiting longer for an answer that has already
- * arrived would only make the test slower, never more reliable.
- */
 const THROTTLE_BACKOFF_MS = 20_000;
 
-/** Reads records until one says something about `target`, or the run budget is spent. */
 async function awaitRunOutcome(
   stream: EnvelopeStream<WatchRunSummary>,
   target: WatchTarget,
@@ -66,28 +52,14 @@ async function awaitRunOutcome(
   }
 }
 
-/** Everything {@link awaitDelivery} needs to ask for a key again after a throttle. */
 interface DeliveryRequest {
   readonly stream: EnvelopeStream<WatchRunSummary>;
   readonly target: WatchTarget;
-  /** Project directory holding the source file to rewrite. */
   readonly dir: string;
-  /** The source content to write back; rewriting it is what retriggers a run. */
   readonly source: Record<string, string>;
-  /** Records why an attempt is being retried, so a throttled run is visible in the report. */
   readonly note: (message: string) => Promise<unknown>;
 }
 
-/**
- * Waits for `target` to be delivered, retrying through provider throttling.
- *
- * A rate-limited sub-batch is withheld by the SDK and retried on the next run, so the retry here is
- * simply to back off and trigger that next run by rewriting the source file. Any other outcome
- * fails immediately: this retries an environmental condition, never a product fault.
- *
- * @returns `undefined` once the key was delivered, or the last throttle detail when every attempt
- *   was rate-limited.
- */
 async function awaitDelivery(request: DeliveryRequest): Promise<string | undefined> {
   let lastThrottle = "the provider rate-limited every attempt";
   for (let attempt = 1; attempt <= DELIVERY_ATTEMPTS; attempt += 1) {
@@ -117,16 +89,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     consumer = await makeConsumer();
   }, 180_000);
 
-  /**
-   * The test drives the `--json` NDJSON stream rather than polling the locale file, because the file
-   * cannot say why a key is missing. Every run reports its own outcome, so a key withheld by a
-   * provider rate limit is distinguishable from a key that never arrived because watch is broken.
-   * Only the first is retried, and only the first can end in a skip.
-   *
-   * The shutdown assertions (exit 0 on a single SIGINT, at least one NDJSON record, no secret in
-   * either stream) are deterministic and run whether or not the provider cooperated, so a quota
-   * skip never costs the suite its coverage of the interrupt contract.
-   */
   it("translates on startup and again when the source changes, then stops on interrupt", async (ctx) => {
     if (provider === null) {
       return;
@@ -151,7 +113,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     let stopResult: Awaited<Subprocess> | undefined;
 
     try {
-      // Startup run: the key missing from the target locale must be filled without any source edit.
       throttled = await awaitDelivery({
         stream,
         target: { locale: "de", key: "farewell" },
@@ -161,7 +122,6 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
       });
 
       if (throttled === undefined) {
-        // Source change: a new key added while watch is running must be picked up.
         const changedSource = { ...initialSource, welcome: "Welcome {{name}}" };
         await writeJsonIn(dir, SOURCE_FILE, changedSource);
         throttled = await awaitDelivery({

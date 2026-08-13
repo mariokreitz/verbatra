@@ -14,39 +14,14 @@ import {
 } from "../src/harness.js";
 import type { WatchLocaleSummary, WatchRunSummary } from "../src/watch-outcome.js";
 
-/**
- * The watch lifecycle, proven without a provider key or a network call, so it can be a required
- * release gate.
- *
- * The keyless watch coverage next to this one drives the interrupt contract off a run that fails at
- * provider construction. That leaves the two things watch actually exists to do unproven by any
- * deterministic test: perform a successful run, and perform another one when the source changes.
- * Both were only ever covered by the live tier, which a provider rate limit can take out, so a watch
- * that stopped reacting to source changes could have reached npm behind a red-for-quota live run.
- *
- * The trick that makes it keyless is that a run with nothing to translate never calls the provider.
- * The project starts already in sync, and the source change adds a key that the target locale
- * already carries: with no lock baseline for it yet, it diffs as unchanged. So the run is real (the
- * source is read, the diff is taken, the summary is written) but no provider request is made. The
- * configured provider points at a closed loopback port, so if a call were ever attempted it would be
- * refused rather than reaching anyone, and it would show up as a withheld key, which every
- * assertion here forbids.
- */
-
 const SOURCE_FILE = "locales/en.json";
 const TARGET_FILE = "locales/de.json";
 
-/** A run reports as soon as it completes, so overrunning this means watch is hung or never fired. */
 const RUN_RECORD_TIMEOUT_MS = 30_000;
 
-/**
- * A syntactically valid provider that cannot reach anything: port 1 on loopback refuses connections.
- * No key is involved, since openai-compatible falls back to a fixed, non-secret placeholder.
- */
 const UNREACHABLE_PROVIDER =
   '{ id: "openai-compatible", options: { baseUrl: "http://127.0.0.1:1", model: "e2e-unreachable", maxOutputTokens: 256 } }';
 
-/** Reads one watch record and asserts it is a successful run carrying `locale`'s summary. */
 function expectLocaleSummary(
   envelope: JsonEnvelope<WatchRunSummary>,
   locale: string,
@@ -61,7 +36,6 @@ function expectLocaleSummary(
   return summary;
 }
 
-/** Asserts a run completed cleanly with nothing withheld, which also proves no provider was reached. */
 function expectNothingWithheld(summary: WatchLocaleSummary): void {
   expect(summary.status).toBe("succeeded");
   expect(summary.providerFailures ?? []).toEqual([]);
@@ -97,8 +71,6 @@ describe("watch lifecycle (no provider key, no network)", () => {
       expectNothingWithheld(startup);
       expect(startup.unchanged ?? []).toContain("greeting");
 
-      // The target gains the key first, so the source write is the only watched event and the run it
-      // triggers already sees a target that needs no provider call.
       await writeJsonIn(dir, TARGET_FILE, {
         greeting: "Hallo {{name}}",
         farewell: "Auf Wiedersehen",

@@ -6,18 +6,8 @@ import {
   type WatchRunSummary,
 } from "./watch-outcome.js";
 
-/**
- * Unit coverage for the throttle-versus-failure decision. It runs in the deterministic no-key tier
- * on purpose: the classifier is what keeps the live watch test able to fail, so the required gate,
- * not the quota-dependent one, is what proves the classifier is right.
- */
-
 const TARGET = { locale: "de", key: "welcome" } as const;
 
-/**
- * The withheld-sub-batch notice exactly as the CLI emitted it in the run that prompted this work.
- * Copied verbatim rather than paraphrased: this string is the contract the classifier reads.
- */
 const REAL_RATE_LIMIT_NOTICE =
   "A sub-batch of 1 entries failed (RATE_LIMITED: The translation provider rate-limited this request.) and was withheld; it will be retried next run.";
 
@@ -71,10 +61,6 @@ describe("classifyWatchEnvelope", () => {
     expect(outcome.kind).toBe("throttled");
   });
 
-  /**
-   * The whole point of the classifier. A withheld key with any other cause must stay a failure, or
-   * the live test would absorb a real regression as an environment skip.
-   */
   it("reports a key withheld for any other provider reason as a failure", () => {
     const outcome = classifyWatchEnvelope(
       record(
@@ -105,10 +91,6 @@ describe("classifyWatchEnvelope", () => {
     expect(outcome.kind).toBe("failed");
   });
 
-  /**
-   * A loose substring match on the notice message would misread this as throttling. The code must be
-   * read from the parenthesised position the SDK formats it in.
-   */
   it("does not read a stray mention of the rate-limit code as throttling", () => {
     const outcome = classifyWatchEnvelope(
       record(
@@ -173,10 +155,6 @@ describe("classifyWatchEnvelope", () => {
     expect(outcome.kind).toBe("failed");
   });
 
-  /**
-   * A run that started before the source change landed says nothing about the awaited key. It must
-   * not be read as either outcome; the caller keeps reading records.
-   */
   it("reports a run that has not reached the key yet as pending", () => {
     const outcome = classifyWatchEnvelope(record(locale({ unchanged: ["greeting"] })), TARGET);
     expect(outcome.kind).toBe("pending");
