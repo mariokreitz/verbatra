@@ -18,8 +18,11 @@ verbatra studio [flags]
 | `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
 | `--port` | `<n>` | `5849` | escucha en este puerto; debe ser un entero entre 1 y 65535 |
 | `--allow-spend` | ninguno | desactivado | permite a Studio llamar a un proveedor de traducción (retraducir una clave, traducir los cambios pendientes) |
+| `--expose-agent-tools` | ninguno | desactivado | registra las acciones de revisión de Studio como herramientas WebMCP para que un agente de IA del navegador pueda operarlas |
 
 Cuando el flag `--allow-spend` está ausente, Studio lee en su lugar la variable de entorno `VERBATRA_STUDIO_ALLOW_SPEND`: `1`, `true`, `yes` u `on` (sin distinguir mayúsculas) cuenta como activado. El flag de la CLI siempre gana sobre la variable de entorno. Sin ninguno de los dos, Studio nunca contacta con un proveedor; la edición local no necesita ningún flag.
+
+`--expose-agent-tools` se resuelve igual a partir de `VERBATRA_STUDIO_AGENT_TOOLS`, con el mismo conjunto de valores admitidos y la misma regla de que el flag de la CLI gana sobre la variable. Está desactivado por defecto. Para que un agente pueda gastar hacen falta este flag y `--allow-spend` a la vez; ninguno de los dos flags implica el otro. Consulta [Opera Studio con un agente del navegador](/docs/agent-tools-in-studio) para el catálogo de herramientas y el modelo de seguridad.
 
 ## La URL impresa
 
@@ -63,4 +66,5 @@ verbatra studio --allow-spend --port 6000
 ## Relacionado
 
 - [Revisión en Studio](/docs/review-in-studio) recorre la página Traducciones, la cola de revisión y la retraducción con `--allow-spend`.
+- [Opera Studio con un agente del navegador](/docs/agent-tools-in-studio) cubre `--expose-agent-tools` y la superficie de herramientas WebMCP.
 - [`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff) son los mismos cálculos que Studio muestra en vivo.

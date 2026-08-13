@@ -18,8 +18,11 @@ verbatra studio [flags]
 | `--config` | `<path>` | recherche automatique | charge ce fichier de config au lieu d'en chercher un |
 | `--port` | `<n>` | `5849` | écoute sur ce port ; doit être un entier entre 1 et 65535 |
 | `--allow-spend` | aucun | désactivé | autorise Studio à appeler un fournisseur de traduction (retraduire une clé, traduire les changements en attente) |
+| `--expose-agent-tools` | aucun | désactivé | enregistre les actions de révision de Studio comme outils WebMCP pour qu'un agent IA de navigateur puisse les piloter |
 
 Quand l'option `--allow-spend` est absente, Studio lit la variable d'environnement `VERBATRA_STUDIO_ALLOW_SPEND` à la place : `1`, `true`, `yes` ou `on` (insensible à la casse) compte comme activé. L'option CLI l'emporte toujours sur la variable d'environnement. Sans l'une ni l'autre, Studio ne contacte jamais de fournisseur ; la modification locale n'a besoin d'aucune option.
+
+`--expose-agent-tools` se résout de la même façon à partir de `VERBATRA_STUDIO_AGENT_TOOLS`, avec le même ensemble de valeurs admises et la même règle : l'option CLI l'emporte sur la variable. Elle est désactivée par défaut. Pour qu'un agent puisse dépenser, il faut à la fois cette option et `--allow-spend` ; aucune des deux options n'implique l'autre. Voir [Piloter Studio avec un agent de navigateur](/docs/agent-tools-in-studio) pour le catalogue d'outils et le modèle de sécurité.
 
 ## L'URL affichée
 
@@ -63,4 +66,5 @@ verbatra studio --allow-spend --port 6000
 ## Voir aussi
 
 - [Réviser les traductions dans Studio](/docs/review-in-studio) parcourt la page Traductions, la file de révision et la retraduction avec `--allow-spend`.
+- [Piloter Studio avec un agent de navigateur](/docs/agent-tools-in-studio) couvre `--expose-agent-tools` et la surface d'outils WebMCP.
 - [`verbatra check`](/docs/cli/check) et [`verbatra diff`](/docs/cli/diff) sont les mêmes calculs que Studio affiche en direct.
