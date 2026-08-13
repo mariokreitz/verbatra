@@ -6,25 +6,13 @@ import { renderError, toRenderableError } from "./render.js";
 import { stoppableSession } from "./stoppable-session.js";
 import type { CliDeps, Streams, StudioSession } from "./types.js";
 
-/** 32 bytes (256 bits) of randomness for the bootstrap token, well above the 128-bit floor. */
 const TOKEN_BYTES = 32;
 
-/**
- * The install hint, printed only when `@verbatra/studio` itself, not one of its own dependencies,
- * fails to resolve.
- */
 const NOT_INSTALLED_HINT =
   "Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatra/studio";
 
-/**
- * Matches the bare specifier "@verbatra/studio" quoted (Node quotes it with single quotes in
- * practice; either quote character is accepted). Deliberately anchored on the quote characters so a
- * message naming a transitive dependency of @verbatra/studio (which appears unquoted, as part of a
- * file path like ".../node_modules/@verbatra/studio/dist/index.js") never matches.
- */
 const STUDIO_SPECIFIER_PATTERN = /['"]@verbatra\/studio['"]/;
 
-/** Whether the error means @verbatra/studio itself (not one of its own dependencies) failed to resolve. */
 function isStudioPackageMissing(error: unknown): boolean {
   if (!(error instanceof Error)) {
     return false;
@@ -43,27 +31,16 @@ const studioOptsSchema = z.object({
 
 type StudioOpts = z.infer<typeof studioOptsSchema>;
 
-/** Environment variable fallback for the spend capability flag, read only when the CLI flag itself is absent. */
 const ALLOW_SPEND_ENV_VAR = "VERBATRA_STUDIO_ALLOW_SPEND";
 
-/** Environment variable fallback for the WebMCP agent-tools opt-in, read only when the CLI flag itself is absent. */
 const AGENT_TOOLS_ENV_VAR = "VERBATRA_STUDIO_AGENT_TOOLS";
 
-/** Env-var values that count as "on"; anything else (including unset) is "off". Case-insensitive. */
 const TRUTHY_ENV_VALUES = new Set(["1", "true", "yes", "on"]);
 
 function isEnvValueTruthy(value: string | undefined): boolean {
   return value !== undefined && TRUTHY_ENV_VALUES.has(value.trim().toLowerCase());
 }
 
-/**
- * Resolves the spend capability flag: the CLI flag wins when given; otherwise its environment
- * variable fallback; otherwise off. Never re-read after this call: the caller resolves the flag
- * once, before the config loader ever runs (G1-style ordering: the config loader executes the
- * project's own config module in-process, so nothing that module does can influence which
- * capabilities this process was granted), and passes the plain boolean through unchanged.
- * Spend is the only capability flag: local file editing is always on and needs no flag.
- */
 function resolveSpendCapability(opts: StudioOpts): boolean {
   if (opts.allowSpend !== undefined) {
     return opts.allowSpend;
@@ -71,12 +48,6 @@ function resolveSpendCapability(opts: StudioOpts): boolean {
   return isEnvValueTruthy(process.env[ALLOW_SPEND_ENV_VAR]);
 }
 
-/**
- * Resolves the WebMCP agent-tools opt-in, mirroring {@link resolveSpendCapability}: the CLI flag
- * wins when given; otherwise its environment variable fallback; otherwise off. Resolved once at
- * startup and passed through unchanged; it only decides whether the prebuilt SPA advertises the
- * RPC methods as WebMCP tools and never widens what the server itself allows.
- */
 function resolveExposeAgentTools(opts: StudioOpts): boolean {
   if (opts.exposeAgentTools !== undefined) {
     return opts.exposeAgentTools;
@@ -84,14 +55,8 @@ function resolveExposeAgentTools(opts: StudioOpts): boolean {
   return isEnvValueTruthy(process.env[AGENT_TOOLS_ENV_VAR]);
 }
 
-/** The stable message for a malformed `--port` value. */
 const INVALID_PORT_MESSAGE = "The --port option must be an integer between 1 and 65535.";
 
-/**
- * Parses the `studio` options. Any schema failure maps to a {@link CliUsageError} `INVALID_PORT`:
- * `--port` is the only field real commander argv can fail on (the rest are optional strings and
- * booleans).
- */
 function parseStudioOpts(rawOpts: unknown): StudioOpts {
   const result = studioOptsSchema.safeParse(rawOpts);
   if (!result.success) {
@@ -100,7 +65,6 @@ function parseStudioOpts(rawOpts: unknown): StudioOpts {
   return result.data;
 }
 
-/** A resolved outcome of one startup step: either its value, or `undefined` after rendering the error. */
 async function step<T>(
   action: () => Promise<T>,
   streams: Streams,
@@ -114,17 +78,10 @@ async function step<T>(
   }
 }
 
-/** Builds a session already resolved to `code`; used by every early-failure return. */
 function failed(code: number): StudioSession {
   return { done: Promise.resolve(code), requestStop: () => {} };
 }
 
-/**
- * Wires a running server's shutdown to `requestStop`, mirroring the `watch` command's session
- * contract via {@link stoppableSession}: the first call closes the server and resolves the exit code
- * (`0` clean, `1` if closing itself throws); a second call while the first is still in flight forces
- * `130`. The server is already running by the time this is called, so its controller is always ready.
- */
 function watchForStop(server: { close(): Promise<void> }, streams: Streams): StudioSession {
   return stoppableSession({
     getController: () => Promise.resolve({ stop: () => server.close() }),
@@ -135,28 +92,6 @@ function watchForStop(server: { close(): Promise<void> }, streams: Streams): Stu
   });
 }
 
-/**
- * Runs the `studio` command: starts Verbatra Studio, a local translation dashboard that can always
- * edit the project's own locale files but never calls a provider without `--allow-spend`. A thin
- * sequence with no server or view logic of its own: load env, resolve the spend capability, load
- * the config, dynamically import `@verbatra/studio`, start the server, print the banner, then wire
- * shutdown to `requestStop`. The command prints the one banner itself and silences the studio
- * server's own output sink, so the server never prints a second, differently worded banner or
- * per-request log lines.
- *
- * Ordering: env loads, then the spend flag is resolved, before the config ever loads and before
- * `@verbatra/studio` is ever imported. `spend` is therefore fixed before `loadConfigWithMeta`
- * (and, with it, the project's own config module) ever executes, so nothing that module does can
- * influence which capabilities this process was granted; a config error never reaches the dynamic
- * import or `startStudioServer` either.
- *
- * @param rawOpts - The commander-parsed options (`--cwd`, `--config`, `--port`, `--allow-spend`,
- *   `--expose-agent-tools`).
- * @param deps - The injected `loadConfigWithMeta` and `importStudio` seams.
- * @param streams - The stdout/stderr sink.
- * @returns A {@link StudioSession}: `done` resolves the exit code; `requestStop` is wired to SIGINT/SIGTERM
- *   by the bin shim.
- */
 export async function runStudio(
   rawOpts: unknown,
   deps: CliDeps,

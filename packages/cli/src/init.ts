@@ -12,13 +12,8 @@ import { readPackageManifest } from "./package-manifest.js";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
-/** The scaffoldable provider ids, derived from the SDK scaffolding metadata rather than restated. */
 const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];
 
-/**
- * Maps a dependency name to the locale format it implies. Typed against SupportedFormat so a renamed
- * or removed core format id breaks this compile.
- */
 const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["i18next", "i18next-json"],
   ["vue-i18n", "vue-i18n-json"],
@@ -27,15 +22,11 @@ const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
 ];
 const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
 
-/** The per-provider scaffold models: an alias of the SDK scaffolding metadata, not a source of truth. */
 export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
 const TOKEN_LIMIT = 4096;
 
-/** Prompting seams for `runInit`, injected so the decision logic is tested without a real TTY. */
 export interface InitDeps {
-  /** Reads one line for a prompt; defaults to the readline seam. Tests inject canned answers. */
   readonly ask?: (question: string) => Promise<string>;
-  /** Reports whether stdin is a TTY; defaults to the real check. Tests force interactive or not. */
   readonly isTty?: () => boolean;
 }
 
@@ -50,7 +41,6 @@ function isProviderId(value: string): value is ScaffoldableProviderId {
   return (PROVIDER_IDS as string[]).includes(value);
 }
 
-/** Reads the dependency and devDependency names from the project's package.json (empty if absent or invalid). */
 function readDependencyNames(cwd: string): Set<string> {
   const pkgPath = resolve(cwd, "package.json");
   if (!existsSync(pkgPath)) {
@@ -70,10 +60,6 @@ function readDependencyNames(cwd: string): Set<string> {
   }
 }
 
-/**
- * Pre-fills the format from the project's dependencies. Only a single match is unambiguous; zero or
- * several matches fall back to the default, marked undetected.
- */
 function detectFormat(cwd: string): { format: string; detected: boolean } {
   const deps = readDependencyNames(cwd);
   const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
@@ -84,11 +70,6 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   return { format: DEFAULT_FORMAT, detected: false };
 }
 
-/**
- * The provider block as a plain object, used to validate the assembled config before writing. Must
- * stay in sync with {@link renderProviderBlock} (the emitted text), since validation checks the
- * object, not the text.
- */
 function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown> {
   switch (id) {
     case "anthropic":
@@ -102,7 +83,6 @@ function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown
   }
 }
 
-/** The provider block rendered as commented TypeScript for the scaffolded config file. */
 function renderProviderBlock(id: ScaffoldableProviderId): string {
   if (id === "deepl") {
     return [
@@ -126,7 +106,6 @@ function renderProviderBlock(id: ScaffoldableProviderId): string {
   ].join("\n");
 }
 
-/** Renders the scaffolded verbatra.config.ts text; importName is the CLI's own package name. */
 function renderConfig(
   inputs: Inputs,
   format: string,
@@ -156,7 +135,6 @@ function renderConfig(
   ].join("\n");
 }
 
-/** Renders .env.example: the provider's key name only, never a literal value. */
 function renderEnvExample(id: ScaffoldableProviderId): string {
   return [
     `# Copy this file to .env and set your ${id} API key. Do not commit your real key.`,
@@ -165,7 +143,6 @@ function renderEnvExample(id: ScaffoldableProviderId): string {
   ].join("\n");
 }
 
-/** Writes the file, but skips an existing one unless --force, so re-running init never clobbers a user's edits. */
 function writeFileIfAllowed(
   path: string,
   content: string,
@@ -182,7 +159,6 @@ function writeFileIfAllowed(
   streams.out(`${existed ? "overwrote" : "created"} ${label}\n`);
 }
 
-/** Resolves the provider from the flag or an interactive prompt; reports and returns undefined on error. */
 async function resolveProvider(
   opts: InitOpts,
   interactive: boolean,
@@ -206,7 +182,6 @@ async function resolveProvider(
   return value;
 }
 
-/** A flag value, or an interactive prompt with a default, or the default when non-interactive. */
 async function resolveValue(
   flag: string | undefined,
   interactive: boolean,
@@ -225,18 +200,6 @@ async function resolveValue(
   return answer === "" ? fallback : answer;
 }
 
-/**
- * Runs the `init` command: scaffolds a verbatra config and a .env.example, and gitignores the real
- * .env. Prompts only when stdin is a TTY and --yes is absent, so init runs unattended in CI; it
- * never writes a real key. The assembled config is validated against the real schema before
- * anything is written, so a scaffolding bug fails with a clear message instead of an invalid file.
- *
- * @param opts - The parsed `init` flags.
- * @param streams - The output sink; init writes only human-readable status, never a key value.
- * @param deps - Injected prompting seams (ask, isTty); defaults to the real readline/TTY seam.
- * @returns 0 on success (including safe skips), 2 on a usage error (missing/unknown provider or an
- *   internally invalid scaffold).
- */
 export async function runInit(
   opts: InitOpts,
   streams: Streams,

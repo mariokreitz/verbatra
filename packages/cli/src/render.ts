@@ -12,20 +12,11 @@ import type {
   WatchRunResult,
 } from "@verbatra/sdk";
 
-/** A structured, secret-free error projection (matches the SDK's failed-result shape). */
 export interface RenderableError {
-  /** A preserved error code (the thrown error's `code`, or `"CLI_ERROR"` as a fallback). */
   readonly code: string;
-  /** A one-line, secret-free message; never a stack. */
   readonly message: string;
 }
 
-/**
- * Projects an unknown thrown value to a structured, secret-free `{ code, message }`. Never a stack.
- *
- * @param error - The caught value (an `Error`, an SDK error, or anything thrown).
- * @returns The projection; `code` is the error's string `code` or `"CLI_ERROR"` when it has none.
- */
 export function toRenderableError(error: unknown): RenderableError {
   if (error instanceof Error) {
     const code = (error as { code?: unknown }).code;
@@ -34,14 +25,6 @@ export function toRenderableError(error: unknown): RenderableError {
   return { code: "CLI_ERROR", message: String(error) };
 }
 
-/**
- * Renders a run summary human-readably: a header, one line per locale, optional usage and budget
- * lines, then an aggregate.
- *
- * @param summary - The SDK run summary to render.
- * @param command - The command label for the header (defaults to "translate"); `import` reuses it.
- * @returns The multi-line human report (no trailing newline).
- */
 export function renderHuman(summary: RunSummary, command = "translate"): string {
   const header = summary.dryRun ? `verbatra ${command} (dry run)` : `verbatra ${command}`;
   const localeLines = summary.locales.flatMap(renderLocaleLine);
@@ -53,15 +36,10 @@ export function renderHuman(summary: RunSummary, command = "translate"): string 
   return [header, ...localeLines, ...usageLine, ...budgetLine, aggregate].join("\n");
 }
 
-/** Input plus output token counts as one human-readable fragment; shared by the locale and run lines. */
 function renderTokens(usage: UsageSummary): string {
   return `${usage.inputTokens + usage.outputTokens} tokens (${usage.inputTokens} in, ${usage.outputTokens} out)`;
 }
 
-/**
- * The run-wide budget line. `supported: false` is rendered explicitly (the guardrail is configured but
- * inert against this provider) rather than omitted, so it is never mistaken for a working cap.
- */
 function renderBudgetLine(budget: RunBudget): string {
   if (!budget.supported) {
     return (
@@ -73,13 +51,8 @@ function renderBudgetLine(budget: RunBudget): string {
   return `  budget: ${budget.tokensUsed}/${budget.maxTokens} tokens (${budget.behavior}), ${status}`;
 }
 
-/** Column width that aligns the detail group keys past the longest label ("provider-failed:"). */
 const DETAIL_GROUP_WIDTH = 17;
 
-/**
- * One indented detail group (`provider-failed:`, `notices:`, `unfilled:`, `malformed:`,
- * `duplicates:`), or nothing when empty.
- */
 function renderDetailGroup(label: string, values: readonly string[]): string | undefined {
   if (values.length === 0) {
     return undefined;
@@ -87,28 +60,10 @@ function renderDetailGroup(label: string, values: readonly string[]): string | u
   return `    ${`${label}:`.padEnd(DETAIL_GROUP_WIDTH)}${values.join(", ")}`;
 }
 
-/**
- * Where a reported import problem sits, both numbers labelled. A delimited import also reports the
- * file line the record starts on, which is the number a text editor shows and the only one that stays
- * right once a record holds a quoted line break; `row` remains the record number a spreadsheet shows.
- * An xlsx import has no line, so it renders the row alone exactly as before.
- */
 function renderPosition(at: { readonly row: number; readonly line?: number }): string {
   return at.line === undefined ? `row ${at.row}` : `row ${at.row}, line ${at.line}`;
 }
 
-/**
- * The detail groups under a locale line: the keys withheld because the provider call produced
- * nothing, each notice's code and message, then the import-only groups (the unfilled `changed` keys,
- * the malformed rows by position and column, and the duplicate-key conflicts by key and losing
- * position). A provider run populates the first two and none of the import ones.
- *
- * The notice group carries the only human-readable account of why a sub-batch was withheld. A locale
- * that failed because every one of its sub-batches failed has no `error` to render (see the SDK's
- * `LocaleSummary.error`: a locale withheld via `providerFailures`, `integrityMismatches`, or
- * `budgetWithheld` reports through those lists and its notices instead), so without this group the
- * human output named no code, no message, and no cause at all.
- */
 function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
   return [
     renderDetailGroup("provider-failed", locale.providerFailures),
@@ -128,11 +83,6 @@ function renderLocaleDetail(locale: LocaleSummary): readonly string[] {
   ].filter((line): line is string => line !== undefined);
 }
 
-/**
- * One locale's lines: the failure code and message, or the counts (translated and unchanged always,
- * the rest only when non-zero) followed by any import-detail key-list groups (unfilled, malformed,
- * duplicates).
- */
 function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   if (locale.status === "failed") {
     const suffix = locale.error ? ` [${locale.error.code}] ${locale.error.message}` : "";
@@ -162,22 +112,10 @@ function renderLocaleLine(locale: LocaleSummary): readonly string[] {
   return [`  ${locale.locale}: ${shown.join(", ")}${tokenSuffix}`, ...renderLocaleDetail(locale)];
 }
 
-/**
- * Human rendering of a single watch run.
- *
- * @param result - The outcome of one watch run.
- * @returns The summary report on success, or the one-line error on failure.
- */
 export function renderRunResultHuman(result: WatchRunResult): string {
   return result.status === "succeeded" ? renderHuman(result.summary) : renderError(result.error);
 }
 
-/**
- * Human-readable export report: the output path, then one line per locale with its row count.
- *
- * @param result - The SDK export result.
- * @returns The multi-line human report (no trailing newline).
- */
 export function renderExportHuman(result: ExportWorkbookResult): string {
   const localeLines = result.locales.map((l) => `  ${l.locale}: ${l.rows} rows`);
   const total = result.locales.reduce((sum, l) => sum + l.rows, 0);
@@ -188,13 +126,6 @@ export function renderExportHuman(result: ExportWorkbookResult): string {
   ].join("\n");
 }
 
-/**
- * Human-readable check report: a header, one line per locale with its missing, stale, and up-to-date
- * counts plus an in-sync marker, then an overall in-sync line.
- *
- * @param summary - The SDK check summary.
- * @returns The multi-line human report (no trailing newline).
- */
 export function renderCheckHuman(summary: CheckSummary): string {
   const localeLines = summary.locales.map(
     (l) =>
@@ -208,10 +139,8 @@ export function renderCheckHuman(summary: CheckSummary): string {
   return ["verbatra check", ...localeLines, overall].join("\n");
 }
 
-/** Column width that aligns the diff group keys past the longest label ("re-translate:"). */
 const DIFF_GROUP_WIDTH = 14;
 
-/** One grouped key line (`add:`, `re-translate:`, or `orphaned:`), or nothing when the group is empty. */
 function renderDiffGroup(label: string, keys: readonly string[]): string | undefined {
   if (keys.length === 0) {
     return undefined;
@@ -219,7 +148,6 @@ function renderDiffGroup(label: string, keys: readonly string[]): string | undef
   return `    ${`${label}:`.padEnd(DIFF_GROUP_WIDTH)}${keys.join(", ")}`;
 }
 
-/** Render one locale: a "no pending changes" line, or a count header followed by its non-empty groups. */
 function renderDiffLocale(locale: LocaleDiff): readonly string[] {
   const total = locale.missing.length + locale.changed.length + locale.orphaned.length;
   if (total === 0) {
@@ -234,14 +162,6 @@ function renderDiffLocale(locale: LocaleDiff): readonly string[] {
   return [header, ...groups];
 }
 
-/**
- * Human-readable diff report: a header, then per locale a count header line and the key lists grouped
- * as add / re-translate / orphaned (every key listed), then an aggregate trailer. A locale with nothing
- * missing, changed, or orphaned collapses to a single "no pending changes" line.
- *
- * @param summary - The SDK diff summary.
- * @returns The multi-line human report (no trailing newline).
- */
 export function renderDiffHuman(summary: DiffSummary): string {
   const localeLines = summary.locales.flatMap(renderDiffLocale);
   const count = summary.locales.length;
@@ -251,7 +171,6 @@ export function renderDiffHuman(summary: DiffSummary): string {
   return ["verbatra diff", ...localeLines, trailer].join("\n");
 }
 
-/** The "held by pid X since T" fragment of the human waiting line, or empty when the holder is unknown. */
 function renderLockHolder(event: LockWaitEvent): string {
   const holder = event.holder;
   if (holder?.pid === undefined && holder?.acquiredAt === undefined) {
@@ -262,14 +181,6 @@ function renderLockHolder(event: LockWaitEvent): string {
   return ` (held${pid}${since})`;
 }
 
-/**
- * Human-readable wait-progress line for a contended write lock: names the lock path, the holder when
- * known, and how long we have waited, plus the hint that a truly orphaned lock can be deleted. Meant
- * for stderr, so it never mixes with `--json` stdout.
- *
- * @param event - One wait-progress event from the SDK's `onLockWait`.
- * @returns The single-line message (no trailing newline).
- */
 export function renderLockWaitHuman(event: LockWaitEvent): string {
   const waitedSeconds = Math.round(event.elapsedMs / 1000);
   return (
@@ -278,44 +189,14 @@ export function renderLockWaitHuman(event: LockWaitEvent): string {
   );
 }
 
-/**
- * The `--json` wait-progress contract: one structured lock-wait record. Written to stderr, never
- * stdout, so it never corrupts the run summary or NDJSON stream a `--json` run emits on stdout.
- *
- * @param event - One wait-progress event from the SDK's `onLockWait`.
- * @returns A single-line JSON record string.
- */
 export function renderLockWaitJson(event: LockWaitEvent): string {
   return JSON.stringify({ type: "lock-wait", ...event });
 }
 
-/**
- * One wait-progress line for the active output mode: a structured JSON record under `--json`, the
- * human line otherwise. Callers write it to stderr, keeping stdout clean in both modes.
- *
- * @param event - One wait-progress event from the SDK's `onLockWait`.
- * @param json - Whether the command is in `--json` mode.
- * @returns The single-line message (no trailing newline).
- */
 export function renderLockWait(event: LockWaitEvent, json: boolean): string {
   return json ? renderLockWaitJson(event) : renderLockWaitHuman(event);
 }
 
-/**
- * Human-readable progress line for one run event: the locale about to start, a provider sub-batch
- * reached, a locale finished (with its translated count), or the whole run finished. Meant for
- * stderr, so it never mixes with `--json` stdout.
- *
- * No line carries a positional counter. The started event's `localeIndex` is a claim ordinal, not a
- * completion ordinal, so under `--concurrency` greater than 1 every worker's line printed before any
- * work finished: at width 3, `[1/3]`, `[2/3]` and `[3/3]` all appeared up front and the run then
- * carried on past its own apparent total. A started locale was never progress in the first place,
- * and the run-finished line still reports the total, so the counter is dropped rather than moved to
- * the finished event, where a claim ordinal would render just as wrongly.
- *
- * @param event - One progress event from the SDK's `onProgress`.
- * @returns The single-line message (no trailing newline).
- */
 export function renderProgressHuman(event: ProgressEvent): string {
   switch (event.type) {
     case "locale-started":
@@ -329,36 +210,14 @@ export function renderProgressHuman(event: ProgressEvent): string {
   }
 }
 
-/**
- * The `--json` progress contract: one structured record per event. The event already carries its own
- * `type` discriminant, so it is emitted verbatim. Written to stderr, never stdout, so it never
- * corrupts the run summary or NDJSON stream a `--json` run emits on stdout.
- *
- * @param event - One progress event from the SDK's `onProgress`.
- * @returns A single-line JSON record string.
- */
 export function renderProgressJson(event: ProgressEvent): string {
   return JSON.stringify(event);
 }
 
-/**
- * One progress line for the active output mode: a structured JSON record under `--json`, the human
- * line otherwise. Callers write it to stderr, keeping stdout clean in both modes.
- *
- * @param event - One progress event from the SDK's `onProgress`.
- * @param json - Whether the command is in `--json` mode.
- * @returns The single-line message (no trailing newline).
- */
 export function renderProgress(event: ProgressEvent, json: boolean): string {
   return json ? renderProgressJson(event) : renderProgressHuman(event);
 }
 
-/**
- * A structured error as a clear one-line message. Never a raw stack.
- *
- * @param error - The structured error to render.
- * @returns A single line of the form `verbatra: error [CODE] message`.
- */
 export function renderError(error: RenderableError): string {
   return `verbatra: error [${error.code}] ${error.message}`;
 }

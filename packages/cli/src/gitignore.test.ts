@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { appendMissingGitignoreEntries, ensureGitignore } from "./gitignore.js";
 import { captureStreams } from "./test-support.js";
 
-/** A fresh temp project, carrying a `.gitignore` of the given content only when one is passed. */
 function project(gitignore?: string): string {
   const dir = mkdtempSync(join(tmpdir(), "verbatra-gitignore-"));
   if (gitignore !== undefined) {

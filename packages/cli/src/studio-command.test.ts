@@ -10,7 +10,6 @@ import {
 } from "./test-support.js";
 import type { RunHooks, StudioSession } from "./types.js";
 
-/** A 64-hex-char string is what the command's own token generation always produces. */
 const TOKEN_SHAPE = /[0-9a-f]{64}/;
 
 function moduleNotFound(specifier: string, importedFrom = "/proj/index.js"): Error {
@@ -22,7 +21,6 @@ function moduleNotFound(specifier: string, importedFrom = "/proj/index.js"): Err
   );
 }
 
-/** Captures the live session via onStudioSession so a success-path test can drive requestStop. */
 function captureStudioSession(): { hooks: RunHooks; session: () => StudioSession | undefined } {
   let session: StudioSession | undefined;
   return {
