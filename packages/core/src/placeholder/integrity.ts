@@ -8,7 +8,6 @@ function counts(items: readonly string[]): Map<string, number> {
   return map;
 }
 
-/** Each token whose count in `a` exceeds its count in `b`, repeated per surplus occurrence and sorted. */
 function multisetExcess(a: ReadonlyMap<string, number>, b: ReadonlyMap<string, number>): string[] {
   const excess: string[] = [];
   for (const [token, count] of a) {
@@ -24,20 +23,6 @@ function sameOrder(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
-/**
- * Compare source and translated placeholders as multisets (counts matter), reporting which are
- * missing, which are extra, and whether a matching multiset was merely reordered. Does not throw.
- *
- * @param source - The placeholders present in the source value.
- * @param translated - The placeholders present in the translated value.
- * @returns Whether the multisets match, plus the missing, extra, and reordered details.
- * @example
- * ```ts
- * checkPlaceholders(["{name}"], ["{name}"]); // { matches: true, ... }
- * checkPlaceholders(["{a}", "{b}"], ["{b}", "{a}"]); // { matches: true, reordered: true, ... }
- * checkPlaceholders(["{a}", "{a}"], ["{a}"]); // { matches: false, missing: ["{a}"], ... }
- * ```
- */
 export function checkPlaceholders(
   source: readonly string[],
   translated: readonly string[],

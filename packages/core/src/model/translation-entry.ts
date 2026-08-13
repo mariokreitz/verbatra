@@ -1,9 +1,5 @@
 import { z } from "zod";
 
-/**
- * A single, format-neutral translation unit. Placeholders are supplied already
- * extracted; core never derives them from the value.
- */
 export const translationEntrySchema = z.object({
   key: z.string().min(1),
   namespace: z.string(),
@@ -14,5 +10,4 @@ export const translationEntrySchema = z.object({
   isPlural: z.boolean(),
 });
 
-/** The validated shape of one translation unit; the inferred type of {@link translationEntrySchema}. */
 export type TranslationEntry = Readonly<z.infer<typeof translationEntrySchema>>;

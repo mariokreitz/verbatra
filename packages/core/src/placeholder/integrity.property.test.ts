@@ -2,35 +2,9 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { checkPlaceholders } from "./integrity.js";
 
-/**
- * Property-based coverage for the placeholder integrity boundary.
- *
- * `checkPlaceholders` compares the placeholders of a source string against those recovered from
- * provider output, which this project treats as untrusted. The example tests next to this file pin
- * the cases the implementation was written for; these properties assert the algebraic invariants
- * that must hold for every input.
- *
- * Two generator choices matter, and both were measured rather than assumed:
- *
- * 1. The alphabet is small and deliberately includes awkward tokens (an empty string, an unclosed
- *    brace, an astral-plane emoji). Random unique strings would practically never repeat or
- *    collide, leaving the duplicate and multiset paths unexercised.
- * 2. Two generators are used, and which one a property gets is load-bearing. `sourceWithNeighbour`
- *    derives the translated list from the source by one controlled edit, because two independent
- *    lists are almost never equal as multisets and so would rarely reach the boundary where
- *    matching and reordering are decided. Properties about the *content* of the report keep
- *    independent lists instead, since a one-edit neighbour differs by at most one token and a
- *    one-element report cannot expose an ordering fault.
- *
- * Both choices were measured against seeded faults rather than assumed. Dropping the sort in
- * `multisetExcess` is caught only by the independent-list properties; ignoring falsy tokens in
- * `counts` is caught only by the near-neighbour ones. Each generator covers what the other misses,
- * so neither set should be collapsed into the other.
- */
 const token = fc.constantFrom("{a}", "{b}", "{count}", "%s", "<0>", "", "{{", "\u{1f600}");
 const tokenList = fc.array(token, { maxLength: 8 });
 
-/** A source list paired with a near neighbour: itself, a permutation, or an off-by-one edit. */
 const sourceWithNeighbour = tokenList.chain((source) => {
   const neighbours = [
     fc.constant(source),
@@ -51,7 +25,6 @@ const sourceWithNeighbour = tokenList.chain((source) => {
   return fc.tuple(fc.constant(source), fc.oneof(...neighbours));
 });
 
-/** True when the two lists hold the same tokens with the same multiplicities, ignoring order. */
 function equalAsMultisets(a: readonly string[], b: readonly string[]): boolean {
   const sortedA = [...a].sort();
   const sortedB = [...b].sort();
@@ -132,9 +105,6 @@ describe("checkPlaceholders properties", () => {
     );
   });
 
-  // Independent lists, not near neighbours: a single-edit neighbour can differ by at most one
-  // token, and a one-element report is sorted no matter what the implementation does. Only widely
-  // differing lists produce a report long enough for its ordering to carry information.
   it("returns missing and extra sorted, so the report is stable across input orderings", () => {
     fc.assert(
       fc.property(tokenList, tokenList, (source, translated) => {

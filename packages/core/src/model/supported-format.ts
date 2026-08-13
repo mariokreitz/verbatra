@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-/** The closed set of source formats a LocaleResource can originate from. */
 export const SUPPORTED_FORMATS = [
   "i18next-json",
   "vue-i18n-json",
@@ -12,8 +11,6 @@ export const SUPPORTED_FORMATS = [
   "properties",
 ] as const;
 
-/** Zod schema accepting exactly one of {@link SUPPORTED_FORMATS}. */
 export const supportedFormatSchema = z.enum(SUPPORTED_FORMATS);
 
-/** One of the supported source formats; a member of {@link SUPPORTED_FORMATS}. */
 export type SupportedFormat = z.infer<typeof supportedFormatSchema>;

@@ -2,7 +2,6 @@ import type { LocaleResource } from "../model/locale-resource.js";
 import type { SupportedFormat } from "../model/supported-format.js";
 import type { TranslationEntry } from "../model/translation-entry.js";
 
-/** Build a TranslationEntry with sensible defaults for tests. */
 export function entry(overrides: Partial<TranslationEntry> & { key: string }): TranslationEntry {
   return {
     namespace: "common",
@@ -13,7 +12,6 @@ export function entry(overrides: Partial<TranslationEntry> & { key: string }): T
   };
 }
 
-/** Build a LocaleResource from a list of entries, keyed by entry.key. */
 export function resource(
   locale: string,
   entries: readonly TranslationEntry[],
