@@ -103,12 +103,6 @@ describe("gateCandidateValue: an empty candidate for a non-empty source", () => 
   });
 });
 
-/**
- * These two adapters define `comparePlaceholders`, which takes a different branch inside the gate:
- * it re-derives placeholders from the source value and ignores `sourceEntry.placeholders` entirely.
- * A suite written only against i18next-json never exercises that branch, and it is exactly where an
- * empty candidate for a placeholder-carrying source used to be accepted.
- */
 describe.each([
   ["next-intl", createNextIntlJsonAdapter],
   ["arb", createArbAdapter],

@@ -7,7 +7,6 @@ import { baseConfig, makeStubProvider, makeTempDir, writeJsonFile } from "../tes
 import type { LocaleSummary } from "./summary.js";
 import { translate } from "./translate-project.js";
 
-/** Pre-create a held locale lock so a live run's own acquire contends and fails with LOCK_CONTENDED. */
 async function holdLock(dir: string, locale: string): Promise<void> {
   const path = localeLockPath(dir, locale);
   await mkdir(dirname(path), { recursive: true });
@@ -18,7 +17,6 @@ async function holdLock(dir: string, locale: string): Promise<void> {
   );
 }
 
-/** Find one locale's summary by tag, failing loudly if it is absent. */
 function localeSummary(summaries: readonly LocaleSummary[], locale: string): LocaleSummary {
   const summary = summaries.find((entry) => entry.locale === locale);
   if (summary === undefined) {
@@ -27,7 +25,6 @@ function localeSummary(summaries: readonly LocaleSummary[], locale: string): Loc
   return summary;
 }
 
-/** A temp project whose source carries `keyCount` keys and no target files yet (all keys missing). */
 async function makeProject(keyCount: number): Promise<string> {
   const dir = await makeTempDir();
   await mkdir(join(dir, "locales"));
@@ -64,10 +61,6 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     ]);
   });
 
-  /**
-   * A dry run stays silent on the provider channel but is not silent overall: `locale-finished`
-   * still carries the count the run would have translated, which is what makes the preview useful.
-   */
   it("does not construct a provider or emit a sub-batch event on a dry-run", async () => {
     const dir = await makeProject(3);
     const config = baseConfig({ targetLocales: ["de"], maxBatchSize: 2 });
@@ -88,11 +81,6 @@ describe("translate: onProgress emits locale, sub-batch, and run events on the l
     ]);
   });
 
-  /**
-   * `localesCompleted` counts locales attempted, not locales that succeeded, so the failed locale
-   * and its succeeding sibling both land in the total. The failed one still emits its own
-   * `locale-finished` with a zero count rather than being dropped from the stream.
-   */
   it("counts a failed (isolated, not thrown) locale in run-finished and fires its locale-finished with 0", async () => {
     const dir = await makeProject(1);
     await holdLock(dir, "de");

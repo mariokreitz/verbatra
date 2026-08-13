@@ -5,13 +5,11 @@ import type { LocaleSummary, RunSummary } from "../flow/summary.js";
 import type { SdkFs } from "../fs.js";
 import type { RunStatusFile, RunStatusLocale } from "./types.js";
 
-/** The gitignored local-state directory, scaffolded by `verbatra init` into a project's `.gitignore`. */
 const RUN_STATUS_DIR_NAME = ".verbatra-local";
 const RUN_STATUS_FILE_NAME = "run-status.json";
 
 const CURRENT_VERSION = 1;
 
-/** Size cap for the read: this file is best-effort, gitignored, and never expected to grow unbounded. */
 const MAX_RUN_STATUS_FILE_BYTES = 16 * 1024 * 1024;
 
 const reviewReasonCodeSchema = z.enum([
@@ -55,7 +53,6 @@ const runStatusFileSchema = z.object({
   locales: z.array(runStatusLocaleSchema),
 });
 
-/** Resolve the run-status file's absolute path: `<cwd>/.verbatra-local/run-status.json`. */
 export function runStatusFilePath(cwd: string): string {
   return resolve(cwd, RUN_STATUS_DIR_NAME, RUN_STATUS_FILE_NAME);
 }
@@ -69,11 +66,6 @@ function toRunStatusLocale(locale: LocaleSummary): RunStatusLocale {
   };
 }
 
-/**
- * Project an already-assembled `RunSummary` onto the persisted shape: no new aggregation, every field
- * taken directly from the summary. `generatedAt` defaults to now; overridable so callers can pass a
- * fixed value in tests.
- */
 export function buildRunStatusFile(
   summary: RunSummary,
   generatedAt: string = new Date().toISOString(),
@@ -102,11 +94,6 @@ function fromParsed(data: z.infer<typeof runStatusFileSchema>): RunStatusFile {
   };
 }
 
-/**
- * Read the run-status file. Unlike `readLockFile`, this never throws: a missing file, invalid JSON, a
- * schema mismatch, or an unrecognized `version` all degrade to `undefined`, since this file is
- * best-effort telemetry, not a correctness baseline.
- */
 export async function readRunStatusFile(
   path: string,
   fs: SdkFs,
@@ -128,15 +115,6 @@ export async function readRunStatusFile(
   return fromParsed(result.data);
 }
 
-/**
- * Write the run-status file, creating `.verbatra-local/` first if it does not already exist. The
- * directory is created directly through node's fs instead of through the injected `SdkFs.mkdir` seam
- * that every other file-touching function in this package uses (for example `export-workbook.ts`).
- * Routing it through the seam would change what an injected `SdkFs` observes, so the direct call is
- * kept as-is: a known deviation, preserved deliberately rather than corrected in passing. Throws on
- * failure; the caller in `translate()` is responsible for catching and swallowing it, since this
- * write is best-effort by design.
- */
 export async function writeRunStatusFile(
   path: string,
   data: RunStatusFile,

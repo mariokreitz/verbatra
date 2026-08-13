@@ -15,56 +15,28 @@ import type {
   SdkNotice,
 } from "../summary.js";
 
-/**
- * The literal a translator types in a Translation cell to deliberately unset a value: it applies as
- * an empty string while keeping the key, bypasses the placeholder/ICU integrity gate (an empty value
- * has no placeholders to match), still honors the source-drift check, and advances the lock baseline
- * so the clear persists across runs. Matched on the cell's trimmed content (see the exchange reader).
- */
 const CLEAR_SENTINEL = "[[CLEAR]]";
 
-/** Everything one locale's import needs; the orchestrator supplies it per data sheet. */
 export interface ImportLocaleParams {
   readonly sheet: WorkbookSheet;
   readonly source: LocaleResource;
   readonly target: LocaleResource;
   readonly baseline: ReadonlyMap<string, string>;
   readonly adapter: FormatAdapter;
-  /** Source keys flagged invalid-ICU on read; surfaced verbatim, exactly as the provider path. */
   readonly sourceInvalidIcuKeys: readonly string[];
-  /** Rows the exchange reader could not parse for this sheet; surfaced as data, never re-judged. */
   readonly malformedRows: readonly MalformedRowReport[];
-  /** Later occurrences of a duplicated key in this sheet; the first occurrence already won. */
   readonly duplicateKeys: readonly DuplicateKeyReport[];
 }
 
-/** The judged outcome of one locale's rows, before any write or lock update. */
 export interface ImportLocaleResult {
   readonly summary: LocaleSummary;
-  /**
-   * The accepted values to merge into the target, keyed by key. Empty when nothing passed.
-   *
-   * `cleared` marks a value that came from the `[[CLEAR]]` sentinel rather than from a translation.
-   * The distinction exists for the cache: entries are stored by source-content hash, so a cached
-   * value is served to every key whose source text is byte-identical. `[[CLEAR]]` expresses an
-   * intent about one key, not a translation of its content, so it must never enter a
-   * content-addressed store, where it would be handed to unrelated keys that merely share the
-   * source string.
-   */
   readonly accepted: ReadonlyMap<
     string,
     { readonly value: string; readonly source: TranslationEntry; readonly cleared: boolean }
   >;
-  /**
-   * Keys judged but not accepted this run (drift, placeholder, ICU), for diagnostics and testing only.
-   * Lock-baseline retention is driven by absence from `accepted` (see `computeSheetLockEntries` in
-   * import-workbook.ts), not by membership here: a blank changed row keeps its prior baseline too, even
-   * though it is never classified into this set.
-   */
   readonly withheld: ReadonlySet<string>;
 }
 
-/** A row identifier that maps to no known key: a broken round trip, rejected fail-safe. */
 export class UnknownKeyError extends Error {
   readonly key: string;
   constructor(key: string) {
@@ -74,20 +46,12 @@ export class UnknownKeyError extends Error {
   }
 }
 
-/** A filled row that maps to no known source key AND no known target key: an invented key. */
 function isUnknownKey(row: WorkbookRow, source: LocaleResource, target: LocaleResource): boolean {
   return !source.entries.has(row.key) && !target.entries.has(row.key);
 }
 
 type Reason = "drift" | IntegrityGateReason;
 
-/**
- * Judge one filled row against the live source. Returns `undefined` to accept, or the first failing
- * reason: `"drift"` when the row's export-time source hash no longer matches the current source
- * (the source changed since export, an import-specific check with no equivalent in a provider-sourced
- * translation), or the shared {@link gateCandidateValue}'s `"placeholder"`, `"icu"`, or
- * `"degenerate"` reason.
- */
 function judge(
   row: WorkbookRow,
   sourceEntry: TranslationEntry,
@@ -104,19 +68,10 @@ interface Buckets {
   readonly accepted: Map<string, { value: string; source: TranslationEntry; cleared: boolean }>;
   readonly mismatches: string[];
   readonly withheld: Set<string>;
-  /** Blank cells for a source key whose current hash no longer matches the recorded baseline. */
   readonly blankDrifted: Set<string>;
-  /**
-   * Keys the translator left blank that the import-time diff still lists as needing a translation
-   * (pending work). Decided by that diff, not by the `status` the row was exported with.
-   */
   readonly unfilled: string[];
 }
 
-/**
- * A blank cell for a key whose source drifted since its baseline was recorded must not let the
- * baseline advance silently: flag it so the lock keeps the prior hash and the run reports it.
- */
 function trackBlankDrift(row: WorkbookRow, params: ImportLocaleParams, buckets: Buckets): void {
   const sourceEntry = params.source.entries.get(row.key);
   if (sourceEntry === undefined) {
@@ -128,12 +83,6 @@ function trackBlankDrift(row: WorkbookRow, params: ImportLocaleParams, buckets: 
   }
 }
 
-/**
- * Judge a `[[CLEAR]]` row (a deliberate unset). It bypasses the placeholder/ICU gate (an empty value
- * has no placeholders to match) but still honors the source-drift check: a cleared row whose source
- * drifted is withheld and reported like any drift, otherwise the value is accepted as an empty string
- * (the key is kept and its lock baseline advances).
- */
 function classifyClear(row: WorkbookRow, sourceEntry: TranslationEntry, buckets: Buckets): void {
   if (contentHash(sourceEntry) !== row.sourceHash) {
     buckets.mismatches.push(row.key);
@@ -143,19 +92,6 @@ function classifyClear(row: WorkbookRow, sourceEntry: TranslationEntry, buckets:
   buckets.accepted.set(row.key, { value: "", source: sourceEntry, cleared: true });
 }
 
-/**
- * Apply the fail-safe row rules: empty cells are skipped (a blank row for a key that still needs a
- * translation is recorded as unfilled), an invented key throws {@link UnknownKeyError}, an orphaned
- * source key is left unwritten, a `[[CLEAR]]` cell unsets its value, and every other filled row is
- * judged (accepted or withheld). The reader already collapsed duplicate keys to their first
- * occurrence, so no key is processed twice.
- *
- * `liveCandidates` is what decides `unfilled`, not the row's exported `status` string. A
- * never-translated key exports as `"new"`, which is the most common unfilled case of all (a first
- * handoff, where every row is new), and switching on `"changed"` reported none of them. Deciding on
- * the import-time diff also correctly excludes a row exported as `changed` whose key has since
- * stopped needing work.
- */
 function classifyRows(
   params: ImportLocaleParams,
   buckets: Buckets,
@@ -194,7 +130,6 @@ function classifyRows(
   }
 }
 
-/** A secret-free notice for blank cells whose prior lock baseline was kept instead of advanced. */
 function blankRowBaselineNotice(count: number): SdkNotice {
   return {
     code: "BLANK_ROW_BASELINE_RETAINED",
@@ -204,20 +139,6 @@ function blankRowBaselineNotice(count: number): SdkNotice {
   };
 }
 
-/**
- * Judge one locale's filled rows with the core checks (drift, placeholder, ICU) and partition its keys
- * into the summary buckets. Writes nothing and updates no lock; throws {@link UnknownKeyError} on a
- * broken round trip.
- *
- * The summary's `invalidIcuSource` lists source keys flagged invalid-ICU on read that appear as a row
- * in this sheet (source-side only; a filled value's own ICU failure is reported under
- * `integrityMismatches`). `unfilled` lists blank rows whose key still needs a translation at import
- * time, whether it was exported as `new` or `changed`; `malformedRows` and `duplicateKeys` carry the
- * reader's structural findings for this sheet verbatim. `pruned`, `providerFailures`,
- * `budgetWithheld`, `generated`, and `needsReview` are always empty: an import never prunes, never
- * calls a provider, never generates plural forms, and never recomputes review flags (the
- * workbook's Review columns are informational only; see export-workbook.ts).
- */
 export function importLocale(params: ImportLocaleParams): ImportLocaleResult {
   const diff = diffResources(params.source, params.target, { baseline: params.baseline });
   const buckets: Buckets = {

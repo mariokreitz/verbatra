@@ -9,31 +9,22 @@ import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
 import { readSourceResource } from "./source.js";
 
-/** A target locale paired with its core diff against the source. */
 export interface LocaleDiffResult {
   readonly locale: string;
   readonly diff: DiffResult;
 }
 
-/** Input for {@link diffLocales}: the validated config and which locales to diff. */
 export interface DiffLocalesInput {
   readonly config: VerbatraConfig;
-  /** Directory the pattern and lock-file resolve against; defaults to cwd. */
   readonly cwd?: string;
-  /** Subset of target locales to diff; defaults to all configured. */
   readonly locales?: readonly string[];
 }
 
-/** Composition seam for {@link diffLocales}: inject a registry and a file system for tests. */
 export interface DiffLocalesDeps {
   readonly adapterRegistry?: AdapterRegistry;
   readonly fs?: SdkFs;
 }
 
-/**
- * Reads a locale's existing target resource, or an empty resource when the file does not exist.
- * The canonical config-shaped entry to the shared tolerant read in `read-target.ts`.
- */
 export async function readTarget(
   cwd: string,
   config: VerbatraConfig,
@@ -50,11 +41,6 @@ export async function readTarget(
   });
 }
 
-/**
- * Reads the source, the lock baseline, and each selected target locale, then runs core's
- * `diffResources` per locale. Reads only: it calls no provider, writes no file, and never mutates
- * the lock. The shared read half of {@link check}, {@link diff}, and their siblings.
- */
 export async function diffLocales(
   input: DiffLocalesInput,
   deps: DiffLocalesDeps = {},

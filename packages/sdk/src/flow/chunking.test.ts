@@ -283,11 +283,6 @@ function acceptEntries(request: TranslateRequest): TranslateResult {
   return { values, integrity };
 }
 
-/**
- * A provider that raises `OUTPUT_TRUNCATED` for any request larger than `acceptFrom`, or for any
- * request containing an `alwaysTruncate` key regardless of size, and otherwise translates normally.
- * It records the size of every attempted request so a test can assert the split behavior.
- */
 function truncatingProvider(opts: { acceptFrom: number; alwaysTruncate?: readonly string[] }): {
   provider: TranslationProvider;
   sizes: number[];
@@ -310,7 +305,6 @@ function truncatingProvider(opts: { acceptFrom: number; alwaysTruncate?: readonl
   return { provider, sizes };
 }
 
-/** A provider that raises a fixed non-truncation `ProviderError` code for a request containing `throwKey`. */
 function codedThrowProvider(
   code: ProviderErrorCode,
   throwKey: string,

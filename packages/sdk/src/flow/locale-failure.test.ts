@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { deriveLocaleStatus, failureSummary, partition } from "./locale-failure.js";
 import type { LocaleSummary } from "./summary.js";
 
-/** A minimal summary carrying only the fields partition reads (`locale` and `status`). */
 function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSummary {
   return {
     locale,
@@ -25,7 +24,6 @@ function summaryWith(locale: string, status: LocaleSummary["status"]): LocaleSum
   };
 }
 
-/** Empty status parts; each test overrides only the lists it exercises. */
 const NO_STATUS_PARTS = {
   translated: [] as readonly string[],
   cacheHits: [] as readonly string[],

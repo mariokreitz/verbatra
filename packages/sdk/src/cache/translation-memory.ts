@@ -4,13 +4,11 @@ import type { BoundedFileRead, SdkFs } from "../fs.js";
 import { sortRecordKeys } from "../record-utils.js";
 import type { CacheAddition, TranslationMemory } from "./types.js";
 
-/** The cache file's name, a sibling of the lock file and obviously JSON. */
 export const CACHE_FILE_NAME = "verbatra.cache.json";
 
 const CURRENT_VERSION = 1;
 const EMPTY_MEMORY: TranslationMemory = { version: CURRENT_VERSION, entries: {} };
 
-/** Size cap for the read: the cache is regenerable, so an oversized file simply degrades to empty. */
 const MAX_CACHE_FILE_BYTES = 64 * 1024 * 1024;
 
 const translationMemorySchema = z.object({
@@ -18,54 +16,17 @@ const translationMemorySchema = z.object({
   entries: z.record(z.string(), z.record(z.string(), z.record(z.string(), z.string()))),
 });
 
-/** Resolve the cache file's absolute path under `cwd`. */
 export function cacheFilePath(cwd: string): string {
   return resolve(cwd, CACHE_FILE_NAME);
 }
 
-/**
- * A cache read: the usable snapshot, plus whether the file it came from may be overwritten.
- *
- * `writable` is deliberately a sibling of the memory rather than a field on it, so the exported
- * {@link TranslationMemory} shape is unchanged for consumers.
- */
 export interface TranslationMemoryRead {
-  /** The parsed memory, or an empty one when the file could not be used. */
   readonly memory: TranslationMemory;
-  /**
-   * False only for a structurally valid cache file whose `version` this build does not recognize.
-   * Such a file was written by a newer verbatra, and the end-of-run write replaces the whole file,
-   * so writing would silently destroy it and relabel the remains with this build's version. Every
-   * other degraded case stays writable: a missing file must be creatable, and a corrupt or oversized
-   * one must be overwritten so the cache self-heals instead of wedging.
-   */
   readonly writable: boolean;
 }
 
 const UNUSABLE: TranslationMemoryRead = { memory: EMPTY_MEMORY, writable: true };
 
-/**
- * Read the translation-memory cache into an immutable snapshot. Unlike `readLockFile`, this never
- * throws and never fails a run: a missing, oversized, unparseable, structurally invalid, or
- * unrecognized-version file, and any read fault after the file is opened (a race delete, an I/O
- * error), all degrade to an empty cache. That degrade-to-empty is safe precisely because the cache
- * is regenerable: a bad file simply causes re-translation and is overwritten.
- *
- * The one exception is reported through `writable`, not through the memory: an unrecognized version
- * degrades on read like the rest, but the file is left alone rather than overwritten. A version this
- * build does not know came from a newer one, and overwriting would downgrade a forward-format file
- * to this build's shape while dropping everything in it.
- *
- * Note that a version of 0, a negative, or a non-integer never reaches that branch: the schema's
- * positive-integer check rejects them, so they are corrupt and are overwritten like any other
- * corruption. That branch is also kept separate from the schema check on purpose: folding the two
- * together would make every corrupt file non-writable too, wedging a cache that is supposed to
- * self-heal.
- *
- * @param path - The cache file path (see {@link cacheFilePath}).
- * @param fs - The file-system seam.
- * @returns The parsed memory and whether the file may be written, never a throw.
- */
 export async function readTranslationMemory(
   path: string,
   fs: SdkFs,
@@ -95,11 +56,6 @@ export async function readTranslationMemory(
   return { memory: result.data, writable: true };
 }
 
-/**
- * Look one candidate up in the snapshot: the cached value for a fingerprint, target locale, and
- * source content hash, or undefined when absent. A hit is content-equal but must still pass the
- * integrity gate against the current source before being applied.
- */
 export function lookupMemory(
   memory: TranslationMemory,
   fingerprint: string,
@@ -109,12 +65,6 @@ export function lookupMemory(
   return memory.entries[fingerprint]?.[locale]?.[contentHash];
 }
 
-/**
- * Overlay a run's per-locale additions onto a base memory under one fingerprint, returning a new
- * memory. Existing entries for other fingerprints and other locales are preserved untouched; a new
- * value for an existing content hash overwrites it. Returns the base unchanged when there is nothing
- * to add.
- */
 export function applyAdditions(
   base: TranslationMemory,
   fingerprint: string,
@@ -136,7 +86,6 @@ export function applyAdditions(
   };
 }
 
-/** Turn a list of additions into the content-hash-to-value record one locale contributes. */
 export function additionsToRecord(additions: readonly CacheAddition[]): Record<string, string> {
   const record: Record<string, string> = {};
   for (const addition of additions) {
@@ -145,7 +94,6 @@ export function additionsToRecord(additions: readonly CacheAddition[]): Record<s
   return record;
 }
 
-/** Serialize deterministically with every level's keys sorted, for a stable file across runs. */
 function serialize(memory: TranslationMemory): string {
   const entries: Record<string, Record<string, Record<string, string>>> = {};
   for (const [fingerprint, locales] of Object.entries(sortRecordKeys(memory.entries))) {
@@ -158,11 +106,6 @@ function serialize(memory: TranslationMemory): string {
   return `${JSON.stringify({ version: memory.version, entries }, null, 2)}\n`;
 }
 
-/**
- * Write the cache file. Best-effort by the caller's contract: a write failure must never fail a run,
- * so every call site wraps this in a swallow. The write itself is atomic (temp file then rename) via
- * the `SdkFs` seam.
- */
 export async function writeTranslationMemory(
   path: string,
   memory: TranslationMemory,
@@ -171,19 +114,6 @@ export async function writeTranslationMemory(
   await fs.writeFile(path, serialize(memory));
 }
 
-/**
- * Fully best-effort read-modify-write that folds accepted values into the cache under one fingerprint.
- * The single-shot write path for the flows that only feed the cache and never read it (`editEntry`,
- * `retranslateEntry`, `importWorkbook`): it reads the current cache, overlays the additions, and writes
- * once, swallowing every failure so a cache problem can never turn an accepted write into a run
- * failure. A no-op when there is nothing to add. Last-writer-wins on concurrent writers, which is
- * acceptable for a regenerable optimization.
- *
- * A cache file whose version this build does not recognize is left untouched: the run proceeds with
- * an empty effective cache and simply writes nothing back. The guard sits outside the write rather
- * than inside the swallow above, so it is an explicit decision rather than an indistinguishable
- * caught error.
- */
 export async function feedTranslationMemory(
   cwd: string,
   fs: SdkFs,

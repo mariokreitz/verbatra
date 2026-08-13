@@ -2,54 +2,24 @@ import { randomUUID } from "node:crypto";
 import { access, type FileHandle, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
-/** Outcome of a bounded read: the content, or why it could not be read in bounds. */
 export type BoundedFileRead =
   | { readonly kind: "ok"; readonly content: string }
   | { readonly kind: "missing" }
   | { readonly kind: "too-large" };
 
-/** Outcome of a bounded binary read: the bytes, or why they could not be read in bounds. */
 export type BoundedBytesRead =
   | { readonly kind: "ok"; readonly bytes: Uint8Array }
   | { readonly kind: "missing" }
   | { readonly kind: "too-large" };
 
-/**
- * The minimal file-system surface the SDK needs. Reads are bounded and writes are atomic. Injectable so
- * tests stay deterministic; the format adapters do their own file IO and bypass this seam.
- */
 export interface SdkFs {
-  /** Whether a readable file exists at the path. */
   fileExists(path: string): Promise<boolean>;
-  /**
-   * Read a file as UTF-8 through a single handle, bounded to maxBytes. TOCTOU-safe: the handle is
-   * fstat'd and the read never advances past the sized length, so swapping in a larger file cannot
-   * bypass the cap. A missing or unreadable path is "missing"; a file over the cap is "too-large".
-   */
   readFileBounded(path: string, maxBytes: number): Promise<BoundedFileRead>;
-  /** Read a file as raw bytes with the same TOCTOU-safe, bounded discipline as {@link readFileBounded}. */
   readBytesBounded(path: string, maxBytes: number): Promise<BoundedBytesRead>;
-  /** Write atomically: a temp file in the same directory, then rename over the target. */
   writeFile(path: string, data: string): Promise<void>;
-  /** Write raw bytes atomically (temp file, then rename over the target). Used for the workbook. */
   writeBytes(path: string, data: Uint8Array): Promise<void>;
-  /**
-   * Atomically create a file only if it does not already exist (O_EXCL semantics), creating any
-   * missing parent directory first. Returns true if this call created the file, false if a file
-   * was already present (no write performed). The backbone of {@link withLocaleWriteLock}'s
-   * exclusive-create lock: the parent-directory creation lives here so that primitive never touches
-   * `node:fs` directly and a fake `SdkFs` in tests never needs a real directory to exist.
-   */
   createExclusive(path: string, data: string): Promise<boolean>;
-  /** Delete a file if present; a no-op if it is already absent. */
   deleteFile(path: string): Promise<void>;
-  /**
-   * Create a directory and every missing parent (mkdir -p); a no-op if it already exists.
-   *
-   * Optional so an `SdkFs` written against an earlier version stays valid, and because an in-memory
-   * test double has no directories to create. Only the delimited export calls it, right before writing
-   * one interchange file per locale into the directory the caller named.
-   */
   mkdir?(path: string): Promise<void>;
 }
 
@@ -87,10 +57,6 @@ async function readBounded(path: string, maxBytes: number): Promise<BoundedFileR
   }
 }
 
-/**
- * Read `size` bytes from the handle into a non-pooled buffer, so the returned view owns its memory
- * and is never aliased by a later allocation.
- */
 async function readBoundedBytesInto(handle: FileHandle, size: number): Promise<Uint8Array> {
   const buffer = Buffer.allocUnsafeSlow(size);
   let offset = 0;
@@ -125,26 +91,10 @@ async function readBoundedBytes(path: string, maxBytes: number): Promise<Bounded
   }
 }
 
-/**
- * Build a collision-proof temp-file name for the atomic write: a hidden sibling of the target in the same
- * directory, carrying the pid, timestamp, and a random UUID so concurrent writes never collide.
- */
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
 }
 
-/**
- * Write to a temp file in the same directory, then rename over the target. rename is atomic on POSIX, so a
- * reader sees either the old or the new file, never a truncated middle.
- *
- * A symlinked target is replaced, never followed, and the target's mode is not preserved. Both are
- * deliberate and match `atomicWriteFile` in `@verbatra/format-adapters`, whose JSDoc carries the
- * full reasoning: following a symlink would manufacture an arbitrary-file-write primitive, and
- * nothing written through here is a credential. Keep the two in step.
- *
- * The per-locale write lock is the exception and does not go through this path: it uses
- * `createExclusive`, and `O_CREAT | O_EXCL` refuses to follow a symlink at all.
- */
 async function atomicWrite(path: string, data: string | Uint8Array): Promise<void> {
   const tmp = tempFileName(path);
   await (typeof data === "string" ? writeFile(tmp, data, "utf8") : writeFile(tmp, data));
@@ -175,7 +125,6 @@ async function createExclusive(path: string, data: string): Promise<boolean> {
   return true;
 }
 
-/** The production file system, backed by node:fs/promises. */
 export const defaultFs: SdkFs = {
   async fileExists(path: string): Promise<boolean> {
     try {

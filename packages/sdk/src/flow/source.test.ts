@@ -12,7 +12,6 @@ const resource: LocaleResource = {
 };
 const readResult: ReadResult = { resource, invalidIcuKeys: [], excludedLeafPaths: [] };
 
-/** A format adapter whose only relevant method is `read`; the rest are inert stubs. */
 function makeAdapter(read: FormatAdapter["read"]): FormatAdapter {
   return {
     format: "i18next-json",

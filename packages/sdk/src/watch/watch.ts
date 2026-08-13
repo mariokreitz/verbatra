@@ -12,138 +12,46 @@ import { defaultCreateWatcher, defaultRunTranslate } from "./wiring.js";
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
-/** A minimal source-change event source. Production wraps chokidar; tests inject a stub. */
 export interface Watcher {
-  /** Register a listener invoked once per coalesced source-change event. */
   onChange(listener: () => void): void;
-  /** Stop watching and release the underlying resources. */
   close(): Promise<void>;
 }
 
-/** Builds a {@link Watcher} for the given paths; the seam production fills with chokidar. */
 export type CreateWatcher = (paths: readonly string[]) => Watcher;
 
-/** The run a watch trigger performs: the one-shot translate, unchanged. */
 export type RunTranslate = (input: TranslateInput) => Promise<RunSummary>;
 
-/** The outcome of one run, surfaced to the caller; never carries a secret. */
 export type WatchRunResult =
   | { readonly status: "succeeded"; readonly summary: RunSummary }
   | {
       readonly status: "failed";
-      /**
-       * A secret-free projection of the run's failure. `code` is a preserved string (the underlying
-       * error's `code`, or `"WATCH_RUN_FAILED"` as a fallback), not an {@link SdkErrorCode}.
-       */
       readonly error: { readonly code: string; readonly message: string };
     };
 
-/** Everything watch mode needs: the config, optional cwd/debounce, and the per-run output callback. */
 export interface WatchInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to the current working directory. */
   readonly cwd?: string;
-  /** Quiet period after the last change before a run fires; defaults to 300ms. */
   readonly debounceMs?: number;
-  /** Called once per run with its result. The SDK does no logging; this is the only output. */
   readonly onRun: (result: WatchRunResult) => void;
-  /**
-   * Passed through to every run's {@link TranslateInput.onLockWait}: called while a locale's write lock
-   * is blocked on another process, so a watch caller can surface the same "still waiting" progress a
-   * one-shot run does.
-   */
   readonly onLockWait?: LockWaitListener;
-  /**
-   * Passed through to every run's {@link TranslateInput.onProgress}: fires per locale and per provider
-   * sub-batch as each run advances, so a watch caller can surface the same progress a one-shot run does.
-   */
   readonly onProgress?: ProgressListener;
-  /** Passed through to every run's {@link TranslateInput.lockAcquireTimeoutMs}; the lock's 10-minute default when unset. */
   readonly lockAcquireTimeoutMs?: number;
-  /**
-   * Passed through to every run's {@link TranslateInput.concurrency}: how many locales each cycle may
-   * run at once. Defaults to 1 (strictly serial). Because the per-cycle budget tracker is fresh, a
-   * value greater than 1 cannot be honored alongside a `maxTokens` budget; {@link watch} refuses that
-   * combination at startup rather than letting every cycle fail on it.
-   */
   readonly concurrency?: number;
-  /**
-   * Passed through to every run's {@link TranslateInput.cache}: when false, each run bypasses the
-   * translation-memory cache (both read and write). On by default.
-   */
   readonly cache?: boolean;
 }
 
-/** Composition seam: inject the watcher and the run for deterministic, offline tests. */
 export interface WatchDeps {
-  /** Adapter registry passed through to each run; defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
-  /** Provider builder passed through to each run; defaults to constructing the configured provider. */
   readonly createProvider?: CreateProvider;
-  /** File system passed through to each run; defaults to the real file system. */
   readonly fs?: SdkFs;
-  /** Source-change event source; defaults to the chokidar-backed watcher. */
   readonly createWatcher?: CreateWatcher;
-  /** The run a trigger performs; defaults to the one-shot {@link translate}. */
   readonly runTranslate?: RunTranslate;
 }
 
-/** Handle returned by {@link watch} to stop it. */
 export interface WatchController {
-  /** Stop accepting triggers, close the watcher, and await the in-flight run to completion. */
   stop(): Promise<void>;
 }
 
-/**
- * Start watching the source file and re-run the one-shot {@link translate} on each debounced change.
- * Runs are serialized: changes during a run collapse into a single follow-up, so two runs never
- * overlap. A missing source at startup throws; every run outcome after start is surfaced through
- * `onRun` as a {@link WatchRunResult} and watching continues. Returns a controller whose `stop()`
- * closes the watcher and awaits the in-flight run.
- *
- * Both startup refusals are ordered deliberately: `concurrency` is resolved first because it is
- * decidable from the arguments alone, while the missing-source check is an I/O probe of project
- * state, so argument validation runs before any I/O and before the watcher exists. The concurrency
- * resolve passes `dryRun: false` unconditionally, which is exact rather than a simplification: there
- * is no dry-run watch, so the budget conflict always applies to a session.
- *
- * Resolving it here rather than leaving it to each cycle is the point, not an optimization: a watch
- * session is long-lived, so a per-cycle refusal would fail the initial run and every run after it,
- * indefinitely, while the session stayed alive and looked healthy.
- *
- * @param input - The config, optional cwd/debounce, and the `onRun` callback that receives each result.
- * @param deps - Optional composition seams (watcher, run, registry, provider builder, file system) for tests.
- * @returns A {@link WatchController}; call `stop()` to close the watcher and await the in-flight run.
- * @throws {@link SdkError} `CONCURRENCY_INVALID`: at startup only, when `concurrency` is defined but
- *   not an integer of at least 1.
- * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: at startup only, when `concurrency` is
- *   greater than 1 while the config sets a `maxTokens` budget.
- * @throws {@link SdkError} `SOURCE_UNREADABLE`: at startup only, when the source locale file is absent.
- * @example
- * ```ts
- * import { loadConfig, watch } from "@verbatra/sdk";
- *
- * // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY); no key is passed here.
- * const config = await loadConfig();
- * const controller = await watch({
- *   config,
- *   onRun: (result) => {
- *     if (result.status === "succeeded") {
- *       console.log(`ran: ${result.summary.succeeded.length} ok, ${result.summary.failed.length} failed`);
- *     } else {
- *       // Surfaced, not thrown: code is a preserved string (WATCH_RUN_FAILED is only the fallback).
- *       console.error(`run failed: ${result.error.code} ${result.error.message}`);
- *     }
- *   },
- * });
- *
- * // Stop cleanly on Ctrl-C: closes the watcher and awaits the in-flight run.
- * process.on("SIGINT", () => {
- *   void controller.stop();
- * });
- * ```
- */
 export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<WatchController> {
   const cwd = input.cwd ?? process.cwd();
   const debounceMs = input.debounceMs ?? DEFAULT_DEBOUNCE_MS;
@@ -179,7 +87,6 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   let inFlight: Promise<void> | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-  /** One run; a failure is surfaced through onRun, never thrown, so the in-flight promise never rejects. */
   async function runOnce(): Promise<void> {
     try {
       input.onRun({ status: "succeeded", summary: await runTranslate(runInput) });
@@ -209,11 +116,6 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
     inFlight = undefined;
   }
 
-  /**
-   * The debounce window elapsed: start a run, or mark a follow-up if one is in flight. The source
-   * is then known-stale, so the follow-up starts immediately on completion with no fresh debounce
-   * window. No stopped-guard is needed: stop() clears the timer before it can fire.
-   */
   function onSettledChange(): void {
     debounceTimer = undefined;
     if (state === "idle") {

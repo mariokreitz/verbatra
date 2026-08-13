@@ -14,16 +14,6 @@ import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
 import { readSourceResource } from "./source.js";
 
-/**
- * One key's placeholder and ICU integrity result for one target locale. Only ever computed for a
- * "changed" key (a current source and a current target value both exist). `hasPlaceholders` is
- * false when the source value carries no placeholders, in which case `matches` is trivially true
- * and carries no signal on its own. `icuValid` is computed unconditionally, independent of
- * `matches`: unlike `gateCandidateValue`, which stops at the first failing check, this is an
- * information report and stays accurate even when the key already fails on placeholders; it is
- * always true for a non-ICU format. Carries no source or target string value: only the boolean
- * results and, on a placeholder mismatch, the specific tokens involved.
- */
 export interface KeyIntegrityEntry {
   readonly key: string;
   readonly hasPlaceholders: boolean;
@@ -33,25 +23,18 @@ export interface KeyIntegrityEntry {
   readonly icuValid: boolean;
 }
 
-/** One target locale's integrity entries for the keys checked against it. */
 export interface LocaleKeyIntegrity {
   readonly locale: string;
   readonly entries: readonly KeyIntegrityEntry[];
 }
 
-/** Input for {@link keyIntegrity}: the validated config, which locales to check, and an optional key filter. */
 export interface KeyIntegrityInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
   readonly cwd?: string;
-  /** Subset of target locales to check; defaults to all configured target locales. */
   readonly locales?: readonly string[];
-  /** Restrict the check to these keys; only the ones that are "changed" for a locale are checked. Defaults to every changed key. */
   readonly keys?: readonly string[];
 }
 
-/** Composition seam for {@link keyIntegrity}: inject a registry and a file system for tests. */
 export interface KeyIntegrityDeps {
   readonly adapterRegistry?: AdapterRegistry;
   readonly fs?: SdkFs;
@@ -106,27 +89,6 @@ function integrityEntriesFor(
   return entries;
 }
 
-/**
- * Runs the placeholder check and the ICU message-validity check for each selected target locale's
- * "changed" keys (present with a current value on both sides, per core's `diffResources`) and
- * reports a per-key result. Uses the adapter's own `comparePlaceholders` when present (the
- * branch-aware ICU path), otherwise core's `checkPlaceholders` over the stored placeholder lists.
- * `icuValid` is `adapter.validateMessage(target)`, computed unconditionally and independently of
- * the placeholder result, so a target that is placeholder-valid but syntactically invalid ICU is
- * still reported accurately. Read-only: it calls no provider, writes no file, and never touches
- * the lock. Missing and orphaned keys are never checked, since one side's value does not exist for
- * those.
- *
- * The returned entries never carry a source or target string value, only the boolean results and,
- * on a placeholder mismatch, the specific tokens involved.
- *
- * @param input - The validated config, which locales to check, and an optional key filter.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns One entry per checked locale, each carrying the integrity result for its changed keys
- *   (narrowed to `input.keys` when supplied).
- * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`,
- *   `LOCK_FILE_INVALID`, or `UNKNOWN_LOCALE`, with the same meanings as in {@link diff}.
- */
 export async function keyIntegrity(
   input: KeyIntegrityInput,
   deps: KeyIntegrityDeps = {},

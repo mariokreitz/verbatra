@@ -22,7 +22,6 @@ function makeConfig(
   };
 }
 
-/** The path a resolver produces for one locale, relative to cwd and with POSIX separators. */
 function relativePathFor(
   config: LocalePathResolverConfig,
   locale: string,

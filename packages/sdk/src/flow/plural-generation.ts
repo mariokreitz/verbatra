@@ -14,7 +14,6 @@ import type { LocaleNotice, UsageSummary } from "./summary.js";
 import { buildTranslateRequest } from "./translate-request.js";
 import { createUsageAccumulator, foldUsage } from "./usage.js";
 
-/** Everything plural generation needs from the locale run, without depending on the run module. */
 export interface PluralGenerationContext {
   readonly source: LocaleResource;
   readonly sourceLocale: string;
@@ -24,65 +23,28 @@ export interface PluralGenerationContext {
   readonly provider: TranslationProvider;
   readonly glossary: Readonly<Record<string, string>> | undefined;
   readonly tone: Tone | undefined;
-  /** Prior lock baseline for the target, used to skip up-to-date generated keys. */
   readonly baseline: ReadonlyMap<string, string>;
-  /**
-   * The keys the target file already holds. Required, not optional: generation derives its candidates
-   * from the source rather than from the diff, so without target knowledge it cannot tell an empty
-   * slot from somebody else's translation, and the caller must always supply it.
-   */
   readonly targetKeys: ReadonlySet<string>;
-  /**
-   * Maximum entries per provider request. Stale generation items are split into sequential
-   * sub-batches no larger than this, mirroring the main translation batching so one oversized
-   * generation request cannot sink the whole locale.
-   */
   readonly maxBatchSize: number;
-  /** The run-wide token-budget tracker; a second token-spending loop feeding the same total and gate. */
   readonly budget: BudgetTracker;
 }
 
-/** One generated plural form accepted into the target file. */
 export interface GeneratedForm {
   readonly targetKey: string;
-  /** The synthetic entry to merge: drawn from the source form, with the generated value. */
   readonly entry: TranslationEntry;
-  /** The lock hash for this generated key, derived from its governing source forms. */
   readonly lockHash: string;
 }
 
-/**
- * What one locale's plural generation produced, partitioned so the caller can write the accepted
- * forms and report the rest honestly. Every candidate key lands in exactly one of `accepted`,
- * `withheld`, `providerFailures` or `budgetWithheld`: a key is never both written and reported as
- * held back, which is what lets the run summary's status be derived from these lists alone.
- */
 export interface PluralGenerationResult {
-  /** Forms generated and integrity-passing, ready to write. */
   readonly accepted: readonly GeneratedForm[];
-  /** Generated keys withheld because the translation came back but failed the placeholder-integrity check. */
   readonly withheld: readonly string[];
-  /**
-   * Generated keys withheld because nothing was translated for them: either their sub-batch's provider
-   * call itself threw, or the call succeeded but the key was still missing or duplicated in the
-   * response after the shared LLM layer's bounded reconcile repair round.
-   */
   readonly providerFailures: readonly string[];
-  /**
-   * Generated keys never sent to the provider because the run-wide token budget already tripped in
-   * `"stop"` mode: every not-yet-attempted stale item, in this locale and, once tripped, every
-   * subsequent one. Empty unless a budget is configured and behavior is `"stop"`.
-   */
   readonly budgetWithheld: readonly string[];
-  /** Notices from generation: a provider notice, or an SDK notice for a failed sub-batch. */
   readonly notices: readonly LocaleNotice[];
-  /** Summed token usage across every generation sub-batch call for this locale; absent if none reported one. */
   readonly usage: UsageSummary | undefined;
-  /** Whether a generation sub-batch's completion was the call that first crossed the configured budget. */
   readonly tripped: boolean;
 }
 
-/** The empty result for generation that made no provider call at all (disabled, or nothing stale). */
 const EMPTY_RESULT: PluralGenerationResult = {
   accepted: [],
   withheld: [],
@@ -93,12 +55,6 @@ const EMPTY_RESULT: PluralGenerationResult = {
   tripped: false,
 };
 
-/**
- * Lock basis for a source-absent generated key: hash the governing source plural forms of its base key
- * plus the category. Stable while those source forms are unchanged, changing when any of them changes.
- * Reuses {@link contentHash} over a throwaway entry whose value encodes the category and the sorted
- * governing-form hashes.
- */
 function generatedLockHash(
   governingEntries: readonly TranslationEntry[],
   category: CldrPluralCategory,
@@ -113,10 +69,6 @@ function generatedLockHash(
   });
 }
 
-/**
- * A synthetic source entry for the request: the chosen source form, re-keyed to the target key. The
- * CLDR category travels as data context in the `meaning` field, never in the instruction channel.
- */
 function syntheticEntry(item: PluralGenerationItem): TranslationEntry {
   return {
     ...item.sourceEntry,
@@ -126,14 +78,6 @@ function syntheticEntry(item: PluralGenerationItem): TranslationEntry {
   };
 }
 
-/**
- * True when the target already fills this candidate key with work verbatra does not own. A key present
- * in the target but absent from the baseline was written by somebody else (a hand-translated form, or
- * one predating generation), so it is adopted: never sent to the provider and never written over. A key
- * the baseline does track was generated by an earlier run, so it stays eligible for regeneration when
- * its governing source forms change. This is the adoption rule `diffResources` applies to every other
- * key: target-present with no baseline entry is unchanged, not stale.
- */
 function isAdopted(
   item: PluralGenerationItem,
   targetKeys: ReadonlySet<string>,
@@ -142,7 +86,6 @@ function isAdopted(
   return targetKeys.has(item.targetKey) && !baseline.has(item.targetKey);
 }
 
-/** Plan items whose lock hash differs from the baseline: not yet generated or governing source changed. */
 function staleItems(
   items: readonly PluralGenerationItem[],
   baseline: ReadonlyMap<string, string>,
@@ -153,16 +96,6 @@ function staleItems(
   });
 }
 
-/**
- * Generate the missing plural forms for one supported locale run. Stale items are split into
- * sequential sub-batches no larger than `maxBatchSize` (mirroring the main translation batching), so
- * one oversized generation request cannot sink the whole locale. Synthetic entries are translated and
- * integrity-checked like any other value; forms whose placeholders do not match are withheld, a key the
- * target already fills with work verbatra does not own is adopted and left alone ({@link isAdopted}), an
- * item already locked with an unchanged governing-source hash is skipped, and a sub-batch whose provider call
- * throws withholds only its own forms while other sub-batches (and any already-accepted main
- * translations) are unaffected.
- */
 export async function generatePluralForms(
   context: PluralGenerationContext,
 ): Promise<PluralGenerationResult> {
@@ -219,14 +152,6 @@ interface GenerationSubBatchResult {
   readonly usage: TranslateResult["usage"];
 }
 
-/**
- * Run one plural-generation sub-batch and fold its result into `accepted`, `withheld`, or
- * `providerFailures`. A thrown provider call (nothing was translated) is caught, never re-thrown, and
- * withheld under `providerFailures`, not `withheld` (which is reserved for a translation that came back
- * but failed the placeholder-integrity check), the same distinction `runSubBatch` draws for main
- * translations. A key still missing from `result.values` after the shared LLM layer's bounded reconcile
- * repair round falls into the same `providerFailures` bucket: nothing was translated for it either.
- */
 async function runGenerationSubBatch(
   context: PluralGenerationContext,
   batch: readonly PluralGenerationItem[],
@@ -250,12 +175,6 @@ async function runGenerationSubBatch(
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/**
- * Fold one plural-generation item's outcome into `accepted`, `withheld`, or `providerFailures`. The
- * accept/reject decision is recomputed directly from the candidate value via the shared
- * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report: this is
- * the same accept/reject choke point every other disk-writing path uses.
- */
 function foldGenerationItem(
   item: PluralGenerationItem,
   result: TranslateResult,

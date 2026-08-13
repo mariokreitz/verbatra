@@ -4,11 +4,6 @@ import { describe, expect, it } from "vitest";
 
 const SOURCE_PATH = fileURLToPath(new URL("./key-value.ts", import.meta.url));
 
-/**
- * Static proof that keyValue never reads a provider's environment variable directly, and never
- * reaches a provider at all: like editEntry, it does not even call selectProvider. Mirrors
- * edit-entry.no-direct-env.test.ts, scoped to this read seam.
- */
 describe("static proof: keyValue never reaches or reads a provider", () => {
   const content = readFileSync(SOURCE_PATH, "utf8");
 

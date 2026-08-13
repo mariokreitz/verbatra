@@ -12,35 +12,22 @@ import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/co
 import type { VerbatraConfig } from "./config/schema.js";
 import type { BoundedBytesRead, BoundedFileRead, SdkFs } from "./fs.js";
 
-/** One recorded provider call: the request `translateBatch` received. */
 export interface StubCall {
   readonly request: TranslateRequest;
 }
 
-/** Behavior knobs for {@link makeStubProvider}; every field is optional. */
 export interface StubOptions {
   readonly id?: string;
   readonly kind?: "llm" | "machine-translation";
   readonly translate?: (value: string, key: string, targetLocale: string) => string;
   readonly failIntegrity?: ReadonlySet<string>;
-  /**
-   * Keys to omit from the result's `values` and `integrity` maps entirely, simulating a key still
-   * missing after the shared LLM layer's bounded reconcile repair round (see `runLlmTranslation`):
-   * the provider call succeeds, but nothing was translated for these keys.
-   */
   readonly missingValues?: ReadonlySet<string>;
   readonly notices?: readonly ProviderNotice[];
   readonly throwForLocales?: ReadonlySet<string>;
   readonly error?: Error;
-  /**
-   * Token usage to report on every successful `translateBatch` call, simulating a usage-reporting
-   * provider. Absent by default, matching a token-less provider (DeepL) or a provider whose SDK response
-   * mapping omits usage.
-   */
   readonly usage?: Usage;
 }
 
-/** The stub provider plus the mutable list of calls it records. */
 export interface StubProvider {
   readonly provider: TranslationProvider;
   readonly calls: StubCall[];
@@ -63,15 +50,8 @@ function defaultTranslate(value: string, _key: string, locale: string): string {
   return `[${locale}] ${value}`;
 }
 
-/**
- * A token no real source value is expected to contain, appended to a `failIntegrity`-flagged key's
- * translated value so the placeholder check genuinely fails (an unexpected extra placeholder) no
- * matter which format's adapter recomputes it from the value itself, not merely the synthetic
- * `integrity` map this stub also reports for callers that still consult it directly.
- */
 const INTEGRITY_FAIL_MARKER = " {{__stub_integrity_fail__}}";
 
-/** Fold one entry's stubbed translation into `values` and `integrity`, honoring `missingValues`/`failIntegrity`. */
 function foldStubEntry(
   entry: { readonly key: string; readonly value: string },
   targetLocale: string,
@@ -89,7 +69,6 @@ function foldStubEntry(
   integrity.set(entry.key, shouldFail ? FAIL : PASS);
 }
 
-/** An offline stub provider that records every request and returns deterministic values. */
 export function makeStubProvider(options: StubOptions = {}): StubProvider {
   const calls: StubCall[] = [];
   const translate = options.translate ?? defaultTranslate;
@@ -119,11 +98,6 @@ export function makeStubProvider(options: StubOptions = {}): StubProvider {
   return { provider, calls };
 }
 
-/**
- * A provider that mirrors the real integrity path: it produces a value with `produce` and computes
- * integrity with the live core `checkPlaceholders` against the request's extracted placeholders, so a
- * test exercises the actual placeholder-integrity semantics end to end.
- */
 export function makeIntegrityProvider(
   produce: (value: string, key: string) => string,
 ): TranslationProvider {
@@ -150,7 +124,6 @@ export function makeIntegrityProvider(
   };
 }
 
-/** A valid base config for tests; override fields as needed. */
 export function baseConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   return {
     sourceLocale: "en",
@@ -162,32 +135,22 @@ export function baseConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraCon
   };
 }
 
-/** Create a fresh temp directory for a test project. */
 export async function makeTempDir(): Promise<string> {
   return mkdtemp(join(tmpdir(), "verbatra-sdk-"));
 }
 
-/** Write a value as pretty-printed JSON with a trailing newline. */
 export async function writeJsonFile(path: string, value: unknown): Promise<void> {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-/** Read and parse a JSON file. */
 export async function readJsonFile(path: string): Promise<unknown> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-/** Read a file as UTF-8 text. */
 export async function readTextFile(path: string): Promise<string> {
   return readFile(path, "utf8");
 }
 
-/**
- * A complete in-memory {@link SdkFs} for tests: every method defaults to a benign no-op ("missing"
- * reads, accepted writes), and any subset can be overridden. `createExclusive` defaults to an
- * always-succeeding lock acquire, so a test that does not care about locking never has
- * `withLocaleWriteLock` poll to its timeout.
- */
 export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {
   return {
     fileExists: async (): Promise<boolean> => false,

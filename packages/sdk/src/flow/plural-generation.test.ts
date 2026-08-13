@@ -57,15 +57,6 @@ function hasNotice(notices: readonly { code: string }[]): boolean {
   return notices.some((n) => n.code === "PLURAL_CATEGORIES_INCOMPLETE");
 }
 
-/**
- * Generation is the fifth disk-writing path and it shares the one accept/reject choke point, so
- * every gate rule has to reach it: a synthesized form the provider returned blank must be withheld,
- * not written as an empty plural category.
- *
- * The empty-value test below deliberately uses a placeholder-free plural source. With `{{count}}` in
- * the source the placeholder check rejects an empty candidate first, so the test would pass with or
- * without the emptiness rule and would prove nothing about it.
- */
 describe("translate: plural-category generation (supported case)", () => {
   it("generates every required category for a richer target and clears the warning", async () => {
     const dir = await project(PLURAL_SOURCE, { pl: {} });
@@ -501,12 +492,6 @@ describe("translate: plural generation lock and re-run", () => {
   });
 });
 
-/**
- * Generation is the one write path whose candidates are derived from the source rather than from the
- * diff, so it is the one path that could hand a value to a key the target already fills. A first run
- * has no lock file, which makes every candidate look ungenerated, so these tests pin the adoption
- * guarantee at exactly the moment it is weakest.
- */
 describe("translate: plural generation adopts existing target forms", () => {
   const HAND_WRITTEN = "{{count}} hand-written form";
   const SEEDED_PL = { items_one: "{{count}} sztuka", items_other: "{{count}} sztuk" };
@@ -643,7 +628,6 @@ const GENERATION_PASS: PlaceholderIntegrityResult = {
   reordered: false,
 };
 
-/** An LLM provider that throws whenever the request carries `throwKey`, otherwise translates normally. */
 function throwingKeyProvider(throwKey: string): {
   provider: TranslationProvider;
   calls: TranslateRequest[];
@@ -862,7 +846,6 @@ describe("generatePluralForms: comparePlaceholders wiring (the second buildReque
     };
   }
 
-  /** A minimal adapter stub; only comparePlaceholders varies across these tests. */
   function fakeAdapter(comparePlaceholders: PlaceholderComparator | undefined): FormatAdapter {
     return {
       format: "i18next-json",
@@ -875,7 +858,6 @@ describe("generatePluralForms: comparePlaceholders wiring (the second buildReque
     };
   }
 
-  /** A stub provider that records every request it receives and reports a clean match for each key. */
   function capturingProvider(): { provider: TranslationProvider; requests: TranslateRequest[] } {
     const requests: TranslateRequest[] = [];
     const provider: TranslationProvider = {
@@ -955,7 +937,6 @@ describe("generatePluralForms: accept/withhold is recomputed via gateCandidateVa
     };
   }
 
-  /** An adapter whose comparePlaceholders is fully controlled by the test, unlike the real adapter's. */
   function fakeAdapter(comparePlaceholders: PlaceholderComparator): FormatAdapter {
     return {
       format: "i18next-json",
@@ -968,7 +949,6 @@ describe("generatePluralForms: accept/withhold is recomputed via gateCandidateVa
     };
   }
 
-  /** A provider whose self-reported `result.integrity` is fixed independently of the actual value. */
   function providerReporting(claimedMatch: boolean): TranslationProvider {
     return {
       id: "stub",

@@ -32,12 +32,10 @@ async function project(
   return dir;
 }
 
-/** Read an exported interchange file back into the neutral row model. */
 async function readExported(path: string, locale: string, format: "csv" | "tsv") {
   return readDelimited({ text: await readFile(path, "utf8"), locale, format });
 }
 
-/** Fill the translation column of an exported interchange file and write it back. */
 async function fillExported(
   path: string,
   locale: string,
@@ -278,7 +276,6 @@ describe("importWorkbook: delimited formats", () => {
 describe("delimited handoff: a narrower re-export retires the locales it dropped", () => {
   const wide = cfg({ targetLocales: ["de", "fr", "es"] });
 
-  /** Export every locale of `wide` into `handoff`, then fill each file with a stale translation. */
   async function exportedWideHandoff(dir: string): Promise<void> {
     await exportWorkbook({ config: wide, cwd: dir, format: "csv", out: "handoff" });
     await fillExported(join(dir, "handoff", "de.csv"), "de", "csv", { greeting: "Hallo" });
@@ -388,11 +385,6 @@ describe("delimited handoff: a narrower re-export retires the locales it dropped
 });
 
 describe("importWorkbook: a delimited handoff is judged exactly like a workbook", () => {
-  /**
-   * The same filled rows delivered as xlsx and as csv, into two identical projects. Every row runs the
-   * shared per-locale import gate either way, so the two runs have to agree key for key: one accepted
-   * translation, one withheld for a placeholder mismatch, and one blank row left unfilled.
-   */
   it("produces the same locale summary for the same rows as xlsx and as csv", async () => {
     const source = { greeting: "Hello {{name}}", farewell: "Bye {{name}}", pending: "Pending" };
     const config = cfg({ targetLocales: ["de"] });

@@ -29,15 +29,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/**
- * Wraps a provider's `translateBatch` with a delay, exactly like `lock-file-race.test.ts`'s own
- * `delayedProvider`. editEntry's own target read is fast (no delay before it), so without this, the
- * racing translate()/retranslateEntry call would complete its write before editEntry's read even
- * runs, letting editEntry observe the already-fresh state and pass even with the lock disabled: a
- * non-diagnostic test. This delay keeps the racing writer's own write in flight long enough for
- * editEntry's fast initial read to capture the pre-write, stale snapshot, so the race is genuinely
- * exercised.
- */
 function delayedProvider(base: TranslationProvider, delayMs: number): TranslationProvider {
   return {
     ...base,
@@ -48,17 +39,6 @@ function delayedProvider(base: TranslationProvider, delayMs: number): Translatio
   };
 }
 
-/**
- * Wraps a format's real adapter so reading exactly `delayedLocale` resolves after an extra delay,
- * standing in for editEntry's own version of `lock-file-race.test.ts`'s `delayedProvider`:
- * editEntry has no provider call to delay, so the equivalent artificial gap is inserted where its
- * own critical section reads the target file, right before it would otherwise merge and write onto
- * that snapshot. The delay is applied after the real disk read returns, so the returned data itself
- * is genuine, only its delivery is slowed. Scoped to one locale specifically (never the source
- * locale): editEntry's own earlier `readSource` call goes through this same adapter instance, and
- * delaying it too would push the whole call past the racing writer's completion, making the target
- * read observe already-fresh data and silently defeating the race this test exists to prove.
- */
 function delayedReadRegistry(
   format: VerbatraConfig["format"],
   delayedLocale: string,

@@ -24,11 +24,6 @@ import {
 import { createBudgetTracker } from "./budget.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 
-/**
- * A real Anthropic provider (through the shared LLM layer) wired to a stub client that returns the
- * given per-key translations as a forced tool-use response, exactly the shape the real SDK returns. Used
- * to exercise the real ai-providers integrity path end to end, not a hand-rolled double of it.
- */
 function anthropicStubProvider(
   translations: ReadonlyArray<{ key: string; value: string }>,
 ): TranslationProvider {
@@ -64,7 +59,6 @@ function i18nextAdapter(): FormatAdapter {
 
 const adapter = i18nextAdapter();
 
-/** Create a project on disk and read the source into core's IR via the real adapter. */
 async function setup(
   source: Record<string, unknown>,
   target?: Record<string, unknown>,
@@ -79,7 +73,6 @@ async function setup(
   return { dir, sourceResource };
 }
 
-/** Like {@link setup}, but reads the source through a caller-supplied adapter (for ICU formats). */
 async function setupWithAdapter(
   targetAdapter: FormatAdapter,
   source: Record<string, unknown>,

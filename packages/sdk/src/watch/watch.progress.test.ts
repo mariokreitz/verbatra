@@ -5,7 +5,6 @@ import type { ProgressEvent } from "../progress/types.js";
 import { baseConfig, makeStubProvider, makeTempDir, writeJsonFile } from "../test-support.js";
 import { type CreateWatcher, watch } from "./watch.js";
 
-/** A watcher stub that never fires: the test exercises only the initial run's progress. */
 const inertWatcher: CreateWatcher = () => ({
   onChange: () => {},
   close: async () => {},

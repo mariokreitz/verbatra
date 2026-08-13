@@ -14,7 +14,6 @@ function localeSummary(locales: readonly LocaleSummary[], locale: string): Local
   return summary;
 }
 
-/** Pre-create a held locale lock file on disk so the run's own acquire contends against it. */
 async function holdLock(dir: string, locale: string, pid: number): Promise<string> {
   const path = localeLockPath(dir, locale);
   await mkdir(dirname(path), { recursive: true });

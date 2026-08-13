@@ -45,94 +45,44 @@ import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from
 import { buildTranslateRequest } from "./translate-request.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
 
-/** Everything {@link runLocale} needs to process one target locale, resolved by the orchestrator. */
 export interface LocaleRunParams {
   readonly source: LocaleResource;
   readonly sourceInvalidIcuKeys: readonly string[];
   readonly baseline: ReadonlyMap<string, string>;
   readonly adapter: FormatAdapter;
-  /** Undefined signals dry-run: the provider is neither constructed nor called. */
   readonly provider: TranslationProvider | undefined;
   readonly cwd: string;
-  /** The project's locale-to-path resolver, created once per run from the config. */
   readonly resolver: LocalePathResolver;
   readonly sourceLocale: string;
   readonly targetLocale: string;
   readonly format: SupportedFormat;
   readonly glossary: Readonly<Record<string, string>> | undefined;
   readonly tone: Tone | undefined;
-  /** When true, orphaned keys (diff.orphaned) are removed from the written file and the lock. */
   readonly prune: boolean;
-  /**
-   * When true, synthesize the CLDR plural forms a richer target language needs but the source lacks
-   * (i18next-JSON + LLM provider only); every other case falls back to the warning.
-   */
   readonly generatePlurals: boolean;
-  /**
-   * Maximum entries per provider request. Entries are split into sequential sub-batches no larger than
-   * this. A positive integer, guaranteed by the config schema.
-   */
   readonly maxBatchSize: number;
   readonly fs: SdkFs;
-  /**
-   * The translation-memory cache context for this run, or undefined when the cache is bypassed
-   * (`--no-cache`) or on a dry-run. When present, each candidate whose source content hash is already
-   * cached under this fingerprint and target locale is served from the snapshot (after passing the
-   * integrity gate) instead of the provider. The snapshot is read-only and shared across locales, so
-   * lookups are concurrency-clean.
-   */
   readonly cache?: { readonly snapshot: TranslationMemory; readonly fingerprint: string };
-  /** The run-wide token-budget tracker, shared and mutated across every locale in the run. */
   readonly budget: BudgetTracker;
-  /**
-   * Optional progress listener: a `sub-batch` event is emitted once per main-translation sub-batch,
-   * in order, carrying this locale and the `batchIndex`/`totalBatches`. Never called on a dry-run,
-   * which reaches no sub-batch. Plural-form generation does not emit sub-batch events.
-   */
   readonly onProgress?: ProgressListener;
 }
 
-/** One locale's outcome: the public summary and the lock entries to persist for it. */
 export interface LocaleRunResult {
   readonly summary: LocaleSummary;
   readonly lockEntries: Record<string, string>;
-  /**
-   * Values this locale newly translated through the provider, to fold into the run's cache additions.
-   * Never includes a value that was itself served from the cache (that would re-record what is already
-   * there) and never a generated plural form (those are out of v1 cache scope). Empty when the cache
-   * is bypassed or on a dry-run.
-   */
   readonly cacheAdditions: readonly CacheAddition[];
 }
 
-/**
- * One translation that passed the integrity gate. `source` is the source entry the value was gated
- * against, kept alongside it because the merged target entry is built from it and its content hash
- * is what keys the value's cache addition.
- */
 interface Accepted {
   readonly value: string;
   readonly source: TranslationEntry;
 }
 
-/** How {@link partitionCacheHits} splits the translation candidates before the provider is called. */
 interface CachePartition {
-  /** Candidates served from the cache (gate-passed), keyed by target key. */
   readonly hits: ReadonlyMap<string, Accepted>;
-  /** Candidates that missed the cache (or whose cached value failed the gate) and go to the provider. */
   readonly misses: readonly string[];
 }
 
-/**
- * Splits the translation candidates into cache hits and provider misses. With no cache context (bypass
- * or dry-run) every candidate is a miss. A hit is a cached value, keyed by the candidate's current
- * source content hash under this run's fingerprint and target locale, that still passes
- * {@link gateCandidateValue} against the current source entry: the value is content-equal but the
- * target format/adapter may differ, so placeholder and ICU integrity is re-checked. A cached value
- * that fails the gate falls through as a provider miss. A candidate with no source entry (never
- * expected, since candidates come from the source-driven diff) is dropped from both, exactly as the
- * later `entries` filter would have dropped it.
- */
 function partitionCacheHits(
   params: LocaleRunParams,
   toTranslate: readonly string[],
@@ -164,10 +114,6 @@ function partitionCacheHits(
   return { hits, misses };
 }
 
-/**
- * The provider-translated values to record into the cache: every accepted key that was not itself a
- * cache hit, keyed by its current source content hash. Empty when the cache is bypassed.
- */
 function collectCacheAdditions(
   params: LocaleRunParams,
   accepted: ReadonlyMap<string, Accepted>,
@@ -185,23 +131,11 @@ function collectCacheAdditions(
   return additions;
 }
 
-/**
- * A set of provider-miss keys sharing one source content hash. Only the representative is sent to the
- * provider; every duplicate inherits the representative's outcome, so source content that hashes
- * equal is translated once per locale rather than once per key.
- */
 interface MissGroup {
   readonly representative: string;
   readonly duplicates: readonly string[];
 }
 
-/**
- * Groups the provider misses by source content hash so identical source text costs exactly one
- * provider request per locale, independent of the cache (the dedup still applies under `--no-cache`).
- * The first key seen for a hash is its representative; every later key with the same hash is a
- * duplicate. Insertion order is preserved so representative selection and the summary stay
- * deterministic.
- */
 function groupMissesByContent(
   params: LocaleRunParams,
   misses: readonly string[],
@@ -223,7 +157,6 @@ function groupMissesByContent(
   return [...byHash.values()];
 }
 
-/** The accept/withhold buckets a locale's provider translation folds into. */
 interface TranslationOutcome {
   readonly accepted: Map<string, Accepted>;
   readonly integrityMismatches: string[];
@@ -232,19 +165,6 @@ interface TranslationOutcome {
   readonly reviewFlags: Map<string, ReviewFlag>;
 }
 
-/**
- * Applies each translated representative's outcome to every duplicate key sharing its source content
- * hash: an accepted representative hands its value (and any review flag) to each duplicate, and a
- * withheld one puts each duplicate in the same bucket. This is what makes two keys whose source
- * content hashes equal cost one request.
- *
- * An equal content hash selects the candidate; it does not prove the duplicate's gate decision. The
- * hash is computed over `canonicalize`d text (NFC-normalized, CRLF folded to LF), while the gate
- * compares placeholder tokens raw, so the hash is a lossy function of exactly the bytes the gate
- * inspects: two keys whose placeholder names differ only by Unicode normalization form hash equal
- * and gate differently. Each duplicate is therefore re-gated against its own source in
- * {@link fanOutAccepted}, and the check is pure and cheap, so the dedup saving stands.
- */
 function fanOutContentDuplicates(
   params: LocaleRunParams,
   groups: readonly MissGroup[],
@@ -257,11 +177,6 @@ function fanOutContentDuplicates(
   }
 }
 
-/**
- * Applies one group's representative outcome to its duplicates. An accepted representative hands
- * its value out through {@link fanOutAccepted}, which re-gates it per duplicate; a withheld one has
- * the single bucket it landed in mirrored onto every duplicate.
- */
 function applyGroupOutcome(
   params: LocaleRunParams,
   group: MissGroup,
@@ -275,13 +190,6 @@ function applyGroupOutcome(
   withheldBucketFor(group.representative, outcome).push(...group.duplicates);
 }
 
-/**
- * Hands the representative's accepted value to each duplicate, re-gating it against that duplicate's
- * own source entry first. A duplicate whose gate rejects is withheld as an integrity mismatch rather
- * than written: the fan-out is a write path like any other, and this is the only place it can be
- * caught, since a fanned-out value makes no provider call, raises no review flag, and would then be
- * locked in as correct and never re-attempted.
- */
 function fanOutAccepted(
   params: LocaleRunParams,
   group: MissGroup,
@@ -306,12 +214,6 @@ function fanOutAccepted(
   }
 }
 
-/**
- * The single withheld bucket the representative landed in (it is in exactly one), to mirror onto its
- * duplicates. Mirroring is safe here for the same reason re-gating is needed above but not here:
- * withholding is the conservative direction, so an equal content hash that does not prove an equal
- * gate decision can only cost a duplicate an extra retry, never a bad write.
- */
 function withheldBucketFor(representative: string, outcome: TranslationOutcome): string[] {
   if (outcome.integrityMismatches.includes(representative)) {
     return outcome.integrityMismatches;
@@ -322,26 +224,6 @@ function withheldBucketFor(representative: string, outcome: TranslationOutcome):
   return outcome.providerFailures;
 }
 
-/**
- * Whether this locale's target file has to be written at all.
- *
- * A run that accepted, pruned and generated nothing leaves the merged resource exactly as it was
- * read, so writing it back cannot change the content. Skipping is not merely an optimisation: the
- * atomic write replaces the inode, which churns the mtime and retriggers third-party file watchers,
- * and it reformats a hand-formatted target to canonical form, which can fail a drift check that
- * runs `verbatra translate` and then `git diff --exit-code`.
- *
- * An absent target is written anyway. A first run for a new locale also accepts nothing when there
- * is nothing to translate, and skipping there would leave no file at all, so a later `import` of
- * that locale would fail on a missing file instead of reading an empty one.
- *
- * Both halves are pinned by tests in `no-op-write.test.ts`. Neither may be simplified away: the
- * existence check in particular looks redundant next to the counts and is not.
- *
- * @param params - The locale run parameters, for the file-system seam.
- * @param path - The resolved target locale file path.
- * @param changed - How many keys this run accepted, pruned, and generated.
- */
 async function shouldWriteTarget(
   params: LocaleRunParams,
   path: string,
@@ -353,16 +235,6 @@ async function shouldWriteTarget(
   return !(await params.fs.fileExists(path));
 }
 
-/**
- * Runs one target locale: read, diff, translate, integrity-check, write, and compute the lock
- * entries. A dry-run (provider undefined) stops after the diff and reports what would change.
- * Accepted translations are applied in source-document order, not diff order, so a key already in
- * the target keeps its position (Map.set semantics) and a new key appends where the source puts it.
- * When generation is on, source-absent keys that look like generated plural forms are kept out of
- * the orphaned and pruned lists. May throw; the orchestrator isolates that as a per-locale failure.
- *
- * The target write is conditional; {@link shouldWriteTarget} carries the two rules that govern it.
- */
 export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResult> {
   const target = await readTargetResource({
     resolver: params.resolver,
@@ -518,7 +390,6 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
   };
 }
 
-/** The empty generation result for when generation is disabled or the provider does not support it. */
 const NO_GENERATION_RESULT: PluralGenerationResult = {
   accepted: [],
   withheld: [],
@@ -529,11 +400,6 @@ const NO_GENERATION_RESULT: PluralGenerationResult = {
   tripped: false,
 };
 
-/**
- * Runs plural generation when enabled and the provider is an LLM; otherwise returns the empty result.
- * `targetKeys` are the keys read from the target file before this run touched anything, which is what
- * lets generation adopt a form somebody else already wrote instead of translating over it.
- */
 async function runGeneration(
   params: LocaleRunParams,
   provider: TranslationProvider,
@@ -558,11 +424,6 @@ async function runGeneration(
   });
 }
 
-/**
- * Emits one `BUDGET_TOKENS_EXCEEDED` notice for this locale if it caused the trip (main
- * translation or generation), or if it started already stopped by an earlier locale's trip
- * (`stop` mode only); otherwise none. Never more than one per locale.
- */
 function budgetLocaleNotices(
   budget: BudgetTracker,
   startedStopped: boolean,
@@ -572,7 +433,6 @@ function budgetLocaleNotices(
   return startedStopped || mainTripped || generationTripped ? [budgetExceededNotice(budget)] : [];
 }
 
-/** Recomputes the plural warning against the written target (i18next-json only); a complete set clears it. */
 function pluralNoticeFor(
   params: LocaleRunParams,
   merged: ReadonlyMap<string, TranslationEntry>,
@@ -600,15 +460,9 @@ interface SummaryParts {
   readonly pruned: readonly string[];
   readonly notices: readonly LocaleNotice[];
   readonly usage?: UsageSummary;
-  /** Defaults to empty: a dry-run never calls a provider, so it never has anything to flag. */
   readonly needsReview?: readonly NeedsReviewEntry[];
 }
 
-/**
- * Assembles this locale's {@link LocaleSummary} from the run's buckets, deriving `status` from them.
- * The workbook-import fields (`unfilled`, `malformedRows`, `duplicateKeys`) are always empty here:
- * only an import populates them, and the provider path builds no such findings.
- */
 function baseSummary(parts: SummaryParts): LocaleSummary {
   return {
     locale: parts.locale,
@@ -632,7 +486,6 @@ function baseSummary(parts: SummaryParts): LocaleSummary {
   };
 }
 
-/** Every accepted key with a non-empty review flag, sorted by key. */
 function needsReviewFor(
   acceptedKeys: Iterable<string>,
   reviewFlags: ReadonlyMap<string, ReviewFlag>,
@@ -649,17 +502,10 @@ function needsReviewFor(
 
 interface TranslateAndCheckResult {
   readonly notices: readonly LocaleNotice[];
-  /** Whether a sub-batch in this call was the one that first crossed the configured budget. */
   readonly tripped: boolean;
   readonly usage: UsageSummary | undefined;
 }
 
-/**
- * Splits entries into sequential sub-batches of at most `maxBatchSize` and runs each as its own
- * request. The budget is checked between completed sub-batches (see `translate-project.ts` for why
- * never mid-batch): once `stop` mode trips, remaining sub-batches are withheld without a provider
- * call.
- */
 async function translateAndCheck(
   provider: TranslationProvider,
   params: LocaleRunParams,
@@ -712,17 +558,6 @@ interface SubBatchResult {
   readonly usage: TranslateResult["usage"];
 }
 
-/**
- * Runs one sub-batch and folds its result into `accepted`, `integrityMismatches`, or
- * `providerFailures`. A thrown provider call (a revoked key, a rate limit, a network timeout) is
- * caught, never re-thrown, and never surfaced as an integrity problem: nothing was translated, so
- * the whole sub-batch's keys are withheld under `providerFailures` and a secret-free notice
- * carrying the failure's code and message is returned. The same `providerFailures` bucket also
- * collects a key the provider call returned no value for at all: a key still absent from
- * `result.values` here means nothing was ever translated for it, exactly like a thrown call, and
- * not a placeholder mismatch. An `OUTPUT_TRUNCATED` failure is the one exception: rather than
- * withhold the whole batch, {@link handleSubBatchFailure} re-splits it and retries the halves.
- */
 async function runSubBatch(
   provider: TranslationProvider,
   params: LocaleRunParams,
@@ -753,20 +588,10 @@ async function runSubBatch(
   return { notices: readNotices(result), usage: result.usage };
 }
 
-/** True only for a genuine {@link ProviderError} whose code is `OUTPUT_TRUNCATED`. */
 function isOutputTruncated(error: unknown): boolean {
   return error instanceof ProviderError && error.code === "OUTPUT_TRUNCATED";
 }
 
-/**
- * Handles a thrown sub-batch call. Only an `OUTPUT_TRUNCATED` error on a multi-entry batch (a
- * response whose hidden reasoning or content tokens exhausted the output budget) is recoverable:
- * {@link retryTruncatedSplit} re-splits the batch into halves and retries each on its own, down
- * toward a single entry, so keys that fit a smaller request are still translated and retained in
- * `accepted`. Every other thrown value (a revoked key, a rate limit, an auth failure), and a
- * single-entry batch that still truncates, withholds the whole batch under `providerFailures` with
- * a secret-free notice; those keys retry next run.
- */
 async function handleSubBatchFailure(
   error: unknown,
   provider: TranslationProvider,
@@ -783,12 +608,6 @@ async function handleSubBatchFailure(
   return { notices: [subBatchFailedNotice(batch.length, error)], usage: undefined };
 }
 
-/**
- * Re-splits a truncated sub-batch into two halves (reusing {@link chunk}) and runs each through
- * {@link runSubBatch} on its own, combining their notices and usage. Recursion is bounded: each
- * half is strictly smaller than the batch, and a single entry that still truncates is recorded as a
- * `providerFailure` by {@link handleSubBatchFailure} rather than split again.
- */
 async function retryTruncatedSplit(
   provider: TranslationProvider,
   params: LocaleRunParams,
@@ -805,11 +624,6 @@ async function retryTruncatedSplit(
   return { notices, usage };
 }
 
-/**
- * Folds one entry's outcome into `accepted`, `integrityMismatches`, or `providerFailures`. The
- * accept/reject decision is recomputed directly from the candidate value via the shared
- * {@link gateCandidateValue}, never trusting the provider's own `result.integrity` report.
- */
 function foldEntryResult(
   entry: TranslationEntry,
   result: TranslateResult,
@@ -830,17 +644,6 @@ function foldEntryResult(
   }
 }
 
-/**
- * Computes the lock entries for the written target: the current source hash for every
- * source-present key, except keys withheld this run (those keep their prior baseline hash so they
- * retry, or carry no lock entry at all when there was no prior baseline to fall back to). Generated
- * plural keys are source-absent and instead carry their own governing-source hash
- * ({@link GeneratedForm.lockHash}).
- *
- * Deliberately distinct from `computeSheetLockEntries` in `import-workbook.ts`: that function falls
- * back to the current source hash for a baseline-less, not-accepted key instead of leaving it
- * unset. Do not unify the two; each matches its own flow's retry semantics.
- */
 function computeLockEntries(
   params: LocaleRunParams,
   merged: ReadonlyMap<string, TranslationEntry>,
@@ -872,7 +675,6 @@ function computeLockEntries(
   return lockEntries;
 }
 
-/** Preserves the prior lock entry for a generated plural key that stayed in the target but was not regenerated. */
 function carryGeneratedLock(
   lockEntries: Record<string, string>,
   baseline: ReadonlyMap<string, string>,
