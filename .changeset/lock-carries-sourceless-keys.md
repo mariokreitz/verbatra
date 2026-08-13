@@ -17,8 +17,8 @@ content, so a key genuinely deleted from the target file still loses its entry, 
 had a hash (an existing plural form verbatra adopted rather than generated) still gets none.
 
 Consumer impact: lock files will keep entries that earlier versions dropped, so the next
-`translate`, `import`, or `export` after upgrading can produce a larger `verbatra.lock.json` diff
-than usual. That diff is the repair. Hashes that earlier versions already deleted are not
+`translate` or `import` after upgrading can produce a larger `verbatra.lock.json` diff than usual.
+That diff is the repair. Hashes that earlier versions already deleted are not
 reconstructed: for a generated plural form whose baseline was lost, the form is now treated as
 hand-written and adopted, and re-running with `generatePlurals` on will not regenerate it. Delete
 that form from the target file to have it generated again.
