@@ -16,10 +16,6 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
-    },
-    "@verbatra/github-action#build": {
-      "dependsOn": ["^build"],
-      "outputs": []
     }
   }
 }
