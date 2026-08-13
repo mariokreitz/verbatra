@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-/**
- * The real `source` loads the generated `.source` tree, so the sitemap's page set would
- * drift with every content change. A small fake keeps the assertions about the parts the
- * sitemap itself owns: entry order, priorities, and the hreflang alternates. `@/lib/i18n`
- * is deliberately NOT mocked, so a reorder of `i18n.languages` still shows up here.
- */
 interface FakePage {
   readonly slugs: readonly string[];
   readonly url: string;

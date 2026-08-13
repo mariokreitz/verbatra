@@ -24,11 +24,6 @@ import {
   techArticleLd,
 } from "@/lib/structured-data";
 
-/**
- * Mirrors the breadcrumb trail Fumadocs renders (includePage: true, no root)
- * so the emitted BreadcrumbList matches the visible trail exactly. Items with
- * non-string names (none today) are dropped rather than approximated.
- */
 function breadcrumbTrail(pageUrl: string, lang: Locale): BreadcrumbLdItem[] {
   const items = getBreadcrumbItems(pageUrl, source.getPageTree(lang), { includePage: true });
   const trail: BreadcrumbLdItem[] = [];
@@ -41,12 +36,6 @@ function breadcrumbTrail(pageUrl: string, lang: Locale): BreadcrumbLdItem[] {
 
 type DocsPageData = NonNullable<ReturnType<typeof source.getPage>>;
 
-/**
- * Collects the JSON-LD blocks for a docs page: TechArticle everywhere, a
- * BreadcrumbList matching the rendered trail on non-home pages, and an
- * FAQPage block on /docs/faq built from the page's own H2 questions and
- * answer bodies (per locale, nothing fabricated).
- */
 async function pageJsonLd(
   page: DocsPageData,
   slug: string[] | undefined,
@@ -72,13 +61,6 @@ async function pageJsonLd(
   return blocks;
 }
 
-/**
- * The locale notice above a localized page body. The loader inherits the English
- * file whenever a locale has no translated sibling, so an identical source path
- * means this locale serves the English body untranslated: say that plainly rather
- * than claim a machine translation that does not exist. Renders nothing on the
- * English site or on the docs home.
- */
 async function LocaleNotice({
   page,
   slug,

@@ -14,12 +14,6 @@ export type TabListProps = {
   tabClassName?: string;
 };
 
-/**
- * The bare `role="tablist"` markup, shared by the default `Tabs` wrapper below and
- * by callers that need the tablist embedded inside their own layout (for example
- * beside other controls in the same header row) rather than wrapped in `Tabs`'
- * own container.
- */
 export function TabList({
   tabs,
   active,

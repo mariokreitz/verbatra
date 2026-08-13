@@ -5,14 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { DiffPanel } from "./diff-panel";
 
-// React refuses to run `act` unless the environment declares itself an act environment.
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-/**
- * jsdom implements neither `matchMedia` nor `IntersectionObserver`, both of which the panel reaches
- * for on mount. The observer stub never reports an intersection, which stands in for a reader who
- * never scrolls the panel into view.
- */
 function stubBrowserApis(reducedMotion: boolean): void {
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
@@ -53,10 +47,6 @@ afterEach(() => {
   container.remove();
 });
 
-/**
- * The rendered text of the target-side cell for the one changed row. Both the source and the target
- * cell carry the key, and the target cell is rendered second, so the last match is the one wanted.
- */
 function changedCellText(container: HTMLDivElement): string {
   const cells = [...container.querySelectorAll(".grid > div")].filter((cell) =>
     cell.textContent?.includes("cart.checkout"),

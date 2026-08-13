@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { plainAnswer } from "./plain-answer";
 
-/**
- * Every input the suite runs through, so the invariant checks below cover the
- * bypass shapes as well as the ordinary copy.
- */
 const ALL_INPUTS = [
   "Pin a version and read the changelog when you upgrade.",
   "Pin a version and read the <releases>changelog</releases> when you upgrade.",

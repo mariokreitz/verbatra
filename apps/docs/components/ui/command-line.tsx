@@ -10,11 +10,6 @@ export type HighlightedCommandProps = {
   link?: CommandLineLink;
 };
 
-/**
- * Renders a shell command with one optional token turned into a link, for example
- * the package name in an install command. Shared by every command-style renderer in
- * the package so the token's link styling stays in one place.
- */
 export function HighlightedCommand({ command, link }: HighlightedCommandProps): ReactNode {
   const tokenAt = link ? command.indexOf(link.token) : -1;
   if (!link || tokenAt < 0) return <>{command}</>;

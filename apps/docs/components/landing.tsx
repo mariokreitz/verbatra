@@ -18,13 +18,6 @@ function VMarkPath() {
   );
 }
 
-/**
- * The verbatra V-mark glyph. Decorative usages (inline beside visible text) pass
- * `decorative`, which swaps the labeled `role="img"`/`aria-label` pair for
- * `aria-hidden` so the mark isn't announced twice. The two branches render distinct
- * literal attributes (rather than spreading a computed object) so the accessibility
- * linter can verify the labeled case statically.
- */
 export function VMark({ size = 44, blur = 6, decorative = false }: VMarkProps) {
   const style = {
     filter: `drop-shadow(0 0 ${blur}px color-mix(in srgb, var(--v-glow) 60%, transparent))`,

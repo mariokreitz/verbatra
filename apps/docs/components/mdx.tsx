@@ -15,12 +15,6 @@ import CommandLine from "@/components/ui/command-line";
 import Tabs from "@/components/ui/tabs";
 import { type Locale, localizeHref } from "@/lib/i18n";
 
-/**
- * MDX components for a docs page rendered in `locale`. The default anchor is wrapped so every inline
- * markdown link is locale-prefixed via {@link localizeHref} (the shipped `a` is locale-unaware, so an
- * absolute `/docs/...` link would otherwise leave the reader's language). The home hero and path cards
- * take href props straight from `index.mdx`, so the same locale is threaded into them here.
- */
 export function getMDXComponents(locale: Locale, components?: MDXComponents): MDXComponents {
   const DefaultAnchor = defaultMdxComponents.a ?? "a";
   return {

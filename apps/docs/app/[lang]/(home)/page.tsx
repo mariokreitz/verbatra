@@ -26,8 +26,6 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
   const locale = toLocale(lang);
   const t = await getTranslations({ locale, namespace: "landing" });
 
-  // The id is carried through so the accordion can resolve each answer as rich text, which is
-  // how the "changelog" wording becomes a link. faqPageLd strips that markup back out.
   const faqItems: ReadonlyArray<FaqEntry> = Object.entries(
     t.raw("faq.items") as Record<string, FaqItem>,
   ).map(([id, item]) => ({ ...item, id }));

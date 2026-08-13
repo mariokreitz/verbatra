@@ -11,16 +11,8 @@ import { SectionHead } from "./section-head";
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-/**
- * A FAQ item plus the message key it came from, which `FaqRow` needs to resolve the answer as
- * rich text. `item.answer` still carries the raw message, so the JSON-LD keeps reading it.
- */
 export type FaqEntry = FaqItem & { id: string };
 
-/**
- * Rich-text tags an answer may use. `releases` links the word an answer uses for the changelog
- * to GitHub Releases, so the upgrade advice in the "production ready" answer is followable.
- */
 const answerTags = {
   releases: (chunks: ReactNode) => (
     <a

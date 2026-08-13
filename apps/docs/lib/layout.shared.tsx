@@ -8,11 +8,6 @@ import { i18n, type Locale, localizedPath } from "@/lib/i18n";
 
 const LANGUAGE_ARIA_KEY = "Choose a language(language switcher)(aria-label)";
 
-/**
- * Fumadocs UI translations with one override per locale: the language switcher's
- * aria-label must contain the button's visible text (the current locale's display
- * name) or the label-in-name accessibility rule fails on every page.
- */
 export const translations = i18n
   .translations()
   .extend(uiTranslations())
