@@ -144,6 +144,46 @@ async function closeServer(server: Server, sseHub: SseHub, watcher: ProjectWatch
   await Promise.all([serverClosed, watcher.close()]);
 }
 
+/**
+ * Starts the local Verbatra Studio server: a loopback-only HTTP server that serves the prebuilt
+ * dashboard and gates every request behind a Host and Origin check, a bootstrap token, and a
+ * session cookie. There is no host option and no relaxed mode. The entry URL printed once at
+ * startup carries the token and is the only supported way in.
+ *
+ * Use it to open a dashboard over a verbatra project from your own tooling; the verbatra CLI's
+ * `studio` command is a thin caller of exactly this function. The returned server keeps running
+ * until {@link StudioServer.close} is called.
+ *
+ * Two orderings matter. Capabilities are fixed first: `writeToDisk` is always on, and provider
+ * calls are allowed only when {@link StudioServerDeps.spend} is set, so nothing the project's own
+ * config module does can widen what this process was granted. Then `options.loader` resolves,
+ * exactly once, before the server listens; every RPC handler reuses that one config for the life of
+ * the process.
+ *
+ * @param options - The loader, where to bind and run, the granted capabilities, and any injection seams.
+ * @returns The running server: its loopback URL, the port actually bound, and a `close` to stop it.
+ * @throws {@link StudioServerStartError} `PORT_IN_USE`: the requested port is already held by
+ *   another process.
+ * @throws {@link StudioServerStartError} `BIND_FAILED`: the socket bound to an address other than
+ *   `127.0.0.1`, which would expose the dashboard beyond this machine.
+ * @throws Whatever `options.loader` rejects with, unchanged, when the project config cannot be
+ *   loaded. The server is not started in that case.
+ *
+ * @example
+ * ```ts
+ * import { loadConfigWithMeta } from "@verbatra/sdk";
+ * import { startStudioServer } from "@verbatra/studio";
+ *
+ * const server = await startStudioServer({
+ *   loader: () => loadConfigWithMeta({ cwd: process.cwd() }),
+ *   cwd: process.cwd(),
+ *   port: 0,
+ * });
+ *
+ * console.log(`Studio bound to port ${server.port}`);
+ * await server.close();
+ * ```
+ */
 export async function startStudioServer(options: StudioServerOptions): Promise<StudioServer> {
   const assetsRootPath = fileURLToPath(options.assetsRoot ?? defaultAssetsRoot());
   const output = options.output ?? defaultOutput;
