@@ -26,8 +26,9 @@ Internal refactors that do not change the public surface need no doc change; say
 - Write in clear English. No emojis. The em dash character (U+2014) must never
   appear; use a spaced hyphen, a colon, or parentheses.
 - Show real, runnable examples that match the shipped behavior. Only document features
-  that exist: the init, translate, watch, check, diff, export, and import commands; the
-  JSON, XLIFF, YAML, ARB, and properties formats; and the four providers.
+  that exist: the init, translate, watch, check, diff, export, import, and studio
+  commands; the JSON, XLIFF, YAML, ARB, and properties formats; and the five providers
+  (anthropic, openai, gemini, deepl, openai-compatible).
 - Keep the docs current in every available language. When you add or change an English
   `.mdx`, update or create its `.de.mdx`, `.es.mdx`, and `.fr.mdx` translation in the
   same change (translate prose only; keep code, paths, and glossary terms verbatim; no

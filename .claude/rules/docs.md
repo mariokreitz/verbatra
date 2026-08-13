@@ -26,6 +26,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - `pnpm dev` (next dev), `pnpm build` (next build), `pnpm start` (next start).
 - `pnpm typecheck` (tsc --noEmit). Run it after edits to `app`, `lib`, `components`,
   or config.
+- `pnpm test` (vitest run). This app has its own test suite; run it after changing
+  anything under `lib` or `components`.
 - `pnpm i18n` runs `verbatra translate` to regenerate translated content (see below).
 - From the root, filter with `pnpm turbo run build --filter=@verbatra/docs`.
 
@@ -57,8 +59,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. v1 CLI is `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, and `import`.
+- Only document features that exist. The shipped CLI is `init`, `translate`, `watch`,
+  `check`, `diff`, `export`, `import`, and `studio`.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.
