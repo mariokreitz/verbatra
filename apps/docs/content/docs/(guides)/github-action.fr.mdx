@@ -40,12 +40,12 @@ jobs:
       - uses: actions/checkout@<commit-sha>
       - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
-          version: 0.6.4 # pin @verbatra/cli to an exact version
+          version: 0.7.1 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-L'action récupère et lance `@verbatra/cli` exactement à la version que tu épingles, donc le workflow n'a besoin d'aucune étape d'installation pour verbatra lui-même. `0.6.4` est la version publiée au dernier passage sur cette page ; consulte le [paquet `@verbatra/cli` sur npm](https://www.npmjs.com/package/@verbatra/cli) pour connaître la version actuelle et relève l'épinglage délibérément, plutôt que de suivre un tag mouvant.
+L'action récupère et lance `@verbatra/cli` exactement à la version que tu épingles, donc le workflow n'a besoin d'aucune étape d'installation pour verbatra lui-même. L'épinglage ci-dessus n'est qu'un exemple : consulte le [paquet `@verbatra/cli` sur npm](https://www.npmjs.com/package/@verbatra/cli) pour connaître la version actuelle et relève l'épinglage délibérément, plutôt que de suivre un tag mouvant.
 
 ### Câblage des secrets
 
@@ -55,7 +55,7 @@ L'action lance la CLI, et la CLI lit la clé d'API du fournisseur uniquement dep
 
 | Entrée | Requis | Défaut | Description |
 | --- | --- | --- | --- |
-| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.6.4` ou `0.6.5-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.7.1` ou `0.7.2-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
 | `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config |
 | `working-directory` | non | `""` | répertoire depuis lequel résoudre la config et les fichiers de locale (correspond à `--cwd`) |
 | `dry-run` | non | `"false"` | mets `"true"` pour rapporter ce qui changerait sans appeler de fournisseur ni écrire (correspond à `--dry-run`) |
