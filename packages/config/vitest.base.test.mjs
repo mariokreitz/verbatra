@@ -48,10 +48,10 @@ describe("createVitestConfig", () => {
   });
 
   it("ignores a conflicting thresholds key even when it is spread alongside valid per-package options", () => {
-    const optionsWithThresholdsOverride = /** @type {Record<string, unknown>} */ ({
+    const optionsWithThresholdsOverride = {
       testInclude: ["custom/**/*.test.ts"],
       thresholds: { lines: 0, functions: 0, statements: 0, branches: 0 },
-    });
+    };
 
     const config = createVitestConfig(optionsWithThresholdsOverride);
 
@@ -63,13 +63,6 @@ describe("createVitestConfig", () => {
 describe("every consumer package's vitest config imports the shared preset", () => {
   const packagesDir = join(import.meta.dirname, "..");
 
-  /**
-   * Every consumer package's vitest config, one entry per file that exists. The `config` package
-   * itself is skipped: it owns the preset and imports it by relative path, so it is not a consumer.
-   * Both config file names are probed per package and a package normally carries only one.
-   *
-   * @returns {{ pkg: string, path: string, source: string }[]}
-   */
   function collectConsumerConfigs() {
     const entries = readdirSync(packagesDir, { withFileTypes: true });
     const configs = [];
