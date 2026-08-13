@@ -12,7 +12,6 @@ import type { OpenAiRequest } from "./openai/request.js";
 import type { OpenAiClient, OpenAiCompletion, OpenAiMessage } from "./openai/types.js";
 import type { PlaceholderExtractor } from "./provider.js";
 
-/** Build a translation entry for tests. */
 export function entry(
   key: string,
   value: string,
@@ -22,11 +21,9 @@ export function entry(
   return { key, namespace: "messages", value, placeholders, isPlural: false, ...extra };
 }
 
-/** A simple offline extractor matching {{x}} and {x} tokens. Linear (ReDoS-safe). */
 export const regexExtractor: PlaceholderExtractor = (value) =>
   value.match(/\{\{[^{}]+\}\}|\{[^{}]+\}/g) ?? [];
 
-/** Build a tool-use response message as the Anthropic API would return it. */
 export function toolMessage(
   translations: ReadonlyArray<{ key: string; value: string }>,
   usage?: { input_tokens?: number; output_tokens?: number },
@@ -37,14 +34,12 @@ export function toolMessage(
   return usage === undefined ? { content } : { content, usage };
 }
 
-/** Build an Anthropic tool-use response that stopped on the output-token limit. */
 export function truncatedToolMessage(
   translations: ReadonlyArray<{ key: string; value: string }>,
 ): AnthropicMessage {
   return { ...toolMessage(translations), stop_reason: "max_tokens" };
 }
 
-/** An offline stub client that records every request body it receives. */
 export function stubClient(message: AnthropicMessage): {
   client: MessagesClient;
   calls: BuiltRequest[];
@@ -61,7 +56,6 @@ export function stubClient(message: AnthropicMessage): {
   return { client, calls };
 }
 
-/** Return the first recorded call, or throw if the client was not called. Shared by every stub client above. */
 export function firstCallOf<T>(calls: readonly T[]): T {
   const call = calls[0];
   if (call === undefined) {
@@ -70,7 +64,6 @@ export function firstCallOf<T>(calls: readonly T[]): T {
   return call;
 }
 
-/** Build a Chat Completions response as the openai SDK would return it. */
 export function openAiCompletion(
   message: OpenAiMessage,
   usage?: { prompt_tokens?: number; completion_tokens?: number },
@@ -79,7 +72,6 @@ export function openAiCompletion(
   return usage === undefined ? { choices } : { choices, usage };
 }
 
-/** A schema-conforming OpenAI completion carrying the given per-key translations. */
 export function openAiResult(
   translations: ReadonlyArray<{ key: string; value: string }>,
   usage?: { prompt_tokens?: number; completion_tokens?: number },
@@ -87,7 +79,6 @@ export function openAiResult(
   return openAiCompletion({ content: JSON.stringify({ translations }) }, usage);
 }
 
-/** Build a schema-conforming OpenAI completion whose choice stopped on the output-token limit. */
 export function truncatedOpenAiCompletion(
   translations: ReadonlyArray<{ key: string; value: string }>,
 ): OpenAiCompletion {
@@ -96,7 +87,6 @@ export function truncatedOpenAiCompletion(
   };
 }
 
-/** An offline OpenAI stub client that records every request body it receives. */
 export function openAiStubClient(completion: OpenAiCompletion): {
   client: OpenAiClient;
   calls: OpenAiRequest[];
@@ -115,7 +105,6 @@ export function openAiStubClient(completion: OpenAiCompletion): {
   return { client, calls };
 }
 
-/** A schema-conforming Gemini response carrying the given per-key translations. */
 export function geminiResult(
   translations: ReadonlyArray<{ key: string; value: string }>,
   usage?: { promptTokenCount?: number; candidatesTokenCount?: number },
@@ -127,7 +116,6 @@ export function geminiResult(
   return usage === undefined ? base : { ...base, usageMetadata: usage };
 }
 
-/** An offline Gemini stub client that records every request it receives. */
 export function geminiStubClient(response: GeminiResponse): {
   client: GeminiClient;
   calls: GeminiRequest[];
@@ -144,7 +132,6 @@ export function geminiStubClient(response: GeminiResponse): {
   return { client, calls };
 }
 
-/** A recorded DeepL translateText call. */
 export interface DeepLCall {
   readonly texts: readonly string[];
   readonly sourceLang: string | null;
@@ -152,12 +139,10 @@ export interface DeepLCall {
   readonly options: DeepLTranslateOptions;
 }
 
-/** Build an ordered DeepL result array from the given translated strings. */
 export function deeplResult(texts: readonly string[]): DeepLTextResult[] {
   return texts.map((text) => ({ text }));
 }
 
-/** An offline DeepL stub client that records every translateText call it receives. */
 export function deeplStubClient(results: readonly DeepLTextResult[]): {
   client: DeepLTranslateClient;
   calls: DeepLCall[];

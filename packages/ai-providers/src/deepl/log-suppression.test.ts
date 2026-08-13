@@ -2,7 +2,6 @@ import log from "loglevel";
 import { describe, expect, it } from "vitest";
 import { resolveDeeplLoglevel, silenceDeeplLogger, silenceSdkLogging } from "./log-suppression.js";
 
-/** A fake loglevel instance that records the level its "deepl" logger was set to. */
 function createFakeLoglevel(): {
   instance: ReturnType<typeof makeFake>;
   level: () => string | undefined;

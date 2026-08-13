@@ -3,7 +3,6 @@ import { ProviderError } from "../errors.js";
 import { guardProviderCall } from "../guard.js";
 import { withGeminiRetry } from "./retry.js";
 
-/** A minimal status-bearing error, shaped like @google/genai's ApiError. */
 class ApiError extends Error {
   readonly status: number;
   constructor(status: number) {

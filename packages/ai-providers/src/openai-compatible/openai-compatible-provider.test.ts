@@ -30,7 +30,6 @@ function request(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
   };
 }
 
-/** A fenced-JSON completion, the shape a Gemma-class local model tends to return instead of raw JSON. */
 function fencedCompletion(translations: ReadonlyArray<{ key: string; value: string }>) {
   return openAiCompletion({
     content: `\`\`\`json\n${JSON.stringify({ translations })}\n\`\`\``,

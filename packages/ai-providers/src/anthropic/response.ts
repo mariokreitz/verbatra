@@ -5,7 +5,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** Find the forced tool-use block's input in the response content, or undefined. */
 function extractToolInput(content: readonly unknown[]): unknown {
   for (const block of content) {
     if (isRecord(block) && block.type === "tool_use" && block.name === SUBMIT_TOOL_NAME) {
@@ -15,14 +14,6 @@ function extractToolInput(content: readonly unknown[]): unknown {
   return undefined;
 }
 
-/**
- * Extract the forced tool-use input from the response, or reject when the model
- * returned no such block.
- *
- * @param content - The response content blocks.
- * @returns The forced tool-use input, as unparsed data for the shared layer to validate.
- * @throws {@link ProviderError} `INVALID_RESPONSE`: no forced tool-use block was present.
- */
 export function requireToolInput(content: readonly unknown[]): unknown {
   const raw = extractToolInput(content);
   if (raw === undefined) {

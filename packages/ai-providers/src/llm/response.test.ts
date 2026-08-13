@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { ProviderError } from "../errors.js";
 import { reconcileResult } from "./response.js";
 
-/** Run reconcileResult expecting it to throw, returning the ProviderError it raised. */
 function reconcileError(raw: unknown, requestedKeys: readonly string[]): ProviderError {
   try {
     reconcileResult(raw, requestedKeys);

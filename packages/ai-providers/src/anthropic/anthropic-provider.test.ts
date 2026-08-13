@@ -28,7 +28,6 @@ function request(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
   };
 }
 
-/** Parse the data payload carried in the user turn of a captured request body. */
 function payloadOf(body: { messages: readonly [{ content: string }] }): {
   sourceLocale: string;
   targetLocale: string;

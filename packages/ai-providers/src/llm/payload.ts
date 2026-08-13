@@ -1,7 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import type { ValidatedRequestData } from "../provider.js";
 
-/** A single item in the data payload. Untrusted `value` plus trusted metadata. */
 interface ItemPayload {
   readonly key: string;
   readonly value: string;
@@ -18,14 +17,6 @@ function toItem(entry: TranslationEntry): ItemPayload {
   };
 }
 
-/**
- * Assemble the structured data channel for an LLM request: locales, optional tone
- * and glossary, and the untrusted items. Nothing here is spliced into an instruction
- * string; that separation is the prompt-injection boundary.
- *
- * @param data - The validated request data (locales, entries, optional glossary/tone).
- * @returns A plain object for the user-turn payload; its `items[].value` fields are untrusted.
- */
 export function buildDataPayload(data: ValidatedRequestData): Record<string, unknown> {
   return {
     sourceLocale: data.sourceLocale,

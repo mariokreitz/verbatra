@@ -99,9 +99,7 @@ describe("getErrorStatus", () => {
 });
 
 describe("isAbortError", () => {
-  /** Shaped like openai's and @anthropic-ai/sdk's abort error: name stays the inherited "Error". */
   class APIUserAbortError extends Error {}
-  /** Shaped like deepl-node's ConnectionError: no signal support, no abort-shaped class or name. */
   class ConnectionError extends Error {}
 
   it("is false when the signal is aborted but the error is not abort-shaped (the leak this guards)", () => {

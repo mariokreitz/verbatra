@@ -1,48 +1,26 @@
 import type { PlaceholderIntegrityResult, TranslationEntry } from "@verbatra/core";
 import type { ProviderNotice, ReviewFlag, ReviewReasonCode } from "./provider.js";
 
-/** Below this ratio, the translation is suspiciously short relative to the source. */
 const LENGTH_RATIO_MIN = 0.35;
-/** Above this ratio, the translation is suspiciously long relative to the source. */
 const LENGTH_RATIO_MAX = 3.0;
-/** A trimmed source shorter than this (in UTF-16 code units) never trips the length-ratio check. */
 const LENGTH_RATIO_MIN_SOURCE_LENGTH = 12;
 
-/** Matches any Unicode letter, used to distinguish a translatable source from a placeholder/numeric/punctuation-only one. */
 const UNICODE_LETTER = /\p{L}/u;
 
-/** The two provider-notice codes that mean a batch was gracefully degraded. */
 const DEGRADATION_NOTICE_CODES: ReadonlySet<ProviderNotice["code"]> = new Set([
   "FORMALITY_DOWNGRADED",
   "GLOSSARY_IGNORED",
 ]);
 
-/**
- * Plain-data input for {@link computeReviewFlags}: one key's source and translated value, its
- * locales, its placeholder-integrity result, and the optional glossary. No provider client, no
- * request object, no I/O, so both a provider's `translateBatch` and the SDK's export path can call
- * the identical function.
- */
 export interface ReviewFlagInput {
-  /** The source-locale value. */
   readonly sourceValue: string;
-  /** The translated (or current-target, at export time) value. */
   readonly translatedValue: string;
-  /** BCP-47 source locale, used only to detect an untranslated (equals-source) value. */
   readonly sourceLocale: string;
-  /** BCP-47 target locale, used only to detect an untranslated (equals-source) value. */
   readonly targetLocale: string;
-  /** The placeholder-integrity result already computed for this key. */
   readonly integrity: PlaceholderIntegrityResult;
-  /** Optional source-term to target-term glossary map; skipped entirely when absent or empty. */
   readonly glossary?: Readonly<Record<string, string>> | undefined;
 }
 
-/**
- * A translation whose length is far shorter or longer than its source. Advisory only: it can
- * over-flag a legitimately verbose target language (German) or a dense CJK target. Skipped for a
- * very short source, where the ratio is not meaningful.
- */
 function isLengthRatioOutlier(sourceValue: string, translatedValue: string): boolean {
   const trimmedSource = sourceValue.trim();
   if (trimmedSource.length < LENGTH_RATIO_MIN_SOURCE_LENGTH) {
@@ -52,11 +30,6 @@ function isLengthRatioOutlier(sourceValue: string, translatedValue: string): boo
   return ratio < LENGTH_RATIO_MIN || ratio > LENGTH_RATIO_MAX;
 }
 
-/**
- * A translation identical to its source, in a different locale, where the source actually had
- * something translatable (at least one Unicode letter). A placeholder-only, numeric-only, or
- * punctuation-only source is never flagged this way.
- */
 function isEqualsSource(input: ReviewFlagInput): boolean {
   const trimmedSource = input.sourceValue.trim();
   const trimmedTranslated = input.translatedValue.trim();
@@ -67,7 +40,6 @@ function isEqualsSource(input: ReviewFlagInput): boolean {
   );
 }
 
-/** Whether any configured glossary term found in the source is missing from the translation. */
 function isGlossaryTermMissed(input: ReviewFlagInput): boolean {
   const glossary = input.glossary;
   if (glossary === undefined || Object.keys(glossary).length === 0) {
@@ -85,21 +57,10 @@ function isGlossaryTermMissed(input: ReviewFlagInput): boolean {
   return false;
 }
 
-/** A matched placeholder set that landed in a different order than the source. */
 function isIntegrityReordered(integrity: PlaceholderIntegrityResult): boolean {
   return integrity.matches && integrity.reordered;
 }
 
-/**
- * Compute the derived review reasons for one key from plain values. Pure and provider-independent:
- * called both at translate time (by `runLlmTranslation` and the DeepL provider) and at export time
- * (by the SDK's `export-workbook.ts`), so the two paths can never drift. `PROVIDER_DEGRADED` is
- * never produced here; see {@link applyProviderDegraded}.
- *
- * @param input - The key's source/translated values, locales, integrity result, and glossary.
- * @returns A {@link ReviewFlag} carrying every reason that applies, or `undefined` when none do
- *   (an absent map entry means "ok").
- */
 export function computeReviewFlags(input: ReviewFlagInput): ReviewFlag | undefined {
   const reasons: ReviewReasonCode[] = [];
   if (isLengthRatioOutlier(input.sourceValue, input.translatedValue)) {
@@ -117,18 +78,6 @@ export function computeReviewFlags(input: ReviewFlagInput): ReviewFlag | undefin
   return reasons.length > 0 ? { status: "review", reasons } : undefined;
 }
 
-/**
- * Compute a {@link ReviewFlag} for every entry with a translated value, skipping an entry with none.
- * Shared by `runLlmTranslation` (called with every requested entry) and the DeepL provider (called
- * with only its placeholder-free, protectable subset), so the per-entry loop cannot drift between them.
- *
- * @param entries - The entries to compute flags for; only a value present in `values` is flagged.
- * @param values - The translated value per key.
- * @param integrity - The placeholder-integrity result per key.
- * @param sourceLocale - BCP-47 source locale, forwarded to {@link computeReviewFlags}.
- * @param targetLocale - BCP-47 target locale, forwarded to {@link computeReviewFlags}.
- * @param glossary - Optional source-term to target-term glossary map, forwarded to {@link computeReviewFlags}.
- */
 export function buildEntryReviewFlags(
   entries: readonly TranslationEntry[],
   values: ReadonlyMap<string, string>,
@@ -159,17 +108,6 @@ export function buildEntryReviewFlags(
   return reviewFlags;
 }
 
-/**
- * Apply `PROVIDER_DEGRADED` to every accepted key of a batch that carried a `FORMALITY_DOWNGRADED`
- * or `GLOSSARY_IGNORED` notice, adding it to an existing flag's reasons or creating a new flag entry.
- * Caller-side by design: this derives from a provider notice, a fact the pure per-key function above
- * has no access to. A no-op (returns `reviewFlags` unchanged) when no degradation notice is present.
- *
- * @param reviewFlags - The flags already computed for this batch (from {@link computeReviewFlags}).
- * @param notices - The batch's provider notices.
- * @param acceptedKeys - Every key accepted from this batch.
- * @returns The updated map; the input map is never mutated.
- */
 export function applyProviderDegraded(
   reviewFlags: ReadonlyMap<string, ReviewFlag>,
   notices: readonly ProviderNotice[],

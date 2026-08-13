@@ -9,7 +9,6 @@ import {
   TIMEOUT_MESSAGE,
 } from "./guard.js";
 
-/** A minimal status-bearing error, shaped like the openai/anthropic/@google/genai SDK error classes. */
 class StatusError extends Error {
   readonly status: number;
   constructor(status: number) {
@@ -18,24 +17,14 @@ class StatusError extends Error {
   }
 }
 
-/** A named class with no status, shaped like an SDK's dedicated timeout error class. */
 class APIConnectionTimeoutError extends Error {}
 
-/**
- * Shaped like openai's and @anthropic-ai/sdk's actual abort error: a subclass whose constructor
- * never sets `this.name`, so `.name` on an instance stays the inherited `"Error"`. Detection must key
- * on `error.constructor.name`, not `.name`, or a genuine openai/anthropic abort is misclassified.
- */
 class APIUserAbortError extends Error {
   constructor() {
     super("Request was aborted.");
   }
 }
 
-/**
- * Shaped like deepl-node's actual `ConnectionError` class (same name, since {@link classifyProviderError}
- * matches by `constructor.name`): wraps a raw axios error that can carry an auth header.
- */
 class ConnectionError extends Error {
   readonly error: Error;
   constructor(cause: Error) {
@@ -178,13 +167,6 @@ describe("guardProviderCall: abort passthrough", () => {
 });
 
 describe("guardProviderCall: unrelated error racing a concurrent abort (leak regression)", () => {
-  /**
-   * Reproduces the scenario a shared `AbortController` creates: a batch orchestrator aborts the
-   * controller after a sibling call fails, while this call is independently rejecting for its own,
-   * unrelated reason (here: DeepL's ConnectionError wrapping a raw axios error that carries the
-   * literal Authorization header). The signal being aborted at that moment must never be enough to
-   * classify this rejection as an abort and rethrow it raw; only a redacted ProviderError may escape.
-   */
   it("never rethrows the raw error unredacted when the signal is aborted but the error is unrelated", async () => {
     const controller = new AbortController();
     const secretBearingCause = new Error("secret detail") as Error & {

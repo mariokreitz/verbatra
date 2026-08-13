@@ -5,12 +5,10 @@ import { entry, regexExtractor } from "../test-support.js";
 import type { LlmCompletionInput, LlmMechanism } from "./run.js";
 import { runLlmTranslation } from "./run.js";
 
-/** A schema-conforming raw mechanism output carrying the given per-key translations. */
 function rawResult(translations: ReadonlyArray<{ key: string; value: string }>): unknown {
   return { translations };
 }
 
-/** An offline mechanism stub that records every input it receives and returns fixed output. */
 function stubMechanism(
   raw: unknown,
   usage?: Usage,
@@ -25,10 +23,6 @@ function stubMechanism(
   return { mechanism, inputs };
 }
 
-/**
- * An offline mechanism stub that returns one queued raw response per call, in order, so a test can
- * script a first response followed by a repair-round response. Records every input it receives.
- */
 function sequencedMechanism(responses: ReadonlyArray<{ raw: unknown; usage?: Usage }>): {
   mechanism: LlmMechanism;
   inputs: LlmCompletionInput[];

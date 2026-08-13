@@ -15,7 +15,6 @@ import { DEEPL_MAX_TEXTS_PER_REQUEST } from "./limits.js";
 import { PLACEHOLDER_UNSUPPORTED_MESSAGE } from "./placeholders.js";
 import type { DeepLTranslateClient, DeepLTranslateResult } from "./types.js";
 
-/** An offline DeepL stub whose translateText echoes one result per input text, per call. */
 function deeplEchoStubClient(): { client: DeepLTranslateClient; calls: DeepLCall[] } {
   const calls: DeepLCall[] = [];
   const client: DeepLTranslateClient = {

@@ -3,12 +3,6 @@ import { requireDeepLKey } from "../env.js";
 import { silenceSdkLogging } from "./log-suppression.js";
 import type { DeepLClientBundle, DeepLTextResult, DeepLTranslateClient } from "./types.js";
 
-/**
- * Build the production DeepL client. Reads the key from the environment and derives the
- * free-account flag (key ends in ":fx") without logging the key.
- *
- * @returns The DeepL client plus the key-derived free-account flag.
- */
 export function createDefaultClient(): DeepLClientBundle {
   silenceSdkLogging();
   const authKey = requireDeepLKey();
