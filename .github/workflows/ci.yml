@@ -78,7 +78,6 @@ jobs:
         run: pnpm test:scripts
 
       - name: Upload coverage to Codecov
-        # Upload from one matrix leg only so coverage is reported once.
         if: ${{ matrix.node == '22.14.0' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
@@ -86,13 +85,6 @@ jobs:
           files: ./packages/*/coverage/lcov.info
 
   dependency-disclosure:
-    # A change to what a published package makes consumers install must ship with a changeset. Four
-    # such deltas, one of them a major, reached npm inside 0.6.3 with no changelog line because no
-    # gate here or in lefthook.yml ever checked for changeset presence.
-    #
-    # Its own job for two reasons: the guard needs full history (fetch-depth: 0), which would slow
-    # every leg of the build matrix, and a failure this specific deserves a check name of its own
-    # rather than being buried in a build log. It installs nothing, so it costs seconds.
     name: Dependency disclosure
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -102,8 +94,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The guard compares HEAD against the pull request's base commit, which a shallow
-          # checkout does not contain.
           fetch-depth: 0
           persist-credentials: false
 
@@ -113,13 +103,6 @@ jobs:
           node-version: "22.14.0"
 
       - name: Guard published dependency changes against a missing changeset
-        # On a pull request the base comes from the event and HEAD_SHA lets the guard confirm that
-        # HEAD really is GitHub's merge ref before preferring its first parent, which is immune to a
-        # base sha that moved on. On a push the base is the commit main pointed at beforehand, so
-        # the comparison covers exactly what the push introduced; falling back to origin/main there
-        # would compare main against itself and pass everything. HEAD_BRANCH carries the
-        # changeset-release exemption; there is deliberately no exemption by actor, since a bot is
-        # the case this guard exists for.
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}

@@ -171,13 +171,6 @@ jobs:
     # registry, so it gets none of the publish job's write or OIDC scopes.
     permissions:
       contents: read
-    # changesets/action can report a green publish step even if only some of the packages it
-    # attempted actually reached the registry (e.g. a per-package OIDC Trusted Publisher gap).
-    # Re-check its own publishedPackages claim against the live npm registry so a partial publish
-    # of a fixed pair like @verbatra/cli and @verbatra/sdk fails the workflow loudly instead of
-    # going unnoticed. The script also fails if a prerelease published in this run took over the
-    # latest dist-tag (pinned to the just-published version so studio's pre-existing stale latest
-    # does not trip it). Restate the CI gate here too, alongside the publish job's own output.
     if: ${{ needs.publish.outputs.published == 'true' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
     steps:
       - name: Checkout
