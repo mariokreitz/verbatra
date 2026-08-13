@@ -204,6 +204,40 @@ describe("writeRunStatusFile + readRunStatusFile: round trip", () => {
   });
 });
 
+describe("writeRunStatusFile: honors the injected fs seam", () => {
+  it("creates no real directory when the fs is fully in-memory", async () => {
+    const dir = await makeTempDir();
+    const path = runStatusFilePath(dir);
+    const written = new Map<string, string>();
+    const inMemoryFs = makeFakeFs({
+      writeFile: async (target: string, data: string): Promise<void> => {
+        written.set(target, data);
+      },
+    });
+
+    await writeRunStatusFile(path, buildRunStatusFile(runSummary()), inMemoryFs);
+
+    expect(await readdir(dir)).toEqual([]);
+    expect(written.has(path)).toBe(true);
+  });
+
+  it("routes directory creation through the injected fs when it offers mkdir", async () => {
+    const dir = await makeTempDir();
+    const path = runStatusFilePath(dir);
+    const madeDirs: string[] = [];
+    const inMemoryFs = makeFakeFs({
+      mkdir: async (target: string): Promise<void> => {
+        madeDirs.push(target);
+      },
+    });
+
+    await writeRunStatusFile(path, buildRunStatusFile(runSummary()), inMemoryFs);
+
+    expect(madeDirs).toEqual([join(dir, ".verbatra-local")]);
+    expect(await readdir(dir)).toEqual([]);
+  });
+});
+
 describe("readRunStatusFile: degrade-to-undefined cases", () => {
   it("a missing file reads as undefined", async () => {
     const dir = await makeTempDir();

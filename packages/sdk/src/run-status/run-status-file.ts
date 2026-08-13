@@ -1,4 +1,3 @@
-import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
 import type { LocaleSummary, RunSummary } from "../flow/summary.js";
@@ -120,6 +119,6 @@ export async function writeRunStatusFile(
   data: RunStatusFile,
   fs: SdkFs,
 ): Promise<void> {
-  await mkdir(dirname(path), { recursive: true });
+  await fs.mkdir?.(dirname(path));
   await fs.writeFile(path, `${JSON.stringify(data, null, 2)}\n`);
 }
