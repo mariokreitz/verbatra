@@ -61,4 +61,4 @@ export type {
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
 export { computeReviewFlags, type ReviewFlagInput } from "./review-flags.js";
-export { SCAFFOLD_MODELS } from "./scaffold.js";
+export { SCAFFOLD_MODELS, SCAFFOLD_TOKEN_LIMIT_KEYS } from "./scaffold.js";

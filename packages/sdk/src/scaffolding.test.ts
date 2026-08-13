@@ -5,9 +5,10 @@ import type { ScaffoldableProviderId } from "./scaffolding.js";
 import { scaffoldingMetadata } from "./scaffolding.js";
 
 describe("scaffoldingMetadata", () => {
-  it("exposes the three pass-through tables", () => {
+  it("exposes the four pass-through tables", () => {
     expect(Object.keys(scaffoldingMetadata).sort()).toEqual([
       "providerEnv",
+      "providerTokenLimitKeys",
       "scaffoldModels",
       "supportedFormats",
     ]);
@@ -46,6 +47,46 @@ describe("scaffoldingMetadata", () => {
       openai: "gpt-5.4-mini",
       gemini: "gemini-2.5-flash",
     });
+  });
+
+  it("names a token limit key for every provider that has a scaffold model", () => {
+    expect(Object.keys(scaffoldingMetadata.providerTokenLimitKeys).sort()).toEqual(
+      Object.keys(scaffoldingMetadata.scaffoldModels).sort(),
+    );
+  });
+
+  it("names a token limit key each provider's own options schema accepts", () => {
+    for (const [id, tokenKey] of Object.entries(scaffoldingMetadata.providerTokenLimitKeys)) {
+      const model =
+        scaffoldingMetadata.scaffoldModels[id as keyof typeof scaffoldingMetadata.scaffoldModels];
+      const parsed = providerConfigSchema.safeParse({
+        id,
+        options: { model, [tokenKey]: 4096 },
+      });
+
+      expect(parsed.error?.issues ?? []).toEqual([]);
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  it("names a token limit key that is the only one that provider accepts", () => {
+    const everyTokenKey = new Set(Object.values(scaffoldingMetadata.providerTokenLimitKeys));
+
+    for (const [id, tokenKey] of Object.entries(scaffoldingMetadata.providerTokenLimitKeys)) {
+      const model =
+        scaffoldingMetadata.scaffoldModels[id as keyof typeof scaffoldingMetadata.scaffoldModels];
+      for (const otherKey of everyTokenKey) {
+        if (otherKey === tokenKey) {
+          continue;
+        }
+        const parsed = providerConfigSchema.safeParse({
+          id,
+          options: { model, [otherKey]: 4096 },
+        });
+
+        expect(parsed.success).toBe(false);
+      }
+    }
   });
 
   it("exposes core's supported format ids", () => {

@@ -1,4 +1,4 @@
-import { PROVIDER_ENV, SCAFFOLD_MODELS } from "@verbatra/ai-providers";
+import { PROVIDER_ENV, SCAFFOLD_MODELS, SCAFFOLD_TOKEN_LIMIT_KEYS } from "@verbatra/ai-providers";
 import { SUPPORTED_FORMATS } from "@verbatra/core";
 import type { ProviderId } from "./config/provider-config.js";
 
@@ -11,6 +11,16 @@ export type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
 
 const _envCoversAllProviders: Record<ScaffoldableProviderId, string> = PROVIDER_ENV;
 void _envCoversAllProviders;
+
+/**
+ * A provider that takes a model and an output token limit. It is every scaffoldable provider except
+ * DeepL, which is a machine-translation API rather than a language model and takes neither.
+ */
+type ModelProviderId = Exclude<ScaffoldableProviderId, "deepl">;
+
+const _tokenLimitKeysCoverAllModelProviders: Record<ModelProviderId, string> =
+  SCAFFOLD_TOKEN_LIMIT_KEYS;
+void _tokenLimitKeysCoverAllModelProviders;
 
 /**
  * The facts a project generator needs to write a first config: which environment variable each
@@ -26,6 +36,14 @@ export const scaffoldingMetadata = {
   providerEnv: PROVIDER_ENV,
   /** A reasonable default model to prefill per language-model provider. DeepL has none, since it takes no model. */
   scaffoldModels: SCAFFOLD_MODELS,
+  /**
+   * The option key each language-model provider takes its output token limit under, since they do
+   * not agree: Anthropic calls it `maxTokens` and the others `maxOutputTokens`. A generator that
+   * prefills a token limit must read the key from here rather than assume one, because
+   * {@link verbatraConfigSchema} validates each provider's options strictly and rejects the wrong
+   * one. DeepL has no entry, since it takes no token limit.
+   */
+  providerTokenLimitKeys: SCAFFOLD_TOKEN_LIMIT_KEYS,
   /** Every i18n file format the SDK can read and write. */
   supportedFormats: SUPPORTED_FORMATS,
 } as const;

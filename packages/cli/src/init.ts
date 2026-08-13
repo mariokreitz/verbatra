@@ -70,48 +70,54 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   return { format: DEFAULT_FORMAT, detected: false };
 }
 
-function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown> {
-  switch (id) {
-    case "anthropic":
-      return { id, options: { model: DEFAULT_MODEL.anthropic, maxTokens: TOKEN_LIMIT } };
-    case "openai":
-      return { id, options: { model: DEFAULT_MODEL.openai, maxOutputTokens: TOKEN_LIMIT } };
-    case "gemini":
-      return { id, options: { model: DEFAULT_MODEL.gemini, maxOutputTokens: TOKEN_LIMIT } };
-    case "deepl":
-      return { id, options: {} };
-  }
-}
-
-function renderProviderBlock(id: ScaffoldableProviderId): string {
+function buildProviderOptions(id: ScaffoldableProviderId): Record<string, unknown> {
   if (id === "deepl") {
-    return [
-      "  provider: {",
-      '    id: "deepl",',
-      "    // DeepL needs no model; add an optional glossaryId here if you have one.",
-      "    options: {},",
-      "  },",
-    ].join("\n");
+    return {};
   }
-  const tokenKey = id === "anthropic" ? "maxTokens" : "maxOutputTokens";
-  return [
-    "  provider: {",
-    `    id: ${JSON.stringify(id)},`,
-    "    options: {",
-    "      // A sensible default; change to any model this provider supports.",
-    `      model: ${JSON.stringify(DEFAULT_MODEL[id])},`,
-    `      ${tokenKey}: ${TOKEN_LIMIT},`,
-    "    },",
-    "  },",
-  ].join("\n");
+  return {
+    model: DEFAULT_MODEL[id],
+    [scaffoldingMetadata.providerTokenLimitKeys[id]]: TOKEN_LIMIT,
+  };
 }
 
-function renderConfig(
-  inputs: Inputs,
-  format: string,
-  detected: boolean,
-  importName: string,
-): string {
+const OPTION_COMMENTS: Readonly<Record<string, string>> = {
+  model: "      // A sensible default; change to any model this provider supports.",
+};
+
+function renderProviderOptions(options: Record<string, unknown>): string[] {
+  return Object.entries(options).flatMap(([key, value]) => {
+    const line = `      ${key}: ${JSON.stringify(value)},`;
+    const comment = OPTION_COMMENTS[key];
+    return comment === undefined ? [line] : [comment, line];
+  });
+}
+
+function renderProviderBlock(id: ScaffoldableProviderId, options: Record<string, unknown>): string {
+  const optionLines = renderProviderOptions(options);
+  const note =
+    id === "deepl"
+      ? ["    // DeepL needs no model; add an optional glossaryId here if you have one."]
+      : [];
+  const body =
+    optionLines.length === 0 ? ["    options: {},"] : ["    options: {", ...optionLines, "    },"];
+  return ["  provider: {", `    id: ${JSON.stringify(id)},`, ...note, ...body, "  },"].join("\n");
+}
+
+interface ConfigDraft {
+  readonly inputs: Inputs;
+  readonly format: string;
+  readonly detected: boolean;
+  readonly importName: string;
+  readonly providerOptions: Record<string, unknown>;
+}
+
+function renderConfig({
+  inputs,
+  format,
+  detected,
+  importName,
+  providerOptions,
+}: ConfigDraft): string {
   const formatComment = detected
     ? "  // Locale file format, detected from your dependencies."
     : `  // TODO: set your locale file format (one of: ${scaffoldingMetadata.supportedFormats.join(", ")}).`;
@@ -129,7 +135,7 @@ function renderConfig(
     "    // Path to each locale file; must contain the {locale} token.",
     `    pattern: ${JSON.stringify(inputs.filesPattern)},`,
     "  },",
-    renderProviderBlock(inputs.provider),
+    renderProviderBlock(inputs.provider, providerOptions),
     "});",
     "",
   ].join("\n");
@@ -238,12 +244,13 @@ export async function runInit(
   const inputs: Inputs = { sourceLocale, targetLocales, filesPattern, provider };
   const { format, detected } = detectFormat(cwd);
 
+  const providerOptions = buildProviderOptions(provider);
   const candidate = {
     sourceLocale,
     targetLocales,
     format,
     files: { pattern: filesPattern },
-    provider: buildProviderConfig(provider),
+    provider: { id: provider, options: providerOptions },
   };
   const validated = verbatraConfigSchema.safeParse(candidate);
   if (!validated.success) {
@@ -256,7 +263,7 @@ export async function runInit(
   const force = opts.force === true;
   writeFileIfAllowed(
     resolve(cwd, "verbatra.config.ts"),
-    renderConfig(inputs, format, detected, importName),
+    renderConfig({ inputs, format, detected, importName, providerOptions }),
     force,
     "verbatra.config.ts",
     streams,
