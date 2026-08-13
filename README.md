@@ -156,6 +156,27 @@ npm install --save-dev @verbatra/cli @verbatra/studio
 
 See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio) for the full command reference and security model.
 
+## GitHub Action
+
+<p align="center">
+  <a href="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml/badge.svg?branch=main" alt="verbatra-action CI" /></a>
+  <a href="https://github.com/mariokreitz/verbatra-action/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="verbatra-action license: MIT" /></a>
+</p>
+
+A composite GitHub Action runs `verbatra translate --json` in CI, turns each failed locale into an error annotation, writes a job summary table, and exits with the CLI's own exit code. It lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), and is consumed with `uses:` rather than installed from npm.
+
+```yaml
+- uses: mariokreitz/verbatra-action@<commit-sha>
+  with:
+    version: 0.7.1 # pin @verbatra/cli to an exact version
+  env:
+    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+```
+
+The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the job needs no separate install step, and it rejects anything that is not an exact semver version so a run can never silently resolve `latest`. The API key comes from the environment as it does everywhere else in verbatra; there is no key input. Run the CLI directly instead when you want a read-only `check` or `diff` gate, or a flag such as `--prune` that the action does not expose.
+
+See the [GitHub Action page](https://verbatra.kreitz-webdev.de/docs/github-action) for the full input list, the annotation and job-summary format, and the security notes.
+
 ## Programmatic use
 
 Everything the CLI does is available from `@verbatra/sdk`:
@@ -198,7 +219,7 @@ See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
 | [`@verbatra/sdk`](./packages/sdk/README.md) | The programmatic API. |
 | [`@verbatra/studio`](./packages/studio/README.md) | The local Verbatra Studio dashboard, served through `verbatra studio`. |
 
-The composite GitHub Action that runs the CLI in CI lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), and is consumed with `uses:` rather than installed from npm.
+The [GitHub Action](#github-action) is not in this table because it is not an npm package: it lives in its own repository and is consumed with `uses:`.
 
 ## Security
 
