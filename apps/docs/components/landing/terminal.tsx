@@ -1,6 +1,8 @@
 "use client";
 
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { prefersReducedMotion } from "@/lib/reduced-motion";
+import { useInViewOnce } from "@/lib/use-in-view-once";
 import { cn } from "@/lib/utils";
 
 type Line = { kind: "command" | "output"; text: string };
@@ -144,18 +146,21 @@ export function Terminal({
   loop = true,
   className,
 }: TerminalProps): ReactNode {
-  const rootRef = useRef<HTMLDivElement>(null);
+  const [rootRef, inView] = useInViewOnce<HTMLDivElement>(0.4);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [history, setHistory] = useState<Line[]>([]);
   const [typing, setTyping] = useState<string | null>(null);
 
   useEffect(() => {
-    const node = rootRef.current;
-    if (!node) return;
-    let cancelled = false;
-    let started = false;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!inView) return;
 
+    if (prefersReducedMotion()) {
+      setHistory(buildSettled(commands, outputs));
+      setTyping(null);
+      return;
+    }
+
+    let cancelled = false;
     const ctx: PlayerContext = {
       isCancelled: () => cancelled,
       setTyping,
@@ -177,29 +182,12 @@ export function Terminal({
       initialDelay,
       loop,
     };
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting || started) continue;
-          started = true;
-          if (reduce) {
-            setHistory(buildSettled(commands, outputs));
-            setTyping(null);
-          } else {
-            void playLoop(ctx);
-          }
-        }
-      },
-      { threshold: 0.4 },
-    );
-    observer.observe(node);
+    void playLoop(ctx);
 
     return () => {
       cancelled = true;
-      observer.disconnect();
     };
-  }, [commands, outputs, typingSpeed, delayBetweenCommands, initialDelay, loop]);
+  }, [inView, commands, outputs, typingSpeed, delayBetweenCommands, initialDelay, loop]);
 
   return (
     <div

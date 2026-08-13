@@ -11,12 +11,6 @@ function projectConfigSource(source: LoadedConfig["source"], projectRoot: string
   return redact(relative(projectRoot, source.filepath));
 }
 
-/**
- * Projects the glossary indicator from the loader's {@link LoadedConfig.glossary} provenance. A
- * file-sourced glossary gets its path relativized against the project root and redacted; every
- * other source is passed through as its bare `source` tag. Shared by {@link buildProjectSnapshot}
- * and the `glossary.get` handler so the relativization exists in one place.
- */
 export function projectGlossaryIndicator(
   glossary: LoadedConfig["glossary"],
   projectRoot: string,
@@ -27,18 +21,6 @@ export function projectGlossaryIndicator(
   return { source: glossary.source };
 }
 
-/**
- * Builds the allowlisted, read-only view of the loaded config a client may see: never the raw
- * config object, never provider options, and only optional fields the config actually sets (no
- * synthesized defaults). `format`, `provider.id`, and `tone` are closed enums fixed by the config
- * schema and pass through as-is; every other projected string passes through the redaction
- * backstop.
- *
- * @param capabilities - The server's resolved capabilities, projected verbatim as a client hint;
- *   never the authoritative gate.
- * @param exposeAgentTools - The resolved opt-in the client reads to decide whether to register the
- *   WebMCP agent tools; a client rendering hint only, never a server gate.
- */
 export function buildProjectSnapshot(
   loaded: LoadedConfig,
   projectRoot: string,

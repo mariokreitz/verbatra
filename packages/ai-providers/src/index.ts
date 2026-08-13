@@ -1,19 +1,3 @@
-/**
- * Translation providers behind a single {@link TranslationProvider} contract. The SDK constructs the
- * configured provider through its id-to-factory table (`buildProvider`); {@link ProviderRegistry} is
- * exported here for direct id-based resolution but is not on that path today. Four LLM providers
- * (Anthropic, OpenAI, Gemini, and openai-compatible, for a local or self-hosted OpenAI-compatible
- * server) are built on the shared {@link runLlmTranslation} layer, and DeepL, a machine-translation
- * provider, implements the contract directly. Failures surface as secret-free
- * {@link ProviderError}s by construction (an SDK throw is mapped to a static error, raw SDK text is
- * never bound); {@link redact} is a defense-in-depth backstop in the constructor. API keys are read
- * only from the environment (openai-compatible's key resolution additionally falls back to a
- * non-secret placeholder when none is configured); translatable strings are untrusted and travel
- * only in the data channel.
- *
- * @packageDocumentation
- */
-
 export {
   type AnthropicDeps,
   createAnthropicProvider,
@@ -77,4 +61,4 @@ export type {
 export { redact } from "./redaction.js";
 export { ProviderRegistry, type ProviderResolution } from "./registry.js";
 export { computeReviewFlags, type ReviewFlagInput } from "./review-flags.js";
-export { SCAFFOLD_MODELS } from "./scaffold.js";
+export { SCAFFOLD_MODELS, SCAFFOLD_TOKEN_LIMIT_KEYS } from "./scaffold.js";

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import type { Locale } from "@/lib/i18n";
+import { toLocale } from "@/lib/i18n";
 import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
@@ -9,12 +9,13 @@ export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await props.params;
-  const t = await getTranslations({ locale: lang, namespace: "legal.imprint.meta" });
+  const locale = toLocale(lang);
+  const t = await getTranslations({ locale, namespace: "legal.imprint.meta" });
   return {
     title: t("title"),
     description: t("description"),
     robots: { index: true },
-    alternates: localeAlternates(lang as Locale, "/imprint"),
+    alternates: localeAlternates(locale, "/imprint"),
   };
 }
 

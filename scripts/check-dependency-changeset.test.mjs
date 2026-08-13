@@ -28,7 +28,6 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const SCRIPT_NAME = "check-dependency-changeset.mjs";
 
-/** A workspace file with both catalogs, shaped like the real one including comments and quoting. */
 const WORKSPACE_YAML = `packages:
   - "packages/*"
   - "apps/*"
@@ -49,7 +48,6 @@ overrides:
   postcss@<8.5.18: ">=8.5.18 <9"
 `;
 
-/** A published manifest mixing a catalog reference, a bundled reference, a literal and a workspace dep. */
 const SDK_MANIFEST = JSON.stringify({
   name: "@verbatra/sdk",
   dependencies: {
@@ -400,12 +398,6 @@ describe("evaluate", () => {
   });
 });
 
-/**
- * End-to-end coverage of the git layer, which decides what gets compared and therefore holds the
- * failure modes the pure functions cannot see. Each case builds a throwaway repository shaped like
- * this one and runs the real script inside it. The script resolves its repository root from its own
- * location, so copying it into the fixture's `scripts/` is what points it at the fixture.
- */
 describe("the script end to end in a real repository", () => {
   const fixtures = [];
 
@@ -425,8 +417,7 @@ describe("the script end to end in a real repository", () => {
       });
       return { code: 0, output: stdout };
     } catch (error) {
-      const failure = /** @type {{ status: number; stdout: string; stderr: string }} */ (error);
-      return { code: failure.status ?? 1, output: `${failure.stdout}${failure.stderr}` };
+      return { code: error.status ?? 1, output: `${error.stdout}${error.stderr}` };
     }
   }
 
@@ -440,13 +431,6 @@ describe("the script end to end in a real repository", () => {
     writeFileSync(full, contents);
   }
 
-  /**
-   * A fixture repository with one published package pinning openai through the bundled catalog.
-   *
-   * The path is realpath'd: on macOS the temp directory is reached through a `/var` symlink, and
-   * the script's "invoked as a script" guard compares `import.meta.url` against `process.argv[1]`,
-   * which the two spellings would fail. That mismatch makes `main()` silently never run.
-   */
   function makeRepo() {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), "verbatra-guard-")));
     fixtures.push(dir);
@@ -526,14 +510,6 @@ describe("the script end to end in a real repository", () => {
     expect(result.output).toContain("fetch-depth");
   });
 
-  /**
-   * Reproduces what actions/checkout leaves in the workspace for a pull request: HEAD is a merge
-   * ref whose first parent is the base commit the ref was built on, which is not necessarily the
-   * current tip of the base branch. The fixture builds a feature branch touching nothing
-   * dependency-related, merges it to produce that merge ref, then advances the base branch with an
-   * unrelated bundled bump. Reading the base from `HEAD^1` is what keeps that later bump out of the
-   * comparison; taking the passed base sha at face value would blame this pull request for it.
-   */
   it("takes the base from the merge ref's first parent, not a base sha that moved on", () => {
     const dir = makeRepo();
     const mergeBase = git(dir, ["rev-parse", "HEAD"]);
@@ -574,10 +550,6 @@ describe("the script end to end in a real repository", () => {
   });
 
   it("uses the base it was given when HEAD is an ordinary merge commit", () => {
-    // The shape an integration branch ends in: feature branches merged back with --no-ff. The bump
-    // lands early, then a later merge becomes the tip, so the tip's first parent already contains
-    // it. Preferring that first parent on merge-shape alone silently compared the branch against
-    // itself and passed an undisclosed bump, which is the exact failure this guard exists to catch.
     const dir = makeRepo();
     const base = git(dir, ["rev-parse", "HEAD"]);
     bumpOpenai(dir, "8.0.0");
@@ -602,17 +574,13 @@ describe("the script end to end in a real repository", () => {
     write(dir, "NOTE.md", "docs only\n");
     const featureTip = commit(dir, "docs only");
     git(dir, ["checkout", "--quiet", "main"]);
-    // Main moves on with an unrelated bundled bump, making the recorded base stale.
     bumpOpenai(dir, "9.9.9");
     commit(dir, "unrelated bump on the base branch");
     git(dir, ["merge", "--quiet", "--no-ff", "-m", "merge ref", "feature"]);
 
-    // HEAD_SHA matches the second parent, so this is a real merge ref: use its first parent and
-    // the stale base is correctly ignored.
     expect(
       run(dir, { BASE_SHA: staleBase, HEAD_SHA: featureTip, HEAD_BRANCH: "feature" }).code,
     ).toBe(0);
-    // Without that proof the given base is honoured, which reports main's own bump.
     expect(run(dir, { BASE_SHA: staleBase, HEAD_BRANCH: "feature" }).code).toBe(1);
   });
 

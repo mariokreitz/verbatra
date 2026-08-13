@@ -3,8 +3,6 @@ import { describe, expect, it } from "vitest";
 import { ErrorMessage } from "./ErrorMessage.js";
 import { render } from "./test-support.js";
 
-/** The copy `resolveErrorCopy` maps this code to, spelled out rather than re-derived from the
- * lookup table, so a silent edit to the table shows up here as a failure. */
 const SESSION_EXPIRED_COPY = "The session has expired. Reload the page to start a new one.";
 
 describe("ErrorMessage", () => {

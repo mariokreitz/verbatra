@@ -24,11 +24,6 @@ import {
 import { createBudgetTracker } from "./budget.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
 
-/**
- * A real Anthropic provider (through the shared LLM layer) wired to a stub client that returns the
- * given per-key translations as a forced tool-use response, exactly the shape the real SDK returns. Used
- * to exercise the real ai-providers integrity path end to end, not a hand-rolled double of it.
- */
 function anthropicStubProvider(
   translations: ReadonlyArray<{ key: string; value: string }>,
 ): TranslationProvider {
@@ -64,7 +59,6 @@ function i18nextAdapter(): FormatAdapter {
 
 const adapter = i18nextAdapter();
 
-/** Create a project on disk and read the source into core's IR via the real adapter. */
 async function setup(
   source: Record<string, unknown>,
   target?: Record<string, unknown>,
@@ -79,7 +73,6 @@ async function setup(
   return { dir, sourceResource };
 }
 
-/** Like {@link setup}, but reads the source through a caller-supplied adapter (for ICU formats). */
 async function setupWithAdapter(
   targetAdapter: FormatAdapter,
   source: Record<string, unknown>,
@@ -454,6 +447,47 @@ describe("runLocale: plural generation", () => {
     expect(second.lockEntries.items_many).toBe(first.lockEntries.items_many);
   });
 
+  it("carries the prior baseline lock hash for a generated plural key when generation is off", async () => {
+    const { dir, sourceResource } = await setup({
+      items_one: "{{count}} item",
+      items_other: "{{count}} items",
+    });
+    await writeJsonFile(targetPath(dir, "pl"), {
+      items_one: "{{count}} przedmiot",
+      items_other: "{{count}} przedmiotow",
+      items_few: "{{count}} przedmioty",
+      items_many: "{{count}} przedmiotow",
+    });
+    const stub = makeStubProvider();
+    const baseline = new Map([
+      ["items_few", "generated-few-hash"],
+      ["items_many", "generated-many-hash"],
+    ]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, targetLocale: "pl", generatePlurals: false, baseline },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(lockEntries.items_few).toBe("generated-few-hash");
+    expect(lockEntries.items_many).toBe("generated-many-hash");
+  });
+
+  it("drops the baseline hash of a source-less key the user deleted from the target file", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" }, { a: "da" });
+    const stub = makeStubProvider();
+    const baseline = new Map([["deleted_few", "generated-few-hash"]]);
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, baseline },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(lockEntries.deleted_few).toBeUndefined();
+  });
+
   it("re-emits the incomplete warning when generation cannot complete the plural set", async () => {
     const { dir, sourceResource } = await setup({
       items_one: "{{count}} item",
@@ -674,5 +708,44 @@ describe("runLocale: needsReview (real ai-providers reviewFlags call site)", () 
       { key: "a", reasons: ["EQUALS_SOURCE"] },
       { key: "b", reasons: ["EQUALS_SOURCE"] },
     ]);
+  });
+});
+
+describe("runLocale: lock entries for prototype-shaped keys", () => {
+  it("records a lock entry for a top-level key named __proto__", async () => {
+    const { dir, sourceResource } = await setup(
+      Object.fromEntries([
+        ["__proto__", "A"],
+        ["b", "B"],
+      ]),
+    );
+    const stub = makeStubProvider();
+    const params = makeParams({ source: sourceResource, cwd: dir }, { provider: stub.provider });
+
+    const { summary, lockEntries } = await runLocale(params);
+
+    expect(summary.translated).toContain("__proto__");
+    expect(Object.keys(lockEntries).sort()).toEqual(["__proto__", "b"]);
+    expect(Object.getPrototypeOf(lockEntries)).toBe(Object.prototype);
+  });
+
+  it("carries a __proto__ baseline forward for a source-less target key", async () => {
+    const { dir, sourceResource } = await setup({ a: "A" }, { a: "da" });
+    await writeJsonFile(
+      targetPath(dir, "de"),
+      Object.fromEntries([
+        ["a", "da"],
+        ["__proto__", "kept"],
+      ]),
+    );
+    const stub = makeStubProvider();
+    const params = makeParams(
+      { source: sourceResource, cwd: dir },
+      { provider: stub.provider, baseline: new Map([["__proto__", "prior-hash"]]) },
+    );
+
+    const { lockEntries } = await runLocale(params);
+
+    expect(Object.keys(lockEntries).sort()).toEqual(["__proto__", "a"]);
   });
 });

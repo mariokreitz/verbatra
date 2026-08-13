@@ -20,11 +20,8 @@ const gridCellClassName = "px-3 py-2 text-start whitespace-nowrap";
 const gridHeaderClassName =
   "border-b border-border bg-muted/60 px-3 py-2.5 text-start align-bottom text-xs font-semibold text-muted-foreground whitespace-nowrap";
 
-/** Props for {@link StatusGrid}. */
 export interface StatusGridProps {
-  /** The caller's already-loaded per-locale diff data; never re-fetched here. */
   readonly locales: readonly DiffLocale[];
-  /** Bumped once per live-refresh event; re-fetches the header coverage data. */
   readonly refreshToken: number;
   readonly onSelectKey: (key: string) => void;
 }
@@ -51,12 +48,6 @@ function percentForLocale(status: RefreshableView<StatusData>, locale: string): 
   return status.data.rows.find((row) => row.locale === locale)?.percent ?? null;
 }
 
-/**
- * A locale header's completeness bar, sourced from the status data's
- * already-computed percentage, never recomputed from the diff key lists.
- * `percent` is null while no status data exists yet; `unavailable`
- * distinguishes a failed fetch from one still loading.
- */
 function CompletenessBar({
   percent,
   unavailable,
@@ -92,12 +83,6 @@ interface GridCellProps {
   readonly registerCell: (row: number, col: number, element: HTMLButtonElement | null) => void;
 }
 
-/**
- * One key/locale cell: a focusable button so a click and Enter share the same
- * activation path, with its tabindex roved by the parent grid (only the
- * current position's button is in the Tab order). Renders a success badge for
- * in-sync, a `DiffBadge` for the three drift kinds.
- */
 function GridCell({
   status,
   row,
@@ -195,19 +180,6 @@ function GridBodyRow({
   );
 }
 
-/**
- * A key-by-locale status table: rows are the drift-affected keys from
- * `driftKeys`, columns are locales, and one cell is that key's status in that
- * locale. Keyboard navigation is a roving tabindex: exactly one cell sits in
- * the Tab order at a time, arrow keys move it (wrapping at the edges via
- * `moveGridFocus`), and Enter, Space, or a click calls `onSelectKey` with the
- * row's key. Native `<table>` semantics with row and column scopes describe
- * the structure; no ARIA grid role is claimed.
- *
- * A coverage re-read that fails keeps the last good percentages in the locale
- * headers rather than blanking them, under the same stale notice the other
- * panels render, so an outdated percentage never reads as a current one.
- */
 export function StatusGrid({ locales, refreshToken, onSelectKey }: StatusGridProps): ReactNode {
   const keys = useMemo(() => driftKeys(locales), [locales]);
   const status = useStatusData(refreshToken);

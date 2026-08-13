@@ -14,6 +14,7 @@
   <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
   <a href="https://www.npmjs.com/package/@verbatra/cli"><img src="https://img.shields.io/npm/dm/@verbatra/cli?label=downloads%2Fmonth" alt="Monthly npm downloads" /></a>
+  <a href="https://github.com/mariokreitz/verbatra-action/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mariokreitz/verbatra-action/ci.yml?branch=main&amp;label=Action%20CI" alt="verbatra-action CI" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
@@ -135,7 +136,20 @@ Each provider reads its API key from one environment variable:
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
 | `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--expose-agent-tools`, `--cwd`, `--config` |
 
-Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
+Run `verbatra <command> --help` for the full option list. The complete command reference - every flag and examples - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
+
+## Exit codes
+
+Every command follows the same contract, so a CI step can branch on the code alone:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
+| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), or `studio` failed while shutting its server down |
+| `2` | Could not run: a whole-run error, a usage error, `init` without a resolvable provider or unable to scaffold a valid config, `watch` failing to start or to stop, or `studio` given a bad `--port` or unable to load the config, import `@verbatra/studio`, or start its server |
+| `130` | `watch` or `studio` was force-stopped by a second interrupt |
+
+A single interrupt is a clean stop and exits `0` for both `watch` and `studio`, but the two part ways if that stop itself fails: `watch` exits `2`, `studio` exits `1`. `export` has no per-locale failure mode, so it never exits `1`. One case sits outside the contract: a parse failure that is not a usage error is re-thrown and the binary does not catch it, so Node's default handling of an unhandled rejection applies instead of any of these codes.
 
 ## Verbatra Studio
 
@@ -155,6 +169,23 @@ npm install --save-dev @verbatra/cli @verbatra/studio
 ```
 
 See the [Verbatra Studio docs](https://verbatra.kreitz-webdev.de/docs/cli/studio) for the full command reference and security model.
+
+## GitHub Action
+
+A composite GitHub Action runs `verbatra translate --json` in CI, turns each failed locale into an error annotation, writes a job summary table, and exits with the CLI's own exit code. It lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), and is consumed with `uses:` rather than installed from npm.
+
+```yaml
+- uses: actions/checkout@<commit-sha>
+- uses: mariokreitz/verbatra-action@<commit-sha>
+  with:
+    version: 0.7.1 # pin @verbatra/cli to an exact version
+  env:
+    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+```
+
+The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the job needs no separate install step, and it rejects anything that is not an exact semver version so a run can never silently resolve `latest`. The API key comes from the environment as it does everywhere else in verbatra; there is no key input. Run the CLI directly instead when you want a read-only `check` or `diff` gate, or a flag such as `--prune` that the action does not expose.
+
+See the [GitHub Action page](https://verbatra.kreitz-webdev.de/docs/github-action) for the full input list, the annotation and job-summary format, and the security notes.
 
 ## Programmatic use
 
@@ -197,6 +228,8 @@ See the [`@verbatra/sdk` README](./packages/sdk/README.md) for the full API.
 | [`@verbatra/cli`](./packages/cli/README.md) | The `verbatra` command-line tool. |
 | [`@verbatra/sdk`](./packages/sdk/README.md) | The programmatic API. |
 | [`@verbatra/studio`](./packages/studio/README.md) | The local Verbatra Studio dashboard, served through `verbatra studio`. |
+
+The [GitHub Action](#github-action) is not in this table because it is not an npm package: it lives in its own repository and is consumed with `uses:`.
 
 ## Security
 

@@ -11,7 +11,6 @@ const SENTINELS = [FAKE_KEY, CONTENT, "x-api-key", "Bearer"];
 
 const config = { model: "m", maxTokens: 64 };
 
-/** Drive every error path with sentinel-laden input so leakage would be visible. */
 function contentRequest(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
   return {
     sourceLocale: "en",

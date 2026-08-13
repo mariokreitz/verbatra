@@ -8,16 +8,12 @@ import {
   verbatraConfigSchema,
 } from "@verbatra/sdk";
 import { ensureGitignore } from "./gitignore.js";
+import { readPackageManifest } from "./package-manifest.js";
 import { askLine, stdinIsTty } from "./prompt.js";
 import type { InitOpts, Streams } from "./types.js";
 
-/** The scaffoldable provider ids, derived from the SDK scaffolding metadata rather than restated. */
 const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];
 
-/**
- * Maps a dependency name to the locale format it implies. Typed against SupportedFormat so a renamed
- * or removed core format id breaks this compile.
- */
 const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
   ["i18next", "i18next-json"],
   ["vue-i18n", "vue-i18n-json"],
@@ -26,15 +22,11 @@ const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
 ];
 const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
 
-/** The per-provider scaffold models: an alias of the SDK scaffolding metadata, not a source of truth. */
 export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
 const TOKEN_LIMIT = 4096;
 
-/** Prompting seams for `runInit`, injected so the decision logic is tested without a real TTY. */
 export interface InitDeps {
-  /** Reads one line for a prompt; defaults to the readline seam. Tests inject canned answers. */
   readonly ask?: (question: string) => Promise<string>;
-  /** Reports whether stdin is a TTY; defaults to the real check. Tests force interactive or not. */
   readonly isTty?: () => boolean;
 }
 
@@ -49,7 +41,6 @@ function isProviderId(value: string): value is ScaffoldableProviderId {
   return (PROVIDER_IDS as string[]).includes(value);
 }
 
-/** Reads the dependency and devDependency names from the project's package.json (empty if absent or invalid). */
 function readDependencyNames(cwd: string): Set<string> {
   const pkgPath = resolve(cwd, "package.json");
   if (!existsSync(pkgPath)) {
@@ -69,10 +60,6 @@ function readDependencyNames(cwd: string): Set<string> {
   }
 }
 
-/**
- * Pre-fills the format from the project's dependencies. Only a single match is unambiguous; zero or
- * several matches fall back to the default, marked undetected.
- */
 function detectFormat(cwd: string): { format: string; detected: boolean } {
   const deps = readDependencyNames(cwd);
   const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
@@ -83,62 +70,54 @@ function detectFormat(cwd: string): { format: string; detected: boolean } {
   return { format: DEFAULT_FORMAT, detected: false };
 }
 
-/** Reads this package's name at runtime so the scaffolded import stays correct if the package is renamed. */
-function readPackageName(): string {
-  const manifestUrl = new URL("../package.json", import.meta.url);
-  const { name } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { name: string };
-  return name;
-}
-
-/**
- * The provider block as a plain object, used to validate the assembled config before writing. Must
- * stay in sync with {@link renderProviderBlock} (the emitted text), since validation checks the
- * object, not the text.
- */
-function buildProviderConfig(id: ScaffoldableProviderId): Record<string, unknown> {
-  switch (id) {
-    case "anthropic":
-      return { id, options: { model: DEFAULT_MODEL.anthropic, maxTokens: TOKEN_LIMIT } };
-    case "openai":
-      return { id, options: { model: DEFAULT_MODEL.openai, maxOutputTokens: TOKEN_LIMIT } };
-    case "gemini":
-      return { id, options: { model: DEFAULT_MODEL.gemini, maxOutputTokens: TOKEN_LIMIT } };
-    case "deepl":
-      return { id, options: {} };
-  }
-}
-
-/** The provider block rendered as commented TypeScript for the scaffolded config file. */
-function renderProviderBlock(id: ScaffoldableProviderId): string {
+function buildProviderOptions(id: ScaffoldableProviderId): Record<string, unknown> {
   if (id === "deepl") {
-    return [
-      "  provider: {",
-      '    id: "deepl",',
-      "    // DeepL needs no model; add an optional glossaryId here if you have one.",
-      "    options: {},",
-      "  },",
-    ].join("\n");
+    return {};
   }
-  const tokenKey = id === "anthropic" ? "maxTokens" : "maxOutputTokens";
-  return [
-    "  provider: {",
-    `    id: ${JSON.stringify(id)},`,
-    "    options: {",
-    "      // A sensible default; change to any model this provider supports.",
-    `      model: ${JSON.stringify(DEFAULT_MODEL[id])},`,
-    `      ${tokenKey}: ${TOKEN_LIMIT},`,
-    "    },",
-    "  },",
-  ].join("\n");
+  return {
+    model: DEFAULT_MODEL[id],
+    [scaffoldingMetadata.providerTokenLimitKeys[id]]: TOKEN_LIMIT,
+  };
 }
 
-/** Renders the scaffolded verbatra.config.ts text; importName is the CLI's own package name. */
-function renderConfig(
-  inputs: Inputs,
-  format: string,
-  detected: boolean,
-  importName: string,
-): string {
+const OPTION_COMMENTS: Readonly<Record<string, string>> = {
+  model: "      // A sensible default; change to any model this provider supports.",
+};
+
+function renderProviderOptions(options: Record<string, unknown>): string[] {
+  return Object.entries(options).flatMap(([key, value]) => {
+    const line = `      ${key}: ${JSON.stringify(value)},`;
+    const comment = OPTION_COMMENTS[key];
+    return comment === undefined ? [line] : [comment, line];
+  });
+}
+
+function renderProviderBlock(id: ScaffoldableProviderId, options: Record<string, unknown>): string {
+  const optionLines = renderProviderOptions(options);
+  const note =
+    id === "deepl"
+      ? ["    // DeepL needs no model; add an optional glossaryId here if you have one."]
+      : [];
+  const body =
+    optionLines.length === 0 ? ["    options: {},"] : ["    options: {", ...optionLines, "    },"];
+  return ["  provider: {", `    id: ${JSON.stringify(id)},`, ...note, ...body, "  },"].join("\n");
+}
+
+interface ConfigDraft {
+  readonly inputs: Inputs;
+  readonly format: string;
+  readonly detected: boolean;
+  readonly importName: string;
+  readonly providerOptions: Record<string, unknown>;
+}
+
+function renderConfig({
+  inputs,
+  format,
+  detected,
+  importName,
+  providerOptions,
+}: ConfigDraft): string {
   const formatComment = detected
     ? "  // Locale file format, detected from your dependencies."
     : `  // TODO: set your locale file format (one of: ${scaffoldingMetadata.supportedFormats.join(", ")}).`;
@@ -156,13 +135,12 @@ function renderConfig(
     "    // Path to each locale file; must contain the {locale} token.",
     `    pattern: ${JSON.stringify(inputs.filesPattern)},`,
     "  },",
-    renderProviderBlock(inputs.provider),
+    renderProviderBlock(inputs.provider, providerOptions),
     "});",
     "",
   ].join("\n");
 }
 
-/** Renders .env.example: the provider's key name only, never a literal value. */
 function renderEnvExample(id: ScaffoldableProviderId): string {
   return [
     `# Copy this file to .env and set your ${id} API key. Do not commit your real key.`,
@@ -171,7 +149,6 @@ function renderEnvExample(id: ScaffoldableProviderId): string {
   ].join("\n");
 }
 
-/** Writes the file, but skips an existing one unless --force, so re-running init never clobbers a user's edits. */
 function writeFileIfAllowed(
   path: string,
   content: string,
@@ -188,7 +165,6 @@ function writeFileIfAllowed(
   streams.out(`${existed ? "overwrote" : "created"} ${label}\n`);
 }
 
-/** Resolves the provider from the flag or an interactive prompt; reports and returns undefined on error. */
 async function resolveProvider(
   opts: InitOpts,
   interactive: boolean,
@@ -212,7 +188,6 @@ async function resolveProvider(
   return value;
 }
 
-/** A flag value, or an interactive prompt with a default, or the default when non-interactive. */
 async function resolveValue(
   flag: string | undefined,
   interactive: boolean,
@@ -231,18 +206,6 @@ async function resolveValue(
   return answer === "" ? fallback : answer;
 }
 
-/**
- * Runs the `init` command: scaffolds a verbatra config and a .env.example, and gitignores the real
- * .env. Prompts only when stdin is a TTY and --yes is absent, so init runs unattended in CI; it
- * never writes a real key. The assembled config is validated against the real schema before
- * anything is written, so a scaffolding bug fails with a clear message instead of an invalid file.
- *
- * @param opts - The parsed `init` flags.
- * @param streams - The output sink; init writes only human-readable status, never a key value.
- * @param deps - Injected prompting seams (ask, isTty); defaults to the real readline/TTY seam.
- * @returns 0 on success (including safe skips), 2 on a usage error (missing/unknown provider or an
- *   internally invalid scaffold).
- */
 export async function runInit(
   opts: InitOpts,
   streams: Streams,
@@ -281,12 +244,13 @@ export async function runInit(
   const inputs: Inputs = { sourceLocale, targetLocales, filesPattern, provider };
   const { format, detected } = detectFormat(cwd);
 
+  const providerOptions = buildProviderOptions(provider);
   const candidate = {
     sourceLocale,
     targetLocales,
     format,
     files: { pattern: filesPattern },
-    provider: buildProviderConfig(provider),
+    provider: { id: provider, options: providerOptions },
   };
   const validated = verbatraConfigSchema.safeParse(candidate);
   if (!validated.success) {
@@ -295,11 +259,11 @@ export async function runInit(
     return 2;
   }
 
-  const importName = readPackageName();
+  const importName = readPackageManifest().name;
   const force = opts.force === true;
   writeFileIfAllowed(
     resolve(cwd, "verbatra.config.ts"),
-    renderConfig(inputs, format, detected, importName),
+    renderConfig({ inputs, format, detected, importName, providerOptions }),
     force,
     "verbatra.config.ts",
     streams,

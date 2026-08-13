@@ -19,25 +19,15 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-/** The `check --json` payload this suite asserts against; mirrors the SDK's `CheckSummary`. */
 interface CheckSummaryJson {
   inSync: boolean;
   locales: { locale: string; missing: number }[];
 }
 
-/**
- * Asserts that a one-shot `--json` stdout is exactly one JSON document. The contract is a single
- * record with no extra newline, and execa has already stripped the one trailing newline, so a
- * stdout holding no line break at all is what proves nothing else was written to the stream.
- */
 function expectSingleJsonDocument(stdout: string): void {
   expect(stdout).not.toContain("\n");
 }
 
-/**
- * Unwraps a success envelope for `command` and returns its payload, failing the test with the
- * reported code when the run produced an error envelope instead.
- */
 function expectSuccessPayload<TResult>(stdout: string, command: string): TResult {
   expectSingleJsonDocument(stdout);
   const envelope = parseEnvelope<TResult>(stdout);
@@ -51,7 +41,6 @@ function expectSuccessPayload<TResult>(stdout: string, command: string): TResult
   return envelope.result;
 }
 
-/** Narrows an envelope to its failure shape, checking the fields every error record shares. */
 function expectErrorEnvelope(envelope: JsonEnvelope<unknown>, command: string): ErrorEnvelope {
   if (envelope.ok) {
     throw new Error(`Expected a ${command} error envelope, got a success record`);
@@ -61,7 +50,6 @@ function expectErrorEnvelope(envelope: JsonEnvelope<unknown>, command: string): 
   return envelope;
 }
 
-/** Positions coupled to @verbatra/exchange's fixed workbook layout (see its layout.ts). */
 const HEADER_ROW = 1;
 const TRANSLATION_COLUMN = 5;
 const INSTRUCTIONS_SHEET = "Instructions";
@@ -175,10 +163,6 @@ describe("translate --dry-run (no provider)", () => {
 });
 
 describe("export then import round-trip (no provider)", () => {
-  /**
-   * Simulates a translator: fills only the Translation column so the hidden source-hash column
-   * survives the round-trip and import can match rows back to their keys.
-   */
   it("applies a human-filled workbook back into the locale files", async () => {
     const dir = await seedProject("import-roundtrip", i18nextConfig, {
       "locales/en.json": { greeting: "Hello {{name}}", farewell: "Goodbye" },
@@ -223,8 +207,6 @@ describe("export then import round-trip (no provider)", () => {
 
 describe("a locale whose directory does not exist yet", () => {
   it("imports into a nested per-locale path, creating the directory", async () => {
-    // The locale lives in a directory rather than the filename, which is the standard i18next
-    // namespace layout. locales/de/ does not exist, so writing the target has to create it.
     const dir = await seedProject(
       "nested-locale-path",
       { ...i18nextConfig, files: { pattern: "locales/{locale}/common.json" } },
@@ -291,7 +273,6 @@ describe("other formats (read-only, no provider)", () => {
     expect(de?.missing).toBe(1);
   });
 
-  /** The "@@locale" key is ARB metadata, stripped before diffing, so only "farewell" counts as missing. */
   it("checks a Flutter ARB project", async () => {
     const dir = await seedProject(
       "arb-check",
@@ -328,11 +309,6 @@ describe("other formats (read-only, no provider)", () => {
     expect(de?.missing).toBe(1);
   });
 
-  /**
-   * The properties analogue of the i18next round-trip: fills the missing key with a value that keeps
-   * its `{0}` MessageFormat placeholder, so the placeholder-integrity path passes and import applies
-   * the row back into the `.properties` target (read as raw text, not JSON).
-   */
   it("applies a human-filled workbook back into a .properties target file", async () => {
     const dir = await seedProject(
       "properties-roundtrip",
@@ -402,14 +378,6 @@ describe("init (no provider)", () => {
 });
 
 describe("config errors (no provider)", () => {
-  /**
-   * Uses a fresh temp directory outside the consumer tree, so cosmiconfig's upward search cannot
-   * pick up any ambient config.
-   *
-   * Both halves of the failure contract are pinned: under `--json` stdout carries exactly one error
-   * envelope, and the human-readable stderr line stays byte-for-byte what it always was, so an
-   * exit-code-plus-stderr consumer reads the same thing a machine consumer parses.
-   */
   it("exits 2 with a config-not-found error when no config file is present", async () => {
     const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-noconfig-"));
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
@@ -472,16 +440,6 @@ describe("CLI boundary hardening (subprocess-level proof, no provider)", () => {
 });
 
 describe("watch SIGINT contract (no provider key needed)", () => {
-  /**
-   * Without an API key the initial run fails at provider construction (a structured, secret-free
-   * ProviderError) but the watcher stays up, which is enough to exercise the SIGINT contract: a
-   * single interrupt stops it cleanly with exit 0 after at least one NDJSON record.
-   *
-   * That first record is an error envelope, which is how a failed run reports itself in the stream:
-   * `ok: false` marks the run as failed and the watcher carries on rather than terminating. The code
-   * is only checked for being present, not for a specific value, so the suite does not pin the
-   * provider's error vocabulary.
-   */
   it("exits 0 on a single interrupt after emitting at least one NDJSON record", async () => {
     const dir = join(consumer.dir, "watch-sigint");
     await mkdir(dir, { recursive: true });
@@ -515,13 +473,6 @@ describe("watch SIGINT contract (no provider key needed)", () => {
 });
 
 describe("runVerbatra signal-death (no provider key needed)", () => {
-  /**
-   * Without an API key, watch stays running after its failed startup run, so it is still alive
-   * when runVerbatra's timeout fires and execa force-kills it. runVerbatra never hands back a kill
-   * handle, so the timeout is the only way to reach a still-running child through it; SIGKILL
-   * cannot be caught by the CLI's shutdown handling, making this a real signal death (the same
-   * shape as a crash or an OOM kill).
-   */
   it("reports a null exit code and the killing signal when the process is force-killed", async () => {
     const dir = join(consumer.dir, "watch-signal-death");
     await mkdir(dir, { recursive: true });

@@ -1,10 +1,9 @@
 import { ProviderError } from "../errors.js";
 import type { LlmCompletion } from "../llm/run.js";
 import { assertNotTruncated } from "../llm/truncation.js";
-import type { Usage } from "../provider.js";
+import { toUsage } from "../llm/usage.js";
 import type { GeminiResponse } from "./types.js";
 
-/** Candidate finish reasons that indicate the response was filtered/blocked. */
 const BLOCKED_FINISH_REASONS = new Set([
   "SAFETY",
   "RECITATION",
@@ -22,32 +21,6 @@ function parseContent(text: string): unknown {
   }
 }
 
-function toUsage(usage: GeminiResponse["usageMetadata"]): Usage | undefined {
-  if (usage === undefined) {
-    return undefined;
-  }
-  const { promptTokenCount, candidatesTokenCount } = usage;
-  if (typeof promptTokenCount !== "number" || typeof candidatesTokenCount !== "number") {
-    return undefined;
-  }
-  return { inputTokens: promptTokenCount, outputTokens: candidatesTokenCount };
-}
-
-/**
- * Extract schema-bound raw output from a generateContent response. Blocked, empty, or
- * safety-filtered results surface as PROVIDER_BLOCKED and a MAX_TOKENS truncation as
- * OUTPUT_TRUNCATED, both checked before the text is read so a truncated-but-valid body
- * still reports truncation. Errors here carry no key, header, or content.
- *
- * @param response - The raw generateContent response.
- * @returns The schema-bound raw output plus optional usage.
- * @throws {@link ProviderError} `PROVIDER_BLOCKED`: the prompt was blocked (a present, non-empty
- *   `blockReason`; an empty string means not blocked), there was no candidate, or the candidate was
- *   safety-filtered.
- * @throws {@link ProviderError} `OUTPUT_TRUNCATED`: the candidate stopped on the output-token limit
- *   (`MAX_TOKENS`).
- * @throws {@link ProviderError} `INVALID_RESPONSE`: the content was empty or unparseable.
- */
 export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
   const blockReason = response.promptFeedback?.blockReason;
   if (blockReason !== undefined && blockReason !== "") {
@@ -66,6 +39,9 @@ export function extractGeminiResult(response: GeminiResponse): LlmCompletion {
     throw new ProviderError("INVALID_RESPONSE", "The provider returned no translation content.");
   }
   const raw = parseContent(text);
-  const usage = toUsage(response.usageMetadata);
+  const usage = toUsage(
+    response.usageMetadata?.promptTokenCount,
+    response.usageMetadata?.candidatesTokenCount,
+  );
   return usage === undefined ? { raw } : { raw, usage };
 }

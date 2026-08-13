@@ -7,7 +7,6 @@ import { useDialogA11y } from "./use-dialog-a11y.js";
 interface DialogProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
-  /** False leaves the returned ref unattached, the way a caller that forgot to wire it would. */
   readonly attachRef?: boolean;
   readonly children?: ReactNode;
 }
@@ -21,7 +20,6 @@ function Dialog({ isOpen, onClose, attachRef = true, children }: DialogProps): R
   );
 }
 
-/** Three real, focusable controls: jsdom only moves focus to elements attached to the document. */
 const CONTENT: ReactNode = (
   <>
     <button type="button" id="first">
@@ -174,8 +172,6 @@ describe("useDialogA11y", () => {
   });
 
   it("returns focus to the element focused before opening when the dialog unmounts", () => {
-    // The opener lives outside the React root on purpose: unmounting removes the root's own DOM,
-    // which would leave focus falling back to the body no matter what the hook did.
     const opener = document.createElement("button");
     opener.type = "button";
     document.body.appendChild(opener);

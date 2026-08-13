@@ -2,15 +2,6 @@ import { SITE_URL } from "@/lib/site";
 
 export const dynamic = "force-static";
 
-/**
- * Serves /.well-known/ai.txt: an AI usage policy in the robots.txt-style
- * convention popularized for AI systems. verbatra is open source under MIT and
- * wants to be discovered, indexed, and cited by AI search and assistants, so the
- * policy is permissive (allow all) and points at the machine-readable content
- * indexes the site already publishes (llms.txt and the sitemap). This is a
- * voluntary signal: it does not replace robots.txt, which remains the mechanism
- * major AI crawlers actually honor.
- */
 export function GET(): Response {
   const body = `# ai.txt - AI usage policy for verbatra
 # ${SITE_URL}

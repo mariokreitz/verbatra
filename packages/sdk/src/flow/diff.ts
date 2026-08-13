@@ -4,41 +4,49 @@ import type { VerbatraConfig } from "../config/schema.js";
 import type { SdkFs } from "../fs.js";
 import { diffLocales } from "./diff-locales.js";
 
-/** Per-locale pending change: the key lists, not counts. */
+/** One locale's pending work in a {@link DiffSummary}, as key names rather than counts. */
 export interface LocaleDiff {
-  /** The target locale this entry reports on. */
+  /** The target locale this entry describes. */
   readonly locale: string;
-  /** Keys present in source but absent from the target; would be added by a run. */
+  /** Keys present in the source but absent from this locale. */
   readonly missing: readonly string[];
-  /** Keys whose source changed since last translated; would be re-translated. */
+  /** Keys whose source text changed since this locale was last translated. */
   readonly changed: readonly string[];
-  /** Keys present in target but absent from source; report-only, never pending. */
+  /**
+   * Keys present in this locale but no longer in the source. They are reported, never removed,
+   * unless a run is asked to prune.
+   */
   readonly orphaned: readonly string[];
-  /** True when the locale has missing or changed keys; orphaned keys do not count. */
+  /**
+   * True when this locale has missing or changed keys. Orphaned keys alone do not count as pending,
+   * because they need no translation work.
+   */
   readonly hasPendingChanges: boolean;
 }
 
-/** The aggregate read-only diff across all checked target locales. */
+/** The result of {@link diff}: per-locale key lists plus one project-wide verdict. */
 export interface DiffSummary {
-  /** True when any checked locale has pending changes. */
+  /** True when any locale has missing or changed keys. */
   readonly hasPendingChanges: boolean;
-  /** One entry per checked target locale, in config order. */
+  /** Per-locale key lists, in configured target order. */
   readonly locales: readonly LocaleDiff[];
 }
 
-/** Input for {@link diff}: the validated config and which locales to diff. */
+/** Input for {@link diff}. */
 export interface DiffInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** Subset of target locales to diff; defaults to all configured target locales. */
+  /** Restrict the report to these target locales. Defaults to every configured target locale. */
   readonly locales?: readonly string[];
 }
 
-/** Composition seam for {@link diff}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link diff}. Every field has a working default. */
 export interface DiffDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
@@ -53,18 +61,31 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
 }
 
 /**
- * Reports the exact pending change per target locale as three key lists (missing, changed,
- * orphaned), without calling a provider, writing any file, or touching the lock. The detailed
- * sibling of {@link check}. A locale's `hasPendingChanges` is driven by missing or changed only;
- * orphaned keys are reported but do not flip it, since a default `translate` run does not prune.
- * The top-level `hasPendingChanges` is true when any checked locale has pending changes.
+ * Reports the per-locale drift between the source and each target locale as key names, without
+ * writing anything and without calling the provider. It answers "what exactly would a run change",
+ * where {@link check} answers "is anything pending at all".
  *
- * @param input - The validated config and which locales to diff.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The aggregate and per-locale pending change.
- * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
- *   among the configured target locales.
+ * The comparison runs against the lock-file baseline, so `changed` means the source text moved
+ * since the key was last translated rather than merely that the two strings differ. Orphaned keys
+ * are reported but never removed here; pruning happens only in {@link translate}.
+ *
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
+ *
+ * @param input - The config and the optional locale filter.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns Per-locale missing, changed, and orphaned key lists.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
  */
 export async function diff(input: DiffInput, deps: DiffDeps = {}): Promise<DiffSummary> {
   const results = await diffLocales(input, deps);

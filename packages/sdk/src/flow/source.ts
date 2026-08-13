@@ -2,19 +2,15 @@ import type { FormatAdapter, ReadResult } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { errorMessage, SdkError } from "../errors.js";
 import type { SdkFs } from "../fs.js";
-import { createLocalePathResolver } from "../locale-path/resolver.js";
+import { createLocalePathResolver, type LocalePathResolver } from "../locale-path/resolver.js";
 
-/**
- * Read the source locale file into core's IR. An absent file is a structured `SOURCE_UNREADABLE`; an
- * unreadable or invalid file is a structured `SOURCE_INVALID` wrapping the adapter's read error.
- */
-export async function readSource(
+export async function readSourceResource(
   config: VerbatraConfig,
-  cwd: string,
+  resolver: LocalePathResolver,
   fs: SdkFs,
   adapter: FormatAdapter,
 ): Promise<ReadResult> {
-  const sourcePath = createLocalePathResolver(cwd, config).pathFor(config.sourceLocale);
+  const sourcePath = resolver.pathFor(config.sourceLocale);
   if (!(await fs.fileExists(sourcePath))) {
     throw new SdkError(
       "SOURCE_UNREADABLE",
@@ -30,4 +26,13 @@ export async function readSource(
       `The source locale file at ${sourcePath} could not be read: ${detail}`,
     );
   }
+}
+
+export async function readSource(
+  config: VerbatraConfig,
+  cwd: string,
+  fs: SdkFs,
+  adapter: FormatAdapter,
+): Promise<ReadResult> {
+  return readSourceResource(config, createLocalePathResolver(cwd, config), fs, adapter);
 }

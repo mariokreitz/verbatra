@@ -9,16 +9,6 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-/**
- * The export re-zips the workbook with a workbook-structure lock, and the read no longer throws on
- * a bad row. The existing round-trip e2e re-saves the workbook through exceljs before import, which
- * strips that injected lock, so no other e2e imports the structure-locked artifact directly. This
- * test drives `verbatra import` on the exact bytes `verbatra export` produced, with no exceljs
- * touch in between, so the injected `workbookProtection` lock is still present in the file the CLI
- * import path opens. The cells are left unfilled, so import applies nothing and exits 0: the target
- * locale keeps its existing value and gains no new key.
- */
-
 let consumer: Consumer;
 
 const config = {

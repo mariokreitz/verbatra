@@ -14,79 +14,85 @@ import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.j
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
-/** Input for {@link editEntry}: the validated config, exactly one target locale/key pair, and the human-typed replacement value. */
+/** Input for {@link editEntry}. */
 export interface EditEntryInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** The target locale to write the correction into. Must be a configured target locale. */
+  /** The target locale to write to. Must be a configured target locale. */
   readonly locale: string;
-  /** The source key being corrected. Must exist in the source resource. */
+  /** The key to edit. Must exist in the source resource. */
   readonly key: string;
-  /** The human-typed replacement value. */
+  /** The new translation. It is accepted only if it passes the integrity gate. */
   readonly value: string;
 }
 
-/** Composition seam for {@link editEntry}: inject a registry and a file system for tests. No provider builder: this seam never calls a provider. */
+/** Injectable dependencies for {@link editEntry}. Every field has a working default. */
 export interface EditEntryDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
 /**
- * The two-armed result of one edit attempt: acceptance carries the newly written value; a
- * rejection carries the candidate value and which {@link gateCandidateValue} check failed it,
- * with nothing written. Deliberately has no review-reasons field: a human-typed correction never
- * touches a provider, so there is no provider-derived review signal to report.
+ * The outcome of {@link editEntry}. A rejection is data rather than an exception, because a value
+ * that fails the integrity gate is an expected editing outcome that a UI needs to explain, not a
+ * failure of the call.
  */
 export type EditEntryResult =
   | {
+      /** The value passed the integrity gate and was written. */
       readonly accepted: true;
+      /** The value now stored for the key. */
       readonly value: string;
     }
   | {
+      /** The value was refused; nothing was written and the previous translation is intact. */
       readonly accepted: false;
+      /** Which integrity rule the value broke. */
       readonly reason: IntegrityGateReason;
+      /** The rejected value, echoed back so a UI can show what was refused. */
       readonly value: string;
     };
 
 /**
- * Writes exactly one human-typed correction for exactly one target locale, gated through the
- * shared {@link gateCandidateValue} before anything reaches disk. On acceptance, writes the target
- * locale file (merging just this one key into its current entries, every other key untouched) and
- * updates the lock entry for this key only (see {@link updateLockFileLocale}'s `"merge"` mode); on
- * rejection, writes nothing. Never calls a provider: {@link EditEntryDeps} has no provider seam,
- * so there is no way to construct or call one. On acceptance it also feeds the accepted value into
- * the local translation-memory cache (best-effort, keyed by the source content hash and the config
- * fingerprint), so a later run can reuse it for free; a cache failure is swallowed and never fails
- * the edit.
+ * Saves a manually edited translation for a single key. This is the write path behind a review UI:
+ * a human corrects one string and it is persisted without re-running the whole project.
  *
- * `locale` and `key` are resolved fresh on every call, never from a cache: `locale` against
- * `config.targetLocales`, `key` against the source resource read fresh from disk.
+ * The edit is held to the same integrity gate as a provider translation, so a value that drops a
+ * placeholder, breaks ICU syntax, runs away into a hugely oversized or repetition-dominated value,
+ * or blanks a non-empty string is refused. A refusal comes back as `accepted: false` rather than as
+ * a thrown error, and nothing is written.
  *
- * The target-file write and the lock-file update run inside one held `withLocaleWriteLock`
- * critical section, so no second writer for this locale can observe the target file updated but
- * the lock entry not yet, or vice versa. Reading the source, resolving the key, and selecting the
- * adapter stay outside the lock: they are read-only and need no protection.
+ * The locale's write lock is taken for the whole read-modify-write, so an edit cannot interleave
+ * with a concurrent {@link translate} run on the same locale. The gate runs inside that lock, so a
+ * refused edit takes and releases the lock as well and can therefore fail with `LOCK_CONTENDED`
+ * even though it would have written nothing. An accepted edit then updates the lock-file baseline
+ * and feeds the translation memory, which means a later run treats the key as up to date and
+ * reuses the edited text rather than paying the provider to translate it again.
  *
- * Never touches `.verbatra-local/run-status.json`: that file is rewritten wholesale by
- * `translate()`/`watch()` outside any locale lock, so patching it here would race that rewrite. A
- * key edited here stays stale in that persisted snapshot until the next real run, which self-heals
- * it since this call already advanced the lock hash.
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
  *
- * @param input - The validated config, the target locale, the source key, and the replacement value.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The two-armed {@link EditEntryResult}.
+ * @param input - The config, locale, key, and new value.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns Whether the value was accepted, and on rejection the reason.
+ *
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
- * @throws {@link SdkError} `UNKNOWN_LOCALE`: `locale` is not among `config.targetLocales`.
- * @throws {@link SdkError} `SOURCE_UNREADABLE` / `SOURCE_INVALID`: the source locale file is absent
- *   or unreadable.
- * @throws {@link SdkError} `UNKNOWN_KEY`: `key` does not exist in the source resource.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: the requested locale is not a configured target locale.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or the locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
+ * @throws {@link SdkError} `LOCK_CONTENDED`: the locale's write lock could not be acquired before
+ * the timeout elapsed.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
- *   unsupported version.
- * @throws {@link SdkError} `LOCK_CONTENDED`: this locale's write lock could not be acquired before
- *   its timeout, because another process is holding it.
+ * unsupported version.
  */
 export async function editEntry(
   input: EditEntryInput,

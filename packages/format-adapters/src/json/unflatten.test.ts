@@ -8,7 +8,6 @@ function entry(key: string, value: string): TranslationEntry {
   return { key, namespace: "n", value, placeholders: [], isPlural: false };
 }
 
-/** Collapse the ordered tree to a plain object for order-insensitive shape assertions. */
 function plain(value: unknown): unknown {
   if (value instanceof Map) {
     return Object.fromEntries([...value].map(([key, child]) => [key, plain(child)]));

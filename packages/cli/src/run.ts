@@ -1,11 +1,20 @@
-import { readFileSync } from "node:fs";
-import type { ExchangeFormat, LockWaitEvent, ProgressEvent, TranslateInput } from "@verbatra/sdk";
+import {
+  DEFAULT_EXCHANGE_FORMAT,
+  EXCHANGE_FORMATS,
+  type ExchangeFormat,
+  type LockWaitEvent,
+  type ProgressEvent,
+  type TranslateInput,
+} from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
+import { CliUsageError } from "./cli-usage-error.js";
 import { loadEnvFiles } from "./env.js";
 import { appendMissingGitignoreEntries } from "./gitignore.js";
 import { runInit } from "./init.js";
 import { renderErrorEnvelope, renderSuccessEnvelope } from "./json-envelope.js";
+import { readPackageManifest } from "./package-manifest.js";
+import { parsePositiveIntegerOption } from "./positive-integer-option.js";
 import {
   renderCheckHuman,
   renderDiffHuman,
@@ -20,24 +29,13 @@ import { runStudio } from "./studio-command.js";
 import type { CliDeps, InitOpts, RunHooks, Streams } from "./types.js";
 import { runWatch } from "./watch-session.js";
 
-/**
- * Reads this package's version for `--version`. The "../package.json" offset must resolve from both
- * src/run.ts and the bundled dist/index.js; preserve it if the tsup output depth changes.
- */
-function readPackageVersion(): string {
-  const manifestUrl = new URL("../package.json", import.meta.url);
-  const { version } = JSON.parse(readFileSync(manifestUrl, "utf8")) as { version: string };
-  return version;
-}
-
-const CLI_VERSION = readPackageVersion();
+const CLI_VERSION = readPackageManifest().version;
 
 interface SharedOpts {
   readonly cwd?: string;
   readonly config?: string;
 }
 
-/** A comma-separated locale list normalized to an array of trimmed non-empty entries (or left omitted). */
 const localeListSchema = z
   .string()
   .optional()
@@ -50,124 +48,63 @@ const localeListSchema = z
           .filter((entry) => entry.length > 0),
   );
 
-const translateOptsSchema = z.object({
+const sharedCommandOptsSchema = z.object({
   cwd: z.string().optional(),
   config: z.string().optional(),
+  json: z.boolean().optional(),
+});
+
+const translateOptsSchema = sharedCommandOptsSchema.extend({
   dryRun: z.boolean().optional(),
   prune: z.boolean().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
   cache: z.boolean().optional(),
-  json: z.boolean().optional(),
 });
 
-const watchOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const watchOptsSchema = sharedCommandOptsSchema.extend({
   debounce: z.string().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
   cache: z.boolean().optional(),
-  json: z.boolean().optional(),
 });
 type WatchOpts = z.infer<typeof watchOptsSchema>;
 
-/**
- * The interchange format flag shared by export and import; omitted means the xlsx workbook. It is
- * accepted here as a plain optional string and narrowed by {@link parseExchangeFormat}, so an
- * unsupported value is a {@link UsageError} with a readable sentence rather than a raw `ZodError`
- * rendered at the user.
- */
 const exchangeFormatSchema = z.string().optional();
 
-const exportOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const exportOptsSchema = sharedCommandOptsSchema.extend({
   out: z.string().optional(),
   locales: localeListSchema,
   includeUnchanged: z.boolean().optional(),
   format: exchangeFormatSchema,
-  json: z.boolean().optional(),
 });
 
-const importOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const importOptsSchema = sharedCommandOptsSchema.extend({
   dryRun: z.boolean().optional(),
   format: exchangeFormatSchema,
-  json: z.boolean().optional(),
 });
 
-const checkOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const checkOptsSchema = sharedCommandOptsSchema.extend({
   locales: localeListSchema,
-  json: z.boolean().optional(),
 });
 
-const diffOptsSchema = z.object({
-  cwd: z.string().optional(),
-  config: z.string().optional(),
+const diffOptsSchema = sharedCommandOptsSchema.extend({
   locales: localeListSchema,
-  json: z.boolean().optional(),
 });
 
-/** A CLI-local usage error for a malformed option value; routed to exit 2 like an `SdkError`. */
-class UsageError extends Error {
-  /** Stable, secret-free code read by {@link toRenderableError}; branch on this, not the message. */
-  readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "UsageError";
-    this.code = code;
-  }
-}
-
-/**
- * Everything the shared failure scaffolds need to report an error: where to write it, which
- * subcommand produced it, and whether the run is in `--json` mode. Built once per command
- * invocation by {@link commandContext}, before the options are validated, so a failure in the
- * parse step is reported with the same context a failure in the run body is.
- */
 interface CommandContext {
-  /** The stdout/stderr sink. */
   readonly streams: Streams;
-  /** The subcommand name; `null` only when a failure precedes subcommand resolution. */
   readonly command: string | null;
-  /** Whether `--json` is in force for this invocation. */
   readonly json: boolean;
 }
 
-/**
- * The `--json` flag alone, read off the raw commander options. Every command's own schema also
- * declares `json`, but that schema is what may fail: this minimal parse runs first so a run whose
- * options are rejected still knows it owes the caller a JSON envelope. Unknown keys are stripped
- * rather than rejected, so the full commander option object parses cleanly here.
- */
 const jsonFlagSchema = z.object({ json: z.boolean().optional() });
 
-/**
- * Builds the {@link CommandContext} for one invocation.
- *
- * @param command - The subcommand name, a compile-time constant at each call site.
- * @param rawOpts - The unvalidated commander options, read only for `--json`.
- * @param streams - The stdout/stderr sink.
- */
 function commandContext(command: string, rawOpts: unknown, streams: Streams): CommandContext {
   const parsed = jsonFlagSchema.safeParse(rawOpts);
   return { streams, command, json: parsed.success && parsed.data.json === true };
 }
 
-/**
- * Reports a caught error and returns exit `2`.
- *
- * The human-readable line goes to stderr in both modes, unchanged, so an exit-code-plus-stderr
- * consumer sees exactly what it always did. Under `--json` the same structured projection is also
- * written to stdout as one error envelope, giving a machine consumer something to parse where it
- * previously got an empty stream and a bare exit code. Both carry the identical secret-free
- * `{ code, message }`, so the envelope can leak nothing the stderr line would not have leaked.
- */
 function renderFailureExit2(error: unknown, context: CommandContext): number {
   const renderable = toRenderableError(error);
   context.streams.err(`${renderError(renderable)}\n`);
@@ -177,35 +114,17 @@ function renderFailureExit2(error: unknown, context: CommandContext): number {
   return 2;
 }
 
-/** The stable code carried by the error envelope for a commander usage failure. */
 const USAGE_ERROR_CODE = "USAGE_ERROR";
 
-/** True when raw argv asks for `--json`, read before commander could parse anything. */
 function argvRequestsJson(argv: readonly string[]): boolean {
   return argv.includes("--json");
 }
 
-/**
- * The subcommand named in raw argv, or `null` when none of the program's commands appears in it.
- * Read from argv rather than from a parsed result because a usage error can happen before commander
- * resolves a command at all, which is exactly the case {@link ErrorEnvelope.command}'s `null` is for.
- */
 function resolveCommandName(program: Command, argv: readonly string[]): string | null {
   const names = new Set(program.commands.map((command) => command.name()));
   return argv.find((token) => names.has(token)) ?? null;
 }
 
-/**
- * Reports a commander usage failure (an unknown option, a missing required argument, an unknown
- * command) and returns exit `2`.
- *
- * Commander has already written its own human-readable line to stderr through the configured
- * output, so this adds nothing there. Under `--json` it writes the one error envelope the contract
- * promises for a whole-run failure, which this is: without it a `--json` consumer piping stdout got
- * an empty stream and a bare exit code, the very gap the envelope exists to close. `--json` and the
- * command name are recovered from raw argv, since the failure happened before commander produced a
- * parsed result; an unknown command yields `null`, the documented no-command-resolved case.
- */
 function renderUsageFailureExit2(
   error: CommanderError,
   program: Command,
@@ -222,11 +141,6 @@ function renderUsageFailureExit2(
   return 2;
 }
 
-/**
- * Runs a synchronous option-parsing step inside a try that reports any parse or usage failure and
- * returns exit `2`. On success the parsed options are handed to `body`. This is the single copy of
- * the parse/render/return-2 wiring shared by every command's option parsing.
- */
 async function withParsedOpts<T>(
   parse: () => T,
   context: CommandContext,
@@ -241,20 +155,13 @@ async function withParsedOpts<T>(
   return body(opts);
 }
 
-/**
- * Parses a locale command's options and rejects a provided-but-empty `--locales` list. `localeListSchema`
- * normalizes `""` and `","` to an empty array (defined, not undefined), which would otherwise select no
- * locales and let a CI drift gate exit 0. An omitted flag stays `undefined` and is allowed.
- *
- * @throws {@link UsageError} `INVALID_LOCALES` when `locales` is provided but lists no locale.
- */
 function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[] | undefined }>(
   schema: z.ZodType<T>,
   rawOpts: unknown,
 ): T {
   const opts = schema.parse(rawOpts);
   if (opts.locales !== undefined && opts.locales.length === 0) {
-    throw new UsageError(
+    throw new CliUsageError(
       "INVALID_LOCALES",
       "The --locales option was provided but lists no locale. Pass a comma-separated list of " +
         "configured target locales, or omit --locales to use all of them.",
@@ -263,10 +170,6 @@ function parseLocaleCommandOpts<T extends { readonly locales?: readonly string[]
   return opts;
 }
 
-/**
- * Parses a locale command's options inside the shared parse/render/return-2 scaffold. On success the
- * parsed options are handed to `body`. Used by `check`, `diff`, and `export`.
- */
 async function withLocaleOpts<T extends { readonly locales?: readonly string[] | undefined }>(
   schema: z.ZodType<T>,
   rawOpts: unknown,
@@ -283,16 +186,6 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
   };
 }
 
-/**
- * Shared whole-run error scaffold for the one-shot commands: run `beforeLoad` (if given), load the
- * config, then run the body, all in one try, mapping any thrown error through
- * {@link renderFailureExit2} to exit `2`. A `1` comes only from a body that returns it without
- * throwing. The `await` on `body` is load-bearing: returning it unawaited would let a rejection
- * escape this try as an unhandled rejection.
- *
- * @param beforeLoad - An optional step (e.g. loading `.env` files) run before `loadConfig`, inside the
- *   same try, so a non-ENOENT read error is rendered structurally instead of escaping unhandled.
- */
 async function withWholeRunErrors(
   deps: CliDeps,
   context: CommandContext,
@@ -309,44 +202,25 @@ async function withWholeRunErrors(
   }
 }
 
-/**
- * Parses `--debounce` into milliseconds. An omitted flag stays `undefined` (watch applies its own
- * 300ms default). A given value must be a bare positive integer string; anything else (non-numeric,
- * zero, negative, or a unit suffix like "250ms") is a usage error, never a silent fallback to the
- * default.
- *
- * @throws {@link UsageError} `INVALID_DEBOUNCE` when `value` is not a positive integer string.
- */
 function parseDebounce(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
-    throw new UsageError(
-      "INVALID_DEBOUNCE",
-      `The --debounce option must be a positive whole number of milliseconds, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10);
+  return parsePositiveIntegerOption(value, {
+    code: "INVALID_DEBOUNCE",
+    describe: "--debounce option must be a positive whole number of milliseconds",
+    min: 1,
+  });
 }
 
-/** The handoff formats `export` and `import` accept, in the order the help text lists them. */
-const EXCHANGE_FORMATS: readonly ExchangeFormat[] = ["xlsx", "csv", "tsv"];
+const FORMAT_OPTION_DESCRIPTION = `handoff format: one of ${EXCHANGE_FORMATS.join(
+  ", ",
+)} (default ${DEFAULT_EXCHANGE_FORMAT})`;
 
-/**
- * Narrows `--format` to a supported handoff format. An omitted flag stays `undefined`, leaving the
- * SDK's own `xlsx` default in force. Any other value is a usage error, checked in the parse step so
- * the user reads one plain sentence instead of a schema dump.
- *
- * @throws {@link UsageError} `INVALID_FORMAT` when `value` is not a supported handoff format.
- */
 function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefined {
   if (value === undefined) {
     return undefined;
   }
   const format = EXCHANGE_FORMATS.find((candidate) => candidate === value);
   if (format === undefined) {
-    throw new UsageError(
+    throw new CliUsageError(
       "INVALID_FORMAT",
       `The --format option must be one of ${EXCHANGE_FORMATS.join(", ")}, got "${value}".`,
     );
@@ -354,58 +228,28 @@ function parseExchangeFormat(value: string | undefined): ExchangeFormat | undefi
   return format;
 }
 
-/**
- * Parses `--lock-timeout` (a whole number of seconds) into milliseconds. An omitted flag stays
- * `undefined` (the SDK applies the lock's own 10-minute default). A given value must be a bare positive
- * integer string; anything else (non-numeric, zero, negative, or a suffix like "60s") is a usage error,
- * never a silent fallback to the default.
- *
- * @throws {@link UsageError} `INVALID_LOCK_TIMEOUT` when `value` is not a positive integer string.
- */
 function parseLockTimeout(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) <= 0) {
-    throw new UsageError(
-      "INVALID_LOCK_TIMEOUT",
-      `The --lock-timeout option must be a positive whole number of seconds, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10) * 1000;
+  const seconds = parsePositiveIntegerOption(value, {
+    code: "INVALID_LOCK_TIMEOUT",
+    describe: "--lock-timeout option must be a positive whole number of seconds",
+    min: 1,
+  });
+  return seconds === undefined ? undefined : seconds * 1000;
 }
 
-/**
- * Parses `--concurrency` (how many locales run at once) into a positive integer. An omitted flag
- * stays `undefined` (the SDK applies its default of 1). A given value must be a bare positive integer
- * string; anything else (non-numeric, zero, negative, or a decimal) is a usage error, never a silent
- * fallback to the default.
- *
- * @throws {@link UsageError} `INVALID_CONCURRENCY` when `value` is not a positive integer string.
- */
 function parseConcurrency(value: string | undefined): number | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  if (!/^\d+$/.test(value) || Number.parseInt(value, 10) < 1) {
-    throw new UsageError(
-      "INVALID_CONCURRENCY",
-      `The --concurrency option must be a positive whole number, got "${value}".`,
-    );
-  }
-  return Number.parseInt(value, 10);
+  return parsePositiveIntegerOption(value, {
+    code: "INVALID_CONCURRENCY",
+    describe: "--concurrency option must be a positive whole number",
+    min: 1,
+  });
 }
 
-/** `translateOptsSchema`'s shape plus the lock timeout and concurrency already parsed to numbers. */
 interface ParsedTranslateOpts extends z.infer<typeof translateOptsSchema> {
   readonly lockAcquireTimeoutMs?: number;
   readonly concurrencyValue?: number;
 }
 
-/**
- * Parses and validates the `translate` command's options: the zod schema shape, then `--lock-timeout`
- * and `--concurrency` on top, so a single {@link withParsedOpts} call covers any failure.
- */
 function parseTranslateCommandOpts(rawOpts: unknown): ParsedTranslateOpts {
   const opts = translateOptsSchema.parse(rawOpts);
   const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
@@ -417,34 +261,18 @@ function parseTranslateCommandOpts(rawOpts: unknown): ParsedTranslateOpts {
   };
 }
 
-/**
- * Builds the `onLockWait` callback the CLI hands to a run: it renders each wait-progress event to
- * stderr, never stdout, so a `--json` run's stdout (the run summary or NDJSON stream) is never
- * corrupted by progress output.
- */
 function lockWaitReporter(streams: Streams, json: boolean): (event: LockWaitEvent) => void {
   return (event) => {
     streams.err(`${renderLockWait(event, json)}\n`);
   };
 }
 
-/**
- * Builds the `onProgress` callback the CLI hands to a run: it renders each progress event to stderr,
- * never stdout, so a `--json` run's stdout (the run summary or NDJSON stream) is never corrupted by
- * progress output. Mirrors {@link lockWaitReporter}.
- */
 function progressReporter(streams: Streams, json: boolean): (event: ProgressEvent) => void {
   return (event) => {
     streams.err(`${renderProgress(event, json)}\n`);
   };
 }
 
-/**
- * Assembles the {@link TranslateInput} for one `translate` run: the resolved config and cwd, the
- * stderr progress reporters, and every optional flag conditionally spread so an unset flag stays
- * absent (for `exactOptionalPropertyTypes`). Extracted from the run body to keep that body's
- * cognitive complexity within budget.
- */
 function buildTranslateInput(
   opts: ParsedTranslateOpts,
   config: TranslateInput["config"],
@@ -467,11 +295,6 @@ function buildTranslateInput(
   };
 }
 
-/**
- * Runs the `translate` command. Exported so a test can call it directly with a malformed `rawOpts`
- * object: every field on `translateOptsSchema` is an optional string or boolean, which real commander
- * argv always produces correctly, so no CLI flag can organically trigger a `ZodError` for this command.
- */
 export async function runTranslate(
   rawOpts: unknown,
   deps: CliDeps,
@@ -503,18 +326,12 @@ export async function runTranslate(
   );
 }
 
-/** `watchOptsSchema`'s shape plus the debounce, lock-timeout, and concurrency values already parsed. */
 interface ParsedWatchOpts extends WatchOpts {
   readonly debounceMs?: number;
   readonly lockAcquireTimeoutMs?: number;
   readonly concurrencyValue?: number;
 }
 
-/**
- * Parses and validates the `watch` command's options: the zod schema shape, then `--debounce`,
- * `--lock-timeout`, and `--concurrency` on top. All run here so a single {@link withParsedOpts} call
- * covers any failure.
- */
 function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
   const opts = watchOptsSchema.parse(rawOpts);
   const debounceMs = parseDebounce(opts.debounce);
@@ -571,11 +388,6 @@ async function runWatchCommand(
   );
 }
 
-/**
- * Runs the `studio` command: starts Verbatra Studio. `runStudio` resolves once startup either succeeds
- * (the server is bound and the banner printed) or fails (a rendered error and exit `2`); either way
- * the hook is wired to the returned session so a later SIGINT/SIGTERM can request a clean shutdown.
- */
 async function runStudioCommand(
   rawOpts: unknown,
   deps: CliDeps,
@@ -587,10 +399,6 @@ async function runStudioCommand(
   return session.done;
 }
 
-/**
- * Runs the `export` command. Returns `0` on success and `2` when the run could not start. Export has
- * no per-locale failure mode, so it never returns `1`.
- */
 async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const context = commandContext("export", rawOpts, streams);
   return withParsedOpts(
@@ -626,14 +434,6 @@ async function runExport(rawOpts: unknown, deps: CliDeps, streams: Streams): Pro
   );
 }
 
-/**
- * Runs the `import` command. Exit codes match `translate`: `0` all locales succeeded, `1` a locale
- * failed, `2` the run could not start. Exported for the same reason as {@link runTranslate}: every
- * field on `importOptsSchema` is an optional string or boolean, and the one value with a closed set,
- * `--format`, is narrowed afterwards by {@link parseExchangeFormat} as a {@link UsageError} rather
- * than by the schema, so no CLI flag can organically trigger a `ZodError`; a test calls this directly
- * with a malformed `rawOpts` instead.
- */
 export async function runImport(
   workbook: string,
   rawOpts: unknown,
@@ -674,10 +474,6 @@ export async function runImport(
   );
 }
 
-/**
- * Runs the read-only `check` command. Exit codes: `0` every locale in sync, `1` at least one locale
- * has a missing or stale key, `2` the run could not start.
- */
 async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const context = commandContext("check", rawOpts, streams);
   return withLocaleOpts(checkOptsSchema, rawOpts, context, async (opts) => {
@@ -703,10 +499,6 @@ async function runCheck(rawOpts: unknown, deps: CliDeps, streams: Streams): Prom
   });
 }
 
-/**
- * Runs the read-only `diff` command. Exit codes: `0` no pending changes, `1` at least one locale has a
- * missing or changed key (orphaned keys alone never produce `1`), `2` the run could not start.
- */
 async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
   const context = commandContext("diff", rawOpts, streams);
   return withLocaleOpts(diffOptsSchema, rawOpts, context, async (opts) => {
@@ -732,23 +524,14 @@ async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promi
   });
 }
 
-/** Builds the commander program: every subcommand with its flags, help text, and action wiring. */
-function buildProgram(
-  deps: CliDeps,
-  streams: Streams,
-  hooks: RunHooks,
-  setCode: (code: number) => void,
-): Command {
-  const program = new Command();
-  program
-    .name("verbatra")
-    .description(
-      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
-    )
-    .version(CLI_VERSION)
-    .exitOverride()
-    .configureOutput({ writeOut: (s) => streams.out(s), writeErr: (s) => streams.err(s) });
+interface ProgramContext {
+  readonly deps: CliDeps;
+  readonly streams: Streams;
+  readonly hooks: RunHooks;
+  readonly setCode: (code: number) => void;
+}
 
+function registerTranslateCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("translate")
     .description("Translate every target locale once, then exit")
@@ -773,7 +556,7 @@ function buildProgram(
     )
     .option("--json", "print the run summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runTranslate(opts, deps, streams));
+      ctx.setCode(await runTranslate(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -787,7 +570,9 @@ function buildProgram(
         "  $ verbatra translate --json          machine-readable summary on stdout",
       ].join("\n"),
     );
+}
 
+function registerWatchCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("watch")
     .description("Re-translate on every source change until interrupted")
@@ -811,9 +596,11 @@ function buildProgram(
     )
     .option("--json", "print each run as one NDJSON record")
     .action(async (opts: unknown) => {
-      setCode(await runWatchCommand(opts, deps, streams, hooks));
+      ctx.setCode(await runWatchCommand(opts, ctx.deps, ctx.streams, ctx.hooks));
     });
+}
 
+function registerExportCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("export")
     .description(
@@ -827,10 +614,10 @@ function buildProgram(
     )
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--include-unchanged", "also export already up-to-date strings (off by default)")
-    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
+    .option("--format <format>", FORMAT_OPTION_DESCRIPTION)
     .option("--json", "print the export result as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runExport(opts, deps, streams));
+      ctx.setCode(await runExport(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -843,7 +630,9 @@ function buildProgram(
         "  $ verbatra export --format csv          write one <locale>.csv per locale into a directory",
       ].join("\n"),
     );
+}
 
+function registerImportCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("import")
     .argument(
@@ -856,10 +645,10 @@ function buildProgram(
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
     .option("--dry-run", "validate and report without writing locale files or updating the lock")
-    .option("--format <format>", "handoff format: xlsx (default), csv, or tsv")
+    .option("--format <format>", FORMAT_OPTION_DESCRIPTION)
     .option("--json", "print the run summary as JSON")
     .action(async (workbook: string, opts: unknown) => {
-      setCode(await runImport(workbook, opts, deps, streams));
+      ctx.setCode(await runImport(workbook, opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -871,7 +660,9 @@ function buildProgram(
         "  $ verbatra import handoff --format csv          import every <locale>.csv in the directory",
       ].join("\n"),
     );
+}
 
+function registerCheckCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("check")
     .description("Report which keys are missing or stale per locale without writing files")
@@ -880,7 +671,7 @@ function buildProgram(
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--json", "print the check summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runCheck(opts, deps, streams));
+      ctx.setCode(await runCheck(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -892,7 +683,9 @@ function buildProgram(
         "  $ verbatra check --json           machine-readable status on stdout for CI",
       ].join("\n"),
     );
+}
 
+function registerDiffCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("diff")
     .description(
@@ -903,7 +696,7 @@ function buildProgram(
     .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--json", "print the diff summary as JSON")
     .action(async (opts: unknown) => {
-      setCode(await runDiff(opts, deps, streams));
+      ctx.setCode(await runDiff(opts, ctx.deps, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -915,7 +708,9 @@ function buildProgram(
         "  $ verbatra diff --json           machine-readable key lists on stdout for CI",
       ].join("\n"),
     );
+}
 
+function registerStudioCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("studio")
     .description("Start Verbatra Studio, the local translation dashboard")
@@ -931,7 +726,7 @@ function buildProgram(
       "register Studio's RPC methods as WebMCP agent tools in the browser (also: VERBATRA_STUDIO_AGENT_TOOLS)",
     )
     .action(async (opts: unknown) => {
-      setCode(await runStudioCommand(opts, deps, streams, hooks));
+      ctx.setCode(await runStudioCommand(opts, ctx.deps, ctx.streams, ctx.hooks));
     })
     .addHelpText(
       "after",
@@ -944,7 +739,9 @@ function buildProgram(
         "  $ verbatra studio --expose-agent-tools start Studio with the WebMCP agent tools enabled",
       ].join("\n"),
     );
+}
 
+function registerInitCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("init")
     .description("Create a verbatra config and .env example for this project")
@@ -962,7 +759,7 @@ function buildProgram(
     .option("--yes", "skip prompts and accept the defaults")
     .option("--force", "overwrite an existing config or .env.example")
     .action(async (opts: InitOpts) => {
-      setCode(await runInit(opts, streams));
+      ctx.setCode(await runInit(opts, ctx.streams));
     })
     .addHelpText(
       "after",
@@ -973,27 +770,37 @@ function buildProgram(
         "  $ verbatra init --provider deepl --yes      non-interactive, accept all defaults",
       ].join("\n"),
     );
+}
+
+function buildProgram(
+  deps: CliDeps,
+  streams: Streams,
+  hooks: RunHooks,
+  setCode: (code: number) => void,
+): Command {
+  const program = new Command();
+  program
+    .name("verbatra")
+    .description(
+      "Automate i18n translation and keep your locale files in sync, using a hosted or local AI or machine-translation provider",
+    )
+    .version(CLI_VERSION)
+    .exitOverride()
+    .configureOutput({ writeOut: (s) => streams.out(s), writeErr: (s) => streams.err(s) });
+
+  const ctx: ProgramContext = { deps, streams, hooks, setCode };
+  registerTranslateCommand(program, ctx);
+  registerWatchCommand(program, ctx);
+  registerExportCommand(program, ctx);
+  registerImportCommand(program, ctx);
+  registerCheckCommand(program, ctx);
+  registerDiffCommand(program, ctx);
+  registerStudioCommand(program, ctx);
+  registerInitCommand(program, ctx);
 
   return program;
 }
 
-/**
- * The CLI core: parse argv, dispatch to one SDK entry point, render, and return an exit code. It never
- * calls process.exit and never touches process streams; the bin shim wires those.
- *
- * @param argv - The user arguments (process.argv without node and the script path).
- * @param deps - The SDK entry points to call (injected so tests pass offline stubs).
- * @param streams - The stdout/stderr sink the CLI writes through.
- * @param hooks - Optional real-world wiring (e.g. attaching the signal handler to a watch session).
- * @returns The process exit code: `0` success (or `--help`/`--version`); `1` `translate`/`import`
- *   finished but some locales failed (produced nothing), or `check`/`diff` found drift/pending
- *   changes; `2` could not run (a whole-run `SdkError`, a CLI usage error, or a commander usage
- *   error); `130` `watch` or `studio` force-stopped by a second interrupt. A `partial` locale (it
- *   wrote translations but withheld some keys, which retry next run) does not fail the run: it is not
- *   in `summary.failed`, so it exits `0`.
- * @throws Re-throws a non-`CommanderError` thrown during parsing; commander usage errors are mapped to
- *   an exit code, not thrown.
- */
 export async function run(
   argv: readonly string[],
   deps: CliDeps,

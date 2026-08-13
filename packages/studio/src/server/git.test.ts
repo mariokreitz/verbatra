@@ -29,7 +29,6 @@ interface TempGitRepo {
   cleanup(): Promise<void>;
 }
 
-/** A real, on-disk git repository with the local (never global) user identity set, ready to commit into. */
 async function makeTempGitRepo(): Promise<TempGitRepo> {
   const root = await mkdtemp(join(tmpdir(), "verbatra-studio-git-"));
   await runGit(root, ["init", "-q"]);
@@ -218,7 +217,6 @@ describe("parseGitLogOutput", () => {
   });
 });
 
-/** An {@link ExecFileImpl} stub that also exposes the vitest mock's call log, for argv assertions. */
 type MockedExecFile = ExecFileImpl & { readonly mock: { readonly calls: readonly unknown[][] } };
 
 function resolvedExecFile(stdout: string, stderr = ""): MockedExecFile {

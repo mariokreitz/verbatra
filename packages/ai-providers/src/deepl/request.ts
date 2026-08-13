@@ -1,7 +1,6 @@
 import type { ProviderNotice, Tone } from "../provider.js";
 import type { DeepLTranslateOptions } from "./types.js";
 
-/** Inputs to the option builder, all derived from config, key, and request, with no key value. */
 export interface TranslateOptionsInput {
   readonly tone?: Tone;
   readonly freeAccount: boolean;
@@ -14,13 +13,6 @@ const FORMALITY_DOWNGRADED_MESSAGE =
 const GLOSSARY_IGNORED_MESSAGE =
   "The supplied glossary term map was not applied: DeepL uses configured glossary IDs, not term maps.";
 
-/**
- * Build the translateText options and the observable degradation notices. Tone maps to
- * formality (formal -> "more", informal -> "less", neutral/absent -> omitted). On a free
- * (":fx") key a non-default tone degrades to default formality with a FORMALITY_DOWNGRADED
- * notice; a supplied generic term map is ignored with a GLOSSARY_IGNORED notice. Notices
- * carry only a stable code and a static message, never a key or content.
- */
 export function buildTranslateOptions(input: TranslateOptionsInput): {
   options: DeepLTranslateOptions;
   notices: ProviderNotice[];

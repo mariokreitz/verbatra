@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { ReviewRowActions } from "./ReviewRowActions.js";
 import { click, render } from "./test-support.js";
 
-/** The three row callbacks as spies, so a test can spread them straight onto the component. */
 interface Handlers {
   readonly onApprove: Mock<() => void>;
   readonly onReject: Mock<() => void>;

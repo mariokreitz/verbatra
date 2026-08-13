@@ -18,8 +18,11 @@ verbatra studio [flags]
 | `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
 | `--port` | `<n>` | `5849` | auf diesem Port lauschen; muss eine Ganzzahl von 1 bis 65535 sein |
 | `--allow-spend` | keins | aus | Studio erlauben, einen Übersetzungs-Provider aufzurufen (einen Key neu übersetzen, ausstehende Änderungen übersetzen) |
+| `--expose-agent-tools` | keins | aus | die Review-Aktionen von Studio als WebMCP-Tools registrieren, damit ein KI-Agent im Browser sie bedienen kann |
 
 Wenn das Flag `--allow-spend` fehlt, liest Studio stattdessen die Umgebungsvariable `VERBATRA_STUDIO_ALLOW_SPEND`: `1`, `true`, `yes` oder `on` (Groß- und Kleinschreibung egal) zählt als an. Das CLI-Flag gewinnt immer über die Umgebungsvariable. Ohne beides kontaktiert Studio nie einen Provider; lokales Bearbeiten braucht kein Flag.
+
+`--expose-agent-tools` wird genauso aus `VERBATRA_STUDIO_AGENT_TOOLS` aufgelöst, mit derselben Menge gültiger Werte und derselben Regel, dass das CLI-Flag gegen die Variable gewinnt. Es ist standardmäßig aus. Ausgaben durch einen Agenten setzen sowohl dieses Flag als auch `--allow-spend` voraus; keines der Flags impliziert das andere. Den Tool-Katalog und das Sicherheitsmodell findest du unter [Studio mit einem Browser-Agenten bedienen](/docs/agent-tools-in-studio).
 
 ## Die ausgegebene URL
 
@@ -63,4 +66,5 @@ verbatra studio --allow-spend --port 6000
 ## Siehe auch
 
 - [Review in Studio](/docs/review-in-studio) führt durch die Seite Übersetzungen, die Review-Warteschlange und das Neuübersetzen mit `--allow-spend`.
+- [Studio mit einem Browser-Agenten bedienen](/docs/agent-tools-in-studio) behandelt `--expose-agent-tools` und die WebMCP-Tools.
 - [`verbatra check`](/docs/cli/check) und [`verbatra diff`](/docs/cli/diff) sind dieselben Berechnungen, die Studio live zeigt.

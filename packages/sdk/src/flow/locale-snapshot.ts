@@ -6,44 +6,58 @@ import { selectAdapter } from "../selection/select-adapter.js";
 import { readTarget } from "./diff-locales.js";
 
 /**
- * One locale file reduced to a content hash per key, taken at one point in time. Two snapshots of
- * the same file can be compared with {@link diffLocaleSnapshots} to count what changed between
- * them.
+ * One locale file reduced to a per-key content hash. Holding hashes rather than values keeps a
+ * long-lived watcher's memory flat in the size of the translations and makes comparison a cheap
+ * equality check.
  */
 export interface LocaleFileSnapshot {
-  /** The locale this snapshot was read for (the configured source locale or a target locale). */
+  /** The locale this snapshot was taken for. */
   readonly locale: string;
-  /** Content hash per key, from core's `contentHash`. */
+  /** Content hash per key, in the order the adapter read them. */
   readonly hashes: ReadonlyMap<string, string>;
 }
 
-/** Input for {@link readLocaleFileSnapshot}: the validated config and which locale to snapshot. */
+/** Input for {@link readLocaleFileSnapshot}. */
 export interface ReadLocaleFileSnapshotInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** The locale to snapshot: the configured source locale or any configured target locale. */
+  /**
+   * The locale file to snapshot. Unlike most entry points this is not checked against the
+   * configured target locales, so the source locale can be snapshotted too.
+   */
   readonly locale: string;
-  /** Directory the file pattern resolves against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
 }
 
-/** Composition seam for {@link readLocaleFileSnapshot}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link readLocaleFileSnapshot}. Every field has a working default. */
 export interface ReadLocaleFileSnapshotDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
 /**
- * Reads one locale file through the configured adapter and reduces it to a content hash per key.
- * Uses the same tolerant read path as {@link readTarget}: a file that does not exist yet reads as
- * an empty snapshot rather than throwing, so a caller can establish a baseline before a locale's
- * first write.
+ * Reads one locale file as a per-key content hash. Together with {@link diffLocaleSnapshots} this
+ * is the building block for a live-refresh watcher: hold a snapshot, re-read on a file event, and
+ * compare the two to learn what actually changed.
  *
- * @param input - The validated config, the locale to snapshot, and the directory to resolve against.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The locale's per-key content hash snapshot.
- * @throws {@link SdkError} `UNKNOWN_FORMAT` when the configured format has no registered adapter;
- *   rejects with the adapter's own error when the file exists but its content is malformed.
+ * A locale file that does not exist yet reads as an empty snapshot rather than an error, so a
+ * watcher can start before the first translation run has written anything.
+ *
+ * Note that this entry point does not validate the locale against the configured targets, and that
+ * a malformed target file surfaces the adapter's own parse error rather than a wrapped
+ * {@link SdkError}, because no source-file contract is being asserted here.
+ *
+ * @param input - The config and the locale to snapshot.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns The locale's per-key content hashes.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
  */
 export async function readLocaleFileSnapshot(
   input: ReadLocaleFileSnapshotInput,
@@ -60,23 +74,27 @@ export async function readLocaleFileSnapshot(
   return { locale: input.locale, hashes };
 }
 
-/** A locale file's added, changed, and removed key counts between two of its own snapshots. Counts only, never key names. */
+/** How many keys were added, changed, and removed between two {@link LocaleFileSnapshot}s. */
 export interface LocaleSnapshotDelta {
+  /** Keys present in the current snapshot but not the previous one. */
   readonly added: number;
+  /** Keys present in both snapshots whose content hash differs. */
   readonly changed: number;
+  /** Keys present in the previous snapshot but not the current one. */
   readonly removed: number;
 }
 
 /**
- * Compares two snapshots of the same locale file, taken at different points in time, and counts
- * how many keys were added, changed, or removed. A direct key-to-hash comparison rather than
- * core's `diffResources`: that function's source/target/baseline shape exists for cross-resource
- * comparison, and forcing a same-file, two-points-in-time comparison through it would need a
- * confusing relabeling (missing becomes removed, orphaned becomes added).
+ * Compares two {@link LocaleFileSnapshot}s and counts what moved. It is pure, synchronous, and
+ * touches no file system, so a watcher can call it on every file event without cost.
  *
- * @param previous - The earlier snapshot of the file.
- * @param current - The later snapshot of the same file.
- * @returns The counts of keys added, changed, and removed between the two snapshots.
+ * The two snapshots are compared by key and content hash alone; neither the locale names nor the
+ * order are consulted, so passing snapshots of two different locales compares them rather than
+ * failing.
+ *
+ * @param previous - The earlier snapshot.
+ * @param current - The later snapshot.
+ * @returns The added, changed, and removed key counts.
  */
 export function diffLocaleSnapshots(
   previous: LocaleFileSnapshot,

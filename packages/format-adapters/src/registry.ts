@@ -1,37 +1,62 @@
 import type { SupportedFormat } from "@verbatra/core";
 import type { FormatAdapter } from "./adapter.js";
 
-/** Outcome of resolving an adapter for a file. Structured; never throws. */
+/**
+ * Outcome of resolving an adapter for a file. Structured, never thrown: an unresolvable file is a
+ * status the caller branches on, not an exception.
+ *
+ * `resolved` carries the single {@link FormatAdapter} to use. `no-match` means nothing claimed the
+ * file, and reports the formats that were tried (every registered format for a detection attempt, or
+ * just the one requested when an explicit format was given). `ambiguous` means more than one adapter
+ * claimed the file, which is routine since every JSON adapter claims `.json`; it reports the competing
+ * candidates instead of guessing, and the caller resolves it by naming a format explicitly.
+ */
 export type AdapterResolution =
-  | { readonly status: "resolved"; readonly adapter: FormatAdapter }
   | {
+      /** Exactly one adapter claimed the file. */
+      readonly status: "resolved";
+      /** The adapter to read and write the file with. */
+      readonly adapter: FormatAdapter;
+    }
+  | {
+      /** No registered adapter claimed the file. */
       readonly status: "no-match";
+      /** The file that could not be matched. */
       readonly filePath: string;
+      /**
+       * The formats that were tried: every registered format for a detection attempt, or just the
+       * one requested when an explicit format was given.
+       */
       readonly triedFormats: readonly SupportedFormat[];
     }
   | {
+      /** More than one adapter claimed the file, so detection cannot choose between them. */
       readonly status: "ambiguous";
+      /** The file that several adapters claimed. */
       readonly filePath: string;
+      /** The competing formats. Resolve the ambiguity by naming one of them explicitly. */
       readonly candidates: readonly SupportedFormat[];
     };
 
 /** Options for {@link AdapterRegistry.resolve}: select a format explicitly, or aid detection. */
 export interface ResolveOptions {
-  /** A content sample to aid detection. */
+  /** A leading content sample to aid detection. Ignored when `format` is given. */
   readonly sample?: string;
   /** Bypass detection and select this format explicitly. */
   readonly format?: SupportedFormat;
 }
 
 /**
- * Holds the registered adapters and resolves one for a file. Open for extension:
- * adapters attach through register without changing resolution logic.
+ * Holds the registered adapters and resolves one for a file. Open for extension: adapters attach
+ * through {@link AdapterRegistry.register} without changing resolution logic, and resolution never
+ * throws.
  */
 export class AdapterRegistry {
   private readonly adapters: FormatAdapter[] = [];
 
   /**
-   * Register an adapter.
+   * Register an adapter. Registration order is the order detection consults them, and a format may be
+   * registered more than once, in which case an explicit-format lookup takes the first.
    *
    * @param adapter - The adapter to add.
    * @returns This registry, for chaining.
@@ -53,11 +78,6 @@ export class AdapterRegistry {
     return { status: "resolved", adapter };
   }
 
-  /**
-   * Resolve by asking every registered adapter's `canHandle`. Several adapters can claim one file
-   * (all JSON adapters claim `.json`), so more than one match is reported as `ambiguous` rather
-   * than guessed at.
-   */
   private resolveByDetection(filePath: string, sample?: string): AdapterResolution {
     const matches = this.adapters.filter((adapter) => adapter.canHandle(filePath, sample));
     const first = matches[0];

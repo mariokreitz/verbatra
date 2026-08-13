@@ -6,39 +6,25 @@ import { Tooltip } from "./Tooltip.js";
 import { DialogCloseButton, OverlayBackdrop } from "./ui.js";
 import { useDialogA11y } from "./use-dialog-a11y.js";
 
-/** The nav data shared by {@link DesktopSidebar} and {@link MobileNavDrawer}. */
 export interface SidebarNavProps {
-  /** The daily work surfaces, rendered in the top zone. */
   readonly workPages: readonly PageId[];
-  /** The occasional-lookup pages, rendered in the bottom zone. */
   readonly referencePages: readonly PageId[];
   readonly pageLabels: Readonly<Record<PageId, string>>;
-  /** One glyph per page; the Record type makes a page without an icon a compile error. */
   readonly pageIcons: Readonly<Record<PageId, IconName>>;
-  /** Per-page attention counts. A page with a positive count renders a count
-   * chip on its nav entry; zero or absent renders nothing. */
   readonly pageBadges?: Readonly<Partial<Record<PageId, number>>>;
   readonly activePage: PageId;
   readonly onSelectPage: (page: PageId) => void;
 }
 
-/** Caps the rendered count at "99+" so an enormous queue cannot stretch the rail. */
 function formatBadgeCount(count: number): string {
   return count > 99 ? "99+" : String(count);
 }
 
-/** Props for {@link DesktopSidebar}. */
 export interface DesktopSidebarProps extends SidebarNavProps {
-  /** Whether the rail is collapsed to icons only. Persisted by the caller. */
   readonly collapsed: boolean;
   readonly onToggleCollapsed: () => void;
 }
 
-/**
- * Classes for one rail item. The rail is a constant dark surface in both
- * themes, so these speak the sidebar-* token vocabulary rather than the
- * theme-responsive one.
- */
 function navItemClassName(isActive: boolean, collapsed: boolean): string {
   return cn(
     "relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-sidebar-muted transition-colors",
@@ -52,8 +38,6 @@ function navItemClassName(isActive: boolean, collapsed: boolean): string {
   );
 }
 
-/** The "V" mark plus the two-line wordmark, shared by the desktop sidebar
- * (mark only while collapsed) and the mobile nav drawer. */
 function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): ReactNode {
   return (
     <div className={cn("flex items-center gap-2.5 py-2", collapsed ? "justify-center" : "px-2.5")}>
@@ -75,7 +59,6 @@ function SidebarBrand({ collapsed = false }: { readonly collapsed?: boolean }): 
   );
 }
 
-/** A zone's uppercase group label; hidden on the collapsed rail. */
 function ZoneLabel({
   children,
   collapsed,
@@ -93,10 +76,6 @@ function ZoneLabel({
   );
 }
 
-/** One nav entry: icon plus label when expanded, a tooltip-labeled icon on
- * the collapsed rail. A positive `badge` renders a count chip (inline-end
- * expanded, overlaid on the icon collapsed); the count reaches assistive
- * technology through the accessible name, never the chip itself. */
 function NavItem({
   page,
   label,
@@ -153,7 +132,6 @@ function NavItem({
   return <Tooltip label={countedLabel}>{button}</Tooltip>;
 }
 
-/** One zone's nav list: a named `<nav>` of items under its zone label. */
 function NavList({
   pages,
   navLabel,
@@ -188,8 +166,6 @@ function NavList({
   );
 }
 
-/** The documentation and issue-tracker links in the rail's footer. Plain
- * external links, opened in a new tab. */
 function HelpLinks({ collapsed }: { readonly collapsed: boolean }): ReactNode {
   const links: ReadonlyArray<{
     readonly label: string;
@@ -232,7 +208,6 @@ function HelpLinks({ collapsed }: { readonly collapsed: boolean }): ReactNode {
   );
 }
 
-/** The rail's footer control: collapse (labeled) when expanded, expand (tooltip) when collapsed. */
 function CollapseToggle({
   collapsed,
   onToggleCollapsed,
@@ -274,13 +249,6 @@ function CollapseToggle({
   );
 }
 
-/**
- * The persistent nav rail shown at and above the `md` breakpoint; hidden
- * below it, where {@link MobileNavDrawer} takes over navigation. Collapses to
- * an icon-only rail whose entries keep their accessible names and gain
- * tooltips. The nav zone scrolls only while expanded: the collapsed rail
- * stays overflow-visible so tooltips are never clipped.
- */
 export function DesktopSidebar({
   collapsed,
   onToggleCollapsed,
@@ -318,11 +286,6 @@ export function DesktopSidebar({
   );
 }
 
-/** The off-canvas nav overlay for small screens: an `OverlayBackdrop` plus a
- * start-anchored panel, the mobile equivalent of {@link DesktopSidebar}.
- * Only mounted while open, so `useDialogA11y` is always called with
- * `isOpen: true`. Closing the drawer after a page selection is the caller's
- * job via `onSelectPage`. */
 export function MobileNavDrawer({
   onClose,
   ...navProps

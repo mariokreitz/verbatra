@@ -14,66 +14,76 @@ import {
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../../config/schema.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
+import { createLocalePathResolver } from "../../locale-path/resolver.js";
 import { baselineFor, lockFilePath, readLockFile } from "../../lock/lock-file.js";
 import { selectAdapter } from "../../selection/select-adapter.js";
-import { readTarget } from "../diff-locales.js";
+import { readTargetResource } from "../read-target.js";
 import { selectLocales } from "../select-locales.js";
-import { readSource } from "../source.js";
-import { type ExchangeFormat, isDelimitedFormat } from "./exchange-format.js";
+import { readSourceResource } from "../source.js";
+import {
+  DEFAULT_EXCHANGE_FORMAT,
+  type ExchangeFormat,
+  isDelimitedFormat,
+} from "./exchange-format.js";
 import { writeExportManifest } from "./export-manifest.js";
 
-/** Default workbook output path, relative to the resolved working directory. */
+/** Default output path for an `.xlsx` handoff, used when {@link ExportWorkbookInput.out} is omitted. */
 export const DEFAULT_WORKBOOK_PATH = "verbatra-translations.xlsx";
 
 /**
- * Default delimited output directory, relative to the resolved working directory. A delimited export
- * writes one file per target locale, so its output path names a directory, not a file.
+ * Default output directory for a delimited handoff. It carries no extension because it names a
+ * directory, not a file: the export creates it and writes one `<locale>.<format>` file inside it
+ * per exported locale, such as `de.csv`.
  */
 export const DEFAULT_DELIMITED_PATH = "verbatra-translations";
 
-/** Input for {@link exportWorkbook}: the validated config and where/how to run the export. */
+/** Input for {@link exportWorkbook}. */
 export interface ExportWorkbookInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern, lock-file, and output path resolve against; defaults to cwd. */
+  /** Directory the `files.pattern` and `out` are resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
   /**
-   * Output path; defaults to {@link DEFAULT_WORKBOOK_PATH} for `xlsx` and to
-   * {@link DEFAULT_DELIMITED_PATH} for `csv` and `tsv`. It is the workbook file for `xlsx` and the
-   * directory the per-locale files are written into for `csv` and `tsv` (created if missing).
+   * Where to write the handoff. Defaults to {@link DEFAULT_WORKBOOK_PATH} for `xlsx` and to
+   * {@link DEFAULT_DELIMITED_PATH} for the delimited formats.
    */
   readonly out?: string;
-  /** Subset of target locales to export; defaults to all configured target locales. */
+  /** Restrict the export to these target locales. Defaults to every configured target locale. */
   readonly locales?: readonly string[];
-  /** Include unchanged keys (off by default; export is missing-and-changed only). */
+  /**
+   * Include keys that are already up to date, not just the missing and stale ones. Useful when a
+   * translator needs the surrounding context to translate consistently. Defaults to false.
+   */
   readonly includeUnchanged?: boolean;
-  /** Interchange format to write; defaults to `xlsx`, so an existing caller is unaffected. */
+  /** The handoff shape to write. Defaults to `xlsx`. */
   readonly format?: ExchangeFormat;
 }
 
-/** Composition seam for {@link exportWorkbook}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link exportWorkbook}. Every field has a working default. */
 export interface ExportWorkbookDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
-/** The outcome of an export: where it was written and how many rows per locale. */
+/** What {@link exportWorkbook} wrote. */
 export interface ExportWorkbookResult {
-  /**
-   * The absolute path written to: the workbook file for `xlsx`, the directory holding one
-   * `<locale>.csv` or `<locale>.tsv` per exported locale for the delimited formats.
-   */
+  /** The absolute path written, or the shared base path when one file per locale was written. */
   readonly path: string;
-  /** Per-locale row counts, in config order; the same set the workbook carries. */
-  readonly locales: readonly { readonly locale: string; readonly rows: number }[];
+  /** Row counts per exported locale. */
+  readonly locales: readonly {
+    /** The exported target locale. */
+    readonly locale: string;
+    /** How many translatable rows that locale contributed. */
+    readonly rows: number;
+  }[];
 }
 
-/** A reason code's lowercase-hyphenated label, e.g. "LENGTH_RATIO_OUTLIER" -> "length-ratio-outlier". */
 function reasonLabel(reason: string): string {
   return reason.toLowerCase().replace(/_/g, "-");
 }
 
-/** Convert a recomputed {@link ReviewFlag} to the workbook row's plain-string review columns. */
 function reviewColumns(flag: ReviewFlag | undefined): {
   reviewStatus: ReviewStatus;
   reviewReasons: string;
@@ -84,11 +94,6 @@ function reviewColumns(flag: ReviewFlag | undefined): {
   return { reviewStatus: "review", reviewReasons: flag.reasons.map(reasonLabel).join(", ") };
 }
 
-/**
- * Recompute a row's review flags from on-disk source/current-target values, exactly like the
- * translate-time heuristic, but never applying PROVIDER_DEGRADED: no provider call happens during
- * export, so that fact does not exist here (see the manual-translation review-flags design).
- */
 function computeRowReview(
   adapter: FormatAdapter,
   sourceValue: string,
@@ -117,11 +122,6 @@ function computeRowReview(
   return reviewColumns(flag);
 }
 
-/**
- * Build one locale sheet's rows: missing and changed keys from the lock-baseline diff, plus
- * unchanged keys on opt-in. Rows are re-sorted by key across the status buckets so the whole sheet
- * has a deterministic total order.
- */
 function buildRows(
   source: LocaleResource,
   target: LocaleResource,
@@ -166,16 +166,6 @@ function buildRows(
   return [...rows].sort((a, b) => (a.key < b.key ? -1 : 1));
 }
 
-/**
- * Write one delimited interchange file per exported locale into the output directory, creating the
- * directory (and any missing parent) first. The file name carries the locale, since a delimited file
- * has no sheet to name it.
- *
- * Nothing already in the directory is removed: a file the user put there, and a locale file from an
- * earlier export with a wider selection, both survive untouched. What the run does instead is record
- * the locales it wrote, in the manifest written last (see {@link writeExportManifest}), so a later
- * import can tell this export's files from an earlier one's leftovers and refuse to apply the latter.
- */
 async function writeDelimitedFiles(
   fs: SdkFs,
   directory: string,
@@ -198,27 +188,35 @@ async function writeDelimitedFiles(
 }
 
 /**
- * Export the strings needing human translation into a styled `.xlsx` workbook, or into one plain
- * `.csv` or `.tsv` file per target locale. Each target locale is diffed against the source and lock
- * baseline to pick the rows (missing and changed by default; add unchanged with `includeUnchanged`),
- * and the result is written to `out`. No provider is called and no lock-file is written.
+ * Writes the strings awaiting translation to a handoff a human translator can work in: a styled
+ * `.xlsx` workbook with one sheet per locale, or one `.csv` or `.tsv` file per locale.
  *
- * The delimited formats trade the workbook's protection for a diffable, git-friendly handoff: a
- * workbook leaves only the Translation column editable and hides the source hash, while every field of
- * a delimited file is editable and its source hash is visible. An edited source hash is never trusted
- * on import; it is compared against the live source and the row is withheld as drift.
+ * By default only missing and stale keys are exported, which is what makes the handoff a work list
+ * rather than a dump of the whole project. Each row carries the source text alongside any existing
+ * translation and a review status, so the translator sees what changed and why a string was
+ * flagged.
  *
- * A delimited export also writes a small hidden manifest naming the locales it wrote. It exists so a
- * re-export with a narrower `locales` selection retires the locales it dropped: their files stay on
- * disk, but the next import recognizes them as leftovers from the earlier run and refuses to apply
- * them. The export deletes nothing, so an unrelated file in the output directory is never at risk.
+ * This is the outbound half of the exchange; {@link importWorkbook} reads the filled handoff back
+ * through the same diff, lock, and integrity checks. It writes only the handoff file and never
+ * touches the locale files or the lock-file.
  *
- * @param input - The validated config and export options.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns Where the export was written and the per-locale row counts.
- * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`, `LOCK_FILE_INVALID`
- *   with the same meanings as in `translate`, or `UNKNOWN_LOCALE` when a requested locale is not
- *   among the configured target locales.
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
+ *
+ * @param input - The config, output path, locale filter, and handoff format.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns The path written and the per-locale row counts.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
@@ -228,14 +226,21 @@ export async function exportWorkbook(
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   const locales = selectLocales(config, input.locales);
   const sheets = await Promise.all(
     locales.map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
+      const target = await readTargetResource({
+        resolver,
+        format: config.format,
+        locale,
+        adapter,
+        fs,
+      });
       const rows = buildRows(
         source.resource,
         target,
@@ -248,7 +253,7 @@ export async function exportWorkbook(
     }),
   );
 
-  const format = input.format ?? "xlsx";
+  const format = input.format ?? DEFAULT_EXCHANGE_FORMAT;
   const path = resolve(
     cwd,
     input.out ?? (isDelimitedFormat(format) ? DEFAULT_DELIMITED_PATH : DEFAULT_WORKBOOK_PATH),

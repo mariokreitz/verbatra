@@ -1,31 +1,45 @@
-import { PROVIDER_ENV, SCAFFOLD_MODELS } from "@verbatra/ai-providers";
+import { PROVIDER_ENV, SCAFFOLD_MODELS, SCAFFOLD_TOKEN_LIMIT_KEYS } from "@verbatra/ai-providers";
 import { SUPPORTED_FORMATS } from "@verbatra/core";
 import type { ProviderId } from "./config/provider-config.js";
 
 /**
- * The subset of {@link ProviderId} that `init` can scaffold: every provider with a single required
- * environment variable. "openai-compatible" is deliberately excluded: unlike every other provider it
- * has no single required environment variable, only a three-tier
- * apiKeyEnvVar/OPENAI_COMPATIBLE_API_KEY/placeholder fallback (see resolveOpenAiCompatibleKey in
- * @verbatra/ai-providers), so it does not fit the `providerEnv` table below and `init` scaffolding does
- * not offer it. This is the single source of truth for the exclusion; other packages import this type
- * rather than re-deriving `Exclude<ProviderId, "openai-compatible">` themselves.
+ * A provider that project scaffolding can offer out of the box. It excludes `openai-compatible`,
+ * which needs a `baseUrl` and a model name that only the user can supply, so there is nothing
+ * sensible to prefill.
  */
 export type ScaffoldableProviderId = Exclude<ProviderId, "openai-compatible">;
 
-/** Compile-time guard: a provider id added to the config union without an env var entry fails here. */
 const _envCoversAllProviders: Record<ScaffoldableProviderId, string> = PROVIDER_ENV;
 void _envCoversAllProviders;
 
+type ModelProviderId = Exclude<ScaffoldableProviderId, "deepl">;
+
+const _tokenLimitKeysCoverAllModelProviders: Record<ModelProviderId, string> =
+  SCAFFOLD_TOKEN_LIMIT_KEYS;
+void _tokenLimitKeysCoverAllModelProviders;
+
 /**
- * Read-only metadata the CLI `init` scaffold derives its tables from, so the CLI never restates the
- * provider, env-var, model, or format truth owned by core and ai-providers.
+ * The facts a project generator needs to write a first config: which environment variable each
+ * provider reads its API key from, a sensible starting model per provider, and the formats the SDK
+ * can handle.
+ *
+ * It is exported so that the CLI's `init` command and any third-party generator prompt with the
+ * same values the SDK actually enforces, rather than keeping a copy that drifts. Note the key names
+ * only: no key value is present or reachable here.
  */
 export const scaffoldingMetadata = {
-  /** Provider id -> the environment variable its API key is read from. Owned by ai-providers. */
+  /** The environment variable each scaffoldable provider reads its API key from. */
   providerEnv: PROVIDER_ENV,
-  /** LLM provider id -> a cosmetic default scaffold model. Owned by ai-providers. DeepL has none. */
+  /** A reasonable default model to prefill per language-model provider. DeepL has none, since it takes no model. */
   scaffoldModels: SCAFFOLD_MODELS,
-  /** The closed set of source format ids. Owned by core. */
+  /**
+   * The option key each language-model provider takes its output token limit under, since they do
+   * not agree: Anthropic calls it `maxTokens` and the others `maxOutputTokens`. A generator that
+   * prefills a token limit must read the key from here rather than assume one, because
+   * {@link verbatraConfigSchema} validates each provider's options strictly and rejects the wrong
+   * one. DeepL has no entry, since it takes no token limit.
+   */
+  providerTokenLimitKeys: SCAFFOLD_TOKEN_LIMIT_KEYS,
+  /** Every i18n file format the SDK can read and write. */
   supportedFormats: SUPPORTED_FORMATS,
 } as const;

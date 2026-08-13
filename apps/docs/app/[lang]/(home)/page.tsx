@@ -9,7 +9,7 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pillars } from "@/components/landing/pillars";
 import { ProvidersCloud } from "@/components/landing/providers-cloud";
 import { LandingHero } from "@/components/landing-hero";
-import type { Locale } from "@/lib/i18n";
+import { toLocale } from "@/lib/i18n";
 import { PACKAGE_VERSION } from "@/lib/site";
 import {
   type FaqItem,
@@ -23,11 +23,9 @@ const HOW_STEP_KEYS = ["configure", "diff", "translate", "verifyWrite"] as const
 
 export default async function HomePage(props: { params: Promise<{ lang: string }> }) {
   const { lang } = await props.params;
-  const locale = lang as Locale;
+  const locale = toLocale(lang);
   const t = await getTranslations({ locale, namespace: "landing" });
 
-  // The id is carried through so the accordion can resolve each answer as rich text, which is
-  // how the "changelog" wording becomes a link. faqPageLd strips that markup back out.
   const faqItems: ReadonlyArray<FaqEntry> = Object.entries(
     t.raw("faq.items") as Record<string, FaqItem>,
   ).map(([id, item]) => ({ ...item, id }));

@@ -1,3 +1,4 @@
+import { EXCHANGE_FORMATS } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run, runImport } from "./run.js";
@@ -53,6 +54,19 @@ describe("run export: SDK delegation and rendering", () => {
 
     expect(calls.exportWorkbook[0]).toMatchObject({ format: "csv", out: "handoff" });
   });
+
+  it.each(EXCHANGE_FORMATS)(
+    "accepts --format %s, every format the SDK enumerates",
+    async (format) => {
+      const { deps, calls } = recordingDeps();
+      const cap = captureStreams();
+
+      const code = await run(["export", "--format", format], deps, cap.streams);
+
+      expect(code).toBe(0);
+      expect(calls.exportWorkbook[0]).toMatchObject({ format });
+    },
+  );
 
   it("omits the format entirely when the flag is absent, so the SDK default applies", async () => {
     const { deps, calls } = recordingDeps();

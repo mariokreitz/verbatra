@@ -1,10 +1,10 @@
 /**
- * The port Verbatra Studio listens on when the caller does not specify one. Chosen once so the
- * printed URL is stable and bookmarkable; there is no fallback to another port if it is busy.
+ * The port Verbatra Studio binds when the caller does not name one. Fixed rather than negotiated so
+ * the printed URL stays stable and bookmarkable between runs. There is no fallback if it is already
+ * taken: startup fails with `PORT_IN_USE`, and the caller chooses another port or passes `0`.
  */
 export const DEFAULT_STUDIO_PORT = 5849;
 
-/** Resolves the port to bind: the given port when set (including 0 for an OS-assigned port used in tests), or the default. */
 export function resolvePort(port: number | undefined): number {
   return port ?? DEFAULT_STUDIO_PORT;
 }

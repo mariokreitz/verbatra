@@ -10,7 +10,6 @@ import {
 } from "./test-support.js";
 import type { RunHooks, StudioSession } from "./types.js";
 
-/** A 64-hex-char string is what the command's own token generation always produces. */
 const TOKEN_SHAPE = /[0-9a-f]{64}/;
 
 function moduleNotFound(specifier: string, importedFrom = "/proj/index.js"): Error {
@@ -22,7 +21,6 @@ function moduleNotFound(specifier: string, importedFrom = "/proj/index.js"): Err
   );
 }
 
-/** Captures the live session via onStudioSession so a success-path test can drive requestStop. */
 function captureStudioSession(): { hooks: RunHooks; session: () => StudioSession | undefined } {
   let session: StudioSession | undefined;
   return {
@@ -299,6 +297,33 @@ describe("run studio: success path and shutdown", () => {
     captured.session()?.requestStop();
     const code = await donePromise;
     expect(code).toBe(0);
+  });
+
+  it("silences the studio server's own output sink so it prints no second banner or log line", async () => {
+    const { deps } = recordingDeps({
+      importStudio: async () =>
+        makeStudioModule({
+          startStudioServer: async (options) => {
+            expect(options.output).toBeTypeOf("function");
+            options.output?.("studio server internal log line");
+            return { url: "http://127.0.0.1:5849/", port: 5849, close: async () => {} };
+          },
+        }),
+    });
+    const cap = captureStreams();
+    const captured = captureStudioSession();
+
+    const donePromise = run(["studio"], deps, cap.streams, captured.hooks);
+    await flush();
+
+    const out = cap.out();
+    expect(out).toMatch(
+      /^Verbatra Studio running at http:\/\/127\.0\.0\.1:\d+\/\?token=[0-9a-f]{64}\n$/,
+    );
+    expect(cap.err()).toBe("");
+
+    captured.session()?.requestStop();
+    await donePromise;
   });
 
   it("a second requestStop while the first is closing forces exit 130", async () => {

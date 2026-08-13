@@ -1,16 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildDelimited } from "./build-delimited.js";
-import type { DelimitedFormat } from "./delimited-format.js";
+import { DELIMITER, type DelimitedFormat } from "./delimited-format.js";
 import { readDelimited } from "./read-delimited.js";
 import type { WorkbookSheet } from "./types.js";
 
-/**
- * A sheet whose values carry every case the delimiter and quote rules have to survive: both
- * delimiters, a double quote, an embedded newline, leading and trailing whitespace, and a CRLF pair.
- * The Translation column is deliberately free of leading and trailing whitespace: it is the one column
- * both readers trim (a whitespace-only cell has to read back as "not translated yet"), so a padded
- * translation is normalized by design rather than round-tripped.
- */
 const sheet: WorkbookSheet = {
   locale: "de",
   rows: [
@@ -71,18 +64,6 @@ describe("buildDelimited + readDelimited round trip", () => {
   });
 });
 
-/**
- * Values a spreadsheet may coerce, misparse, or evaluate as a formula when it opens the file. The
- * workbook is safe from both by construction: the builder assigns a string cell value and never a
- * formula object, so Excel never re-parses it, and the Translation column carries the text number
- * format as a coercion hint. A delimited file has neither property, and RFC 4180 quoting is not a
- * mitigation, since a spreadsheet strips the quoting before it evaluates the value.
- *
- * verbatra therefore round-trips these values verbatim, deliberately. Every one of them below is an
- * ordinary translation, so refusing them or prefixing them with an escape character would corrupt
- * real content to defend against what the consuming spreadsheet does. The choice is documented for
- * the translator handoff instead: a returned file is untrusted input.
- */
 const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "007",
   "1.10",
@@ -93,6 +74,12 @@ const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "+49 30 1234567",
   "-5 Grad",
   "@mention this",
+  "=1+1",
+  "=cmd|'/c calc'!A1",
+  "'=1+1",
+  "''=1+1",
+  "'tis a quote",
+  "'",
 ];
 
 describe("buildDelimited + readDelimited round trip: coercion-prone translations", () => {
@@ -115,5 +102,96 @@ describe("buildDelimited + readDelimited round trip: coercion-prone translations
     };
     const data = readDelimited({ text: buildDelimited(one, "csv"), locale: "de", format: "csv" });
     expect(data.sheets[0]?.rows[0]?.translation).toBe(translation);
+  });
+});
+
+function sheetWithContext(context: string): WorkbookSheet {
+  return {
+    locale: "de",
+    rows: [
+      {
+        key: "value",
+        source: "Source",
+        currentTarget: "",
+        status: "new",
+        sourceHash: "abc123",
+        translation: "Hallo",
+        context,
+        reviewStatus: "ok",
+        reviewReasons: "",
+      },
+    ],
+  };
+}
+
+const WHITESPACE_LEADS: readonly string[] = ["\t=1+1", "\r=1+1", "\tplain", "\rplain", "'\t=1+1"];
+
+describe("buildDelimited + readDelimited round trip: tab and carriage return leads", () => {
+  it.each(FORMATS)(
+    "%s writes an apostrophe before a tab lead and restores it on read",
+    (format) => {
+      const sheetUnderTest = sheetWithContext("\t=1+1");
+      const text = buildDelimited(sheetUnderTest, format);
+      expect(text).toContain("'\t=1+1");
+      expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+    },
+  );
+
+  it.each(FORMATS)(
+    "%s writes an apostrophe before a carriage return lead and restores it on read",
+    (format) => {
+      const sheetUnderTest = sheetWithContext("\r=1+1");
+      const text = buildDelimited(sheetUnderTest, format);
+      expect(text).toContain("'\r=1+1");
+      expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+    },
+  );
+
+  it.each(FORMATS)("%s leaves a leading space unescaped and restores it on read", (format) => {
+    const sheetUnderTest = sheetWithContext(" =1+1");
+    const text = buildDelimited(sheetUnderTest, format);
+    expect(text).not.toContain("' =1+1");
+    expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+  });
+});
+
+describe("buildDelimited + readDelimited round trip: whitespace-lead context values", () => {
+  it.each(WHITESPACE_LEADS)("csv imports %j verbatim", (context) => {
+    const one = sheetWithContext(context);
+    const data = readDelimited({ text: buildDelimited(one, "csv"), locale: "de", format: "csv" });
+    expect(data.sheets[0]?.rows[0]?.context).toBe(context);
+  });
+
+  it.each(WHITESPACE_LEADS)("tsv imports %j verbatim", (context) => {
+    const one = sheetWithContext(context);
+    const data = readDelimited({ text: buildDelimited(one, "tsv"), locale: "de", format: "tsv" });
+    expect(data.sheets[0]?.rows[0]?.context).toBe(context);
+  });
+});
+
+describe("buildDelimited + readDelimited round trip: formula-shaped values in every column", () => {
+  it.each(FORMATS)("%s restores every neutralized column to its original text", (format) => {
+    const hostile: WorkbookSheet = {
+      locale: "de",
+      rows: [
+        {
+          key: "risky",
+          source: "=1+1",
+          currentTarget: "+49",
+          status: "new",
+          sourceHash: "abc123",
+          translation: "-5 Grad",
+          context: "@mention, with a delimiter",
+          reviewStatus: "ok",
+          reviewReasons: "",
+        },
+      ],
+    };
+    const text = buildDelimited(hostile, format);
+    const delimiter = DELIMITER[format];
+    expect(text).toContain(`${delimiter}'=1+1${delimiter}`);
+    expect(text).toContain(`${delimiter}'-5 Grad${delimiter}`);
+    const data = readDelimited({ text, locale: "de", format });
+    expect(data.sheets).toEqual([hostile]);
   });
 });

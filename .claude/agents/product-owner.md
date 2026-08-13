@@ -26,10 +26,11 @@ Produce a spec at `.verbatra/specs/<slug>.md` with these sections:
 - Problem statement: the user-facing need and why it matters.
 - Scope: what is in, and explicitly what is out.
 - Acceptance criteria: a numbered checklist of observable, testable outcomes.
-- Affected packages: which of config, core, format-adapters, ai-providers, sdk, cli,
-  github-action, or apps/docs are touched.
-- Scope check: confirm the work stays inside v1 (core + sdk + cli, JSON formats, four
-  providers, the init/translate/watch/export/import commands). If it does not, say so and flag it.
+- Affected packages: which of config, core, format-adapters, ai-providers, exchange,
+  sdk, cli, studio, or apps/docs are touched.
+- Scope check: confirm the work stays inside the shipped surface (the eight formats,
+  the five providers, and the init, translate, watch, check, diff, export, import,
+  and studio commands). If it does not, say so and flag it.
 
 Keep criteria specific enough that QA can pass or fail each one. Read the relevant
 code and any linked issue or tracker item before writing, so the spec is grounded.

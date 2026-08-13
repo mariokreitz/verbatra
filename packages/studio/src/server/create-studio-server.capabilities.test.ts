@@ -33,11 +33,6 @@ async function postRpc(
 
 const TOKEN = "capabilities-test-token-0123456789abcdef";
 
-/**
- * Direct proof that a spend-gated method is unreachable through dispatch on a default server:
- * both rows of the spend table for `translation.retranslateEntry` specifically, not only the read
- * methods' own unaffected behavior.
- */
 describe("translation.retranslateEntry reachability across the spend table", () => {
   it("returns METHOD_UNKNOWN on a default server (no spend)", async () => {
     await withServer(
@@ -128,10 +123,6 @@ describe("project.snapshot's capabilities projection reflects the resolved flags
   });
 });
 
-/**
- * Direct proof that `translation.editEntry` and `key.value` are always registered, independent of
- * `spend`: local editing needs no capability flag, so a default server already dispatches both.
- */
 describe("translation.editEntry and key.value reachability on a default server", () => {
   it("reaches the real handlers (not METHOD_UNKNOWN) on a default server, no flag needed", async () => {
     await withServer(
@@ -273,10 +264,6 @@ describe("translation.retranslateEntry's dispatch-layer rate limit, wired end to
   });
 });
 
-/**
- * Direct proof that a spend-gated method is unreachable through dispatch without the spend
- * capability, mirroring `translation.retranslateEntry`'s own table above.
- */
 describe("translation.translatePending reachability across the spend table", () => {
   it("returns METHOD_UNKNOWN on a default server (no spend)", async () => {
     await withServer(
@@ -399,7 +386,6 @@ describe("translation.translatePending's dispatch-layer rate limit, wired end to
   });
 });
 
-/** A promise a test can resolve on its own schedule, plus the resolver itself. */
 function deferred<T>(): { readonly promise: Promise<T>; resolve: (value: T) => void } {
   let resolve: (value: T) => void = () => {};
   const promise = new Promise<T>((res) => {
@@ -414,13 +400,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/**
- * Polls `hasArrived` until it reports true, rather than a fixed delay: real, end-to-end HTTP
- * requests have no fixed latency bound under CI/system load, so waiting for the actual signal the
- * test cares about (the first call's handler has genuinely reached and is now blocked inside the
- * provider) is the only way to make "the second call overlaps the first" deterministic instead of
- * a guess at how long that should take.
- */
 async function waitUntil(hasArrived: () => boolean): Promise<void> {
   while (!hasArrived()) {
     await sleep(5);

@@ -6,7 +6,6 @@ import { Icon } from "./Icon.js";
 import { click, pressKey, render } from "./test-support.js";
 
 const TRIGGER = "button[aria-haspopup='true']";
-// The item buttons are every button in the tree except the trigger, which is the one popup opener.
 const ITEM = "button:not([aria-haspopup])";
 
 function actionItems(onSelect = vi.fn()): readonly DropdownItem[] {
@@ -65,7 +64,6 @@ describe("Dropdown", () => {
     const view = render(<Dropdown label="Actions" items={actionItems()} />);
 
     click(view.get(TRIGGER));
-    // A plain Event carries the target the outside-click guard reads; jsdom has no PointerEvent.
     act(() => {
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
     });
@@ -211,7 +209,6 @@ describe("Dropdown", () => {
     const onAmerican = vi.fn();
 
     try {
-      // Two locales that read the same and differ only by identity: the case a label key collides on.
       const view = render(
         <Dropdown
           label="Locale"

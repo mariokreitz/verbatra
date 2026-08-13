@@ -18,9 +18,11 @@ Read `CLAUDE.md` at the repository root first.
   bump level (patch, minor, or major) and a clear, user-facing summary written in
   English with no emojis and no em dash character (U+2014).
 - Only the intended packages are marked publishable. Published packages are
-  `@verbatra/sdk` and `@verbatra/cli`. `@verbatra/config`, `core`, `format-adapters`,
-  `ai-providers`, and `github-action` are internal or private and must not be
-  published by accident.
+  `@verbatra/sdk`, `@verbatra/cli`, and `@verbatra/studio`. `@verbatra/config`,
+  `core`, `format-adapters`, `ai-providers`, `exchange`, and `apps/docs` are internal
+  or private and must not be published by accident.
+- `@verbatra/cli` and `@verbatra/sdk` are version-locked (Changesets `fixed`);
+  `@verbatra/studio` versions independently.
 - Publishing security is intact: npm Trusted Publishing via OIDC (no NPM_TOKEN),
   automatic provenance, and `repository.url` matching the repository exactly.
 - The version bump is consistent with the public API change. A breaking change to

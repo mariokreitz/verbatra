@@ -12,13 +12,19 @@ Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything e
 
 ## Availability
 
-The action lives in the verbatra repository and is referenced by path, pinned to a commit SHA:
+The action lives in its own repository, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), separate from the verbatra monorepo. Reference it by repository, pinned to a commit SHA:
+
+<Callout type="warn" title="@v1 does not resolve yet">
+The action has no releases yet, so `mariokreitz/verbatra-action@v1` does not resolve today: a workflow that uses it as-is fails with `Unable to resolve action, unable to find version v1`. Use a full commit SHA from `main`, which is what every example on this page does. `@v1` is documented below so those examples stay correct once the first release is cut.
+</Callout>
 
 ```text
-uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+uses: mariokreitz/verbatra-action@<commit-sha>
 ```
 
-There is no npm package, no Marketplace listing, and no versioned action tag. The SHA-pinned path reference is the only supported way to consume it.
+`mariokreitz/verbatra-action@v1` is the convenience form once that first release exists: the `v1` tag moves with each v1 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
+
+It used to ship from inside the verbatra monorepo and was referenced by path. That older form no longer resolves, so point existing workflows at the repository above.
 
 ## Usage
 
@@ -36,14 +42,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+      - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
-          version: 0.6.4 # pin @verbatra/cli to an exact version
+          version: 0.7.1 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the workflow needs no install step for verbatra itself. `0.6.4` is the release published when this page was last updated; check the [`@verbatra/cli` package on npm](https://www.npmjs.com/package/@verbatra/cli) for the current one and bump the pin deliberately, rather than tracking a moving tag.
+The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the workflow needs no install step for verbatra itself. The pin above is only an example: check the [`@verbatra/cli` package on npm](https://www.npmjs.com/package/@verbatra/cli) for the current release and bump the pin deliberately, rather than tracking a moving tag.
 
 ### Secret wiring
 
@@ -53,7 +59,7 @@ The action runs the CLI, and the CLI reads the provider's API key only from the 
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | - | the `@verbatra/cli` version to run. Must be an exact semver version such as `0.6.4` or `0.6.5-next.0`; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix |
+| `version` | yes | - | the `@verbatra/cli` version to run. Must be an exact semver version such as `0.7.1` or `0.7.2-next.0`; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix |
 | `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
 | `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
 | `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |

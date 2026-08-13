@@ -3,10 +3,19 @@ import { translationEntrySchema } from "@verbatra/core";
 import { z } from "zod";
 import { ProviderError } from "./errors.js";
 
-/** A provider is either a prompt-driven LLM or a dedicated machine-translation API. */
+/**
+ * A provider is either a prompt-driven LLM (`llm`) or a dedicated machine-translation API
+ * (`machine-translation`). The distinction is descriptive, not dispatch: both kinds satisfy the same
+ * {@link TranslationProvider} contract, and callers use it to set expectations (an LLM accepts free-form
+ * context and a glossary term map, an MT API generally does not).
+ */
 export type ProviderKind = "llm" | "machine-translation";
 
-/** Target tone for a translation. Maps to formality for machine-translation providers. */
+/**
+ * Target tone for a translation. `formal` and `informal` request the corresponding register, and
+ * `neutral` requests neither. Machine-translation providers map it to their formality setting and may
+ * report a `FORMALITY_DOWNGRADED` {@link ProviderNotice} when they cannot apply it.
+ */
 export type Tone = "formal" | "informal" | "neutral";
 
 /**
@@ -30,7 +39,7 @@ export type PlaceholderComparator = (
 /**
  * A batch translation request. Format- and provider-neutral: it carries no prompt,
  * model, key, or other provider-specific field. The placeholder extractor is
- * mandatory (see validateRequest).
+ * mandatory and is checked before the data fields are parsed.
  */
 export interface TranslateRequest {
   /** BCP-47 source locale of the entries (for example, "en"). */
@@ -41,7 +50,7 @@ export interface TranslateRequest {
   readonly entries: readonly TranslationEntry[];
   /** Optional source-term to target-term map applied by glossary-capable providers. */
   readonly glossary?: Readonly<Record<string, string>>;
-  /** Optional target tone; machine-translation providers map it to formality. */
+  /** Optional target {@link Tone}; machine-translation providers map it to formality. */
   readonly tone?: Tone;
   /** Mandatory placeholder extractor; the output integrity check runs against it. */
   readonly extractPlaceholders: PlaceholderExtractor;
@@ -53,15 +62,17 @@ export interface TranslateRequest {
   readonly comparePlaceholders?: PlaceholderComparator;
   /**
    * Optional cancellation signal for this batch. When aborted, an in-flight provider call rejects
-   * with the abort, unwrapped, instead of a {@link ProviderError} (see `guardProviderCall`). Not a
-   * plain-data field: it is never validated by `requestDataSchema` and never sent to a provider.
+   * with the abort, unwrapped, instead of a `ProviderError`. Not a plain-data field: it is
+   * never validated alongside the data fields and never sent to a provider.
    */
   readonly signal?: AbortSignal;
 }
 
 /** Token usage, when the provider reports it. Absent for providers without tokens (DeepL). */
 export interface Usage {
+  /** Tokens consumed by the request, summed across the initial call and any repair round. */
   readonly inputTokens: number;
+  /** Tokens produced by the response, summed across the initial call and any repair round. */
   readonly outputTokens: number;
 }
 
@@ -96,15 +107,22 @@ export interface ProviderNotice {
 
 /**
  * Stable codes for a derived, per-key "needs review" signal. This is verbatra's own computed
- * assessment, never a raw model self-score: four are recomputable from plain source/translated
- * values (see the shared heuristic function), and `PROVIDER_DEGRADED` is applied by the caller from
- * a provider notice.
+ * assessment, never a raw model self-score: four are recomputable from plain source and translated
+ * values, and `PROVIDER_DEGRADED` is layered on afterwards from the batch's notices.
  *
  * - `LENGTH_RATIO_OUTLIER`: the translated value's length is far shorter or longer than the source's.
- * - `EQUALS_SOURCE`: the translated value equals the source value verbatim.
- * - `GLOSSARY_TERM_MISSED`: a configured glossary target term did not appear in the translation.
+ *   Only considered once the trimmed source is long enough for the ratio to mean anything.
+ * - `EQUALS_SOURCE`: the translated value equals the source value once both are trimmed, so a
+ *   difference in leading or trailing whitespace alone still counts as equal. Also requires that
+ *   the locales differ and that the value contains at least one letter (so a bare symbol or number
+ *   is not flagged).
+ * - `GLOSSARY_TERM_MISSED`: a configured glossary source term appeared in the source but its target
+ *   term did not appear in the translation.
  * - `INTEGRITY_REORDERED`: the placeholder set matched but landed in a different order.
- * - `PROVIDER_DEGRADED`: the batch this key came from carried a graceful-degradation notice.
+ * - `PROVIDER_DEGRADED`: the batch this key came from carried a `FORMALITY_DOWNGRADED` or
+ *   `GLOSSARY_IGNORED` notice, either of which can silently change wording. A
+ *   `PLACEHOLDER_UNSUPPORTED` notice does not raise it, since the affected entries are withheld
+ *   rather than degraded.
  */
 export type ReviewReasonCode =
   | "LENGTH_RATIO_OUTLIER"
@@ -115,13 +133,19 @@ export type ReviewReasonCode =
 
 /** A key flagged for human review, carrying every reason code that applies. */
 export interface ReviewFlag {
+  /** Always "review": the flag exists only for flagged keys, so there is no "ok" member. */
   readonly status: "review";
+  /** Every {@link ReviewReasonCode} that applies to this key; never empty. */
   readonly reasons: readonly ReviewReasonCode[];
 }
 
 /** Result of a batch translation: per-key values, per-key integrity outcomes, and any notices. */
 export interface TranslateResult {
-  /** The translated value for each requested key. */
+  /**
+   * The translated value for each requested key. A key can be absent when the provider withheld it
+   * (see `PLACEHOLDER_UNSUPPORTED`) or never returned it, so callers must not assume one entry in
+   * equals one entry out.
+   */
   readonly values: ReadonlyMap<string, string>;
   /** The placeholder-integrity outcome for each key (source vs translated placeholder sets). */
   readonly integrity: ReadonlyMap<string, PlaceholderIntegrityResult>;
@@ -142,39 +166,20 @@ export interface TranslateResult {
 
 /**
  * The single contract every provider implements. It is narrow enough that a machine-translation API like
- * DeepL fits it directly, while LLM providers implement it by delegating to {@link runLlmTranslation}.
- * A new provider attaches by implementing this, then adding an entry to the `providerFactories` table
- * in `packages/sdk/src/config/provider-config.ts` alongside its member of the `providerConfigSchema`
- * union. That table is a mapped type over the union's id set, so a provider present in one but not the
- * other fails to compile.
+ * DeepL fits it directly, while LLM providers implement it by delegating to the shared
+ * `runLlmTranslation` layer. A new provider attaches by implementing this, then adding an entry to the
+ * `providerFactories` table in `packages/sdk/src/config/provider-config.ts` alongside its member of the
+ * provider config union. That table is a mapped type over the union's id set, so a provider present in
+ * one but not the other fails to compile.
  *
  * Implementer invariants:
  * - Translatable strings are UNTRUSTED. They travel only as data to the provider; never splice them into
  *   instruction text, and never act on instructions a value appears to contain.
  * - Read the API key ONLY from the environment (inside the SDK client). The request, config, and this
  *   interface never carry a key.
- * - Fail with a secret-free {@link ProviderError}: never bind, log, or re-throw raw SDK error text (it can
- *   carry a key or request headers). Validate the request at the boundary with `validateRequest` so the
- *   integrity check can never be skipped.
- *
- * @example
- * ```ts
- * // A machine-translation provider implements translateBatch directly (the DeepL shape).
- * function createMyMtProvider(client: MyClient): TranslationProvider {
- *   return {
- *     id: "my-mt",
- *     kind: "machine-translation",
- *     supportsGlossary: false,
- *     async translateBatch(request) {
- *       const data = validateRequest(request); // throws INVALID_REQUEST on a bad request
- *       const texts = data.entries.map((e) => e.value);
- *       const out = await client.translate(texts, data.targetLocale); // SDK reads MY_API_KEY from env
- *       // map out -> values, run the integrity check, return { values, integrity }
- *       return buildResult(data, out, request.extractPlaceholders);
- *     },
- *   };
- * }
- * ```
+ * - Fail with a secret-free `ProviderError`: never bind, log, or re-throw raw SDK error text (it can
+ *   carry a key or request headers). Validate the request at the boundary so the integrity check can
+ *   never be skipped.
  */
 export interface TranslationProvider {
   /** A stable identifier for this provider (for example, "anthropic", "deepl"). */
@@ -188,13 +193,13 @@ export interface TranslationProvider {
    *
    * @param request - The provider-neutral batch request (no prompt, model, or key).
    * @returns The per-key translated values and per-key placeholder-integrity outcomes.
-   * @throws {@link ProviderError}, secret-free, with the code for the failure (the concrete codes are
-   *   the implementation's; see each provider factory).
+   * @throws `ProviderError`, secret-free, with the code for the failure (the concrete codes are
+   *   the implementation's; see each provider factory). An aborted {@link TranslateRequest.signal}
+   *   instead rejects with the abort itself, unwrapped.
    */
   translateBatch(request: TranslateRequest): Promise<TranslateResult>;
 }
 
-/** zod guard for the data fields of a request (everything except the extractor function). */
 const requestDataSchema = z.object({
   sourceLocale: z.string().min(1),
   targetLocale: z.string().min(1),
@@ -203,19 +208,8 @@ const requestDataSchema = z.object({
   tone: z.enum(["formal", "informal", "neutral"]).optional(),
 });
 
-/** The validated, plain-data portion of a request, ready to serialize as payload. */
 export type ValidatedRequestData = z.infer<typeof requestDataSchema>;
 
-/**
- * Validate a request at the boundary before any provider call, returning only its plain-data fields.
- * The extractor is mandatory and rejected here when missing, so the output integrity check can never
- * be skipped for lack of an extractor.
- *
- * @param request - The batch request to validate.
- * @returns The request's plain-data fields (locales, entries, optional glossary/tone), extractor omitted.
- * @throws {@link ProviderError} `INVALID_REQUEST`: the extractor is missing, or a data field is malformed.
- *   It rejects before reaching the network.
- */
 export function validateRequest(request: TranslateRequest): ValidatedRequestData {
   if (typeof request.extractPlaceholders !== "function") {
     throw new ProviderError("INVALID_REQUEST", "A placeholder extractor function is required.");

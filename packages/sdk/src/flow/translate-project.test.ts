@@ -159,6 +159,9 @@ describe("translate: run-status persistence", () => {
         }
         await writeFile(path, data, "utf8");
       },
+      mkdir: async (path: string) => {
+        await mkdir(path, { recursive: true });
+      },
     });
 
     await translate(

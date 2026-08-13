@@ -1,8 +1,19 @@
 import { z } from "zod";
 
 /**
- * A single, format-neutral translation unit. Placeholders are supplied already
- * extracted; core never derives them from the value.
+ * A single, format-neutral translation unit. Placeholders are supplied already extracted; core never
+ * derives them from the value, so an adapter that reads a file is the one authority on what counts as
+ * a placeholder in that format.
+ *
+ * The fields are: `key`, the entry's identifier within its namespace, non-empty and already flattened
+ * to the dotted path an adapter produced; `namespace`, the namespace the entry belongs to, empty when
+ * the format has no namespacing; `value`, the translatable string itself, which is untrusted input and
+ * may be empty; `description` and `meaning`, both optional free-form context that a provider is told to
+ * use only for disambiguation and never to translate or echo back; `placeholders`, the format's
+ * placeholder tokens in document order, used for the output integrity check and to decide which entries
+ * a placeholder-blind provider must withhold; and `isPlural`, whether the entry carries plural forms
+ * (an i18next plural key suffix, a vue-i18n pipe-separated value, or an ICU plural), which the adapter
+ * decides and which feeds the content hash.
  */
 export const translationEntrySchema = z.object({
   key: z.string().min(1),
@@ -14,27 +25,8 @@ export const translationEntrySchema = z.object({
   isPlural: z.boolean(),
 });
 
-/** The validated shape of one translation unit; the inferred type of {@link translationEntrySchema}. */
-export type TranslationEntry = Readonly<z.infer<typeof translationEntrySchema>>;
-
 /**
- * Validate an unknown value into a {@link TranslationEntry}.
- *
- * @param input - The value to validate, typically parsed JSON of unknown shape.
- * @returns The validated, immutable entry.
- * @throws If `input` does not satisfy {@link translationEntrySchema}; zod raises a `ZodError`
- *   describing the failing fields.
- * @example
- * ```ts
- * const entry = parseTranslationEntry({
- *   key: "greeting",
- *   namespace: "common",
- *   value: "Hi {name}",
- *   placeholders: ["{name}"],
- *   isPlural: false,
- * });
- * ```
+ * The validated shape of one translation unit; the inferred type of {@link translationEntrySchema},
+ * made deeply readonly. See that schema for what each field carries.
  */
-export function parseTranslationEntry(input: unknown): TranslationEntry {
-  return translationEntrySchema.parse(input);
-}
+export type TranslationEntry = Readonly<z.infer<typeof translationEntrySchema>>;

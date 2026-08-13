@@ -9,54 +9,10 @@ import { type OpenAiCompatibleConfig, openAiCompatibleConfigSchema } from "./con
 
 const PROVIDER_ID = "openai-compatible";
 
-/** Optional dependencies, used by tests to inject a stub client (keeps tests offline). */
 export interface OpenAiCompatibleDeps {
-  /** A stub client; when omitted, the production client is built against the configured `baseUrl`. */
   readonly client?: OpenAiClient;
 }
 
-/**
- * Create the openai-compatible LLM provider, for a local or self-hosted OpenAI-compatible inference
- * server (LM Studio, Ollama, vLLM). `baseUrl`, `model`, and the output-token limit come from config; the
- * API key is resolved by `resolveOpenAiCompatibleKey` (env.ts), never `requireOpenAiKey`, and defaults to
- * the non-secret placeholder `"local"` when no key is configured.
- *
- * The request body is built in `strict-schema` mode, the same `json_schema` shape as the hosted `openai`
- * provider (verified against a live LM Studio server, which rejects the `json_object` mode some other
- * local servers accept), but the token limit is sent as `max_tokens`, not the hosted provider's
- * `max_completion_tokens`: `max_tokens` is the field understood broadly across OpenAI-compatible servers
- * (LM Studio, Ollama, vLLM, and hosted OpenAI-compatible APIs such as Mistral's, which reject
- * `max_completion_tokens` outright). The one deliberate difference from the hosted provider is that this
- * provider parses its response tolerantly (extracting the first brace-balanced JSON object anywhere in
- * the content before `JSON.parse`, regardless of surrounding prose or Markdown fences), since a local or
- * weaker model can still wrap a schema-conforming answer in a ```json block despite the constraint.
- * Output still runs through the exact same `runLlmTranslation` flow as every other provider:
- * canonical schema validation and placeholder/ICU integrity are unconditional, so local output is
- * untrusted input like any other provider's, with no shortcut.
- *
- * @param config - `baseUrl`, `model`, `maxOutputTokens`, and an optional `apiKeyEnvVar`; never a key
- *   value.
- * @param deps - Optional injected client; when omitted, the production client is built.
- * @returns A {@link TranslationProvider}. Its `translateBatch` raises {@link ProviderError}
- *   `INVALID_REQUEST`, `INVALID_RESPONSE`, `OUTPUT_TRUNCATED`, `PROVIDER_REFUSED`, or (via the
- *   shared guard) `RATE_LIMITED`, `TIMEOUT`, `AUTH_FAILED`, or `PROVIDER_ERROR`.
- * @throws A `ZodError` if `config` is invalid, including a malformed or non-http(s) `baseUrl`, or an
- *   `apiKeyEnvVar` naming a hosted provider's environment variable.
- * @throws {@link ProviderError} `MISSING_API_KEY`: at construction, when no client is injected,
- *   `apiKeyEnvVar` is set in config, and its named variable is unset or empty.
- * @example
- * ```ts
- * // No API key needed for a keyless local server; the SDK receives the "local" placeholder.
- * // baseUrl must include the server's API path segment (LM Studio, Ollama, and vLLM all serve
- * // their OpenAI-compatible routes under /v1, the same convention the openai SDK itself expects).
- * const provider = createOpenAiCompatibleProvider({
- *   baseUrl: "http://192.168.178.74:1234/v1",
- *   model: "qwen2.5-14b-instruct",
- *   maxOutputTokens: 1024,
- * });
- * const result = await provider.translateBatch(request);
- * ```
- */
 export function createOpenAiCompatibleProvider(
   config: OpenAiCompatibleConfig,
   deps: OpenAiCompatibleDeps = {},
@@ -84,11 +40,6 @@ function createMechanism(client: OpenAiClient, config: OpenAiCompatibleConfig): 
   };
 }
 
-/**
- * Call the provider through {@link withRequestTimeout} so the request is bounded by the configured
- * timeout, a raw SDK error never leaks, and the composed (caller plus timeout) signal is threaded
- * into the SDK call so a timeout really cancels a hung-but-alive local server's request.
- */
 function callClient(
   client: OpenAiClient,
   body: OpenAiRequest,

@@ -27,6 +27,23 @@ describe("lock-file", () => {
     expect(reread.locales.de).toEqual({ a: "1", b: "2" });
   });
 
+  it("round-trips a key named __proto__ as an own entry, without polluting Object.prototype", async () => {
+    const dir = await makeTempDir();
+    const path = lockFilePath(dir);
+    await updateLockFileLocale(dir, defaultFs, "de", {
+      mode: "replace",
+      entries: Object.fromEntries([
+        ["__proto__", "hash-proto"],
+        ["plain", "hash-plain"],
+      ]),
+    });
+
+    const reread = await readLockFile(path, defaultFs);
+    expect(baselineFor(reread, "de").get("__proto__")).toBe("hash-proto");
+    expect(Object.getPrototypeOf(reread.locales.de)).toBe(Object.prototype);
+    expect(({} as Record<string, unknown>).hash).toBeUndefined();
+  });
+
   it("a corrupt lock-file is a structured LOCK_FILE_INVALID", async () => {
     const dir = await makeTempDir();
     const path = join(dir, "verbatra.lock.json");
@@ -44,6 +61,18 @@ describe("lock-file", () => {
       code: "LOCK_FILE_INVALID",
     });
   });
+
+  it.each([JSON.stringify("nope"), "null", JSON.stringify(["h1"])])(
+    "a locale whose entries are %s is LOCK_FILE_INVALID, not silently accepted",
+    async (entries) => {
+      const dir = await makeTempDir();
+      const path = join(dir, "verbatra.lock.json");
+      await writeFile(path, `{"version":1,"locales":{"de":${entries}}}`, "utf8");
+      await expect(readLockFile(path, defaultFs)).rejects.toMatchObject({
+        code: "LOCK_FILE_INVALID",
+      });
+    },
+  );
 
   it("accepts a lock-file at the current version (regression guard)", async () => {
     const dir = await makeTempDir();

@@ -5,12 +5,6 @@ import type { UsageTickerData } from "../client/usage-ticker-data.js";
 import { toUsageTickerOutcome } from "../client/usage-ticker-data.js";
 import { rpcClient } from "./api.js";
 
-/**
- * Fetches the last run's persisted token and budget snapshot via
- * `usage.summary` and exposes it as a {@link RefreshableView}, keeping the
- * last good data with a stale marker when a re-fetch fails. Re-fetches
- * whenever `refreshToken` changes.
- */
 export function useUsageTicker(refreshToken?: unknown): RefreshableView<UsageTickerData> {
   const [view, setView] = useState<RefreshableView<UsageTickerData>>({ kind: "loading" });
 

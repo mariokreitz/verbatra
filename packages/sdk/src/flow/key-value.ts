@@ -7,51 +7,59 @@ import { readTarget } from "./diff-locales.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
-/** Input for {@link keyValue}: the validated config and exactly one target locale/key pair. */
+/** Input for {@link keyValue}. */
 export interface KeyValueInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern resolves against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** The target locale to read the current translation from. Must be a configured target locale. */
+  /** The target locale to read the translation from. Must be a configured target locale. */
   readonly locale: string;
-  /** The source key to read. Must exist in the source resource. */
+  /** The key to read. Must exist in the source resource. */
   readonly key: string;
 }
 
-/** Composition seam for {@link keyValue}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link keyValue}. Every field has a working default. */
 export interface KeyValueDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
-/**
- * The current source and target values for one key/locale pair. `target` is absent exactly when
- * the key does not yet exist in that target locale; a present-but-empty-string target is a real
- * value and is returned as such.
- */
+/** One key's current source and target text, as returned by {@link keyValue}. */
 export interface KeyValueResult {
+  /** The key's text in the source locale. Always present, since a missing key is an error. */
   readonly source: string;
+  /** The key's text in the requested target locale, or absent when it has not been translated yet. */
   readonly target?: string;
 }
 
 /**
- * Reads a key's current source and target values for exactly one target locale. Read-only: it
- * calls no provider, writes no file, and mutates nothing. Exposes only the current values on disk,
- * never a previous one.
+ * Reads one key's current source and target text. It writes nothing and calls no provider, and is
+ * the read half of the single-key editing flow that {@link editEntry} and
+ * {@link retranslateEntry} complete.
  *
- * `locale` and `key` are resolved fresh on every call, so a caller feeding an edit dialog with
- * this result and then submitting through `editEntry` is always working from live data, never a
- * cached snapshot.
+ * The two sides are asymmetric on purpose: a key absent from the source is an error, because it
+ * cannot be edited or retranslated, while a key absent from the target is normal and simply comes
+ * back with no `target`.
  *
- * @param input - The validated config, the target locale, and the source key to read.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The current source value and, when present, the current target value.
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
+ *
+ * @param input - The config, locale, and key to read.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns The key's source text and, when present, its current translation.
+ *
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
- * @throws {@link SdkError} `UNKNOWN_LOCALE`: `locale` is not among `config.targetLocales`.
- * @throws {@link SdkError} `SOURCE_UNREADABLE` / `SOURCE_INVALID`: the source locale file is absent
- *   or unreadable.
- * @throws {@link SdkError} `UNKNOWN_KEY`: `key` does not exist in the source resource.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: the requested locale is not a configured target locale.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or the locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
  */
 export async function keyValue(
   input: KeyValueInput,

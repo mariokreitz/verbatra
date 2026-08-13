@@ -3,19 +3,11 @@ import { resolveErrorCopy } from "../client/error-copy.js";
 import type { StructuredError } from "../client/state.js";
 import { Icon } from "./Icon.js";
 
-/** Props for {@link ErrorMessage}. */
 export interface ErrorMessageProps {
   readonly error: StructuredError;
-  /** Text rendered before the resolved copy, for example noting that stale data is still shown. */
   readonly prefix?: string;
 }
 
-/**
- * The shared error indicator panels render when an rpc call fails. Resolves
- * the display copy through `resolveErrorCopy`, which maps known error codes to
- * actionable text and otherwise falls back to the server's own message. The
- * glyph is decorative; `role="alert"` announces the state.
- */
 export function ErrorMessage({ error, prefix }: ErrorMessageProps): ReactNode {
   return (
     <p

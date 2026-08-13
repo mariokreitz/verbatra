@@ -210,7 +210,6 @@ describe("DesktopSidebar", () => {
     const collapsed = renderDesktop({ collapsed: true, nav: { activePage: "review" } });
 
     expect(expanded.get('[aria-current="page"]').className).toContain("before:bg-sidebar-active");
-    // The collapsed rail has no room for the leading accent bar, only the tinted background.
     expect(collapsed.get('[aria-current="page"]').className).not.toContain(
       "before:bg-sidebar-active",
     );
@@ -225,7 +224,6 @@ describe("DesktopSidebar", () => {
   });
 });
 
-/** The drawer's own close button, as opposed to the identically named backdrop outside it. */
 const DIALOG_CLOSE = '[role="dialog"] [aria-label="Close navigation"]';
 
 describe("MobileNavDrawer", () => {
@@ -275,7 +273,6 @@ describe("MobileNavDrawer", () => {
     const onClose = vi.fn();
     const view = renderDrawer({ onClose });
 
-    // The backdrop is the only close control outside the dialog container, and comes first.
     click(view.all('[aria-label="Close navigation"]')[0] as HTMLElement);
 
     expect(onClose).toHaveBeenCalledTimes(1);

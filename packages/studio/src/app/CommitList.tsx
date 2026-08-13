@@ -6,10 +6,6 @@ import { Loading } from "./Loading.js";
 import { EmptyState } from "./ui.js";
 import type { HistoryState } from "./use-history-list.js";
 
-/**
- * The files a commit touched, rendered as a wrapping row of monospace path
- * chips. Renders nothing when the list is empty.
- */
 function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNode {
   if (paths.length === 0) {
     return null;
@@ -28,11 +24,6 @@ function TouchedPaths({ paths }: { readonly paths: readonly string[] }): ReactNo
   );
 }
 
-/**
- * One commit as a feed row: the subject line, then a short-hash chip and a
- * date label. Git-sourced strings are written through `renderText` via ref
- * callbacks into `textContent`, never as markup.
- */
 function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   const parts = commitSummaryParts(commit);
   return (
@@ -73,19 +64,14 @@ function CommitRow({ commit }: { readonly commit: HistoryCommit }): ReactNode {
   );
 }
 
-/** Props for {@link CommitList}. */
 export interface CommitListProps {
   readonly state: HistoryState;
-  /** Compact presentation: plain muted paragraphs for the unavailable and
-   * no-commits states instead of the full `EmptyState` blocks. */
   readonly compact?: boolean;
-  /** Message shown once history is loaded but has no commits. */
   readonly emptyMessage: string;
 }
 
 const UNAVAILABLE_MESSAGE = "This project is not a git repository, or git is not installed.";
 
-/** Renders a {@link HistoryState} as loading, an error, unavailable, empty, or a commit feed. */
 export function CommitList({ state, compact = false, emptyMessage }: CommitListProps): ReactNode {
   if (state.kind === "loading") {
     return <Loading />;

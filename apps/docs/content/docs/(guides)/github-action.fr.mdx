@@ -12,13 +12,19 @@ Lance plutôt la [CLI directement](/docs/ci-and-exit-codes) quand tu veux autre 
 
 ## Disponibilité
 
-L'action vit dans le dépôt verbatra et se référence par chemin, épinglée à un SHA de commit :
+L'action vit dans son propre dépôt, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), séparé du monorepo verbatra. Référence-la par dépôt, épinglée à un SHA de commit :
+
+<Callout type="warn" title="@v1 ne se résout pas encore">
+L'action n'a encore aucune version publiée, donc `mariokreitz/verbatra-action@v1` ne se résout pas aujourd'hui : un workflow qui l'utilise tel quel échoue avec `Unable to resolve action, unable to find version v1`. Utilise un SHA de commit complet issu de `main`, ce que fait chaque exemple de cette page. `@v1` est documenté plus bas pour que ces exemples restent corrects dès que la première version sera publiée.
+</Callout>
 
 ```text
-uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+uses: mariokreitz/verbatra-action@<commit-sha>
 ```
 
-Il n'y a pas de paquet npm, pas de fiche Marketplace et pas de tag d'action versionné. La référence par chemin épinglée à un SHA est la seule façon prise en charge de la consommer.
+`mariokreitz/verbatra-action@v1` est la forme pratique dès que cette première version existe : le tag `v1` avance avec chaque version v1, les correctifs t'arrivent donc sans toucher au workflow, au prix de ne pas savoir exactement ce qui s'exécute. Épingler un SHA reste de toute façon le choix soucieux de la sécurité, et c'est ce que font les exemples de cette page. Il n'y a pas de paquet npm ; l'action se consomme uniquement via `uses:`.
+
+Elle était auparavant livrée depuis le monorepo verbatra et référencée par chemin. Cette forme ancienne ne résout plus, pointe donc tes workflows existants vers le dépôt ci-dessus.
 
 ## Utilisation
 
@@ -36,14 +42,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra/packages/github-action@<commit-sha>
+      - uses: mariokreitz/verbatra-action@<commit-sha>
         with:
-          version: 0.6.4 # pin @verbatra/cli to an exact version
+          version: 0.7.1 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-L'action récupère et lance `@verbatra/cli` exactement à la version que tu épingles, donc le workflow n'a besoin d'aucune étape d'installation pour verbatra lui-même. `0.6.4` est la version publiée au dernier passage sur cette page ; consulte le [paquet `@verbatra/cli` sur npm](https://www.npmjs.com/package/@verbatra/cli) pour connaître la version actuelle et relève l'épinglage délibérément, plutôt que de suivre un tag mouvant.
+L'action récupère et lance `@verbatra/cli` exactement à la version que tu épingles, donc le workflow n'a besoin d'aucune étape d'installation pour verbatra lui-même. L'épinglage ci-dessus n'est qu'un exemple : consulte le [paquet `@verbatra/cli` sur npm](https://www.npmjs.com/package/@verbatra/cli) pour connaître la version actuelle et relève l'épinglage délibérément, plutôt que de suivre un tag mouvant.
 
 ### Câblage des secrets
 
@@ -53,7 +59,7 @@ L'action lance la CLI, et la CLI lit la clé d'API du fournisseur uniquement dep
 
 | Entrée | Requis | Défaut | Description |
 | --- | --- | --- | --- |
-| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.6.4` ou `0.6.5-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.7.1` ou `0.7.2-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
 | `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config |
 | `working-directory` | non | `""` | répertoire depuis lequel résoudre la config et les fichiers de locale (correspond à `--cwd`) |
 | `dry-run` | non | `"false"` | mets `"true"` pour rapporter ce qui changerait sans appeler de fournisseur ni écrire (correspond à `--dry-run`) |

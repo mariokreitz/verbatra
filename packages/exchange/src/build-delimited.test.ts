@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildDelimited, UTF8_BOM } from "./build-delimited.js";
+import { buildDelimited } from "./build-delimited.js";
+import { UTF8_BOM } from "./delimited-format.js";
 import { HEADERS } from "./layout.js";
 import type { WorkbookRow, WorkbookSheet } from "./types.js";
 
@@ -22,7 +23,6 @@ function sheet(rows: readonly WorkbookRow[]): WorkbookSheet {
   return { locale: "de", rows };
 }
 
-/** The file's lines with the BOM stripped, so a csv and a tsv can be asserted the same way. */
 function lines(text: string): readonly string[] {
   const body = text.startsWith(UTF8_BOM) ? text.slice(UTF8_BOM.length) : text;
   return body.split("\n");
@@ -87,5 +87,30 @@ describe("buildDelimited quoting", () => {
   it("quotes a value with leading or trailing whitespace so it cannot be stripped", () => {
     const text = buildDelimited(sheet([row({ source: "  padded  " })]), "csv");
     expect(lines(text)[1]).toContain('"  padded  "');
+  });
+});
+
+describe("buildDelimited formula neutralization", () => {
+  it.each(["=", "+", "-", "@"])(
+    "prefixes an apostrophe to a value starting with %j so a spreadsheet cannot execute it",
+    (lead) => {
+      const text = buildDelimited(sheet([row({ currentTarget: `${lead}cmd(1)` })]), "csv");
+      expect(lines(text)[1]).toContain(`,'${lead}cmd(1),`);
+    },
+  );
+
+  it("prefixes an apostrophe to a value that already starts with one before a formula lead", () => {
+    const text = buildDelimited(sheet([row({ context: "'=already quoted" })]), "csv");
+    expect(lines(text)[1]).toContain(",''=already quoted,");
+  });
+
+  it("leaves an apostrophe that does not lead a formula alone", () => {
+    const text = buildDelimited(sheet([row({ context: "'tis fine" })]), "csv");
+    expect(lines(text)[1]).toContain(",'tis fine,");
+  });
+
+  it("neutralizes a formula lead in a tsv too", () => {
+    const text = buildDelimited(sheet([row({ translation: "=1+1" })]), "tsv");
+    expect(lines(text)[1]).toContain("\t'=1+1\t");
   });
 });

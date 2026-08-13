@@ -5,11 +5,6 @@ import type { VerbatraConfig } from "../config/schema.js";
 import { baseConfig, makeStubProvider, makeTempDir, writeJsonFile } from "../test-support.js";
 import { translate } from "./translate-project.js";
 
-/**
- * A locale file pattern is free to put the locale in a directory rather than the filename, which is
- * the standard layout for i18next namespaces and the only possible layout for the Android, Apple
- * and gettext conventions. The first run for a new locale then has to create that directory.
- */
 const NESTED_PATTERN = "locales/{locale}/common.json";
 
 function cfg(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
@@ -20,7 +15,6 @@ function cfg(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   });
 }
 
-/** A project whose source sits in its own per-locale directory and whose targets do not exist. */
 async function nestedProject(source: Record<string, unknown>): Promise<string> {
   const dir = await makeTempDir();
   await mkdir(join(dir, "locales", "en"), { recursive: true });

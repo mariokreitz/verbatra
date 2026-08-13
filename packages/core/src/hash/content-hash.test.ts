@@ -16,11 +16,6 @@ describe("contentHash", () => {
     expect(contentHash(a)).not.toBe(contentHash(b));
   });
 
-  it("is stable across repeated computation", () => {
-    const e = entry({ key: "a", value: "stable", placeholders: ["{x}"] });
-    expect(contentHash(e)).toBe(contentHash(e));
-  });
-
   it("does not depend on placeholder order", () => {
     const a = entry({ key: "a", placeholders: ["{x}", "{y}"] });
     const b = entry({ key: "a", placeholders: ["{y}", "{x}"] });

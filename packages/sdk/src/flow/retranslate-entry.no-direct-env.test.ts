@@ -4,12 +4,6 @@ import { describe, expect, it } from "vitest";
 
 const SOURCE_PATH = fileURLToPath(new URL("./retranslate-entry.ts", import.meta.url));
 
-/**
- * Static proof that retranslateEntry never reads a provider's environment variable directly: the
- * only path from this seam to a provider is selectProvider, exactly as translate() already uses
- * it. Mirrors the style of studio's own read-only.test.ts static-grep proof, scoped to this one
- * new write seam.
- */
 describe("static proof: retranslateEntry never reads a provider's environment directly", () => {
   const content = readFileSync(SOURCE_PATH, "utf8");
 

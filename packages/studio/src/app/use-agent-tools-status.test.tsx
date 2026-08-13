@@ -26,12 +26,6 @@ function Probe(): ReactNode {
   return <span data-testid="count">{seen.length}</span>;
 }
 
-/**
- * Publishes during the commit phase, which lands strictly after every sibling has rendered and
- * strictly before any passive effect runs. That is the exact window a subscription registered from
- * a `useEffect` cannot cover, so it reproduces the interleaving rather than merely publishing
- * before or after the mount.
- */
 function PublishDuringCommit(): ReactNode {
   useLayoutEffect(() => {
     agentToolsStatusStore.publish([REFUSED]);
@@ -39,10 +33,6 @@ function PublishDuringCommit(): ReactNode {
   return null;
 }
 
-/**
- * The registration pass publishes from outside React, so the resulting re-render has to be driven
- * inside `act` the way the browser's own microtask would be.
- */
 function publish(failures: readonly ToolRegistrationFailure[]): void {
   act(() => {
     agentToolsStatusStore.publish(failures);

@@ -16,7 +16,6 @@ import {
 } from "./test-support.js";
 import type { WatchSession } from "./types.js";
 
-/** A watch() stub that captures onRun and lets the test control stop() timing. */
 function watchHarness() {
   let onRun: ((result: WatchRunResult) => void) | undefined;
   let resolveStop: (() => void) | undefined;
@@ -42,7 +41,6 @@ function watchHarness() {
   };
 }
 
-/** Start a watch run, capture its session via the hook, and flush so it is wired up. */
 async function startWatch(
   argv: readonly string[],
   deps: Parameters<typeof run>[1],

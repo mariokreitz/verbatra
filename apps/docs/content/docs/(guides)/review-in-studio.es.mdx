@@ -37,7 +37,7 @@ Haz clic en cualquier clave para abrir su vista de detalle: los valores por loca
 
 ### Edita con la puerta de integridad
 
-El editor muestra la cadena de origen y un área de texto prellenada con la traducción actual. Guardar envía el valor por la misma puerta que cualquier otra escritura de verbatra: un valor que no supera alguna de las comprobaciones de integridad se rechaza con el motivo nombrado y **no se escribe nada**. Vaciar una traducción no es algo que una edición pueda expresar, así que un valor vacío también se rechaza; el centinela `[[CLEAR]]` del libro de trabajo es la forma admitida de vaciar una clave. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como una fila de importación aceptada.
+El editor muestra la cadena de origen y un área de texto prellenada con la traducción actual. Guardar envía el valor por la misma puerta que cualquier otra escritura de verbatra: un valor que no supera alguna de las comprobaciones de integridad se rechaza con el motivo nombrado y **no se escribe nada**. Vaciar una traducción no es algo que una edición pueda expresar, así que un valor vacío también se rechaza; el centinela `[[CLEAR]]` del libro es la forma admitida de vaciar una clave. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como una fila de importación aceptada.
 
 Editar no necesita ningún flag. Toca solo tus archivos locales y nunca llama a un proveedor.
 
@@ -89,5 +89,6 @@ Ajustes, la cuarta página, muestra la configuración y el glosario resueltos co
 ## Siguientes pasos
 
 - [`verbatra studio`](/docs/cli/studio): todos los flags y el contrato de arranque.
+- [Opera Studio con un agente del navegador](/docs/agent-tools-in-studio): dirige este mismo flujo de trabajo desde un agente de IA del navegador con `--expose-agent-tools`.
 - [Seguridad de la traducción](/docs/translation-safety): la puerta de integridad y los motivos de revisión.
 - [CI y códigos de salida](/docs/ci-and-exit-codes): bloquea en CI el mismo desfase que Studio te muestra en local.

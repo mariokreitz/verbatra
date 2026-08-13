@@ -8,46 +8,53 @@ import { readTarget } from "./diff-locales.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
 
-/** Per-locale key count and drift against the source and target files, from the recorded lock baseline. */
+/** One locale's lock-file baseline and the drift measured against it. */
 export interface LockLocaleState {
-  /** The target locale this entry reports on. */
+  /** The target locale this entry describes. */
   readonly locale: string;
-  /** Number of keys the lock records a baseline for, in this locale. */
+  /** How many keys the lock-file records a baseline hash for in this locale. */
   readonly keyCount: number;
-  /** Keys present in source but absent from the target. */
+  /** Number of source keys with no translation in this locale yet. */
   readonly missing: number;
-  /** Keys whose source changed since the target was last translated. */
+  /** Number of keys whose source text changed since the recorded baseline. */
   readonly stale: number;
-  /** Keys whose recorded baseline still matches the source. */
+  /** Number of keys whose translation still matches the recorded baseline. */
   readonly upToDate: number;
 }
 
 /**
- * The lock-file's existence, version, and per-locale drift. `exists` is the outcome of an explicit
- * probe of the lock-file path, never inferred from {@link readLockFile}'s missing-file degrade, so
- * "no lock-file yet" and "an empty but present lock-file" stay distinguishable.
+ * The result of {@link lockState}. The absence of a lock-file is a first-class state rather than an
+ * error, because a project that has never been translated legitimately has none.
  */
 export type LockStateResult =
-  | { readonly exists: false }
   | {
+      /** No lock-file exists yet, so there is no baseline to report against. */
+      readonly exists: false;
+    }
+  | {
+      /** A lock-file exists and was read successfully. */
       readonly exists: true;
+      /** The lock-file's schema version. */
       readonly version: number;
+      /** Per-locale baseline sizes and drift, in configured target order. */
       readonly locales: readonly LockLocaleState[];
     };
 
-/** Input for {@link lockState}: the validated config and which locales to report on. */
+/** Input for {@link lockState}. */
 export interface LockStateInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** Subset of target locales to report on; defaults to all configured target locales. */
+  /** Restrict the report to these target locales. Defaults to every configured target locale. */
   readonly locales?: readonly string[];
 }
 
-/** Composition seam for {@link lockState}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link lockState}. Every field has a working default. */
 export interface LockStateDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
@@ -62,18 +69,34 @@ function toLockLocaleState(locale: string, keyCount: number, diff: DiffResult): 
 }
 
 /**
- * Report the lock-file's existence, version, and per-locale drift (key count from the recorded
- * baseline, plus missing, stale, and up-to-date counts against the current source and target),
- * without calling a provider, writing any file, or mutating the lock. `exists` comes from an
- * explicit probe of the lock-file path: when it is absent, the result is `{ exists: false }` and
- * no source or target file is read, since there is no recorded baseline to report drift against.
+ * Reports the lock-file's existence, version, and the per-locale drift measured against its
+ * baseline. It writes nothing and calls no provider.
  *
- * @param input - The validated config and which locales to report on.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns The lock-file's existence and, when present, its version and per-locale drift.
- * @throws {@link SdkError} `UNKNOWN_LOCALE` when a requested locale is not among the configured
- *   target locales; when the lock-file exists, also `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`,
- *   `SOURCE_INVALID`, or `LOCK_FILE_INVALID` with the same meanings as in `translate`.
+ * Where {@link check} answers "is the project in sync", this answers "what does the lock-file
+ * actually record", which is what a diagnostic view needs when the two disagree: a locale with
+ * translations present but a `keyCount` of zero, for instance, means the files were written outside
+ * verbatra and have no baseline.
+ *
+ * When no lock-file exists the call returns `exists: false` rather than throwing, and does no
+ * further reading.
+ *
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
+ *
+ * @param input - The config and the optional locale filter.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns The lock-file's version and per-locale baseline state, or `exists: false`.
+ *
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
  */
 export async function lockState(
   input: LockStateInput,

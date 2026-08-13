@@ -1,14 +1,6 @@
 import type { Usage } from "@verbatra/ai-providers";
 import type { BudgetBehavior, RunBudget, SdkNotice } from "./summary.js";
 
-/**
- * Mutable, run-wide token accounting shared across every locale in one `translate()` invocation.
- * A configured budget keeps its run strictly serial: `translate()` refuses concurrency greater than
- * 1 on a live budgeted run (`CONCURRENCY_BUDGET_CONFLICT`), so this shared tracker is only ever
- * folded one locale at a time and needs no concurrency guard. An undefined `maxTokens` means no
- * budget is configured: {@link checkBudgetTrip} is then always a no-op, `stopped` never becomes
- * true, and {@link toBudgetSummary} returns `undefined`.
- */
 export interface BudgetTracker {
   readonly maxTokens: number | undefined;
   readonly behavior: BudgetBehavior;
@@ -18,7 +10,6 @@ export interface BudgetTracker {
   stopped: boolean;
 }
 
-/** Creates a fresh tracker: zero tokens used, no usage seen, not exceeded, not stopped. */
 export function createBudgetTracker(
   maxTokens: number | undefined,
   behavior: BudgetBehavior,
@@ -26,7 +17,6 @@ export function createBudgetTracker(
   return { maxTokens, behavior, tokensUsed: 0, usageSeen: false, exceeded: false, stopped: false };
 }
 
-/** Folds one completed provider call's usage into the run-wide total. Absent usage contributes nothing. */
 export function foldTrackerUsage(tracker: BudgetTracker, usage: Usage | undefined): void {
   if (usage === undefined) {
     return;
@@ -35,12 +25,6 @@ export function foldTrackerUsage(tracker: BudgetTracker, usage: Usage | undefine
   tracker.tokensUsed += usage.inputTokens + usage.outputTokens;
 }
 
-/**
- * Checks the budget after one completed sub-batch (never mid-batch; see `translate-project.ts` for
- * why). Returns `true` exactly once: on the call whose completion first brings the cumulative total
- * to or past `maxTokens`. The crossing sub-batch is never undone; in `"stop"` mode, only calls that
- * have not started yet are withheld from this point on.
- */
 export function checkBudgetTrip(tracker: BudgetTracker): boolean {
   if (
     tracker.maxTokens === undefined ||
@@ -56,7 +40,6 @@ export function checkBudgetTrip(tracker: BudgetTracker): boolean {
   return true;
 }
 
-/** Projects the tracker to the public {@link RunBudget} shape; `undefined` when no budget is configured. */
 export function toBudgetSummary(tracker: BudgetTracker): RunBudget | undefined {
   if (tracker.maxTokens === undefined) {
     return undefined;
@@ -70,7 +53,6 @@ export function toBudgetSummary(tracker: BudgetTracker): RunBudget | undefined {
   };
 }
 
-/** Builds the secret-free `BUDGET_TOKENS_EXCEEDED` notice: totals and behavior only, no key or value. */
 export function budgetExceededNotice(tracker: BudgetTracker): SdkNotice {
   return {
     code: "BUDGET_TOKENS_EXCEEDED",

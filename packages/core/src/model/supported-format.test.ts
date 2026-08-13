@@ -2,18 +2,17 @@ import { describe, expect, it } from "vitest";
 import { SUPPORTED_FORMATS, supportedFormatSchema } from "./supported-format.js";
 
 describe("SupportedFormat", () => {
-  it("enumerates the JSON i18n formats", () => {
-    expect(SUPPORTED_FORMATS).toContain("i18next-json");
-    expect(SUPPORTED_FORMATS).toContain("vue-i18n-json");
-    expect(SUPPORTED_FORMATS).toContain("next-intl-json");
-    expect(SUPPORTED_FORMATS).toContain("ngx-translate-json");
-  });
-
-  it("enumerates the non-JSON formats (XLIFF, YAML, ARB, properties)", () => {
-    expect(SUPPORTED_FORMATS).toContain("xliff");
-    expect(SUPPORTED_FORMATS).toContain("yaml");
-    expect(SUPPORTED_FORMATS).toContain("arb");
-    expect(SUPPORTED_FORMATS).toContain("properties");
+  it("is exactly the JSON and non-JSON i18n formats, in declaration order", () => {
+    expect(SUPPORTED_FORMATS).toEqual([
+      "i18next-json",
+      "vue-i18n-json",
+      "next-intl-json",
+      "ngx-translate-json",
+      "xliff",
+      "yaml",
+      "arb",
+      "properties",
+    ]);
   });
 
   it("accepts a known format", () => {

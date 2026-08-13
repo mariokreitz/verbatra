@@ -26,6 +26,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - `pnpm dev` (next dev), `pnpm build` (next build), `pnpm start` (next start).
 - `pnpm typecheck` (tsc --noEmit). Run it after edits to `app`, `lib`, `components`,
   or config.
+- `pnpm test` (vitest run). This app has its own test suite; run it after changing
+  anything under `lib` or `components`.
 - `pnpm i18n` runs `verbatra translate` to regenerate translated content (see below).
 - From the root, filter with `pnpm turbo run build --filter=@verbatra/docs`.
 
@@ -33,9 +35,25 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 
 - Locales: `en` is the source of truth; `de`, `es`, and `fr` must be kept in step with
   it. The docs MUST stay current in every available language.
-- UI strings live in `messages/<locale>.json` with `en.json` as the source. These are
-  generated: edit `messages/en.json`, then run `pnpm i18n` (verbatra translate) to
-  regenerate the locale files. Do not hand-edit the generated `messages/<locale>.json`.
+- UI strings live in `messages/<locale>.json` with `en.json` as the source. Which
+  repair is correct depends on which side is wrong, because `verbatra.lock.json`
+  records only a hash of the English entry: a key is classified stale purely by
+  comparing that hash, and only missing and stale keys are ever sent to the provider.
+- The English source changed, or the key is new: edit `messages/en.json`, then run
+  `pnpm i18n` (verbatra translate) to regenerate the locale files.
+- The English source is already right and only a translation is wrong: `pnpm i18n`
+  regenerates nothing, because the key still hashes to its recorded baseline and
+  counts as up to date. Fix it with a Studio edit (`pnpm studio`; local editing needs
+  no provider and no `--allow-spend`) or with a workbook round trip
+  (`verbatra export --include-unchanged`, correct the row, then `verbatra import`;
+  the flag is required because an up-to-date key is not exported by default). Both
+  routes write the corrected value, hold it to the placeholder and ICU integrity gate,
+  advance the lock entry, and record the text in the translation memory. The same
+  mechanism explains why pinning a glossary term on its own retranslates nothing: the
+  glossary is not part of the content hash.
+- Do not hand-edit the generated `messages/<locale>.json`. With the source unchanged
+  it leaves the same lock state behind, so it looks equivalent, but it skips the
+  integrity gate and leaves the translation memory holding the superseded text.
 - Doc pages use locale-suffixed MDX: `page.mdx` is the English source and
   `page.de.mdx`, `page.es.mdx`, `page.fr.mdx` are its translations. `pnpm i18n` does
   NOT translate these (verbatra translates JSON, XLIFF, YAML, ARB, and properties, not
@@ -57,8 +75,8 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. v1 CLI is `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, and `import`.
+- Only document features that exist. The shipped CLI is `init`, `translate`, `watch`,
+  `check`, `diff`, `export`, `import`, and `studio`.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.

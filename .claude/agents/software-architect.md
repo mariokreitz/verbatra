@@ -22,12 +22,11 @@ never contains the em dash character (U+2014).
 
 ## What you enforce
 
-- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
-  `github-action` stay thin. Reject logic creeping into the wrappers.
+- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` stays thin.
+  Reject logic creeping into the wrappers.
 - Acyclic dependency direction:
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
-  github-action / framework-adapters. Reject any import against the arrow and any
-  cycle.
+  framework-adapters. Reject any import against the arrow and any cycle.
 - `@verbatra/core` stays pure: no I/O, no network, no file system, depends only on
   zod. Push side effects outward.
 - Providers go through the Strategy + Factory layer and the shared

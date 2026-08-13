@@ -17,15 +17,12 @@ import type { CreateStudioWatcher, StudioWatcher } from "./types.js";
 
 const DEFAULT_DEBOUNCE_MS = 300;
 
-/** One watched entry: its refresh reason, its watched paths, and (for a locale file) which locale it is. */
 interface WatchedEntry {
   readonly reason: RefreshReason;
   readonly paths: readonly string[];
-  /** The locale this entry reports on; present for "source" and "targets", absent for "lock". */
   readonly locale?: string;
 }
 
-/** The source file, every configured target locale file as its own entry, and the lock file. */
 function watchedEntries(config: VerbatraConfig, projectRoot: string): readonly WatchedEntry[] {
   const resolver = createLocalePathResolver(projectRoot, config);
   const source = resolver.pathFor(config.sourceLocale);
@@ -43,21 +40,8 @@ function watchedEntries(config: VerbatraConfig, projectRoot: string): readonly W
   ];
 }
 
-/** Reads one locale's key-hash snapshot; the seam {@link ProjectWatcherDeps.readLocaleSnapshot} overrides. */
 type ReadLocaleSnapshot = (locale: string) => Promise<LocaleFileSnapshot>;
 
-/**
- * Tracks one locale file's last observed snapshot and serializes settling a new one against it.
- *
- * A settle awaits an async snapshot read before it can emit, so two rapid, distinct changes to
- * the same locale file can have their debounce windows straddle that read (one still in flight
- * when the next one's timer fires). Without serialization, whichever read resolved last would
- * overwrite `previous`, regardless of which change actually settled last, corrupting the
- * baseline for the next delta. `tail` prevents this: a settle's read never starts until the
- * previous settle's read, diff, and store have fully completed, so two settles for one locale
- * always run in trigger order. The tail chain itself never rejects, or every later settle for
- * the locale would be skipped.
- */
 function createSnapshotTracker(
   initial: LocaleFileSnapshot,
   readSnapshot: () => Promise<LocaleFileSnapshot>,
@@ -84,14 +68,6 @@ function createSnapshotTracker(
 
 type SnapshotTracker = ReturnType<typeof createSnapshotTracker>;
 
-/**
- * Builds the emitted event for one settled trigger. A lock entry (no tracker) emits the bare
- * `{ reason, at }` shape. A source or target entry awaits its tracker's delta and merges in
- * `locale` and `delta`; a read or parse failure (for example a transient external edit caught
- * mid-write) falls back to the bare shape instead of losing the refresh entirely, and leaves the
- * tracker's stored snapshot untouched so the next successful settle still diffs against a valid
- * baseline.
- */
 async function buildRefreshEvent(
   entry: WatchedEntry,
   tracker: SnapshotTracker | undefined,
@@ -108,15 +84,8 @@ async function buildRefreshEvent(
   }
 }
 
-/**
- * Reads a stable identity for one watched file: its inode, byte size, and modification time joined
- * into one opaque token, or undefined when the file cannot be stat'd at all. Two reads that return
- * the same defined token describe the same file, unmodified in between, so the second raw event
- * that produced the later read reports no state the first one did not already report.
- */
 export type ReadFileIdentity = (path: string) => Promise<string | undefined>;
 
-/** Default {@link ReadFileIdentity}: a real stat, reporting an unreadable or missing file as undefined. */
 const readFileIdentityFromDisk: ReadFileIdentity = async (path) => {
   try {
     const info = await stat(path);
@@ -126,25 +95,6 @@ const readFileIdentityFromDisk: ReadFileIdentity = async (path) => {
   }
 };
 
-/**
- * Rejects a settled trigger whose watched files are in exactly the state the last emitted event
- * already reported.
- *
- * One atomic write (write a temp sibling, then rename it over the target) reaches chokidar as two
- * raw events on the watched path: an "add" from the parent-directory pass that first sees the new
- * file, then a "change" from the per-file watcher chokidar attaches during that same pass, which
- * chokidar releases on its own 50ms per-path change throttle. Both map onto the one listener in
- * {@link defaultCreateStudioWatcher}, so once that gap exceeds the debounce window, whether because
- * the window is short or because a loaded event loop stretched the gap, the trailing timer fires
- * twice and one logical write publishes two refreshes. Comparing file identity collapses them:
- * the second settle sees the same inode, size, and mtime the first one emitted on and is dropped.
- *
- * Fails open. An identity that cannot be read is never treated as equal to anything, so a stat
- * failure costs a redundant refresh rather than a lost one. Settles are serialized through `tail`
- * for the same reason {@link createSnapshotTracker} serializes its reads: two settles whose
- * identity reads overlap would otherwise record the wrong one as the last emitted state. The tail
- * chain itself never rejects, or every later settle for the entry would be skipped.
- */
 function createIdentityGate(
   paths: readonly string[],
   readIdentity: ReadFileIdentity,
@@ -180,12 +130,6 @@ function createIdentityGate(
 
 type IdentityGate = ReturnType<typeof createIdentityGate>;
 
-/**
- * Resolves one settled trigger into the event to publish, or undefined when the gate recognizes the
- * trigger as a duplicate of the one already published. Only entries with no snapshot tracker carry
- * a gate: a locale entry publishes a per-key delta a consumer can read, while a lock event carries
- * no payload at all, so a duplicate there is indistinguishable from a real second write.
- */
 async function settleTrigger(
   entry: WatchedEntry,
   tracker: SnapshotTracker | undefined,
@@ -197,7 +141,6 @@ async function settleTrigger(
   return buildRefreshEvent(entry, tracker);
 }
 
-/** A debounced trigger for one entry: coalesces a burst of raw events into one emitted refresh. */
 function createDebouncedTrigger(
   settle: () => Promise<RefreshEvent | undefined>,
   debounceMs: number,
@@ -227,46 +170,22 @@ function createDebouncedTrigger(
   };
 }
 
-/** Input for {@link createProjectWatcher}: the resolved config, project root, and optional debounce override. */
 export interface ProjectWatcherInput {
   readonly config: VerbatraConfig;
   readonly projectRoot: string;
-  /** Quiet period after the last raw change before a refresh fires; defaults to 300ms. */
   readonly debounceMs?: number;
 }
 
-/** Composition seams for {@link createProjectWatcher}: the watcher factory plus the snapshot-read wiring. */
 export interface ProjectWatcherDeps {
-  /** Factory for the underlying per-entry watchers: production chokidar, or a fake for tests. */
   readonly createWatcher: CreateStudioWatcher;
-  /** Format-adapter registry override for the per-locale snapshot reads; defaults to the sdk's own registry. */
   readonly adapterRegistry?: NonNullable<ReadLocaleFileSnapshotDeps["adapterRegistry"]>;
-  /** Bounded file-system seam for the per-locale snapshot reads; defaults to the sdk's real file system. */
   readonly fs?: SdkFs;
-  /**
-   * Reads one locale's key-hash snapshot; defaults to the sdk's `readLocaleFileSnapshot`, wired
-   * with the config, the project root, and `adapterRegistry`/`fs` above. Overridable so a test
-   * can control exactly when a snapshot read resolves.
-   */
   readonly readLocaleSnapshot?: ReadLocaleSnapshot;
-  /**
-   * Reads the identity of a watched file that has no snapshot tracker (the lock file), used to drop
-   * a duplicate refresh for one unchanged file state. Defaults to a real stat. Overridable so a
-   * test can state an identity outright instead of staging one on disk.
-   */
   readonly readFileIdentity?: ReadFileIdentity;
 }
 
-/** A running live-refresh watcher over one project's source, target, and lock files. */
 export interface ProjectWatcher {
-  /** Registers a listener invoked once per debounced, coalesced refresh event. */
   onRefresh(listener: (event: RefreshEvent) => void): void;
-  /**
-   * Stops every underlying watcher and clears any pending debounce timer. Does not await an
-   * in-flight settle: a delta still resolving after this returns will emit into whatever
-   * listener is still registered, so a caller that needs a post-close emit to be a no-op must
-   * detach or close its own downstream sink first.
-   */
   close(): Promise<void>;
 }
 
@@ -285,7 +204,6 @@ function buildReadLocaleSnapshot(
     readLocaleFileSnapshot({ config: input.config, locale, cwd: input.projectRoot }, snapshotDeps);
 }
 
-/** Pairs one watched entry with its snapshot tracker (source and targets) or none (lock), priming the tracker's initial snapshot up front. */
 async function primeEntry(
   entry: WatchedEntry,
   readSnapshot: ReadLocaleSnapshot,
@@ -299,13 +217,6 @@ async function primeEntry(
   return { entry, tracker: createSnapshotTracker(initial, read) };
 }
 
-/**
- * Reads a locale's startup snapshot, falling back to an empty one on failure (for example a
- * locale file already malformed on disk before Studio starts). The other views surface a
- * malformed file as a structured RPC error on their own next call; this fallback only keeps one
- * bad file from preventing the server from starting, at the cost of degrading that locale's next
- * delta report until the file becomes readable again.
- */
 async function readInitialSnapshot(
   locale: string,
   read: () => Promise<LocaleFileSnapshot>,
@@ -317,21 +228,6 @@ async function readInitialSnapshot(
   }
 }
 
-/**
- * Starts the studio-owned live-refresh watcher over the project's source locale file, each
- * configured target locale file, and the lock file. Every locale file gets its own underlying
- * {@link StudioWatcher}, debounce timer, and snapshot tracker, so simultaneous changes to two
- * different files raise two distinct, correctly tagged refresh events. Before any watcher is
- * created, an initial snapshot of every locale file is read (a missing or unreadable file reads
- * as empty, never throwing), establishing the baseline the first change after startup is diffed
- * against; no raw change can race the initial snapshot. An entry with no snapshot tracker (the lock
- * file) additionally drops a settled trigger whose file identity matches the one it last emitted on,
- * so one atomic write publishes exactly one lock refresh however its raw events happen to be spaced;
- * see {@link createIdentityGate}. Emitted events carry only a reason, a
- * timestamp, and (for locale files) per-locale added/changed/removed key counts: never file
- * content, a key name, or a translated value. No translation ever runs from this module, and the
- * config is not watched: it is resolved once for the process lifetime.
- */
 export async function createProjectWatcher(
   input: ProjectWatcherInput,
   deps: ProjectWatcherDeps,
@@ -377,14 +273,6 @@ export async function createProjectWatcher(
   };
 }
 
-/**
- * Production {@link CreateStudioWatcher}: wraps chokidar directly, watching exactly the given
- * paths with `ignoreInitial` set. Both "change" and "add" map to the same listener, so a target
- * file created after startup is treated the same as an edit to an existing one. Chokidar's
- * parent-directory fallback means a locale file that does not exist yet at startup is still
- * picked up once created, as long as its parent directory already exists at startup; a file
- * whose parent directory is created later is not, and Studio must be restarted to see it.
- */
 export const defaultCreateStudioWatcher: CreateStudioWatcher = (paths): StudioWatcher => {
   const fsWatcher = chokidarWatch([...paths], { persistent: true, ignoreInitial: true });
   return {

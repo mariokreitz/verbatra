@@ -9,15 +9,6 @@ const NPM_STUDIO_URL = "https://www.npmjs.com/package/@verbatra/studio";
 
 const SUPPORTED_FRAMEWORKS = ["React", "Vue", "Angular", "Node.js", "Flutter"];
 const SUPPORTED_PROVIDERS = ["Anthropic", "OpenAI", "Gemini", "DeepL", "openai-compatible"];
-/**
- * The human label for each format verbatra supports, for the structured data crawlers read.
- *
- * Keyed by `SupportedFormat` and exhaustive on purpose. This list used to be a bare array that
- * happened to agree with the SDK, and it is exactly the kind of list that goes stale silently: the
- * SoftwareApplication `featureList` built from it is published as machine-readable capability
- * data, and `apps/docs` has no tests. Keying it by the type makes adding a format to the SDK a
- * docs typecheck failure until its label is filled in, so the two cannot drift apart again.
- */
 const FORMAT_LABELS: Readonly<Record<SupportedFormat, string>> = {
   "i18next-json": "i18next",
   "vue-i18n-json": "vue-i18n",
@@ -39,10 +30,6 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
-/**
- * Topical keywords for the site. Shared by the SoftwareApplication JSON-LD and the
- * document `keywords` meta tag so both stay in step from one source.
- */
 export const SEO_KEYWORDS = [
   "i18n",
   "internationalization",
@@ -89,12 +76,6 @@ export function softwareApplicationLd(args: {
   };
 }
 
-/**
- * WebSite entity for the docs site. Deliberately emitted without a
- * SearchAction: the site search is a client-side dialog backed by the JSON
- * endpoint /api/search, so there is no crawlable search results URL to
- * declare honestly.
- */
 export function websiteLd(args: { lang: string }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -109,11 +90,6 @@ export function websiteLd(args: { lang: string }): Record<string, unknown> {
 
 export type BreadcrumbLdItem = { name: string; url?: string | undefined };
 
-/**
- * BreadcrumbList mirroring the trail rendered by the Fumadocs breadcrumb.
- * Section crumbs that are not links in the UI (route groups without an index
- * page) are emitted name-only; no URL is fabricated for them.
- */
 export function breadcrumbListLd(args: {
   items: ReadonlyArray<BreadcrumbLdItem>;
 }): Record<string, unknown> {
@@ -131,11 +107,6 @@ export function breadcrumbListLd(args: {
 
 export type FaqItem = { question: string; answer: string };
 
-/**
- * Builds the FAQPage block. Every answer goes through `plainAnswer` here rather than at the call
- * site, so no caller can leak the rich-text markup an answer carries for the UI into
- * `acceptedAnswer.text`.
- */
 export function faqPageLd(args: {
   items: ReadonlyArray<FaqItem>;
   lang: string;

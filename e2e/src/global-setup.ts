@@ -17,16 +17,6 @@ async function findTarball(dir: string, prefix: string): Promise<string> {
   return join(dir, match);
 }
 
-/**
- * Build `@verbatra/sdk`, `@verbatra/cli`, and their workspace dependencies before packing, scoped to
- * just that subgraph (not the whole monorepo). CI never takes this path: it sets the three
- * `VERBATRA_*_TARBALL` variables after running its own `pnpm build`, so this only guards a local
- * `npm test` run in `e2e/`, which would otherwise pack whatever `dist/` happens to be on disk
- * (stale or absent) instead of the current source.
- *
- * `@verbatra/studio` needs no filter of its own: it is a devDependency of `@verbatra/cli`, so
- * `--filter=@verbatra/cli...` already builds it, prebuilt SPA included.
- */
 async function buildPackables(): Promise<void> {
   await execa(
     "pnpm",
@@ -35,24 +25,12 @@ async function buildPackables(): Promise<void> {
   );
 }
 
-/** The tarball override variables, in the order they are reported when only some are set. */
 const TARBALL_ENV_VARS = [
   "VERBATRA_SDK_TARBALL",
   "VERBATRA_CLI_TARBALL",
   "VERBATRA_STUDIO_TARBALL",
 ] as const;
 
-/**
- * Resolves the sdk, cli, and studio tarballs: from the three `VERBATRA_*_TARBALL` variables when
- * all are set (the CI path), otherwise by building the publishable subgraph and running `pnpm pack`
- * into a temp directory.
- *
- * Studio is packed alongside the other two so the `studio` command can be driven through the same
- * published-package boundary as every other command. It is installed only into the consumers that
- * ask for it, so the rest of the suite is unaffected.
- *
- * @throws When some but not all of the override variables are set.
- */
 async function packTarballs(): Promise<{ sdk: string; cli: string; studio: string }> {
   const set = TARBALL_ENV_VARS.filter((name) => process.env[name]);
   if (set.length === TARBALL_ENV_VARS.length) {
@@ -84,10 +62,6 @@ async function packTarballs(): Promise<{ sdk: string; cli: string; studio: strin
   };
 }
 
-/**
- * Vitest global setup: packs (or resolves) the tarballs once per run and writes their paths to
- * `e2e/.tarballs.json` for the harness's `readTarballs` to consume.
- */
 export async function setup(): Promise<void> {
   const tarballs = await packTarballs();
   await writeFile(manifestPath, JSON.stringify(tarballs, null, 2));

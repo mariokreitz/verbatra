@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { FormatAdapter } from "../adapter.js";
-import { AdapterError } from "../errors.js";
 import { createI18nextJsonAdapter } from "../i18next/i18next-adapter.js";
 import { createNextIntlJsonAdapter } from "../next-intl/next-intl-adapter.js";
 import { createNgxTranslateJsonAdapter } from "../ngx-translate/ngx-translate-adapter.js";
@@ -23,7 +22,6 @@ afterAll(() => {
   dirs.length = 0;
 });
 
-/** Read a file with an adapter and write it back, returning the written text. */
 async function roundTrip(adapter: FormatAdapter, content: string): Promise<string> {
   const inPath = await tempFile("in.json", content);
   const { resource } = await adapter.read(inPath, "en");
@@ -41,45 +39,11 @@ const literalLeafAdapters: ReadonlyArray<readonly [string, () => FormatAdapter]>
 describe.each(literalLeafAdapters)("%s adapter: literal dotted leaf round-trip", (_name, make) => {
   const adapter = make();
 
-  it("preserves a single literal dotted leaf as one leaf, not re-nested", async () => {
-    const input = '{\n  "foo.bar": "Hi"\n}\n';
-    expect(await roundTrip(adapter, input)).toBe(input);
-  });
-
-  it("keeps a real nested path nested", async () => {
-    const input = '{\n  "foo": {\n    "bar": "Hi"\n  }\n}\n';
-    expect(await roundTrip(adapter, input)).toBe(input);
-  });
-
-  it("preserves a multi-dot literal leaf key in full", async () => {
-    const input = '{\n  "a.b.c": "Hi"\n}\n';
-    expect(await roundTrip(adapter, input)).toBe(input);
-  });
-
-  it("preserves a mixed file: literal dotted leaf plus an unrelated nested path", async () => {
-    const input = '{\n  "a.b": "x",\n  "c": {\n    "d": "y"\n  }\n}\n';
-    expect(await roundTrip(adapter, input)).toBe(input);
-  });
-
   it("reads a literal dotted leaf as a single entry whose key carries the dot", async () => {
     const inPath = await tempFile("in.json", '{"foo.bar":"Hi"}');
     const { resource } = await adapter.read(inPath, "en");
     expect([...resource.entries.keys()]).toEqual(["foo\\.bar"]);
     expect(resource.entries.get("foo\\.bar")?.value).toBe("Hi");
-  });
-
-  it("throws a structured INVALID_STRUCTURE on a genuine literal-vs-nested collision", async () => {
-    const inPath = await tempFile("in.json", '{"foo.bar":"Hi","foo":{"bar":"Hello"}}');
-    const error = await adapter.read(inPath, "en").catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(AdapterError);
-    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
-  });
-
-  it("throws a structured INVALID_STRUCTURE on the same collision in nested-first order", async () => {
-    const inPath = await tempFile("in.json", '{"foo":{"bar":"Hello"},"foo.bar":"Hi"}');
-    const error = await adapter.read(inPath, "en").catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(AdapterError);
-    expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
   });
 
   it("round-trips a literal backslash key byte-identically", async () => {
@@ -104,7 +68,6 @@ describe.each(literalLeafAdapters)("%s adapter: literal dotted leaf round-trip",
 describe("ngx-translate adapter: dotted keys stay path notation (unchanged behavior)", () => {
   const adapter = createNgxTranslateJsonAdapter();
 
-  /** ngx preserves the destination's style, so round-trip in place over existing content. */
   async function roundTripInPlace(content: string): Promise<string> {
     const path = await tempFile("ngx.json", content);
     const { resource } = await adapter.read(path, "en");

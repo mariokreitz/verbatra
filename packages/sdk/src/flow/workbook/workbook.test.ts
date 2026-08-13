@@ -404,6 +404,54 @@ describe("importWorkbook", () => {
     expect(de.greet).toBe("Hallo {{name}}");
   });
 
+  it("keeps a generated-plural lock hash through an export and import with nothing to fill", async () => {
+    const dir = await project(
+      { items_one: "{{count}} item", items_other: "{{count}} items" },
+      {
+        pl: {
+          items_one: "{{count}} przedmiot",
+          items_other: "{{count}} przedmiotow",
+          items_few: "{{count}} przedmioty",
+          items_many: "{{count}} przedmiotow",
+        },
+      },
+    );
+    const config = cfg({ targetLocales: ["pl"] });
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: { pl: { items_few: "generated-few-hash", items_many: "generated-many-hash" } },
+    });
+
+    const out = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    expect(data.sheets[0]?.rows).toEqual([]);
+
+    await importWorkbook({ config, workbook: out.path, cwd: dir });
+
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    expect(lock.locales.pl?.items_few).toBe("generated-few-hash");
+    expect(lock.locales.pl?.items_many).toBe("generated-many-hash");
+  });
+
+  it("drops the baseline hash of a source-less key the user deleted from the target file", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
+    const config = cfg({ targetLocales: ["de"] });
+    await writeJsonFile(join(dir, "verbatra.lock.json"), {
+      version: 1,
+      locales: { de: { deleted_few: "generated-few-hash" } },
+    });
+    const out = await exportWorkbook({ config, cwd: dir });
+
+    await importWorkbook({ config, workbook: out.path, cwd: dir });
+
+    const lock = (await readJsonFile(join(dir, "verbatra.lock.json"))) as {
+      locales: Record<string, Record<string, string>>;
+    };
+    expect(lock.locales.de?.deleted_few).toBeUndefined();
+  });
+
   it("keeps the prior lock baseline when a changed row is left blank", async () => {
     const dir = await project({ greeting: "Hello" }, { de: { greeting: "Hallo" } });
     const config = cfg({ targetLocales: ["de"] });
@@ -640,7 +688,6 @@ describe("importWorkbook", () => {
     expect(summary.locales[0]?.translated).toEqual(["good"]);
     expect(summary.locales[0]?.malformedRows).toHaveLength(1);
     expect(summary.locales[0]?.malformedRows[0]?.column).toBe("Status");
-    // A workbook has rows, not lines, so the xlsx path reports no file line at all.
     expect(summary.locales[0]?.malformedRows[0]).not.toHaveProperty("line");
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.good).toBe("Gut");

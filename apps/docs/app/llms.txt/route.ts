@@ -7,20 +7,12 @@ export const dynamic = "force-static";
 
 type PageInfo = { title: string; url: string; description?: string | undefined };
 
-/**
- * Renders one page as a markdown link bullet with its description.
- */
 function pageLine(info: PageInfo): string {
   const url = new URL(info.url, SITE_URL).href;
   const desc = info.description ? `: ${info.description}` : "";
   return `- [${info.title}](${url})${desc}`;
 }
 
-/**
- * Groups the docs pages by the sections of the page tree (route groups and
- * folders), so the list mirrors the sidebar: Introduction, Get started,
- * Core concepts, Configuration, Guides, CLI reference, SDK, and Help.
- */
 function renderSections(): string {
   const byUrl = new Map<string, PageInfo>();
   for (const page of source.getPages(i18n.defaultLanguage)) {

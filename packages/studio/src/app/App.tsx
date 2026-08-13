@@ -31,7 +31,6 @@ const PAGE_LABELS: Readonly<Record<PageId, string>> = {
   settings: "Settings",
 };
 
-/** One glyph per page for the nav rail; the Record type keeps this exhaustive at compile time. */
 const PAGE_ICONS: Readonly<Record<PageId, IconName>> = {
   translations: "diff",
   review: "review",
@@ -54,11 +53,6 @@ const PAGE_PANELS: Readonly<Record<PageId, (props: PanelProps) => ReactNode>> = 
   settings: SettingsPanel,
 };
 
-/**
- * The terminal, full-screen notice shown once the session is marked expired.
- * It never clears itself and nothing here polls or retries; the only way out
- * is a full page reload from the loopback URL printed in the terminal.
- */
 function SessionExpiredNotice(): ReactNode {
   return (
     <div className="flex h-screen items-center justify-center p-6 text-center" role="alert">
@@ -76,13 +70,6 @@ function isSessionExpired(): boolean {
   return sessionStore.getState().kind === "session-expired";
 }
 
-/**
- * The dashboard root. Tracks the current page from the URL hash (parsed on
- * mount and on every hashchange), subscribes to the session store and the
- * refresh bus, and holds the toast slot, refresh token, and sidebar state.
- * Renders the session-expired notice instead of the shell once the session
- * store reports expiry.
- */
 export function App(): ReactNode {
   const [page, setPage] = useState<PageId>(() => parsePageHash(window.location.hash));
   const [sessionExpired, setSessionExpired] = useState(isSessionExpired());
@@ -145,12 +132,6 @@ export function App(): ReactNode {
   );
 }
 
-/**
- * The rendered shell, split from `App` so its hooks (most notably the
- * review-queue read backing the nav count) never run while the
- * session-expired notice is up: `App` returns before rendering this, and
- * hooks in an unrendered child do not execute.
- */
 function AppShell({
   page,
   onNavigate,

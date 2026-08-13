@@ -6,7 +6,6 @@ import { render, setConnectionStatus } from "./test-support.js";
 
 vi.mock("./api.js", () => import("./test-support.js").then((module) => module.apiMock()));
 
-/** The delay the degraded badge waits out before it appears; mirrors `DEGRADED_BADGE_DELAY_MS`. */
 const DEGRADED_DELAY_MS = 1500;
 
 function advance(ms: number): void {

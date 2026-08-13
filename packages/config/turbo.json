@@ -6,7 +6,7 @@
       "outputs": []
     },
     "test": {
-      "outputs": []
+      "outputs": ["coverage/**"]
     }
   }
 }

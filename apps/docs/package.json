@@ -36,6 +36,7 @@
     "@verbatra/cli": "workspace:*",
     "@verbatra/sdk": "workspace:*",
     "@verbatra/studio": "workspace:*",
+    "jsdom": "30.0.1",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",
     "vitest": "catalog:"

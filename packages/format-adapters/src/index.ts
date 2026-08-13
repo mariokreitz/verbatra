@@ -1,13 +1,3 @@
-/**
- * Read and write locale files in each supported format into and out of core's intermediate
- * representation. Provides the {@link FormatAdapter} extension point and an {@link AdapterRegistry} to
- * resolve one for a file, the placeholder-syntax knowledge the provider integrity check validates
- * against, and hardened read/write paths (atomic writes, bounded reads with size and depth caps, and
- * structured secret-free {@link AdapterError}s).
- *
- * @packageDocumentation
- */
-
 export type { FormatAdapter, ReadResult } from "./adapter.js";
 export { createArbAdapter } from "./arb/arb-adapter.js";
 export { createDefaultRegistry } from "./default-registry.js";

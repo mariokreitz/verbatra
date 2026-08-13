@@ -2,6 +2,7 @@ import { SiNpm } from "@icons-pack/react-simple-icons";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { VMark } from "@/components/landing";
+import { GRID_PATTERN_STYLE } from "./fx/grid-pattern";
 import { GithubIcon } from "./github-icon";
 import {
   CODE_OF_CONDUCT_URL,
@@ -105,9 +106,7 @@ export async function FullFooter(): Promise<ReactNode> {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
         style={{
-          backgroundImage:
-            "linear-gradient(var(--border-default) 1px, transparent 1px), linear-gradient(90deg, var(--border-default) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
+          ...GRID_PATTERN_STYLE,
           opacity: 0.28,
           WebkitMaskImage: "linear-gradient(to bottom, #000, transparent 55%)",
           maskImage: "linear-gradient(to bottom, #000, transparent 55%)",

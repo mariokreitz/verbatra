@@ -10,8 +10,9 @@ Use the `docs-writer` agent in `.claude/agents/docs-writer.md`.
 1. Read `CLAUDE.md` at the repository root.
 2. Dispatch the docs-writer agent with the shipped change.
 3. The agent updates the Fumadocs site under `apps/docs` only when the change is
-   user-facing, matching the existing structure and tone, with runnable examples
-   inside v1 scope (init, translate, watch, export, import; JSON formats; four providers).
+   user-facing, matching the existing structure and tone, with runnable examples of the
+   shipped surface (init, translate, watch, check, diff, export, import, studio; the
+   JSON, XLIFF, YAML, ARB, and properties formats; five providers).
 
 Keep docs in English, no emojis, no em dash character (U+2014). Internal-only changes
 need no docs; the agent will say so.

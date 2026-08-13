@@ -14,11 +14,6 @@ function Probe(): ReactNode {
   return <span data-testid="kind">{seen.kind}</span>;
 }
 
-/**
- * Typed against the real {@link StudioCapabilities} on purpose. The mocked rpc client answers with
- * `unknown`, so an invented field shape would compile and then quietly send every consumer down
- * the wrong branch.
- */
 function snapshotResult(spend: boolean): { readonly ok: true; readonly result: unknown } {
   const capabilities: StudioCapabilities = { spend, writeToDisk: true };
   return { ok: true, result: { capabilities } };
@@ -28,7 +23,6 @@ describe("useCapabilities", () => {
   it("starts in the loading state while the snapshot call is still open", async () => {
     stubRpc({ "project.snapshot": () => new Promise(() => {}) });
 
-    // Rendered and flushed, but the stubbed call never settles, so nothing can move it on.
     const view = await renderAsync(<Probe />);
 
     expect(view.text()).toBe("loading");

@@ -1,3 +1,5 @@
 import { createVitestConfig } from "@verbatra/config/vitest";
 
-export default createVitestConfig();
+export default createVitestConfig({
+  coverageExclude: ["src/test-support.ts"],
+});

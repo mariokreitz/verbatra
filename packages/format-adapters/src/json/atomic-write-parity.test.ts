@@ -32,10 +32,10 @@ function singleKey(format: SupportedFormat): LocaleResource {
   };
 }
 
-describe("QA independent: byte-identical write through the atomic path, all four adapters", () => {
+describe("every JSON adapter writes byte-identical output through the atomic path", () => {
   for (const { format, make } of adapters) {
     it(`${format} writes the expected bytes with no leftover temp`, async () => {
-      const dir = await mkdtemp(join(tmpdir(), "verbatra-qa-aw-"));
+      const dir = await mkdtemp(join(tmpdir(), "verbatra-aw-parity-"));
       const target = join(dir, "en.json");
       await make().write(singleKey(format), target);
       expect(await readFile(target, "utf8")).toBe(EXPECTED);

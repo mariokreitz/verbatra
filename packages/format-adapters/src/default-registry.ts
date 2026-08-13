@@ -8,18 +8,6 @@ import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 import { createXliffAdapter } from "./xliff/xliff-adapter.js";
 import { createYamlAdapter } from "./yaml/yaml-adapter.js";
 
-/**
- * Build an {@link AdapterRegistry} pre-loaded with every shipped adapter: the four JSON i18n adapters
- * (i18next, vue-i18n, next-intl, ngx-translate) plus the non-JSON adapters (XLIFF, YAML, ARB,
- * Java/Spring properties).
- *
- * @returns A registry ready to resolve any supported format.
- * @example
- * ```ts
- * const registry = createDefaultRegistry();
- * const resolution = registry.resolve("locales/en.json", { format: "vue-i18n-json" });
- * ```
- */
 export function createDefaultRegistry(): AdapterRegistry {
   return new AdapterRegistry()
     .register(createI18nextJsonAdapter())

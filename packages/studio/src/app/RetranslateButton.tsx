@@ -24,12 +24,6 @@ function statusLabel(state: ButtonState): string {
   return "Retranslate";
 }
 
-/**
- * A retranslate action for one (locale, key) pair. Calls
- * `translation.retranslateEntry` and shows a loading or settled status label
- * next to the button; it never re-fetches anything itself, so the resulting
- * change reaches the UI through the live-refresh loop.
- */
 export function RetranslateButton({
   locale,
   keyName,

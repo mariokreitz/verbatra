@@ -2,37 +2,15 @@ import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { buildWorkbook } from "./build-workbook.js";
-import { ExchangeError } from "./errors.js";
 import { DEFAULT_WORKBOOK_LIMITS } from "./limits.js";
 import { readWorkbook } from "./read-workbook.js";
+import { expectWorkbookInvalid, row, singleLocaleModel } from "./test-support.js";
 import type { WorkbookModel } from "./types.js";
 import { declaredSize } from "./zip-guard.js";
 
-const baseModel: WorkbookModel = {
-  sheets: [
-    {
-      locale: "de",
-      rows: [
-        {
-          key: "k1",
-          source: "Hello",
-          currentTarget: "",
-          status: "new",
-          sourceHash: "h1",
-          translation: "",
-          context: "A greeting",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
-      ],
-    },
-  ],
-};
-
-async function code(promise: Promise<unknown>): Promise<string | undefined> {
-  const error = await promise.catch((e) => e);
-  return error instanceof ExchangeError ? error.code : undefined;
-}
+const baseModel = singleLocaleModel([
+  row({ key: "k1", source: "Hello", sourceHash: "h1", context: "A greeting" }),
+]);
 
 describe("readWorkbook: structural rejection", () => {
   it("reads a valid workbook", async () => {
@@ -132,9 +110,7 @@ describe("readWorkbook: structural rejection", () => {
     sheet.getRow(1).getCell(1).value = "NotKey";
     sheet.getRow(2).getCell(1).value = "k1";
     const buffer = await workbook.xlsx.writeBuffer();
-    expect(await code(readWorkbook(new Uint8Array(buffer as ArrayBuffer)))).toBe(
-      "WORKBOOK_INVALID",
-    );
+    await expectWorkbookInvalid(() => readWorkbook(new Uint8Array(buffer as ArrayBuffer)));
   });
 
   it("coerces non-string cell values (numbers) to strings on read", async () => {
@@ -191,7 +167,7 @@ describe("readWorkbook: structural rejection", () => {
     const zip = await JSZip.loadAsync(valid);
     zip.file("xl/workbook.xml", "<workbook><<<not valid xml");
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    expect(await code(readWorkbook(bytes))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes));
   });
 
   it("accepts a row with status 'unchanged'", async () => {
@@ -333,9 +309,7 @@ describe("readWorkbook: parse-bound caps", () => {
       ],
     };
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxSheetCount: 2 };
-    expect(await code(readWorkbook(await buildWorkbook(many), { limits }))).toBe(
-      "WORKBOOK_INVALID",
-    );
+    await expectWorkbookInvalid(async () => readWorkbook(await buildWorkbook(many), { limits }));
   });
 
   it("trips the rows-per-sheet cap", async () => {
@@ -352,9 +326,7 @@ describe("readWorkbook: parse-bound caps", () => {
     }));
     const model: WorkbookModel = { sheets: [{ locale: "de", rows }] };
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxRowsPerSheet: 2 };
-    expect(await code(readWorkbook(await buildWorkbook(model), { limits }))).toBe(
-      "WORKBOOK_INVALID",
-    );
+    await expectWorkbookInvalid(async () => readWorkbook(await buildWorkbook(model), { limits }));
   });
 
   it("trips the cells-per-row cap on a wide forged row", async () => {
@@ -372,7 +344,7 @@ describe("readWorkbook: parse-bound caps", () => {
     }
     const bytes = new Uint8Array((await workbook.xlsx.writeBuffer()) as ArrayBuffer);
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxCellsPerRow: 10 };
-    expect(await code(readWorkbook(bytes, { limits }))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes, { limits }));
   });
 
   it("trips the entry-count cap on a crafted zip", async () => {
@@ -382,7 +354,7 @@ describe("readWorkbook: parse-bound caps", () => {
     }
     const bytes = await zip.generateAsync({ type: "uint8array" });
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxEntryCount: 3 };
-    expect(await code(readWorkbook(bytes, { limits }))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes, { limits }));
   });
 
   it("trips the decompressed-bytes cap on a crafted highly-compressible zip", async () => {
@@ -391,7 +363,7 @@ describe("readWorkbook: parse-bound caps", () => {
     const bytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
     expect(bytes.byteLength).toBeLessThan(64 * 1024);
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: 1024 };
-    expect(await code(readWorkbook(bytes, { limits }))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes, { limits }));
   });
 
   it("accepts a binary part whose raw bytes are under the actual-bytes cap even though UTF-8 decoding would inflate its byte count past it", async () => {
@@ -405,14 +377,14 @@ describe("readWorkbook: parse-bound caps", () => {
       .filter((file) => !file.dir)
       .reduce((sum, file) => sum + (declaredSize(file) ?? 0), 0);
     const limits = { ...DEFAULT_WORKBOOK_LIMITS, maxDecompressedBytes: trueRawTotal + 1000 };
-    expect(await code(readWorkbook(bytes, { limits }))).toBeUndefined();
+    await expect(readWorkbook(bytes, { limits })).resolves.toBeDefined();
   });
 
   it("trips the DTD/entity guard on a crafted xlsx-like zip", async () => {
     const zip = new JSZip();
     zip.file("evil.xml", '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY x "y">]><root>&x;</root>');
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    expect(await code(readWorkbook(bytes))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes));
   });
 
   it("trips the DTD/entity guard on a non-.xml part (.vml)", async () => {
@@ -422,6 +394,6 @@ describe("readWorkbook: parse-bound caps", () => {
       '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY x "y">]><root>&x;</root>',
     );
     const bytes = await zip.generateAsync({ type: "uint8array" });
-    expect(await code(readWorkbook(bytes))).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(bytes));
   });
 });

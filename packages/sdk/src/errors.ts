@@ -1,53 +1,59 @@
 /**
- * Structured, secret-free error codes for the SDK boundaries. A key never appears in
- * any message: provider/adapter/core errors are already secret-free, and the SDK never
- * reads or holds a key. Each names a distinct boundary:
+ * The stable, structured failure codes the SDK throws. Branch on {@link SdkError.code} rather than
+ * on a message; the messages are written for humans and are not part of the contract.
  *
- * - `CONFIG_NOT_FOUND`: no config was found by search, or an explicit `configPath` does not exist
- *   (thrown by `loadConfig`).
+ * A code never carries a secret. API keys are read from the environment by the providers alone, so
+ * the SDK never holds one, and provider, adapter, and core errors are secret-free before the SDK
+ * wraps them.
+ *
+ * - `CONFIG_NOT_FOUND`: no config file was found by search, or an explicit `configPath` does not
+ *   exist. Thrown by {@link loadConfig} and {@link loadConfigWithMeta}.
  * - `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or its glossary
- *   file path could not be resolved (thrown by `loadConfig`).
- * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format (thrown by every entry
- *   point that selects an adapter, before any file is read).
- * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales (thrown via
- *   the shared locale selection by `check`, `diff`, `keyIntegrity`, `lockState`, `exportWorkbook`,
- *   `keyValue`, `editEntry`, and `retranslateEntry`).
- * - `UNKNOWN_KEY`: a requested key is not among the source resource's own keys (thrown by
- *   `keyValue`, `editEntry`, and `retranslateEntry`).
- * - `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw; wraps the provider's own error,
- *   including a missing `*_API_KEY` reported as `MISSING_API_KEY` (thrown by non-dry-run
- *   `translate` and by `retranslateEntry`).
- * - `SOURCE_UNREADABLE`: the source locale file is absent (thrown by every entry point that reads
- *   the source, and by `watch` at startup).
- * - `SOURCE_INVALID`: the source locale file could not be read or parsed; wraps the adapter read
- *   error (thrown by every entry point that reads the source).
- * - `LOCK_FILE_INVALID`: the lock-file is present but corrupt, oversized, or at an unsupported
- *   version (thrown wherever the lock-file is read or updated: `translate`, `check`, `diff`,
- *   `keyIntegrity`, `lockState`, `loadLockFile`, `exportWorkbook`, `importWorkbook`, `editEntry`,
- *   and `retranslateEntry`).
- * - `LOCK_CONTENDED`: a locale's write lock (`withLocaleWriteLock`) could not be acquired before
- *   its timeout elapsed, because another process is holding it (or an orphaned lock file was left
- *   behind by a killed process); the message names the lock file's path (thrown by `translate`,
- *   `importWorkbook`, `editEntry`, and `retranslateEntry`).
+ *   file could not be resolved or parsed. Thrown by {@link loadConfig} and
+ *   {@link loadConfigWithMeta}. {@link importWorkbook} does not throw it: when a handoff sheet or
+ *   file names a locale that is not a configured target locale, it records this code on that
+ *   locale's {@link LocaleSummary} instead.
+ * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
+ *   point that selects an adapter, before any file is read.
+ * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales. Thrown through
+ *   the shared locale selection by {@link check}, {@link diff}, {@link keyIntegrity},
+ *   {@link lockState}, {@link exportWorkbook}, {@link keyValue}, {@link editEntry}, and
+ *   {@link retranslateEntry}.
+ * - `UNKNOWN_KEY`: the requested key is not present in the source resource. Thrown by
+ *   {@link keyValue}, {@link editEntry}, and {@link retranslateEntry}.
+ * - `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw. Wraps the provider's own error,
+ *   including a missing `*_API_KEY` environment variable. Thrown by a non-dry-run
+ *   {@link translate} and by {@link retranslateEntry}.
+ * - `SOURCE_UNREADABLE`: the source locale file is absent. Thrown by every entry point that reads
+ *   the source, including {@link importWorkbook}, and by {@link watch} at startup.
+ *   {@link importWorkbook} additionally throws it when the handoff file itself is missing.
+ * - `SOURCE_INVALID`: the source locale file, or an interchange file, could not be parsed. Wraps
+ *   the adapter or reader error.
+ * - `LOCK_FILE_INVALID`: the lock-file exists but is corrupt, oversized, or at an unsupported
+ *   version. Thrown wherever the lock-file is read or updated: {@link translate}, {@link check},
+ *   {@link diff}, {@link keyIntegrity}, {@link lockState}, {@link loadLockFile},
+ *   {@link exportWorkbook}, {@link importWorkbook}, {@link editEntry}, and
+ *   {@link retranslateEntry}.
+ * - `LOCK_CONTENDED`: a locale's write lock could not be acquired before its timeout elapsed,
+ *   because another process holds it or a killed process left the lock file behind. The message
+ *   names the lock file's path. Thrown by {@link editEntry} and {@link retranslateEntry}, which
+ *   act on one locale. {@link translate} and {@link importWorkbook} do not throw it: they record it
+ *   on the contended locale's {@link LocaleSummary} and carry on with the other locales.
  * - `LOCALE_LAYOUT_INVALID`: the configured `files.pattern` and `files.localeStyle` cannot be
- *   combined (a segment style needs the `{locale}` token to stand alone between separators), or the
- *   declared style has no valid path spelling for a configured locale (`zh-Hans` under `posix`, for
- *   instance), or a locale expands to something that is not a single path segment. Thrown by
- *   `createLocalePathResolver`, and so by every entry point that resolves a locale to a path, before
- *   any file is read and before any provider call.
- * - `LOCALE_PATH_COLLISION`: two configured locales resolve to the same absolute file path, which
- *   would make the path-to-locale direction meaningless and would let two concurrent locale workers
- *   race on one file (thrown by `createLocalePathResolver`, at the same point as the above).
- * - `CONCURRENCY_INVALID`: the `concurrency` input is not an integer of at least 1 (thrown by
- *   `translate` and, per run, by `watch`, before any locale runs).
- * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested `concurrency` greater than 1 while a token
- *   budget (`maxTokens`) is configured; the two are mutually exclusive because concurrency makes the
- *   budget's stop guarantee nondeterministic (thrown by `translate` before any provider call; a dry
- *   run is exempt, since it never folds usage into or consults the budget tracker, so the conflict
- *   cannot arise).
- * - `LOCALE_FAILED` (NOT thrown): the fallback `code` recorded on a failed `LocaleSummary` when a
- *   per-locale failure carries no string code of its own. See the surfaced-not-thrown distinction
- *   on `translate`.
+ *   combined, or the style has no valid path spelling for a configured locale. Thrown by
+ *   {@link createLocalePathResolver}, and so by every entry point that maps a locale to a path,
+ *   before any file is read and before any provider call.
+ * - `LOCALE_PATH_COLLISION`: two configured locales resolve to the same absolute path, which would
+ *   make the path-to-locale direction ambiguous and let two locale workers race on one file. Thrown
+ *   at the same point as `LOCALE_LAYOUT_INVALID`.
+ * - `CONCURRENCY_INVALID`: the `concurrency` input is not an integer of at least 1. Thrown by
+ *   {@link translate} before any locale runs, and by {@link watch} once at startup, before any
+ *   watching begins, since the value is fixed for the session rather than re-read per run.
+ * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested a `concurrency` above 1 while a token
+ *   budget is configured. The two are mutually exclusive because concurrency makes the budget's
+ *   stop guarantee nondeterministic. A dry run is exempt, since it never consults the budget.
+ * - `LOCALE_FAILED`: never thrown. It is the fallback code recorded on a failed
+ *   {@link LocaleSummary} when a per-locale failure carries no code of its own.
  */
 export type SdkErrorCode =
   | "CONFIG_NOT_FOUND"
@@ -66,16 +72,10 @@ export type SdkErrorCode =
   | "CONCURRENCY_BUDGET_CONFLICT"
   | "LOCALE_FAILED";
 
-/**
- * The message of a caught value: an `Error`'s own message, or the stringified value for anything
- * else. The single copy of an idiom the SDK had five of, one of them an unchecked cast that
- * produced `undefined` for any thrown non-`Error`.
- */
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** A caught value's own string `code`, when it carries one. Read without casting. */
 function stringCode(error: unknown): string | undefined {
   if (error instanceof Error && "code" in error && typeof error.code === "string") {
     return error.code;
@@ -83,17 +83,6 @@ function stringCode(error: unknown): string | undefined {
   return undefined;
 }
 
-/**
- * Projects a caught value onto the secret-free `{ code, message }` shape recorded on a failed run.
- * A value carrying a string `code` keeps it; anything else falls back to `fallbackCode`.
- *
- * The fallback is a parameter rather than a constant because the two call sites deliberately
- * differ, and unifying them would change observable output: a whole failed watch run reports
- * `WATCH_RUN_FAILED`, a single failed locale reports {@link SdkErrorCode} `LOCALE_FAILED`.
- *
- * @param error - The caught value.
- * @param fallbackCode - The code to record when the value carries none of its own.
- */
 export function describeError(
   error: unknown,
   fallbackCode: string,
@@ -101,14 +90,20 @@ export function describeError(
   return { code: stringCode(error) ?? fallbackCode, message: errorMessage(error) };
 }
 
-/** The single structured error the SDK throws or records. Never carries a secret. */
+/**
+ * The single structured error the SDK throws. Every whole-run failure surfaces as an `SdkError`
+ * carrying a stable {@link SdkErrorCode}; per-locale failures, provider notices, and integrity
+ * findings are reported as data on the {@link RunSummary} instead of being thrown.
+ *
+ * An `SdkError` never carries a secret in its message.
+ */
 export class SdkError extends Error {
-  /** The stable {@link SdkErrorCode} for this failure; branch on this, not the message. */
+  /** The stable {@link SdkErrorCode} for this failure. Branch on this, not on the message. */
   readonly code: SdkErrorCode;
 
   /**
    * @param code - The stable failure code.
-   * @param message - A fixed, secret-free message; the SDK never holds a key to put here.
+   * @param message - A human-readable description of the failure. Never contains a secret.
    */
   constructor(code: SdkErrorCode, message: string) {
     super(message);

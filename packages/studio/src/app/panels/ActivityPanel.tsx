@@ -12,8 +12,6 @@ import { EmptyState, PageSection } from "../ui.js";
 import { useHistoryList } from "../use-history-list.js";
 import { useUsageTicker } from "../use-usage-ticker.js";
 
-/** The run's token totals as metric tiles, or one explicit not-reported tile:
- * an absent figure is never rendered as a fabricated zero. */
 function UsageCards({ usage }: { readonly usage: UsageDisplay }): ReactNode {
   if (usage.kind === "not-reported") {
     return (
@@ -33,9 +31,6 @@ function UsageCards({ usage }: { readonly usage: UsageDisplay }): ReactNode {
   );
 }
 
-/** The budget tiles for the two renderable budget arms; a run without a
- * budget renders nothing. The meter turns danger-toned only off the run's own
- * exceeded flag, never re-derived from the percentage. */
 function BudgetCards({ budget }: { readonly budget: BudgetDisplay }): ReactNode {
   if (budget.kind === "none") {
     return null;
@@ -70,13 +65,6 @@ function BudgetCards({ budget }: { readonly budget: BudgetDisplay }): ReactNode 
   );
 }
 
-/**
- * The last recorded run's token and budget snapshot, the page's side rail.
- * Purely a display surface; the `generatedAt` timestamp is always shown so
- * this reads as "as of the last recorded run", never a live counter.
- * Re-fetches on every live-refresh event, keeping the last good data with a
- * stale banner when a re-fetch fails.
- */
 function LastRunRail({ refreshToken }: PanelProps): ReactNode {
   const view = useUsageTicker(refreshToken);
 
@@ -111,11 +99,6 @@ function LastRunRail({ refreshToken }: PanelProps): ReactNode {
   );
 }
 
-/**
- * The Activity page: the locale files' commit feed and the last run's token
- * and budget snapshot side by side. The feed comes from `history.list`; a
- * project without git renders history as unavailable rather than an error.
- */
 export function ActivityPanel({ refreshToken }: PanelProps): ReactNode {
   const history = useHistoryList(refreshToken);
 

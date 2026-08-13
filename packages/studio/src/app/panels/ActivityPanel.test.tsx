@@ -27,7 +27,6 @@ const COMMITS: readonly HistoryCommit[] = [
 
 const LOADED_HISTORY: HistoryListResult = { available: true, commits: COMMITS };
 
-/** A run that reported tokens and stayed inside a tracked budget: the fully populated rail. */
 const TRACKED_RUN: UsageSummaryResult = {
   available: true,
   generatedAt: GENERATED_AT,
@@ -35,8 +34,6 @@ const TRACKED_RUN: UsageSummaryResult = {
   budget: { maxTokens: 800, behavior: "warn", supported: true, tokensUsed: 250, exceeded: false },
 };
 
-// The fixtures are typed against the shared rpc result types rather than hand-shaped objects, so a
-// contract change in `history.list` or `usage.summary` fails this file at compile time.
 function historyAnswer(result: HistoryListResult): {
   readonly ok: true;
   readonly result: HistoryListResult;
@@ -58,10 +55,6 @@ function stubActivity(
   stubRpc({ "usage.summary": usageAnswer(usage), "history.list": historyAnswer(history) });
 }
 
-/**
- * The `MetricCard` element carrying `label`, reached from its micro-label span. The tiles have no
- * test hooks of their own, so the label is the only stable handle a reader of the page also has.
- */
 function metricCard(view: RenderResult, label: string): HTMLElement {
   const card = view.getByText("span", label).parentElement?.parentElement;
   if (card === null || card === undefined) {
@@ -70,7 +63,6 @@ function metricCard(view: RenderResult, label: string): HTMLElement {
   return card;
 }
 
-/** A string-valued tile renders its figure into a `title`, which is also the truncation tooltip. */
 function metricValue(view: RenderResult, label: string): string | null {
   return metricCard(view, label).querySelector("div[title]")?.getAttribute("title") ?? null;
 }
@@ -99,7 +91,6 @@ describe("ActivityPanel", () => {
       "history.list": () => new Promise(() => {}),
     });
 
-    // Deliberately not awaited: two pending calls are what "still loading" means.
     const view = render(<ActivityPanel refreshToken={0} />);
 
     expect(view.all('[role="status"]').map((node) => node.textContent?.trim())).toEqual([

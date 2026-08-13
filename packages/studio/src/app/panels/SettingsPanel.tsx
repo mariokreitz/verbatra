@@ -11,7 +11,6 @@ import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
 import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
 
-/** The at-a-glance strip: source locale, target-locale count, format, and provider. */
 function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -36,11 +35,6 @@ type SettingsState =
       readonly glossary: GlossaryGetResult;
     };
 
-/**
- * The configuration facts the metric strip does not already carry: the full
- * target-locale list, the file pattern, whether provider actions were enabled
- * at startup, and whichever optional settings are configured.
- */
 function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   const items: Array<readonly [string, ReactNode]> = [
     [
@@ -83,12 +77,6 @@ function glossaryIndicatorLabel(glossary: GlossaryGetResult): string {
   return glossary.indicator.source;
 }
 
-/**
- * The glossary's term list, or an empty state when no glossary is configured.
- * Translations render with `dir="auto"`: the glossary is one project-wide
- * term map with no per-entry locale, so the browser infers direction from
- * each value's own first strong character.
- */
 function GlossaryEntries({
   entries,
 }: {
@@ -136,11 +124,6 @@ function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult })
   );
 }
 
-/**
- * The Settings page: the resolved config snapshot (`project.snapshot`) and
- * the glossary (`glossary.get`), both fetched once per mount. This panel does
- * not react to the live-refresh token.
- */
 export function SettingsPanel(): ReactNode {
   return (
     <>

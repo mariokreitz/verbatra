@@ -7,7 +7,6 @@ type StatusBadge = {
   src: string;
   href: string;
   altKey: string;
-  /** Intrinsic badge width in px at the 20px badge height, so layout is reserved before the SVG loads. */
   width: number;
 };
 

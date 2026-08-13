@@ -2,16 +2,15 @@ import "../global.css";
 import { RootProvider } from "fumadocs-ui/provider/base";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
-import { notFound } from "next/navigation";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 import { JsonLd } from "@/components/json-ld";
 import { LocaleAwareFrameworkProvider } from "@/lib/framework-provider";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, toLocale } from "@/lib/i18n";
 import { i18nConfig } from "@/lib/layout.shared";
-import { ogAlternateLocales, ogLocale, SITE_URL } from "@/lib/site";
+import { homeAlternates, ogAlternateLocales, ogLocale, SITE_URL } from "@/lib/site";
 import { AUTHOR_NAME, SEO_KEYWORDS, websiteLd } from "@/lib/structured-data";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -26,13 +25,14 @@ export async function generateMetadata(props: {
   params: Promise<{ lang: string }>;
 }): Promise<Metadata> {
   const { lang } = await props.params;
-  const t = await getTranslations({ locale: lang, namespace: "landing.meta" });
+  const locale = toLocale(lang);
+  const t = await getTranslations({ locale, namespace: "landing.meta" });
   const title = t("title");
   const ogTitle = t("ogTitle");
   const description = t("description");
   const ogDescription = t("ogDescription");
   const ogImageAlt = t("ogImageAlt");
-  const canonical = lang === i18n.defaultLanguage ? "/" : `/${lang}`;
+  const { canonical, languages } = homeAlternates(locale);
 
   return {
     metadataBase: new URL(SITE_URL),
@@ -54,21 +54,12 @@ export async function generateMetadata(props: {
         "max-video-preview": -1,
       },
     },
-    alternates: {
-      canonical,
-      languages: {
-        en: "/",
-        de: "/de",
-        es: "/es",
-        fr: "/fr",
-        "x-default": "/",
-      },
-    },
+    alternates: { canonical, languages },
     openGraph: {
       type: "website",
       siteName: "verbatra",
-      locale: ogLocale(lang as Locale),
-      alternateLocale: ogAlternateLocales(lang as Locale),
+      locale: ogLocale(locale),
+      alternateLocale: ogAlternateLocales(locale),
       url: new URL(canonical, SITE_URL).href,
       title: ogTitle,
       description: ogDescription,
@@ -97,8 +88,7 @@ export default async function Layout({
   children: ReactNode;
 }) {
   const { lang } = await params;
-  if (!(i18n.languages as readonly string[]).includes(lang)) notFound();
-  const locale = lang as Locale;
+  const locale = toLocale(lang);
   setRequestLocale(locale);
   const messages = await getMessages({ locale });
 

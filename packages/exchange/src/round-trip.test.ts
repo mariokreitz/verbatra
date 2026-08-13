@@ -1,48 +1,40 @@
 import ExcelJS from "exceljs";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { buildWorkbook } from "./build-workbook.js";
-import { ExchangeError } from "./errors.js";
 import { readWorkbook } from "./read-workbook.js";
-import type { WorkbookModel } from "./types.js";
+import {
+  COERCION_PRONE_TRANSLATIONS,
+  expectWorkbookInvalid,
+  row,
+  singleLocaleModel,
+} from "./test-support.js";
+import type { WorkbookData, WorkbookModel } from "./types.js";
 
 const model: WorkbookModel = {
   sheets: [
     {
       locale: "de",
       rows: [
-        {
+        row({
           key: "greeting",
           source: "Hello {name}",
-          currentTarget: "",
-          status: "new",
           sourceHash: "abc123",
-          translation: "",
           context: "A friendly greeting",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
-        {
+        }),
+        row({
           key: "farewell",
           source: "Bye",
           currentTarget: "Tschuss",
           status: "changed",
           sourceHash: "def456",
-          translation: "",
-          context: "",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
-        {
+        }),
+        row({
           key: "welcome",
           source: "Welcome",
           currentTarget: "Willkommen",
           status: "unchanged",
           sourceHash: "ghi789",
-          translation: "",
-          context: "",
-          reviewStatus: "ok",
-          reviewReasons: "",
-        },
+        }),
       ],
     },
     { locale: "fr", rows: [] },
@@ -50,84 +42,100 @@ const model: WorkbookModel = {
 };
 
 describe("buildWorkbook + readWorkbook round trip", () => {
-  it("produces bytes that read back to the same sheets and keys (no instructions sheet)", async () => {
-    const bytes = await buildWorkbook(model);
-    expect(bytes.byteLength).toBeGreaterThan(0);
+  describe("same sheets and keys (no instructions sheet)", () => {
+    let bytes: Uint8Array;
+    let data: WorkbookData;
 
-    const data = await readWorkbook(bytes);
-    expect(data.sheets.map((s) => s.locale)).toEqual(["de", "fr"]);
-    const de = data.sheets[0];
-    expect(de?.rows.map((r) => r.key)).toEqual(["greeting", "farewell", "welcome"]);
-    expect(de?.rows[0]?.source).toBe("Hello {name}");
-    expect(de?.rows[0]?.sourceHash).toBe("abc123");
-    expect(de?.rows[1]?.status).toBe("changed");
-    expect(de?.rows[1]?.currentTarget).toBe("Tschuss");
-    expect(de?.rows[2]?.status).toBe("unchanged");
-    expect(de?.rows[2]?.currentTarget).toBe("Willkommen");
-    expect(de?.rows.every((r) => r.translation === "")).toBe(true);
-    expect(de?.rows[0]?.context).toBe("A friendly greeting");
-    expect(de?.rows[1]?.context).toBe("");
+    beforeAll(async () => {
+      bytes = await buildWorkbook(model);
+      data = await readWorkbook(bytes);
+    });
+
+    it("produces non-empty bytes", () => {
+      expect(bytes.byteLength).toBeGreaterThan(0);
+    });
+
+    it("reads back the same locales in workbook order", () => {
+      expect(data.sheets.map((s) => s.locale)).toEqual(["de", "fr"]);
+    });
+
+    it("reads back the same keys in row order", () => {
+      expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["greeting", "farewell", "welcome"]);
+    });
+
+    it("round-trips the source value", () => {
+      expect(data.sheets[0]?.rows[0]?.source).toBe("Hello {name}");
+    });
+
+    it("round-trips the source hash", () => {
+      expect(data.sheets[0]?.rows[0]?.sourceHash).toBe("abc123");
+    });
+
+    it("round-trips the changed row's status", () => {
+      expect(data.sheets[0]?.rows[1]?.status).toBe("changed");
+    });
+
+    it("round-trips the changed row's current target", () => {
+      expect(data.sheets[0]?.rows[1]?.currentTarget).toBe("Tschuss");
+    });
+
+    it("round-trips the unchanged row's status", () => {
+      expect(data.sheets[0]?.rows[2]?.status).toBe("unchanged");
+    });
+
+    it("round-trips the unchanged row's current target", () => {
+      expect(data.sheets[0]?.rows[2]?.currentTarget).toBe("Willkommen");
+    });
+
+    it("leaves translation empty for every unfilled row", () => {
+      expect(data.sheets[0]?.rows.every((r) => r.translation === "")).toBe(true);
+    });
+
+    it("round-trips context when present", () => {
+      expect(data.sheets[0]?.rows[0]?.context).toBe("A friendly greeting");
+    });
+
+    it("round-trips context as empty when absent", () => {
+      expect(data.sheets[0]?.rows[1]?.context).toBe("");
+    });
   });
 
   it("round-trips a filled translation by key", async () => {
-    const filled: WorkbookModel = {
-      sheets: [
-        {
-          locale: "de",
-          rows: [
-            {
-              key: "greeting",
-              source: "Hello {name}",
-              currentTarget: "",
-              status: "new",
-              sourceHash: "abc123",
-              translation: "Hallo {name}",
-              context: "",
-              reviewStatus: "ok",
-              reviewReasons: "",
-            },
-          ],
-        },
-      ],
-    };
+    const filled = singleLocaleModel([
+      row({
+        key: "greeting",
+        source: "Hello {name}",
+        sourceHash: "abc123",
+        translation: "Hallo {name}",
+      }),
+    ]);
     const data = await readWorkbook(await buildWorkbook(filled));
     expect(data.sheets[0]?.rows[0]?.translation).toBe("Hallo {name}");
   });
 
   it("an empty workbook (no rows) still builds and reads zero data rows", async () => {
-    const empty: WorkbookModel = { sheets: [{ locale: "de", rows: [] }] };
+    const empty = singleLocaleModel([]);
     const data = await readWorkbook(await buildWorkbook(empty));
     expect(data.sheets).toHaveLength(1);
     expect(data.sheets[0]?.rows).toHaveLength(0);
   });
 
   it("rejects non-xlsx bytes as a structured WORKBOOK_INVALID", async () => {
-    const error = await readWorkbook(new Uint8Array([1, 2, 3, 4])).catch((e) => e);
-    expect(error).toBeInstanceOf(ExchangeError);
-    expect((error as ExchangeError).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => readWorkbook(new Uint8Array([1, 2, 3, 4])));
   });
 
   it("round-trips a flagged review status and its reasons by key", async () => {
-    const flagged: WorkbookModel = {
-      sheets: [
-        {
-          locale: "de",
-          rows: [
-            {
-              key: "greeting",
-              source: "Hello {name}",
-              currentTarget: "Hello {name}",
-              status: "changed",
-              sourceHash: "abc123",
-              translation: "",
-              context: "",
-              reviewStatus: "review",
-              reviewReasons: "length-ratio-outlier, equals-source",
-            },
-          ],
-        },
-      ],
-    };
+    const flagged = singleLocaleModel([
+      row({
+        key: "greeting",
+        source: "Hello {name}",
+        currentTarget: "Hello {name}",
+        status: "changed",
+        sourceHash: "abc123",
+        reviewStatus: "review",
+        reviewReasons: "length-ratio-outlier, equals-source",
+      }),
+    ]);
     const data = await readWorkbook(await buildWorkbook(flagged));
     expect(data.sheets[0]?.rows[0]?.reviewStatus).toBe("review");
     expect(data.sheets[0]?.rows[0]?.reviewReasons).toBe("length-ratio-outlier, equals-source");
@@ -159,53 +167,18 @@ describe("buildWorkbook + readWorkbook round trip", () => {
 
     const data = await readWorkbook(new Uint8Array(buffer as ArrayBuffer));
     expect(data.sheets[0]?.rows).toHaveLength(2);
-    for (const row of data.sheets[0]?.rows ?? []) {
-      expect(row.reviewStatus).toBe("ok");
-      expect(row.reviewReasons).toBe("");
+    for (const resultRow of data.sheets[0]?.rows ?? []) {
+      expect(resultRow.reviewStatus).toBe("ok");
+      expect(resultRow.reviewReasons).toBe("");
     }
   });
 });
 
-/**
- * Translation values that Excel's default "General" number format would coerce or misparse if the
- * translation column were not formatted as text: a leading-zero code, a trailing-zero decimal, a
- * slash date, a long numeric id, a boolean-looking word, and each of the leading characters
- * (=, +, -, @) Excel treats as the start of a formula.
- */
-const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
-  "007",
-  "1.10",
-  "3/4",
-  "1234567890123456",
-  "true",
-  "=> siehe Hinweis",
-  "+49 30 1234567",
-  "-5 Grad",
-  "@mention this",
-];
-
 describe("buildWorkbook + readWorkbook round trip: coercion-prone translations", () => {
   it.each(COERCION_PRONE_TRANSLATIONS)("imports %j verbatim", async (translation) => {
-    const coercionModel: WorkbookModel = {
-      sheets: [
-        {
-          locale: "de",
-          rows: [
-            {
-              key: "value",
-              source: "Source",
-              currentTarget: "",
-              status: "new",
-              sourceHash: "abc123",
-              translation,
-              context: "",
-              reviewStatus: "ok",
-              reviewReasons: "",
-            },
-          ],
-        },
-      ],
-    };
+    const coercionModel = singleLocaleModel([
+      row({ key: "value", source: "Source", sourceHash: "abc123", translation }),
+    ]);
     const data = await readWorkbook(await buildWorkbook(coercionModel));
     expect(data.sheets[0]?.rows[0]?.translation).toBe(translation);
   });

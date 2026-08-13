@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INSTRUCTIONS_LINES } from "./instructions.js";
 
-/** The instruction lines joined into one searchable block, as a translator would read them. */
 const text = INSTRUCTIONS_LINES.join("\n");
 
 describe("instructions: structure", () => {

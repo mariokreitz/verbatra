@@ -28,13 +28,6 @@ const COLUMN_WIDTHS: Readonly<Record<number, number>> = {
   [COLUMN.reviewReasons]: 40,
 };
 
-/**
- * The Excel "Text" number format. Applied to the translation cell so Excel treats whatever the
- * translator types as literal text instead of coercing it: a value like "007" or "1.10" would
- * otherwise lose its leading zero or trailing zero, "3/4" would parse as a date, a long numeric id
- * would lose precision or turn into scientific notation, and a value starting with "=", "+", "-", or
- * "@" would be parsed as a formula.
- */
 const TEXT_NUMBER_FORMAT = "@";
 
 function styleHeader(sheet: ExcelJS.Worksheet): void {
@@ -81,19 +74,9 @@ function writeRow(sheet: ExcelJS.Worksheet, sheetRow: WorkbookSheet["rows"][numb
   row.commit();
 }
 
-/**
- * Excel's worksheet-name limits, which the locale round-trips through (the name is the data sheet's
- * name on build and the locale on read): max 31 characters and none of the characters : \ / ? * [ ].
- */
 const MAX_WORKSHEET_NAME_LENGTH = 31;
 const FORBIDDEN_WORKSHEET_NAME_CHARS = /[:\\/?*[\]]/;
 
-/**
- * Reject a locale that cannot be a valid Excel worksheet name, since the locale round-trips through
- * the sheet name and Excel would otherwise truncate or reject it and break the round trip.
- *
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the locale is not a valid worksheet name
- */
 function assertValidWorksheetName(locale: string): void {
   if (locale.length === 0 || locale.length > MAX_WORKSHEET_NAME_LENGTH) {
     throw new ExchangeError(
@@ -109,16 +92,6 @@ function assertValidWorksheetName(locale: string): void {
   }
 }
 
-/**
- * Reject a sheet locale that would collide as an Excel worksheet name: exceljs deduplicates worksheet
- * names case-insensitively (in the `Worksheet` constructor, not in `Workbook.addWorksheet`), so two
- * target locales differing only in case, or a locale equal to the reserved instructions sheet name,
- * would otherwise reach `addWorksheet` and throw a raw, uncaught exceljs error. Checked once, up
- * front, for the whole model, so that error can never escape the package boundary.
- *
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if a locale collides with the reserved
- *   instructions sheet name, or with another sheet's locale
- */
 function assertNoWorksheetNameCollisions(sheets: readonly WorkbookSheet[]): void {
   const reservedKey = INSTRUCTIONS_SHEET_NAME.toLowerCase();
   const seen = new Set<string>();
@@ -140,12 +113,6 @@ function assertNoWorksheetNameCollisions(sheets: readonly WorkbookSheet[]): void
   }
 }
 
-/**
- * Add one styled, protected data sheet for a locale: write the header and rows, apply the geometry,
- * and protect the sheet so only the translation column stays editable.
- *
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the locale is not a valid worksheet name
- */
 async function buildDataSheet(workbook: ExcelJS.Workbook, sheet: WorkbookSheet): Promise<void> {
   assertValidWorksheetName(sheet.locale);
   const worksheet = workbook.addWorksheet(sheet.locale);
@@ -173,35 +140,13 @@ function buildInstructionsSheet(workbook: ExcelJS.Workbook): void {
   sheet.getRow(1).font = { bold: true };
 }
 
-/**
- * The workbook-structure lock, injected into `xl/workbook.xml`. `lockStructure="1"` stops a viewer
- * from renaming, deleting, moving, or inserting sheets without a password (no password is set, so the
- * lock is a guard rail, not a security control); it complements the per-sheet cell protection.
- */
 const WORKBOOK_PROTECTION_XML = '<workbookProtection lockStructure="1" lockWindows="0"/>';
 
-/**
- * The `xl/workbook.xml` element `workbookProtection` must precede in the CT_Workbook schema sequence:
- * `fileVersion`, `fileSharing`, `workbookPr`, `workbookProtection`, `bookViews`, `sheets`. So the
- * splice anchors on the first element that must follow it: `bookViews` when present (only if the
- * builder ever sets `workbook.views`), otherwise `sheets` (always present). Matching the open-tag
- * prefixes keeps the insertion schema-correct regardless of which optional elements exceljs emitted.
- *
- * Exported for direct unit testing of the anchor selection; not part of the package's public surface.
- */
 export function spliceWorkbookProtection(xml: string): string {
   const anchor = xml.includes("<bookViews") ? "<bookViews" : "<sheets";
   return xml.replace(anchor, `${WORKBOOK_PROTECTION_XML}${anchor}`);
 }
 
-/**
- * Add workbook-structure protection that exceljs cannot emit itself: reopen the serialized `.xlsx`
- * (a zip), splice the `workbookProtection` element into `xl/workbook.xml` at its schema position, and
- * re-serialize. Keeping the tabs locked stops a translator from silently renaming or deleting a
- * language tab, which import can no longer map back to a locale.
- *
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if the serialized workbook cannot be reopened
- */
 async function protectWorkbookStructure(bytes: Uint8Array): Promise<Uint8Array> {
   let zip: JSZip;
   try {
@@ -219,19 +164,6 @@ async function protectWorkbookStructure(bytes: Uint8Array): Promise<Uint8Array> 
   return zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 }
 
-/**
- * Build a styled `.xlsx` from the neutral row model: an instructions sheet first, then one data
- * sheet per target locale, each with a frozen header, shaded read-only columns, a hidden source-hash
- * column, and cell protection that leaves only the translation column editable. The workbook structure
- * is protected too, so the language tabs cannot be trivially renamed, deleted, or reordered. Row
- * content and order are deterministic for a given model.
- *
- * @param model - the neutral workbook model (sheets in config order, rows in a stable order)
- * @returns the workbook bytes
- * @throws {@link ExchangeError} `WORKBOOK_INVALID` if a locale is not a valid worksheet name, collides
- *   with the reserved instructions sheet name, collides with another sheet's locale, or if exceljs
- *   fails to serialize the workbook
- */
 export async function buildWorkbook(model: WorkbookModel): Promise<Uint8Array> {
   assertNoWorksheetNameCollisions(model.sheets);
   const workbook = new ExcelJS.Workbook();

@@ -117,9 +117,6 @@ function ReviewTable({
   );
 }
 
-/** The queue's filter row: pin a locale, narrow by key substring. Client-side
- * view narrowing only; the session overlay has already removed actioned rows
- * before these filters see them. */
 function ReviewFilterBar({
   locales,
   locale,
@@ -158,16 +155,6 @@ function ReviewFilterBar({
   );
 }
 
-/**
- * The Review page: every flagged (locale, key) pair from the most recent
- * run's persisted snapshot, with a labeled reason chip per `ReviewReasonCode`
- * and, when `capabilities.writeToDisk` is true, an edit/approve/reject action
- * row. An `{ available: false }` response renders an informational empty
- * state, never an error. Approve and reject only mark the row actioned in the
- * session overlay; an accepted edit is marked the same way, so all three keep
- * a row hidden for the rest of the page session, including across
- * live-refresh re-fetches.
- */
 export function ReviewPanel({ refreshToken }: PanelProps): ReactNode {
   return (
     <>

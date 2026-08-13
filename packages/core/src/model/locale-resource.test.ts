@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localeResourceSchema, parseLocaleResource } from "./locale-resource.js";
+import { localeResourceSchema } from "./locale-resource.js";
 
 const entry = {
   key: "greeting",
@@ -18,7 +18,7 @@ const valid = {
 
 describe("localeResourceSchema", () => {
   it("carries locale, namespace, format and keyed entries", () => {
-    const parsed = parseLocaleResource(valid);
+    const parsed = localeResourceSchema.parse(valid);
     expect(parsed.locale).toBe("de-DE");
     expect(parsed.namespace).toBe("common");
     expect(parsed.format).toBe("i18next-json");

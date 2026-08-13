@@ -12,13 +12,8 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-/**
- * The banner the studio command prints on startup, as `Verbatra Studio running at <url>?token=<hex>`.
- * Captured whole so the request carries the bootstrap token the server actually issued.
- */
 const BANNER_URL_PATTERN = /Verbatra Studio running at (\S+)/;
 
-/** A project the dashboard can open: one source locale, one target, no provider call needed. */
 async function scaffoldProject(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
   await writeJsonIn(dir, "locales/en.json", { greeting: "Hello", farewell: "Goodbye" });
@@ -37,24 +32,6 @@ describe("studio (no key)", () => {
     consumer = await makeConsumer({ withStudio: true });
   }, 180_000);
 
-  /**
-   * The one thing no unit test can prove: that the command reaches the real `@verbatra/studio`
-   * through its runtime dynamic import after packing and installing, and that the prebuilt SPA
-   * resolves from the installed package rather than from a bundled copy. `check:studio-bundle`
-   * asserts the import survives bundling by reading the built file; this drives it for real. The
-   * assertion on the served document body is that proof: a real asset read off disk inside the
-   * installed package, which a server answering with a constant placeholder body would not satisfy.
-   *
-   * No provider key is set: the dashboard always serves and always edits locally, and only
-   * provider-spending actions are gated behind --allow-spend, so startup must not need one.
-   *
-   * Reaching the document takes two requests made by hand. The server binds 127.0.0.1 and requires
-   * the Host header to match it exactly, so the banner URL is the only entry point that works, and
-   * fetch sends the matching Host itself. That URL only exchanges the bootstrap token for a session
-   * cookie and answers 303; it never serves the document. Its redirect is followed manually because
-   * Node's fetch keeps no cookie jar, so an automatically followed redirect would arrive
-   * unauthenticated and be answered with 401.
-   */
   it("serves the dashboard from the installed package and stops cleanly on interrupt", async () => {
     const dir = join(consumer.dir, "studio-live");
     await scaffoldProject(dir);
@@ -119,11 +96,6 @@ describe("studio (no key, @verbatra/studio not installed)", () => {
     consumer = await makeConsumer();
   }, 180_000);
 
-  /**
-   * The default state for a project that never runs the dashboard. The CLI resolves studio through
-   * a runtime dynamic import precisely so its absence stays a clean, actionable message on exit 2
-   * rather than a module-resolution stack trace or a broken CLI.
-   */
   it("prints the install hint and exits 2 instead of failing to resolve the import", async () => {
     const dir = join(consumer.dir, "studio-absent");
     await scaffoldProject(dir);

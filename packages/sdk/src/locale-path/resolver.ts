@@ -3,51 +3,41 @@ import { SdkError } from "../errors.js";
 import { expandPattern, LOCALE_TOKEN, tokenOccupiesWholeSegments } from "./pattern.js";
 import { isSafeSpelling, isSegmentStyle, type LocaleStyle, spellLocale } from "./style.js";
 
-/** The style applied when `files.localeStyle` is absent: the configured tag, verbatim. */
 const DEFAULT_LOCALE_STYLE: LocaleStyle = "literal";
 
 /**
- * The part of the project config locale-to-path resolution depends on. Deliberately structural, so a
- * caller holding a full `VerbatraConfig` passes it unchanged while a test can build one inline.
+ * The slice of a {@link VerbatraConfig} that determines locale-to-path mapping. It is narrower than
+ * the full config on purpose, so a caller holding only these fields can build a resolver.
  */
 export interface LocalePathResolverConfig {
+  /** The source locale, which some styles spell differently from the targets. */
   readonly sourceLocale: string;
+  /** Every target locale. All of them are mapped up front so collisions are caught immediately. */
   readonly targetLocales: readonly string[];
+  /** The file layout. */
   readonly files: {
+    /** The path pattern, which must contain the `{locale}` token. */
     readonly pattern: string;
+    /** How a locale is spelled inside the path. Defaults to `literal`. */
     readonly localeStyle?: LocaleStyle | undefined;
   };
 }
 
-/**
- * The project's locale-to-path mapping, resolved once from the config and threaded through every
- * flow that needs a path. Holding one object rather than a `(pattern, style, sourceLocale)` triple
- * is what keeps a source-aware style from producing a wrong path in a flow that only threaded part
- * of it.
- */
+/** The two-way mapping between locales and their absolute file paths. */
 export interface LocalePathResolver {
   /**
-   * The absolute file path for one locale. Never throws for a configured locale: every one of them
-   * is spelled and checked when the resolver is created.
-   *
-   * @throws SdkError `LOCALE_LAYOUT_INVALID` when the style cannot spell an unconfigured locale
-   * passed in after construction.
+   * The absolute path of a locale's file. Accepts any locale string, including ones outside the
+   * configured set, so it can be used for exploratory reads.
    */
   pathFor(locale: string): string;
   /**
-   * Which configured locale a path belongs to, or `undefined` when it belongs to none of them. This
-   * is a lookup in the forward map, never a parse: the configured locale list is the only authority
-   * on which locales exist. A relative argument is resolved against the same `cwd` the resolver was
-   * created with; the match is exact, so a path differing only in case does not resolve even on a
-   * case-insensitive file system.
-   *
-   * `undefined` is not an error. It means the path is not one of this project's locale files, which
-   * is what a watcher needs to know in order to ignore it.
+   * The configured locale owning an absolute path, or `undefined` when the path belongs to no
+   * configured locale. The path is normalized before lookup, so a relative or non-canonical path
+   * still resolves.
    */
   localeFor(absolutePath: string): string | undefined;
 }
 
-/** Rejects a pattern the style cannot be combined with, before any locale is spelled. */
 function validatePattern(pattern: string, style: LocaleStyle): void {
   if (!pattern.includes(LOCALE_TOKEN)) {
     throw new SdkError(
@@ -63,7 +53,6 @@ function validatePattern(pattern: string, style: LocaleStyle): void {
   }
 }
 
-/** The checked path-segment spelling of one locale, or a structured refusal naming why there is none. */
 function safeSpelling(locale: string, style: LocaleStyle, sourceLocale: string): string {
   const spelling = spellLocale(locale, style, locale === sourceLocale);
   if (spelling === undefined) {
@@ -81,11 +70,6 @@ function safeSpelling(locale: string, style: LocaleStyle, sourceLocale: string):
   return spelling;
 }
 
-/**
- * The path-to-locale map for the source locale and every configured target, which doubles as the
- * injectivity check: two locales sharing one path would make the reverse direction meaningless and
- * would let two concurrent locale workers race on the same file.
- */
 function buildForwardMap(
   config: LocalePathResolverConfig,
   pathFor: (locale: string) => string,
@@ -106,20 +90,26 @@ function buildForwardMap(
 }
 
 /**
- * Creates the project's locale-to-path resolver. Every check runs here, before any file is read and
- * before any provider call: the pattern must carry the `{locale}` token and must be combinable with
- * the declared style, the style must have a valid spelling for the source locale and every target,
- * and no two locales may resolve to the same path.
+ * Builds the project's locale-to-path mapping from the configured pattern, locales, and
+ * {@link LocaleStyle}, in both directions.
  *
- * Under the default `literal` style the produced path is the pattern with `{locale}` replaced by the
- * configured tag, resolved against `cwd`, which is what every project without a `files.localeStyle`
- * gets and is unchanged from before styles existed.
+ * Every SDK flow resolves paths through this, and a consumer that watches or reports on locale
+ * files should use it too rather than re-deriving the mapping: a watcher that guesses at paths will
+ * disagree with the SDK the moment a non-literal locale style is configured.
  *
- * @param cwd - Directory the files pattern resolves against.
- * @param config - The project's locales, files pattern, and locale style.
- * @throws SdkError `LOCALE_LAYOUT_INVALID` when the pattern and style cannot be combined, or the
- * style cannot spell a configured locale.
- * @throws SdkError `LOCALE_PATH_COLLISION` when two configured locales resolve to the same path.
+ * The whole configured locale set is mapped eagerly during construction, so an unusable layout or a
+ * path collision is reported here, before any file is read and before any provider is called,
+ * rather than partway through a run.
+ *
+ * @param cwd - Directory the pattern is resolved against.
+ * @param config - The source locale, target locales, and file layout.
+ * @returns A resolver mapping locales to paths and paths back to locales.
+ *
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the pattern lacks the `{locale}` token, a
+ * segment style's token does not stand alone between separators, or a configured locale has no
+ * valid single-segment spelling under the declared style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same
+ * absolute path.
  */
 export function createLocalePathResolver(
   cwd: string,

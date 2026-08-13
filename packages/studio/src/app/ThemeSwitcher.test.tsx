@@ -7,11 +7,6 @@ import { click, render } from "./test-support.js";
 const TRIGGER = "button[aria-haspopup='true']";
 const ITEM = "button:not([aria-haspopup])";
 
-/**
- * `theme-dom` resolves the "system" preference through `window.matchMedia`, which jsdom does not
- * implement, so every render here needs a stand-in. `prefersLight` decides what "system" resolves
- * to; the switcher never registers a change listener itself.
- */
 function installMatchMedia(prefersLight: boolean): void {
   vi.stubGlobal(
     "matchMedia",

@@ -1,32 +1,38 @@
 import type { NeedsReviewEntry, RunBudget, UsageSummary } from "../flow/summary.js";
 
 /**
- * One target locale's snapshot inside the persisted run-status file. `status` is carried over from
- * `LocaleSummary.status` unchanged, so an empty `needsReview` on a failed or partial locale is never
- * misread as "this locale ran clean with nothing to review".
+ * One locale's entry in a persisted {@link RunStatusFile}. It is a deliberately narrow projection
+ * of {@link LocaleSummary}: only the parts a later session still needs, namely the outcome, the
+ * review flags, and the cost.
  */
 export interface RunStatusLocale {
+  /** The target locale this entry describes. */
   readonly locale: string;
+  /** How the locale finished in the recorded run. */
   readonly status: "succeeded" | "partial" | "failed";
-  /** The full, unmodified list from `LocaleSummary.needsReview`; already bounded and content-free. */
+  /** Keys the run flagged as worth a human look. */
   readonly needsReview: readonly NeedsReviewEntry[];
-  /** Absent exactly when the source `LocaleSummary.usage` was absent; never a fabricated zero. */
+  /** Token usage for this locale. Absent when the provider does not report usage. */
   readonly usage?: UsageSummary;
 }
 
 /**
- * The persisted shape of `.verbatra-local/run-status.json`: one whole-run snapshot, overwritten on
- * every non-dry-run `translate()`/`watch()` run that reaches the end of its per-locale loop. Contains
- * only the review-flag and token/usage data already computed for `RunSummary`; never a translation
- * string, a provider error message, or a provider notice message.
+ * The snapshot a completed non-dry-run writes to `.verbatra-local/run-status.json`, read back by
+ * {@link runStatus}. It lets a tool started after the run, such as a dashboard opened once
+ * translation finished, still show what was flagged and what it cost.
+ *
+ * It is local state, not project state: unlike the lock-file it is not meant to be committed, and
+ * losing it costs nothing beyond that history.
  */
 export interface RunStatusFile {
+  /** The status-file schema version. A file at an unrecognized version is ignored rather than trusted. */
   readonly version: number;
-  /** ISO timestamp of when this snapshot was written. */
+  /** When the run finished, as an ISO 8601 timestamp. */
   readonly generatedAt: string;
-  /** Summed run-wide token usage, mirroring `RunSummary.usage`; absent under the same conditions. */
+  /** Token usage summed across every locale. Absent when the provider does not report usage. */
   readonly usage?: UsageSummary;
-  /** The run-wide token-budget outcome, mirroring `RunSummary.budget`; present only when configured. */
+  /** The token budget in force during the run, present only when one was configured. */
   readonly budget?: RunBudget;
+  /** Per-locale outcomes from the recorded run. */
   readonly locales: readonly RunStatusLocale[];
 }

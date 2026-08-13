@@ -24,17 +24,18 @@ and route the issue back rather than shipping around it.
 
 - pnpm workspaces monorepo with Turborepo (task orchestration and caching) and
   Changesets (publishing). Node >=22.14.0, pinned pnpm@11.6.0.
-- SDK-first: `@verbatra/sdk` is the central API. `@verbatra/cli` and
-  `@verbatra/github-action` are thin wrappers. Published packages are
-  `@verbatra/sdk` and `@verbatra/cli`; the others are internal or private.
+- SDK-first: `@verbatra/sdk` is the central API. `@verbatra/cli` is a thin wrapper.
+  Published packages are `@verbatra/sdk`, `@verbatra/cli`, and `@verbatra/studio`;
+  the others are internal or private. `cli` and `sdk` are version-locked (Changesets
+  `fixed`); `studio` versions independently.
 - Acyclic dependency direction:
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
-  github-action / framework-adapters. Never import against the arrow. Never
-  introduce a cycle.
-- Abstract provider layer (Strategy + Factory) for OpenAI, Anthropic,
-  Gemini (@google/genai), and DeepL. The three LLM providers run through the shared
-  `runLlmTranslation` layer with one canonical zod schema fed to each SDK's
-  structured-output mechanism. DeepL is an MT API and implements `translateBatch`
+  framework-adapters. Never import against the arrow. Never introduce a cycle.
+- Abstract provider layer (Strategy + Factory). Five providers ship today: OpenAI,
+  Anthropic, Gemini (@google/genai), DeepL, and openai-compatible (a local or
+  self-hosted OpenAI-compatible server such as LM Studio, Ollama, or vLLM). The four
+  LLM providers run through the shared `runLlmTranslation` layer with one canonical
+  zod schema fed to each SDK's structured-output mechanism. DeepL is an MT API and implements `translateBatch`
   directly, reusing only cross-cutting pieces. All providers sit behind one
   shape-agnostic `TranslationProvider` interface, constructed by the id-to-factory
   table in `packages/sdk/src/config/provider-config.ts` (`buildProvider`) and
@@ -55,14 +56,23 @@ and route the issue back rather than shipping around it.
   config, tsup preset).
 - `@verbatra/core` pure domain center (model, diffing, hashing, placeholder
   integrity, validation). No I/O, no network, no file system. Depends only on zod.
-- `@verbatra/format-adapters` file to neutral-IR adapters for JSON i18n formats.
+- `@verbatra/format-adapters` file to neutral-IR adapters for the eight supported
+  i18n formats (i18next, vue-i18n, next-intl, ngx-translate, XLIFF, YAML, Flutter
+  ARB, and Java/Spring properties).
 - `@verbatra/ai-providers` translation provider strategies behind one interface.
+- `@verbatra/exchange` translator interchange: builds and reads styled Excel
+  workbooks over a neutral, format-agnostic row model.
 - `@verbatra/sdk` central orchestration API: one-shot `translate()`, long-running
-  `watch()`, config loading.
+  `watch()`, read-only `check()` and `diff()`, `exportWorkbook()` and
+  `importWorkbook()`, and config loading.
+- `@verbatra/studio` (published) the local dashboard, a prebuilt single-page app
+  served over a verbatra project, reached only through the CLI `studio` command via
+  a dynamic import.
 - `@verbatra/cli` the `verbatra` binary, a thin wrapper over the SDK.
-- `@verbatra/github-action` composite action that runs the CLI in CI (v1.1).
-  Private, consumed via `uses:`, not published to npm.
 - `apps/docs` Fumadocs (Next.js) documentation site.
+
+The composite GitHub Action that runs the CLI in CI is not part of this monorepo.
+It lives in github.com/mariokreitz/verbatra-action and is consumed via `uses:`.
 
 ## Code principles
 
@@ -73,7 +83,8 @@ and route the issue back rather than shipping around it.
   enforced by lint rules.
 - zod at all boundaries (config, CLI args, action inputs, provider responses).
   Keep zod out of hot paths.
-- Biome for format and most linting. ESLint only for type-aware rules.
+- Biome for format and most linting. There is no ESLint config in the repo today;
+  type safety is enforced by the per-package `typecheck` (tsc) scripts.
 - Tests with Vitest, co-located as `*.test.ts`. 90% coverage thresholds on lines,
   functions, statements, and branches in CI.
 - Conventional Commits required (commitlint + lefthook). Any publishable `src`
@@ -95,10 +106,11 @@ and route the issue back rather than shipping around it.
   `repository.url` must match exactly. Least-privilege GITHUB_TOKEN, action pinning
   to commit SHA. The lockfile is committed.
 
-## v1 scope (deliberately lean)
+## Shipped scope (deliberately lean)
 
-- core + sdk + cli, JSON formats, four providers.
-- CLI commands implemented today: `init`, `translate`, `watch`, `export`, `import`.
-  (`check` and `diff` are planned but not yet implemented.)
-- Do not build everything at once. Keep changes within v1 scope unless the brief
-  explicitly expands it, and flag scope expansion to the product owner.
+- Eight formats and five providers, orchestrated by core + sdk + cli, with studio
+  as the optional local dashboard.
+- CLI commands implemented today: `init`, `translate`, `watch`, `check`, `diff`,
+  `export`, `import`, and `studio`.
+- Do not build everything at once. Keep changes within the shipped scope unless the
+  brief explicitly expands it, and flag scope expansion to the product owner.

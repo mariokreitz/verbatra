@@ -19,7 +19,6 @@ import type {
 import { DEFAULT_STUDIO_PORT } from "@verbatra/studio";
 import type { CliDeps, Streams, StudioModule } from "./types.js";
 
-/** A minimal valid config with an anthropic provider; override any field. */
 export function makeConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraConfig {
   return {
     sourceLocale: "en",
@@ -31,7 +30,6 @@ export function makeConfig(overrides: Partial<VerbatraConfig> = {}): VerbatraCon
   };
 }
 
-/** A succeeded locale summary with all key lists empty; override any field. */
 export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummary {
   return {
     locale: "de",
@@ -55,29 +53,24 @@ export function makeLocale(overrides: Partial<LocaleSummary> = {}): LocaleSummar
   };
 }
 
-/** An empty non-dry-run summary; override any field. */
 export function makeSummary(overrides: Partial<RunSummary> = {}): RunSummary {
   return { dryRun: false, locales: [], succeeded: [], partial: [], failed: [], ...overrides };
 }
 
-/** An export result with a fixed workbook path and no locales; override any field. */
 export function makeExportResult(
   overrides: Partial<ExportWorkbookResult> = {},
 ): ExportWorkbookResult {
   return { path: "/proj/verbatra-translations.xlsx", locales: [], ...overrides };
 }
 
-/** An in-sync check summary with no locales; override any field. */
 export function makeCheckSummary(overrides: Partial<CheckSummary> = {}): CheckSummary {
   return { inSync: true, locales: [], ...overrides };
 }
 
-/** A diff summary with nothing pending and no locales; override any field. */
 export function makeDiffSummary(overrides: Partial<DiffSummary> = {}): DiffSummary {
   return { hasPendingChanges: false, locales: [], ...overrides };
 }
 
-/** A loaded config with search provenance and no glossary; override any field. */
 export function makeLoadedConfig(overrides: Partial<LoadedConfig> = {}): LoadedConfig {
   return {
     config: makeConfig(),
@@ -87,12 +80,6 @@ export function makeLoadedConfig(overrides: Partial<LoadedConfig> = {}): LoadedC
   };
 }
 
-/**
- * Fake `@verbatra/studio` module: a `startStudioServer` returning a fake server whose `close` never
- * throws. Uses the real `DEFAULT_STUDIO_PORT` value; that value import is safe only because this
- * file is test-only and never bundled by tsup, so it is not part of the CLI's dynamic-import
- * contract for `@verbatra/studio`.
- */
 export function makeStudioModule(overrides: Partial<StudioModule> = {}): StudioModule {
   return {
     startStudioServer: async (options) => ({
@@ -104,7 +91,6 @@ export function makeStudioModule(overrides: Partial<StudioModule> = {}): StudioM
   };
 }
 
-/** An accumulating stream sink that captures everything written to out and err. */
 export function captureStreams(): { streams: Streams; out: () => string; err: () => string } {
   let outBuf = "";
   let errBuf = "";
@@ -122,11 +108,6 @@ export function captureStreams(): { streams: Streams; out: () => string; err: ()
   };
 }
 
-/**
- * One parsed `--json` envelope, as a test reads it back off a captured stdout line. Deliberately
- * looser than the source `SuccessEnvelope`/`ErrorEnvelope` union: a test asserts on the fields it
- * cares about without first having to narrow on `ok`.
- */
 export interface ParsedEnvelope {
   readonly ok: boolean;
   readonly version: number;
@@ -136,12 +117,10 @@ export interface ParsedEnvelope {
   readonly message?: string;
 }
 
-/** Parses one captured `--json` stdout line (trailing newline included) back into its envelope. */
 export function parseEnvelope(line: string): ParsedEnvelope {
   return JSON.parse(line.trim()) as ParsedEnvelope;
 }
 
-/** The recorded inputs of every `recordingDeps` call, one array per SDK entry point. */
 export interface DepCalls {
   loadConfig: LoadConfigOptions[];
   translate: TranslateInput[];
@@ -154,7 +133,6 @@ export interface DepCalls {
   importStudio: undefined[];
 }
 
-/** A recording stub of the SDK deps. Override any of them to control behavior or throw. */
 export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; calls: DepCalls } {
   const calls: DepCalls = {
     loadConfig: [],
@@ -208,7 +186,6 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
   return { deps, calls };
 }
 
-/** Flushes pending microtasks so async actions settle without real timers. */
 export async function flush(times = 8): Promise<void> {
   for (let i = 0; i < times; i += 1) {
     await Promise.resolve();

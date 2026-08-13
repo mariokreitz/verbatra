@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { VMark } from "@/components/landing";
+import { GRID_PATTERN_STYLE } from "@/components/landing/fx/grid-pattern";
 import { PackageInstall } from "@/components/landing/package-install";
 import { Terminal } from "@/components/landing/terminal";
 import { type Locale, localizedPath } from "@/lib/i18n";
@@ -46,9 +48,7 @@ function StaticBackdrop(): ReactNode {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage:
-            "linear-gradient(var(--border-default) 1px, transparent 1px), linear-gradient(90deg, var(--border-default) 1px, transparent 1px)",
-          backgroundSize: "56px 56px",
+          ...GRID_PATTERN_STYLE,
           opacity: 0.4,
           WebkitMaskImage: fade,
           maskImage: fade,
@@ -86,24 +86,7 @@ export function DocsHomeHero({
       <StaticBackdrop />
       <div className="relative mx-auto max-w-4xl text-center">
         <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-fd-muted-foreground">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-            style={{
-              filter: "drop-shadow(0 0 5px color-mix(in srgb, var(--v-glow) 60%, transparent))",
-            }}
-          >
-            <path
-              d="M4 4 L12 20 L20 4"
-              stroke="var(--v-glow)"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <VMark size={18} blur={5} decorative />
           {eyebrow}
         </div>
         <h1

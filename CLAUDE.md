@@ -46,8 +46,8 @@ Run from the repository root unless noted.
 
 Per package (run inside a package directory or with a turbo filter):
 
-- `pnpm typecheck` runs the package tsc check. Most packages have it (config and
-  github-action do not).
+- `pnpm typecheck` runs the package tsc check. Most packages have it (config does
+  not).
 - `pnpm test:watch` runs Vitest in watch mode (most packages have it).
 - Filter a single package from the root, for example:
   `pnpm turbo run test --filter=@verbatra/core`.
@@ -83,11 +83,13 @@ Everything else is private or internal and must not be published by accident.
   `createDefaultRegistry`. Adapters: i18next, vue-i18n, next-intl, ngx-translate,
   XLIFF, YAML, Flutter ARB, and Java/Spring properties.
 - `@verbatra/ai-providers` (private): translation provider strategies behind one
-  interface. OpenAI, Anthropic, Gemini (@google/genai) run through the shared
-  `runLlmTranslation` layer with one canonical zod schema. DeepL is an MT API and
-  implements `translateBatch` directly. All sit behind one `TranslationProvider`
-  interface. The SDK constructs the configured provider through the id-to-factory
-  table in `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
+  interface. Five providers ship today: OpenAI, Anthropic, Gemini (@google/genai),
+  DeepL, and openai-compatible (a local or self-hosted OpenAI-compatible server).
+  The four LLM providers run through the shared `runLlmTranslation` layer with one
+  canonical zod schema. DeepL is an MT API and implements `translateBatch`
+  directly. All sit behind one `TranslationProvider` interface. The SDK constructs
+  the configured provider through the id-to-factory table in
+  `packages/sdk/src/config/provider-config.ts` (`buildProvider`), wrapped by
   `selectProvider`. `ProviderRegistry` is exported from the package but is not on
   that path today; keep it, do not treat it as the resolution mechanism.
 - `@verbatra/exchange` (private): translator interchange. Builds and reads styled
@@ -104,19 +106,20 @@ Everything else is private or internal and must not be published by accident.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
   `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
   `check`, `diff`, `export`, `import`, `studio`. Deps: `@verbatra/sdk`, commander, zod.
-- `@verbatra/github-action` (private): composite action that runs the CLI in CI.
-  Consumed via `uses:`, not published to npm.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
   Scripts: dev, build, start, typecheck, i18n.
 
+The composite GitHub Action that runs the CLI in CI is no longer part of this
+monorepo. It lives in its own repository, github.com/mariokreitz/verbatra-action,
+and is consumed via `uses:`. Do not add it back here.
+
 ## Architecture rules (binding)
 
-- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` and
-  `github-action` stay thin. Do not push logic into the wrappers.
+- SDK-first: business logic lives in `@verbatra/sdk` and below. `cli` stays thin.
+  Do not push logic into the wrappers.
 - Acyclic dependency direction:
   config <- core <- format-adapters / ai-providers / exchange <- sdk <- cli /
-  github-action / framework-adapters. Never import against the arrow. Never create
-  a cycle.
+  framework-adapters. Never import against the arrow. Never create a cycle.
 - Keep `@verbatra/core` pure: no I/O, no network, no file system.
 - Reuse the provider factory table and the shared adapter factories
   (`createTreeFileAdapter` or `createFlatFileAdapter`). Do not reimplement provider
@@ -138,6 +141,52 @@ Everything else is private or internal and must not be published by accident.
 - Any publishable `src` change ships a changeset with the right bump level.
   `@verbatra/studio` is now published like sdk and cli; a `src` change there needs a
   changeset too, even though it used to be private and changeset-exempt.
+
+## Comments and documentation
+
+- No prose comments and no JSDoc on internal code. Names and structure carry the
+  intent. When reasoning has to be preserved, promote it to a test that fails if the
+  behavior regresses, not to a comment.
+- JSDoc belongs only on the published API surface, written to the standard of the
+  OpenAI SDK, NestJS, or Node.js: what it does, when to use it, what each parameter
+  means, every thrown error with the condition that triggers it, and a runnable
+  `@example` on genuine entry points.
+- Published is not the opposite of private. The test is whether the declaration
+  appears in the package's built `.d.ts`. tsup `dts.resolve` inlines types from the
+  private workspace packages into `packages/sdk/dist/index.d.ts`, so a declaration in
+  `@verbatra/core` can be published API. Check the built output, not the package's
+  `private` flag. This distinction is what previous sweeps lost.
+- House style: type-free `@param name - Description.`, type-free `@returns`,
+  ``@throws {@link SdkError} `CODE`: condition.`` with one line per code, `{@link}`
+  for cross-references, and `@example` used sparingly on entry points. Never
+  `@remarks`, `@see`, `@defaultValue`, `@deprecated`, `@internal`, `@public`,
+  `@typeParam`, or `@param {Type}`.
+- Derive every `@throws` from the actual throw sites; never copy one from existing
+  docs. A documented code that is never thrown is worse than a missing one: it tells
+  a consumer to write a catch branch that can never fire.
+- A `{@link}` target must be declared in the built `.d.ts`, whether exported from it
+  or only inlined into it. TypeScript resolves a link by in-file name lookup, so a
+  declared-but-not-exported symbol still resolves and still gives editor hover. A
+  link to a symbol that appears nowhere in the built declarations renders silently as
+  plain text; use inline code for those instead.
+- Some comments are functional and must survive any removal pass: coverage
+  directives (`/* v8 ignore ... */`), whose loss drops coverage against the 90% gate;
+  `biome-ignore`, whose reason text after the colon is mandatory syntax in Biome 2.x
+  and cannot be emptied; `@ts-expect-error`, where removing a still-needed one is
+  itself a TS2578 error; the `// @vitest-environment jsdom` pragmas, without which
+  the file runs in node and every DOM test throws; shebangs; the type-bearing JSDoc
+  in the two `checkJs` files, `packages/config/tsup.base.mjs` and `vitest.base.mjs`,
+  where the JSDoc is the type annotation; SHA-pin version comments (`# v7.0.1`) in
+  workflow files, which Dependabot parses to update the pin; JSON that only looks
+  like a comment, namely Turborepo's `"extends": ["//"]` and the real `"//"` key in
+  `tsconfig.configs.json`; and `/// <reference types=... />` in generated files such
+  as `apps/docs/next-env.d.ts`.
+- The rule governs code. CI and supply-chain rationale in workflow and config files
+  (`.github/workflows`, `dependabot.yml`, `pnpm-workspace.yaml`, `lefthook.yml`) is
+  exempt where no test covers the behavior it describes, for example the `head_sha`
+  trust-boundary argument in `release.yml`, the Scorecard two-job-split requirement,
+  and per-override CVE rationales. Promote such rationale to an executable assertion
+  where one is possible; keep the prose where it is not.
 
 ## Security
 

@@ -7,10 +7,6 @@ import type { ExecFileImpl } from "./types.js";
 
 const execFileAsync = promisify(execFileCb);
 
-/**
- * Default {@link ExecFileImpl}: `node:child_process.execFile` via `util.promisify`, decoded as
- * utf8. Production wiring for the git-log history view; tests inject a stub instead.
- */
 export const defaultExecFileImpl: ExecFileImpl = async (file, args, options) => {
   const { stdout, stderr } = await execFileAsync(file, args as string[], {
     cwd: options.cwd,
@@ -19,41 +15,22 @@ export const defaultExecFileImpl: ExecFileImpl = async (file, args, options) => 
   return { stdout, stderr };
 };
 
-/** Default `--max-count` when `history.list` receives no `limit`. */
 export const HISTORY_LIMIT_DEFAULT = 50;
-/** Hard cap on `--max-count`, regardless of what a caller requests. */
 export const HISTORY_LIMIT_CAP = 200;
 
-/** Clamps a requested history limit to the server's bound: default 50, hard cap 200, never rejected. */
 export function clampHistoryLimit(limit: number | undefined): number {
   return Math.min(limit ?? HISTORY_LIMIT_DEFAULT, HISTORY_LIMIT_CAP);
 }
 
-/** True when `candidate` is an absolute path equal to, or nested inside, `root`. */
 export function isPathContained(root: string, candidate: string): boolean {
   const normalizedRoot = withoutTrailingSep(root);
   return candidate === normalizedRoot || candidate.startsWith(normalizedRoot + sep);
 }
 
-/**
- * True when a raw path argument could be misread as a git flag; such a path is never sent to git.
- * Must be checked against the raw candidate before it is resolved to an absolute path: once
- * resolved against an absolute `projectRoot`, a path can never start with a dash, so checking the
- * resolved form would never reject anything.
- */
 export function hasLeadingDash(path: string): boolean {
   return path.startsWith("-");
 }
 
-/**
- * Resolves each candidate to an absolute path under `projectRoot` and drops anything that could be
- * misread as a flag or that escapes the root. Both checks are defense in depth: a path built
- * from the project's own configuration never legitimately produces either shape, but a malformed
- * or unusual configuration must degrade by omission, not by handing git an unsafe argument. The
- * leading-dash check runs on each raw candidate, before resolution, since resolution against an
- * absolute root would make the check unable to ever fire. Duplicate resolved paths (for example
- * the same file used as both source and target) collapse to one entry.
- */
 export function resolveWatchedPaths(projectRoot: string, candidates: readonly string[]): string[] {
   const root = resolvePath(projectRoot);
   const safe = candidates
@@ -63,18 +40,10 @@ export function resolveWatchedPaths(projectRoot: string, candidates: readonly st
   return Array.from(new Set(safe));
 }
 
-/** Record separator (ASCII RS) marking the start of each commit's header; unambiguous even if a subject is empty. */
 const RECORD_SEPARATOR = "\x1e";
-/** Field separator (ASCII US) between the header fields within one record. */
 const FIELD_SEPARATOR = "\x1f";
 const GIT_LOG_FORMAT = `${RECORD_SEPARATOR}%H${FIELD_SEPARATOR}%aI${FIELD_SEPARATOR}%s`;
 
-/**
- * Builds the argument-array `git log` invocation: bounded by `--max-count`, `--name-only`
- * with `-z` for NUL-separated parsing, and a `--` sentinel before every path so no path can ever
- * be misread as an option. Never includes `--follow`: history before a file rename is not shown,
- * a deliberate trade-off, not a bug.
- */
 export function buildGitLogArgs(maxCount: number, paths: readonly string[]): string[] {
   return [
     "log",
@@ -113,7 +82,6 @@ function parseCommitRecord(record: string): HistoryCommit | undefined {
   return { ...parsedHeader, touchedPaths };
 }
 
-/** Parses the `-z`, `--name-only` output of a `git log` invocation built by {@link buildGitLogArgs}. */
 export function parseGitLogOutput(stdout: string): HistoryCommit[] {
   return stdout
     .split(RECORD_SEPARATOR)
@@ -122,7 +90,6 @@ export function parseGitLogOutput(stdout: string): HistoryCommit[] {
     .filter((commit): commit is HistoryCommit => commit !== undefined);
 }
 
-/** The minimal shape of a promisified `execFile` rejection this module distinguishes on. */
 interface ExecFileFailure {
   readonly code?: string | number;
   readonly stderr?: string;
@@ -136,13 +103,6 @@ function isNotARepository(error: ExecFileFailure): boolean {
   return typeof error.stderr === "string" && error.stderr.includes("not a git repository");
 }
 
-/**
- * Maps a `git log` failure to its result. `{ available: false }` is reserved for exactly the two
- * cases {@link HistoryListResult} documents: git itself is missing, or `projectRoot` is not inside
- * a git repository at all. Every other failure, notably an unborn branch with no commits yet,
- * still means the repository itself is fine; there is simply no history to report, so it answers
- * `available: true` with an empty commit list rather than propagating the error.
- */
 function interpretGitLogFailure(error: unknown): HistoryListResult {
   const failure = error as ExecFileFailure;
   if (isMissingGitBinary(failure) || isNotARepository(failure)) {
@@ -151,25 +111,13 @@ function interpretGitLogFailure(error: unknown): HistoryListResult {
   return { available: true, commits: [] };
 }
 
-/** Input for {@link runGitLog}. */
 export interface RunGitLogInput {
-  /** The bounded, argument-array process runner (production default or an injected stub). */
   readonly execFileImpl: ExecFileImpl;
-  /** Directory `git log` runs from; may be anywhere inside the repository, not necessarily its root. */
   readonly projectRoot: string;
-  /** Absolute, already-contained paths to scope the log to (see {@link resolveWatchedPaths}). */
   readonly watchedPaths: readonly string[];
-  /** Requested `--max-count`; clamped by {@link clampHistoryLimit}. */
   readonly limit?: number;
 }
 
-/**
- * Runs `git log` scoped to `watchedPaths` from `projectRoot` and returns the parsed result, never
- * throwing: a missing git binary or a non-repository directory degrades to `{ available: false }`
- * (see {@link interpretGitLogFailure}); an empty `watchedPaths` list (nothing to scope the log to)
- * short-circuits to an empty, available history without ever invoking git, since an unscoped `git
- * log` would report the whole repository's history instead of the watched locale files' history.
- */
 export async function runGitLog(input: RunGitLogInput): Promise<HistoryListResult> {
   if (input.watchedPaths.length === 0) {
     return { available: true, commits: [] };

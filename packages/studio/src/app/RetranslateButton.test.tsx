@@ -32,7 +32,6 @@ describe("RetranslateButton", () => {
     stubRpc({ [METHOD]: () => new Promise(() => {}) });
     const view = mount();
 
-    // Deliberately not awaited: the never-settling call is what "in flight" means here.
     void clickAsync(view.get("button"));
 
     expect(view.get("button").hasAttribute("disabled")).toBe(true);

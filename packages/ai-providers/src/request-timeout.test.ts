@@ -3,7 +3,6 @@ import { classifyProviderError } from "./error-classification.js";
 import { ProviderError } from "./errors.js";
 import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "./request-timeout.js";
 
-/** A minimal status-bearing error, shaped like the openai/anthropic SDK error classes. */
 class StatusError extends Error {
   readonly status: number;
   constructor(status: number) {
@@ -12,7 +11,6 @@ class StatusError extends Error {
   }
 }
 
-/** A call that never settles on its own and only rejects (abort-shaped) once its signal fires. */
 function abortableHang(signal: AbortSignal): Promise<never> {
   return new Promise((_, reject) => {
     signal.addEventListener(

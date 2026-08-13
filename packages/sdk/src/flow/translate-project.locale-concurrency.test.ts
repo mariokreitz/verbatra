@@ -39,22 +39,11 @@ interface ProbeStats {
 }
 
 interface ProbeOptions {
-  /**
-   * When set, every provider call blocks until this many calls have arrived, then all are released.
-   * A pool that never runs this many locales at once would deadlock the test, so a passing run proves
-   * the pool reaches the width. `gateAt` must not exceed the locale count.
-   */
   readonly gateAt?: number;
-  /** A flat delay applied to every call when `gateAt` is unset. */
   readonly delayMs?: number;
-  /** A per-locale delay (when `gateAt` is unset) used to make completion order diverge from source order. */
   readonly delayByLocale?: Readonly<Record<string, number>>;
 }
 
-/**
- * A provider that records the maximum number of `translateBatch` calls in flight at once (incremented
- * on entry, decremented on exit), so a test can assert the pool's width by counting rather than timing.
- */
 function makeConcurrencyProbe(options: ProbeOptions): {
   readonly provider: TranslationProvider;
   readonly stats: () => ProbeStats;
@@ -164,11 +153,6 @@ describe("translate: bounded locale-level concurrency", () => {
     expect(stats().maxInFlight).toBe(1);
   });
 
-  /**
-   * The per-locale delays are chosen so completion order is the exact reverse of source order: the
-   * first source locale finishes last. Ordering the summary by completion would therefore produce a
-   * visibly wrong result rather than one that happens to look right.
-   */
   it("orders RunSummary.locales and written files by source order regardless of completion order", async () => {
     const targets = ["de", "fr", "es", "it"] as const;
     const source = { a: "A", b: "B" };
@@ -218,11 +202,6 @@ describe("translate: bounded locale-level concurrency", () => {
     );
   });
 
-  /**
-   * The delays force completion order to be the exact reverse of source order, so a locale record
-   * built in completion order would serialize with its keys reversed. The write path's key sort is
-   * what has to undo that, and comparing the bytes against a serial run is what proves it did.
-   */
   it("writes a lock file byte-identical to a serial run when locales complete in reverse order under concurrency", async () => {
     const targets = ["de", "fr", "es", "it"] as const;
     const source = { a: "A", b: "B" };
@@ -299,12 +278,6 @@ describe("translate: bounded locale-level concurrency", () => {
   });
 });
 
-/**
- * Wraps the real file system so that exactly one read of the lock file returns corrupt JSON. This is
- * the production trigger for a re-thrown whole-run `LOCK_FILE_INVALID`: every live locale reads the
- * lock file inside its own critical section, so corrupting a single read fails one locale while its
- * siblings are already past that point and inside their provider call.
- */
 function fsWithOneCorruptLockRead(dir: string): SdkFs {
   const lockPath = lockFilePath(dir);
   let lockReads = 0;
@@ -330,21 +303,6 @@ async function heldLockFiles(dir: string): Promise<string[]> {
   }
 }
 
-/**
- * The failure under test is a re-thrown `LOCK_FILE_INVALID`, produced by the
- * `fsWithOneCorruptLockRead` seam above: three workers start, one hits the corrupt read and
- * re-throws while the other two are already inside a slow provider call. Those two must finish and
- * stop, never claiming either of the two queued locales.
- *
- * The `sleep(300)` in the two tests that assert on what was never claimed is what makes that
- * observable. It is well past the probe's 120ms provider delay, so a worker that kept claiming after
- * the failure would have drained the rest of the queue before either assertion runs.
- *
- * Releasing every in-flight worker's write lock before `translate()` settles is the guarantee the
- * CLI relies on: the CLI ends in a synchronous `process.exit`, which would truncate any release
- * still pending when the promise settles. Releasing first is what keeps an orphaned lock a
- * hard-kill-only outcome.
- */
 describe("translate: a whole-run failure under concurrency", () => {
   it("claims no further locale once one worker raises a whole-run failure", async () => {
     const dir = await project({ a: "A" });

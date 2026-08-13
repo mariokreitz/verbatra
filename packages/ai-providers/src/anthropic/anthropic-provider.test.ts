@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "../errors.js";
+import { toIntegrityInputs } from "../llm/integrity-inputs.js";
 import { OUTPUT_TRUNCATED_MESSAGE } from "../llm/truncation.js";
 import type { TranslateRequest } from "../provider.js";
 import {
   entry,
-  firstCall,
+  firstCallOf,
   regexExtractor,
   stubClient,
   toolMessage,
   truncatedToolMessage,
 } from "../test-support.js";
-import { createAnthropicProvider, toIntegrityInputs, toUsage } from "./anthropic-provider.js";
+import { createAnthropicProvider, toUsage } from "./anthropic-provider.js";
 import type { AnthropicConfig } from "./config.js";
 import { SYSTEM_RULES } from "./request.js";
 import type { MessagesClient } from "./types.js";
@@ -27,7 +28,6 @@ function request(overrides: Partial<TranslateRequest> = {}): TranslateRequest {
   };
 }
 
-/** Parse the data payload carried in the user turn of a captured request body. */
 function payloadOf(body: { messages: readonly [{ content: string }] }): {
   sourceLocale: string;
   targetLocale: string;
@@ -97,7 +97,7 @@ describe("createAnthropicProvider: request building", () => {
     await createAnthropicProvider(config, { client }).translateBatch(
       request({ tone: "informal", glossary: { Hello: "Hi" } }),
     );
-    const payload = payloadOf(firstCall(calls));
+    const payload = payloadOf(firstCallOf(calls));
     expect(payload.tone).toBe("informal");
     expect(payload.glossary).toEqual({ Hello: "Hi" });
   });
@@ -111,7 +111,7 @@ describe("createAnthropicProvider: request building", () => {
         ],
       }),
     );
-    const item = payloadOf(firstCall(calls)).items[0];
+    const item = payloadOf(firstCallOf(calls)).items[0];
     expect(item?.description).toBe("a verb, to publish");
     expect(item?.meaning).toBe("publish");
   });
@@ -124,7 +124,7 @@ describe("createAnthropicProvider: prompt-injection defense", () => {
     const result = await createAnthropicProvider(config, { client }).translateBatch(
       request({ entries: [entry("greeting", hostile, [])] }),
     );
-    const body = firstCall(calls);
+    const body = firstCallOf(calls);
     expect(body.system).toBe(SYSTEM_RULES);
     expect(body.system).not.toContain("ignore previous instructions");
     expect(payloadOf(body).items[0]?.value).toBe(hostile);

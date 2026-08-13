@@ -1,44 +1,3 @@
-/**
- * The verbatra SDK: the central orchestration API for running translation.
- *
- * Config: {@link defineConfig} types a `verbatra.config.ts`, {@link loadConfig} loads and validates
- * the project config, and {@link loadConfigWithMeta} adds config-source and glossary provenance.
- *
- * Runs: {@link translate} performs the one-shot read, diff, translate, write flow over all target
- * locales; {@link watch} re-runs it on each debounced source change.
- *
- * Paths: {@link createLocalePathResolver} turns the configured files pattern, locales, and
- * {@link LocaleStyle} into the project's locale-to-path mapping, in both directions. Every SDK flow
- * resolves paths through it, and a consumer that watches or reports on locale files (such as
- * Studio) uses the same resolver rather than re-deriving the mapping.
- *
- * Read-only reporting: {@link check} and {@link diff} report pending work without writing;
- * {@link keyIntegrity} reports, per changed key, whether its placeholders or ICU structure still
- * match the source; {@link lockState} reports the lock-file's existence, version, and per-locale
- * drift; {@link loadLockFile} reads the lock-file itself; {@link runStatus} reads the persisted
- * review-flag and token-usage snapshot a prior non-dry-run {@link translate} or {@link watch} run
- * left behind; {@link keyValue} reads one key's current source and target values.
- * {@link readLocaleFileSnapshot} and {@link diffLocaleSnapshots} read one locale file as a per-key
- * content hash and compare two such snapshots, the building blocks a live-refresh watcher such as
- * Studio's uses to report a locale file's added, changed, and removed keys since its last observed
- * state.
- *
- * Single-key writes: {@link editEntry} saves a manually edited translation for one key, and
- * {@link retranslateEntry} re-runs the provider for one key; both hold the same per-locale write
- * lock as a full run.
- *
- * Translator handoff: {@link exportWorkbook} writes untranslated strings to an `.xlsx` workbook, or
- * to one `.csv` or `.tsv` file per target locale, and {@link importWorkbook} reads a filled handoff
- * of either shape back through the same diff, lock, and integrity checks.
- *
- * Whole-run failures throw a structured, secret-free {@link SdkError}; per-locale failures,
- * provider notices, and integrity findings are surfaced as data on the {@link RunSummary} rather
- * than thrown. API keys are read only from the environment by the providers; the SDK never reads
- * or holds a key, and the config carries none.
- *
- * @packageDocumentation
- */
-
 export type { ReviewReasonCode } from "@verbatra/ai-providers";
 export type { SupportedFormat } from "@verbatra/core";
 export { CACHE_FILE_NAME } from "./cache/translation-memory.js";
@@ -138,7 +97,11 @@ export {
   type TranslateInput,
   translate,
 } from "./flow/translate-project.js";
-export type { ExchangeFormat } from "./flow/workbook/exchange-format.js";
+export {
+  DEFAULT_EXCHANGE_FORMAT,
+  EXCHANGE_FORMATS,
+  type ExchangeFormat,
+} from "./flow/workbook/exchange-format.js";
 export {
   DEFAULT_DELIMITED_PATH,
   DEFAULT_WORKBOOK_PATH,

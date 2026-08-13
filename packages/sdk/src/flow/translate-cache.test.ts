@@ -68,7 +68,6 @@ function localeCacheKeys(cache: TranslationMemory, fingerprint: string, locale: 
   return Object.keys(cache.entries[fingerprint]?.[locale] ?? {});
 }
 
-/** Every cached translation, across every fingerprint and locale, for whole-cache assertions. */
 function cachedValues(cache: TranslationMemory): string[] {
   return Object.values(cache.entries).flatMap((byLocale) =>
     Object.values(byLocale ?? {}).flatMap((byHash) => Object.values(byHash ?? {})),
@@ -103,10 +102,8 @@ async function fillWorkbook(
   await writeFile(path, await buildWorkbook({ sheets }));
 }
 
-/** Total usage of exactly 100 tokens per call, for tripping a small budget deterministically. */
 const USAGE_100: Usage = { inputTokens: 60, outputTokens: 40 };
 
-/** An offline provider that translates every entry and attaches a review flag to exactly one key. */
 function reviewFlaggingProvider(flaggedKey: string): TranslationProvider {
   return {
     id: "stub",
@@ -146,11 +143,6 @@ describe("translation-memory cache: cross-key reuse", () => {
     expect(summary.locales[0]?.needsReview).toEqual([]);
   });
 
-  /**
-   * The fixture pins `maxBatchSize` to 1, so without content deduplication each key would become
-   * its own provider request. One recorded call is therefore the whole assertion: the dedup happens
-   * before batching, not as a side effect of keys landing in the same batch.
-   */
   it("translates byte-identical source content once per locale and fans the value to every key, even across batch splits", async () => {
     const dir = await project({ a: "Hello", b: "Hello" }, { de: {} });
     const stub = makeStubProvider();
@@ -210,12 +202,6 @@ describe("translation-memory cache: cross-key reuse", () => {
     ]);
   });
 
-  /**
-   * Candidates are processed in key order, so the fixture's key names carry the setup: `a_solo` is
-   * reached first and trips the budget, which leaves the later duplicated group (`z_a`, `z_b`)
-   * short of the provider entirely, its representative budget-withheld. Renaming those keys out of
-   * that order changes what the test exercises without failing it.
-   */
   it("withholds every duplicate when the representative is budget-withheld", async () => {
     const dir = await project({ a_solo: "Solo", z_a: "Dup", z_b: "Dup" }, { de: {} });
     const stub = makeStubProvider({ usage: USAGE_100 });
@@ -504,17 +490,6 @@ describe("integrity gate: an empty provider value never reaches disk or the cach
   });
 });
 
-/**
- * `[[CLEAR]]` is knowledge about one key, not a translation of its source text, so it must never
- * enter the content-addressed cache: a store keyed by source hash would hand the empty value to
- * every other key that happens to share that source string.
- *
- * The export below needs `includeUnchanged`, because the key being cleared is already translated and
- * would otherwise not appear in the sheet at all. The follow-up run then adds a second key whose
- * source text is byte-identical to the cleared one. That key may legitimately be served from the
- * cache, because what the cache holds for that source text is the earlier translation and never the
- * clear; what it must never end up with is an empty value.
- */
 describe("workbook [[CLEAR]]: a per-key intent never enters the content-addressed cache", () => {
   it("clears its own key without spraying the empty value onto a byte-identical source key", async () => {
     const dir = await project({ a: "Save" }, {});
@@ -541,24 +516,9 @@ describe("workbook [[CLEAR]]: a per-key intent never enters the content-addresse
   });
 });
 
-/**
- * "crème" written two ways: NFC (U+00E8) and NFD (e + U+0300). canonicalize NFC-normalizes before
- * hashing, so these two sources hash equal and are deduped into one provider request; the gate
- * compares placeholder tokens raw, so the representative's value does not satisfy the duplicate.
- *
- * The two constant lines below are byte-different and look identical on screen. Never collapse
- * them into one constant, and never retype them: retyping produces NFC for both and silently
- * inverts every test in this block while they all still pass.
- */
 const PLACEHOLDER_NFC = "Enjoy {{crème}}";
 const PLACEHOLDER_NFD = "Enjoy {{crème}}";
 
-/**
- * The re-run test in this block diffs against the first run's lock. The key withheld by the first
- * run must still be a live candidate, and the cache entry the representative left behind must not be
- * served to it: the cache-hit path re-gates too, so the duplicate falls through to the provider and
- * is written with its own decomposed placeholder rather than the representative's composed one.
- */
 describe("content dedup: a fanned-out value is re-gated against its own key's source", () => {
   it("hashes the two normalization forms equal, so they really do share one request", async () => {
     const dir = await project({ a: PLACEHOLDER_NFC, b: PLACEHOLDER_NFD }, { de: {} });
@@ -633,11 +593,6 @@ describe("content dedup: a fanned-out value is re-gated against its own key's so
   });
 });
 
-/**
- * Read the cache file's raw bytes. Deliberately not through `readTranslationMemory`, which degrades
- * an unrecognized-version file to empty on read too: going through it would hide the very thing
- * these tests assert, and make a working fix look refuted.
- */
 async function rawCacheFile(dir: string): Promise<string> {
   return readFile(cacheFilePath(dir), "utf8");
 }
@@ -648,12 +603,6 @@ const FUTURE_CACHE = `${JSON.stringify(
   2,
 )}\n`;
 
-/**
- * Preserving such a file is only half the answer. Without a signal, a mistyped version would disable
- * caching permanently and silently, which is worse than the clobber the preservation replaces. So
- * the run completes normally on an empty effective cache and reports a notice on the locale; it is
- * never an error.
- */
 describe("translation-memory cache: an unrecognized version is preserved, not downgraded", () => {
   it("leaves the file byte-identical after a translate run", async () => {
     const dir = await project({ a: "Hello" }, { de: {} });

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { UTF8_BOM } from "./build-delimited.js";
+import { UTF8_BOM } from "./delimited-format.js";
 import { DEFAULT_DELIMITED_LIMITS } from "./delimited-limits.js";
 import { ExchangeError } from "./errors.js";
 import { HEADERS } from "./layout.js";
 import { readDelimited } from "./read-delimited.js";
+import { expectWorkbookInvalid } from "./test-support.js";
 
 const HEADER_LINE = HEADERS.join(",");
 
-/** One well-formed csv record: key, source, current, status, translation, hash, and the rest empty. */
 function record(
   key: string,
   source = "Hello",
@@ -24,15 +24,6 @@ function csv(...records: readonly string[]): string {
 
 function read(text: string, format: "csv" | "tsv" = "csv") {
   return readDelimited({ text, locale: "de", format });
-}
-
-function caught(text: string): ExchangeError {
-  try {
-    read(text);
-  } catch (error) {
-    return error as ExchangeError;
-  }
-  throw new Error("expected readDelimited to throw");
 }
 
 describe("readDelimited", () => {
@@ -82,6 +73,26 @@ describe("readDelimited", () => {
     const data = read(csv(record("a", "Hello", "new", "Hallo", "")));
     expect(data.sheets[0]?.rows[0]?.sourceHash).toBe("");
     expect(data.sheets[0]?.rows[0]?.translation).toBe("Hallo");
+  });
+});
+
+describe("readDelimited header-record offset", () => {
+  it("treats exactly the first record as the header and every later record as data", () => {
+    const data = read(csv(record("a"), record("b"), record("c")));
+    expect(data.sheets[0]?.rows.map((r) => r.key)).toEqual(["a", "b", "c"]);
+    expect(data.malformedRows).toEqual([]);
+  });
+
+  it("counts data records against maxRowsPerFile without counting the header record", () => {
+    const readWithCap = (text: string) =>
+      readDelimited(
+        { text, locale: "de", format: "csv" },
+        { limits: { ...DEFAULT_DELIMITED_LIMITS, maxRowsPerFile: 2 } },
+      );
+    expect(readWithCap(csv(record("a"), record("b"))).sheets[0]?.rows).toHaveLength(2);
+    expect(() => readWithCap(csv(record("a"), record("b"), record("c")))).toThrow(
+      /maximum of 2 rows/,
+    );
   });
 });
 
@@ -148,25 +159,23 @@ describe("readDelimited structural problems", () => {
     ]);
   });
 
-  it("rejects a file with no header line", () => {
-    expect(caught("").code).toBe("WORKBOOK_INVALID");
+  it("rejects a file with no header line", async () => {
+    await expectWorkbookInvalid(() => read(""));
   });
 
-  it("rejects a header line with the wrong number of columns", () => {
-    const error = caught(["Key,Source", record("a")].join("\n"));
-    expect(error).toBeInstanceOf(ExchangeError);
+  it("rejects a header line with the wrong number of columns", async () => {
+    const error = await expectWorkbookInvalid(() => read(["Key,Source", record("a")].join("\n")));
     expect(error.message).not.toContain("Hello");
   });
 
-  it("rejects a header line whose columns were renamed or reordered", () => {
+  it("rejects a header line whose columns were renamed or reordered", async () => {
     const swapped = [...HEADERS];
     swapped[1] = "Original";
-    expect(caught([swapped.join(","), record("a")].join("\n")).code).toBe("WORKBOOK_INVALID");
+    await expectWorkbookInvalid(() => read([swapped.join(","), record("a")].join("\n")));
   });
 });
 
 describe("readDelimited reported line numbers", () => {
-  /** Every record separator the reader accepts, each also used as the embedded break in a quoted field. */
   const SEPARATORS = [
     ["LF", "\n"],
     ["CRLF", "\r\n"],
@@ -272,30 +281,18 @@ describe("readDelimited bounds", () => {
     ).toThrow(/maximum of 8 characters/);
   });
 
-  it("embeds no field content in a cap failure", () => {
+  it("embeds no field content in a cap failure", async () => {
     const text = csv(record("secret-key", "secret source text"));
-    try {
+    const error = await expectWorkbookInvalid(() =>
       readDelimited(
         { text, locale: "de", format: "csv" },
         { limits: { ...DEFAULT_DELIMITED_LIMITS, maxInputBytes: 16 } },
-      );
-    } catch (error) {
-      expect((error as ExchangeError).message).not.toContain("secret");
-    }
-    expect.assertions(1);
+      ),
+    );
+    expect(error.message).not.toContain("secret");
   });
 });
 
-/**
- * The caps have to fire DURING the scan, not over its finished output. A bare line break is one
- * record and a bare delimiter is one field, so an input well under `maxInputBytes` can expand into
- * millions of records or fields; checking the caps afterwards means that memory is already spent and
- * the process can die before any check runs.
- *
- * Each test below pins the ordering that only an in-scan check can produce: the input carries a
- * second, later breach that a scan-then-check implementation would reach first and report instead.
- * The reported cap therefore proves the earlier one fired before the rest of the input was expanded.
- */
 describe("readDelimited enforces its bounds during the scan, not after it", () => {
   it("stops at the record that breaches maxRowsPerFile, before scanning a later oversized field", () => {
     const text = [

@@ -14,10 +14,10 @@ import {
 import { z } from "zod";
 
 /**
- * The provider section of the config: a discriminated union over the provider id, reusing each
- * provider's own config schema. There is no key field anywhere in this union except
- * openai-compatible's optional `apiKeyEnvVar`, which names an environment variable rather than carrying
- * a key value; every provider still reads its actual key from the environment at construction.
+ * The zod schema for the `provider` block, discriminated on `id`. Each variant's options are
+ * validated strictly, so an option that belongs to a different provider is reported as an error
+ * rather than ignored. It is embedded in {@link verbatraConfigSchema} and produces
+ * {@link ProviderConfig}.
  */
 export const providerConfigSchema = z.discriminatedUnion("id", [
   z.object({ id: z.literal("anthropic"), options: anthropicConfigSchema.strict() }),
@@ -30,16 +30,24 @@ export const providerConfigSchema = z.discriminatedUnion("id", [
   }),
 ]);
 
-/** One validated provider section: the provider id plus that provider's own options. */
+/**
+ * The `provider` block of a verbatra config: a discriminated union on `id`, so each provider
+ * carries exactly the options it supports and nothing else.
+ *
+ * No variant has a field for an API key. Keys are read from the environment by the provider itself
+ * (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`), which is what keeps
+ * them out of config files and out of version control. The `openai-compatible` variant may name a
+ * different environment variable through `apiKeyEnvVar`, but still never holds the key itself.
+ */
 export type ProviderConfig = z.infer<typeof providerConfigSchema>;
 
-/** The closed set of configurable provider ids. */
+/**
+ * The identifier of a supported translation provider: `anthropic`, `openai`, `gemini`, `deepl`, or
+ * `openai-compatible`. The last one targets a local or self-hosted server that speaks the OpenAI
+ * chat-completions API.
+ */
 export type ProviderId = ProviderConfig["id"];
 
-/**
- * Provider id to factory table, keyed to the union's id set by the mapped type, so a provider in
- * one but not the other fails to compile.
- */
 type ProviderFactories = {
   [K in ProviderId]: (
     options: Extract<ProviderConfig, { id: K }>["options"],
@@ -54,10 +62,6 @@ const providerFactories: ProviderFactories = {
   "openai-compatible": (options) => createOpenAiCompatibleProvider(options),
 };
 
-/**
- * Construct the provider named by the config through its registered factory. The factory reads the
- * API key from the environment; this function never sees or passes a key.
- */
 export function buildProvider(config: ProviderConfig): TranslationProvider {
   const create = providerFactories[config.id] as (
     options: ProviderConfig["options"],

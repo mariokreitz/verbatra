@@ -6,10 +6,6 @@ import { baseConfig, makeStubProvider, makeTempDir, writeJsonFile } from "../tes
 import { check } from "./check.js";
 import { translate } from "./translate-project.js";
 
-/**
- * A layout style changes only the path segment the `{locale}` token expands to, never the file
- * format, so these use the i18next-JSON adapter with the directory shapes the styles exist for.
- */
 async function projectWithSource(dir: string, segments: readonly string[]): Promise<void> {
   await mkdir(join(dir, ...segments.slice(0, -1)), { recursive: true });
   await writeJsonFile(join(dir, ...segments), { greeting: "Hello" });

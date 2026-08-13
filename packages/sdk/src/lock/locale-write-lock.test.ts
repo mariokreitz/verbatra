@@ -17,11 +17,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/**
- * An in-memory {@link SdkFs} whose `createExclusive`/`deleteFile` behave exactly like a real
- * exclusive-create lock file: a `Set` of currently "held" paths. Used to drive real mutual
- * exclusion through `withLocaleWriteLock`'s actual acquire/release loop, not by injection timing.
- */
 function makeLockFs(): SdkFs {
   const held = new Set<string>();
   return makeFakeFs({
@@ -193,7 +188,6 @@ describe("withLocaleWriteLock: wait progress", () => {
     vi.useRealTimers();
   });
 
-  /** A fake fs whose exclusive-create fails `failures` times, then succeeds, returning a fixed payload. */
   function makeContendedFs(failures: number, payload: SdkFs["readFileBounded"]): SdkFs {
     let attempts = 0;
     return makeFakeFs({
@@ -206,9 +200,6 @@ describe("withLocaleWriteLock: wait progress", () => {
   }
 
   it("reports the wait even when the acquire budget has already elapsed", async () => {
-    // A zero budget means the deadline has passed by the time the first attempt fails. The caller
-    // asked to be told about contention, so it must still hear about it before the throw rather
-    // than seeing only the failure. Checking the deadline before notifying loses that notice.
     const fs = makeContendedFs(Number.POSITIVE_INFINITY, async () => ({
       kind: "ok",
       content: JSON.stringify({ pid: 9876, acquiredAt: "2026-08-05T00:00:00.000Z" }),

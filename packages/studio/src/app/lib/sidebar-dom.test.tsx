@@ -9,7 +9,6 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-/** Makes every read and write on the real storage throw, the way a blocked or full store does. */
 function breakStorage(): void {
   const denied = (): never => {
     throw new Error("storage is not available");

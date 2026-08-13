@@ -25,7 +25,6 @@ function deps(project: FixtureProject, execFileImpl?: ExecFileImpl): RpcHandlerD
   return { config: loaded, projectRoot: project.root, ...(execFileImpl ? { execFileImpl } : {}) };
 }
 
-/** An {@link ExecFileImpl} stub that also exposes the vitest mock's call log, for argv assertions. */
 type MockedExecFile = ExecFileImpl & { readonly mock: { readonly calls: readonly unknown[][] } };
 
 function resolvedExecFile(stdout: string): MockedExecFile {
@@ -122,14 +121,6 @@ interface NestedGitProject {
   cleanup(): Promise<void>;
 }
 
-/**
- * A real git repository rooted one directory above a nested "project root": the repository's
- * `.git` lives at `repoRoot`, while the verbatra project (and the locale files under it) lives at
- * `repoRoot/project`. Exercises the layout where `git log` must resolve absolute pathspecs
- * correctly when invoked with `cwd` set to a subdirectory of the repository, not its root.
- * The git identity is set locally to this repository only, never touching global git config,
- * so the fixture works in a sandbox with no configured git user.
- */
 async function makeNestedGitProject(): Promise<NestedGitProject> {
   const repoRoot = await mkdtemp(join(tmpdir(), "verbatra-studio-nested-repo-"));
   await runGit(repoRoot, ["init", "-q"]);

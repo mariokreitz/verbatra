@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTranslationEntry, translationEntrySchema } from "./translation-entry.js";
+import { translationEntrySchema } from "./translation-entry.js";
 
 const valid = {
   key: "auth.login.submit",
@@ -11,7 +11,7 @@ const valid = {
 
 describe("translationEntrySchema", () => {
   it("carries the required fields", () => {
-    const parsed = parseTranslationEntry(valid);
+    const parsed = translationEntrySchema.parse(valid);
     expect(parsed.key).toBe("auth.login.submit");
     expect(parsed.namespace).toBe("common");
     expect(parsed.value).toBe("Sign in");
@@ -20,7 +20,7 @@ describe("translationEntrySchema", () => {
   });
 
   it("accepts optional description and meaning", () => {
-    const parsed = parseTranslationEntry({ ...valid, description: "ctx", meaning: "verb" });
+    const parsed = translationEntrySchema.parse({ ...valid, description: "ctx", meaning: "verb" });
     expect(parsed.description).toBe("ctx");
     expect(parsed.meaning).toBe("verb");
   });

@@ -27,12 +27,6 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-/**
- * Wraps a provider's `translateBatch` with a delay, so a real, unforced `Promise.all` of two
- * calls genuinely interleaves around the delayed call rather than one completing before the other
- * even starts. This is what makes the tests below exercise real concurrency (the actual gap
- * between a locale-file read and its write) instead of a scripted single-process interleaving.
- */
 function delayedProvider(base: TranslationProvider, delayMs: number): TranslationProvider {
   return {
     ...base,

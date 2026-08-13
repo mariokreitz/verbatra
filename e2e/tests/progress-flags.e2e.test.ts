@@ -9,14 +9,6 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 
-/**
- * Keyless coverage for the progress, concurrency, and cache surface. Dry runs are budget-exempt and
- * never construct a provider, so they exercise --dry-run, --concurrency, and --no-cache without a
- * key. The live budget-guard case proves the concurrency-vs-budget refusal precedes provider
- * construction at the real CLI boundary: with the key blanked, a guard-first path fails on
- * CONCURRENCY_BUDGET_CONFLICT, while a provider-first path would instead name the missing key.
- */
-
 let consumer: Consumer;
 
 const config = {
@@ -42,13 +34,6 @@ beforeAll(async () => {
 }, 180_000);
 
 describe("translate --dry-run --concurrency 2 (no provider)", () => {
-  /**
-   * The stream split is the point. Progress is rendered to stderr only (a per-locale "translating"
-   * line and a run-finished line), while stdout stays the clean dry-run summary. Every progress
-   * line carries the "verbatra: " prefix, so a stdout with no line starting that way is what proves
-   * none of them leaked across. `farewell` is the key missing from both target locales, so its
-   * continued absence afterwards is the proof the dry run wrote nothing.
-   */
   it("exits 0, writes nothing, prints progress to stderr while stdout stays the dry-run summary", async () => {
     const dir = await seedMultiLocale("dry-run-concurrency");
     const result = await runVerbatra(
@@ -85,11 +70,6 @@ describe("translate --no-cache --dry-run (no provider)", () => {
 });
 
 describe("translate --concurrency 2 with a token budget (no provider key)", () => {
-  /**
-   * The API key is blanked deliberately. A missing-key failure would name the key's environment
-   * variable, so the absence of any `API_KEY` mention in stderr is what proves the budget guard
-   * refused the run before a provider was ever constructed.
-   */
   it("exits 2 on the budget guard before any provider construction, never on a missing key", async () => {
     const dir = await seedMultiLocale("concurrency-budget-conflict", { maxTokens: 4096 });
     const result = await runVerbatra(consumer, ["translate", "--concurrency", "2", "--cwd", dir], {

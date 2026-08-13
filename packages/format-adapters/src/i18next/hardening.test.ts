@@ -16,13 +16,17 @@ async function tempFile(content: string | Uint8Array): Promise<string> {
 }
 
 describe("placeholder extraction is linear (HIGH)", () => {
-  it("handles a 200k unmatched '{{' value quickly and returns no placeholders", () => {
-    const hostile = "{{".repeat(200_000);
-    const start = Date.now();
-    const result = adapter.extractPlaceholders(hostile);
-    const elapsed = Date.now() - start;
-    expect(result).toEqual([]);
-    expect(elapsed).toBeLessThan(1000);
+  it("scales with input size rather than blowing up on an unmatched '{{' value", () => {
+    const durationFor = (repeats: number): number => {
+      const hostile = "{{".repeat(repeats);
+      const start = performance.now();
+      const result = adapter.extractPlaceholders(hostile);
+      expect(result).toEqual([]);
+      return performance.now() - start;
+    };
+    const small = durationFor(20_000);
+    const large = durationFor(200_000);
+    expect(large).toBeLessThan(Math.max(small, 40) * 25);
   });
 
   it("still extracts well-formed placeholders unchanged", () => {

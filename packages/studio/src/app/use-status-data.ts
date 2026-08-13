@@ -5,12 +5,6 @@ import type { RefreshableView } from "../client/state.js";
 import { applyRefreshOutcome } from "../client/state.js";
 import { rpcClient } from "./api.js";
 
-/**
- * Fetches per-locale coverage via `status.check` and exposes it as a
- * {@link RefreshableView}, keeping the last good data with a stale marker
- * when a re-fetch fails. Re-fetches whenever `refreshToken` changes; omitting
- * the token fetches once on mount.
- */
 export function useStatusData(refreshToken?: unknown): RefreshableView<StatusData> {
   const [view, setView] = useState<RefreshableView<StatusData>>({ kind: "loading" });
 

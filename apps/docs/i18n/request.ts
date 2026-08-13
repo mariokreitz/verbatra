@@ -1,12 +1,12 @@
 import { getRequestConfig } from "next-intl/server";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, isLocale, type Locale } from "@/lib/i18n";
 import en from "../messages/en.json";
 
 type Messages = Record<string, unknown>;
 
 function resolveLocale(requested: string | undefined): Locale {
-  if (requested && (i18n.languages as readonly string[]).includes(requested)) {
-    return requested as Locale;
+  if (requested && isLocale(requested)) {
+    return requested;
   }
   return i18n.defaultLanguage;
 }

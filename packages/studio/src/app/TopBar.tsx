@@ -7,20 +7,8 @@ import { Icon } from "./Icon.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import { microLabelClassName } from "./ui.js";
 
-/** How long the stream must stay degraded before the badge appears: long
- * enough to swallow the normal connect handshake on a fresh page load, short
- * enough that a real outage surfaces quickly. */
 const DEGRADED_BADGE_DELAY_MS = 1500;
 
-/**
- * The live-refresh state, surfaced only while it is degraded: the healthy
- * case renders nothing. The amber "Reconnecting" badge appears only after the
- * connection has been non-live for {@link DEGRADED_BADGE_DELAY_MS}, and
- * clears the moment the stream recovers. The status is re-read once right
- * after subscribing, since a transition can land between the first render and
- * the subscription. The wrapping `role="status"` stays mounted so transitions
- * announce to assistive technology.
- */
 function LiveIndicator(): ReactNode {
   const [status, setStatus] = useState(connectionStore.getStatus());
   const [showDegraded, setShowDegraded] = useState(false);
@@ -45,19 +33,11 @@ function LiveIndicator(): ReactNode {
   );
 }
 
-/** Props for {@link TopBar}. */
 export interface TopBarProps {
-  /** The active page's label, rendered as orientation text, not a heading. */
   readonly pageLabel: string;
-  /** Opens the mobile nav drawer; the trigger only renders below the md breakpoint. */
   readonly onOpenNav: () => void;
 }
 
-/**
- * The application's header row: the mobile menu button and the current page's
- * label on the start side, the live-updates indicator and the theme switcher
- * on the end side.
- */
 export function TopBar({ pageLabel, onOpenNav }: TopBarProps): ReactNode {
   return (
     <header className="flex h-14 flex-none items-center gap-3 border-b border-border bg-card px-4 md:px-6">

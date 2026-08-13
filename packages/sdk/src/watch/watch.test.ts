@@ -11,7 +11,6 @@ const SOURCE = resolve(CWD, "locales/en.json");
 
 const okFs = makeFakeFs({ fileExists: async () => true });
 
-/** Flush nested microtasks (run-completion chain) without advancing the debounce timer. */
 async function settle(): Promise<void> {
   for (let i = 0; i < 25; i += 1) {
     await Promise.resolve();

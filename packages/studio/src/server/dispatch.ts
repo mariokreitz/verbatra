@@ -23,25 +23,16 @@ import {
   UNSUPPORTED_MEDIA_TYPE_BODY,
 } from "./transport-responses.js";
 
-/** Per-server state the dispatcher needs for every request; computed once, after listen. */
 export interface DispatchContext {
   readonly port: number;
   readonly token: string;
   readonly cookieName: string;
   readonly assetsRootPath: string;
   readonly log: (line: string) => void;
-  /** Resolved once at startup; every POST /rpc call reuses this same value, never re-loading it. */
   readonly rpcDeps: RpcHandlerDeps;
-  /**
-   * The capability-gated handlers registry `createRpcHandlers` built once at startup, before
-   * `listen()`; a sibling to `rpcDeps`, never rebuilt for the life of the process.
-   */
   readonly handlers: HandlersRegistry;
-  /** Process-scoped rate limiter applied to POST /rpc before a handler is invoked. */
   readonly rateLimiter: RpcRateLimiter;
-  /** Process-scoped in-flight guard applied to POST /rpc before a handler is invoked. */
   readonly inFlightGuard: RpcInFlightGuard;
-  /** The live-refresh SSE hub every `GET /events` connection registers with. */
   readonly sseHub: SseHub;
 }
 
@@ -52,7 +43,6 @@ function pathWithoutQuery(url: string): string {
   return index === -1 ? url : url.slice(0, index);
 }
 
-/** Reads the bootstrap "token" query parameter on "/". Undefined means the key was not present at all. */
 function extractBootstrapToken(url: string): string | undefined {
   const index = url.indexOf("?");
   if (index === -1) {
@@ -130,12 +120,6 @@ async function serveStatic(
   context.log(formatRequestLog({ method, path, status: 200 }));
 }
 
-/**
- * Opens the live-refresh SSE stream: registers the response with the hub, which writes every
- * later refresh, heartbeat, and the final shutdown frame. This never goes through the RPC
- * dispatcher (it is not an RPC method); it shares only the same session-cookie authentication as
- * every other GET route.
- */
 function handleEvents(
   context: DispatchContext,
   response: ServerResponse,
@@ -231,11 +215,6 @@ async function handlePost(
   context.log(formatRequestLog({ method, path, status: result.statusCode }));
 }
 
-/**
- * Handles one request end to end: the Host allowlist and method policy apply before anything
- * else, Origin is checked only for POST, and GET requests need either a valid bootstrap token or
- * an existing session cookie. Every response carries the fixed security headers.
- */
 export async function handleRequest(
   context: DispatchContext,
   request: IncomingMessage,

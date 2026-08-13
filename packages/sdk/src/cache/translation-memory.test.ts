@@ -184,7 +184,6 @@ describe("feedTranslationMemory", () => {
   });
 });
 
-/** A fake fs whose writeFile really writes to disk under `dir`, for serialization round-trips. */
 function makeFakeFsWriting(_dir: string): ReturnType<typeof makeFakeFs> {
   return makeFakeFs({
     writeFile: async (path, data) => {

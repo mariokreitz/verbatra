@@ -23,12 +23,6 @@ import { runLocale } from "./locale-run.js";
 import { retranslateEntry } from "./retranslate-entry.js";
 import { importLocale } from "./workbook/import-locale.js";
 
-/**
- * Proves the three write paths that consume {@link gateCandidateValue} (the provider-translation
- * path in `locale-run.ts`, workbook import, and the `retranslateEntry` seam) agree with it, and
- * with each other, on the same accept/reject decision for the same
- * (sourceEntry, candidateValue, adapter) input.
- */
 interface Case {
   readonly name: string;
   readonly adapter: FormatAdapter;

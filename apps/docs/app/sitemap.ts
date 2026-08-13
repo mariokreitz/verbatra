@@ -1,29 +1,25 @@
 import type { MetadataRoute } from "next";
-import { i18n } from "@/lib/i18n";
-import { SITE_URL } from "@/lib/site";
+import { i18n, type Locale } from "@/lib/i18n";
+import { homePath, SITE_URL } from "@/lib/site";
 import { source } from "@/lib/source";
 
-const HOME_ALTERNATES = {
-  languages: {
-    en: new URL("/", SITE_URL).href,
-    de: new URL("/de", SITE_URL).href,
-    es: new URL("/es", SITE_URL).href,
-    fr: new URL("/fr", SITE_URL).href,
-  },
-} as const;
+const HOME_PRIORITY: Readonly<Record<Locale, number>> = { en: 1, de: 0.9, es: 0.9, fr: 0.9 };
+
+function homeLanguageAlternates(): Record<string, string> {
+  const languages: Record<string, string> = {};
+  for (const lang of i18n.languages) {
+    languages[lang] = new URL(homePath(lang), SITE_URL).href;
+  }
+  return languages;
+}
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const homePaths: ReadonlyArray<{ path: string; priority: number }> = [
-    { path: "/", priority: 1 },
-    { path: "/de", priority: 0.9 },
-    { path: "/es", priority: 0.9 },
-    { path: "/fr", priority: 0.9 },
-  ];
-  const home: MetadataRoute.Sitemap = homePaths.map(({ path, priority }) => ({
-    url: new URL(path, SITE_URL).href,
+  const homeAlternates = { languages: homeLanguageAlternates() };
+  const home: MetadataRoute.Sitemap = i18n.languages.map((locale) => ({
+    url: new URL(homePath(locale), SITE_URL).href,
     changeFrequency: "weekly",
-    priority,
-    alternates: HOME_ALTERNATES,
+    priority: HOME_PRIORITY[locale],
+    alternates: homeAlternates,
   }));
 
   const docs: MetadataRoute.Sitemap = i18n.languages.flatMap((locale) =>

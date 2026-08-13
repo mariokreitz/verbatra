@@ -7,14 +7,8 @@ import {
 } from "@verbatra/format-adapters";
 import type { SdkNotice } from "./summary.js";
 
-/** The six CLDR cardinal plural categories. A language uses a subset of these. */
 export type CldrPluralCategory = I18nextPluralCategory;
 
-/**
- * Static map of language subtag to the CLDR cardinal plural categories it requires, for languages richer
- * than {one, other}. A static lookup, not a plural-rule engine: it only answers whether the target uses
- * more categories than the source supplied. Languages not listed are treated as {one, other}.
- */
 const LANGUAGE_CATEGORIES: Readonly<Record<string, readonly CldrPluralCategory[]>> = {
   ar: ["zero", "one", "two", "few", "many", "other"],
   cy: ["zero", "one", "two", "few", "many", "other"],
@@ -27,19 +21,16 @@ const LANGUAGE_CATEGORIES: Readonly<Record<string, readonly CldrPluralCategory[]
   sl: ["one", "two", "few", "other"],
 };
 
-/** True when the target language's category set is known to be richer than {one, other}. */
 function isKnownRicherLanguage(locale: string): boolean {
   const subtag = locale.toLowerCase().split(/[-_]/)[0] ?? "";
   return LANGUAGE_CATEGORIES[subtag] !== undefined;
 }
 
-/** The category set a target language requires; {one, other} when not specially listed. */
 function requiredCategories(locale: string): readonly CldrPluralCategory[] {
   const subtag = locale.toLowerCase().split(/[-_]/)[0] ?? "";
   return LANGUAGE_CATEGORIES[subtag] ?? ["one", "other"];
 }
 
-/** Group the source's i18next plural entries by base key; non-plural keys are ignored. */
 function groupPluralSources(
   source: LocaleResource,
 ): Map<string, Map<CldrPluralCategory, TranslationEntry>> {
@@ -57,7 +48,6 @@ function groupPluralSources(
   return groups;
 }
 
-/** The set of categories the source supplies anywhere (across all base keys). */
 function suppliedCategories(
   groups: ReadonlyMap<string, ReadonlyMap<CldrPluralCategory, TranslationEntry>>,
 ): Set<CldrPluralCategory> {
@@ -70,10 +60,6 @@ function suppliedCategories(
   return supplied;
 }
 
-/**
- * Emit a per-locale notice when the target language requires more CLDR plural categories than the source
- * supplies. A no-op unless the format is "i18next-json"; returns undefined when nothing is missing.
- */
 export function detectMissingPluralCategories(
   source: LocaleResource,
   targetLocale: string,
@@ -100,10 +86,6 @@ export function detectMissingPluralCategories(
   };
 }
 
-/**
- * Per-base-key completeness check over a written target's keys: true when some plural base key is missing
- * a category the target language requires. Per base key, so one complete base key cannot mask another's gap.
- */
 export function targetPluralSetIncomplete(
   targetKeys: Iterable<string>,
   targetLocale: string,
@@ -128,7 +110,6 @@ export function targetPluralSetIncomplete(
   return false;
 }
 
-/** The set of source base keys that carry at least one plural form. */
 export function sourcePluralBaseKeys(source: LocaleResource): ReadonlySet<string> {
   const bases = new Set<string>();
   for (const key of source.entries.keys()) {
@@ -140,13 +121,11 @@ export function sourcePluralBaseKeys(source: LocaleResource): ReadonlySet<string
   return bases;
 }
 
-/** True when a target key is a plural form of a source base key (so it is generated, not orphaned). */
 export function isGeneratedPluralKey(key: string, sourceBaseKeys: ReadonlySet<string>): boolean {
   const baseKey = pluralBaseKey(key);
   return baseKey !== undefined && sourceBaseKeys.has(baseKey);
 }
 
-/** A static, secret-free PLURAL_CATEGORIES_INCOMPLETE notice; the message lists no key or value. */
 export function pluralIncompleteNotice(targetLocale: string): SdkNotice {
   return {
     code: "PLURAL_CATEGORIES_INCOMPLETE",
@@ -157,38 +136,23 @@ export function pluralIncompleteNotice(targetLocale: string): SdkNotice {
   };
 }
 
-/** One plural form verbatra must generate: a derived target key drawn from a chosen source form. */
 export interface PluralGenerationItem {
-  /** The derived target plural key, for example `items_few`. */
   readonly targetKey: string;
-  /** The CLDR category being generated, carried into the request as data context. */
   readonly category: CldrPluralCategory;
-  /** The source plural entry whose value/placeholders the generated form is drawn from. */
   readonly sourceEntry: TranslationEntry;
-  /** Every source plural entry of this base key, in category order, to govern lock tracking. */
   readonly governingEntries: readonly TranslationEntry[];
 }
 
-/** The plural-generation plan for one locale: the items to generate (possibly empty). */
 export interface PluralGenerationPlan {
   readonly items: readonly PluralGenerationItem[];
 }
 
-/**
- * Pick the source plural entry a generated category is drawn from: prefer `other`, then `one`, then any.
- * The forms of one base key share a placeholder set, so one representative stands in for the base key.
- */
 function representativeEntry(
   group: ReadonlyMap<CldrPluralCategory, TranslationEntry>,
 ): TranslationEntry | undefined {
   return group.get("other") ?? group.get("one") ?? [...group.values()][0];
 }
 
-/**
- * Plan plural-category generation: for each source plural base key, derive the target forms for the
- * categories the source lacks but the language requires. Unsupported cases (non-i18next, an unknown
- * language) yield an empty plan.
- */
 export function planPluralGeneration(
   source: LocaleResource,
   targetLocale: string,

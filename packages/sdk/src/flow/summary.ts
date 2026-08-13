@@ -1,6 +1,21 @@
 import type { ProviderNotice, ReviewReasonCode } from "@verbatra/ai-providers";
 
-/** A stable code for an SDK-originated notice (not a provider notice). */
+/**
+ * Conditions the SDK itself reports on a locale, as opposed to the {@link ProviderNotice} codes a
+ * provider raises. Each marks a run that completed but did something a caller may want to know
+ * about.
+ *
+ * - `PLURAL_CATEGORIES_INCOMPLETE`: plural generation could not produce every category the target
+ *   language requires, so the entry is written with the categories that were produced.
+ * - `SUB_BATCH_FAILED`: one sub-batch of a locale failed while others succeeded. The locale is
+ *   reported as `partial` rather than failed.
+ * - `BLANK_ROW_BASELINE_RETAINED`: an imported handoff row was blank, so the existing translation
+ *   and its lock-file baseline were kept rather than being erased.
+ * - `BUDGET_TOKENS_EXCEEDED`: the configured token budget was passed. Under `warn` the run
+ *   continues; under `stop` the remaining keys are withheld.
+ * - `CACHE_VERSION_UNRECOGNIZED`: the translation memory is at a version this release does not
+ *   understand, so it was ignored rather than trusted.
+ */
 export type SdkNoticeCode =
   | "PLURAL_CATEGORIES_INCOMPLETE"
   | "SUB_BATCH_FAILED"
@@ -8,272 +23,183 @@ export type SdkNoticeCode =
   | "BUDGET_TOKENS_EXCEEDED"
   | "CACHE_VERSION_UNRECOGNIZED";
 
-/** Summed token usage across every provider call in a scope (one locale, or the whole run). */
+/**
+ * Token usage as reported by the provider. Absent when the provider does not report usage, which is
+ * the case for machine-translation APIs such as DeepL that do not bill in tokens.
+ */
 export interface UsageSummary {
+  /** Tokens consumed by the prompts sent to the provider. */
   readonly inputTokens: number;
+  /** Tokens consumed by the provider's responses. */
   readonly outputTokens: number;
 }
 
-/** The configured token-budget behavior: warn and continue, or stop making further provider calls. */
+/**
+ * What a run does when it passes its token budget: `warn` finishes the work and reports the
+ * overrun, `stop` withholds the remaining keys.
+ */
 export type BudgetBehavior = "warn" | "stop";
 
-/**
- * The run-wide token-budget outcome, present on {@link RunSummary} only when `maxTokens` is configured.
- * `supported: false` means the configured provider never reported usage in this run (a token-less
- * provider such as DeepL, or a dry-run): the guardrail is honestly inert, `tokensUsed` stays `0`, and
- * `exceeded` stays `false`, never a false trip.
- */
+/** The token budget in force for a run, and how much of it was actually consumed. */
 export interface RunBudget {
-  /** The configured ceiling. */
+  /** The configured ceiling, in tokens. */
   readonly maxTokens: number;
-  /** The configured behavior once the ceiling is reached. */
+  /** Whether passing the ceiling warns or stops the run. */
   readonly behavior: BudgetBehavior;
-  /** Whether the configured provider reported usage at all this run. */
+  /**
+   * Whether the configured provider reports usage at all. When false the budget cannot be enforced,
+   * because there is nothing to count.
+   */
   readonly supported: boolean;
-  /** Cumulative input plus output tokens across the run so far. */
+  /** Tokens consumed across the whole run so far. */
   readonly tokensUsed: number;
-  /** Whether `tokensUsed` reached or passed `maxTokens` at any point this run. */
+  /** True once `tokensUsed` passed `maxTokens`. */
   readonly exceeded: boolean;
 }
 
-/**
- * A notice raised by the SDK itself (not a provider), structurally identical to a {@link ProviderNotice}
- * so both share the {@link LocaleSummary.notices} channel. Carries only a stable code and a static,
- * secret-free message; never a key value or translatable content.
- */
+/** A condition the SDK reported on a locale. See {@link SdkNoticeCode}. */
 export interface SdkNotice {
-  /** The stable {@link SdkNoticeCode} for what the SDK is reporting. */
+  /** The stable notice code. Branch on this, not on the message. */
   readonly code: SdkNoticeCode;
-  /** A static, safe description; never a key or translatable content. */
+  /** A human-readable description of the condition. */
   readonly message: string;
 }
 
-/** A notice on a locale summary: either a provider-emitted notice or an SDK-emitted one. */
+/**
+ * Any notice attached to a locale: either one the provider raised, such as a downgraded formality
+ * or an ignored glossary, or one the SDK raised. Discriminate on `code`.
+ */
 export type LocaleNotice = ProviderNotice | SdkNotice;
 
-/** One key flagged for human review, and every reason code that applies to it. */
+/**
+ * A translated key the provider layer flagged as worth a human look. The translation was still
+ * written; these are advisory quality signals, not rejections.
+ */
 export interface NeedsReviewEntry {
-  /** The flagged key. */
+  /** The key that was flagged. */
   readonly key: string;
-  /** Every {@link ReviewReasonCode} that applies to this key. */
+  /** Why it was flagged. A key can carry more than one reason. */
   readonly reasons: readonly ReviewReasonCode[];
 }
 
-/**
- * One row a workbook import could not read: the 1-based row number, the file line for a delimited
- * import, and the header label of the offending column. Carries no cell content, so untrusted workbook
- * text never reaches the summary.
- */
+/** A row of an imported handoff that could not be read. Reported rather than aborting the import. */
 export interface MalformedRowReport {
-  /** The 1-based worksheet row number of the malformed row. */
+  /** The row's 1-based index within its sheet or file. */
   readonly row: number;
   /**
-   * The 1-based file line the malformed record starts on. Present only for a delimited (csv or tsv)
-   * import; an xlsx workbook has rows rather than lines. See {@link DuplicateKeyReport.line} for why
-   * both numbers are reported.
+   * The 1-based physical line in the source file, for delimited formats where a quoted value can
+   * span several lines. Absent for `.xlsx`, which has rows but no lines.
    */
   readonly line?: number;
-  /** The header label of the column the row was rejected on (for example "Status"). */
+  /** The column whose value was missing or unusable. */
   readonly column: string;
 }
 
 /**
- * One duplicate-key conflict a workbook import found in a locale's sheet: the duplicated key and the
- * 1-based worksheet row number of the later (losing) occurrence. The first occurrence is the winner.
+ * A key that appeared more than once in an imported handoff. The first occurrence wins and the rest
+ * are reported here, so a translator who duplicated a row learns which value was actually used.
  */
 export interface DuplicateKeyReport {
-  /** The key that appeared more than once in the locale's sheet. */
+  /** The key that appeared more than once. */
   readonly key: string;
-  /** The 1-based worksheet row number of the later occurrence that lost to the first. */
+  /** The 1-based row index of the ignored occurrence. */
   readonly row: number;
-  /**
-   * The 1-based file line this later occurrence starts on. Present only for a delimited (csv or tsv)
-   * import.
-   *
-   * A delimited record holding a quoted line break covers one spreadsheet row but several editor
-   * lines, so `row` is the number a translator sees in a spreadsheet and `line` the one they see in a
-   * text editor. Both are reported so the position holds whichever tool they opened the file in.
-   */
+  /** The 1-based physical line of the ignored occurrence, for delimited formats. Absent for `.xlsx`. */
   readonly line?: number;
 }
 
-/** Structured outcome for one target locale; surfaced as data on the run, never thrown. */
+/**
+ * Everything that happened for one locale during a run. The key lists are disjoint accounts of what
+ * became of each key, so a caller can reconstruct the whole run without re-reading any file.
+ *
+ * A locale that failed outright still appears here with `status: "failed"` and an `error`, rather
+ * than the whole run throwing. That is the central contract of {@link translate}: one unreachable
+ * provider or one unwritable file does not discard the locales that succeeded.
+ */
 export interface LocaleSummary {
-  /** The target locale this summary is for. */
+  /** The target locale this summary describes. */
   readonly locale: string;
   /**
-   * This locale's honest run status (a non-success does not abort the run). `"succeeded"` when
-   * nothing was withheld, including a genuine no-op with no candidate keys at all. `"partial"` when
-   * at least one key was accepted and written (a {@link LocaleSummary.translated} key or a
-   * {@link LocaleSummary.generated} plural form) but at least one was withheld (any of
-   * {@link LocaleSummary.integrityMismatches}, {@link LocaleSummary.providerFailures}, or
-   * {@link LocaleSummary.budgetWithheld} non-empty). `"failed"` when the locale had candidate keys
-   * but accepted nothing at all (neither translated nor generated) while withholding at least one.
-   * Withheld keys keep their prior lock hash and retry next run.
-   *
-   * A workbook import's structural findings, {@link LocaleSummary.unfilled},
-   * {@link LocaleSummary.malformedRows}, and {@link LocaleSummary.duplicateKeys}, deliberately do NOT
-   * feed this status: they are surfaced in their own lists (and the CLI) but are not withholdings of
-   * an attempted translation, so a locale that dropped a malformed row, collapsed a duplicate key, or
-   * left a row unfilled while accepting its other rows can still be `"succeeded"`.
-   *
-   * This is a settled decision, not an omission. Recording the reasoning here so the question stops
-   * recurring:
-   *
-   * 1. Two questions, two commands. `import`'s exit code answers "did the import apply what the
-   *    translator gave me". `check` and `diff` answer "is this project fully translated", and both
-   *    already exit non-zero or report pending in every one of these cases. Folding pending human
-   *    work into the import exit code duplicates an existing gate rather than adding one.
-   * 2. It would break the staged handoff. With `de` and `fr` configured and only `de` filled in,
-   *    failing on unfilled work makes `fr` fail and takes the whole import with it, even though `de`
-   *    imported perfectly. Locale-at-a-time handoff is this feature's most common workflow.
-   * 3. {@link LocaleSummary.malformedRows} structurally cannot signal lost work. The Status column is
-   *    the only reachable rejection in the workbook reader; every other field is an unconstrained
-   *    string or a tolerant parse. So a row is malformed on its Status cell alone, entirely
-   *    independently of whether its Translation cell was filled. An untouched sheet with a mangled
-   *    Status column (spreadsheet autocorrect, a CAT-tool round trip) is all-malformed with zero lost
-   *    work. A bucket that cannot distinguish dropped work from absent work cannot honestly drive a
-   *    failure status.
-   * 4. {@link LocaleSummary.duplicateKeys} never could: the first occurrence wins and the intent is
-   *    honoured.
+   * `succeeded` when everything asked for was done, `partial` when some keys were translated and
+   * others were not, and `failed` when the locale produced no usable result.
    */
   readonly status: "succeeded" | "partial" | "failed";
-  /**
-   * Keys translated and written this run. In dry-run, the keys that would be translated
-   * (the provider is not called and nothing is written).
-   */
+  /** Keys newly translated by the provider in this run. */
   readonly translated: readonly string[];
-  /** Keys already up to date, left unchanged this run. */
+  /** Keys already up to date against the lock-file baseline, so no provider call was made. */
   readonly unchanged: readonly string[];
-  /** Target keys with no corresponding source key (candidates for removal). Reported regardless of pruning. */
+  /** Keys present in this locale but no longer in the source. Reported, and removed only when pruning. */
   readonly orphaned: readonly string[];
-  /**
-   * Orphaned keys actually removed this run because pruning was on. In a dry-run with pruning on, the keys
-   * that would be removed. Empty when pruning is off (the orphans then survive and are reported in
-   * `orphaned` only). A subset of `orphaned`; never includes a source-present key.
-   */
+  /** Orphaned keys that were actually removed, which happens only when the run was asked to prune. */
   readonly pruned: readonly string[];
-  /** Source keys flagged invalid-ICU that were skipped for translation this run. */
-  readonly invalidIcuSource: readonly string[];
   /**
-   * Keys served from the local translation-memory cache instead of the provider: their source content
-   * was unchanged (possibly under a renamed key or shared with another key) and the cached value passed
-   * the integrity gate, so no provider request was made for them. They are written and lock-advanced
-   * exactly like a translated key, but kept distinct from {@link LocaleSummary.translated} because they
-   * cost no provider usage. Always present, empty by default; empty in a dry-run and when the cache is
-   * bypassed. Sorted by key.
+   * Keys whose source text is not valid ICU. They are skipped rather than sent to the provider,
+   * because a broken source message cannot yield a sound translation.
    */
+  readonly invalidIcuSource: readonly string[];
+  /** Keys served from the translation memory instead of the provider, and so not paid for. */
   readonly cacheHits: readonly string[];
   /**
-   * Translated keys that failed the placeholder-integrity check and were withheld. Never includes a
-   * key withheld because the provider call itself failed; see {@link LocaleSummary.providerFailures}
-   * for that case.
+   * Keys whose translation was refused by the integrity gate, for instance because it dropped a
+   * placeholder. The previous translation, if any, is left untouched.
    */
   readonly integrityMismatches: readonly string[];
-  /**
-   * Keys withheld because nothing was translated for them this run, as distinct from a translation
-   * that came back and failed the placeholder-integrity check. This covers two causes: the provider
-   * call itself failed (for example a revoked API key, a rate limit, or a network timeout), in which
-   * case the corresponding {@link LocaleSummary.notices} entry carries the secret-free failure code
-   * and message; or the call succeeded but the key was still missing or duplicated in the response
-   * after the shared LLM layer's bounded reconcile repair round, in which case no notice is added.
-   * Empty in a dry-run.
-   */
+  /** Keys the provider failed to translate, for instance because their sub-batch errored. */
   readonly providerFailures: readonly string[];
-  /**
-   * Plural-category keys verbatra synthesized this run (for example a Polish `items_few` the source
-   * never supplied), kept distinct from {@link translated}. Empty unless plural generation was enabled
-   * and acted, and empty in a dry-run.
-   */
+  /** Keys whose plural categories were generated for the target language rather than translated one by one. */
   readonly generated: readonly string[];
-  /**
-   * Candidate keys never sent to the provider because a configured `maxTokens` budget already tripped
-   * in `"stop"` mode: keys remaining in the current locale once the ceiling was crossed, and every
-   * candidate key of a later, fully-skipped locale. Always present, empty by default, same convention as
-   * {@link LocaleSummary.integrityMismatches} and {@link LocaleSummary.providerFailures}. Each key keeps
-   * its prior lock hash and is picked up again next run, exactly like a `providerFailures` key.
-   */
+  /** Keys not translated because the token budget was exhausted under `stop` behavior. */
   readonly budgetWithheld: readonly string[];
-  /**
-   * Summed token usage across every provider call for this locale (main translation plus plural
-   * generation). Absent when no call in this locale reported usage: a dry-run, a token-less provider
-   * (DeepL), or a locale with nothing to translate. Never a fabricated `{ inputTokens: 0, outputTokens: 0 }`.
-   */
+  /** Token usage for this locale. Absent when the provider does not report usage. */
   readonly usage?: UsageSummary;
-  /**
-   * Notices for this locale: provider notices (e.g. DeepL graceful-degradation) and SDK notices
-   * (e.g. a target language needing more CLDR plural categories than the source supplies). Empty when
-   * nothing was degraded or flagged.
-   */
+  /** Provider and SDK notices raised while running this locale. Always present, possibly empty. */
   readonly notices: readonly LocaleNotice[];
-  /**
-   * Keys accepted and written this run that the review heuristics flagged for a second look, sorted
-   * by key. Distinct from the placeholder/ICU integrity gate: a review flag is advisory only and never
-   * withholds a key, so this never double-reports a key already surfaced through
-   * {@link LocaleSummary.integrityMismatches} or {@link LocaleSummary.providerFailures}. Empty when
-   * nothing was flagged, always empty for a workbook import (which never calls a provider or recomputes
-   * flags on its own path).
-   */
+  /** Translated keys flagged as worth a human look. The translations were still written. */
   readonly needsReview: readonly NeedsReviewEntry[];
-  /**
-   * Keys the translator left blank that still need a translation, drifted or not, sorted by key.
-   * Pending work made visible: the row is skipped (nothing is written and the prior lock baseline is
-   * kept), but the key is surfaced so an unfinished import is never silently reported as done. Only a
-   * workbook import populates this; the provider path, which never leaves a candidate key unfilled by
-   * a person, always leaves it empty.
-   *
-   * Membership is decided by the import-time diff, not by the `status` the row was exported with: a
-   * never-translated key exports as `new`, and a first handoff is all-new, which is the most common
-   * unfilled case there is. A row exported as `changed` whose key no longer needs work by import time
-   * is correspondingly excluded.
-   */
+  /** Keys left with no translation after the run, whatever the cause. */
   readonly unfilled: readonly string[];
-  /**
-   * Rows a workbook import could not read for this locale, each by worksheet row number and offending
-   * column, in row order. The sheet's other rows still import; a malformed row is reported, not
-   * written. Only a workbook import populates this; the provider path always leaves it empty.
-   */
+  /** Unreadable rows from an imported handoff. Always empty for a {@link translate} run. */
   readonly malformedRows: readonly MalformedRowReport[];
-  /**
-   * Duplicate-key conflicts a workbook import found in this locale's sheet, in row order. The rule is
-   * first occurrence wins: the first row for a key is judged and its later occurrences are reported
-   * here and otherwise ignored. Only a workbook import populates this; the provider path always leaves
-   * it empty.
-   */
+  /** Repeated keys from an imported handoff. Always empty for a {@link translate} run. */
   readonly duplicateKeys: readonly DuplicateKeyReport[];
   /**
-   * A structured, secret-free error for a locale that threw (an adapter/lock/provider-construction
-   * failure isolated as data): present only on a "failed" locale, and only that throw path sets it.
-   * A locale that is "failed" because every candidate key was withheld (all under `providerFailures`,
-   * `integrityMismatches`, or `budgetWithheld`) carries those lists and any notices instead, and has
-   * no `error`. `code` is a preserved string (the underlying provider/adapter error's `code`, or
-   * `"LOCALE_FAILED"` as a fallback), intentionally wider than {@link SdkErrorCode}, so do not treat
-   * it as a closed set.
+   * Why this locale failed, when the failure came from a thrown error. The `code` is the failure's
+   * own code where it has one, and `LOCALE_FAILED` otherwise. Never carries a secret.
+   *
+   * Absent unless `status` is `failed`, but a `failed` locale does not always carry it: a locale
+   * whose every key was withheld by the integrity gate, a provider failure, or the token budget is
+   * `failed` with nothing thrown, so this stays undefined and the withheld keys are the account of
+   * what went wrong. Treat it as an optional detail on a failure, never as the failure test.
    */
-  readonly error?: { readonly code: string; readonly message: string };
+  readonly error?: {
+    /** The failure's own code where it had one, and `LOCALE_FAILED` otherwise. */
+    readonly code: string;
+    /** A human-readable description of the failure. Never contains a secret. */
+    readonly message: string;
+  };
 }
 
-/** The aggregate result of a run across all target locales. */
+/**
+ * The result of a whole run, returned by {@link translate}, {@link watch}, and
+ * {@link importWorkbook}.
+ *
+ * Per-locale outcomes are data, not exceptions: inspect `failed` and `partial` to decide an exit
+ * code rather than relying on the call to throw. Only whole-run failures, such as an invalid config
+ * or an unreadable source file, throw an {@link SdkError}.
+ */
 export interface RunSummary {
-  /** Whether this was a dry-run (no provider calls, no writes). */
+  /** True when the run computed everything but wrote nothing and called no provider. */
   readonly dryRun: boolean;
-  /** One {@link LocaleSummary} per target locale, in config order. */
+  /** The full per-locale account, in configured target order. */
   readonly locales: readonly LocaleSummary[];
-  /** Locales whose run succeeded with nothing withheld (status `"succeeded"`). */
+  /** Names of the locales whose status is `succeeded`. */
   readonly succeeded: readonly string[];
-  /**
-   * Locales that wrote at least one translation but withheld at least one candidate key (status
-   * `"partial"`). A partial locale still exits the CLI `0`: it made progress, and its withheld keys
-   * retry next run. Never overlaps `succeeded` or `failed`.
-   */
+  /** Names of the locales whose status is `partial`. */
   readonly partial: readonly string[];
-  /** Locales whose run failed, having accepted nothing (status `"failed"`; see each locale's `error`). */
+  /** Names of the locales whose status is `failed`. Check this before treating a run as clean. */
   readonly failed: readonly string[];
-  /**
-   * Summed token usage across every locale's {@link LocaleSummary.usage}. Absent when no locale in the
-   * run reported usage (a dry-run, or an all-token-less-provider run).
-   */
+  /** Token usage summed across every locale. Absent when the provider does not report usage. */
   readonly usage?: UsageSummary;
-  /** The run-wide token-budget outcome; present only when `maxTokens` is configured. */
+  /** The token budget in force, present only when the config set one. */
   readonly budget?: RunBudget;
 }

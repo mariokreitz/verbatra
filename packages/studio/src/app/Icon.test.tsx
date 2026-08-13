@@ -3,12 +3,6 @@ import { describe, expect, it } from "vitest";
 import { Icon, type IconName } from "./Icon.js";
 import { render } from "./test-support.js";
 
-/**
- * Every member of the exported `IconName` union, as a total record. Typing it this way is what
- * makes the sweep below exhaustive by construction: adding a name to the union without adding it
- * here fails typecheck, and a name that is no longer in the union fails too. A hand-copied array
- * would silently drift.
- */
 const ICON_NAME_SET: Readonly<Record<IconName, true>> = {
   activity: true,
   diff: true,
@@ -38,7 +32,6 @@ const ICON_NAME_SET: Readonly<Record<IconName, true>> = {
 
 const ICON_NAMES = Object.keys(ICON_NAME_SET) as readonly IconName[];
 
-/** The shape elements the hand-written set is drawn from. Anything else would not render a glyph. */
 const SHAPE_TAGS = new Set(["path", "circle", "rect", "polyline", "polygon"]);
 
 describe("Icon", () => {

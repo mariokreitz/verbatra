@@ -7,52 +7,54 @@ import {
 import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { createLocalePathResolver } from "../locale-path/resolver.js";
 import { baselineFor, lockFilePath, readLockFile } from "../lock/lock-file.js";
 import { selectAdapter } from "../selection/select-adapter.js";
-import { readTarget } from "./diff-locales.js";
+import { readTargetResource } from "./read-target.js";
 import { selectLocales } from "./select-locales.js";
-import { readSource } from "./source.js";
+import { readSourceResource } from "./source.js";
 
-/**
- * One key's placeholder and ICU integrity result for one target locale. Only ever computed for a
- * "changed" key (a current source and a current target value both exist). `hasPlaceholders` is
- * false when the source value carries no placeholders, in which case `matches` is trivially true
- * and carries no signal on its own. `icuValid` is computed unconditionally, independent of
- * `matches`: unlike `gateCandidateValue`, which stops at the first failing check, this is an
- * information report and stays accurate even when the key already fails on placeholders; it is
- * always true for a non-ICU format. Carries no source or target string value: only the boolean
- * results and, on a placeholder mismatch, the specific tokens involved.
- */
+/** One key's placeholder and ICU verdict in a {@link LocaleKeyIntegrity} report. */
 export interface KeyIntegrityEntry {
+  /** The key this verdict describes. */
   readonly key: string;
+  /** Whether the source text contains any placeholders at all. When false, `matches` is trivially true. */
   readonly hasPlaceholders: boolean;
+  /** True when the translation carries exactly the source's placeholders. */
   readonly matches: boolean;
+  /** Placeholders present in the source but absent from the translation. */
   readonly missing: readonly string[];
+  /** Placeholders present in the translation but not in the source. */
   readonly extra: readonly string[];
+  /** True when the translation parses as a valid ICU message under the configured format. */
   readonly icuValid: boolean;
 }
 
-/** One target locale's integrity entries for the keys checked against it. */
+/** One locale's per-key integrity verdicts. */
 export interface LocaleKeyIntegrity {
+  /** The target locale these verdicts describe. */
   readonly locale: string;
+  /** Verdicts for the changed keys that exist in both the source and this locale. */
   readonly entries: readonly KeyIntegrityEntry[];
 }
 
-/** Input for {@link keyIntegrity}: the validated config, which locales to check, and an optional key filter. */
+/** Input for {@link keyIntegrity}. */
 export interface KeyIntegrityInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to cwd. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** Subset of target locales to check; defaults to all configured target locales. */
+  /** Restrict the report to these target locales. Defaults to every configured target locale. */
   readonly locales?: readonly string[];
-  /** Restrict the check to these keys; only the ones that are "changed" for a locale are checked. Defaults to every changed key. */
+  /** Restrict the report to these keys. Defaults to every key the diff reports as changed. */
   readonly keys?: readonly string[];
 }
 
-/** Composition seam for {@link keyIntegrity}: inject a registry and a file system for tests. */
+/** Injectable dependencies for {@link keyIntegrity}. Every field has a working default. */
 export interface KeyIntegrityDeps {
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
@@ -106,25 +108,35 @@ function integrityEntriesFor(
 }
 
 /**
- * Runs the placeholder check and the ICU message-validity check for each selected target locale's
- * "changed" keys (present with a current value on both sides, per core's `diffResources`) and
- * reports a per-key result. Uses the adapter's own `comparePlaceholders` when present (the
- * branch-aware ICU path), otherwise core's `checkPlaceholders` over the stored placeholder lists.
- * `icuValid` is `adapter.validateMessage(target)`, computed unconditionally and independently of
- * the placeholder result, so a target that is placeholder-valid but syntactically invalid ICU is
- * still reported accurately. Read-only: it calls no provider, writes no file, and never touches
- * the lock. Missing and orphaned keys are never checked, since one side's value does not exist for
- * those.
+ * Reports, per changed key, whether the existing translation still carries the source's
+ * placeholders and still parses as valid ICU. It writes nothing and calls no provider.
  *
- * The returned entries never carry a source or target string value, only the boolean results and,
- * on a placeholder mismatch, the specific tokens involved.
+ * The scope is deliberately the changed keys rather than every key: a key whose source text has not
+ * moved was already gated when it was written, so re-reporting it would bury the keys that a source
+ * edit may have just invalidated. Only keys present in both the source and the target are judged,
+ * since a missing translation has no placeholders to compare.
  *
- * @param input - The validated config, which locales to check, and an optional key filter.
- * @param deps - Optional composition seams (registry, file system) for tests.
- * @returns One entry per checked locale, each carrying the integrity result for its changed keys
- *   (narrowed to `input.keys` when supplied).
- * @throws {@link SdkError} `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, `SOURCE_INVALID`,
- *   `LOCK_FILE_INVALID`, or `UNKNOWN_LOCALE`, with the same meanings as in {@link diff}.
+ * This is the read-only counterpart to the gate that {@link editEntry} and
+ * {@link retranslateEntry} enforce at write time, and the data behind a review dashboard's
+ * per-key integrity indicator.
+ *
+ * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
+ * should be ready for an unrecognized error from a target file.
+ *
+ * @param input - The config and the optional locale and key filters.
+ * @param deps - Optional adapter registry and file-system overrides.
+ * @returns One entry per requested locale, each holding its per-key verdicts.
+ *
+ * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
+ * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version.
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
  */
 export async function keyIntegrity(
   input: KeyIntegrityInput,
@@ -134,13 +146,20 @@ export async function keyIntegrity(
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const resolver = createLocalePathResolver(cwd, config);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const lock = await readLockFile(lockFilePath(cwd), fs);
 
   return Promise.all(
     selectLocales(config, input.locales).map(async (locale) => {
-      const target = await readTarget(cwd, config, adapter, fs, locale);
+      const target = await readTargetResource({
+        resolver,
+        format: config.format,
+        locale,
+        adapter,
+        fs,
+      });
       const diffResult = diffResources(source.resource, target, {
         baseline: baselineFor(lock, locale),
       });

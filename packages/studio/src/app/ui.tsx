@@ -5,25 +5,14 @@ import { Icon, type IconName } from "./Icon.js";
 import { cn } from "./lib/cn.js";
 import { Sheet } from "./Sheet.js";
 
-/**
- * Shared presentational primitives the panels build on, keeping spacing, type
- * scale, and table treatment consistent across the dashboard. Purely
- * presentational: none of these hold state or make an rpc call.
- */
-
-/** A monospace value span, for anything that reads as code: locale codes, formats, counts. */
 export function MonoValue({ children }: { readonly children: ReactNode }): ReactNode {
   return <span className="font-mono">{children}</span>;
 }
 
-/** The centered, width-capped content column every page renders inside. */
 export function Container({ children }: { readonly children: ReactNode }): ReactNode {
   return <div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>;
 }
 
-/** The click-outside-to-dismiss backdrop shared by the overlays: a real
- * `<button>` behind the panel, not a click handler on a static element, so
- * dismissing by clicking outside stays a genuine, keyboard-operable control. */
 export function OverlayBackdrop({
   onClose,
   label,
@@ -41,8 +30,6 @@ export function OverlayBackdrop({
   );
 }
 
-/** The icon-only close button an overlay shows next to its title. `label`
- * defaults to "Close" and stays overridable for a more specific name. */
 export function DialogCloseButton({
   onClose,
   label = "Close",
@@ -64,12 +51,7 @@ export function DialogCloseButton({
   );
 }
 
-/**
- * The side-drawer shell: a thin `side="end"` preset over {@link Sheet},
- * shared by the key-detail and edit-entry overlays.
- */
 export function DrawerShell(props: {
-  /** The micro-label above the title (see `Sheet`'s `kicker`). */
   readonly kicker?: string;
   readonly title: ReactNode;
   readonly ariaLabel: string;
@@ -81,7 +63,6 @@ export function DrawerShell(props: {
   return <Sheet side="end" {...props} />;
 }
 
-/** A titled block of drawer or panel content, with an optional intro line. */
 export function Section({
   title,
   intro,
@@ -100,11 +81,6 @@ export function Section({
   );
 }
 
-/**
- * The "nothing here" placeholder: a dashed, centered block with a muted
- * glyph, an optional short title, and the explanatory copy as children.
- * `action` is a slot for an optional follow-up control.
- */
 export function EmptyState({
   icon = "inbox",
   title,
@@ -126,12 +102,6 @@ export function EmptyState({
   );
 }
 
-/**
- * An uncarded page section: a heading row (an h2 with an optional inline-end
- * meta slot) over free-form content. For a page's primary surfaces, where
- * wrapping the block in a card would just nest borders; {@link SectionCard}
- * is the treatment for secondary, self-contained blocks.
- */
 export function PageSection({
   title,
   meta,
@@ -154,11 +124,6 @@ export function PageSection({
   );
 }
 
-/**
- * A page section rendered as a card with its own heading row: an h2 title,
- * an optional intro line, and an optional inline-end `meta` slot for a badge
- * or count.
- */
 export function SectionCard({
   title,
   intro,
@@ -190,7 +155,6 @@ export function SectionCard({
   );
 }
 
-/** A compact key/value grid (`<dl>`) for read-only config-style fields. */
 export function DetailList({
   items,
 }: {
@@ -208,34 +172,19 @@ export function DetailList({
   );
 }
 
-/**
- * Shared table class strings, for tables whose header or body shape does not
- * fit the `Table` components. The tinted header row and full-width table
- * assume a `TableCard` or in-card context.
- */
 export const tableClasses = {
   table: "w-full min-w-[480px] border-collapse text-sm",
   th: "border-b border-border bg-muted/60 px-3 py-2.5 text-start font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground",
   tbody: "divide-y divide-border",
   td: "px-3 py-2.5 text-foreground",
   rowHover: "hover:bg-accent/40",
-  /** For count/amount columns: end-aligned with fixed-rhythm digits. */
   numeric: "text-end tabular-nums",
 };
 
-/**
- * The shared pill shell for `Badge` and `DiffBadge`: a rounded pill whose
- * per-tone color classes come from each badge's own tone map.
- */
 export const pillClassName =
   "inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm px-2 py-0.5 text-xs font-medium leading-5";
 
-/** The decorative leading dot inside a pill, colored by the pill's current text color. */
 export const pillDotClassName = "size-1.5 flex-none rounded-full bg-current";
 
-/**
- * The uppercase monospace micro-label used as the eyebrow across stat card
- * labels, section kickers, and the page header's context line.
- */
 export const microLabelClassName =
   "font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground";

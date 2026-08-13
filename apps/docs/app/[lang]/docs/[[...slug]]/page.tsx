@@ -14,7 +14,7 @@ import { getTranslations } from "next-intl/server";
 import { JsonLd } from "@/components/json-ld";
 import { getMDXComponents } from "@/components/mdx";
 import { extractFaqItems } from "@/lib/extract-faq";
-import { i18n, type Locale } from "@/lib/i18n";
+import { i18n, type Locale, toLocale } from "@/lib/i18n";
 import { ogAlternateLocales, ogLocale } from "@/lib/site";
 import { source } from "@/lib/source";
 import {
@@ -24,11 +24,6 @@ import {
   techArticleLd,
 } from "@/lib/structured-data";
 
-/**
- * Mirrors the breadcrumb trail Fumadocs renders (includePage: true, no root)
- * so the emitted BreadcrumbList matches the visible trail exactly. Items with
- * non-string names (none today) are dropped rather than approximated.
- */
 function breadcrumbTrail(pageUrl: string, lang: Locale): BreadcrumbLdItem[] {
   const items = getBreadcrumbItems(pageUrl, source.getPageTree(lang), { includePage: true });
   const trail: BreadcrumbLdItem[] = [];
@@ -41,12 +36,6 @@ function breadcrumbTrail(pageUrl: string, lang: Locale): BreadcrumbLdItem[] {
 
 type DocsPageData = NonNullable<ReturnType<typeof source.getPage>>;
 
-/**
- * Collects the JSON-LD blocks for a docs page: TechArticle everywhere, a
- * BreadcrumbList matching the rendered trail on non-home pages, and an
- * FAQPage block on /docs/faq built from the page's own H2 questions and
- * answer bodies (per locale, nothing fabricated).
- */
 async function pageJsonLd(
   page: DocsPageData,
   slug: string[] | undefined,
@@ -72,13 +61,6 @@ async function pageJsonLd(
   return blocks;
 }
 
-/**
- * The locale notice above a localized page body. The loader inherits the English
- * file whenever a locale has no translated sibling, so an identical source path
- * means this locale serves the English body untranslated: say that plainly rather
- * than claim a machine translation that does not exist. Renders nothing on the
- * English site or on the docs home.
- */
 async function LocaleNotice({
   page,
   slug,
@@ -113,7 +95,7 @@ async function LocaleNotice({
 
 export default async function Page(props: { params: Promise<{ slug?: string[]; lang: string }> }) {
   const params = await props.params;
-  const lang = params.lang as Locale;
+  const lang = toLocale(params.lang);
   const page = source.getPage(params.slug, lang);
   if (!page) notFound();
 
@@ -162,7 +144,8 @@ export async function generateMetadata(props: {
   params: Promise<{ slug?: string[]; lang: string }>;
 }): Promise<Metadata> {
   const params = await props.params;
-  const page = source.getPage(params.slug, params.lang as Locale);
+  const lang = toLocale(params.lang);
+  const page = source.getPage(params.slug, lang);
   if (!page) notFound();
 
   const languages: Record<string, string> = {};
@@ -179,8 +162,8 @@ export async function generateMetadata(props: {
     openGraph: {
       type: "article",
       siteName: "verbatra",
-      locale: ogLocale(params.lang as Locale),
-      alternateLocale: ogAlternateLocales(params.lang as Locale),
+      locale: ogLocale(lang),
+      alternateLocale: ogAlternateLocales(lang),
       title: page.data.title,
       description: page.data.description,
       url: page.url,

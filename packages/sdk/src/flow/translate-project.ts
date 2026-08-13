@@ -42,95 +42,64 @@ import type { BudgetTracker } from "./budget.js";
 import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
-import { readSource } from "./source.js";
+import { readSourceResource } from "./source.js";
 import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
 
-/** Everything the one-shot run needs: the validated config and where/how to run it. */
+/** Input for {@link translate}. Only `config` is required; every other field has a default. */
 export interface TranslateInput {
-  /** The validated configuration (typically from {@link loadConfig}). */
+  /** The resolved project config, normally from {@link loadConfig}. */
   readonly config: VerbatraConfig;
-  /** Directory the file pattern and lock-file resolve against; defaults to the current working directory. */
+  /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
-  /** When true, read + diff + report only: the provider is never constructed or called and nothing is written. */
+  /**
+   * Compute the whole run but write nothing and call no provider. The returned
+   * {@link RunSummary} reports what would have happened, which makes this safe to run in CI to
+   * preview work without spending anything. Defaults to false.
+   */
   readonly dryRun?: boolean;
   /**
-   * When true, remove orphaned keys (target keys absent from source) from the written file and the lock.
-   * Off by default. When set, takes precedence over the config's `prune` option for this run; when unset,
-   * the config's `prune` applies. Only `diff.orphaned` keys are ever removed; no other key is touched.
+   * Remove keys that no longer exist in the source. Defaults to the config's `prune`, then to
+   * false, so orphaned keys are reported but kept unless removal is asked for explicitly.
    */
   readonly prune?: boolean;
   /**
-   * When true, synthesize the CLDR plural forms a richer target language requires but the source lacks
-   * (i18next-JSON + LLM providers only; every other case falls back to the existing warning). Off by
-   * default. When set, takes precedence over the config's `generatePlurals` option for this run; when
-   * unset, the config's `generatePlurals` applies.
+   * Generate the plural categories a target language requires rather than translating each
+   * category separately. Defaults to the config's `generatePlurals`, then to false.
    */
   readonly generatePlurals?: boolean;
   /**
-   * Called while a locale's write lock is blocked on another process holding it: once after the first
-   * failed acquire (with the holder's pid/acquiredAt when the lock file is readable), then periodically
-   * with the growing elapsed time. Never called for an uncontended run. The SDK writes no output; this
-   * is the only wait-progress signal (the CLI renders its "still waiting" line from it).
+   * Called while waiting on another process's write lock, so a CLI can explain a stall instead of
+   * appearing to hang.
    */
   readonly onLockWait?: LockWaitListener;
-  /**
-   * Called as the run advances: once per locale before it starts and once after it finishes, once
-   * per provider sub-batch within a locale, and once when the whole locale loop ends. Never fires a
-   * sub-batch event on a dry-run (no provider call is made). The SDK writes no output; this is the
-   * only progress signal (the CLI renders it to stderr, keeping stdout byte-identical).
-   *
-   * Pairing is not guaranteed when the run throws: a whole-run failure (for example a corrupt
-   * lock-file surfacing as `LOCK_FILE_INVALID`, which re-throws instead of being isolated per locale)
-   * can emit a `locale-started` event with no matching `locale-finished`, and no `run-finished` at
-   * all. A per-locale failure that is isolated (not re-thrown) still emits both, and is counted in
-   * `run-finished`.
-   */
+  /** Called as locales and sub-batches start and finish, for progress reporting. */
   readonly onProgress?: ProgressListener;
-  /**
-   * Override how long a locale's write lock keeps retrying before failing with `LOCK_CONTENDED`, in
-   * milliseconds. Defaults to the lock's own 10-minute default when unset (surfaced to the CLI as
-   * `--lock-timeout`).
-   */
+  /** How long to wait for a locale's write lock before failing with `LOCK_CONTENDED`. */
   readonly lockAcquireTimeoutMs?: number;
   /**
-   * How many target locales may run at once, a positive integer (surfaced to the CLI as
-   * `--concurrency`). Defaults to 1, which runs locales strictly in sequence and is byte-identical
-   * to a run with this option unset. A value below 1 or a non-integer is rejected with a whole-run
-   * `CONCURRENCY_INVALID` error. On a live run, a value greater than 1 is rejected with a whole-run
-   * `CONCURRENCY_BUDGET_CONFLICT` error when the config sets a `maxTokens` budget, because
-   * concurrency would make the budget's stop guarantee nondeterministic; a dry run is exempt. The
-   * per-locale write locks already isolate concurrent locales on disk, so no extra locking is added.
+   * How many locales to run at once. Must be an integer of at least 1; defaults to 1. On a live
+   * run it cannot be combined with a configured token budget, because concurrent locales would
+   * overshoot the budget nondeterministically.
    */
   readonly concurrency?: number;
   /**
-   * Whether to use the local content-addressed translation-memory cache (`verbatra.cache.json`). On by
-   * default; the CLI exposes it as `--no-cache`. When false, both the cache read and the end-of-run
-   * cache write are skipped: the run makes exactly the provider calls it would with no cache present,
-   * and leaves any existing cache file untouched. Ignored on a dry-run, which never reads or writes the
-   * cache regardless. See the cache module for the fingerprint and degrade-to-empty contract.
+   * Consult and update the translation memory. Defaults to true. Turning it off forces every key
+   * through the provider, which is what to do when you want to re-pay for a fresh translation.
    */
   readonly cache?: boolean;
 }
 
-/** Composition seam: inject a registry, a provider builder, and a file system for tests. */
+/** Injectable dependencies for {@link translate}. Every field has a working default. */
 export interface TranslateDeps {
-  /** Adapter registry to resolve the format from; defaults to the built-in registry. */
+  /** Format-adapter registry to resolve the configured format. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
-  /** Provider builder; defaults to constructing the configured provider (which reads its key from env). */
+  /** Provider factory. Defaults to constructing the provider named in the config. */
   readonly createProvider?: CreateProvider;
-  /** File system for existence checks and the lock-file; defaults to the real file system. */
+  /** File-system port. Defaults to the real file system. */
   readonly fs?: SdkFs;
 }
 
-/**
- * Persist the run's review-flag and token/usage snapshot to `.verbatra-local/run-status.json`, skipped
- * on dry-run for the same reason the lock-file write is skipped (dry-run never populates `needsReview`
- * or `usage`, so writing would clobber a real prior run's snapshot with an empty one). Best-effort by
- * design (unlike the lock-file write): any failure, including the directory not being creatable, is
- * caught and swallowed here so it never fails the run or reaches the caller. Studio already tolerates a
- * stale or absent run-status file.
- */
 async function recordRunStatus(
   cwd: string,
   dryRun: boolean,
@@ -145,32 +114,13 @@ async function recordRunStatus(
   } catch {}
 }
 
-/**
- * The run-wide translation-memory state, present only on a live run with the cache enabled. `memory`
- * is the snapshot read once at run start (every locale looks up against it, never against entries this
- * run produced); `additions` collects each locale's newly translated values, keyed by target locale,
- * for the single best-effort write at the end. Since each locale records its own slot once,
- * synchronously, the map is concurrency-clean under the bounded worker pool.
- */
 interface RunCacheState {
   readonly memory: TranslationMemory;
   readonly fingerprint: string;
   readonly additions: Map<string, Record<string, string>>;
-  /**
-   * False when the cache file on disk carries a version this build does not recognize. The run still
-   * proceeds with the empty effective cache the read degraded to; it just writes nothing back, so a
-   * file written by a newer verbatra is not silently replaced and downgraded.
-   */
   readonly writable: boolean;
 }
 
-/**
- * Build the run's cache state: read the snapshot once and compute the run fingerprint, or return
- * undefined when the cache is bypassed (`input.cache === false`) or on a dry-run (which never reads or
- * writes the cache). The read degrades a corrupt or unrecognized file to an empty memory and never
- * throws, and it also reports whether the file may be written back, which the end-of-run write and
- * the run's notices both consult.
- */
 async function createRunCacheState(
   input: TranslateInput,
   config: VerbatraConfig,
@@ -185,18 +135,6 @@ async function createRunCacheState(
   return { memory, writable, fingerprint: computeFingerprint(config), additions: new Map() };
 }
 
-/**
- * The locale summaries with the run-wide cache notice appended to each one's notices when the cache
- * file was deliberately left unwritten (its version is one this build does not recognize, so
- * overwriting it would downgrade a file a newer verbatra wrote). Not an I/O failure: nothing was
- * attempted. The condition is run-wide (one file, shared by every locale), so the same notice is
- * attached to each locale rather than inventing a run-level notice channel, which would change the
- * summary shape.
- *
- * It exists because the alternative is silence: without it a mistyped `version` would disable
- * caching permanently, with no signal at all, where before this behaviour it self-healed. It is a
- * notice, never an error: the run succeeds and the exit code is unaffected.
- */
 function withCacheNotices(
   summaries: readonly LocaleSummary[],
   cache: RunCacheState | undefined,
@@ -214,14 +152,6 @@ function withCacheNotices(
   return summaries.map((summary) => ({ ...summary, notices: [...summary.notices, notice] }));
 }
 
-/**
- * Persist the run's cache additions with a single best-effort write, mirroring {@link recordRunStatus}:
- * any failure is caught and swallowed so it never fails the run. Skipped when the cache is bypassed or
- * when nothing new was translated, so an all-unchanged or all-cache-hit run leaves the file untouched.
- * Also skipped when the read marked the file non-writable ({@link RunCacheState.writable}), which is a
- * deliberate refusal rather than a swallowed failure and so is checked here rather than left to the
- * catch below.
- */
 async function recordCacheAdditions(
   cwd: string,
   cache: RunCacheState | undefined,
@@ -236,14 +166,12 @@ async function recordCacheAdditions(
   } catch {}
 }
 
-/** Everything one locale's run needs that does not vary by locale or by baseline. */
 interface LocaleRunContext {
   readonly source: ReadResult;
   readonly adapter: FormatAdapter;
   readonly provider: TranslationProvider | undefined;
   readonly cwd: string;
   readonly config: VerbatraConfig;
-  /** The project's locale-to-path resolver, created once for the whole run. */
   readonly resolver: LocalePathResolver;
   readonly prune: boolean;
   readonly generatePlurals: boolean;
@@ -256,11 +184,6 @@ interface LocaleRunContext {
   readonly lockAcquireTimeoutMs?: number;
 }
 
-/**
- * Projects the run-wide context, this locale's name, and its baseline into one
- * {@link LocaleRunParams}. `cache` and `onProgress` are spread in only when present rather than
- * passed as an explicit undefined, which `exactOptionalPropertyTypes` rejects.
- */
 function buildLocaleRunParams(
   context: LocaleRunContext,
   targetLocale: string,
@@ -291,11 +214,6 @@ function buildLocaleRunParams(
   };
 }
 
-/**
- * Dry-run path for one locale: the baseline comes from the single, pre-loop lock read `translate`
- * takes for the whole dry run (see its own call site). A dry run never calls `adapter.write` or
- * `updateLockFileLocale`, so there is nothing to protect and no reason to pay lock-acquire latency.
- */
 async function runDryLocale(
   context: LocaleRunContext,
   targetLocale: string,
@@ -305,22 +223,6 @@ async function runDryLocale(
   return (await runLocale(params)).summary;
 }
 
-/**
- * Live (non-dry-run) path for one locale: the lock file is read fresh from disk once this
- * locale's write lock is actually held, not from a snapshot taken before the loop started. A
- * second concurrent `translate()` call for the same locale (another CLI process, or two
- * overlapping Studio actions) blocks on the real lock until the first releases, then re-reads a
- * lock file that already reflects the first call's write, so it diffs against a clean baseline
- * instead of a stale one and never re-sends an already-translated key to the provider. See the
- * lock-file-read relocation this function embodies: previously `translate` read the lock exactly
- * once before this loop, which let two concurrent calls both diff against the same stale snapshot
- * and both pay for the same provider call.
- *
- * That read sits outside `withLockFileGuard` and is still correct under locale concurrency,
- * for two reasons together: `SdkFs.writeFile` is atomic (a temp file plus a rename), so a read
- * never observes a torn write, and this locale only ever consults its own `baselineFor` subtree,
- * which no other locale writes.
- */
 async function runLiveLocale(
   context: LocaleRunContext,
   targetLocale: string,
@@ -352,15 +254,6 @@ async function runLiveLocale(
   );
 }
 
-/**
- * Runs one locale, isolating a per-locale failure as a `failed` summary instead of aborting the
- * run. `LOCK_FILE_INVALID` is the one exception, re-thrown rather than isolated: the live path now
- * reads the lock file inside each locale's own critical section (see `runLiveLocale`), but a
- * corrupt lock file is a whole-project condition, the same physical file every locale shares, not
- * a per-locale one, matching `translate()`'s own documented contract (it lists a corrupt lock-file
- * alongside its other whole-run failures) and every read-only flow function's own `LOCK_FILE_INVALID`
- * behavior (`check`, `diff`, `keyIntegrity`, `lockState`).
- */
 async function runOneLocale(
   targetLocale: string,
   run: () => Promise<LocaleSummary>,
@@ -375,13 +268,6 @@ async function runOneLocale(
   }
 }
 
-/**
- * Runs one target locale at `localeIndex`: emits `locale-started`, runs it (isolating a per-locale
- * failure), stores its summary at `localeIndex` so the collected array stays in `targetLocales`
- * order regardless of completion order, then emits `locale-finished` with that locale's accepted-key
- * count. Sub-batch events, which require a provider call, are emitted deeper in `runLocale` and so
- * never fire on the dry path.
- */
 async function runLocaleAt(
   context: LocaleRunContext,
   targetLocales: readonly string[],
@@ -410,33 +296,6 @@ async function runLocaleAt(
   });
 }
 
-/**
- * Runs the target locales through a bounded worker pool of width `concurrency`, collecting each
- * summary into its `targetLocales` slot so the returned array is always in source order, never
- * completion order. With `concurrency` 1 (the default) a single worker drains the locales strictly
- * in sequence, reproducing the serial behavior exactly: same event order, same summary order. Shared
- * by the dry and live paths. A locale index is claimed synchronously (no `await` between the read and
- * the increment), so two workers never claim the same locale.
- *
- * A whole-run throw out of a worker (in practice only `LOCK_FILE_INVALID`, which `runOneLocale`
- * deliberately re-throws) is recorded rather than propagated immediately, and the recorded reason
- * doubles as the pool's abort flag: no worker claims another locale once it is set, and the pool
- * still awaits every worker already in flight before re-throwing it unchanged. Each worker catches
- * inside its own loop, so no worker's promise ever rejects and the `Promise.all` cannot short-circuit
- * on one: it awaits every worker to completion, which is what releases their write locks. The reason
- * is held wrapped in an object rather than as a bare `unknown` so that a thrown `undefined` still
- * sets the flag and still aborts the pool.
- *
- * Both halves are load-bearing, and the tradeoff is deliberate. Rejecting eagerly (a bare
- * `Promise.all`) fails fast but abandons the other workers mid-flight: they stay inside their write
- * lock while the caller is already unwinding, so the CLI's synchronous `process.exit` truncates the
- * pending release and leaves a lock file on disk that blocks the next run until a human deletes it.
- * Awaiting without the abort flag is worse still: the pool drains the entire remaining queue, so
- * locales that had not started yet take fresh locks, issue real provider calls (real spend, on a run
- * the caller has been told failed) and write their target files. The flag stops new work, and the
- * await lets in-flight work unwind its `finally`. The cost is that the rejection now surfaces after
- * the slowest in-flight locale finishes rather than instantly.
- */
 async function runLocalesWithProgress(
   context: LocaleRunContext,
   targetLocales: readonly string[],
@@ -472,12 +331,6 @@ async function runLocalesWithProgress(
   return results.filter((summary): summary is LocaleSummary => summary !== undefined);
 }
 
-/**
- * Dry path for every target locale. This is where the whole dry run's one lock read happens: no dry
- * locale writes, so a single pre-loop snapshot serves them all and none of them pays lock-acquire
- * latency. Contrast {@link runAllLocalesLive}, whose locales each re-read the lock inside their own
- * write lock.
- */
 async function runAllLocalesDry(
   context: LocaleRunContext,
   targetLocales: readonly string[],
@@ -492,10 +345,6 @@ async function runAllLocalesDry(
   );
 }
 
-/**
- * Live path for every target locale, each taking its own write lock and its own fresh lock read in
- * {@link runLiveLocale}.
- */
 async function runAllLocalesLive(
   context: LocaleRunContext,
   targetLocales: readonly string[],
@@ -509,14 +358,6 @@ async function runAllLocalesLive(
   );
 }
 
-/**
- * Resolves and validates the run's locale-level concurrency. Unset means 1 (strictly serial,
- * byte-identical to the pre-pool behavior). Any other value must be an integer of at least 1; a
- * non-integer or a value below 1 is a whole-run `CONCURRENCY_INVALID` failure raised before any
- * locale runs.
- *
- * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
- */
 function resolveConcurrency(value: number | undefined): number {
   if (value === undefined) {
     return 1;
@@ -530,21 +371,6 @@ function resolveConcurrency(value: number | undefined): number {
   return value;
 }
 
-/**
- * Validates the requested concurrency and rejects the one combination the budget cannot honor: a
- * live run with concurrency greater than 1 while a `maxTokens` budget is configured. The refusal is
- * raised before any locale runs (and so before any provider call). A dry run is exempt: it never
- * folds usage into or consults the budget tracker, so concurrency cannot affect a budget it never
- * reads.
- *
- * Exported for {@link watch}, which resolves the same combination once at startup rather than
- * letting every cycle rediscover it. Module-level export only; it is not part of the package's
- * public surface.
- *
- * @throws {@link SdkError} `CONCURRENCY_INVALID`: `value` is defined but not an integer of at least 1.
- * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set concurrency greater than 1
- *   while `config.maxTokens` is set.
- */
 export function resolveRunConcurrency(
   value: number | undefined,
   dryRun: boolean,
@@ -563,65 +389,70 @@ export function resolveRunConcurrency(
 }
 
 /**
- * The one-shot end-to-end translate flow. Whole-run failures (config already validated
- * by the caller, unknown format, provider construction, unreadable/invalid source,
- * corrupt lock-file) throw a structured SdkError. Per-locale failures are isolated: a
- * failing locale is reported and the run continues; the lock-file reflects exactly the
- * locales that succeeded. Dry-run reads + diffs + reports without constructing/calling
- * the provider and without writing any file or the lock-file.
+ * Runs the one-shot translation flow over every configured target locale: read the source, diff
+ * each locale against the lock-file baseline, translate what is missing or stale, verify placeholder
+ * and ICU integrity, write the locale files, and update the lock-file and translation memory.
  *
- * A per-locale failure does not throw: it is recorded on that locale's {@link LocaleSummary} as
- * `status: "failed"` with a secret-free `{ code, message }`, where `code` is a preserved string (the
- * underlying provider/adapter code, or `"LOCALE_FAILED"` as a fallback), not necessarily an
- * {@link SdkErrorCode}. DeepL notices, integrity mismatches, and invalid-ICU source keys likewise
- * surface on each `LocaleSummary`, never as throws.
+ * Failure handling is the contract worth understanding. Whole-run problems, such as an unreadable
+ * source file or a provider that cannot be constructed, throw an {@link SdkError} before any locale
+ * runs. Once locales are running, a per-locale failure is recorded on that locale's
+ * {@link LocaleSummary} and the other locales continue, so one unreachable provider or one
+ * unwritable file never discards work that succeeded. A locale whose write lock stays contended is
+ * one of these per-locale failures: it is recorded with code `LOCK_CONTENDED` on that locale's
+ * summary rather than thrown. Callers should therefore inspect {@link RunSummary.failed} rather
+ * than relying on a thrown error to detect trouble.
  *
- * A dry-run reads the lock once, outside any lock, and reuses that one snapshot for every locale:
- * it never writes, so there is nothing to serialize against. A live run instead re-reads the lock
- * fresh inside each locale's own write lock (see `runLiveLocale`), so two concurrent live calls
- * never both diff against the same stale pre-loop snapshot. The token-budget tracker is fresh per
- * invocation: the `maxTokens` ceiling is per-run, not cumulative across watch cycles.
+ * A corrupt lock-file is the one exception. On a live run each locale reads the lock-file inside
+ * its own write lock, so `LOCK_FILE_INVALID` escapes as a thrown error even after earlier locales
+ * have already translated and written. No further locale is started, and the locales in flight
+ * finish and release their write locks before the call rejects.
  *
- * On a non-dry-run that reaches the end of the loop, the run's review-flag and token/usage data is
- * also written to `.verbatra-local/run-status.json` (readable back through {@link runStatus}). This
- * write is best-effort: any failure is caught and swallowed, never re-thrown and never reflected on
- * the returned {@link RunSummary}.
+ * Each locale takes its own write lock for the read-modify-write, so concurrent runs and
+ * single-key edits cannot interleave on one file. Translations that fail the integrity gate are
+ * refused rather than written, leaving the previous value intact.
  *
- * @param input - The validated config and run options (cwd, dryRun, prune, generatePlurals).
- * @param deps - Optional composition seams (registry, provider builder, file system) for tests.
- * @returns A {@link RunSummary}: the per-locale {@link LocaleSummary}s and the succeeded/partial/failed locale lists.
+ * Set `dryRun` to compute the whole plan without writing or spending anything.
+ *
+ * @param input - The config and the per-run options.
+ * @param deps - Optional adapter registry, provider factory, and file-system overrides.
+ * @returns The per-locale account of the run, including usage and budget.
+ *
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
- * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw (this wraps the
- *   provider's own error, including a missing `*_API_KEY` reported as `MISSING_API_KEY`); only on a
- *   non-dry-run, since dry-run never constructs the provider.
+ * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is not an integer of at least 1.
+ * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run combined a `concurrency` above
+ * 1 with a configured token budget. A dry run is exempt.
+ * @throws {@link SdkError} `LOCALE_LAYOUT_INVALID`: the `files.pattern` and `files.localeStyle`
+ * cannot be combined, or a configured locale has no valid path spelling under that style.
+ * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
  * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist.
- * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be read or parsed (wraps the
- *   adapter read error).
- * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is present but corrupt or oversized.
- * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is defined but not an integer of at
- *   least 1; raised before any locale runs.
- * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run set `concurrency` greater than 1
- *   while the config configures a `maxTokens` budget; raised before any provider call (a dry run is
- *   exempt).
+ * @throws {@link SdkError} `SOURCE_INVALID`: the source locale file could not be parsed.
+ * @throws {@link SdkError} `PROVIDER_CONSTRUCTION_FAILED`: the provider could not be constructed,
+ * most often because its API key environment variable is unset. Not thrown on a dry run, which
+ * never constructs a provider.
+ * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
+ * unsupported version. A dry run reads it once before any locale runs; a live run reads it per
+ * locale, so this can abort the run after other locales have already been written.
+ *
  * @example
  * ```ts
  * import { loadConfig, translate } from "@verbatra/sdk";
  *
- * // The provider reads its API key from the environment (e.g. ANTHROPIC_API_KEY); no key is passed here.
  * const config = await loadConfig();
- * const summary = await translate({ config });
+ * const summary = await translate({
+ *   config,
+ *   onProgress: (event) => {
+ *     if (event.type === "locale-finished") {
+ *       console.log(`${event.locale}: ${event.translated} keys`);
+ *     }
+ *   },
+ * });
  *
- * for (const locale of summary.locales) {
- *   if (locale.status === "failed") {
- *     // Surfaced, not thrown: code is a preserved string (LOCALE_FAILED is only the fallback).
- *     console.error(`${locale.locale}: ${locale.error?.code} ${locale.error?.message}`);
- *   } else {
- *     console.log(`${locale.locale}: ${locale.translated.length} translated, ${locale.notices.length} notices`);
+ * if (summary.failed.length > 0) {
+ *   for (const locale of summary.locales.filter((entry) => entry.status === "failed")) {
+ *     console.error(`${locale.locale}: ${locale.error?.message}`);
  *   }
+ *   process.exitCode = 1;
  * }
- *
- * // Preview only: no provider call, no writes.
- * const preview = await translate({ config, dryRun: true });
  * ```
  */
 export async function translate(
@@ -645,7 +476,7 @@ export async function translate(
   const adapter = selectAdapter(config.format, deps.adapterRegistry);
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
-  const source = await readSource(config, cwd, fs, adapter);
+  const source = await readSourceResource(config, resolver, fs, adapter);
   const cache = await createRunCacheState(input, config, cwd, dryRun, fs);
   const context: LocaleRunContext = {
     source,

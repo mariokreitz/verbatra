@@ -5,11 +5,6 @@ import type { RefreshableView } from "../client/state.js";
 import { applyRefreshOutcome } from "../client/state.js";
 import { rpcClient } from "./api.js";
 
-/**
- * Fetches the needs-review queue via `review.queue` and exposes it as a
- * {@link RefreshableView}, keeping the last good data with a stale marker
- * when a re-fetch fails. Re-fetches whenever `refreshToken` changes.
- */
 export function useReviewQueue(refreshToken?: unknown): RefreshableView<ReviewQueueData> {
   const [view, setView] = useState<RefreshableView<ReviewQueueData>>({ kind: "loading" });
 
