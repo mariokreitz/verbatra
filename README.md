@@ -136,7 +136,20 @@ Each provider reads its API key from one environment variable:
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
 | `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--expose-agent-tools`, `--cwd`, `--config` |
 
-Run `verbatra <command> --help` for the full option list. The complete command reference - every flag, examples, and the exit-code contract - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
+Run `verbatra <command> --help` for the full option list. The complete command reference - every flag and examples - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
+
+## Exit codes
+
+Every command follows the same contract, so a CI step can branch on the code alone:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
+| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), or `studio` failed while shutting its server down |
+| `2` | Could not run: a whole-run error, a usage error, `init` without a resolvable provider or unable to scaffold a valid config, `watch` failing to start or to stop, or `studio` given a bad `--port` or unable to load the config, import `@verbatra/studio`, or start its server |
+| `130` | `watch` or `studio` was force-stopped by a second interrupt |
+
+A single interrupt is a clean stop and exits `0` for both `watch` and `studio`, but the two part ways if that stop itself fails: `watch` exits `2`, `studio` exits `1`. `export` has no per-locale failure mode, so it never exits `1`. One case sits outside the contract: a parse failure that is not a usage error is re-thrown and the binary does not catch it, so Node's default handling of an unhandled rejection applies instead of any of these codes.
 
 ## Verbatra Studio
 

@@ -15,15 +15,17 @@ El código de salida es el contrato sobre el que ramifica tu paso de CI:
 
 | Código | Significado |
 | --- | --- |
-| `0` | éxito: `translate` o `import` terminó bien para cada locale, `check` encontró todos los locales sincronizados, `diff` no encontró cambios pendientes |
-| `1` | `translate` o `import` terminó pero algunos locales fallaron, `check` encontró un locale desincronizado, o `diff` encontró cambios pendientes |
-| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración mala, origen ilegible) o un error de uso (un valor `--locales` vacío o desconocido, un `--debounce` o `--port` inválido) |
+| `0` | éxito: `translate` o `import` terminó bien para cada locale, `check` encontró todos los locales sincronizados, `diff` no encontró cambios pendientes, `export` escribió su libro, `init` preparó el proyecto, `watch` o `studio` se detuvo limpiamente, o se imprimió `--help` o `--version` |
+| `1` | la ejecución llegó al final, pero el resultado no está limpio: `translate` o `import` terminó con al menos un locale fallido, `check` encontró un locale desincronizado, `diff` encontró una clave ausente o cambiada, o `studio` falló al apagar su servidor |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (configuración mala, origen ilegible), un error de uso (un valor `--locales` vacío o desconocido, un `--debounce` o `--port` inválido), `init` sin un proveedor que pueda resolver o incapaz de componer una configuración válida, un arranque o una parada fallidos de `watch`, o `studio` incapaz de cargar la configuración, de importar `@verbatra/studio` o de arrancar su servidor |
 | `130` | `watch` o `studio` fue detenido a la fuerza por una segunda interrupción |
 
-Dos casos límite que conviene conocer:
+Algunos casos límite que conviene conocer:
 
-- `watch` trata una sola interrupción como una parada limpia y sale con `0`; una ejecución fallida durante watch aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
+- Una sola interrupción es una parada limpia, y tanto `watch` como `studio` salen con `0` ante ella. Más allá de eso no des por hecho que se comportan igual: si la propia parada falla, `watch` sale con `2` y `studio` sale con `1`.
+- Una ejecución fallida durante watch aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
 - `export` no tiene modo de fallo por locale: sale con `0` o `2`, nunca con `1`.
+- Hay un modo de fallo que queda fuera del contrato: un fallo de análisis que no es un error de uso se vuelve a lanzar, y el binario no lo captura, así que se aplica el comportamiento por defecto de Node ante un rechazo no gestionado en lugar de cualquiera de los cuatro códigos.
 
 ## check o diff: elegir la puerta
 

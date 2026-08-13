@@ -15,15 +15,17 @@ Le code de sortie est le contrat sur lequel ton étape CI se branche :
 
 | Code | Signification |
 | --- | --- |
-| `0` | succès : `translate` ou `import` a réussi pour chaque locale, `check` a trouvé chaque locale synchronisée, `diff` n'a trouvé aucun changement en attente |
-| `1` | `translate` ou `import` a terminé mais certaines locales ont échoué, `check` a trouvé une locale désynchronisée, ou `diff` a trouvé des changements en attente |
-| `2` | impossible de s'exécuter : une erreur globale (config invalide, source illisible) ou une erreur d'utilisation (une valeur `--locales` vide ou inconnue, un `--debounce` ou `--port` invalide) |
+| `0` | succès : `translate` ou `import` a réussi pour chaque locale, `check` a trouvé chaque locale synchronisée, `diff` n'a trouvé aucun changement en attente, `export` a écrit son classeur, `init` a échafaudé le projet, `watch` ou `studio` s'est arrêté proprement, ou `--help` ou `--version` a été affiché |
+| `1` | l'exécution est allée au bout, mais le résultat n'est pas propre : `translate` ou `import` a terminé avec au moins une locale en échec, `check` a trouvé une locale désynchronisée, `diff` a trouvé une clé absente ou modifiée, ou `studio` a échoué en arrêtant son serveur |
+| `2` | impossible de s'exécuter : une erreur globale (config invalide, source illisible), une erreur d'utilisation (une valeur `--locales` vide ou inconnue, un `--debounce` ou `--port` invalide), `init` sans fournisseur résoluble ou incapable de composer une config valide, un démarrage ou un arrêt de `watch` en échec, ou `studio` incapable de charger la config, d'importer `@verbatra/studio` ou de démarrer son serveur |
 | `130` | `watch` ou `studio` a été arrêté de force par une seconde interruption |
 
-Deux cas limites à connaître :
+Quelques cas limites à connaître :
 
-- `watch` traite une interruption unique comme un arrêt propre et sort avec `0` ; une exécution échouée pendant la surveillance apparaît comme un enregistrement sur le flux de sortie, jamais comme un code de sortie non nul.
+- Une interruption unique est un arrêt propre, et `watch` comme `studio` sortent avec `0` dans ce cas. Au-delà, ne suppose pas qu'ils se comportent pareil : si l'arrêt lui-même échoue, `watch` sort avec `2` et `studio` sort avec `1`.
+- Une exécution échouée pendant la surveillance apparaît comme un enregistrement sur le flux de sortie, jamais comme un code de sortie non nul.
 - `export` n'a pas de mode d'échec par locale : il sort avec `0` ou `2`, jamais `1`.
+- Un mode d'échec sort du contrat : une erreur d'analyse qui n'est pas une erreur d'utilisation est relancée, et le binaire ne l'attrape pas, donc le comportement par défaut de Node face à un rejet non géré s'applique au lieu de l'un des quatre codes.
 
 ## check ou diff : choisir le contrôle
 
