@@ -1,8 +1,8 @@
 const APOSTROPHE = "'";
 
-const AMBIGUOUS_LEAD = /^'*[=+\-@]/;
+const AMBIGUOUS_LEAD = /^'*[=+\-@\t\r]/;
 
-const ESCAPED_LEAD = /^'+[=+\-@]/;
+const ESCAPED_LEAD = /^'+[=+\-@\t\r]/;
 
 export function escapeFormulaLead(value: string): string {
   return AMBIGUOUS_LEAD.test(value) ? `${APOSTROPHE}${value}` : value;

@@ -105,6 +105,70 @@ describe("buildDelimited + readDelimited round trip: coercion-prone translations
   });
 });
 
+function sheetWithContext(context: string): WorkbookSheet {
+  return {
+    locale: "de",
+    rows: [
+      {
+        key: "value",
+        source: "Source",
+        currentTarget: "",
+        status: "new",
+        sourceHash: "abc123",
+        translation: "Hallo",
+        context,
+        reviewStatus: "ok",
+        reviewReasons: "",
+      },
+    ],
+  };
+}
+
+const WHITESPACE_LEADS: readonly string[] = ["\t=1+1", "\r=1+1", "\tplain", "\rplain", "'\t=1+1"];
+
+describe("buildDelimited + readDelimited round trip: tab and carriage return leads", () => {
+  it.each(FORMATS)(
+    "%s writes an apostrophe before a tab lead and restores it on read",
+    (format) => {
+      const sheetUnderTest = sheetWithContext("\t=1+1");
+      const text = buildDelimited(sheetUnderTest, format);
+      expect(text).toContain("'\t=1+1");
+      expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+    },
+  );
+
+  it.each(FORMATS)(
+    "%s writes an apostrophe before a carriage return lead and restores it on read",
+    (format) => {
+      const sheetUnderTest = sheetWithContext("\r=1+1");
+      const text = buildDelimited(sheetUnderTest, format);
+      expect(text).toContain("'\r=1+1");
+      expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+    },
+  );
+
+  it.each(FORMATS)("%s leaves a leading space unescaped and restores it on read", (format) => {
+    const sheetUnderTest = sheetWithContext(" =1+1");
+    const text = buildDelimited(sheetUnderTest, format);
+    expect(text).not.toContain("' =1+1");
+    expect(readDelimited({ text, locale: "de", format }).sheets).toEqual([sheetUnderTest]);
+  });
+});
+
+describe("buildDelimited + readDelimited round trip: whitespace-lead context values", () => {
+  it.each(WHITESPACE_LEADS)("csv imports %j verbatim", (context) => {
+    const one = sheetWithContext(context);
+    const data = readDelimited({ text: buildDelimited(one, "csv"), locale: "de", format: "csv" });
+    expect(data.sheets[0]?.rows[0]?.context).toBe(context);
+  });
+
+  it.each(WHITESPACE_LEADS)("tsv imports %j verbatim", (context) => {
+    const one = sheetWithContext(context);
+    const data = readDelimited({ text: buildDelimited(one, "tsv"), locale: "de", format: "tsv" });
+    expect(data.sheets[0]?.rows[0]?.context).toBe(context);
+  });
+});
+
 describe("buildDelimited + readDelimited round trip: formula-shaped values in every column", () => {
   it.each(FORMATS)("%s restores every neutralized column to its original text", (format) => {
     const hostile: WorkbookSheet = {
