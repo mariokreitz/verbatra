@@ -23,7 +23,6 @@ function sheet(rows: readonly WorkbookRow[]): WorkbookSheet {
   return { locale: "de", rows };
 }
 
-/** The file's lines with the BOM stripped, so a csv and a tsv can be asserted the same way. */
 function lines(text: string): readonly string[] {
   const body = text.startsWith(UTF8_BOM) ? text.slice(UTF8_BOM.length) : text;
   return body.split("\n");

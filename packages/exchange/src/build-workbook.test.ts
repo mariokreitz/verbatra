@@ -18,7 +18,6 @@ const model = singleLocaleModel([
   }),
 ]);
 
-/** Build the model and load it back with exceljs to inspect the styling exceljs preserves. */
 async function loadBuilt(input: WorkbookModel = model): Promise<ExcelJS.Workbook> {
   const bytes = await buildWorkbook(input);
   const workbook = new ExcelJS.Workbook();

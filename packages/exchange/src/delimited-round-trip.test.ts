@@ -4,13 +4,6 @@ import type { DelimitedFormat } from "./delimited-format.js";
 import { readDelimited } from "./read-delimited.js";
 import type { WorkbookSheet } from "./types.js";
 
-/**
- * A sheet whose values carry every case the delimiter and quote rules have to survive: both
- * delimiters, a double quote, an embedded newline, leading and trailing whitespace, and a CRLF pair.
- * The Translation column is deliberately free of leading and trailing whitespace: it is the one column
- * both readers trim (a whitespace-only cell has to read back as "not translated yet"), so a padded
- * translation is normalized by design rather than round-tripped.
- */
 const sheet: WorkbookSheet = {
   locale: "de",
   rows: [
@@ -71,18 +64,6 @@ describe("buildDelimited + readDelimited round trip", () => {
   });
 });
 
-/**
- * Values a spreadsheet may coerce, misparse, or evaluate as a formula when it opens the file. The
- * workbook is safe from both by construction: the builder assigns a string cell value and never a
- * formula object, so Excel never re-parses it, and the Translation column carries the text number
- * format as a coercion hint. A delimited file has neither property, and RFC 4180 quoting is not a
- * mitigation, since a spreadsheet strips the quoting before it evaluates the value.
- *
- * verbatra therefore round-trips these values verbatim, deliberately. Every one of them below is an
- * ordinary translation, so refusing them or prefixing them with an escape character would corrupt
- * real content to defend against what the consuming spreadsheet does. The choice is documented for
- * the translator handoff instead: a returned file is untrusted input.
- */
 const COERCION_PRONE_TRANSLATIONS: readonly string[] = [
   "007",
   "1.10",

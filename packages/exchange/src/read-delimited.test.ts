@@ -8,7 +8,6 @@ import { expectWorkbookInvalid } from "./test-support.js";
 
 const HEADER_LINE = HEADERS.join(",");
 
-/** One well-formed csv record: key, source, current, status, translation, hash, and the rest empty. */
 function record(
   key: string,
   source = "Hello",
@@ -77,12 +76,6 @@ describe("readDelimited", () => {
   });
 });
 
-/**
- * The header-record offset is a delimited-local concept, not the xlsx worksheet's header row index.
- * These two tests pin it from both directions, so raising it (a title record ahead of the header) or
- * lowering it (reading the header line as data) fails loudly rather than silently dropping or
- * inventing a data row.
- */
 describe("readDelimited header-record offset", () => {
   it("treats exactly the first record as the header and every later record as data", () => {
     const data = read(csv(record("a"), record("b"), record("c")));
@@ -183,7 +176,6 @@ describe("readDelimited structural problems", () => {
 });
 
 describe("readDelimited reported line numbers", () => {
-  /** Every record separator the reader accepts, each also used as the embedded break in a quoted field. */
   const SEPARATORS = [
     ["LF", "\n"],
     ["CRLF", "\r\n"],
@@ -301,16 +293,6 @@ describe("readDelimited bounds", () => {
   });
 });
 
-/**
- * The caps have to fire DURING the scan, not over its finished output. A bare line break is one
- * record and a bare delimiter is one field, so an input well under `maxInputBytes` can expand into
- * millions of records or fields; checking the caps afterwards means that memory is already spent and
- * the process can die before any check runs.
- *
- * Each test below pins the ordering that only an in-scan check can produce: the input carries a
- * second, later breach that a scan-then-check implementation would reach first and report instead.
- * The reported cap therefore proves the earlier one fired before the rest of the input was expanded.
- */
 describe("readDelimited enforces its bounds during the scan, not after it", () => {
   it("stops at the record that breaches maxRowsPerFile, before scanning a later oversized field", () => {
     const text = [
