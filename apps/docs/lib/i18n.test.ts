@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { isLocale, localizeHref, toLocale } from "./i18n";
+import { i18n, isLocale, localizeHref, toLocale } from "./i18n";
+
+describe("i18n configuration", () => {
+  it("declares exactly the four supported locales, in order", () => {
+    expect(i18n.languages).toEqual(["en", "de", "es", "fr"]);
+  });
+
+  it("uses English as both the default and the fallback language", () => {
+    expect(i18n.defaultLanguage).toBe("en");
+    expect(i18n.fallbackLanguage).toBe("en");
+  });
+
+  it("hides the locale segment for the default language only", () => {
+    expect(i18n.hideLocale).toBe("default-locale");
+  });
+});
 
 describe("localizeHref", () => {
   it("passes an undefined href through unchanged", () => {
