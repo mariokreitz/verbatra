@@ -119,7 +119,7 @@ verbatra translate --dry-run --json 2>/dev/null | jq .
 }
 ```
 
-Sortie `0`. Chaque liste par locale est présente même vide : un agent peut donc y accéder sans sonder d'abord. Une exécution réelle ajoute un objet `usage` à chaque locale et au résumé ; une exécution à blanc n'en signale aucun, puisqu'elle ne fait aucun appel. L'anatomie complète d'un `LocaleSummary` est dans la [référence SDK](/docs/sdk).
+Sortie `0`. Chaque liste par locale est présente même vide : un agent peut donc y accéder sans sonder d'abord. Une exécution réelle ajoute un objet `usage` à chaque locale et au résumé quand le fournisseur remonte une consommation ; une exécution à blanc jamais, puisqu'elle ne fait aucun appel. L'anatomie complète d'un `LocaleSummary` est dans la [référence SDK](/docs/sdk).
 
 Quand une exécution ne peut pas avoir lieu du tout, les données sont remplacées par un enregistrement d'erreur et la commande sort avec `2` :
 
@@ -266,7 +266,7 @@ failed: de
 nothing pending
 ```
 
-La première sort avec `0`, la deuxième avec `1` (le point de terminaison du fournisseur était injoignable), la troisième avec `0` sans rien dépenser. L'étape 1 utilise volontairement `diff` plutôt que `translate --dry-run` : les deux sont en lecture seule, mais `diff` ne construit jamais de fournisseur, donc l'étape de décision tourne dans un job sans le moindre secret.
+La première sort avec `0`, la deuxième avec `1` (le point de terminaison du fournisseur était injoignable), la troisième avec `0` sans rien dépenser. L'étape 1 utilise volontairement `diff` plutôt que `translate --dry-run` : les deux sont en lecture seule et aucun n'a besoin de clé, mais `diff` est la question faite exactement pour ça, et son code de sortie seul répond déjà s'il y a du travail.
 
 La clé de fournisseur de l'étape 4 vient de l'environnement, comme toujours. Range-la dans le coffre à secrets de ta CI ou dans l'environnement de ton shell et laisse le processus en hériter ; la CLI ne prend aucune clé en argument et n'en lit aucune depuis le fichier de config. Quelle variable lit ton fournisseur est indiqué dans [Fournisseurs](/docs/providers).
 

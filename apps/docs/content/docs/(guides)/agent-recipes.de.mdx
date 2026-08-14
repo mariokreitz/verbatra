@@ -119,7 +119,7 @@ verbatra translate --dry-run --json 2>/dev/null | jq .
 }
 ```
 
-Exit `0`. Jede Liste pro Locale ist auch dann vorhanden, wenn sie leer ist, ein Agent kann also darauf zugreifen, ohne vorher zu prüfen. Ein echter Lauf ergänzt pro Locale und in der Zusammenfassung ein `usage`-Objekt; ein Dry-Run meldet keines, weil er keinen Aufruf macht. Die vollständige Anatomie eines `LocaleSummary` steht in der [SDK-Referenz](/docs/sdk).
+Exit `0`. Jede Liste pro Locale ist auch dann vorhanden, wenn sie leer ist, ein Agent kann also darauf zugreifen, ohne vorher zu prüfen. Ein echter Lauf ergänzt pro Locale und in der Zusammenfassung ein `usage`-Objekt, sofern der Provider einen Verbrauch meldet; ein Dry-Run nie, weil er keinen Aufruf macht. Die vollständige Anatomie eines `LocaleSummary` steht in der [SDK-Referenz](/docs/sdk).
 
 Wenn ein Lauf überhaupt nicht stattfinden kann, stehen dort stattdessen Fehlerdaten, und der Befehl endet mit `2`:
 
@@ -266,7 +266,7 @@ failed: de
 nothing pending
 ```
 
-Der erste endet mit `0`, der zweite mit `1` (der Provider-Endpunkt war nicht erreichbar), der dritte mit `0`, ohne etwas auszugeben. Schritt 1 nutzt bewusst `diff` statt `translate --dry-run`: Beide sind schreibgeschützt, aber `diff` baut nie einen Provider auf, der Entscheidungsschritt läuft also in einem Job ganz ohne Secret.
+Der erste endet mit `0`, der zweite mit `1` (der Provider-Endpunkt war nicht erreichbar), der dritte mit `0`, ohne etwas auszugeben. Schritt 1 nutzt bewusst `diff` statt `translate --dry-run`: Beide sind schreibgeschützt und brauchen keinen Key, aber `diff` ist die genau dafür gebaute Frage, und sein Exit-Code allein beantwortet schon, ob es Arbeit gibt.
 
 Der Provider-Key für Schritt 4 kommt aus der Umgebung, wie immer. Lege ihn in deinem CI-Secret-Store oder deiner Shell-Umgebung ab und lass ihn den Prozess erben; die CLI nimmt kein Key-Argument entgegen und liest keinen aus der Konfigurationsdatei. Welche Variable dein Provider liest, steht unter [Provider](/docs/providers).
 

@@ -119,7 +119,7 @@ verbatra translate --dry-run --json 2>/dev/null | jq .
 }
 ```
 
-Sale con `0`. Cada lista por locale está presente aunque esté vacía, así que un agente puede acceder a ella sin comprobar antes. Una ejecución real añade un objeto `usage` a cada locale y al resumen; una ejecución en seco no informa de ninguno, porque no hace ninguna llamada. La anatomía completa de un `LocaleSummary` está en la [referencia del SDK](/docs/sdk).
+Sale con `0`. Cada lista por locale está presente aunque esté vacía, así que un agente puede acceder a ella sin comprobar antes. Una ejecución real añade un objeto `usage` a cada locale y al resumen cuando el proveedor informa de consumo; una ejecución en seco nunca lo hace, porque no hace ninguna llamada. La anatomía completa de un `LocaleSummary` está en la [referencia del SDK](/docs/sdk).
 
 Cuando una ejecución no puede ni empezar, en su lugar hay un registro de error y el comando sale con `2`:
 
@@ -266,7 +266,7 @@ failed: de
 nothing pending
 ```
 
-El primero sale con `0`, el segundo con `1` (el endpoint del proveedor no era alcanzable) y el tercero con `0` sin gastar nada. El paso 1 usa `diff` a propósito y no `translate --dry-run`: los dos son de solo lectura, pero `diff` nunca construye un proveedor, así que el paso de decisión corre en un job sin ningún secreto dentro.
+El primero sale con `0`, el segundo con `1` (el endpoint del proveedor no era alcanzable) y el tercero con `0` sin gastar nada. El paso 1 usa `diff` a propósito y no `translate --dry-run`: los dos son de solo lectura y ninguno necesita clave, pero `diff` es la pregunta hecha justo para esto, y su código de salida por sí solo ya responde si hay trabajo.
 
 La clave del proveedor para el paso 4 viene del entorno, como siempre. Guárdala en el almacén de secretos de tu CI o en el entorno de tu shell y deja que el proceso la herede; la CLI no acepta ninguna clave como argumento y no lee ninguna del archivo de configuración. Qué variable lee tu proveedor está en [Proveedores](/docs/providers).
 

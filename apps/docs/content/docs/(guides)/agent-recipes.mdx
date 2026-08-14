@@ -119,7 +119,7 @@ verbatra translate --dry-run --json 2>/dev/null | jq .
 }
 ```
 
-Exit `0`. Every per-locale list is present even when it is empty, so an agent can index into it without probing first. A live run adds a `usage` object to each locale and to the summary; a dry run reports none, because it makes no call. [The SDK reference](/docs/sdk) has the full anatomy of a `LocaleSummary`.
+Exit `0`. Every per-locale list is present even when it is empty, so an agent can index into it without probing first. A live run adds a `usage` object to each locale and to the summary when the provider reports usage; a dry run never does, because it makes no call. [The SDK reference](/docs/sdk) has the full anatomy of a `LocaleSummary`.
 
 When a run cannot happen at all, the payload is an error record instead and the command exits `2`:
 
@@ -266,7 +266,7 @@ failed: de
 nothing pending
 ```
 
-The first exits `0`, the second exits `1` (the provider endpoint was unreachable), the third exits `0` without spending anything. Step 1 is deliberately `diff` rather than `translate --dry-run`: both are read-only, but `diff` never constructs a provider, so the decision step runs in a job with no secret in it at all.
+The first exits `0`, the second exits `1` (the provider endpoint was unreachable), the third exits `0` without spending anything. Step 1 is deliberately `diff` rather than `translate --dry-run`: both are read-only and neither needs a key, but `diff` is the question built for exactly this, and its exit code alone already answers whether there is work to do.
 
 The provider key for step 4 comes from the environment, the way it always does. Put it in your CI secret store or your shell environment and let the process inherit it; the CLI takes no key argument and reads none from the config file. See [Providers](/docs/providers) for which variable your provider reads.
 
