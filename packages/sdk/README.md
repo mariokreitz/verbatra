@@ -208,7 +208,7 @@ The rest are the values a tool needs to agree with verbatra rather than restate 
 - `EXCHANGE_FORMATS`, `DEFAULT_EXCHANGE_FORMAT`, `DEFAULT_WORKBOOK_PATH`, and `DEFAULT_DELIMITED_PATH` are the handoff formats and their default output paths, so a `--format` argument can be validated and offered without restating the list. `EXCHANGE_FORMATS` is derived from the `ExchangeFormat` type itself, so it can never drift behind a format the SDK accepts.
 - `CACHE_FILE_NAME` and `LOCK_FILE_NAME` are the names of the two files a run maintains in the project (`verbatra.cache.json` and `verbatra.lock.json`), for tooling that has to find, gitignore, or clear them.
 - `verbatraConfigSchema` is the zod schema `loadConfig` validates against, for validating a config object you assembled yourself; `scaffoldingMetadata` carries the facts a project generator needs to write a first config (each provider's key environment variable, a starting model, the token-limit option name it takes, and the supported formats), which is what `verbatra init` renders from. Neither holds an API key value.
-- `SdkFs` is the file-system port the `deps.fs` seam of the flows accepts, for running against an in-memory or instrumented file system.
+- `SdkFs` is the file-system port the flows' `deps.fs` seam accepts.
 
 ## Errors and results
 
