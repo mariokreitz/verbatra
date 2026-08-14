@@ -15,7 +15,7 @@ Allow: /
 
 # Project: verbatra
 # License: MIT (https://opensource.org/licenses/MIT)
-# Source: https://github.com/mariokreitz/verbatra
+# Source: https://github.com/verbatra/verbatra
 # Sitemap: ${SITE_URL}/sitemap.xml
 # LLM content index: ${SITE_URL}/llms.txt
 # Full LLM content: ${SITE_URL}/llms-full.txt

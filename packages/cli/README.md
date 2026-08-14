@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mariokreitz/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
+  <img src="https://raw.githubusercontent.com/verbatra/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
 </p>
 
 <h1 align="center">@verbatra/cli</h1>
@@ -10,14 +10,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@verbatra/cli"><img src="https://img.shields.io/npm/v/@verbatra/cli?label=%40verbatra%2Fcli" alt="@verbatra/cli npm version" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/verbatra/verbatra/actions/workflows/ci.yml"><img src="https://github.com/verbatra/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://codecov.io/gh/verbatra/verbatra"><img src="https://codecov.io/gh/verbatra/verbatra/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://github.com/verbatra/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
 ## Description
 
-`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, check or diff your locales without writing, export and import an Excel workbook for manual translation, or open Verbatra Studio, a local web dashboard over the project. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk).
+`@verbatra/cli` provides the `verbatra` command: scaffold a config, translate every target locale, watch your source and re-translate as it changes, check or diff your locales without writing, export and import an Excel workbook for manual translation, or open Verbatra Studio, a local web dashboard over the project. It is a thin wrapper over [`@verbatra/sdk`](https://github.com/verbatra/verbatra/tree/main/packages/sdk).
 
 ## Requirements
 
@@ -74,7 +74,7 @@ Run `verbatra <command> --help` for the same reference at the terminal.
 
 ## Verbatra Studio
 
-`verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same integrity gate a translate run applies to every candidate value; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. `--expose-agent-tools` (or `VERBATRA_STUDIO_AGENT_TOOLS`) additionally registers Studio's RPC methods as WebMCP agent tools in the browser; it is off by default and confers no authority the open, authenticated tab does not already hold. The server binds to `127.0.0.1` only and gates every request behind a Host and Origin check, the bootstrap token from the printed URL, and a session cookie. The dashboard itself ships as [`@verbatra/studio`](https://github.com/mariokreitz/verbatra/tree/main/packages/studio); install it alongside the CLI:
+`verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config, refreshed live as your locale files change. Local editing is always on and runs through the same integrity gate a translate run applies to every candidate value; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. `--expose-agent-tools` (or `VERBATRA_STUDIO_AGENT_TOOLS`) additionally registers Studio's RPC methods as WebMCP agent tools in the browser; it is off by default and confers no authority the open, authenticated tab does not already hold. The server binds to `127.0.0.1` only and gates every request behind a Host and Origin check, the bootstrap token from the printed URL, and a session cookie. The dashboard itself ships as [`@verbatra/studio`](https://github.com/verbatra/verbatra/tree/main/packages/studio); install it alongside the CLI:
 
 ```bash
 npm install --save-dev @verbatra/studio
@@ -111,15 +111,15 @@ Keys are read only from the environment, never from the config. Each provider re
 
 ## Configuration
 
-verbatra is configured with a `verbatra.config.ts`, a `.verbatrarc.json`, or a `"verbatra"` key in `package.json`. Run `verbatra init` to scaffold one. For the full configuration schema and a worked example, see the [`@verbatra/sdk` README](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk) and the [project README](https://github.com/mariokreitz/verbatra).
+verbatra is configured with a `verbatra.config.ts`, a `.verbatrarc.json`, or a `"verbatra"` key in `package.json`. Run `verbatra init` to scaffold one. For the full configuration schema and a worked example, see the [`@verbatra/sdk` README](https://github.com/verbatra/verbatra/tree/main/packages/sdk) and the [project README](https://github.com/verbatra/verbatra).
 
 ## Documentation
 
 - [Documentation site](https://verbatra.kreitz-webdev.de)
-- [Project README](https://github.com/mariokreitz/verbatra)
-- [`@verbatra/sdk`](https://github.com/mariokreitz/verbatra/tree/main/packages/sdk) for the programmatic API
+- [Project README](https://github.com/verbatra/verbatra)
+- [`@verbatra/sdk`](https://github.com/verbatra/verbatra/tree/main/packages/sdk) for the programmatic API
 - `verbatra <command> --help` for the command reference at the terminal
 
 ## License
 
-[MIT](https://github.com/mariokreitz/verbatra/blob/main/LICENSE) (c) Mario Kreitz
+[MIT](https://github.com/verbatra/verbatra/blob/main/LICENSE) (c) Mario Kreitz

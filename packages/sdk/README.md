@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mariokreitz/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
+  <img src="https://raw.githubusercontent.com/verbatra/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
 </p>
 
 <h1 align="center">@verbatra/sdk</h1>
@@ -10,14 +10,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@verbatra/sdk"><img src="https://img.shields.io/npm/v/@verbatra/sdk?label=%40verbatra%2Fsdk" alt="@verbatra/sdk npm version" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/verbatra/verbatra/actions/workflows/ci.yml"><img src="https://github.com/verbatra/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://codecov.io/gh/verbatra/verbatra"><img src="https://codecov.io/gh/verbatra/verbatra/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://github.com/verbatra/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
 ## Description
 
-`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, check or diff your locales without writing, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
+`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, check or diff your locales without writing, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/verbatra/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
 
 ## Requirements
 
@@ -189,9 +189,9 @@ Per-locale failures do not throw: they are recorded on the `RunSummary` so one f
 ## Documentation
 
 - [Documentation site](https://verbatra.kreitz-webdev.de)
-- [Project README](https://github.com/mariokreitz/verbatra)
-- [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli) for the command-line tool
+- [Project README](https://github.com/verbatra/verbatra)
+- [`@verbatra/cli`](https://github.com/verbatra/verbatra/tree/main/packages/cli) for the command-line tool
 
 ## License
 
-[MIT](https://github.com/mariokreitz/verbatra/blob/main/LICENSE) (c) Mario Kreitz
+[MIT](https://github.com/verbatra/verbatra/blob/main/LICENSE) (c) Mario Kreitz

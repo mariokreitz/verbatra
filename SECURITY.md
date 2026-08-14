@@ -4,7 +4,7 @@
 
 Please report security vulnerabilities through GitHub's private vulnerability
 reporting: open the repository's Security tab and choose "Report a vulnerability"
-(https://github.com/mariokreitz/verbatra/security/advisories/new). This keeps the
+(https://github.com/verbatra/verbatra/security/advisories/new). This keeps the
 report private until a fix is available.
 
 Do not open a public issue or pull request for a security vulnerability.

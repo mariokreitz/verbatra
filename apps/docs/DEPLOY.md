@@ -7,7 +7,7 @@ the `Dockerfile` in this directory. It is not deployed to Vercel.
 
 Create a Dokploy **Application** with the **Dockerfile** build type and these settings:
 
-- **Repository**: `https://github.com/mariokreitz/verbatra`, branch `main`.
+- **Repository**: `https://github.com/verbatra/verbatra`, branch `main`.
 - **Build Type**: Dockerfile.
 - **Docker Context Path**: `.` (the repository root). The build copies the whole monorepo
   because the pnpm lockfile and workspace manifests live at the root.

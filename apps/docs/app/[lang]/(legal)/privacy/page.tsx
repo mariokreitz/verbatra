@@ -5,7 +5,7 @@ import { i18n, toLocale } from "@/lib/i18n";
 import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
 
 const UMAMI_DOCS = "https://umami.is/docs/";
-const GITHUB_REPO = "https://github.com/mariokreitz/verbatra";
+const GITHUB_REPO = "https://github.com/verbatra/verbatra";
 const GITHUB_PRIVACY =
   "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement";
 const CONTACT_MAILTO = "mailto:mario.kreitz@web.de";

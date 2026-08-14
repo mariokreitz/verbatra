@@ -175,7 +175,7 @@ function HelpLinks({ collapsed }: { readonly collapsed: boolean }): ReactNode {
     { label: "Documentation", href: "https://verbatra.kreitz-webdev.de", icon: "book" },
     {
       label: "Help and issues",
-      href: "https://github.com/mariokreitz/verbatra/issues",
+      href: "https://github.com/verbatra/verbatra/issues",
       icon: "help",
     },
   ];
