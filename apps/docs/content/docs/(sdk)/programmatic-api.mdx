@@ -23,7 +23,9 @@ import { loadConfig, translate } from "@verbatra/sdk";
 const config = await loadConfig();
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
+console.log(
+  `${summary.succeeded.length} ok, ${summary.partial.length} partial, ${summary.failed.length} failed`,
+);
 
 if (summary.usage !== undefined) {
   console.log(`tokens: ${summary.usage.inputTokens} in, ${summary.usage.outputTokens} out`);
@@ -39,13 +41,20 @@ for (const locale of summary.locales) {
   }
 }
 
-if (summary.failed.length > 0) {
+if (summary.failed.length > 0 || summary.partial.length > 0) {
   process.exitCode = 1;
 }
 ```
 
+A `partial` locale is one whose file was written with keys still missing. It is not a success:
+the CLI exits `1` on it, and your own script should treat it the same way, which is why the check
+above tests `partial` alongside `failed`.
+
 Pass `dryRun: true` to preview without calling a provider or writing anything, and `prune: true`
-or `generatePlurals: true` to override those config options for one run. Set `concurrency` above 1
+or `generatePlurals: true` to override those config options for one run. Pass `locales: ["de"]` to
+restrict the run to a subset of the configured targets, which is how you work through a
+rate-limited provider one language at a time; an unconfigured locale throws `UNKNOWN_LOCALE` before
+anything is read or spent. Set `concurrency` above 1
 to translate locales in parallel (not allowed with a `maxTokens` budget on a live run) and
 `cache: false` to bypass the [translation-memory cache](/docs/the-cache).
 

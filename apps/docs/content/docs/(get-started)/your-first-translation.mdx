@@ -104,7 +104,7 @@ With the key in place, run the same command for real:
 verbatra translate
 ```
 
-verbatra reads the source locale, sees that every key is missing from `de`, sends them to the provider in batches, runs each result through the integrity gate, and writes `locales/de.json`. The run ends with a per-locale summary: keys translated, keys unchanged, orphaned keys, and any notices. The exit code is `0` when every locale succeeded and `1` when one failed; add `--json` for a machine-readable summary.
+verbatra reads the source locale, sees that every key is missing from `de`, sends them to the provider in batches, runs each result through the integrity gate, and writes `locales/de.json`. The run ends with a per-locale summary: keys translated, keys unchanged, orphaned keys, and any notices. The exit code is `0` when every locale came out complete and `1` when one failed or came out partial (written, but with keys still missing); add `--json` for a machine-readable summary.
 
 ## What just happened
 

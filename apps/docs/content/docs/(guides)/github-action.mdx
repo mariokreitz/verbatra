@@ -65,7 +65,7 @@ The action defines no outputs. Its results are the annotations, the job summary,
 
 ## What a run shows you
 
-**Annotations.** When the CLI exits `1` (some locales failed), each failed locale becomes one error annotation titled `verbatra: <locale>`, carrying that locale's structured `[CODE] message`. When the whole run fails before producing a summary (exit `2`), a single `verbatra` annotation carries the CLI's error line instead.
+**Annotations.** When the CLI exits `1` (some locales failed or came out partial), each failed locale becomes one error annotation titled `verbatra: <locale>`, carrying that locale's structured `[CODE] message`. When the whole run fails before producing a summary (exit `2`), a single `verbatra` annotation carries the CLI's error line instead.
 
 **Job summary.** Every run appends a Markdown summary to the job page: a table with one row per locale (status, translated, unchanged, orphaned, invalid ICU, integrity withheld, provider failures, notices), an aggregate line, and a list of failed locales with their error codes. A dry run is labeled as such. A whole-run failure gets a short failure summary with the exit code and error detail.
 

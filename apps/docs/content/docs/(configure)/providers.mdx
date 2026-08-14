@@ -227,9 +227,11 @@ A provider failure never surfaces as a raw SDK error, which could carry request 
 | `INVALID_RESPONSE` | The output was malformed, incomplete, or failed reconciliation against the request. |
 | `PROVIDER_REFUSED` | The model declined to answer. |
 | `PROVIDER_BLOCKED` | The request or response was safety-blocked or filtered. |
-| `PROVIDER_ERROR` | Anything unclassifiable, mapped to a static, secret-free message. |
+| `PROVIDER_ERROR` | Anything unclassifiable. When the failure is a recognizable transport problem, the message names it (connection refused, host name not resolved, connection closed, host unreachable, TLS certificate not verified) and says what to check; otherwise it falls back to a static, secret-free message. |
 
 A failure affects only its own sub-batch: the failed keys are withheld and picked up again on the next run.
+
+For `openai-compatible`, a `PROVIDER_ERROR` also names the host and port of the configured `baseUrl`, since an endpoint you host yourself is the one that actually goes unreachable: `The translation provider request to localhost:11434 failed: the connection was refused. Check that the endpoint is running and that the configured host and port are right, then run again.` Only the URL's host component is used, so any path, query, or user-info in `baseUrl` never reaches a message.
 
 ### Output-token limits
 

@@ -16,6 +16,7 @@ verbatra translate [flags]
 | --- | --- | --- | --- |
 | `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
 | `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--locales` | `<list>` | every configured target locale | translate only this comma-separated subset; an unconfigured locale fails the run with `UNKNOWN_LOCALE` before anything is read or spent, and an empty list is a usage error, exit `2` |
 | `--dry-run` | none | off | preview changes without calling a provider or writing files (no API key needed) |
 | `--prune` | none | the config's `prune` option, otherwise off | remove orphaned keys (in a target file but absent from source) from the written file and the lock |
 | `--lock-timeout` | `<seconds>` | `600` | how long to wait for a held per-locale write lock before failing; must be a bare positive integer of seconds (a value like `60s`, `0`, or `-1` is a usage error, exit `2`) |
@@ -26,6 +27,8 @@ verbatra translate [flags]
 By default a run deletes nothing: orphaned keys are reported and left in place. `--prune` removes exactly those keys and nothing else, and overrides the config's `prune` option for this run. Before it runs, `translate` loads `.env.local` and then `.env` from the working directory; a variable already set in the real environment wins.
 
 `--dry-run` constructs no provider at all, so it needs no API key and cannot spend anything: it reads the source and target files, diffs them against the lock file, and reports exactly what a real run would change. It writes nothing (no locale file, no lock update, no run-status snapshot), it neither reads nor writes the cache, and it takes no per-locale write lock, so it never waits on a run already in progress. The `.env` load above still happens on a dry run; there is simply no key to read. That makes it a complete way to try verbatra on a real project before creating a provider account.
+
+`--locales de,fr` narrows the run to a subset of the configured targets. Locales left out are untouched: their files, their lock entries, and their cache entries all stay as they were. It is the flag to reach for on a rate-limited free tier, where translating one locale at a time is the only way through, and it is also the fastest way to re-run a single locale that came out partial. The run-status snapshot always describes the most recent run alone, so a subset run narrows it to that subset.
 
 `--lock-timeout` tunes how long a locale waits for a contended [write lock](/docs/the-lock-file) before the run fails with `LOCK_CONTENDED`: raise it when another run legitimately holds the lock for a while, lower it to fail fast in CI.
 
@@ -39,17 +42,20 @@ verbatra translate
 
 # preview the keys that would be pruned, spending nothing
 verbatra translate --prune --dry-run
+
+# one locale at a time, which is what a rate-limited free tier needs
+verbatra translate --locales de
 ```
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
-| `0` | every target locale succeeded |
-| `1` | the run finished but one or more locales failed |
+| `0` | every target locale came out complete |
+| `1` | the run finished but one or more locales failed or came out partial |
 | `2` | could not run: a whole-run error (config, source, format, provider, or lock), or a usage error |
 
-One locale failing is not fatal: the run finishes, exits `1`, and the per-locale detail sits in the summary.
+One locale failing is not fatal: the run finishes, exits `1`, and the per-locale detail sits in the summary. A **partial** locale exits `1` as well. That is a locale whose file was written but still has keys missing, typically because a provider sub-batch failed or the integrity gate refused a translation, and shipping it as a success would leave a half-translated file in your repository unnoticed.
 
 ## Related
 

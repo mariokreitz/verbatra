@@ -43,11 +43,11 @@ A file left over from an earlier export with a wider `--locales` selection is ne
 
 | Code | Meaning |
 | --- | --- |
-| `0` | every target locale succeeded |
-| `1` | the run finished but one or more locales failed |
+| `0` | every target locale came out complete |
+| `1` | the run finished but one or more locales failed or came out partial |
 | `2` | could not run: a whole-run error (config, workbook, format, or lock), or a usage error |
 
-The contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI.
+The contract matches [`verbatra translate`](/docs/cli/translate), so a manual handoff branches the same way in CI. That includes partial locales: a locale written with keys still missing exits `1`, not `0`.
 
 A blank `Translation` cell never fails a locale: the row is skipped, its prior lock baseline is kept, and the key is reported as `unfilled` whenever it still needs a translation, whether the row was exported as `new` or `changed`. Importing a workbook nobody has filled in yet therefore succeeds and returns the full inventory of pending keys.
 

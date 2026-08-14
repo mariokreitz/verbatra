@@ -15,13 +15,14 @@ The exit code is the contract your CI step branches on:
 
 | Code | Meaning |
 | --- | --- |
-| `0` | success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
-| `1` | it ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found a locale out of sync, `diff` found a missing or changed key, or `studio` failed while shutting its server down |
+| `0` | success: `translate` or `import` finished every locale complete, `check` found every locale in sync, `diff` found no pending changes, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
+| `1` | it ran, but the result is not clean: `translate` or `import` finished with at least one failed or partial locale, `check` found a locale out of sync, `diff` found a missing or changed key, or `studio` failed while shutting its server down |
 | `2` | could not run: a whole-run error (bad config, unreadable source), a usage error (an empty or unknown `--locales` value, an invalid `--debounce` or `--port`), `init` without a resolvable provider or unable to scaffold a valid config, `watch` failing to start or to stop, or `studio` unable to load the config, import `@verbatra/studio`, or start its server |
 | `130` | `watch` or `studio` was force-stopped by a second interrupt |
 
 Some edge cases worth knowing:
 
+- A **partial** locale counts as failure. It means the file was written but some keys are still missing, usually because a provider sub-batch failed or the integrity gate refused a translation. It exits `1` exactly like a failed locale, because a half-translated locale on disk is not a state a pipeline should wave through. Read `partial` on the summary to tell the two apart.
 - A single interrupt is a clean stop, and both `watch` and `studio` exit `0` on it. Do not assume the two behave alike beyond that: if the stop itself fails, `watch` exits `2` and `studio` exits `1`.
 - A failed run during `watch` shows up as a record on the output stream, never as a non-zero exit code.
 - `export` has no per-locale failure mode: it exits `0` or `2`, never `1`.
@@ -41,7 +42,7 @@ verbatra diff
 
 Use `check` when the exit code is all you need. Use `diff` when you want the exact keys behind the drift, say, to post them in a pull request comment. Orphaned keys (in a target file but gone from source) appear in `diff` output but never set exit code `1` on their own.
 
-Both take `--locales de,fr` to gate a subset. Passing `--locales` with no valid locale is a usage error and exits `2`, so a typo can never turn the gate green.
+Both take `--locales de,fr` to gate a subset. Passing `--locales` with no valid locale is a usage error and exits `2`, so a typo can never turn the gate green. `translate`, `watch` and `export` take the same flag, which is how you translate one locale at a time against a rate-limited provider.
 
 ## JSON output
 
@@ -74,6 +75,7 @@ interface RunSummary {
   dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
+  partial: string[];        // locales written with keys still missing; these exit 1 too
   failed: string[];         // locales whose run failed
   usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
   budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured
