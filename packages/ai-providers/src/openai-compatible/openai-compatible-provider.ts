@@ -1,3 +1,4 @@
+import type { ProviderCallContext } from "../guard.js";
 import { type LlmMechanism, runLlmTranslation } from "../llm/run.js";
 import { buildOpenAiRequest, type OpenAiRequest } from "../openai/request.js";
 import { extractOpenAiResult } from "../openai/response.js";
@@ -6,7 +7,7 @@ import type { TranslateRequest, TranslateResult, TranslationProvider } from "../
 import { DEFAULT_REQUEST_TIMEOUT_MS, withRequestTimeout } from "../request-timeout.js";
 import { createDefaultClient } from "./client.js";
 import {
-  endpointHostOf,
+  endpointContextOf,
   type OpenAiCompatibleConfig,
   openAiCompatibleConfigSchema,
 } from "./config.js";
@@ -35,11 +36,11 @@ export function createOpenAiCompatibleProvider(
 
 function createMechanism(client: OpenAiClient, config: OpenAiCompatibleConfig): LlmMechanism {
   const timeoutMs = config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const endpointHost = endpointHostOf(config.baseUrl);
+  const endpoint = endpointContextOf(config.baseUrl);
   return {
     translate: async ({ payloadJson, signal }): Promise<ReturnType<typeof extractOpenAiResult>> => {
       const body = buildOpenAiRequest(config, payloadJson, "strict-schema", "max_tokens");
-      const completion = await callClient(client, body, timeoutMs, signal, endpointHost);
+      const completion = await callClient(client, body, timeoutMs, signal, endpoint);
       return extractOpenAiResult(completion, true);
     },
   };
@@ -50,12 +51,12 @@ function callClient(
   body: OpenAiRequest,
   timeoutMs: number,
   signal: AbortSignal | undefined,
-  endpointHost: string | undefined,
+  endpoint: ProviderCallContext | undefined,
 ): Promise<OpenAiCompletion> {
   return withRequestTimeout(
     timeoutMs,
     signal,
     (requestSignal) => client.chat.completions.create(body, { signal: requestSignal }),
-    endpointHost === undefined ? undefined : { endpointHost },
+    endpoint,
   );
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PROVIDER_ENV } from "../env.js";
+import type { ProviderCallContext } from "../guard.js";
 import { requestTimeoutConfigSchema } from "../request-timeout-config.js";
 
 const HOSTED_PROVIDER_ENV_VARS: ReadonlySet<string> = new Set(
@@ -39,13 +40,14 @@ export const openAiCompatibleConfigSchema = z
 export type OpenAiCompatibleConfig = z.infer<typeof openAiCompatibleConfigSchema>;
 
 /**
- * The host and port of a configured `baseUrl`, for naming an unreachable endpoint in an error.
- * Deliberately only the `host` component: it drops any path, query, and user-info, so a credential
- * embedded in the URL can never travel into a message.
+ * What a transport failure against this endpoint may name: the host and port of the configured
+ * `baseUrl`, and nothing else. Deliberately only the URL's `host` component, so any path, query, or
+ * user-info in `baseUrl` (where an embedded credential would live) can never travel into a message.
+ * Undefined when the value does not parse as a URL at all.
  */
-export function endpointHostOf(baseUrl: string): string | undefined {
+export function endpointContextOf(baseUrl: string): ProviderCallContext | undefined {
   try {
-    return new URL(baseUrl).host;
+    return { endpointHost: new URL(baseUrl).host };
   } catch {
     return undefined;
   }
