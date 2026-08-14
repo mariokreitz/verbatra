@@ -68,7 +68,7 @@ It ships in three packages. `@verbatra/cli` gives you a `verbatra` command for t
 - **Read-only status and diff.** `verbatra check` counts per-locale missing, stale, and up-to-date keys and `verbatra diff` names the keys that would be added, re-translated, or are orphaned; both write nothing and exit non-zero when a locale has a missing or stale key (orphaned keys alone never do), so they slot into CI ([CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)).
 - **Setup preflight.** `verbatra doctor` validates the config, the format adapter, the provider, its API key environment variable, and the source locale file in one pass and reports every problem at once, without calling a provider, writing a file, or reading a key value ([verbatra doctor](https://verbatra.kreitz-webdev.de/docs/cli/doctor)).
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
-- **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run ([Manual translation](https://verbatra.kreitz-webdev.de/docs/manual-translation)).
+- **Manual translation.** `verbatra export` writes the strings that need translating to a translator handoff and `verbatra import` reads the filled handoff back with the same safety checks as an automated run. `--format` chooses the shape: a styled Excel workbook (`xlsx`, the default), or one plain `<locale>.csv` or `<locale>.tsv` per locale for a handoff you want to diff and review ([Manual translation](https://verbatra.kreitz-webdev.de/docs/manual-translation)).
 - **Integrity gate on every translation.** Every candidate value is re-checked from the value itself at the single accept/reject point every write path calls (a provider result, a workbook import, a manual edit, and any translation reused for another key, whether from the cache or from grouping keys that share source content), and one that fails a check, a dropped or altered placeholder for example, is withheld and reported rather than written.
 - **Lossless key round-trip.** Literal dotted leaf keys (such as `"foo.bar"` used as a single leaf) and real nested paths each keep their on-disk shape, and a file that expresses the same effective path both ways errors with `INVALID_STRUCTURE` rather than guessing or corrupting data ([Formats](https://verbatra.kreitz-webdev.de/docs/formats)).
 - **Document key order preserved.** JSON-family, YAML, and ARB files round-trip in exact document key order (integer-like keys keep their position, new keys append in source-document order), and a YAML composite key (a map or sequence used as a mapping key) fails with a structured error instead of being silently mangled.
@@ -130,16 +130,18 @@ Each provider reads its API key from one environment variable:
 | Command | What it does | Common flags |
 | --- | --- | --- |
 | `verbatra init` | Create a verbatra config and .env example for this project | `--provider <id>`, `--source`, `--targets`, `--path`, `--cwd`, `--yes`, `--force` |
-| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--dry-run`, `--prune`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
-| `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
+| `verbatra translate` | Translate every target locale once, then exit | `--cwd`, `--config`, `--locales`, `--dry-run`, `--prune`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
+| `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--locales`, `--debounce <ms>`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
 | `verbatra check` | Report per-locale missing, stale, and up-to-date counts without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra diff` | List the keys per locale that would be added, re-translated, or are orphaned, without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra doctor` | Validate the project setup and report every problem at once, without calling a provider or reading a key value (read-only) | `--cwd`, `--config`, `--json` |
-| `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
-| `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
+| `verbatra export` | Export untranslated strings into a translator handoff: a styled Excel workbook, or one CSV or TSV file per locale | `--out`, `--locales`, `--include-unchanged`, `--format <xlsx\|csv\|tsv>`, `--cwd`, `--config`, `--json` |
+| `verbatra import <workbook>` | Import a filled handoff back into the locale files, with the same safety checks (the argument is a workbook file, one CSV or TSV file, or the directory holding them) | `--dry-run`, `--format <xlsx\|csv\|tsv>`, `--cwd`, `--config`, `--json` |
 | `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--expose-agent-tools`, `--cwd`, `--config` |
 
 Run `verbatra <command> --help` for the full option list. The complete command reference - every flag and examples - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
+
+**Not in the latest release yet.** This README documents `main`, and three things on it have not been published to npm: the `verbatra doctor` command, `--locales` on `translate` and `watch`, and the exit-`1` treatment of a partial locale described below. Everything else here is in the current release. Check the [`@verbatra/cli` package on npm](https://www.npmjs.com/package/@verbatra/cli) for what is installable today.
 
 ## Exit codes
 
@@ -148,7 +150,7 @@ Every command follows the same contract, so a CI step can branch on the code alo
 | Code | Meaning |
 | --- | --- |
 | `0` | Success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `doctor` found no setup problem, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
-| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), `doctor` found at least one failed check, or `studio` failed while shutting its server down |
+| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed or partial locale (a partial locale is one whose file was written with some keys still missing), `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), `doctor` found at least one failed check, or `studio` failed while shutting its server down |
 | `2` | Could not run: a whole-run error, a usage error, `init` without a resolvable provider or unable to scaffold a valid config, `watch` failing to start or to stop, or `studio` given a bad `--port` or unable to load the config, import `@verbatra/studio`, or start its server |
 | `130` | `watch` or `studio` was force-stopped by a second interrupt |
 
@@ -186,7 +188,7 @@ A composite GitHub Action runs `verbatra translate --json` in CI, turns each fai
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
 
-The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the job needs no separate install step, and it rejects anything that is not an exact semver version so a run can never silently resolve `latest`. The API key comes from the environment as it does everywhere else in verbatra; there is no key input. Run the CLI directly instead when you want a read-only `check` or `diff` gate, or a flag such as `--prune` that the action does not expose.
+The action fetches and runs `@verbatra/cli` at exactly the version you pin, so the job needs no separate install step, and it rejects anything that is not an exact semver version so a run can never silently resolve `latest`. The API key comes from the environment as it does everywhere else in verbatra; there is no key input. Its `command` input selects `translate` (the default), `check`, or `diff`, so the read-only gate runs in the action too: `check` and `diff` call no provider and need no API key, which makes them safe on a fork pull request. Run the CLI directly when you want a flag the action does not expose, such as `--prune`.
 
 See the [GitHub Action page](https://verbatra.kreitz-webdev.de/docs/github-action) for the full input list, the annotation and job-summary format, and the security notes.
 
