@@ -64,6 +64,7 @@ describe("translate with an injected deps.fs", () => {
       farewell: "[de] Bye",
     });
     expect(writes).toContain(targetPath);
+    expect(writes.some((path) => path.endsWith("verbatra.lock.json"))).toBe(true);
 
     const after = await readdir(dir);
     expect(after).toEqual(before);
