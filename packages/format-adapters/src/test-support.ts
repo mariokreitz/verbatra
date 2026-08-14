@@ -24,5 +24,8 @@ export function createMemoryAdapterFs(initial: Record<string, string> = {}): Mem
       }
       return { kind: "ok", content };
     },
+    async writeFileAtomic(path: string, data: string): Promise<void> {
+      files.set(path, data);
+    },
   };
 }

@@ -1,3 +1,4 @@
+import { dirname } from "node:path";
 import type { AdapterFs, BoundedReadOutcome } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 
@@ -18,6 +19,10 @@ export function toAdapterFs(fs: SdkFs): AdapterFs {
         return { kind: "too-large" };
       }
       return { kind: "ok", content: outcome.content };
+    },
+    async writeFileAtomic(path: string, data: string): Promise<void> {
+      await fs.mkdir?.(dirname(path));
+      await fs.writeFile(path, data);
     },
   };
 }

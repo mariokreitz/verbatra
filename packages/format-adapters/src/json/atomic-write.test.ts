@@ -14,6 +14,7 @@ import { basename, dirname, join } from "node:path";
 import type { LocaleResource } from "@verbatra/core";
 import { describe, expect, it, vi } from "vitest";
 import { AdapterError } from "../errors.js";
+import { nodeOps } from "../fs-port.js";
 import { createI18nextJsonAdapter } from "../i18next/i18next-adapter.js";
 import { type AtomicWriteOps, atomicWriteFile, tempFileName } from "./atomic-write.js";
 
@@ -68,10 +69,10 @@ describe("atomicWriteFile", () => {
     expect(await readdir(dir)).toEqual(["en.json"]);
   });
 
-  it("default node ops write the file with no leftover temp", async () => {
+  it("the shared node ops write the file with no leftover temp", async () => {
     const dir = await makeDir();
     const target = join(dir, "en.json");
-    await atomicWriteFile(target, "EXACT\n");
+    await atomicWriteFile(target, "EXACT\n", nodeOps);
     expect(await readFile(target, "utf8")).toBe("EXACT\n");
     expect(await readdir(dir)).toEqual(["en.json"]);
   });
@@ -152,11 +153,11 @@ describe("atomicWriteFile", () => {
     expect(caught).not.toBeInstanceOf(AdapterError);
   });
 
-  it("default ops clean up the temp when the rename fails (target is a directory)", async () => {
+  it("the shared node ops clean up the temp when the rename fails (target is a directory)", async () => {
     const dir = await makeDir();
     const target = join(dir, "subdir");
     await mkdir(target);
-    await expect(atomicWriteFile(target, "X\n")).rejects.toThrow();
+    await expect(atomicWriteFile(target, "X\n", nodeOps)).rejects.toThrow();
     const leftovers = (await readdir(dir)).filter((name) => name.startsWith("."));
     expect(leftovers).toEqual([]);
   });

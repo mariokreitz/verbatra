@@ -1,4 +1,5 @@
-import { type FileHandle, open } from "node:fs/promises";
+import { type FileHandle, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
+import { type AtomicWriteOps, atomicWriteFile } from "./json/atomic-write.js";
 
 export type BoundedReadOutcome =
   | { readonly kind: "ok"; readonly content: string }
@@ -7,6 +8,7 @@ export type BoundedReadOutcome =
 
 export interface AdapterFs {
   readBounded(path: string, maxBytes: number): Promise<BoundedReadOutcome>;
+  writeFileAtomic(path: string, data: string): Promise<void>;
 }
 
 async function readUtf8(handle: FileHandle, size: number): Promise<string> {
@@ -38,6 +40,33 @@ async function nodeReadBounded(path: string, maxBytes: number): Promise<BoundedR
   }
 }
 
+async function fsyncPath(path: string): Promise<void> {
+  const handle = await open(path, "r");
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function fsyncDirBestEffort(path: string): Promise<void> {
+  try {
+    await fsyncPath(path);
+  } catch {}
+}
+
+export const nodeOps: AtomicWriteOps = {
+  mkdir: async (path) => {
+    await mkdir(path, { recursive: true });
+  },
+  writeFile: (path, data) => writeFile(path, data, "utf8"),
+  fsyncFile: (path) => fsyncPath(path),
+  rename: (from, to) => rename(from, to),
+  fsyncDir: (path) => fsyncDirBestEffort(path),
+  rm: (path) => rm(path, { force: true }),
+};
+
 export const nodeAdapterFs: AdapterFs = {
   readBounded: nodeReadBounded,
+  writeFileAtomic: (path, data) => atomicWriteFile(path, data, nodeOps),
 };

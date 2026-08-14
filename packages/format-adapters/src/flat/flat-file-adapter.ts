@@ -1,7 +1,6 @@
 import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
 import { type AdapterFs, nodeAdapterFs } from "../fs-port.js";
-import { atomicWriteFile } from "../json/atomic-write.js";
 import { readFileContent } from "../json/bounded-read.js";
 import {
   buildCanHandle,
@@ -69,7 +68,7 @@ export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAd
     },
     async write(resource, filePath): Promise<void> {
       const data = await serializeEntries(resource.entries, filePath, fs);
-      await atomicWriteFile(filePath, data);
+      await fs.writeFileAtomic(filePath, data);
     },
   };
 }

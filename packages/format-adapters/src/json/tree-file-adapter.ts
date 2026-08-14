@@ -13,7 +13,6 @@ import {
   type ValidateMessage,
   type ValidateTree,
 } from "../shell.js";
-import { atomicWriteFile } from "./atomic-write.js";
 import { readFileContent } from "./bounded-read.js";
 import { type DeriveEntry, type FlattenResult, flattenTree, type KeyMode } from "./flatten.js";
 import type { JsonRecord } from "./json-tree.js";
@@ -126,7 +125,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
       const tree = buildWriteTree
         ? await buildWriteTree(resource.entries, filePath, fs)
         : unflattenEntries(resource.entries);
-      await atomicWriteFile(filePath, serialize(tree));
+      await fs.writeFileAtomic(filePath, serialize(tree));
     },
   };
 }

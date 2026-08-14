@@ -317,8 +317,10 @@ describe("translate: error shapes and orphaned keys", () => {
     const stub = makeStubProvider();
     const fs = makeFakeFs({
       ...realDiskReads(),
-      writeFile: async () => {
-        throw "raw failure";
+      writeFile: async (path: string) => {
+        if (path.endsWith("verbatra.lock.json")) {
+          throw "raw failure";
+        }
       },
     });
     const summary = await translate(
