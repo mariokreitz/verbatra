@@ -65,7 +65,7 @@ La acción no define salidas. Sus resultados son las anotaciones, el resumen del
 
 ## Qué te muestra una ejecución
 
-**Anotaciones.** Cuando la CLI sale con `1` (algunos locales fallaron), cada locale fallido se convierte en una anotación de error titulada `verbatra: <locale>`, con el `[CODE] message` estructurado de ese locale. Cuando toda la ejecución falla antes de producir un resumen (salida `2`), una única anotación `verbatra` lleva en su lugar la línea de error de la CLI.
+**Anotaciones.** Cuando la CLI sale con `1` (algunos locales fallaron o quedaron parciales), cada locale fallido se convierte en una anotación de error titulada `verbatra: <locale>`, con el `[CODE] message` estructurado de ese locale. Cuando toda la ejecución falla antes de producir un resumen (salida `2`), una única anotación `verbatra` lleva en su lugar la línea de error de la CLI.
 
 **Resumen del job.** Cada ejecución añade un resumen en Markdown a la página del job: una tabla con una fila por locale (estado, traducidas, sin cambios, huérfanas, ICU inválido, retenidas por integridad, fallos del proveedor, avisos), una línea agregada y una lista de los locales fallidos con sus códigos de error. Una ejecución en seco se etiqueta como tal. Un fallo de toda la ejecución recibe un breve resumen de fallo con el código de salida y el detalle del error.
 

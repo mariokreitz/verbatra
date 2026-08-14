@@ -121,7 +121,8 @@ sans clé pour les serveurs locaux.
 
 **Symptôme** : l'exécution se termine, mais certaines clés n'ont pas été traduites : elles
 apparaissent sous les `providerFailures` d'une locale, avec un avis `SUB_BATCH_FAILED` portant le
-code du fournisseur. La locale compte quand même comme réussie, donc le code de sortie reste 0.
+code du fournisseur. La locale est rapportée comme `partial` quand certaines clés sont bien
+arrivées et `failed` quand aucune n'est arrivée, et la commande sort avec `1` dans les deux cas.
 
 **Cause** : un appel fournisseur a échoué après la construction : HTTP 429 (`RATE_LIMITED`), un
 délai réseau ou de requête dépassé (`TIMEOUT`), ou HTTP 401/403 (`AUTH_FAILED`, une clé invalide ou
@@ -129,7 +130,9 @@ révoquée).
 
 **Solution** : rien n'est perdu. Les clés affectées gardent leur référence de verrouillage
 précédente et sont reprises à l'exécution suivante, donc pour `RATE_LIMITED` ou `TIMEOUT` relance
-simplement plus tard. `AUTH_FAILED` ne se résout pas en réessayant : remplace la clé derrière la
+simplement plus tard, et utilise `--locales <locale>` pour traiter les locales cibles une par une
+quand la limite est un quota strict par minute ou par jour.
+`AUTH_FAILED` ne se résout pas en réessayant : remplace la clé derrière la
 variable d'environnement. Un `maxBatchSize` plus petit réduit aussi le rayon d'impact d'une seule
 requête échouée. Quand `TIMEOUT` devient la règle plutôt qu'un accroc (un modèle local lent, ou de
 gros lots), augmente `requestTimeoutMs` dans les options du fournisseur : il borne chaque requête à
@@ -148,6 +151,23 @@ incompatible, ou abîmé dans une fusion.
 intacte. Le supprimer efface aussi l'erreur, mais perd la trace de la version de la source dont
 chaque traduction provient, donc les modifications de la source faites avant la suppression ne
 sont plus détectées comme périmées. Voir [Le fichier de verrouillage](/docs/the-lock-file).
+
+## Un fichier de locale n'a pas pu être écrit (TARGET_UNWRITABLE)
+
+**Symptôme** : une locale échoue avec `Could not write the locale file locales/de.json (EACCES).
+Check the write permissions on the containing directory, then run again.`
+
+**Cause** : le fichier cible, ou le répertoire qui le contient, ne peut pas être écrit par
+l'utilisateur qui lance verbatra : aucune permission d'écriture, un répertoire inexistant, un
+montage en lecture seule, ou un disque plein. Les fichiers de locale sont écrits atomiquement via
+un fichier temporaire dans le même répertoire, donc un répertoire non inscriptible fait échouer
+l'écriture même quand le fichier de locale lui-même a l'air correct.
+
+**Solution** : le message nomme la cible relativement à ton répertoire de travail ainsi que le code
+du système de fichiers derrière l'échec. Corrige ça (`chmod` sur le répertoire, crée-le, remonte-le
+en écriture, libère de l'espace) et relance. Seule la locale concernée échoue ; les autres
+s'exécutent quand même, et la locale échouée garde son fichier et sa référence de verrouillage
+précédents, donc rien n'est écrit à moitié.
 
 ## Un autre processus détient le verrou d'écriture (LOCK_CONTENDED)
 
@@ -186,8 +206,9 @@ configured budget of M tokens (behavior: ...)` ; avec `budgetBehavior: "stop"`, 
 apparaissent aussi sous `budgetWithheld`.
 
 **Cause** : le plafond `maxTokens` configuré a été franchi. Avec `"warn"` (le défaut) l'exécution
-continue sans changement ; avec `"stop"` chaque clé pas encore tentée est retenue pour le reste de
-l'exécution. Le budget ne change jamais le code de sortie.
+continue sans changement et ne modifie pas le code de sortie ; avec `"stop"` chaque clé pas encore
+tentée est retenue pour le reste de l'exécution, ce qui laisse cette locale `partial` (certaines
+clés sont arrivées) ou `failed` (aucune), et les deux sortent avec `1`.
 
 **Solution** : c'est le garde-fou qui fonctionne. Les clés retenues gardent leurs références et
 sont traduites à l'exécution suivante ; augmente `maxTokens` ou passe à `"warn"` si tu veux tout

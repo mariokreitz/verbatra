@@ -301,6 +301,7 @@ interface RunSummary {
   dryRun: boolean;          // true when nothing was written and no provider was called
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
+  partial: string[];        // locales written with keys still missing; the CLI exits 1 on these
   failed: string[];         // locales whose run failed
   usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
   budget?: RunBudget;       // present only when maxTokens is configured
@@ -380,6 +381,7 @@ are surfaced as data on the `RunSummary`, never thrown.
 | `LOCALE_PATH_COLLISION` | two configured locales resolve to the same absolute file path |
 | `CONCURRENCY_INVALID` | `concurrency` was set but is not an integer of at least 1; raised before any locale runs |
 | `CONCURRENCY_BUDGET_CONFLICT` | a live run set `concurrency` above 1 while `maxTokens` is configured; raised before any provider call (a dry run is exempt) |
+| `TARGET_UNWRITABLE` | a target locale file could not be written (its directory is not writable, does not exist, is read-only, or is out of space); the message names the target file and the file-system code, never the internal temporary file the atomic write uses |
 | `LOCALE_FAILED` | never thrown: the fallback `code` recorded on a failed locale's `error` |
 
 Two exceptions to the one-error-class rule: `retranslateEntry` re-throws the provider's own

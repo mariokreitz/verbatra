@@ -107,8 +107,10 @@ ejecución y lo comprueba después de cada sublote completado. Lo que pasa al ll
   `budgetWithheld`, conserva su hash anterior en el bloqueo y se reintenta en la siguiente
   ejecución.
 
-El sublote que cruza el techo nunca se deshace, y el presupuesto nunca cambia el código de salida
-del comando. Con un proveedor que no informa del uso de tokens (DeepL), la salvaguarda es
+El sublote que cruza el techo nunca se deshace. Con `warn` el presupuesto nunca cambia el código de
+salida del comando. Con `stop` sí puede: un locale al que se le retuvieron claves se informa como
+`partial` cuando algunas claves sí llegaron a escribirse y como `failed` cuando no llegó ninguna, y
+ambos salen con `1`. Con un proveedor que no informa del uso de tokens (DeepL), la salvaguarda es
 honestamente inerte: el resumen la marca como no soportada en lugar de fingir un recuento.
 
 ## Los errores nunca filtran nada

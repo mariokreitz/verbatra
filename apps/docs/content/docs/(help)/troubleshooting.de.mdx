@@ -127,7 +127,8 @@ lokale Server auf einen schlüssellosen Platzhalter zurück.
 
 **Symptom**: Der Lauf wird abgeschlossen, aber einige Keys wurden nicht übersetzt: Diese erscheinen
 unter den `providerFailures` einer Locale, mit einem `SUB_BATCH_FAILED`-Hinweis, der den
-Provider-Code trägt. Die Locale zählt trotzdem als erfolgreich, der Exit-Code bleibt also 0.
+Provider-Code trägt. Die Locale wird als `partial` gemeldet, wenn einige Keys gelandet sind, und
+als `failed`, wenn gar keiner, und der Befehl endet in beiden Fällen mit `1`.
 
 **Ursache**: Ein Provider-Aufruf schlug nach der Konstruktion fehl: HTTP 429 (`RATE_LIMITED`),
 ein Netzwerk- oder Anfrage-Timeout (`TIMEOUT`) oder HTTP 401/403 (`AUTH_FAILED`, ein ungültiger
@@ -135,7 +136,9 @@ oder widerrufener Schlüssel).
 
 **Lösung**: Nichts ist verloren. Die betroffenen Keys behalten ihre vorherige Lock-Baseline und
 werden beim nächsten Lauf wieder aufgegriffen; bei `RATE_LIMITED` oder `TIMEOUT` lass den Lauf
-also einfach später erneut laufen. `AUTH_FAILED` löst sich durch Wiederholen nicht: Tausche den
+also einfach später erneut laufen, und nutze `--locales <locale>`, um die Ziel-Locales einzeln
+abzuarbeiten, wenn die Grenze ein striktes Kontingent pro Minute oder pro Tag ist.
+`AUTH_FAILED` löst sich durch Wiederholen nicht: Tausche den
 Schlüssel hinter der Umgebungsvariable aus. Ein kleineres `maxBatchSize` verringert außerdem den
 Wirkungsradius einer einzelnen fehlgeschlagenen Anfrage. Wenn `TIMEOUT` die Regel statt ein
 Aussetzer ist (ein langsames lokales Modell oder große Batches), erhöhe `requestTimeoutMs` in den
@@ -155,6 +158,23 @@ inkompatiblen Version erzeugt oder in einem Merge beschädigt.
 Die Datei zu löschen beseitigt den Fehler auch, verliert aber die Aufzeichnung, aus welcher
 Quellversion jede Übersetzung stammt, Quelländerungen vor dem Löschen werden also nicht mehr als
 veraltet erkannt. Siehe [Die Lock-Datei](/docs/the-lock-file).
+
+## Eine Locale-Datei konnte nicht geschrieben werden (TARGET_UNWRITABLE)
+
+**Symptom**: Eine Locale schlägt fehl mit `Could not write the locale file locales/de.json
+(EACCES). Check the write permissions on the containing directory, then run again.`
+
+**Ursache**: Die Zieldatei oder das Verzeichnis, das sie enthält, ist für den Benutzer, der
+verbatra ausführt, nicht schreibbar: fehlende Schreibrechte, ein Verzeichnis, das nicht existiert,
+ein schreibgeschütztes Mount oder eine volle Platte. Locale-Dateien werden atomar über eine
+temporäre Datei im selben Verzeichnis geschrieben; ein nicht schreibbares Verzeichnis lässt den
+Schreibvorgang also selbst dann scheitern, wenn die Locale-Datei selbst in Ordnung aussieht.
+
+**Lösung**: Die Meldung nennt das Ziel relativ zu deinem Arbeitsverzeichnis und den
+Dateisystem-Code hinter dem Fehlschlag. Behebe genau das (`chmod` auf das Verzeichnis, es anlegen,
+schreibbar neu einhängen, Platz schaffen) und starte erneut. Nur die betroffene Locale schlägt
+fehl; die anderen laufen weiter, und die fehlgeschlagene Locale behält ihre bisherige Datei und
+ihre Lock-Baseline, es bleibt also nichts halb geschrieben zurück.
 
 ## Ein anderer Prozess hält die Schreibsperre (LOCK_CONTENDED)
 
@@ -194,8 +214,9 @@ the configured budget of M tokens (behavior: ...)`; mit `budgetBehavior: "stop"`
 außerdem unter `budgetWithheld`.
 
 **Ursache**: Die konfigurierte `maxTokens`-Obergrenze wurde überschritten. Mit `"warn"` (dem
-Default) läuft der Lauf unverändert weiter; mit `"stop"` wird jeder noch nicht versuchte Key für
-den Rest des Laufs zurückgehalten. Das Budget ändert nie den Exit-Code.
+Default) läuft der Lauf unverändert weiter und ändert den Exit-Code nicht; mit `"stop"` wird jeder
+noch nicht versuchte Key für den Rest des Laufs zurückgehalten, was diese Locale als `partial`
+(einige Keys sind gelandet) oder `failed` (gar keiner) zurücklässt, und beide enden mit `1`.
 
 **Lösung**: Das ist der Schutzmechanismus bei der Arbeit. Zurückgehaltene Keys behalten ihre
 Baselines und werden beim nächsten Lauf übersetzt; erhöhe `maxTokens` oder wechsle zu `"warn"`,

@@ -104,7 +104,7 @@ Con la clave ya puesta, ejecuta el mismo comando de verdad:
 verbatra translate
 ```
 
-verbatra lee el locale de origen, ve que todas las claves faltan en `de`, las envía al proveedor en lotes, pasa cada resultado por la puerta de integridad, y escribe `locales/de.json`. La ejecución termina con un resumen por locale: claves traducidas, claves sin cambios, claves huérfanas y cualquier aviso. El código de salida es `0` cuando todos los locales tuvieron éxito y `1` cuando uno falló; añade `--json` para un resumen legible por máquina.
+verbatra lee el locale de origen, ve que todas las claves faltan en `de`, las envía al proveedor en lotes, pasa cada resultado por la puerta de integridad, y escribe `locales/de.json`. La ejecución termina con un resumen por locale: claves traducidas, claves sin cambios, claves huérfanas y cualquier aviso. El código de salida es `0` cuando todos los locales quedaron completos y `1` cuando uno falló o quedó parcial (escrito, pero con claves aún faltantes); añade `--json` para un resumen legible por máquina.
 
 ## Qué acaba de pasar
 

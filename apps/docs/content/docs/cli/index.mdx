@@ -44,7 +44,7 @@ The exit code is the contract a CI step or script branches on:
 | Code | Meaning |
 | --- | --- |
 | `0` | success (also `--help` and `--version`) |
-| `1` | `translate` or `import` finished but some locales failed, `check` found a locale out of sync, or `diff` found pending changes |
+| `1` | `translate` or `import` finished but some locales failed or came out partial, `check` found a locale out of sync, or `diff` found pending changes |
 | `2` | could not run: a whole-run error (config, source, provider, lock), or a usage error |
 | `130` | `watch` or `studio` was force-stopped by a second interrupt |
 

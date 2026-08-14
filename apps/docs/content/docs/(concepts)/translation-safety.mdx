@@ -94,8 +94,9 @@ after each completed sub-batch. What happens at the ceiling is `budgetBehavior`:
 - `stop`: no further provider calls are made; every remaining candidate is withheld as
   `budgetWithheld`, keeps its prior lock hash, and is retried next run.
 
-The sub-batch that crosses the ceiling is never undone, and the budget never changes the command's
-exit code. With a provider that does not report token usage (DeepL), the guardrail is honestly
+The sub-batch that crosses the ceiling is never undone. Under `warn` the budget never changes the
+command's exit code. Under `stop` it can: a locale that had keys withheld is reported as `partial`
+when some keys still landed and `failed` when none did, and both exit `1`. With a provider that does not report token usage (DeepL), the guardrail is honestly
 inert: the summary marks it unsupported instead of faking a count.
 
 ## Errors never leak

@@ -120,7 +120,8 @@ que no está definido; sin uno, recurre a un marcador sin clave para servidores 
 
 **Síntoma**: la ejecución termina, pero algunas claves no se tradujeron: aparecen bajo el
 `providerFailures` de un locale, con un aviso `SUB_BATCH_FAILED` que lleva el código del proveedor.
-El locale sigue contando como exitoso, así que el código de salida se queda en 0.
+El locale se informa como `partial` cuando algunas claves sí llegaron y como `failed` cuando no
+llegó ninguna, y el comando sale con `1` en ambos casos.
 
 **Causa**: una llamada al proveedor falló después de la construcción: HTTP 429 (`RATE_LIMITED`), un
 tiempo de espera de red o de solicitud (`TIMEOUT`), o HTTP 401/403 (`AUTH_FAILED`, una clave
@@ -128,7 +129,9 @@ inválida o revocada).
 
 **Solución**: no se pierde nada. Las claves afectadas conservan su línea base anterior en el
 bloqueo y se recogen de nuevo en la siguiente ejecución, así que para `RATE_LIMITED` o `TIMEOUT`
-simplemente vuelve a ejecutar más tarde. `AUTH_FAILED` no se resuelve reintentando: reemplaza la
+simplemente vuelve a ejecutar más tarde, y usa `--locales <locale>` para ir recorriendo los locales
+de destino de uno en uno cuando el límite es una cuota estricta por minuto o por día.
+`AUTH_FAILED` no se resuelve reintentando: reemplaza la
 clave detrás de la variable de entorno. Un `maxBatchSize` más pequeño también reduce el radio de
 impacto de una sola solicitud fallida. Cuando `TIMEOUT` es la norma y no un tropiezo (un modelo
 local lento, o lotes grandes), sube `requestTimeoutMs` en las opciones del proveedor: acota cada
@@ -148,6 +151,23 @@ incompatible o dañado en un merge.
 base. Borrarlo también quita el error, pero pierde el registro de qué versión del origen produjo
 cada traducción, así que las ediciones del origen hechas antes del borrado ya no se detectan como
 obsoletas. Consulta [El archivo de bloqueo](/docs/the-lock-file).
+
+## No se pudo escribir un archivo de locale (TARGET_UNWRITABLE)
+
+**Síntoma**: un locale falla con `Could not write the locale file locales/de.json (EACCES). Check
+the write permissions on the containing directory, then run again.`
+
+**Causa**: el archivo de destino, o el directorio que lo contiene, no lo puede escribir el usuario
+que ejecuta verbatra: sin permiso de escritura, un directorio que no existe, un montaje de solo
+lectura o un disco lleno. Los archivos de locale se escriben de forma atómica a través de un
+archivo temporal en el mismo directorio, así que un directorio no escribible hace fallar la
+escritura aunque el propio archivo de locale parezca correcto.
+
+**Solución**: el mensaje nombra el destino relativo a tu directorio de trabajo y el código del
+sistema de archivos que hay detrás del fallo. Corrige eso (`chmod` al directorio, créalo, vuelve a
+montarlo con escritura, libera espacio) y vuelve a ejecutar. Solo falla el locale afectado; los
+demás siguen ejecutándose, y el locale fallido conserva su archivo y su línea base del bloqueo
+anteriores, así que no queda nada escrito a medias.
 
 ## Otro proceso tiene el bloqueo de escritura (LOCK_CONTENDED)
 
@@ -185,8 +205,9 @@ configured budget of M tokens (behavior: ...)`; con `budgetBehavior: "stop"`, la
 aparecen bajo `budgetWithheld`.
 
 **Causa**: se cruzó el techo de `maxTokens` configurado. Con `"warn"` (el valor por defecto) la
-ejecución continúa sin cambios; con `"stop"` cada clave aún no intentada se retiene durante el
-resto de la ejecución. El presupuesto nunca cambia el código de salida.
+ejecución continúa sin cambios y no cambia el código de salida; con `"stop"` cada clave aún no
+intentada se retiene durante el resto de la ejecución, lo que deja ese locale `partial` (algunas
+claves llegaron) o `failed` (ninguna lo hizo), y ambos salen con `1`.
 
 **Solución**: esto es la salvaguarda funcionando. Las claves retenidas conservan sus líneas base y
 se traducen en la siguiente ejecución; sube `maxTokens` o cambia a `"warn"` si quieres completarlo

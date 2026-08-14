@@ -18,7 +18,9 @@ import { loadConfig, translate } from "@verbatra/sdk";
 const config = await loadConfig();
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
+console.log(
+  `${summary.succeeded.length} ok, ${summary.partial.length} partial, ${summary.failed.length} failed`,
+);
 
 if (summary.usage !== undefined) {
   console.log(`tokens: ${summary.usage.inputTokens} in, ${summary.usage.outputTokens} out`);
@@ -34,12 +36,14 @@ for (const locale of summary.locales) {
   }
 }
 
-if (summary.failed.length > 0) {
+if (summary.failed.length > 0 || summary.partial.length > 0) {
   process.exitCode = 1;
 }
 ```
 
-Passe `dryRun: true` pour prévisualiser sans appeler de fournisseur ni rien écrire, et `prune: true` ou `generatePlurals: true` pour surcharger ces options de config le temps d'une exécution. Mets `concurrency` au-dessus de 1 pour traduire les locales en parallèle (non autorisé avec un budget `maxTokens` sur une exécution réelle) et `cache: false` pour contourner le [cache de mémoire de traduction](/docs/the-cache).
+Une locale `partial` est une locale dont le fichier a été écrit alors que des clés manquent encore. Ce n'est pas un succès : la CLI sort avec `1` dessus, et ton propre script devrait la traiter pareil, d'où le test de `partial` à côté de `failed` ci-dessus.
+
+Passe `dryRun: true` pour prévisualiser sans appeler de fournisseur ni rien écrire, et `prune: true` ou `generatePlurals: true` pour surcharger ces options de config le temps d'une exécution. Passe `locales: ["de"]` pour restreindre l'exécution à un sous-ensemble des cibles configurées, ce qui te permet de traiter un fournisseur à débit limité une langue à la fois ; une locale non configurée lève `UNKNOWN_LOCALE` avant que quoi que ce soit ne soit lu ou dépensé. Mets `concurrency` au-dessus de 1 pour traduire les locales en parallèle (non autorisé avec un budget `maxTokens` sur une exécution réelle) et `cache: false` pour contourner le [cache de mémoire de traduction](/docs/the-cache).
 
 ## Vérifier en CI sans écrire
 

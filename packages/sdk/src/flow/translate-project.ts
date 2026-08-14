@@ -42,6 +42,7 @@ import type { BudgetTracker } from "./budget.js";
 import { createBudgetTracker, toBudgetSummary } from "./budget.js";
 import { failureSummary, partition } from "./locale-failure.js";
 import { type LocaleRunParams, runLocale } from "./locale-run.js";
+import { selectLocales } from "./select-locales.js";
 import { readSourceResource } from "./source.js";
 import type { LocaleSummary, RunSummary, SdkNotice } from "./summary.js";
 import { combineUsage } from "./usage.js";
@@ -52,6 +53,18 @@ export interface TranslateInput {
   readonly config: VerbatraConfig;
   /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /**
+   * Restrict the run to a subset of the configured target locales, which is how you translate one
+   * locale at a time against a rate-limited provider. Defaults to every configured target. The
+   * result keeps the configured order whatever order the subset is given in, and any locale named
+   * here that is not a configured target fails the whole run with `UNKNOWN_LOCALE` before anything
+   * is read or spent. An explicit empty array selects no locale at all rather than every locale.
+   *
+   * Locales left out are untouched: their files, their lock entries, and their translation-memory
+   * entries all stay as they were. The run-status file always describes the most recent run alone,
+   * so a subset run narrows it to that subset.
+   */
+  readonly locales?: readonly string[];
   /**
    * Compute the whole run but write nothing and call no provider. The returned
    * {@link RunSummary} reports what would have happened, which makes this safe to run in CI to
@@ -389,7 +402,8 @@ export function resolveRunConcurrency(
 }
 
 /**
- * Runs the one-shot translation flow over every configured target locale: read the source, diff
+ * Runs the one-shot translation flow over every configured target locale, or over the subset named
+ * by `locales`: read the source, diff
  * each locale against the lock-file baseline, translate what is missing or stale, verify placeholder
  * and ICU integrity, write the locale files, and update the lock-file and translation memory.
  *
@@ -399,8 +413,10 @@ export function resolveRunConcurrency(
  * {@link LocaleSummary} and the other locales continue, so one unreachable provider or one
  * unwritable file never discards work that succeeded. A locale whose write lock stays contended is
  * one of these per-locale failures: it is recorded with code `LOCK_CONTENDED` on that locale's
- * summary rather than thrown. Callers should therefore inspect {@link RunSummary.failed} rather
- * than relying on a thrown error to detect trouble.
+ * summary rather than thrown. Callers should therefore inspect {@link RunSummary.failed} and
+ * {@link RunSummary.partial} rather than relying on a thrown error to detect trouble. A partial
+ * locale is a locale whose file was written with some keys missing, so treating it as clean would
+ * ship an incomplete translation; the CLI exits `1` for it exactly as it does for a failed one.
  *
  * A corrupt lock-file is the one exception. On a live run each locale reads the lock-file inside
  * its own write lock, so `LOCK_FILE_INVALID` escapes as a thrown error even after earlier locales
@@ -417,6 +433,8 @@ export function resolveRunConcurrency(
  * @param deps - Optional adapter registry, provider factory, and file-system overrides.
  * @returns The per-locale account of the run, including usage and budget.
  *
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: `locales` names a locale that is not a configured
+ * target. Thrown before anything is read, written, or spent.
  * @throws {@link SdkError} `UNKNOWN_FORMAT`: no adapter is registered for the configured format.
  * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is not an integer of at least 1.
  * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: a live run combined a `concurrency` above
@@ -447,9 +465,9 @@ export function resolveRunConcurrency(
  *   },
  * });
  *
- * if (summary.failed.length > 0) {
- *   for (const locale of summary.locales.filter((entry) => entry.status === "failed")) {
- *     console.error(`${locale.locale}: ${locale.error?.message}`);
+ * if (summary.failed.length > 0 || summary.partial.length > 0) {
+ *   for (const locale of summary.locales.filter((entry) => entry.status !== "succeeded")) {
+ *     console.error(`${locale.locale}: ${locale.status} ${locale.error?.message ?? ""}`);
  *   }
  *   process.exitCode = 1;
  * }
@@ -462,6 +480,7 @@ export async function translate(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const dryRun = input.dryRun ?? false;
+  const targetLocales = selectLocales(config, input.locales);
   const concurrency = resolveRunConcurrency(input.concurrency, dryRun, config);
   const prune = input.prune ?? config.prune ?? false;
   const generatePlurals = input.generatePlurals ?? config.generatePlurals ?? false;
@@ -499,8 +518,8 @@ export async function translate(
   };
 
   const summaries = dryRun
-    ? await runAllLocalesDry(context, config.targetLocales, concurrency)
-    : await runAllLocalesLive(context, config.targetLocales, concurrency);
+    ? await runAllLocalesDry(context, targetLocales, concurrency)
+    : await runAllLocalesLive(context, targetLocales, concurrency);
   input.onProgress?.({ type: "run-finished", localesCompleted: summaries.length });
 
   const locales = withCacheNotices(summaries, cache);

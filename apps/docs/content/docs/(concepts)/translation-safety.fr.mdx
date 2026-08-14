@@ -106,8 +106,10 @@ et le vérifie après chaque sous-lot terminé. Ce qui se passe au plafond est `
   `budgetWithheld`, garde son hash de verrouillage précédent, et est retentée à l'exécution
   suivante.
 
-Le sous-lot qui franchit le plafond n'est jamais annulé, et le budget ne change jamais le code de
-sortie de la commande. Avec un fournisseur qui ne rapporte pas d'usage de tokens (DeepL), le
+Le sous-lot qui franchit le plafond n'est jamais annulé. Sous `warn`, le budget ne change jamais le
+code de sortie de la commande. Sous `stop`, il le peut : une locale dont des clés ont été retenues
+est rapportée comme `partial` quand certaines clés sont quand même arrivées et `failed` quand
+aucune n'est arrivée, et les deux sortent avec `1`. Avec un fournisseur qui ne rapporte pas d'usage de tokens (DeepL), le
 garde-fou est honnêtement inerte : le résumé le marque comme non pris en charge au lieu de
 fabriquer un compte.
 

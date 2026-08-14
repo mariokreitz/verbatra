@@ -13,6 +13,7 @@ import type { CliDeps, Streams, WatchSession } from "./types.js";
 export interface WatchOptions {
   readonly config: VerbatraConfig;
   readonly cwd: string;
+  readonly locales?: readonly string[];
   readonly debounceMs?: number;
   readonly lockAcquireTimeoutMs?: number;
   readonly concurrency?: number;
@@ -41,6 +42,7 @@ export function runWatch(options: WatchOptions, deps: CliDeps, streams: Streams)
     onProgress: (event) => {
       streams.err(`${renderProgress(event, options.json)}\n`);
     },
+    ...(options.locales !== undefined ? { locales: options.locales } : {}),
     ...(options.debounceMs !== undefined ? { debounceMs: options.debounceMs } : {}),
     ...(options.lockAcquireTimeoutMs !== undefined
       ? { lockAcquireTimeoutMs: options.lockAcquireTimeoutMs }

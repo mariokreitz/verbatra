@@ -109,8 +109,10 @@ der Obergrenze passiert, bestimmt `budgetBehavior`:
   `budgetWithheld` zurückgehalten, behält seinen vorherigen Lock-Hash und wird beim nächsten Lauf
   erneut versucht.
 
-Der Sub-Batch, der die Obergrenze überschreitet, wird nie rückgängig gemacht, und das Budget
-ändert nie den Exit-Code des Befehls. Bei einem Provider, der keinen Token-Verbrauch meldet
+Der Sub-Batch, der die Obergrenze überschreitet, wird nie rückgängig gemacht. Unter `warn` ändert
+das Budget nie den Exit-Code des Befehls. Unter `stop` kann es das: Eine Locale, bei der Keys
+zurückgehalten wurden, wird als `partial` gemeldet, wenn einige Keys trotzdem gelandet sind, und
+als `failed`, wenn gar keiner, und beide enden mit `1`. Bei einem Provider, der keinen Token-Verbrauch meldet
 (DeepL), ist der Schutzmechanismus ehrlich wirkungslos: Die Zusammenfassung markiert ihn als nicht
 unterstützt, statt eine Zählung vorzutäuschen.
 

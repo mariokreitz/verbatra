@@ -113,14 +113,17 @@ unset; without one it falls back to a keyless placeholder for local servers.
 ## Rate limits, timeouts, and auth failures mid-run (RATE_LIMITED, TIMEOUT, AUTH_FAILED)
 
 **Symptom**: the run completes, but some keys were not translated: they appear under a locale's
-`providerFailures`, with a `SUB_BATCH_FAILED` notice carrying the provider code. The locale still
-counts as succeeded, so the exit code stays 0.
+`providerFailures`, with a `SUB_BATCH_FAILED` notice carrying the provider code. The locale is
+reported as `partial` when some keys did land and `failed` when none did, and the command exits
+`1` either way.
 
 **Cause**: a provider call failed after construction: HTTP 429 (`RATE_LIMITED`), a network or
 request timeout (`TIMEOUT`), or HTTP 401/403 (`AUTH_FAILED`, an invalid or revoked key).
 
 **Fix**: nothing is lost. The affected keys keep their prior lock baseline and are picked up again
-on the next run, so for `RATE_LIMITED` or `TIMEOUT` simply re-run later. `AUTH_FAILED` does not
+on the next run, so for `RATE_LIMITED` or `TIMEOUT` simply re-run later, and use
+`--locales <locale>` to work through the target locales one at a time when the limit is a strict
+per-minute or per-day quota. `AUTH_FAILED` does not
 resolve by retrying: replace the key behind the environment variable. A smaller `maxBatchSize`
 also reduces the blast radius of a single failed request. When `TIMEOUT` is the rule rather than a
 hiccup (a slow local model, or large batches), raise `requestTimeoutMs` in the provider's options:
@@ -140,6 +143,21 @@ or damaged in a merge.
 clears the error, but loses the record of which source version each translation came from, so
 source edits made before the deletion are no longer detected as stale. See
 [The lock file](/docs/the-lock-file).
+
+## A locale file could not be written (TARGET_UNWRITABLE)
+
+**Symptom**: a locale fails with `Could not write the locale file locales/de.json (EACCES). Check
+the write permissions on the containing directory, then run again.`
+
+**Cause**: the target file, or the directory holding it, cannot be written by the user running
+verbatra: no write permission, a directory that does not exist, a read-only mount, or a full disk.
+Locale files are written atomically through a temporary file in the same directory, so a directory
+that is unwritable fails the write even when the locale file itself looks fine.
+
+**Fix**: the message names the target relative to your working directory and the file-system code
+behind the failure. Fix that (`chmod` the directory, create it, remount read-write, free space) and
+re-run. Only the affected locale fails; the others still run, and the failed locale keeps its
+previous file and lock baseline, so nothing is half-written.
 
 ## Another process holds the write lock (LOCK_CONTENDED)
 
@@ -176,8 +194,9 @@ configured budget of M tokens (behavior: ...)`; with `budgetBehavior: "stop"`, k
 under `budgetWithheld`.
 
 **Cause**: the configured `maxTokens` ceiling was crossed. With `"warn"` (the default) the run
-continues unchanged; with `"stop"` every key not yet attempted is withheld for the rest of the
-run. The budget never changes the exit code.
+continues unchanged and does not change the exit code; with `"stop"` every key not yet attempted is
+withheld for the rest of the run, which leaves that locale `partial` (some keys landed) or `failed`
+(none did), and both exit `1`.
 
 **Fix**: this is the guardrail working. Withheld keys keep their baselines and are translated on
 the next run; raise `maxTokens` or switch to `"warn"` if you want single-run completion. A budget

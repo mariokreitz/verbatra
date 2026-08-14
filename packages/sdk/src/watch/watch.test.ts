@@ -196,6 +196,55 @@ describe("watch: startup and wiring", () => {
     expect(w.paths).toEqual([]);
   });
 
+  it("passes a locale subset through to every run", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    const controller = await watch(
+      {
+        config: baseConfig({ targetLocales: ["de", "fr"] }),
+        cwd: CWD,
+        locales: ["fr"],
+        onRun: () => {},
+      },
+      { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+    );
+    await settle();
+    await controller.stop();
+
+    expect(r.inputs[0]?.locales).toEqual(["fr"]);
+  });
+
+  it("omits locales entirely when no subset is asked for", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    const controller = await watch(
+      { config: baseConfig(), cwd: CWD, onRun: () => {} },
+      { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+    );
+    await settle();
+    await controller.stop();
+
+    expect(r.inputs[0]).not.toHaveProperty("locales");
+  });
+
+  it("refuses an unconfigured locale at startup, before any watching begins", async () => {
+    const w = watcherHarness();
+    const r = runHarness();
+    await expect(
+      watch(
+        {
+          config: baseConfig({ targetLocales: ["de"] }),
+          cwd: CWD,
+          locales: ["zz"],
+          onRun: () => {},
+        },
+        { fs: okFs, createWatcher: w.createWatcher, runTranslate: r.run },
+      ),
+    ).rejects.toMatchObject({ code: "UNKNOWN_LOCALE" });
+    expect(r.calls).toBe(0);
+    expect(w.paths).toEqual([]);
+  });
+
   it("reports the concurrency conflict ahead of a missing source", async () => {
     const w = watcherHarness();
     const r = runHarness();

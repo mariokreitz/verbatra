@@ -1,5 +1,5 @@
 import { ProviderError } from "./errors.js";
-import { guardProviderCall } from "./guard.js";
+import { guardProviderCall, type ProviderCallContext } from "./guard.js";
 
 export const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
 
@@ -15,6 +15,7 @@ export async function withRequestTimeout<T>(
   timeoutMs: number,
   callerSignal: AbortSignal | undefined,
   call: (signal: AbortSignal) => Promise<T>,
+  context?: ProviderCallContext,
 ): Promise<T> {
   const timeoutController = new AbortController();
   const signal = combineSignals(callerSignal, timeoutController.signal);
@@ -26,7 +27,7 @@ export async function withRequestTimeout<T>(
     }, timeoutMs);
   });
   try {
-    return await Promise.race([guardProviderCall(() => call(signal), signal), timedOut]);
+    return await Promise.race([guardProviderCall(() => call(signal), signal, context), timedOut]);
   } finally {
     if (timer !== undefined) {
       clearTimeout(timer);

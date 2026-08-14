@@ -31,6 +31,7 @@ import { failureSummary, partition } from "../locale-failure.js";
 import { readTargetResource } from "../read-target.js";
 import { readSourceResource } from "../source.js";
 import type { LocaleSummary, RunSummary } from "../summary.js";
+import { writeTargetResource } from "../write-target.js";
 import {
   DEFAULT_EXCHANGE_FORMAT,
   type ExchangeFormat,
@@ -246,6 +247,7 @@ function computeSheetLockEntries(
 
 interface SheetContext {
   readonly config: VerbatraConfig;
+  readonly cwd: string;
   readonly resolver: LocalePathResolver;
   readonly adapter: FormatAdapter;
   readonly fs: SdkFs;
@@ -358,7 +360,8 @@ async function runSheet(
   const merged = mergeAccepted(target, accepted);
   if (accepted.size > 0) {
     const path = ctx.resolver.pathFor(sheet.locale);
-    await ctx.adapter.write(
+    await writeTargetResource(
+      ctx.adapter,
       {
         locale: sheet.locale,
         namespace: target.namespace,
@@ -366,6 +369,7 @@ async function runSheet(
         entries: merged,
       },
       path,
+      ctx.cwd,
     );
   }
   return {
@@ -392,7 +396,8 @@ async function runSheet(
  * that is not configured is contained the same way: that locale fails with `CONFIG_INVALID` on its
  * own {@link LocaleSummary}, so nothing is written to an unmanaged path and the configured locales
  * still import. Once the handoff has been read, every per-locale failure is isolated this way, so
- * callers should inspect {@link RunSummary.failed} rather than relying on a thrown error.
+ * callers should inspect {@link RunSummary.failed} and {@link RunSummary.partial} rather than
+ * relying on a thrown error.
  *
  * @param input - The config and the handoff path, format, and dry-run flag.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -433,6 +438,7 @@ export async function importWorkbook(
 
   const ctx: SheetContext = {
     config,
+    cwd,
     resolver,
     adapter,
     fs,

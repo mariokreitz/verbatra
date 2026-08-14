@@ -104,7 +104,7 @@ Mit dem Schlüssel an Ort und Stelle führst du denselben Befehl echt aus:
 verbatra translate
 ```
 
-verbatra liest die Quell-Locale, sieht, dass jeder Key in `de` fehlt, sendet sie in Batches an den Provider, lässt jedes Ergebnis durch das Integritäts-Gate laufen und schreibt `locales/de.json`. Der Lauf endet mit einer Zusammenfassung pro Locale: übersetzte Keys, unveränderte Keys, verwaiste Keys und etwaige Hinweise. Der Exit-Code ist `0`, wenn jede Locale erfolgreich war, und `1`, wenn eine fehlgeschlagen ist; ergänze `--json` für eine maschinenlesbare Zusammenfassung.
+verbatra liest die Quell-Locale, sieht, dass jeder Key in `de` fehlt, sendet sie in Batches an den Provider, lässt jedes Ergebnis durch das Integritäts-Gate laufen und schreibt `locales/de.json`. Der Lauf endet mit einer Zusammenfassung pro Locale: übersetzte Keys, unveränderte Keys, verwaiste Keys und etwaige Hinweise. Der Exit-Code ist `0`, wenn jede Locale vollständig durchkam, und `1`, wenn eine fehlschlug oder `partial` blieb (geschrieben, aber mit weiterhin fehlenden Keys); ergänze `--json` für eine maschinenlesbare Zusammenfassung.
 
 ## Was gerade passiert ist
 

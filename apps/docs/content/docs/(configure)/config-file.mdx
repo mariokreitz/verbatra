@@ -111,7 +111,7 @@ Default `50`. A locale's missing-plus-changed entries are split into sequential 
 - `"warn"` (the default) flags the overrun and lets the run continue exactly as if no budget were configured.
 - `"stop"` withholds every not-yet-attempted key for the rest of the run: the current locale's remaining candidates, and every later target locale's candidates entirely (their diff and orphan reporting still runs; only the provider call is skipped). Withheld keys keep their prior lock hash and are retried automatically next run, the same way a failed provider call already is.
 
-A budget trip never changes the command's exit code, in either behavior. `budgetBehavior` without `maxTokens` is accepted and has no effect. Against a token-less provider (DeepL, which reports no usage to measure) the guardrail reports itself as inert (`supported: false` on the run summary's `budget`) rather than producing a false trip.
+Under `"warn"` a budget trip never changes the command's exit code. Under `"stop"` it can: a locale whose keys were withheld is reported as `partial` when some keys still landed and `failed` when none did, and both exit `1`. `budgetBehavior` without `maxTokens` is accepted and has no effect. Against a token-less provider (DeepL, which reports no usage to measure) the guardrail reports itself as inert (`supported: false` on the run summary's `budget`) rather than producing a false trip.
 
 <Callout title="Two different maxTokens">
 The top-level `maxTokens` is the whole-run budget described here. The Anthropic provider also has its own `options.maxTokens`, which caps a single response. They are unrelated; see [Providers](/docs/providers).
