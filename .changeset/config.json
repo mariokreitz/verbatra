@@ -1,9 +1,10 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": "@changesets/cli/changelog",
+  "changelog": ["@changesets/changelog-github", { "repo": "verbatra/verbatra" }],
   "commit": false,
   "fixed": [["@verbatra/cli", "@verbatra/sdk"]],
   "linked": [],
+  "privatePackages": { "version": true, "tag": false },
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
