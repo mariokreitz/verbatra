@@ -37,3 +37,16 @@ export const openAiCompatibleConfigSchema = z
   .extend(requestTimeoutConfigSchema.shape);
 
 export type OpenAiCompatibleConfig = z.infer<typeof openAiCompatibleConfigSchema>;
+
+/**
+ * The host and port of a configured `baseUrl`, for naming an unreachable endpoint in an error.
+ * Deliberately only the `host` component: it drops any path, query, and user-info, so a credential
+ * embedded in the URL can never travel into a message.
+ */
+export function endpointHostOf(baseUrl: string): string | undefined {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return undefined;
+  }
+}

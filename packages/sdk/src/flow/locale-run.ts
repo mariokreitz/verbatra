@@ -45,6 +45,7 @@ import { readTargetResource } from "./read-target.js";
 import type { LocaleNotice, LocaleSummary, NeedsReviewEntry, UsageSummary } from "./summary.js";
 import { buildTranslateRequest } from "./translate-request.js";
 import { combineUsage, createUsageAccumulator, foldUsage } from "./usage.js";
+import { writeTargetResource } from "./write-target.js";
 
 export interface LocaleRunParams {
   readonly source: LocaleResource;
@@ -341,7 +342,8 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
     generated: generation.accepted.length,
   });
   if (writeNeeded) {
-    await params.adapter.write(
+    await writeTargetResource(
+      params.adapter,
       {
         locale: params.targetLocale,
         namespace: target.namespace,
@@ -349,6 +351,7 @@ export async function runLocale(params: LocaleRunParams): Promise<LocaleRunResul
         entries: merged,
       },
       path,
+      params.cwd,
     );
   }
 

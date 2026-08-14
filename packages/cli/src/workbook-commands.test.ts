@@ -249,6 +249,23 @@ describe("run import: SDK delegation and rendering", () => {
     expect(code).toBe(1);
   });
 
+  it("exits 1 when a locale is partial and none failed (same rule as translate)", async () => {
+    const summary = makeSummary({
+      locales: [
+        makeLocale({ status: "partial", translated: ["greeting"], providerFailures: ["farewell"] }),
+      ],
+      succeeded: [],
+      partial: ["es"],
+      failed: [],
+    });
+    const { deps } = recordingDeps({ importWorkbook: async () => summary });
+    const cap = captureStreams();
+
+    const code = await run(["import", "wb.xlsx"], deps, cap.streams);
+
+    expect(code).toBe(1);
+  });
+
   it("a whole-run error renders to stderr and exits 2", async () => {
     const { deps } = recordingDeps({
       importWorkbook: async () => {

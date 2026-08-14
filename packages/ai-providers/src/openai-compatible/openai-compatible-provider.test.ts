@@ -346,3 +346,34 @@ describe("createOpenAiCompatibleProvider: registry", () => {
     }
   });
 });
+
+describe("createOpenAiCompatibleProvider: an unreachable endpoint", () => {
+  const refusingClient: OpenAiClient = {
+    chat: {
+      completions: {
+        create: () =>
+          Promise.reject(
+            Object.assign(new TypeError("fetch failed"), {
+              cause: Object.assign(new Error("connect ECONNREFUSED 192.168.178.74:1234"), {
+                code: "ECONNREFUSED",
+              }),
+            }),
+          ),
+      },
+    },
+  };
+
+  it("names the configured host, the refusal, and the fix", async () => {
+    const provider = createOpenAiCompatibleProvider(config, { client: refusingClient });
+
+    const error = await provider.translateBatch(request()).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).code).toBe("PROVIDER_ERROR");
+    expect((error as ProviderError).message).toBe(
+      "The translation provider request to 192.168.178.74:1234 failed: the connection was " +
+        "refused. Check that the endpoint is running and that the configured host and port are " +
+        "right, then run again.",
+    );
+  });
+});

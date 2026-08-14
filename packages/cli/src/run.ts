@@ -55,6 +55,7 @@ const sharedCommandOptsSchema = z.object({
 });
 
 const translateOptsSchema = sharedCommandOptsSchema.extend({
+  locales: localeListSchema,
   dryRun: z.boolean().optional(),
   prune: z.boolean().optional(),
   lockTimeout: z.string().optional(),
@@ -63,6 +64,7 @@ const translateOptsSchema = sharedCommandOptsSchema.extend({
 });
 
 const watchOptsSchema = sharedCommandOptsSchema.extend({
+  locales: localeListSchema,
   debounce: z.string().optional(),
   lockTimeout: z.string().optional(),
   concurrency: z.string().optional(),
@@ -91,6 +93,13 @@ const checkOptsSchema = sharedCommandOptsSchema.extend({
 const diffOptsSchema = sharedCommandOptsSchema.extend({
   locales: localeListSchema,
 });
+
+function runExitCode(summary: {
+  readonly partial: readonly string[];
+  readonly failed: readonly string[];
+}): number {
+  return summary.failed.length > 0 || summary.partial.length > 0 ? 1 : 0;
+}
 
 interface CommandContext {
   readonly streams: Streams;
@@ -251,7 +260,7 @@ interface ParsedTranslateOpts extends z.infer<typeof translateOptsSchema> {
 }
 
 function parseTranslateCommandOpts(rawOpts: unknown): ParsedTranslateOpts {
-  const opts = translateOptsSchema.parse(rawOpts);
+  const opts = parseLocaleCommandOpts(translateOptsSchema, rawOpts);
   const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
   const concurrencyValue = parseConcurrency(opts.concurrency);
   return {
@@ -285,6 +294,7 @@ function buildTranslateInput(
     cwd,
     onLockWait: lockWaitReporter(streams, json),
     onProgress: progressReporter(streams, json),
+    ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
     ...(opts.dryRun === true ? { dryRun: true } : {}),
     ...(opts.prune === true ? { prune: true } : {}),
     ...(opts.lockAcquireTimeoutMs !== undefined
@@ -318,7 +328,7 @@ export async function runTranslate(
               ? `${renderSuccessEnvelope("translate", summary)}\n`
               : `${renderHuman(summary)}\n`,
           );
-          return summary.failed.length > 0 ? 1 : 0;
+          return runExitCode(summary);
         },
         () => loadEnvFiles(cwd),
       );
@@ -333,7 +343,7 @@ interface ParsedWatchOpts extends WatchOpts {
 }
 
 function parseWatchCommandOpts(rawOpts: unknown): ParsedWatchOpts {
-  const opts = watchOptsSchema.parse(rawOpts);
+  const opts = parseLocaleCommandOpts(watchOptsSchema, rawOpts);
   const debounceMs = parseDebounce(opts.debounce);
   const lockAcquireTimeoutMs = parseLockTimeout(opts.lockTimeout);
   const concurrencyValue = parseConcurrency(opts.concurrency);
@@ -372,6 +382,7 @@ async function runWatchCommand(
           config,
           json: context.json,
           cwd,
+          ...(opts.locales !== undefined ? { locales: opts.locales } : {}),
           ...(opts.debounceMs !== undefined ? { debounceMs: opts.debounceMs } : {}),
           ...(opts.lockAcquireTimeoutMs !== undefined
             ? { lockAcquireTimeoutMs: opts.lockAcquireTimeoutMs }
@@ -467,7 +478,7 @@ export async function runImport(
               ? `${renderSuccessEnvelope("import", summary)}\n`
               : `${renderHuman(summary, "import")}\n`,
           );
-          return summary.failed.length > 0 ? 1 : 0;
+          return runExitCode(summary);
         },
       );
     },
@@ -537,6 +548,7 @@ function registerTranslateCommand(program: Command, ctx: ProgramContext): void {
     .description("Translate every target locale once, then exit")
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option("--dry-run", "preview changes without calling a provider or writing files")
     .option(
       "--prune",
@@ -565,6 +577,7 @@ function registerTranslateCommand(program: Command, ctx: ProgramContext): void {
         "Examples:",
         "  $ verbatra translate                 translate once using the config it finds",
         "  $ verbatra translate --dry-run       preview changes without calling a provider",
+        "  $ verbatra translate --locales de    translate only German, one locale at a time",
         "  $ verbatra translate --prune         also remove orphaned keys from target files",
         "  $ verbatra translate --prune --dry-run  preview the keys that would be pruned",
         "  $ verbatra translate --json          machine-readable summary on stdout",
@@ -578,6 +591,7 @@ function registerWatchCommand(program: Command, ctx: ProgramContext): void {
     .description("Re-translate on every source change until interrupted")
     .option("--cwd <path>", "resolve config and locale files from this directory")
     .option("--config <path>", "load this config file instead of searching for one")
+    .option("--locales <list>", "comma-separated subset of target locales (default all configured)")
     .option(
       "--debounce <ms>",
       "wait this many milliseconds after a change before translating (default 300)",

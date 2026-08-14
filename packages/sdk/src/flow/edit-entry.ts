@@ -13,6 +13,7 @@ import { readTarget } from "./diff-locales.js";
 import { gateCandidateValue, type IntegrityGateReason } from "./integrity-gate.js";
 import { selectLocales } from "./select-locales.js";
 import { readSource } from "./source.js";
+import { writeTargetResource } from "./write-target.js";
 
 /** Input for {@link editEntry}. */
 export interface EditEntryInput {
@@ -91,6 +92,8 @@ export type EditEntryResult =
  * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
  * @throws {@link SdkError} `LOCK_CONTENDED`: the locale's write lock could not be acquired before
  * the timeout elapsed.
+ * @throws {@link SdkError} `TARGET_UNWRITABLE`: the target locale file could not be written. The
+ * message names the target file and the file-system code, never the internal temporary file.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  * unsupported version.
  */
@@ -129,9 +132,11 @@ export async function editEntry(
     const merged = new Map(target.entries);
     merged.set(input.key, { ...sourceEntry, value: input.value, namespace: target.namespace });
     const path = createLocalePathResolver(cwd, config).pathFor(locale);
-    await adapter.write(
+    await writeTargetResource(
+      adapter,
       { locale, namespace: target.namespace, format: config.format, entries: merged },
       path,
+      cwd,
     );
 
     await updateLockFileLocale(cwd, fs, locale, {

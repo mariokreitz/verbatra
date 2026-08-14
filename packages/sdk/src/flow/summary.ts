@@ -194,7 +194,11 @@ export interface RunSummary {
   readonly locales: readonly LocaleSummary[];
   /** Names of the locales whose status is `succeeded`. */
   readonly succeeded: readonly string[];
-  /** Names of the locales whose status is `partial`. */
+  /**
+   * Names of the locales whose status is `partial`: written to disk, but with keys still missing.
+   * Check this alongside `failed` before treating a run as clean. The CLI exits `1` on a partial
+   * locale for that reason.
+   */
   readonly partial: readonly string[];
   /** Names of the locales whose status is `failed`. Check this before treating a run as clean. */
   readonly failed: readonly string[];

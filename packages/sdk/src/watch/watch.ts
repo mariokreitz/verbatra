@@ -1,6 +1,7 @@
 import type { AdapterRegistry } from "@verbatra/format-adapters";
 import type { VerbatraConfig } from "../config/schema.js";
 import { describeError, SdkError } from "../errors.js";
+import { selectLocales } from "../flow/select-locales.js";
 import type { RunSummary } from "../flow/summary.js";
 import { resolveRunConcurrency, type TranslateInput } from "../flow/translate-project.js";
 import { defaultFs, type SdkFs } from "../fs.js";
@@ -59,6 +60,12 @@ export interface WatchInput {
   readonly config: VerbatraConfig;
   /** Directory the `files.pattern` is resolved against. Defaults to the process working directory. */
   readonly cwd?: string;
+  /**
+   * Restrict every run of the session to a subset of the configured target locales. Validated once
+   * when watching starts, so an unconfigured locale throws `UNKNOWN_LOCALE` before any watching
+   * begins rather than failing on each run. An explicit empty array selects no locale at all.
+   */
+  readonly locales?: readonly string[];
   /** How long to coalesce rapid source changes before running. Defaults to 300 milliseconds. */
   readonly debounceMs?: number;
   /**
@@ -121,6 +128,8 @@ export interface WatchController {
  * @param deps - Optional adapter registry, provider factory, file-system, watcher, and runner overrides.
  * @returns A controller that stops the session.
  *
+ * @throws {@link SdkError} `UNKNOWN_LOCALE`: `locales` names a locale that is not a configured
+ * target. Thrown once at startup, before any watching begins.
  * @throws {@link SdkError} `CONCURRENCY_INVALID`: `concurrency` is not an integer of at least 1.
  * @throws {@link SdkError} `CONCURRENCY_BUDGET_CONFLICT`: `concurrency` above 1 was combined with a
  * configured token budget.
@@ -154,6 +163,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   const debounceMs = input.debounceMs ?? DEFAULT_DEBOUNCE_MS;
   const fs = deps.fs ?? defaultFs;
 
+  selectLocales(input.config, input.locales);
   resolveRunConcurrency(input.concurrency, false, input.config);
 
   const resolver = createLocalePathResolver(cwd, input.config);
@@ -169,6 +179,7 @@ export async function watch(input: WatchInput, deps: WatchDeps = {}): Promise<Wa
   const runInput: TranslateInput = {
     config: input.config,
     cwd,
+    ...(input.locales !== undefined ? { locales: input.locales } : {}),
     ...(input.onLockWait !== undefined ? { onLockWait: input.onLockWait } : {}),
     ...(input.onProgress !== undefined ? { onProgress: input.onProgress } : {}),
     ...(input.lockAcquireTimeoutMs !== undefined

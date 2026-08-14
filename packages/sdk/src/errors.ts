@@ -16,9 +16,10 @@
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
  *   point that selects an adapter, before any file is read.
  * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales. Thrown through
- *   the shared locale selection by {@link check}, {@link diff}, {@link keyIntegrity},
- *   {@link lockState}, {@link exportWorkbook}, {@link keyValue}, {@link editEntry}, and
- *   {@link retranslateEntry}.
+ *   the shared locale selection by {@link translate}, {@link watch}, {@link check}, {@link diff},
+ *   {@link keyIntegrity}, {@link lockState}, {@link exportWorkbook}, {@link keyValue},
+ *   {@link editEntry}, and {@link retranslateEntry}. {@link translate} throws it before anything is
+ *   read or spent, and {@link watch} once at startup, before any watching begins.
  * - `UNKNOWN_KEY`: the requested key is not present in the source resource. Thrown by
  *   {@link keyValue}, {@link editEntry}, and {@link retranslateEntry}.
  * - `PROVIDER_CONSTRUCTION_FAILED`: the provider factory threw. Wraps the provider's own error,
@@ -52,6 +53,12 @@
  * - `CONCURRENCY_BUDGET_CONFLICT`: a live run requested a `concurrency` above 1 while a token
  *   budget is configured. The two are mutually exclusive because concurrency makes the budget's
  *   stop guarantee nondeterministic. A dry run is exempt, since it never consults the budget.
+ * - `TARGET_UNWRITABLE`: a target locale file could not be written, because its directory is not
+ *   writable, does not exist, is read-only, or is out of space. The message names the target file
+ *   relative to `cwd` and the underlying file-system code, never the internal temporary file the
+ *   atomic write uses. Thrown by {@link editEntry} and {@link retranslateEntry}, which act on one
+ *   locale. {@link translate} and {@link importWorkbook} do not throw it: they record it on that
+ *   locale's {@link LocaleSummary} and carry on with the other locales.
  * - `LOCALE_FAILED`: never thrown. It is the fallback code recorded on a failed
  *   {@link LocaleSummary} when a per-locale failure carries no code of its own.
  */
@@ -70,6 +77,7 @@ export type SdkErrorCode =
   | "LOCALE_PATH_COLLISION"
   | "CONCURRENCY_INVALID"
   | "CONCURRENCY_BUDGET_CONFLICT"
+  | "TARGET_UNWRITABLE"
   | "LOCALE_FAILED";
 
 export function errorMessage(error: unknown): string {

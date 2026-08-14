@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openAiCompatibleConfigSchema } from "./config.js";
+import { endpointHostOf, openAiCompatibleConfigSchema } from "./config.js";
 
 const validConfig = {
   baseUrl: "http://192.168.178.74:1234",
@@ -112,5 +112,25 @@ describe("openAiCompatibleConfigSchema: apiKeyEnvVar", () => {
     expect(
       openAiCompatibleConfigSchema.safeParse({ ...validConfig, apiKeyEnvVar: "" }).success,
     ).toBe(false);
+  });
+});
+
+describe("endpointHostOf", () => {
+  it("returns host and port", () => {
+    expect(endpointHostOf("http://localhost:11434/v1")).toBe("localhost:11434");
+  });
+
+  it("drops the path and query, which are not the endpoint's identity", () => {
+    expect(endpointHostOf("https://api.example.test/v1/chat?key=abc")).toBe("api.example.test");
+  });
+
+  it("drops user-info, so a credential embedded in the URL can never reach a message", () => {
+    expect(endpointHostOf("https://user:sk-secret@api.example.test:8443/v1")).toBe(
+      "api.example.test:8443",
+    );
+  });
+
+  it("returns undefined for a value that is not a URL at all", () => {
+    expect(endpointHostOf("not a url")).toBeUndefined();
   });
 });
