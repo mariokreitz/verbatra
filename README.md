@@ -125,6 +125,8 @@ Each provider reads its API key from one environment variable:
 
 `openai-compatible` is not in this table: most local servers need no key at all, and when one is required it comes from `OPENAI_COMPATIBLE_API_KEY`, or from whichever variable the provider's `apiKeyEnvVar` option names. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
 
+A `verbatra.config.ts` is typed by `defineConfig`, and a JSON or YAML config gets the same help from the JSON Schema document `@verbatra/sdk` ships at `@verbatra/sdk/config-schema.json`, generated at build time from the schema the SDK actually validates with. Point an editor at it, either with an in-file `$schema` key or an editor mapping, and a `.verbatrarc.json` or YAML config gets key completion and validation as you type. The config accepts an optional top-level `$schema` key for exactly this reason; it is ignored at runtime and is the only extra key the strict schema tolerates ([Configuration](https://verbatra.kreitz-webdev.de/docs/config-file)).
+
 ## Commands
 
 | Command | What it does | Common flags |
@@ -141,8 +143,6 @@ Each provider reads its API key from one environment variable:
 
 Run `verbatra <command> --help` for the full option list. The complete command reference - every flag and examples - lives on the [documentation site](https://verbatra.kreitz-webdev.de/docs/cli).
 
-**Not in the latest release yet.** This README documents `main`, and three things on it have not been published to npm: the `verbatra doctor` command, `--locales` on `translate` and `watch`, and the exit-`1` treatment of a partial locale described below. Everything else here is in the current release. Check the [`@verbatra/cli` package on npm](https://www.npmjs.com/package/@verbatra/cli) for what is installable today.
-
 ## Exit codes
 
 Every command follows the same contract, so a CI step can branch on the code alone:
@@ -158,9 +158,9 @@ A single interrupt is a clean stop and exits `0` for both `watch` and `studio`, 
 
 ## Verbatra Studio
 
-`verbatra studio` starts Verbatra Studio, a local web dashboard over your project with four pages: Translations (per-locale status, the diff, and lock drift, down to a per-key detail view), Review (the needs-review queue, where you can edit a translation in place), Activity (a live feed of locale-file changes and the last run's token usage and budget), and Settings (your resolved config, glossary, and the session's capabilities). Every page refreshes live over a server-sent event stream as your locale files change.
+`verbatra studio` starts Verbatra Studio, a local web dashboard over your project with four pages: Translations (per-locale status, the diff, and lock drift, down to a per-key detail view), Review (the needs-review queue, where you can edit a translation in place), Activity (a live feed of locale-file changes and the last run's token usage and budget), and Settings (your resolved config, glossary, and the session's capabilities, with a file-backed glossary editable in place). Every page refreshes live over a server-sent event stream as your locale files change.
 
-Local editing is always on: an edit from the Review queue goes through the same integrity gate as a translate run, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only, and every request must carry the exact `127.0.0.1:PORT` `Host` header, match `Origin` when it changes state, and authenticate: the printed URL's bootstrap token is redeemed once to mint an HttpOnly, `SameSite=Strict` session cookie that every later request uses.
+Local editing is always on: an edit from the Review queue goes through the same integrity gate as a translate run, then writes the locale file and the lock, and a file-backed glossary can be edited from Settings the same way. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when you start Studio with `--allow-spend` or set `VERBATRA_STUDIO_ALLOW_SPEND`; without that flag, Studio never calls a provider. The server binds to `127.0.0.1` only, and every request must carry the exact `127.0.0.1:PORT` `Host` header, match `Origin` when it changes state, and authenticate: the printed URL's bootstrap token is redeemed once to mint an HttpOnly, `SameSite=Strict` session cookie that every later request uses.
 
 ```bash
 npx verbatra studio
@@ -183,7 +183,7 @@ A composite GitHub Action runs `verbatra translate --json` in CI, turns each fai
 - uses: actions/checkout@<commit-sha>
 - uses: verbatra/action@<commit-sha>
   with:
-    version: 0.8.0 # pin @verbatra/cli to an exact version
+    version: 0.9.0 # pin @verbatra/cli to an exact version
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```

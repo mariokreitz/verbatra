@@ -45,13 +45,13 @@ Open the printed URL (the token is required). Studio has four pages:
 - **Translations**: per-locale status, the diff, and lock drift, down to a per-key detail view with the source value and every target's current translation.
 - **Review**: the needs-review queue of flagged translations, with in-place editing.
 - **Activity**: a live feed of locale-file changes, plus the last run's token usage and budget.
-- **Settings**: the resolved config, the glossary, and the session's capabilities.
+- **Settings**: the resolved config, the glossary, and the session's capabilities. A glossary the project keeps in a JSON file is editable here: terms can be added, changed in place, and removed, and the panel shows the new state as soon as the write lands, with no reload.
 
 Every page refreshes live over a server-sent event stream as your locale files change; only a `verbatra.config.ts` change needs a manual restart.
 
 ## Editing and provider spend
 
-Local editing is always on: an edit from the Review queue runs through the same integrity gate a translate run applies to every candidate value, then writes the locale file and the lock. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when Studio is started with `--allow-spend` or with `VERBATRA_STUDIO_ALLOW_SPEND` set; without that flag, those methods are simply not registered on the server and Studio never calls a provider.
+Local editing is always on: an edit from the Review queue runs through the same integrity gate a translate run applies to every candidate value, then writes the locale file and the lock. Editing the glossary from Settings is local editing too, since changing a term calls no provider and spends nothing; the server never accepts a file path for it, deriving the target from the loaded config alone, and a glossary written inline in the config module keeps the panel read-only rather than having its config rewritten. Actions that spend provider budget (retranslating a key, translating pending changes) exist only when Studio is started with `--allow-spend` or with `VERBATRA_STUDIO_ALLOW_SPEND` set; without that flag, those methods are simply not registered on the server and Studio never calls a provider.
 
 ## Agent tools (WebMCP)
 
