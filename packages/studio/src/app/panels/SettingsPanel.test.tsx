@@ -23,6 +23,7 @@ const SNAPSHOT: ProjectSnapshotResult = {
 const GLOSSARY: GlossaryGetResult = {
   indicator: { source: "file", path: "glossary.json" },
   entries: { verbatra: "Verbatra", checkout: "Kasse" },
+  redactedTerms: [],
 };
 
 function snapshotAnswer(result: ProjectSnapshotResult): {
@@ -198,7 +199,8 @@ describe("SettingsPanel", () => {
     const terms = view.all("ul li");
 
     expect(terms).toHaveLength(2);
-    expect(terms[1]?.textContent).toBe("checkoutKasse");
+    expect(terms[1]?.textContent).toContain("checkout");
+    expect(terms[1]?.textContent).toContain("Kasse");
     expect(view.all('p[dir="auto"]').map((node) => node.textContent)).toEqual([
       "Verbatra",
       "Kasse",
@@ -214,7 +216,11 @@ describe("SettingsPanel", () => {
   });
 
   it("uses the singular term label for a one-entry glossary", async () => {
-    stubSettings(SNAPSHOT, { indicator: { source: "inline" }, entries: { verbatra: "Verbatra" } });
+    stubSettings(SNAPSHOT, {
+      indicator: { source: "inline" },
+      entries: { verbatra: "Verbatra" },
+      redactedTerms: [],
+    });
 
     const view = await renderAsync(<SettingsPanel />);
 
@@ -223,7 +229,7 @@ describe("SettingsPanel", () => {
   });
 
   it("shows an empty state and no count badge when no glossary is configured", async () => {
-    stubSettings(SNAPSHOT, { indicator: { source: "none" }, entries: {} });
+    stubSettings(SNAPSHOT, { indicator: { source: "none" }, entries: {}, redactedTerms: [] });
 
     const view = await renderAsync(<SettingsPanel />);
 
@@ -241,7 +247,11 @@ describe("SettingsPanel", () => {
   });
 
   it("names an inline glossary's source without a path", async () => {
-    stubSettings(SNAPSHOT, { indicator: { source: "inline" }, entries: { verbatra: "Verbatra" } });
+    stubSettings(SNAPSHOT, {
+      indicator: { source: "inline" },
+      entries: { verbatra: "Verbatra" },
+      redactedTerms: [],
+    });
 
     const view = await renderAsync(<SettingsPanel />);
 

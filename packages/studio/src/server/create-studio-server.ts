@@ -3,6 +3,7 @@ import type { AddressInfo, Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import type { LoadedConfig } from "@verbatra/sdk";
 import { EDIT_ENTRY_METHOD } from "../shared/rpc/edit-entry.js";
+import { GLOSSARY_WRITE_METHOD } from "../shared/rpc/glossary.js";
 import { RETRANSLATE_ENTRY_METHOD } from "../shared/rpc/retranslate-entry.js";
 import { TRANSLATE_PENDING_METHOD } from "../shared/rpc/translate-pending.js";
 import { buildBanner } from "./banner.js";
@@ -30,6 +31,8 @@ const DEFAULT_EDIT_ENTRY_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_EDIT_ENTRY_RATE_LIMIT_MAX = 20;
 const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX = 5;
+const DEFAULT_GLOSSARY_WRITE_RATE_LIMIT_WINDOW_MS = 60_000;
+const DEFAULT_GLOSSARY_WRITE_RATE_LIMIT_MAX = 20;
 
 function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
   return createRpcRateLimiter({
@@ -45,6 +48,11 @@ function buildRateLimiter(options: StudioServerOptions): RpcRateLimiter {
       windowMs:
         options.translatePendingRateLimitWindowMs ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_WINDOW_MS,
       maxCalls: options.translatePendingRateLimitMax ?? DEFAULT_TRANSLATE_PENDING_RATE_LIMIT_MAX,
+    },
+    [GLOSSARY_WRITE_METHOD]: {
+      windowMs:
+        options.glossaryWriteRateLimitWindowMs ?? DEFAULT_GLOSSARY_WRITE_RATE_LIMIT_WINDOW_MS,
+      maxCalls: options.glossaryWriteRateLimitMax ?? DEFAULT_GLOSSARY_WRITE_RATE_LIMIT_MAX,
     },
   });
 }

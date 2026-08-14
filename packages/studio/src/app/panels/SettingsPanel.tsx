@@ -6,10 +6,11 @@ import type { ProjectSnapshotResult } from "../../shared/rpc/snapshot.js";
 import { rpcClient } from "../api.js";
 import { Badge } from "../Badge.js";
 import { ErrorMessage } from "../ErrorMessage.js";
+import { GlossarySection } from "../GlossarySection.js";
 import { Loading } from "../Loading.js";
 import { MetricCard } from "../MetricCard.js";
 import { PageHeader } from "../PageHeader.js";
-import { DetailList, EmptyState, MonoValue, SectionCard } from "../ui.js";
+import { DetailList, MonoValue, SectionCard } from "../ui.js";
 
 function ProjectMetrics({ snapshot }: { readonly snapshot: ProjectSnapshotResult }): ReactNode {
   return (
@@ -70,67 +71,13 @@ function ProjectDetails({ snapshot }: { readonly snapshot: ProjectSnapshotResult
   return <DetailList items={items} />;
 }
 
-function glossaryIndicatorLabel(glossary: GlossaryGetResult): string {
-  if (glossary.indicator.source === "file") {
-    return `file (${glossary.indicator.path})`;
-  }
-  return glossary.indicator.source;
-}
-
-function GlossaryEntries({
-  entries,
-}: {
-  readonly entries: Readonly<Record<string, string>>;
-}): ReactNode {
-  const terms = Object.entries(entries);
-  if (terms.length === 0) {
-    return (
-      <EmptyState title="No glossary configured">
-        Add a glossary to keep brand terms and fixed vocabulary consistent across locales.
-      </EmptyState>
-    );
-  }
-  return (
-    <ul className="m-0 flex list-none flex-col gap-2 p-0">
-      {terms.map(([term, translation]) => (
-        <li key={term} className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
-          <span className="font-mono text-sm font-semibold text-accent-foreground">{term}</span>
-          <p className="m-0 mt-0.5 text-sm text-foreground" dir="auto">
-            {translation}
-          </p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function GlossarySection({ glossary }: { readonly glossary: GlossaryGetResult }): ReactNode {
-  const termCount = Object.keys(glossary.entries).length;
-  return (
-    <SectionCard
-      title="Glossary"
-      intro={`Source: ${glossaryIndicatorLabel(glossary)}`}
-      className="mb-0"
-      meta={
-        termCount > 0 ? (
-          <Badge tone="neutral">
-            {termCount} {termCount === 1 ? "term" : "terms"}
-          </Badge>
-        ) : undefined
-      }
-    >
-      <GlossaryEntries entries={glossary.entries} />
-    </SectionCard>
-  );
-}
-
 export function SettingsPanel(): ReactNode {
   return (
     <>
       <PageHeader
         kicker="Project configuration"
         title="Settings"
-        description="The resolved configuration and glossary this session was started with."
+        description="The configuration this session was started with, and the project glossary as it stands now."
       />
       <SettingsPanelBody />
     </>
@@ -185,7 +132,10 @@ function SettingsPanelBody(): ReactNode {
         >
           <ProjectDetails snapshot={state.snapshot} />
         </SectionCard>
-        <GlossarySection glossary={state.glossary} />
+        <GlossarySection
+          glossary={state.glossary}
+          onChange={(glossary) => setState({ ...state, glossary })}
+        />
       </div>
     </div>
   );

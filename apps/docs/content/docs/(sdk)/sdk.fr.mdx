@@ -176,6 +176,18 @@ Lève `CONFIG_NOT_FOUND` quand rien n'est trouvé, `CONFIG_INVALID` quand une co
 
 Le même chargement, plus la provenance : renvoie `{ config, source, glossary }`, où `source` dit si la config vient d'une recherche, d'un chemin explicite ou d'une surcharge en mémoire (avec le `filepath` absolu quand il y en a un), et `glossary` note si le glossaire était absent, inline ou résolu depuis un fichier. Utilise-le quand tu dois afficher d'où vient la config.
 
+### readGlossaryFile
+
+Lit un glossaire stocké dans un fichier directement depuis le disque et le renvoie sous forme de table plate de termes. Prend `{ glossary }`, la `GlossaryProvenance` renvoyée par `loadConfigWithMeta`, si bien que le fichier lu est toujours celui que la config nomme ; il n'y a aucun argument de chemin. Utilise-le dans un outil de longue durée qui doit montrer le glossaire tel qu'il est maintenant, et non tel qu'il était au chargement de la config.
+
+Lève `GLOSSARY_NOT_FILE_BACKED` quand le glossaire est inline ou absent, et `CONFIG_INVALID` quand le fichier est manquant, trop volumineux, non UTF-8, invalide en JSON ou n'est pas une table plate de chaînes.
+
+### updateGlossaryTerm
+
+Ajoute, remplace ou supprime exactement un terme d'un glossaire stocké dans un fichier et renvoie le glossaire tel qu'il est désormais. Prend `{ glossary, cwd?, term, translation }`, où `translation` est le nouveau texte ou `null` pour supprimer le terme. Le reste du fichier garde son ordre de clés et son indentation, l'écriture est atomique, et tout le cycle lecture, modification, écriture se déroule sous un verrou de glossaire valable pour le projet entier : deux modifications simultanées sont donc sérialisées plutôt qu'entrelacées.
+
+Un glossaire inline est refusé avec `GLOSSARY_NOT_FILE_BACKED` plutôt que converti : il vit dans un module de config exécutable. Un terme ou une traduction vide, ainsi qu'une modification dont le résultat dépasserait la limite de 1 Mio du glossaire, sont refusés avec `CONFIG_INVALID` ; une écriture en échec donne `GLOSSARY_UNWRITABLE`.
+
 ### defineConfig
 
 Un assistant identité pour écrire un `verbatra.config.ts` typé : il renvoie son argument inchangé et n'existe que pour l'inférence de types et l'autocomplétion de l'éditeur, y compris la complétion des IDs de modèles connus du fournisseur sélectionné. La restriction de modèle ne vaut qu'à l'écriture ; à l'exécution, toute chaîne non vide passe la validation.
@@ -251,6 +263,8 @@ Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable 
 | `SOURCE_INVALID` | le fichier de la locale source n'a pas pu être lu ou parsé ; enveloppe l'erreur de lecture de l'adaptateur |
 | `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu, trop volumineux ou à une version non prise en charge |
 | `LOCK_CONTENDED` | le verrou d'écriture d'une locale n'a pas pu être acquis avant son délai ; le message nomme le chemin du fichier de verrou |
+| `GLOSSARY_NOT_FILE_BACKED` | le glossaire de la config est inline ou absent : il n'y a donc aucun fichier de glossaire à lire ou à réécrire (`readGlossaryFile`, `updateGlossaryTerm`) |
+| `GLOSSARY_UNWRITABLE` | le fichier de glossaire n'a pas pu être écrit (`updateGlossaryTerm`) |
 | `LOCALE_LAYOUT_INVALID` | `files.pattern` et `files.localeStyle` ne peuvent pas être combinés, ou le style n'a pas d'écriture de chemin valide pour une locale configurée |
 | `LOCALE_PATH_COLLISION` | deux locales configurées résolvent vers le même chemin absolu |
 | `CONCURRENCY_INVALID` | `concurrency` a été défini mais n'est pas un entier d'au moins 1 ; levé avant l'exécution de toute locale |

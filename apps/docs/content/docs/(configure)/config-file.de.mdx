@@ -85,6 +85,8 @@ export default defineConfig({
 
 Die beiden Formen schließen einander aus; es gibt keinen Merge zwischen ihnen. Ein relativer Dateipfad wird gegen das Verzeichnis der geladenen Konfigurationsdatei aufgelöst, oder gegen das Arbeitsverzeichnis, wenn die Konfiguration als In-Memory-Override übergeben wird. Die Datei muss UTF-8-kodiert und höchstens 1 MiB groß sein, und sie wird einmal beim Laden der Konfiguration gelesen: verbatra beobachtet sie nicht auf Änderungen, also bearbeite sie und starte neu, damit ein Update greift. Eine fehlende Datei, ungültiges JSON oder ein Wert, der keine flache String-Zuordnung ist, lässt das Laden der Konfiguration mit `CONFIG_INVALID` fehlschlagen und nennt den aufgelösten Pfad.
 
+Die beiden Formen unterscheiden sich auch darin, wer sie ändern kann. Nur die Dateiform lässt sich aus [Verbatra Studio](/docs/review-in-studio) heraus bearbeiten; Studio schreibt diese JSON-Datei Begriff für Begriff neu und rührt dein Konfigurationsmodul nie an. Ein Inline-Glossar bleibt dort schreibgeschützt, weil es in ausführbarem Code liegt. Nimm die Dateiform, wenn du die Begriffe im Dashboard pflegen willst.
+
 Wie das Glossar angewendet wird, hängt vom Provider ab: Die LLM-Provider erhalten die aufgelöste Zuordnung mit der Anfrage und werden angewiesen, ihre Begriffe als bindend zu behandeln, während DeepL eine Begriffszuordnung ignoriert und stattdessen ein per Id konfiguriertes Glossar anwendet. Siehe [Provider](/docs/providers).
 
 ### tone

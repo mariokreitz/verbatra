@@ -6,6 +6,8 @@ const LOCAL_DIR_NAME = ".verbatra-local";
 
 const LOCK_FILE_GUARD_STEM = "_lockfile";
 
+const GLOSSARY_GUARD_STEM = "_glossary";
+
 /**
  * Whatever could be read about the process currently holding a write lock. Both fields are optional
  * because a lock file left behind by a killed process may be truncated or unreadable, and reporting
@@ -61,6 +63,10 @@ export function localeLockPath(cwd: string, locale: string): string {
 
 export function lockFileGuardPath(cwd: string): string {
   return lockPath(cwd, LOCK_FILE_GUARD_STEM);
+}
+
+export function glossaryGuardPath(cwd: string): string {
+  return lockPath(cwd, GLOSSARY_GUARD_STEM);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -184,4 +190,13 @@ export async function withLockFileGuard<T>(
   options: LocaleWriteLockOptions = {},
 ): Promise<T> {
   return withFileLock(lockFileGuardPath(cwd), fs, fn, options);
+}
+
+export async function withGlossaryGuard<T>(
+  cwd: string,
+  fs: SdkFs,
+  fn: () => Promise<T>,
+  options: LocaleWriteLockOptions = {},
+): Promise<T> {
+  return withFileLock(glossaryGuardPath(cwd), fs, fn, options);
 }

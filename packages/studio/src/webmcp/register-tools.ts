@@ -5,7 +5,7 @@ import type { RpcMethodName, RpcParamsFor, rpcParamsSchemas } from "../shared/rp
 import { RPC_METHOD_NAMES } from "../shared/rpc/contract.js";
 import { STATUS_DIFF_METHOD } from "../shared/rpc/diff.js";
 import { EDIT_ENTRY_METHOD } from "../shared/rpc/edit-entry.js";
-import { GLOSSARY_GET_METHOD } from "../shared/rpc/glossary.js";
+import { GLOSSARY_GET_METHOD, GLOSSARY_WRITE_METHOD } from "../shared/rpc/glossary.js";
 import { HISTORY_LIST_METHOD } from "../shared/rpc/history.js";
 import { KEY_INTEGRITY_METHOD } from "../shared/rpc/key-integrity.js";
 import { KEY_VALUE_METHOD } from "../shared/rpc/key-value.js";
@@ -88,12 +88,25 @@ const TOOL_DESCRIPTORS: Record<RpcMethodName, ToolDescriptor> = {
   },
   [GLOSSARY_GET_METHOD]: {
     description:
-      "Reads the project glossary: the configured term mappings plus whether they came from the config file inline, from a separate file, or are absent entirely. " +
-      "Use it to learn the terminology a translation is expected to follow before you write or request one. " +
-      "Do not look for a way to change it: there is no glossary write tool on this surface. " +
-      "Every glossary value passes through secret redaction first, so a value shaped like a provider API key is returned as a placeholder rather than its real text. " +
+      "Reads the project glossary: the configured term mappings plus whether they came from the config file inline, from a separate JSON file, or are absent entirely. " +
+      "Use it to learn the terminology a translation is expected to follow before you write or request one, and to see whether the glossary can be changed at all, since only a file-backed one can. " +
+      "Do not treat every value as verbatim: each glossary value passes through secret redaction first, so a value shaped like a provider API key is returned as a placeholder rather than its real text, and the result's list of redacted terms names exactly those terms. " +
+      "A file-backed glossary is read fresh from disk on every call, so it reflects edits made since the server started. " +
       "Takes no parameters. Read-only: it calls no provider and writes nothing.",
     readOnlyHint: true,
+    untrustedContentHint: true,
+    spendGated: false,
+  },
+  [GLOSSARY_WRITE_METHOD]: {
+    description:
+      "Adds, replaces, or removes exactly one term in the project glossary, rewriting the JSON file the config points at and returning the glossary as it now stands. " +
+      "Use it to keep brand terms and fixed vocabulary current, since it spends no provider budget at all and changes no translated text. " +
+      "Do not expect it to work on every project: only a file-backed glossary can be written, so a glossary written inline in the config, or no glossary at all, is refused as not file backed and nothing is converted on your behalf. " +
+      "Do not send back a value verbatra_glossary_get reported as redacted, because that value is a redaction placeholder rather than the real text and writing it would destroy the original. " +
+      "The required `term` parameter is the source term, capped at 200 characters, and the required `translation` parameter is its replacement text, capped at 2000 characters, or null to remove the term entirely. " +
+      "There is no parameter naming a file: the target is derived from the loaded config alone. The write replaces the previous value with no undo on this surface, and the rest of the file keeps its order and indentation. " +
+      "This tool is always registered: editing the glossary needs no capability flag and is never gated behind the spend flag.",
+    readOnlyHint: false,
     untrustedContentHint: true,
     spendGated: false,
   },

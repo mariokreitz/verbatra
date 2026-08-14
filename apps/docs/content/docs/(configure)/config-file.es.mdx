@@ -85,6 +85,8 @@ export default defineConfig({
 
 Las dos formas son mutuamente excluyentes; no hay fusión entre ellas. Una ruta de archivo relativa se resuelve contra el directorio del archivo de configuración cargado, o contra el directorio de trabajo cuando la configuración se pasa como override en memoria. El archivo debe estar codificado en UTF-8 y no superar 1 MiB, y se lee una vez cuando la configuración carga: verbatra no lo vigila en busca de cambios, así que edítalo y reinicia para recoger una actualización. Un archivo ausente, JSON inválido o un valor que no sea un mapa plano de strings hace fallar la carga de la configuración con `CONFIG_INVALID`, nombrando la ruta resuelta.
 
+Las dos formas también se diferencian en quién puede cambiarlas. Solo la forma de archivo se puede editar desde [Verbatra Studio](/docs/review-in-studio), que reescribe ese archivo JSON término a término y nunca toca tu módulo de configuración; un glosario en línea se queda de solo lectura allí, porque vive dentro de código ejecutable. Prefiere la forma de archivo si quieres gestionar los términos desde el panel.
+
 Cómo se aplica el glosario depende del proveedor: los proveedores LLM reciben el mapa resuelto con la solicitud y se les instruye para tratar sus términos como vinculantes, mientras que DeepL ignora un mapa de términos y aplica en su lugar un glosario configurado por id. Consulta [Proveedores](/docs/providers).
 
 ### tone

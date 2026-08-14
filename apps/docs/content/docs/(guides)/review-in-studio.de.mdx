@@ -84,7 +84,20 @@ Die Seite Aktivität stellt zwei Referenzansichten nebeneinander:
 - **Locale-Datei-Historie**: der Git-Commit-Feed für deine Quell- und Ziel-Locale-Dateien (als nicht verfügbar angezeigt, wenn das Projekt keine Git-Historie hat).
 - **Letzter Lauf**: die Eingabe- und Ausgabe-Token-Zahlen des letzten Laufs und, wenn ein Token-Budget konfiguriert ist, die Budgetanzeige und ob die Obergrenze erreicht wurde. Das ist ein Schnappschuss zum Stand des letzten aufgezeichneten Laufs, mit Zeitstempel, nie ein Live-Zähler; ein Provider, der keinen Verbrauch meldet (DeepL), wird als "not reported" gezeigt statt als erfundene Null.
 
-Einstellungen, die vierte Seite, zeigt die aufgelöste Konfiguration und das Glossar, mit denen diese Sitzung gestartet wurde; starte Studio nach einer Änderung der Konfigurationsdatei neu.
+## Halte das Glossar unter Einstellungen aktuell
+
+Einstellungen, die vierte Seite, zeigt die Konfiguration, mit der diese Sitzung gestartet wurde; starte Studio nach einer Änderung der Konfigurationsdatei neu. Das Glossar daneben verhält sich anders: es wird bei jedem Besuch frisch von der Festplatte gelesen und ist bearbeitbar, wenn das Projekt sein Glossar in einer JSON-Datei hält.
+
+Jeder Begriff trägt dann eine Aktion **Edit** und **Remove**, und unter der Liste steht ein Formular **Add a term**. Eine Änderung wird direkt in diese JSON-Datei geschrieben, immer nur ein Begriff, und das Panel zeigt den neuen Stand, sobald der Schreibvorgang durch ist, ganz ohne Neuladen. Der Rest der Datei bleibt unangetastet: Schlüsselreihenfolge und Einrückung überleben, und das Ergebnis wird an denselben Grenzen gemessen, die `loadConfig` beim Zurücklesen eines Glossars durchsetzt, sodass eine angenommene Änderung immer wieder lesbar ist.
+
+Nichts davon ruft einen Provider auf oder gibt Geld aus, die Aktionen sind also mit und ohne `--allow-spend` vorhanden. Was sie nicht tun: neu übersetzen. Eine Glossaränderung ändert die Terminologie, an die sich der nächste Lauf halten soll, nie einen bereits in eine Locale-Datei geschriebenen Text. Das Glossar, das ein laufendes Studio an einen Provider-Aufruf übergibt, ist weiterhin das beim Start geladene; starte Studio also neu, damit ein frischer Begriff bei einer Neuübersetzung aus dieser Sitzung wirkt.
+
+Zwei Fälle bleiben schreibgeschützt, und das Panel sagt dir, in welchem du bist:
+
+- **Das Glossar steht inline in `verbatra.config.ts`.** Das ist ausführbarer Code, und Studio schreibt ihn nicht um. Verschiebe die Begriffe in eine JSON-Datei und richte `glossary` in der Konfiguration auf diesen Pfad.
+- **Das Projekt hat kein Glossar.** Lege eine JSON-Datei mit Paaren aus Begriff und Übersetzung an und setze `glossary` auf diesen Pfad.
+
+Ein Wert, der wie ein Provider-API-Schlüssel aussieht, wird geschwärzt, bevor er überhaupt den Browser erreicht, und ein solcher Begriff lässt sich hier nicht bearbeiten, nur entfernen: das Panel hält den Platzhalter, nicht den echten Text. Ändere diesen direkt in der Glossardatei.
 
 ## Weiter
 

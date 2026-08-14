@@ -41,7 +41,7 @@ Ouvre ensuite l'URL loopback affichée dans ton navigateur compatible WebMCP. L'
 
 ## Le catalogue d'outils
 
-Avec l'option activée, Studio enregistre treize outils, un par action du tableau de bord. Sans `--allow-spend`, il en enregistre onze : les deux outils de dépense sont entièrement omis. Les noms d'outils sont préfixés et utilisent des tirets bas (par exemple `verbatra_project_snapshot`).
+Avec l'option activée, Studio enregistre quatorze outils, un par action du tableau de bord. Sans `--allow-spend`, il en enregistre douze : les deux outils de dépense sont entièrement omis. Les noms d'outils sont préfixés et utilisent des tirets bas (par exemple `verbatra_project_snapshot`).
 
 ### Outils de lecture (dix)
 
@@ -60,9 +60,11 @@ Ils inspectent l'état du projet sans rien changer. Ils sont marqués en lecture
 | `verbatra_usage_summary` | la consommation de tokens et le budget de la dernière exécution |
 | `verbatra_key_value` | les valeurs source et cible pour une clé et une locale |
 
-### Outil d'écriture (un)
+### Outils d'écriture (deux)
 
 `verbatra_translation_editEntry` modifie sur place la valeur d'une locale. Il passe par le même contrôle d'intégrité que toute autre écriture verbatra : une valeur qui échoue à l'une de ses vérifications est rejetée et rien n'est écrit. Une modification acceptée écrit le fichier de locale et fait avancer l'entrée de verrou de la clé, exactement comme une modification depuis le tableau de bord. Modifier n'exige aucune option de dépense ; cela ne touche que tes fichiers locaux et n'appelle jamais de fournisseur.
+
+`verbatra_glossary_write` ajoute, remplace ou supprime un terme du glossaire et renvoie le glossaire tel qu'il est désormais. Il ne fonctionne que sur un glossaire stocké dans un fichier : un glossaire écrit inline dans la config, ou l'absence de glossaire, est refusé plutôt que converti, et aucun paramètre ne nomme de fichier, la cible venant uniquement de la config chargée. Comme la modification, il ne dépense rien et est enregistré sans `--allow-spend`. Il est limité à 20 écritures par minute glissante.
 
 ### Outils de dépense (deux)
 
@@ -79,7 +81,7 @@ L'enregistrement a trois issues possibles, et une seule est un problème.
 
 **Rien de tenté, rien de signalé.** Quand `document.modelContext` est absent (un navigateur sans WebMCP, ou Chrome sans le flag) ou quand tu n'as pas activé l'exposition, Studio ne tente aucun enregistrement. Le tableau de bord reste inchangé et la console reste muette. C'est le no-op prévu, pas un échec.
 
-**Onze outils et aucun avis.** Sans `--allow-spend`, Studio tente onze enregistrements plutôt que treize : les deux outils de dépense sont écartés avant même d'être tentés. Onze outils est le compte sain d'une session sans dépense, leur absence est donc l'état attendu et ne déclenche jamais d'avis.
+**Douze outils et aucun avis.** Sans `--allow-spend`, Studio tente douze enregistrements plutôt que quatorze : les deux outils de dépense sont écartés avant même d'être tentés. Douze outils est le compte sain d'une session sans dépense, leur absence est donc l'état attendu et ne déclenche jamais d'avis.
 
 **L'avis.** Si Studio a tenté un enregistrement et que le navigateur l'a rejeté, le tableau de bord affiche un avertissement en haut de la zone de contenu, sur toutes les vues :
 

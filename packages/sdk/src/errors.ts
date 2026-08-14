@@ -12,9 +12,11 @@
  *   check instead, since reporting that is the command's job.
  * - `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or its glossary
  *   file could not be resolved or parsed. Thrown by {@link loadConfig} and
- *   {@link loadConfigWithMeta}. {@link importWorkbook} does not throw it: when a handoff sheet or
- *   file names a locale that is not a configured target locale, it records this code on that
- *   locale's {@link LocaleSummary} instead.
+ *   {@link loadConfigWithMeta}, by {@link readGlossaryFile}, and by {@link updateGlossaryTerm},
+ *   which additionally throws it for a blank term or translation and for an edit whose result would
+ *   exceed the glossary file size limit. {@link importWorkbook} does not throw it: when a handoff
+ *   sheet or file names a locale that is not a configured target locale, it records this code on
+ *   that locale's {@link LocaleSummary} instead.
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
  *   point that selects an adapter, before any file is read.
  * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales. Thrown through
@@ -37,11 +39,19 @@
  *   {@link diff}, {@link keyIntegrity}, {@link lockState}, {@link loadLockFile},
  *   {@link exportWorkbook}, {@link importWorkbook}, {@link editEntry}, and
  *   {@link retranslateEntry}.
- * - `LOCK_CONTENDED`: a locale's write lock could not be acquired before its timeout elapsed,
- *   because another process holds it or a killed process left the lock file behind. The message
+ * - `LOCK_CONTENDED`: a write lock could not be acquired before its timeout elapsed, because
+ *   another process holds it or a killed process left the lock file behind. The message
  *   names the lock file's path. Thrown by {@link editEntry} and {@link retranslateEntry}, which
- *   act on one locale. {@link translate} and {@link importWorkbook} do not throw it: they record it
+ *   act on one locale, and by {@link updateGlossaryTerm}, which takes the project's glossary lock.
+ *   {@link translate} and {@link importWorkbook} do not throw it: they record it
  *   on the contended locale's {@link LocaleSummary} and carry on with the other locales.
+ * - `GLOSSARY_NOT_FILE_BACKED`: the loaded config's glossary is written inline or absent, so there
+ *   is no glossary file to read or rewrite. Thrown by {@link readGlossaryFile} and
+ *   {@link updateGlossaryTerm}, which work on a file-backed glossary alone and never rewrite the
+ *   config module itself.
+ * - `GLOSSARY_UNWRITABLE`: the glossary file could not be written, because it or its directory is
+ *   read-only, has been removed, or the disk is out of space. Thrown by
+ *   {@link updateGlossaryTerm}.
  * - `LOCALE_LAYOUT_INVALID`: the configured `files.pattern` and `files.localeStyle` cannot be
  *   combined, or the style has no valid path spelling for a configured locale. Thrown by
  *   {@link createLocalePathResolver}, and so by every entry point that maps a locale to a path,
@@ -75,6 +85,8 @@ export type SdkErrorCode =
   | "SOURCE_INVALID"
   | "LOCK_FILE_INVALID"
   | "LOCK_CONTENDED"
+  | "GLOSSARY_NOT_FILE_BACKED"
+  | "GLOSSARY_UNWRITABLE"
   | "LOCALE_LAYOUT_INVALID"
   | "LOCALE_PATH_COLLISION"
   | "CONCURRENCY_INVALID"

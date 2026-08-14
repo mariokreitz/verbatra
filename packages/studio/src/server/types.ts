@@ -126,6 +126,10 @@ export interface StudioServerDeps {
   readonly translatePendingRateLimitWindowMs?: number;
   /** How many `translation.translatePending` calls the window allows before `METHOD_RATE_LIMITED`. Defaults to 5. */
   readonly translatePendingRateLimitMax?: number;
+  /** Rolling window in milliseconds for `glossary.write`'s rate limit. Defaults to 60000. */
+  readonly glossaryWriteRateLimitWindowMs?: number;
+  /** How many `glossary.write` calls the window allows before `METHOD_RATE_LIMITED`. Defaults to 20. */
+  readonly glossaryWriteRateLimitMax?: number;
 }
 
 /** Everything {@link startStudioServer} accepts: every {@link StudioServerDeps} seam, plus where to bind and run. */
