@@ -1,5 +1,5 @@
 import type { LocaleResource, SupportedFormat } from "@verbatra/core";
-import type { FormatAdapter } from "@verbatra/format-adapters";
+import { AdapterError, type FormatAdapter } from "@verbatra/format-adapters";
 import type { SdkFs } from "../fs.js";
 import type { LocalePathResolver } from "../locale-path/resolver.js";
 
@@ -11,10 +11,24 @@ export interface ReadTargetResourceInput {
   readonly fs: SdkFs;
 }
 
+function attributeTargetRead(error: unknown, locale: string, path: string): unknown {
+  if (!(error instanceof AdapterError)) {
+    return error;
+  }
+  return new AdapterError(
+    error.code,
+    `The ${locale} locale file at ${path} could not be read: ${error.message}`,
+  );
+}
+
 export async function readTargetResource(input: ReadTargetResourceInput): Promise<LocaleResource> {
   const path = input.resolver.pathFor(input.locale);
   if (!(await input.fs.fileExists(path))) {
     return { locale: input.locale, namespace: "", format: input.format, entries: new Map() };
   }
-  return (await input.adapter.read(path, input.locale)).resource;
+  try {
+    return (await input.adapter.read(path, input.locale)).resource;
+  } catch (error) {
+    throw attributeTargetRead(error, input.locale, path);
+  }
 }

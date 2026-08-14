@@ -83,9 +83,10 @@ export type RetranslateEntryResult =
  * baseline and feeds the translation memory, so a later {@link translate} run sees the key as up
  * to date.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config, locale, and key to retranslate.
  * @param deps - Optional adapter registry, provider factory, and file-system overrides.

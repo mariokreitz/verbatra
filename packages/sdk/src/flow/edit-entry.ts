@@ -74,9 +74,10 @@ export type EditEntryResult =
  * and feeds the translation memory, which means a later run treats the key as up to date and
  * reuses the edited text rather than paying the provider to translate it again.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config, locale, key, and new value.
  * @param deps - Optional adapter registry and file-system overrides.
