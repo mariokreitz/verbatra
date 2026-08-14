@@ -57,6 +57,8 @@ Cuando escribes la configuración en TypeScript, tu editor ofrece para `options.
 
 Las claves de nivel superior desconocidas se rechazan, con `$schema` como única excepción. Por eso mismo una clave de API no puede vivir en la configuración: las claves vienen del entorno, no del archivo.
 
+<AvailableFrom version="0.9.0" />
+
 ### Locales y archivos
 
 - **`sourceLocale`** debe ser una cadena no vacía.
@@ -84,6 +86,8 @@ export default defineConfig({
 ```
 
 Las dos formas son mutuamente excluyentes; no hay fusión entre ellas. Una ruta de archivo relativa se resuelve contra el directorio del archivo de configuración cargado, o contra el directorio de trabajo cuando la configuración se pasa como override en memoria. El archivo debe estar codificado en UTF-8 y no superar 1 MiB, y se lee una vez cuando la configuración carga: verbatra no lo vigila en busca de cambios, así que edítalo y reinicia para recoger una actualización. Un archivo ausente, JSON inválido o un valor que no sea un mapa plano de strings hace fallar la carga de la configuración con `CONFIG_INVALID`, nombrando la ruta resuelta.
+
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
 
 Las dos formas también se diferencian en quién puede cambiarlas. Solo la forma de archivo se puede editar desde [Verbatra Studio](/docs/review-in-studio), que reescribe ese archivo JSON término a término y nunca toca tu módulo de configuración; un glosario en línea se queda de solo lectura allí, porque vive dentro de código ejecutable. Prefiere la forma de archivo si quieres gestionar los términos desde el panel.
 
@@ -114,6 +118,8 @@ Por defecto `50`. Las entradas faltantes más las modificadas de un locale se di
 - `"warn"` (el valor por defecto) señala el exceso y deja que la ejecución continúe exactamente como si no hubiera presupuesto configurado.
 - `"stop"` retiene cada clave aún no intentada durante el resto de la ejecución: las candidatas restantes del locale actual, y las candidatas de cada locale de destino posterior por completo (su diff y su informe de huérfanas siguen corriendo; solo se salta la llamada al proveedor). Las claves retenidas conservan su hash anterior en el bloqueo y se reintentan automáticamente en la siguiente ejecución, igual que ya lo hace una llamada al proveedor fallida.
 
+Definir `maxTokens` también limita cómo se puede paralelizar una ejecución: una ejecución real que lo combine con `--concurrency` por encima de `1` se rechaza con código de salida `2` (`CONCURRENCY_BUDGET_CONFLICT`) antes de cualquier llamada al proveedor, porque locales concurrentes no pueden respetar un tope de tokens de forma determinista. Una ejecución en seco queda exenta. Quita el presupuesto o deja la concurrencia en `1`.
+
 Con `"warn"`, que el presupuesto salte nunca cambia el código de salida del comando. Con `"stop"` sí puede: un locale cuyas claves se retuvieron se informa como `partial` cuando algunas claves sí llegaron y como `failed` cuando no llegó ninguna, y ambos salen con `1`. `budgetBehavior` sin `maxTokens` se acepta y no tiene efecto. Contra un proveedor sin tokens (DeepL, que no informa de uso que medir) la salvaguarda se declara inerte (`supported: false` en el `budget` del resumen de la ejecución) en lugar de producir un salto falso.
 
 <Callout title="Dos maxTokens distintos">
@@ -139,6 +145,8 @@ verbatra busca hacia arriba desde el directorio de trabajo y usa la primera fuen
 Para cargar un archivo explícito en lugar de buscar, pasa `--config <path>`; una ruta relativa se resuelve contra el directorio de trabajo. En el SDK, un `configOverride` en memoria tiene prioridad sobre un `configPath` explícito, que a su vez tiene prioridad sobre la búsqueda. Consulta las [Recetas del SDK](/docs/programmatic-api).
 
 ## Validación en el editor
+
+<AvailableFrom version="0.9.0" />
 
 `@verbatra/sdk` publica el esquema de configuración como un documento JSON Schema, generado durante la compilación a partir del mismo esquema zod con el que valida el SDK, así que nunca puede describir una forma distinta de la que realmente se ejecuta. Una vez instalado queda en:
 
@@ -200,7 +208,7 @@ Esa es la lista completa. Una configuración que el editor muestra limpia todav�
 
 ## El directorio de trabajo y .env
 
-Ejecuta verbatra desde la raíz de tu proyecto, o pasa `--cwd` apuntando a ella. El directorio de trabajo es el ancla única de todo lo que verbatra resuelve: la búsqueda de configuración empieza ahí y sube, `.env.local` y `.env` se cargan desde ahí para `translate`, `watch` y `studio`, y la ruta de cada archivo de locale se resuelve contra él. Mantener las tres cosas en el mismo sitio es lo que hace que un simple `verbatra translate` funcione.
+Ejecuta verbatra desde la raíz de tu proyecto, o pasa `--cwd` apuntando a ella. El directorio de trabajo es el ancla única de todo lo que verbatra resuelve: la búsqueda de configuración empieza ahí y sube, `.env.local` y `.env` se cargan desde ahí para `translate`, `watch`, `doctor` y `studio`, y la ruta de cada archivo de locale se resuelve contra él. Mantener las tres cosas en el mismo sitio es lo que hace que un simple `verbatra translate` funcione.
 
 La precedencia del entorno es, de mayor a menor: una variable ya definida en tu entorno real, luego `.env.local`, luego `.env`. Una variable ya presente nunca se sobrescribe.
 

@@ -26,9 +26,12 @@ Internal refactors that do not change the public surface need no doc change; say
 - Write in clear English. No emojis. The em dash character (U+2014) must never
   appear; use a spaced hyphen, a colon, or parentheses.
 - Show real, runnable examples that match the shipped behavior. Only document features
-  that exist: the init, translate, watch, check, diff, export, import, and studio
-  commands; the JSON, XLIFF, YAML, ARB, and properties formats; and the five providers
-  (anthropic, openai, gemini, deepl, openai-compatible).
+  that exist, and read the shipped surface from the code rather than from any list in a
+  guidance file, this one included: the CLI commands are the `.command(...)`
+  registrations in `packages/cli/src/run.ts`, the formats are the adapters
+  `createDefaultRegistry` registers in `@verbatra/format-adapters`, and the providers are
+  the factory table in `packages/sdk/src/config/provider-config.ts`. An enumeration
+  written into guidance goes stale the day a command ships; those three files cannot.
 - Keep the docs current in every available language. When you add or change an English
   `.mdx`, update or create its `.de.mdx`, `.es.mdx`, and `.fr.mdx` translation in the
   same change (translate prose only; keep code, paths, and glossary terms verbatim; no

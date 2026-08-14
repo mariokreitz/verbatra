@@ -12,8 +12,8 @@ description: "Der Befehl verbatra: seine neun Unterbefehle, die gemeinsamen Flag
 | [`check`](/docs/cli/check) | melden, welche Keys pro Locale fehlen oder veraltet sind, schreibgeschützt |
 | [`diff`](/docs/cli/diff) | die genauen Keys pro Locale listen, die hinzugefügt oder neu übersetzt würden oder verwaist sind, schreibgeschützt |
 | [`doctor`](/docs/cli/doctor) | die Projekteinrichtung prüfen und alle Probleme auf einmal melden, ohne einen Provider aufzurufen |
-| [`export`](/docs/cli/export) | unübersetzte Strings in eine Excel-Arbeitsmappe für eine menschliche Übersetzerin exportieren |
-| [`import`](/docs/cli/import) | eine ausgefüllte Arbeitsmappe zurück in die Locale-Dateien importieren |
+| [`export`](/docs/cli/export) | unübersetzte Strings für eine menschliche Übersetzerin exportieren, als Excel-Arbeitsmappe oder als je eine CSV- oder TSV-Datei pro Locale |
+| [`import`](/docs/cli/import) | eine ausgefüllte Arbeitsmappe oder Trennzeichen-Datei zurück in die Locale-Dateien importieren |
 | [`studio`](/docs/cli/studio) | Verbatra Studio starten, das lokale Übersetzungs-Dashboard |
 
 ## Installieren und aufrufen
@@ -36,7 +36,7 @@ Du brauchst Node.js `>=22.14.0`.
 
 ## Umgebungsdateien
 
-`translate`, `watch`, `doctor` und `studio` laden `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor sie laufen. Eine bereits in deiner echten Umgebung gesetzte Variable gewinnt immer. API-Keys werden nur aus der Umgebung gelesen, nie aus der Konfigurationsdatei oder einem Flag: siehe [Provider](/docs/providers). Die schreibgeschützten Befehle (`check`, `diff`) und die Arbeitsmappen-Befehle (`export`, `import`) rufen nie einen Provider auf und laden keine `.env`-Dateien.
+`translate`, `watch`, `doctor` und `studio` laden `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor sie laufen. Eine bereits in deiner echten Umgebung gesetzte Variable gewinnt immer. API-Keys werden nur aus der Umgebung gelesen, nie aus der Konfigurationsdatei oder einem Flag: siehe [Provider](/docs/providers). Die schreibgeschützten Befehle (`check`, `diff`) und die Übergabe-Befehle (`export`, `import`) rufen nie einen Provider auf und laden keine `.env`-Dateien.
 
 ## Exit-Codes
 

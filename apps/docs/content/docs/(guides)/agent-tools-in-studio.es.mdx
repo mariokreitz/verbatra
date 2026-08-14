@@ -64,6 +64,8 @@ Inspeccionan el estado del proyecto sin cambiar nada. Están marcadas como de so
 
 `verbatra_translation_editEntry` edita en el sitio el valor de un locale. Pasa por la misma puerta de integridad que cualquier otra escritura de verbatra: un valor que no supera alguna de sus comprobaciones se rechaza y no se escribe nada. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como lo hace una edición desde el panel. Editar no necesita ningún flag de gasto; toca solo tus archivos locales y nunca llama a un proveedor.
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 `verbatra_glossary_write` añade, reemplaza o elimina un término del glosario y devuelve el glosario tal como queda. Solo funciona con un glosario respaldado por archivo: un glosario escrito en línea en la configuración, o la ausencia de glosario, se rechaza en lugar de convertirse, y ningún parámetro nombra un archivo, porque el destino sale únicamente de la configuración cargada. Igual que editar, no gasta nada y se registra sin `--allow-spend`. Está limitada a 20 escrituras por minuto deslizante.
 
 ### Herramientas de gasto (dos)
@@ -98,10 +100,10 @@ Una herramienta que falla nunca cancela las siguientes, así que toda herramient
 Studio escribe una única línea agregada a nivel de error, no una línea por herramienta, porque una causa compartida hace fallar a todas de forma idéntica:
 
 ```text
-Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+Verbatra agent tools: 2 of 14 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
 ```
 
-La primera frase dice cuántos de los registros intentados fallaron, y sobre cuántos intentos. Después cada herramienta fallida aparece como `name (ErrorName: message)`, separadas por punto y coma. El nombre del error identifica la causa: es el `name` del valor con el que el navegador rechazó, normalmente una `DOMException` como `SecurityError` o `InvalidStateError`.
+La primera frase dice cuántos de los registros intentados fallaron, y sobre cuántos intentos: aquí catorce, porque esta sesión se inició con `--allow-spend`, y doce en una sesión sin ese flag. Después cada herramienta fallida aparece como `name (ErrorName: message)`, separadas por punto y coma. El nombre del error identifica la causa: es el `name` del valor con el que el navegador rechazó, normalmente una `DOMException` como `SecurityError` o `InvalidStateError`.
 
 Una pasada que nunca llegó al bucle por herramienta reporta una línea distinta y no levanta el aviso:
 

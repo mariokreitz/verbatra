@@ -8,6 +8,12 @@ du message. Pour la correspondance entre échecs et codes de sortie de la CLI, v
 [CI et codes de sortie](/docs/ci-and-exit-codes) ; pour la table complète des codes, voir la
 [référence du SDK](/docs/sdk).
 
+Quatre des entrées ci-dessous (`CONFIG_INVALID`, `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE` et une clé
+d'API absente) correspondent exactement à ce que vérifie
+[`verbatra doctor`](/docs/cli/doctor). Lance-le avant de parcourir les entrées une à une : il les
+signale toutes en une seule passe, ne dépense rien, et c'est la seule vérification préalable qui
+fonctionne avant même que le fichier de locale source existe.
+
 ## pnpm bloque les scripts d'installation d'une dépendance (ERR_PNPM_IGNORED_BUILDS)
 
 **Symptôme** : `pnpm add -D @verbatra/cli` affiche son résumé d'installation puis sort en `1` :
@@ -111,7 +117,9 @@ variable nommée est absente ou vide. Les messages d'erreur nomment la variable 
 jamais une valeur de clé, et les clés ne sont jamais lues depuis la configuration ni les arguments
 de la CLI.
 
-**Solution** : définis la variable que le message nomme. `translate`, `watch` et `studio` chargent
+**Solution** : définis la variable que le message nomme, puis confirme-la avec `verbatra doctor`,
+qui vérifie la variable par son nom seulement, sans lire sa valeur. `translate`, `watch`,
+`doctor` et `studio` chargent
 `.env` et `.env.local` depuis le répertoire de travail ; le SDK non, donc dans ton propre script
 utilise `node --env-file=.env` ou exporte la variable. `openai-compatible` ne lève ceci que quand la
 configuration nomme un `apiKeyEnvVar` qui est absent ; sans lui, il se replie sur un placeholder
@@ -146,6 +154,12 @@ allowed size ...`
 
 **Cause** : `verbatra.lock.json` a été modifié à la main, tronqué, produit par une version
 incompatible, ou abîmé dans une fusion.
+
+`translate` et `import` traitent cela comme une erreur de toute l'exécution, pas comme l'échec
+d'une seule langue, et les deux peuvent la rencontrer en cours de route, car chaque langue lit le
+verrou sous son propre verrou d'écriture. Les langues déjà validées avant l'abandon gardent ce
+qu'elles ont écrit ; les autres restent intactes et aucun résumé n'est affiché. Lance ensuite
+`verbatra check` pour voir jusqu'où l'exécution est allée.
 
 **Solution** : restaure le fichier depuis le contrôle de version ; cela garde chaque référence
 intacte. Le supprimer efface aussi l'erreur, mais perd la trace de la version de la source dont

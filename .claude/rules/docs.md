@@ -75,8 +75,16 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. The shipped CLI is `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, `import`, and `studio`.
+- Only document features that exist, and read the shipped surface from the code rather
+  than from any list in a guidance file, this one included. The CLI commands are the
+  `.command(...)` registrations in `packages/cli/src/run.ts`, the formats are the
+  adapters `createDefaultRegistry` registers in `@verbatra/format-adapters`, and the
+  providers are the factory table in `packages/sdk/src/config/provider-config.ts`. An
+  enumeration written into guidance goes stale the day a command ships; those three
+  files cannot. This rule replaced such an enumeration twice, in the same place.
+- When a command is added, sweep the periphery too (the get-started walkthrough, the
+  FAQ, the troubleshooting entries, the landing FAQ in `messages/*.json`, and the SDK
+  page's entry-point list), not just its own `cli/` page.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.
@@ -87,9 +95,19 @@ Docs deploy on every merge, while npm publishes only at release time. Between th
 a page can describe behavior that is on `main` but that no reader can install yet.
 Mark those pages so the gap is visible instead of silent.
 
-- Use `<AvailableFrom version="0.9.0" />` as the first line of the MDX body, directly
-  after the frontmatter. It renders a Fumadocs `Callout` and is registered in
+- Use `<AvailableFrom version="0.9.0" />` on its own line, with a blank line either
+  side. It renders a Fumadocs `Callout` and is registered in
   `apps/docs/components/mdx.tsx`, so no import is needed.
+- Place it directly after the frontmatter when the whole page is new, and directly
+  above the heading or paragraph that introduces the behavior when only part of a page
+  is version-gated. Mark the section that introduces the behavior, not every sentence
+  that mentions it.
+- The `version` is the version of the package that ships the behavior. The default copy
+  names verbatra, so a bare `version` means the CLI and SDK. For anything that ships in
+  a different package, pass `pkg` as well:
+  `<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />`. That switches the callout
+  to the package-qualified wording; without it the callout would tell a reader to check
+  `verbatra --version`, which answers for the wrong package.
 - Use it when a page (or a section you are adding to one) documents behavior that has
   merged but is not yet published, and for behavior that is published but needs a
   minimum version. The two cases share one wording, so no distinction is needed at the

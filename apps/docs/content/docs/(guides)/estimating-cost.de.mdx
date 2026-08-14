@@ -112,10 +112,10 @@ Beachte, wo der feste Overhead landet: Systemregeln und Schema machen 24 x 350 =
 
 Jede Schätzung oben ist Arithmetik auf Annahmen. Die genaue Zahl kommt daraus, ein Locale echt zu übersetzen und die Tokens zu lesen, die verbatra meldet.
 
-`translate` hat kein Flag zur Locale-Auswahl, grenze den Lauf also über die Konfiguration ein. Kopiere deine Konfiguration, kürze `targetLocales` auf ein einzelnes Locale und zeige mit `--config` auf die Kopie:
+`translate` nimmt `--locales` entgegen, grenze den Lauf also direkt auf der Kommandozeile auf ein einzelnes konfiguriertes Locale ein:
 
 ```bash
-verbatra translate --config verbatra.one-locale.config.ts
+verbatra translate --locales de
 ```
 
 ```

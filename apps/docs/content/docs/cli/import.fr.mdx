@@ -47,6 +47,8 @@ Un fichier laissé par un export antérieur avec une sélection `--locales` plus
 | `1` | l'exécution a terminé mais une ou plusieurs locales ont échoué ou sont ressorties partielles |
 | `2` | impossible de s'exécuter : une erreur globale (config, classeur, format ou verrou) ou une erreur d'utilisation |
 
+<AvailableFrom version="0.9.0" />
+
 Le contrat correspond à [`verbatra translate`](/docs/cli/translate), donc une passation manuelle se branche de la même façon en CI. Cela inclut les locales partielles : une locale écrite avec des clés toujours manquantes sort avec `1`, pas `0`. Cela inclut aussi le fichier de verrouillage : un fichier de verrouillage corrompu, ou qui le devient pendant l'import, interrompt toute l'exécution avec `2` au lieu de signaler une seule locale en échec, si bien que les locales restantes ne sont pas touchées. Les locales appliquées avant l'interruption restent écrites : répare le fichier de verrouillage puis relance l'import.
 
 Une cellule `Translation` vide ne fait jamais échouer une locale : la ligne est sautée, la ligne de base antérieure de son verrou est conservée, et la clé est rapportée comme `unfilled` dès qu'elle demande toujours une traduction, que la ligne ait été exportée comme `new` ou `changed`. Importer un classeur que personne n'a encore rempli réussit donc et renvoie l'inventaire complet des clés en attente.

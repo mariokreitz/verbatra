@@ -145,7 +145,7 @@
         },
         "automation": {
           "question": "Puis-je utiliser verbatra dans des scripts, en CI et dans GitHub Actions ?",
-          "answer": "Oui. Le CLI est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate, watch, check et diff pour tes propres outils. Les commandes renvoient des codes de sortie compatibles CI et prennent en charge la sortie --json, et une GitHub Action officielle exécute verbatra dans ton workflow."
+          "answer": "Oui. Le CLI est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate, watch, check, diff et doctor pour tes propres outils. Les commandes renvoient des codes de sortie compatibles CI et prennent en charge la sortie --json, et une GitHub Action officielle exécute verbatra dans ton workflow."
         },
         "cost": {
           "question": "Combien coûte verbatra ?",
@@ -291,7 +291,9 @@
     },
     "availableFrom": {
       "title": "Disponible à partir de {version}",
-      "text": "Ceci nécessite verbatra {version} ou plus récent. Les versions antérieures ne l'ont pas, alors vérifie ta version installée avec verbatra --version et mets à jour si elle est plus ancienne."
+      "text": "Ceci nécessite verbatra {version} ou plus récent. Les versions antérieures ne l'ont pas, alors vérifie ta version installée avec verbatra --version et mets à jour si elle est plus ancienne.",
+      "packageTitle": "Disponible à partir de {version}",
+      "packageText": "Ceci nécessite {version} ou plus récent. Les versions antérieures ne l'ont pas, alors mets à jour ce paquet si le tien est plus ancien."
     },
     "screenshot": {
       "label": "Verbatra Studio",

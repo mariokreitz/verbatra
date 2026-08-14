@@ -92,6 +92,8 @@ The Activity page puts two reference views side by side:
 
 ## Keep the glossary current on Settings
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 Settings, the fourth page, shows the configuration this session was started with; restart Studio after changing the config file. The glossary next to it is different: it is read fresh from disk on every visit, and it is editable when the project keeps its glossary in a JSON file.
 
 Each term then carries an **Edit** and a **Remove** action, and an **Add a term** form sits under the list. A change is written straight to that JSON file, one term at a time, and the panel shows the new state as soon as the write lands, with no reload. The rest of the file is left alone: key order and indentation survive, and the result is held to the same limits `loadConfig` enforces when it reads a glossary back, so an accepted edit is always re-readable.

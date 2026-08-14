@@ -2,6 +2,8 @@
   "version": 1,
   "locales": {
     "de": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",
@@ -23,7 +25,7 @@
       "landing.faq.ctaDocs": "e3f1bd5e030d4d1a",
       "landing.faq.ctaIssue": "f5d492aafb30ccf4",
       "landing.faq.heading": "1d361f5d4cb8b974",
-      "landing.faq.items.automation.answer": "2ab3b0427e966132",
+      "landing.faq.items.automation.answer": "de04ce62c53f94cd",
       "landing.faq.items.automation.question": "592573198c8fc522",
       "landing.faq.items.cost.answer": "3513a7e177772754",
       "landing.faq.items.cost.question": "06940912b216483e",
@@ -169,6 +171,8 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "es": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",
@@ -190,7 +194,7 @@
       "landing.faq.ctaDocs": "e3f1bd5e030d4d1a",
       "landing.faq.ctaIssue": "f5d492aafb30ccf4",
       "landing.faq.heading": "1d361f5d4cb8b974",
-      "landing.faq.items.automation.answer": "2ab3b0427e966132",
+      "landing.faq.items.automation.answer": "de04ce62c53f94cd",
       "landing.faq.items.automation.question": "592573198c8fc522",
       "landing.faq.items.cost.answer": "3513a7e177772754",
       "landing.faq.items.cost.question": "06940912b216483e",
@@ -336,6 +340,8 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "fr": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",
@@ -357,7 +363,7 @@
       "landing.faq.ctaDocs": "e3f1bd5e030d4d1a",
       "landing.faq.ctaIssue": "f5d492aafb30ccf4",
       "landing.faq.heading": "1d361f5d4cb8b974",
-      "landing.faq.items.automation.answer": "2ab3b0427e966132",
+      "landing.faq.items.automation.answer": "de04ce62c53f94cd",
       "landing.faq.items.automation.question": "592573198c8fc522",
       "landing.faq.items.cost.answer": "3513a7e177772754",
       "landing.faq.items.cost.question": "06940912b216483e",

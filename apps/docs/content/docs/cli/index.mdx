@@ -12,8 +12,8 @@ description: "The verbatra command: its nine subcommands, the shared flags, how 
 | [`check`](/docs/cli/check) | report which keys are missing or stale per locale, read-only |
 | [`diff`](/docs/cli/diff) | list the exact keys that would be added, re-translated, or are orphaned per locale, read-only |
 | [`doctor`](/docs/cli/doctor) | validate the project setup and report every problem at once, without calling a provider |
-| [`export`](/docs/cli/export) | export untranslated strings into an Excel workbook for a human translator |
-| [`import`](/docs/cli/import) | import a filled workbook back into the locale files |
+| [`export`](/docs/cli/export) | export untranslated strings for a human translator, as an Excel workbook or one CSV or TSV file per locale |
+| [`import`](/docs/cli/import) | import a filled workbook or delimited file back into the locale files |
 | [`studio`](/docs/cli/studio) | start Verbatra Studio, the local translation dashboard |
 
 ## Install and invoke
@@ -36,7 +36,7 @@ You need Node.js `>=22.14.0`.
 
 ## Environment files
 
-`translate`, `watch`, `doctor`, and `studio` load `.env.local` and then `.env` from the working directory before they run. A variable already set in your real environment always wins. API keys are read only from the environment, never from the config file or a flag: see [Providers](/docs/providers). The read-only commands (`check`, `diff`) and the workbook commands (`export`, `import`) never call a provider and load no `.env` files.
+`translate`, `watch`, `doctor`, and `studio` load `.env.local` and then `.env` from the working directory before they run. A variable already set in your real environment always wins. API keys are read only from the environment, never from the config file or a flag: see [Providers](/docs/providers). The read-only commands (`check`, `diff`) and the handoff commands (`export`, `import`) never call a provider and load no `.env` files.
 
 ## Exit codes
 

@@ -57,6 +57,8 @@ When you author the config in TypeScript, your editor offers the selected provid
 
 Unknown top-level keys are rejected, with `$schema` as the single exception. This is also why an API key cannot live in the config: keys come from the environment, not the file.
 
+<AvailableFrom version="0.9.0" />
+
 ### Locales and files
 
 - **`sourceLocale`** must be a non-empty string.
@@ -84,6 +86,8 @@ export default defineConfig({
 ```
 
 The two forms are mutually exclusive; there is no merge between them. A relative file path resolves against the directory of the loaded config file, or against the working directory when the config is passed as an in-memory override. The file must be UTF-8 encoded and no larger than 1 MiB, and it is read once when the config loads: verbatra does not watch it for changes, so edit it and restart to pick up an update. A missing file, invalid JSON, or a value that is not a flat string map fails config loading with `CONFIG_INVALID`, naming the resolved path.
+
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
 
 The two forms also differ in who can change them. Only the file form can be edited from [Verbatra Studio](/docs/review-in-studio), which rewrites that JSON file one term at a time and never touches your config module; an inline glossary stays read-only there, because it lives inside executable code. Prefer the file form if you want to manage terms from the dashboard.
 
@@ -114,6 +118,8 @@ Default `50`. A locale's missing-plus-changed entries are split into sequential 
 - `"warn"` (the default) flags the overrun and lets the run continue exactly as if no budget were configured.
 - `"stop"` withholds every not-yet-attempted key for the rest of the run: the current locale's remaining candidates, and every later target locale's candidates entirely (their diff and orphan reporting still runs; only the provider call is skipped). Withheld keys keep their prior lock hash and are retried automatically next run, the same way a failed provider call already is.
 
+Setting `maxTokens` also constrains how a run may be parallelized: a live run that combines it with `--concurrency` above `1` is refused with exit `2` (`CONCURRENCY_BUDGET_CONFLICT`) before any provider call, because concurrent locales cannot honor a token cap deterministically. A dry run is exempt. Drop the budget or leave concurrency at `1`.
+
 Under `"warn"` a budget trip never changes the command's exit code. Under `"stop"` it can: a locale whose keys were withheld is reported as `partial` when some keys still landed and `failed` when none did, and both exit `1`. `budgetBehavior` without `maxTokens` is accepted and has no effect. Against a token-less provider (DeepL, which reports no usage to measure) the guardrail reports itself as inert (`supported: false` on the run summary's `budget`) rather than producing a false trip.
 
 <Callout title="Two different maxTokens">
@@ -139,6 +145,8 @@ verbatra searches upward from the working directory and uses the first source it
 To load one explicit file instead of searching, pass `--config <path>`; a relative path resolves against the working directory. In the SDK, an in-memory `configOverride` takes precedence over an explicit `configPath`, which takes precedence over the search. See [Programmatic API](/docs/programmatic-api).
 
 ## Editor validation
+
+<AvailableFrom version="0.9.0" />
 
 `@verbatra/sdk` ships the config schema as a JSON Schema document, generated at build time from the same zod schema the SDK validates with, so it can never describe a different shape than the one that runs. It installs at:
 
@@ -200,7 +208,7 @@ That is the complete list. A config the editor shows as clean can still fail one
 
 ## The working directory and .env
 
-Run verbatra from your project root, or pass `--cwd` pointing at it. The working directory is the single anchor for everything verbatra resolves: the config search starts there and walks upward, `.env.local` and `.env` are loaded from there by `translate`, `watch`, and `studio`, and each locale file path is resolved against it. Keeping all three in the same place is what makes a plain `verbatra translate` work.
+Run verbatra from your project root, or pass `--cwd` pointing at it. The working directory is the single anchor for everything verbatra resolves: the config search starts there and walks upward, `.env.local` and `.env` are loaded from there by `translate`, `watch`, `doctor`, and `studio`, and each locale file path is resolved against it. Keeping all three in the same place is what makes a plain `verbatra translate` work.
 
 Environment precedence is, highest first: a variable already set in your real environment, then `.env.local`, then `.env`. A variable already present is never overwritten.
 

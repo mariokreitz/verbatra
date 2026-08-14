@@ -64,6 +64,8 @@ Sieh dir den Projektzustand an, ohne etwas zu ändern. Diese sind als read-only 
 
 `verbatra_translation_editEntry` bearbeitet den Wert eines Locales an Ort und Stelle. Es läuft durch dasselbe Integritäts-Gate wie jeder andere verbatra-Schreibvorgang: ein Wert, der eine der Prüfungen nicht besteht, wird abgelehnt, und nichts wird geschrieben. Eine akzeptierte Bearbeitung schreibt die Locale-Datei und rückt den Lock-Eintrag des Keys vor, genau wie eine Bearbeitung im Dashboard. Bearbeiten braucht kein Ausgaben-Flag; es berührt nur deine lokalen Dateien und ruft nie einen Provider auf.
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 `verbatra_glossary_write` fügt einen Glossarbegriff hinzu, ersetzt ihn oder entfernt ihn und gibt das Glossar in seinem neuen Stand zurück. Es arbeitet nur mit einem dateibasierten Glossar: ein inline in der Konfiguration geschriebenes Glossar, oder gar keines, wird abgelehnt statt umgewandelt, und kein Parameter nennt eine Datei, denn das Ziel stammt allein aus der geladenen Konfiguration. Wie das Bearbeiten gibt es nichts aus und wird ohne `--allow-spend` registriert. Es ist auf 20 Schreibvorgänge pro gleitender Minute begrenzt.
 
 ### Ausgaben-Tools (zwei)
@@ -98,10 +100,10 @@ Ein fehlschlagendes Tool bricht nie die nachfolgenden ab, also bleibt jedes Tool
 Studio schreibt eine einzige zusammengefasste Zeile auf Error-Ebene, nicht eine Zeile pro Tool, denn eine gemeinsame Ursache lässt jedes Tool identisch scheitern:
 
 ```text
-Verbatra agent tools: 2 of 11 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
+Verbatra agent tools: 2 of 14 tool registrations failed. verbatra_status_diff (SecurityError: ...); verbatra_key_value (SecurityError: ...)
 ```
 
-Der erste Satz nennt, wie viele der versuchten Registrierungen fehlgeschlagen sind, und von wie vielen Versuchen. Danach folgt jedes fehlschlagende Tool als `name (ErrorName: message)`, getrennt durch Semikolons. Der Fehlername benennt die Ursache: es ist der `name` des Werts, mit dem der Browser abgelehnt hat, meist eine `DOMException` wie `SecurityError` oder `InvalidStateError`.
+Der erste Satz nennt, wie viele der versuchten Registrierungen fehlgeschlagen sind, und von wie vielen Versuchen: hier vierzehn, weil diese Sitzung mit `--allow-spend` gestartet wurde, und zwölf in einer Sitzung ohne das Flag. Danach folgt jedes fehlschlagende Tool als `name (ErrorName: message)`, getrennt durch Semikolons. Der Fehlername benennt die Ursache: es ist der `name` des Werts, mit dem der Browser abgelehnt hat, meist eine `DOMException` wie `SecurityError` oder `InvalidStateError`.
 
 Ein Durchlauf, der die Tool-Schleife nie erreicht hat, meldet eine andere Zeile und löst den Hinweis nicht aus:
 

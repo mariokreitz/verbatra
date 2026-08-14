@@ -92,6 +92,8 @@ La página Actividad pone dos vistas de referencia lado a lado:
 
 ## Mantén el glosario al día en Ajustes
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 Ajustes, la cuarta página, muestra la configuración con la que arrancó esta sesión; reinicia Studio después de cambiar el archivo de configuración. El glosario que aparece al lado es distinto: se lee del disco en cada visita y es editable cuando el proyecto guarda su glosario en un archivo JSON.
 
 Entonces cada término lleva una acción **Edit** y otra **Remove**, y debajo de la lista hay un formulario **Add a term**. Un cambio se escribe directamente en ese archivo JSON, de término en término, y el panel muestra el nuevo estado en cuanto la escritura termina, sin recargar. El resto del archivo queda intacto: el orden de las claves y la sangría sobreviven, y el resultado se somete a los mismos límites que `loadConfig` aplica al releer un glosario, así que una edición aceptada siempre se puede volver a leer.

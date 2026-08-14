@@ -4,6 +4,8 @@ description: Start Verbatra Studio, the local translation dashboard.
 ---
 Start Verbatra Studio, a local web dashboard over your verbatra project: translation status, the needs-review queue, run activity, and your resolved settings, all live over the files on disk. Editing your own locale files works out of the box, as does editing a file-backed glossary from the Settings page; only provider spend is opt-in, behind `--allow-spend`. Before it starts, `studio` loads `.env.local` and then `.env` from the working directory and resolves your config once; a config error exits `2` before any server starts.
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 ## Synopsis
 
 ```bash

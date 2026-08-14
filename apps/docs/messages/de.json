@@ -145,7 +145,7 @@
         },
         "automation": {
           "question": "Kann ich verbatra in Skripten, CI und GitHub Actions nutzen?",
-          "answer": "Ja. Das CLI ist ein dünner Wrapper um @verbatra/sdk, das dieselben translate-, watch-, check- und diff-Operationen für dein eigenes Werkzeug bereitstellt. Die Befehle liefern CI-freundliche Exit-Codes und unterstützen --json-Ausgabe, und eine offizielle GitHub Action führt verbatra in deinem Workflow aus."
+          "answer": "Ja. Das CLI ist ein dünner Wrapper um @verbatra/sdk, das dieselben translate-, watch-, check-, diff- und doctor-Operationen für dein eigenes Werkzeug bereitstellt. Die Befehle liefern CI-freundliche Exit-Codes und unterstützen --json-Ausgabe, und eine offizielle GitHub Action führt verbatra in deinem Workflow aus."
         },
         "cost": {
           "question": "Was kostet verbatra?",
@@ -291,7 +291,9 @@
     },
     "availableFrom": {
       "title": "Verfügbar ab {version}",
-      "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist."
+      "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist.",
+      "packageTitle": "Verfügbar ab {version}",
+      "packageText": "Dafür wird {version} oder neuer benötigt. Frühere Versionen haben es nicht, aktualisiere dieses Paket also, falls deines älter ist."
     },
     "screenshot": {
       "label": "Verbatra Studio",

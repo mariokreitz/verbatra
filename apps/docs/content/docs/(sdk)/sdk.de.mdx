@@ -36,8 +36,9 @@ SDK keine `.env`-Dateien: setze die Variable in deinem eigenen Skript selbst, zu
 
 Jeder Einstiegspunkt nimmt ein Eingabeobjekt, dessen erstes Feld die validierte `config` (aus
 `loadConfig`) ist, außer wo anders vermerkt. Die meisten akzeptieren zusätzlich ein optionales
-zweites `deps`-Argument, das für Tests eine Registry, einen Provider-Builder oder ein Dateisystem
-injiziert; im normalen Gebrauch kannst du es ignorieren.
+zweites `deps`-Argument, das eine Registry, einen Provider-Builder oder ein Dateisystem
+injiziert; im normalen Gebrauch kannst du es ignorieren. Siehe
+[Der Abhängigkeits-Seam](#der-abhängigkeits-seam) dazu, was `deps.fs` erreicht.
 
 ## Übersetzungen ausführen
 
@@ -48,8 +49,11 @@ fehlenden und geänderten Keys an den Provider schicken, die Integritätsprüfun
 ausführen, die Locale-Dateien schreiben und das Lock aktualisieren. Nutze
 es für Skripte, Build-Schritte und CI-Jobs.
 
-Eingabe: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+Eingabe: `{ config, cwd?, locales?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
+- `locales` schränkt den Lauf auf eine Teilmenge der konfigurierten Ziel-Locales ein, genau wie bei
+  `check` und `diff`. Ein nicht konfiguriertes Locale wirft `UNKNOWN_LOCALE`, bevor irgendetwas
+  gelesen oder ausgegeben wird. Lass es weg, um alle Ziel-Locales abzudecken.
 - `dryRun` liest, vergleicht und meldet, ohne den Provider zu konstruieren oder aufzurufen und
   ohne irgendetwas zu schreiben.
 - `prune` entfernt verwaiste Keys (Ziel-Keys ohne Gegenstück in der Quelle) aus der geschriebenen
@@ -85,12 +89,13 @@ Beobachtet die Quell-Locale-Datei und führt `translate` bei jeder entprellten �
 feuert beim Start sofort einen initialen Lauf, danach einen Lauf pro beruhigter Änderung. Läufe
 sind serialisiert: Änderungen während eines Laufs fallen zu einem einzigen Folgelauf zusammen.
 
-Eingabe: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+Eingabe: `{ config, cwd?, locales?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 `debounceMs` ist standardmäßig 300. `onRun` wird einmal pro Lauf mit einem `WatchRunResult`
 aufgerufen: `{ status: "succeeded", summary }` oder `{ status: "failed", error: { code, message } }`.
 Das SDK loggt nichts; `onRun` ist die einzige Ausgabe. `concurrency`, `cache`, `onProgress`,
 `onLockWait` und `lockAcquireTimeoutMs` werden an jeden Lauf durchgereicht und verhalten sich genau
-wie bei `translate`.
+wie bei `translate`. `locales` grenzt jeden Lauf der Sitzung auf diese Teilmenge ein und wird einmal
+beim Start geprüft, nicht pro Zyklus.
 
 Gibt einen `WatchController` mit einer Methode zurück, `stop()`, die den Watcher schließt und den
 laufenden Lauf abwartet. Drei Probleme werden schon beim Start zurückgewiesen, bevor der Watcher
@@ -106,6 +111,8 @@ kommt über `onRun` an, und das Beobachten geht weiter.
 Keine dieser Funktionen ruft einen Provider auf, schreibt eine Datei oder verändert das Lock.
 
 ### doctor
+
+<AvailableFrom version="0.9.0" />
 
 Prüft die Projekteinrichtung und kostet nichts: Es konstruiert keinen Provider, stellt keine
 Netzwerkanfrage und liest nie einen API-Key-Wert. Fünf Prüfungen laufen, jede mit ihrem eigenen
@@ -315,6 +322,8 @@ woher die Konfiguration kam.
 
 ### readGlossaryFile
 
+<AvailableFrom version="0.9.0" />
+
 Liest ein dateibasiertes Glossar frisch von der Festplatte und gibt es als flache Begriffszuordnung
 zurück. Nimmt `{ glossary }`, die `GlossaryProvenance` aus `loadConfigWithMeta`, sodass die gelesene
 Datei immer die ist, die die Konfiguration nennt; ein Pfadargument gibt es nicht. Nutze es in einem
@@ -326,6 +335,8 @@ Wirft `GLOSSARY_NOT_FILE_BACKED`, wenn das Glossar inline oder gar nicht vorhand
 keine flache Zeichenkettenzuordnung enthält.
 
 ### updateGlossaryTerm
+
+<AvailableFrom version="0.9.0" />
 
 Fügt genau einen Begriff in einem dateibasierten Glossar hinzu, ersetzt ihn oder entfernt ihn, und
 gibt das Glossar in seinem neuen Stand zurück. Nimmt `{ glossary, cwd?, term, translation }`, wobei
@@ -351,16 +362,53 @@ Validierung.
 
 Das zod-Schema, mit dem `loadConfig` validiert, exportiert, damit dein eigenes Tooling ein
 Konfigurationsobjekt genauso validieren kann wie das SDK. Unbekannte Top-Level-Keys werden
-abgelehnt, ein verirrtes Secret kann sich also nicht in der Konfiguration verstecken.
+abgelehnt, ein verirrtes Secret kann sich also nicht in der Konfiguration verstecken. Die einzige
+Ausnahme ist `$schema`, ein optionaler String, der akzeptiert wird, damit eine JSON- oder
+YAML-Konfiguration einen Editor auf das JSON-Schema-Dokument zeigen lassen kann, das das Paket als
+`@verbatra/sdk/config-schema.json` ausliefert. Zur Laufzeit wird es ignoriert.
 
 ### scaffoldingMetadata
 
 Schreibgeschützte Metadaten, aus denen der CLI-Befehl `init` seine Abfragen ableitet:
 `providerEnv` (Provider-ID zur Umgebungsvariable, aus der sein Key gelesen wird),
-`scaffoldModels` (ein Standard-Scaffold-Modell pro LLM-Provider) und `supportedFormats` (die
-geschlossene Menge der Format-IDs). Der Typ `ScaffoldableProviderId` deckt die vier gehosteten
+`scaffoldModels` (ein Standard-Scaffold-Modell pro LLM-Provider), `providerTokenLimitKeys` (der
+Option-Key, unter dem jeder LLM-Provider sein Ausgabe-Token-Limit entgegennimmt) und
+`supportedFormats` (die geschlossene Menge der Format-IDs). Lies den Token-Limit-Key aus
+`providerTokenLimitKeys`, statt einen anzunehmen: Anthropic nennt ihn `maxTokens`, die anderen
+`maxOutputTokens`, das Schema validiert die Optionen jedes Providers strikt, und DeepL hat keinen
+Eintrag, weil es kein Token-Limit entgegennimmt. Der Typ `ScaffoldableProviderId` deckt die vier gehosteten
 Provider ab; `openai-compatible` ist ausgenommen, weil es keine einzelne verpflichtende
 Umgebungsvariable hat.
+
+## Der Abhängigkeits-Seam
+
+<AvailableFrom version="0.9.0" />
+
+`deps.fs` ersetzt den Dateisystem-Port, über den die eigene I/O des SDK läuft, typisiert als
+`SdkFs`. Der Seam ist vollständig: die Run-Status-Datei, die Lock-Datei, das Konfigurations-Glossar,
+Arbeitsmappen- und Austausch-I/O sowie die Locale-Dateien selbst gehen alle darüber, denn die
+Format-Adapter lesen und schreiben über einen Port, der aus demselben Objekt gebaut wird. Ein
+kompletter Lauf lässt sich damit im Speicher halten. Genau so vermeiden die Tests des SDK die
+Platte, und so kann eine einbettende Anwendung einen Teil eines Projekts auf etwas anderem als
+einer lokalen Platte ablegen.
+
+```ts
+import { translate, type SdkFs } from "@verbatra/sdk";
+
+const summary = await translate({ config }, { fs: inMemoryFs satisfies SdkFs });
+```
+
+Zwei Vertragspunkte muss eine Implementierung einhalten. Lesevorgänge sind größenbeschränkt:
+`readFileBounded` und `readBytesBounded` nehmen ein Byte-Limit entgegen und melden `missing` oder
+`too-large` als Zustand, statt zu werfen. Das hält eine bösartige oder versehentlich riesige Datei
+davon ab, den Speicher zu erschöpfen. Schreibvorgänge müssen atomar sein, damit ein Absturz
+mitten im Schreiben nie eine halb geschriebene Datei hinterlässt, und `createExclusive` muss atomar
+gegenüber anderen Prozessen sein, weil es das Primitiv hinter der Schreibsperre pro Locale ist. Das
+Anlegen von Verzeichnissen ist Sache des Aufrufers.
+
+Das Einzige, was `deps.fs` nicht erreicht, ist eine vom Aufrufer übergebene `deps.adapterRegistry`.
+Diese Adapter hat der Aufrufer konstruiert, ihr Dateizugriff ist also genau das, was der Aufrufer
+darin verdrahtet hat. Beides zu übergeben heißt, dass der Aufrufer diese Verdrahtung besitzt.
 
 ## Die Anatomie der RunSummary
 
