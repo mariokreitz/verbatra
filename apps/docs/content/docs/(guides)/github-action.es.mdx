@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@<commit-sha>
       - uses: verbatra/action@<commit-sha>
         with:
-          version: 0.8.0 # pin @verbatra/cli to an exact version
+          version: 0.9.0 # pin @verbatra/cli to an exact version
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -55,7 +55,7 @@ La acción ejecuta la CLI, y la CLI lee la clave API del proveedor solo desde el
 
 | Entrada | Obligatoria | Por defecto | Descripción |
 | --- | --- | --- | --- |
-| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar. Debe ser una versión semver exacta como `0.8.0` o `0.8.1-next.0`; el paso falla de inmediato con un dist-tag como `latest`, un rango o un prefijo `^`/`~` |
+| `version` | sí | - | la versión de `@verbatra/cli` a ejecutar. Debe ser una versión semver exacta como `0.9.0` o `0.9.1-next.0`; el paso falla de inmediato con un dist-tag como `latest`, un rango o un prefijo `^`/`~` |
 | `config-path` | no | `""` | archivo de configuración explícito a cargar (equivale a `--config`); vacío usa la búsqueda normal de configuración |
 | `working-directory` | no | `""` | directorio contra el que resolver la configuración y los archivos de locale (equivale a `--cwd`) |
 | `dry-run` | no | `"false"` | ponlo en `"true"` para informar de lo que cambiaría sin llamar a un proveedor ni escribir (equivale a `--dry-run`) |

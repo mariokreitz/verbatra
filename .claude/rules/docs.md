@@ -76,7 +76,10 @@ Run inside `apps/docs` (or with a turbo filter from the root):
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
 - Only document features that exist. The shipped CLI is `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, `import`, and `studio`.
+  `check`, `diff`, `doctor`, `export`, `import`, and `studio`: nine commands. When a
+  command is added, sweep the periphery too (the get-started walkthrough, the FAQ, the
+  troubleshooting entries, the landing FAQ in `messages/*.json`, and the SDK page's
+  entry-point list), not just its own `cli/` page.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.
@@ -87,9 +90,15 @@ Docs deploy on every merge, while npm publishes only at release time. Between th
 a page can describe behavior that is on `main` but that no reader can install yet.
 Mark those pages so the gap is visible instead of silent.
 
-- Use `<AvailableFrom version="0.9.0" />` as the first line of the MDX body, directly
-  after the frontmatter. It renders a Fumadocs `Callout` and is registered in
+- Use `<AvailableFrom version="0.9.0" />` on its own line, with a blank line either
+  side. It renders a Fumadocs `Callout` and is registered in
   `apps/docs/components/mdx.tsx`, so no import is needed.
+- Place it directly after the frontmatter when the whole page is new, and directly
+  above the heading or paragraph that introduces the behavior when only part of a page
+  is version-gated. Mark the section that introduces the behavior, not every sentence
+  that mentions it.
+- The `version` is the version of the package that ships the behavior, so a Studio-only
+  change carries `@verbatra/studio`'s version, not the CLI and SDK's.
 - Use it when a page (or a section you are adding to one) documents behavior that has
   merged but is not yet published, and for behavior that is published but needs a
   minimum version. The two cases share one wording, so no distinction is needed at the

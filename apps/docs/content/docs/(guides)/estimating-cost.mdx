@@ -112,10 +112,10 @@ Note where the fixed overhead lands: the system rules and schema account for 24 
 
 Any estimate above is arithmetic on assumptions. The precise number comes from translating one locale for real and reading the tokens verbatra reports.
 
-`translate` has no locale-selection flag, so narrow the run through the config instead. Copy your config, cut `targetLocales` down to a single locale, and point at the copy with `--config`:
+`translate` takes `--locales`, so narrow the run to a single configured locale on the command line:
 
 ```bash
-verbatra translate --config verbatra.one-locale.config.ts
+verbatra translate --locales de
 ```
 
 ```
