@@ -32,6 +32,7 @@ catalog:
   "@vitest/coverage-v8": 4.1.10
   chokidar: 5.0.0
   knip: 6.32.2
+  playwright: 1.62.1
   react: 19.2.8
   react-dom: 19.2.8
   tsup: 8.5.1
@@ -127,5 +128,11 @@ allowBuilds:
   '@tailwindcss/oxide': true
   esbuild: true
   lefthook: true
+  # Deliberately denied. Playwright's postinstall downloads a browser bundle (hundreds of MB),
+  # and nothing on the install path needs one: it is used only by the docs screenshot harness
+  # (apps/docs/scripts/capture-studio.mjs), which a maintainer runs by hand after
+  # `pnpm --filter @verbatra/docs exec playwright install chromium`. Denying the build keeps
+  # `pnpm install` and every CI job free of the download. See CONTRIBUTING.md.
+  playwright: false
   protobufjs: false
   sharp: true

@@ -45,6 +45,12 @@ Modifier n'exige aucune option. Ça ne touche que tes fichiers locaux et n'appel
 
 La page Révision liste chaque entrée que les heuristiques de révision ont signalée lors de la dernière exécution `translate` ou `watch` : une ligne par locale et clé, avec un indicateur par raison (traduction bien plus courte ou plus longue que la source, identique à la source, terme de glossaire manqué, placeholders réordonnés, ou lot fournisseur dégradé). Tant qu'aucune exécution n'a été enregistrée, la page le dit et reste vide ; lance `verbatra translate` ou `verbatra watch` pour la remplir.
 
+<StudioScreenshot
+  shot="review"
+  alt="La page Révision de Verbatra Studio affichant cinq entrées signalées dans les locales de, es et fr, chaque ligne montrant la clé, ses raisons de révision et les actions Edit, Approve et Reject."
+  caption="La file de révision après une exécution. Studio existe en clair et en sombre ; change la capture pour comparer."
+/>
+
 Filtre par locale ou par sous-chaîne de clé, puis traite les lignes :
 
 - **Edit** ouvre le même éditeur à contrôle d'intégrité que la page Traductions. Une modification acceptée retire la ligne de la file.

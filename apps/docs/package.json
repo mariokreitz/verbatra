@@ -11,7 +11,8 @@
     "test": "node scripts/sync-version.mjs && vitest run",
     "postinstall": "fumadocs-mdx",
     "i18n": "verbatra translate",
-    "studio": "verbatra studio"
+    "studio": "verbatra studio",
+    "screenshots": "node scripts/capture-studio.mjs"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "13.13.0",
@@ -37,6 +38,8 @@
     "@verbatra/sdk": "workspace:*",
     "@verbatra/studio": "workspace:*",
     "jsdom": "30.0.1",
+    "playwright": "catalog:",
+    "sharp": "0.35.3",
     "tailwindcss": "4.3.3",
     "typescript": "catalog:",
     "vitest": "catalog:"

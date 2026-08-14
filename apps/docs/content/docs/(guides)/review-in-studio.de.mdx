@@ -45,6 +45,12 @@ Bearbeiten braucht kein Flag. Es berührt nur deine lokalen Dateien und ruft nie
 
 Die Seite Review listet jeden Eintrag, den die Review-Heuristiken im letzten `translate`- oder `watch`-Lauf markiert haben: eine Zeile pro Locale und Key, mit einem Hinweis pro Grund (Übersetzung deutlich kürzer oder länger als die Quelle, identisch mit der Quelle, ein verpasster Glossarbegriff, umgeordnete Platzhalter oder ein degradierter Provider-Batch). Solange kein Lauf aufgezeichnet wurde, sagt die Seite das und bleibt leer; führe `verbatra translate` oder `verbatra watch` aus, um sie zu füllen.
 
+<StudioScreenshot
+  shot="review"
+  alt="Die Seite Review in Verbatra Studio mit fünf markierten Einträgen über die Locales de, es und fr, wobei jede Zeile den Key, seine Review-Gründe und die Aktionen Edit, Approve und Reject zeigt."
+  caption="Die Review-Warteschlange nach einem Lauf. Studio gibt es hell und dunkel; wechsle den Screenshot, um zu vergleichen."
+/>
+
 Filtere nach Locale oder Key-Teilstring, dann arbeite die Zeilen ab:
 
 - **Edit** öffnet denselben integritätsgesicherten Editor wie die Seite Übersetzungen. Eine akzeptierte Bearbeitung entfernt die Zeile aus der Warteschlange.

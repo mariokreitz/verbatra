@@ -1,0 +1,17 @@
+{
+  "sourceLocale": "en",
+  "targetLocales": ["de", "es", "fr"],
+  "format": "i18next-json",
+  "files": { "pattern": "locales/{locale}.json" },
+  "tone": "informal",
+  "provider": {
+    "id": "gemini",
+    "options": { "model": "gemini-2.5-flash", "maxOutputTokens": 4096 }
+  },
+  "glossary": {
+    "Verbatra": "Verbatra",
+    "Northwind": "Northwind",
+    "checkout": "checkout",
+    "promo code": "promo code"
+  }
+}

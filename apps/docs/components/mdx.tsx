@@ -10,6 +10,7 @@ import {
   DocsHomePaths,
 } from "@/components/docs-home";
 import { LaneCards, ReferenceRow, VMark } from "@/components/landing";
+import { StudioScreenshot } from "@/components/studio-screenshot";
 import Badge from "@/components/ui/badge";
 import Card from "@/components/ui/card";
 import CommandLine from "@/components/ui/command-line";
@@ -25,6 +26,7 @@ export function getMDXComponents(locale: Locale, components?: MDXComponents): MD
     ),
     AvailableFrom: (props: AvailableFromProps) => <AvailableFrom {...props} locale={locale} />,
     DiffPanel,
+    StudioScreenshot,
     CommandLine,
     Badge,
     Card,

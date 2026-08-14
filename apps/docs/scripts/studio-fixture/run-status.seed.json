@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-14T09:12:44.000Z",
+  "usage": { "inputTokens": 18420, "outputTokens": 7315 },
+  "budget": {
+    "maxTokens": 60000,
+    "behavior": "warn",
+    "supported": true,
+    "tokensUsed": 25735,
+    "exceeded": false
+  },
+  "locales": [
+    {
+      "locale": "de",
+      "status": "succeeded",
+      "usage": { "inputTokens": 6140, "outputTokens": 2480 },
+      "needsReview": [
+        { "key": "hero.subtitle", "reasons": ["EQUALS_SOURCE"] },
+        { "key": "checkout.submit", "reasons": ["LENGTH_RATIO_OUTLIER"] }
+      ]
+    },
+    {
+      "locale": "es",
+      "status": "succeeded",
+      "usage": { "inputTokens": 6140, "outputTokens": 2390 },
+      "needsReview": [
+        { "key": "nav.cart", "reasons": ["EQUALS_SOURCE", "GLOSSARY_TERM_MISSED"] },
+        { "key": "hero.title", "reasons": ["LENGTH_RATIO_OUTLIER"] }
+      ]
+    },
+    {
+      "locale": "fr",
+      "status": "succeeded",
+      "usage": { "inputTokens": 6140, "outputTokens": 2445 },
+      "needsReview": [{ "key": "errors.network", "reasons": ["PROVIDER_DEGRADED"] }]
+    }
+  ]
+}
