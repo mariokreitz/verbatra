@@ -41,7 +41,7 @@ Flag und Umgebungsvariable werden genau wie bei `--allow-spend` aufgelöst: `1`,
 
 ## Der Tool-Katalog
 
-Mit aktiviertem Opt-in registriert Studio dreizehn Tools, eines pro Dashboard-Aktion. Ohne `--allow-spend` sind es elf: die beiden Ausgaben-Tools entfallen vollständig. Tool-Namen tragen ein Präfix und nutzen Unterstriche (zum Beispiel `verbatra_project_snapshot`).
+Mit aktiviertem Opt-in registriert Studio vierzehn Tools, eines pro Dashboard-Aktion. Ohne `--allow-spend` sind es zwölf: die beiden Ausgaben-Tools entfallen vollständig. Tool-Namen tragen ein Präfix und nutzen Unterstriche (zum Beispiel `verbatra_project_snapshot`).
 
 ### Lese-Tools (zehn)
 
@@ -60,9 +60,11 @@ Sieh dir den Projektzustand an, ohne etwas zu ändern. Diese sind als read-only 
 | `verbatra_usage_summary` | Token-Verbrauch und Budget des letzten Laufs |
 | `verbatra_key_value` | die Quell- und Zielwerte für einen Key und ein Locale |
 
-### Schreib-Tool (eines)
+### Schreib-Tools (zwei)
 
 `verbatra_translation_editEntry` bearbeitet den Wert eines Locales an Ort und Stelle. Es läuft durch dasselbe Integritäts-Gate wie jeder andere verbatra-Schreibvorgang: ein Wert, der eine der Prüfungen nicht besteht, wird abgelehnt, und nichts wird geschrieben. Eine akzeptierte Bearbeitung schreibt die Locale-Datei und rückt den Lock-Eintrag des Keys vor, genau wie eine Bearbeitung im Dashboard. Bearbeiten braucht kein Ausgaben-Flag; es berührt nur deine lokalen Dateien und ruft nie einen Provider auf.
+
+`verbatra_glossary_write` fügt einen Glossarbegriff hinzu, ersetzt ihn oder entfernt ihn und gibt das Glossar in seinem neuen Stand zurück. Es arbeitet nur mit einem dateibasierten Glossar: ein inline in der Konfiguration geschriebenes Glossar, oder gar keines, wird abgelehnt statt umgewandelt, und kein Parameter nennt eine Datei, denn das Ziel stammt allein aus der geladenen Konfiguration. Wie das Bearbeiten gibt es nichts aus und wird ohne `--allow-spend` registriert. Es ist auf 20 Schreibvorgänge pro gleitender Minute begrenzt.
 
 ### Ausgaben-Tools (zwei)
 
@@ -79,7 +81,7 @@ Die Registrierung hat drei mögliche Ausgänge, und nur einer davon ist ein Prob
 
 **Nichts versucht, nichts gemeldet.** Fehlt `document.modelContext` (ein Browser ohne WebMCP oder Chrome ohne das Flag) oder hast du die Freigabe nicht gesetzt, versucht Studio überhaupt keine Registrierung. Das Dashboard bleibt unverändert und die Konsole bleibt still. Das ist der vorgesehene No-Op, kein Fehler.
 
-**Elf Tools und kein Hinweis.** Ohne `--allow-spend` versucht Studio elf Registrierungen statt dreizehn: die beiden Ausgaben-Tools werden übersprungen, bevor sie überhaupt versucht werden. Elf Tools sind die gesunde Zahl für eine Sitzung ohne Ausgaben, ihr Fehlen ist also der erwartete Zustand und löst nie einen Hinweis aus.
+**Zwölf Tools und kein Hinweis.** Ohne `--allow-spend` versucht Studio zwölf Registrierungen statt vierzehn: die beiden Ausgaben-Tools werden übersprungen, bevor sie überhaupt versucht werden. Zwölf Tools sind die gesunde Zahl für eine Sitzung ohne Ausgaben, ihr Fehlen ist also der erwartete Zustand und löst nie einen Hinweis aus.
 
 **Der Hinweis.** Hat Studio eine Registrierung versucht und der Browser sie abgelehnt, zeigt das Dashboard oben im Inhaltsbereich eine Warnung, auf jeder Ansicht:
 

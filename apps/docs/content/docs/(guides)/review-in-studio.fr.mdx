@@ -90,7 +90,20 @@ La page Activité met deux vues de référence côte à côte :
 - **Historique des fichiers de locale** : le fil des commits git de tes fichiers de locale source et cibles (affiché comme indisponible quand le projet n'a pas d'historique git).
 - **Dernière exécution** : les comptes de tokens d'entrée et de sortie de l'exécution la plus récente et, quand un budget de tokens est configuré, la jauge de budget et si le plafond a été atteint. C'est un instantané de la dernière exécution enregistrée, horodaté, jamais un compteur en direct ; un fournisseur qui ne rapporte pas d'usage (DeepL) est affiché comme "non rapporté" plutôt qu'un zéro fabriqué.
 
-Paramètres, la quatrième page, montre la configuration résolue et le glossaire avec lesquels cette session a démarré ; redémarre Studio après avoir modifié le fichier de config.
+## Garde le glossaire à jour dans Paramètres
+
+Paramètres, la quatrième page, montre la configuration avec laquelle cette session a démarré ; redémarre Studio après avoir modifié le fichier de config. Le glossaire affiché à côté fonctionne autrement : il est relu depuis le disque à chaque visite, et il est modifiable quand le projet garde son glossaire dans un fichier JSON.
+
+Chaque terme porte alors une action **Edit** et une action **Remove**, et un formulaire **Add a term** se trouve sous la liste. Une modification est écrite directement dans ce fichier JSON, un terme à la fois, et le panneau affiche le nouvel état dès que l'écriture aboutit, sans rechargement. Le reste du fichier n'est pas touché : l'ordre des clés et l'indentation survivent, et le résultat est soumis aux mêmes limites que `loadConfig` applique en relisant un glossaire, si bien qu'une modification acceptée reste toujours relisible.
+
+Rien ici n'appelle un fournisseur ni ne dépense quoi que ce soit : les actions sont donc présentes avec ou sans `--allow-spend`. Ce qu'elles ne font pas, c'est retraduire. Une modification du glossaire change la terminologie que la prochaine exécution doit suivre, jamais un texte déjà écrit dans un fichier de locale. Le glossaire qu'un Studio en cours d'exécution transmet à un appel fournisseur reste celui chargé au démarrage : redémarre donc Studio pour qu'un terme frais s'applique à une retraduction lancée depuis cette session.
+
+Deux cas restent en lecture seule, et le panneau dit lequel te concerne :
+
+- **Le glossaire est écrit inline dans `verbatra.config.ts`.** C'est du code exécutable, et Studio ne le réécrit pas. Déplace les termes dans un fichier JSON et fais pointer la clé `glossary` de la config vers ce chemin.
+- **Le projet n'a pas de glossaire.** Crée un fichier JSON de paires terme et traduction, puis mets `glossary` sur ce chemin.
+
+Une valeur qui ressemble à une clé d'API fournisseur est masquée avant même d'atteindre le navigateur, et un tel terme ne peut pas être modifié ici, seulement supprimé : ce que le panneau détient est le remplaçant, pas le texte réel. Modifie celui-là directement dans le fichier de glossaire.
 
 ## Et ensuite
 

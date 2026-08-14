@@ -90,7 +90,20 @@ La página Actividad pone dos vistas de referencia lado a lado:
 - **El historial de archivos de locale**: el flujo de commits de git de tus archivos de locale de origen y destino (se muestra como no disponible cuando el proyecto no tiene historial de git).
 - **La última ejecución**: los contadores de tokens de entrada y salida de la ejecución más reciente y, cuando hay un presupuesto de tokens configurado, el medidor del presupuesto y si se alcanzó el techo. Es una instantánea de la última ejecución registrada, con marca de tiempo, nunca un contador en vivo; un proveedor que no informa de uso (DeepL) se muestra como "no informado" en lugar de un cero inventado.
 
-Ajustes, la cuarta página, muestra la configuración y el glosario resueltos con los que arrancó esta sesión; reinicia Studio después de cambiar el archivo de configuración.
+## Mantén el glosario al día en Ajustes
+
+Ajustes, la cuarta página, muestra la configuración con la que arrancó esta sesión; reinicia Studio después de cambiar el archivo de configuración. El glosario que aparece al lado es distinto: se lee del disco en cada visita y es editable cuando el proyecto guarda su glosario en un archivo JSON.
+
+Entonces cada término lleva una acción **Edit** y otra **Remove**, y debajo de la lista hay un formulario **Add a term**. Un cambio se escribe directamente en ese archivo JSON, de término en término, y el panel muestra el nuevo estado en cuanto la escritura termina, sin recargar. El resto del archivo queda intacto: el orden de las claves y la sangría sobreviven, y el resultado se somete a los mismos límites que `loadConfig` aplica al releer un glosario, así que una edición aceptada siempre se puede volver a leer.
+
+Nada de esto llama a un proveedor ni gasta nada, de modo que las acciones están presentes con o sin `--allow-spend`. Lo que no hacen es retraducir: una edición del glosario cambia la terminología que se le pide seguir a la próxima ejecución, nunca un texto ya escrito en un archivo de locale. El glosario que un Studio en marcha entrega a una llamada al proveedor sigue siendo el cargado al arrancar, así que reinicia Studio para que un término nuevo surta efecto en una retraducción de esta sesión.
+
+Dos casos siguen siendo de solo lectura, y el panel te dice en cuál estás:
+
+- **El glosario está escrito en línea en `verbatra.config.ts`.** Eso es código ejecutable, y Studio no lo reescribe. Mueve los términos a un archivo JSON y apunta la clave `glossary` de la configuración a esa ruta.
+- **El proyecto no tiene glosario.** Crea un archivo JSON con pares de término y traducción y pon `glossary` en esa ruta.
+
+Un valor que parece una clave de API de un proveedor se redacta antes de llegar siquiera al navegador, y ese término no se puede editar desde aquí, solo eliminar: lo que el panel tiene es el marcador, no el texto real. Cambia ese en el propio archivo de glosario.
 
 ## Siguientes pasos
 

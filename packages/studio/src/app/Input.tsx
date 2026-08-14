@@ -12,6 +12,14 @@ export function TextArea({
   return <textarea className={cn(FIELD_CLASSNAME, className)} {...props} />;
 }
 
+export function TextField({
+  className,
+  type = "text",
+  ...props
+}: InputHTMLAttributes<HTMLInputElement>): ReactNode {
+  return <input type={type} className={cn(FIELD_CLASSNAME, className)} {...props} />;
+}
+
 export function SearchInput({
   className,
   ...props

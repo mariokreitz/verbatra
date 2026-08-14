@@ -285,6 +285,28 @@ the config came from a search hit, an explicit path, or an in-memory override (w
 `filepath` when there is one), and `glossary` records whether the glossary was absent, inline, or
 resolved from a file. Use it when you need to display where the config came from.
 
+### readGlossaryFile
+
+Reads a file-backed glossary fresh from disk and returns it as a flat term map. Takes
+`{ glossary }`, the `GlossaryProvenance` from `loadConfigWithMeta`, so the file it reads is always
+the one the config names; there is no path argument. Use it in a long-running tool that has to show
+the glossary as it is now rather than as it was when the config was loaded.
+
+Throws `GLOSSARY_NOT_FILE_BACKED` when the glossary is inline or absent, and `CONFIG_INVALID` when
+the file is missing, oversized, not UTF-8, not valid JSON, or not a flat string map.
+
+### updateGlossaryTerm
+
+Adds, replaces, or removes exactly one term in a file-backed glossary and returns the glossary as it
+now stands. Takes `{ glossary, cwd?, term, translation }`, where `translation` is the new text or
+`null` to remove the term. The rest of the file keeps its key order and its indentation, the write
+is atomic, and the whole read-modify-write is held under a project-wide glossary lock, so two
+concurrent edits are serialized rather than interleaved.
+
+An inline glossary is refused with `GLOSSARY_NOT_FILE_BACKED` rather than converted: it lives inside
+an executable config module. A blank term or translation, and an edit whose result would exceed the
+1 MiB glossary limit, are refused with `CONFIG_INVALID`; a failed write is `GLOSSARY_UNWRITABLE`.
+
 ### defineConfig
 
 An identity helper for authoring a typed `verbatra.config.ts`: it returns its argument unchanged,
@@ -391,6 +413,8 @@ are surfaced as data on the `RunSummary`, never thrown.
 | `SOURCE_INVALID` | the source locale file could not be read or parsed; wraps the adapter's read error |
 | `LOCK_FILE_INVALID` | the lock file is present but corrupt, oversized, or at an unsupported version |
 | `LOCK_CONTENDED` | a locale's write lock could not be acquired before its timeout; the message names the lock file's path |
+| `GLOSSARY_NOT_FILE_BACKED` | the config's glossary is inline or absent, so there is no glossary file to read or rewrite (`readGlossaryFile`, `updateGlossaryTerm`) |
+| `GLOSSARY_UNWRITABLE` | the glossary file could not be written (`updateGlossaryTerm`) |
 | `LOCALE_LAYOUT_INVALID` | `files.pattern` and `files.localeStyle` cannot be combined, or the style has no valid path spelling for a configured locale |
 | `LOCALE_PATH_COLLISION` | two configured locales resolve to the same absolute file path |
 | `CONCURRENCY_INVALID` | `concurrency` was set but is not an integer of at least 1; raised before any locale runs |

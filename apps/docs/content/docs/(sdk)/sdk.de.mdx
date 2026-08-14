@@ -311,6 +311,32 @@ Speicher kam (mit dem absoluten `filepath`, wenn es einen gibt), und `glossary` 
 Glossar fehlte, inline war oder aus einer Datei aufgelöst wurde. Nutze es, wenn du anzeigen musst,
 woher die Konfiguration kam.
 
+### readGlossaryFile
+
+Liest ein dateibasiertes Glossar frisch von der Festplatte und gibt es als flache Begriffszuordnung
+zurück. Nimmt `{ glossary }`, die `GlossaryProvenance` aus `loadConfigWithMeta`, sodass die gelesene
+Datei immer die ist, die die Konfiguration nennt; ein Pfadargument gibt es nicht. Nutze es in einem
+lang laufenden Werkzeug, das das Glossar so zeigen muss, wie es jetzt ist, und nicht so, wie es beim
+Laden der Konfiguration war.
+
+Wirft `GLOSSARY_NOT_FILE_BACKED`, wenn das Glossar inline oder gar nicht vorhanden ist, und
+`CONFIG_INVALID`, wenn die Datei fehlt, zu groß ist, nicht UTF-8 ist, kein gültiges JSON ist oder
+keine flache Zeichenkettenzuordnung enthält.
+
+### updateGlossaryTerm
+
+Fügt genau einen Begriff in einem dateibasierten Glossar hinzu, ersetzt ihn oder entfernt ihn, und
+gibt das Glossar in seinem neuen Stand zurück. Nimmt `{ glossary, cwd?, term, translation }`, wobei
+`translation` der neue Text ist oder `null`, um den Begriff zu entfernen. Der Rest der Datei behält
+seine Schlüsselreihenfolge und seine Einrückung, der Schreibvorgang ist atomar, und das gesamte
+Lesen, Ändern und Schreiben läuft unter einer projektweiten Glossarsperre, sodass zwei gleichzeitige
+Änderungen serialisiert statt verschränkt werden.
+
+Ein Inline-Glossar wird mit `GLOSSARY_NOT_FILE_BACKED` abgelehnt statt umgewandelt: es liegt in
+einem ausführbaren Konfigurationsmodul. Ein leerer Begriff oder eine leere Übersetzung, und eine
+Änderung, deren Ergebnis die Glossargrenze von 1 MiB überschreiten würde, werden mit
+`CONFIG_INVALID` abgelehnt; ein fehlgeschlagener Schreibvorgang ist `GLOSSARY_UNWRITABLE`.
+
 ### defineConfig
 
 Ein Identitätshelfer zum Schreiben einer typisierten `verbatra.config.ts`: er gibt sein Argument
@@ -424,6 +450,8 @@ geworfen.
 | `SOURCE_INVALID` | die Quell-Locale-Datei konnte nicht gelesen oder geparst werden; umhüllt den Lesefehler des Adapters |
 | `LOCK_FILE_INVALID` | die Lock-Datei ist vorhanden, aber korrupt, übergroß oder in einer nicht unterstützten Version |
 | `LOCK_CONTENDED` | das Schreib-Lock eines Locales konnte nicht vor seinem Timeout erworben werden; die Message nennt den Pfad der Lock-Datei |
+| `GLOSSARY_NOT_FILE_BACKED` | das Glossar der Konfiguration ist inline oder fehlt, es gibt also keine Glossardatei zum Lesen oder Neuschreiben (`readGlossaryFile`, `updateGlossaryTerm`) |
+| `GLOSSARY_UNWRITABLE` | die Glossardatei konnte nicht geschrieben werden (`updateGlossaryTerm`) |
 | `LOCALE_LAYOUT_INVALID` | `files.pattern` und `files.localeStyle` lassen sich nicht kombinieren, oder der Style hat keine gültige Pfadschreibweise für eine konfigurierte Locale |
 | `LOCALE_PATH_COLLISION` | zwei konfigurierte Locales lösen auf denselben absoluten Dateipfad auf |
 | `CONCURRENCY_INVALID` | `concurrency` wurde gesetzt, ist aber keine Ganzzahl von mindestens 1; wird geworfen, bevor ein Locale läuft |

@@ -6,6 +6,7 @@ const EXPECTED_METHOD_NAMES = [
   "status.check",
   "status.diff",
   "glossary.get",
+  "glossary.write",
   "lock.state",
   "history.list",
   "key.integrity",
@@ -18,7 +19,7 @@ const EXPECTED_METHOD_NAMES = [
 ];
 
 describe("RPC_METHOD_NAMES", () => {
-  it("contains exactly the thirteen agreed method names, no more, no fewer", () => {
+  it("contains exactly the fourteen agreed method names, no more, no fewer", () => {
     expect(new Set(RPC_METHOD_NAMES)).toEqual(new Set(EXPECTED_METHOD_NAMES));
     expect(RPC_METHOD_NAMES).toHaveLength(EXPECTED_METHOD_NAMES.length);
   });
@@ -36,6 +37,11 @@ describe("rpcParamsSchemas", () => {
     ["status.check", {}, { locales: [] }],
     ["status.diff", { locales: ["de"] }, { locales: [] }],
     ["glossary.get", {}, { extra: true }],
+    [
+      "glossary.write",
+      { term: "Verbatra", translation: "Verbatra" },
+      { term: "Verbatra", translation: "" },
+    ],
     ["lock.state", {}, { extra: true }],
     ["history.list", { limit: 5 }, { limit: 0 }],
     ["key.integrity", { key: "greeting" }, { key: "" }],
@@ -74,6 +80,21 @@ describe("rpcParamsSchemas", () => {
       spend: true,
     });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects a glossary.write body that names a file path, the only way a client could pick a target", () => {
+    for (const smuggled of [
+      { path: "../../etc/passwd" },
+      { file: "glossary.json" },
+      { cwd: "/tmp" },
+    ]) {
+      const result = rpcParamsSchemas["glossary.write"].safeParse({
+        term: "Verbatra",
+        translation: "Verbatra",
+        ...smuggled,
+      });
+      expect(result.success).toBe(false);
+    }
   });
 
   it("rejects a translation.editEntry body that smuggles a writeToDisk field", () => {
