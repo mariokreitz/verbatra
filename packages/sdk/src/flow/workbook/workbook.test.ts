@@ -5,6 +5,9 @@ import { buildWorkbook, type RowStatus, readWorkbook } from "@verbatra/exchange"
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../../config/schema.js";
+import { SdkError } from "../../errors.js";
+import { defaultFs, type SdkFs } from "../../fs.js";
+import { lockFilePath } from "../../lock/lock-file.js";
 import {
   baseConfig,
   makeFakeFs,
@@ -55,6 +58,44 @@ async function fillWorkbook(
         },
   );
   await writeFile(path, await buildWorkbook({ sheets }));
+}
+
+interface LockCorruptingFs {
+  readonly fs: SdkFs;
+  readonly lockWrites: readonly string[];
+}
+
+function lockCorruptingFs(path: string): LockCorruptingFs {
+  const lockWrites: string[] = [];
+  let reads = 0;
+  const fs: SdkFs = {
+    ...defaultFs,
+    readFileBounded: async (target, maxBytes) => {
+      if (target !== path) {
+        return defaultFs.readFileBounded(target, maxBytes);
+      }
+      reads += 1;
+      return { kind: "ok", content: reads === 1 ? '{"version":1,"locales":{}}' : "{ not json" };
+    },
+    writeFile: async (target, data) => {
+      if (target === path) {
+        lockWrites.push(data);
+      }
+      await defaultFs.writeFile(target, data);
+    },
+  };
+  return { fs, lockWrites };
+}
+
+async function readLocaleFiles(
+  dir: string,
+  locales: readonly string[],
+): Promise<Record<string, string>> {
+  const contents: Record<string, string> = {};
+  for (const locale of locales) {
+    contents[locale] = await readFile(join(dir, "locales", `${locale}.json`), "utf8");
+  }
+  return contents;
 }
 
 describe("exportWorkbook", () => {
@@ -811,6 +852,70 @@ describe("importWorkbook", () => {
     expect(filled.locales[0]?.translated).toContain("b");
     const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
     expect(de.b).toBe("Bb");
+  });
+
+  it("aborts the whole run when the lock file turns corrupt mid-run, sparing the later locales", async () => {
+    const dir = await project(
+      { greeting: "Hello" },
+      { de: { stale: "Veraltet" }, fr: { stale: "Perime" }, es: { stale: "Obsoleto" } },
+    );
+    const config = cfg({ targetLocales: ["de", "fr", "es"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { greeting: "Hallo" });
+    await fillWorkbook(out.path, "fr", { greeting: "Salut" });
+    await fillWorkbook(out.path, "es", { greeting: "Hola" });
+
+    const before = await readLocaleFiles(dir, ["de", "fr", "es"]);
+    const { fs } = lockCorruptingFs(lockFilePath(dir));
+
+    const thrown = await importWorkbook({ config, workbook: out.path, cwd: dir }, { fs }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(SdkError);
+    expect((thrown as SdkError).code).toBe("LOCK_FILE_INVALID");
+
+    const after = await readLocaleFiles(dir, ["de", "fr", "es"]);
+    expect(after.de).not.toBe(before.de);
+    expect(after.fr).toBe(before.fr);
+    expect(after.es).toBe(before.es);
+  });
+
+  it("keeps importing the later sheets after a per-locale failure that is not lock corruption", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined, es: undefined });
+    const out = await exportWorkbook({ config: cfg({ targetLocales: ["es", "de"] }), cwd: dir });
+    await fillWorkbook(out.path, "es", { greeting: "Hola" });
+    await fillWorkbook(out.path, "de", { greeting: "Hallo" });
+
+    const summary = await importWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      workbook: out.path,
+      cwd: dir,
+    });
+    const es = summary.locales.find((l) => l.locale === "es");
+    expect(es?.status).toBe("failed");
+    expect(es?.error?.code).toBe("CONFIG_INVALID");
+    expect(summary.succeeded).toEqual(["de"]);
+    const de = (await readJsonFile(join(dir, "locales", "de.json"))) as Record<string, string>;
+    expect(de.greeting).toBe("Hallo");
+  });
+
+  it("dry-run reports every locale and writes no lock file even when a later read would fail", async () => {
+    const dir = await project({ greeting: "Hello" }, { de: undefined, fr: undefined });
+    const config = cfg({ targetLocales: ["de", "fr"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    await fillWorkbook(out.path, "de", { greeting: "Hallo" });
+    await fillWorkbook(out.path, "fr", { greeting: "Salut" });
+    const { fs, lockWrites } = lockCorruptingFs(lockFilePath(dir));
+
+    const summary = await importWorkbook(
+      { config, workbook: out.path, cwd: dir, dryRun: true },
+      { fs },
+    );
+    expect(summary.dryRun).toBe(true);
+    expect(summary.locales.map((l) => l.translated)).toEqual([["greeting"], ["greeting"]]);
+    expect(lockWrites).toEqual([]);
+    await expect(readJsonFile(join(dir, "locales", "de.json"))).rejects.toThrow();
   });
 
   it("withholds a [[CLEAR]] whose source drifted since export, like any drift", async () => {
