@@ -17,7 +17,7 @@
 
 ## Description
 
-`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, check or diff your locales without writing, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/verbatra/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
+`@verbatra/sdk` is the engine behind verbatra: load and validate a config, run the one-shot translate flow over every target locale, watch the source and re-translate on each change, check or diff your locales without writing, validate the whole project setup before you spend anything, or export and import an Excel workbook for manual translation. The [`@verbatra/cli`](https://github.com/verbatra/verbatra/tree/main/packages/cli) command is a thin wrapper over this package.
 
 ## Requirements
 
@@ -144,6 +144,22 @@ import { diff, loadConfig } from "@verbatra/sdk";
 
 const config = await loadConfig();
 const summary = await diff({ config });
+```
+
+### `doctor(input?): Promise<DoctorResult>`
+
+Validates the project setup and spends nothing: no provider is constructed, no network request is made, no file is written, and no API key value is ever read. `input` is `{ cwd?, configPath? }`, and it is optional as a whole because `doctor` loads the config itself, so a project with no config at all still gets a report rather than a thrown error. Five checks run, one per `DoctorCheckId`: `"config"` (a config was found and validates), `"format-adapter"` (the configured `format` resolves to an adapter), `"provider"` (the configured `provider.id` resolves to a factory), `"api-key"` (the environment variable that provider reads its key from is set), and `"source-file"` (the source locale file exists at its resolved path). Every check runs even when an earlier one failed, so one call reports every independent problem; when the config itself cannot be loaded, the four checks that depend on it report `"skipped"` instead of a verdict they could not reach. Resolves to a `DoctorResult` whose `ok` is true only when no check failed, and whose `checks` carry an `id`, a stable `title`, a `status` of `"pass"`, `"fail"`, or `"skipped"`, and a `detail` naming the variable or path behind the verdict but never a key value. Throws `CONFIG_NOT_FOUND` only for an explicit `configPath` that does not exist; a config that is merely absent from the search is a failed check instead.
+
+```ts
+import { doctor } from "@verbatra/sdk";
+
+const report = await doctor();
+
+for (const entry of report.checks) {
+  console.log(`${entry.status}: ${entry.title} - ${entry.detail}`);
+}
+
+process.exitCode = report.ok ? 0 : 1;
 ```
 
 ### `exportWorkbook(input): Promise<ExportWorkbookResult>`
