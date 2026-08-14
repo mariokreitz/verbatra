@@ -57,6 +57,8 @@ Wenn du die Konfiguration in TypeScript schreibst, bietet dein Editor für `opti
 
 Unbekannte Top-Level-Keys werden abgelehnt, mit `$schema` als einziger Ausnahme. Genau deshalb kann auch kein API-Schlüssel in der Konfiguration leben: Schlüssel kommen aus der Umgebung, nicht aus der Datei.
 
+<AvailableFrom version="0.9.0" />
+
 ### Locales und Dateien
 
 - **`sourceLocale`** muss ein nicht-leerer String sein.
@@ -84,6 +86,8 @@ export default defineConfig({
 ```
 
 Die beiden Formen schließen einander aus; es gibt keinen Merge zwischen ihnen. Ein relativer Dateipfad wird gegen das Verzeichnis der geladenen Konfigurationsdatei aufgelöst, oder gegen das Arbeitsverzeichnis, wenn die Konfiguration als In-Memory-Override übergeben wird. Die Datei muss UTF-8-kodiert und höchstens 1 MiB groß sein, und sie wird einmal beim Laden der Konfiguration gelesen: verbatra beobachtet sie nicht auf Änderungen, also bearbeite sie und starte neu, damit ein Update greift. Eine fehlende Datei, ungültiges JSON oder ein Wert, der keine flache String-Zuordnung ist, lässt das Laden der Konfiguration mit `CONFIG_INVALID` fehlschlagen und nennt den aufgelösten Pfad.
+
+<AvailableFrom version="0.4.0" />
 
 Die beiden Formen unterscheiden sich auch darin, wer sie ändern kann. Nur die Dateiform lässt sich aus [Verbatra Studio](/docs/review-in-studio) heraus bearbeiten; Studio schreibt diese JSON-Datei Begriff für Begriff neu und rührt dein Konfigurationsmodul nie an. Ein Inline-Glossar bleibt dort schreibgeschützt, weil es in ausführbarem Code liegt. Nimm die Dateiform, wenn du die Begriffe im Dashboard pflegen willst.
 
@@ -114,6 +118,8 @@ Default `50`. Die fehlenden plus geänderten Einträge einer Locale werden in se
 - `"warn"` (der Default) vermerkt die Überschreitung und lässt den Lauf genau so weiterlaufen, als wäre kein Budget konfiguriert.
 - `"stop"` hält jeden noch nicht versuchten Key für den Rest des Laufs zurück: die verbleibenden Kandidaten der aktuellen Locale und die Kandidaten jeder späteren Ziel-Locale komplett (deren Vergleich und Verwaisten-Meldung laufen trotzdem; nur der Provider-Aufruf wird übersprungen). Zurückgehaltene Keys behalten ihren vorherigen Lock-Hash und werden beim nächsten Lauf automatisch erneut versucht, genauso wie ein fehlgeschlagener Provider-Aufruf schon heute.
 
+`maxTokens` zu setzen schränkt außerdem ein, wie ein Lauf parallelisiert werden darf: ein echter Lauf, der es mit `--concurrency` über `1` kombiniert, wird vor jedem Provider-Aufruf mit Exit `2` (`CONCURRENCY_BUDGET_CONFLICT`) abgelehnt, denn parallele Locales können ein Token-Limit nicht deterministisch einhalten. Ein Dry Run ist ausgenommen. Lass das Budget weg oder belasse die Nebenläufigkeit bei `1`.
+
 Unter `"warn"` ändert ein ausgelöstes Budget nie den Exit-Code des Befehls. Unter `"stop"` kann es das: ein Locale, dessen Keys zurückgehalten wurden, wird als `partial` gemeldet, wenn einige Keys dennoch ankamen, und als `failed`, wenn keiner ankam, und beide enden mit `1`. `budgetBehavior` ohne `maxTokens` wird akzeptiert und hat keine Wirkung. Gegen einen Provider ohne Token-Zahlen (DeepL, das keinen Verbrauch meldet) meldet sich der Schutzmechanismus als wirkungslos (`supported: false` im `budget` der Lauf-Zusammenfassung), statt eine falsche Auslösung zu produzieren.
 
 <Callout title="Zwei verschiedene maxTokens">
@@ -139,6 +145,8 @@ verbatra sucht vom Arbeitsverzeichnis aus aufwärts und verwendet die erste Quel
 Um stattdessen genau eine Datei zu laden, übergib `--config <path>`; ein relativer Pfad wird gegen das Arbeitsverzeichnis aufgelöst. Im SDK hat ein In-Memory-`configOverride` Vorrang vor einem expliziten `configPath`, das Vorrang vor der Suche hat. Siehe [Programmatische API](/docs/programmatic-api).
 
 ## Validierung im Editor
+
+<AvailableFrom version="0.9.0" />
 
 `@verbatra/sdk` liefert das Konfigurationsschema als JSON-Schema-Dokument aus, beim Build erzeugt aus demselben zod-Schema, gegen das das SDK validiert. Es kann also nie eine andere Form beschreiben als die, die tatsächlich läuft. Installiert liegt es unter:
 
