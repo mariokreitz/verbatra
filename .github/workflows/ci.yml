@@ -65,6 +65,9 @@ jobs:
       - name: Guard the studio command's bundling (dynamic import, no inlined @verbatra/studio)
         run: pnpm check:studio-bundle
 
+      - name: Guard the emitted config JSON Schema
+        run: pnpm check:config-schema
+
       - name: Typecheck
         run: pnpm turbo run typecheck
 
