@@ -55,6 +55,8 @@ verbatra translate --locales de
 | `1` | der Lauf lief durch, aber ein oder mehrere Locales schlugen fehl oder blieben `partial` |
 | `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (Konfiguration, Quelle, Format, Provider oder Lock) oder ein Verwendungsfehler |
 
+<AvailableFrom version="0.9.0" />
+
 Ein fehlschlagendes Locale ist nicht fatal: der Lauf läuft zu Ende, endet mit `1`, und das Detail pro Locale steht in der Zusammenfassung. Ein Locale mit dem Status **`partial`** endet ebenfalls mit `1`. Das ist ein Locale, dessen Datei geschrieben wurde, dem aber weiterhin Keys fehlen, typischerweise weil ein Provider-Sub-Batch fehlschlug oder das Integritäts-Gate eine Übersetzung abgelehnt hat; es als Erfolg auszuliefern würde eine halb übersetzte Datei unbemerkt in deinem Repository liegen lassen.
 
 ## Siehe auch
