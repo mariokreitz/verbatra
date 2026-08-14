@@ -1,6 +1,8 @@
 import type {
   CheckSummary,
   DiffSummary,
+  DoctorCheckStatus,
+  DoctorResult,
   ExportWorkbookResult,
   LocaleDiff,
   LocaleSummary,
@@ -137,6 +139,23 @@ export function renderCheckHuman(summary: CheckSummary): string {
     ? "all locales in sync"
     : "out of sync (run verbatra translate to update)";
   return ["verbatra check", ...localeLines, overall].join("\n");
+}
+
+const DOCTOR_STATUS_LABELS: Record<DoctorCheckStatus, string> = {
+  pass: "ok  ",
+  fail: "fail",
+  skipped: "skip",
+};
+
+export function renderDoctorHuman(result: DoctorResult): string {
+  const lines = result.checks.map(
+    (entry) => `  [${DOCTOR_STATUS_LABELS[entry.status]}] ${entry.title}: ${entry.detail}`,
+  );
+  const failed = result.checks.filter((entry) => entry.status === "fail").length;
+  const trailer = result.ok
+    ? "no problems found"
+    : `${failed} ${failed === 1 ? "problem" : "problems"} found (run verbatra doctor again after fixing them)`;
+  return ["verbatra doctor", ...lines, trailer].join("\n");
 }
 
 const DIFF_GROUP_WIDTH = 14;

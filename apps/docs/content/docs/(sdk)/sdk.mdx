@@ -95,6 +95,20 @@ through `onRun` and watching continues.
 
 None of these call a provider, write a file, or mutate the lock.
 
+### doctor
+
+Validates the project setup and spends nothing: it constructs no provider, makes no network
+request, and never reads an API key value. Five checks run, each with its own `pass`, `fail`, or
+`skipped` verdict: the config loads and validates, the configured format resolves to an adapter,
+the configured provider ID resolves to a factory, the environment variable that provider reads its
+key from is set, and the source locale file exists. Every check runs even when an earlier one
+failed, so one call reports every independent problem. The API key is checked by name only.
+
+Input: `{ cwd?, configPath? }`. No loaded config needed: `doctor` loads it itself, so a project
+with no config at all still gets a report rather than a thrown error. Returns a `DoctorResult`
+whose `ok` is true exactly when no check failed. It throws `CONFIG_NOT_FOUND` only for an explicit
+`configPath` that does not exist.
+
 ### check
 
 Reports per-locale drift as counts: `missing` (in source, absent from target), `stale` (source

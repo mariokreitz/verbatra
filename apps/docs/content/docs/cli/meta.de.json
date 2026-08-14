@@ -1,5 +1,16 @@
 {
   "title": "CLI-Referenz",
   "defaultOpen": true,
-  "pages": ["index", "init", "translate", "watch", "check", "diff", "export", "import", "studio"]
+  "pages": [
+    "index",
+    "init",
+    "translate",
+    "watch",
+    "check",
+    "diff",
+    "doctor",
+    "export",
+    "import",
+    "studio"
+  ]
 }
