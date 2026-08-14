@@ -1,5 +1,36 @@
 # @verbatra/studio
 
+## 0.4.0
+
+### Minor Changes
+
+- [#172](https://github.com/verbatra/verbatra/pull/172) [`af21823`](https://github.com/verbatra/verbatra/commit/af21823c72dfb90967693205eacaafc971a484bd) Thanks [@mariokreitz](https://github.com/mariokreitz)! - The Settings panel's glossary is editable when the project keeps its glossary in a JSON file. Terms
+  can be added, edited in place, and removed, and the panel shows the new state as soon as a
+  write lands, with no reload. A new `glossary.write` RPC method backs it, registered unconditionally
+  alongside the other local-editing methods, since changing a glossary calls no provider and spends
+  nothing; it is rate limited like every other write method and is exposed as an agent tool when
+  Studio was started with the agent-tools opt-in.
+
+  The server never accepts a file path: the target is derived from the loaded config alone. A glossary
+  written inline in the config, or no glossary at all, keeps the panel read-only and explains how to
+  move the terms into a JSON file, rather than rewriting the config module. `glossary.get` now reads a
+  file-backed glossary fresh on every call and names the terms whose values were redacted as
+  secret-shaped; the panel refuses to edit those, so a redaction placeholder can never be written back
+  over the real value.
+
+### Patch Changes
+
+- [#157](https://github.com/verbatra/verbatra/pull/157) [`d54213a`](https://github.com/verbatra/verbatra/commit/d54213a1dbb24e6f44cffd00abb4565a285192c2) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Point the sidebar "Help and issues" link at the repository's new location,
+  github.com/verbatra/verbatra.
+
+- [#180](https://github.com/verbatra/verbatra/pull/180) [`131764a`](https://github.com/verbatra/verbatra/commit/131764a494528d3a84d0b358d78aa7b95df495a8) Thanks [@mariokreitz](https://github.com/mariokreitz)! - `CreateStudioWatcher` now documents its real calling convention. It is called once per watched
+  entry, each call receiving a one-element array: one for the source locale file, one for each
+  configured target locale file, and one for the lock file. The earlier wording said it was called
+  once with every path, so an injected factory written to it built a single watcher and silently
+  observed the source file alone.
+- Updated dependencies [[`aa337dc`](https://github.com/verbatra/verbatra/commit/aa337dc0e5c0f05acee1364fa0dde01f03a03bc9), [`5d7ec20`](https://github.com/verbatra/verbatra/commit/5d7ec20a4b46361db3c359e7ce792049598ae51a), [`9d3a8f8`](https://github.com/verbatra/verbatra/commit/9d3a8f850991c9bf862eb443ebc9e41e575c1639), [`af21823`](https://github.com/verbatra/verbatra/commit/af21823c72dfb90967693205eacaafc971a484bd), [`08fec43`](https://github.com/verbatra/verbatra/commit/08fec434584a61f1bf1673a7b674c055ae15833c), [`ccd5c58`](https://github.com/verbatra/verbatra/commit/ccd5c587de4e176ba00f5b966dda48eeff4a0f82), [`7a361f9`](https://github.com/verbatra/verbatra/commit/7a361f963124c8e4e507b07e06c6dd9b22481e03), [`131764a`](https://github.com/verbatra/verbatra/commit/131764a494528d3a84d0b358d78aa7b95df495a8), [`3b5942d`](https://github.com/verbatra/verbatra/commit/3b5942d4db01800667b3d3c33ba5778b750f9b8f), [`4f66427`](https://github.com/verbatra/verbatra/commit/4f66427fd4e200c8b08ad9c27fa48cc9e359a70c)]:
+  - @verbatra/sdk@0.9.0
+
 ## 0.3.2
 
 ### Patch Changes
