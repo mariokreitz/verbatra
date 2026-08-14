@@ -23,6 +23,8 @@ Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
 
 Einige Randfälle, die du kennen solltest:
 
+<AvailableFrom version="0.9.0" />
+
 - Ein Locale mit dem Status **`partial`** zählt als Fehlschlag. Das heißt, die Datei wurde geschrieben, aber einige Keys fehlen weiterhin, meist weil ein Provider-Sub-Batch fehlschlug oder das Integritäts-Gate eine Übersetzung abgelehnt hat. Es endet mit `1` genau wie ein fehlgeschlagenes Locale, denn ein halb übersetztes Locale auf der Platte ist kein Zustand, den eine Pipeline durchwinken sollte. Um beide auseinanderzuhalten, lies `partial` in der Zusammenfassung.
 - Eine **kaputte Lock-Datei** ist bei `translate` wie bei `import` ein Fehler des gesamten Laufs, nie ein einzelnes fehlgeschlagenes Locale. Sie ist eine einzige gemeinsame Datei, deshalb bricht ein Lauf, dessen Lock-Datei mittendrin kaputtgeht, mit `2` ab, statt die restlichen Locales weiter abzuarbeiten. Was vor dem Abbruch geschrieben wurde, bleibt auf der Platte: Repariere die Lock-Datei und starte den Befehl erneut.
 - Ein einzelner Interrupt ist ein sauberer Stopp, und sowohl `watch` als auch `studio` enden dabei mit `0`. Geh darüber hinaus nicht davon aus, dass sich beide gleich verhalten: scheitert der Stopp selbst, endet `watch` mit `2` und `studio` mit `1`.
@@ -67,7 +69,7 @@ Ein Lauf, der als Ganzes fehlschlägt, schreibt genau einen `ok: false`-Datensat
 
 `command` ist nur dann `null`, wenn der Fehlschlag eintrat, bevor ein Unterbefehl aufgelöst war.
 
-Fehler gehen zusätzlich in beiden Modi unverändert als eine strukturierte Zeile (`verbatra: error [CODE] message`) auf stderr, ein Skript, das Exit-Code und stderr liest, braucht also keine Änderung. Ohne `--json` schreibt ein fehlgeschlagener Lauf weiterhin überhaupt nichts auf stdout. Datensätze zu Fortschritt und Lock-Wartezeit gehen immer auf stderr, auf stdout stehen also ausschließlich Envelopes.
+Fehler eines aufgelösten Befehls gehen in beiden Modi unverändert als eine strukturierte Zeile (`verbatra: error [CODE] message`) auf stderr, ein Skript, das Exit-Code und stderr liest, braucht also keine Änderung. Zwei Klassen von Fehlern folgen dieser Grammatik nicht, weil sie auftreten, bevor es einen Lauf gibt, der einen Code tragen könnte: ein Fehler beim Parsen der Argumente gibt commanders eigenes `error: unknown option '--nope'` aus, ohne Präfix und ohne Code, und `init` weist einen fehlenden Provider mit `verbatra: --provider is required (...)` ab, mit Präfix, aber ohne Code. Beide enden mit `2`. Prüfe zuerst den Exit-Code und behandle den Code als optional, sonst greift ein Parser, der allein auf die strukturierte Grammatik setzt, bei keinem von beiden. Ohne `--json` schreibt ein fehlgeschlagener Lauf weiterhin überhaupt nichts auf stdout. Datensätze zu Fortschritt und Lock-Wartezeit gehen immer auf stderr, auf stdout stehen also ausschließlich Envelopes.
 
 Der Rest dieses Abschnitts beschreibt das `result`, das jeder Befehl in einen erfolgreichen Envelope legt.
 
@@ -127,7 +129,7 @@ interface LocaleDiff {
 
 ```ts
 {
-  path: string;                // absolute path of the written workbook
+  path: string;                // absolute path: the workbook for xlsx, the output directory for csv and tsv
   locales: { locale: string; rows: number }[];
 }
 ```

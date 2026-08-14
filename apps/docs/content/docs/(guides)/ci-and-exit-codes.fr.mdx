@@ -23,6 +23,8 @@ Le code de sortie est le contrat sur lequel ton étape CI se branche :
 
 Quelques cas limites à connaître :
 
+<AvailableFrom version="0.9.0" />
+
 - Une locale **partielle** compte comme un échec. Cela veut dire que le fichier a été écrit mais qu'il manque encore des clés, en général parce qu'un sous-lot du fournisseur a échoué ou que la barrière d'intégrité a refusé une traduction. Elle sort avec `1` exactement comme une locale échouée, parce qu'une locale à moitié traduite sur le disque n'est pas un état qu'un pipeline devrait laisser passer. Lis `partial` sur le résumé pour distinguer les deux.
 - Un **fichier de verrouillage corrompu** est une erreur globale pour `translate` comme pour `import`, jamais une seule locale en échec. C'est un fichier unique et partagé : s'il se corrompt en cours d'exécution, celle-ci s'arrête avec `2` au lieu de poursuivre avec les locales restantes. Ce qui a été écrit avant l'interruption reste sur le disque : répare le fichier de verrouillage puis relance la commande.
 - Une interruption unique est un arrêt propre, et `watch` comme `studio` sortent avec `0` dans ce cas. Au-delà, ne suppose pas qu'ils se comportent pareil : si l'arrêt lui-même échoue, `watch` sort avec `2` et `studio` sort avec `1`.
@@ -67,7 +69,7 @@ Une exécution qui échoue dans son ensemble écrit exactement un enregistrement
 
 `command` vaut `null` uniquement quand l'échec s'est produit avant qu'une sous-commande soit résolue.
 
-Les erreurs vont en plus sur stderr sous forme d'une ligne structurée (`verbatra: error [CODE] message`) dans les deux modes, inchangée, donc un script qui lit le code de sortie et stderr n'a rien à changer. Sans `--json`, une exécution échouée n'écrit toujours strictement rien sur stdout. Les enregistrements de progression et d'attente de verrouillage vont toujours sur stderr, donc stdout ne porte que des enveloppes.
+Les erreurs d'une commande déjà résolue vont sur stderr sous forme d'une ligne structurée (`verbatra: error [CODE] message`) dans les deux modes, inchangée, donc un script qui lit le code de sortie et stderr n'a rien à changer. Deux classes d'échec ne suivent pas cette grammaire, car elles surviennent avant qu'une exécution existe pour porter un code : une erreur d'analyse des arguments affiche le `error: unknown option '--nope'` propre à commander, sans préfixe et sans code, et `init` refuse un fournisseur absent avec `verbatra: --provider is required (...)`, préfixé mais sans code. Les deux sortent avec `2`. Teste d'abord le code de sortie et traite le code d'erreur comme optionnel, sinon un analyseur écrit uniquement contre la grammaire structurée ne correspondra à aucun des deux. Sans `--json`, une exécution échouée n'écrit toujours strictement rien sur stdout. Les enregistrements de progression et d'attente de verrouillage vont toujours sur stderr, donc stdout ne porte que des enveloppes.
 
 Le reste de cette section décrit le `result` que chaque commande place dans une enveloppe de succès.
 
@@ -127,7 +129,7 @@ interface LocaleDiff {
 
 ```ts
 {
-  path: string;                // absolute path of the written workbook
+  path: string;                // absolute path: the workbook for xlsx, the output directory for csv and tsv
   locales: { locale: string; rows: number }[];
 }
 ```

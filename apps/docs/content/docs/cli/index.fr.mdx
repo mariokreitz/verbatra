@@ -12,8 +12,8 @@ description: "La commande verbatra : ses neuf sous-commandes, les options partag
 | [`check`](/docs/cli/check) | signale les clés manquantes ou obsolètes par locale, en lecture seule |
 | [`diff`](/docs/cli/diff) | liste les clés exactes qui seraient ajoutées, retraduites ou orphelines par locale, en lecture seule |
 | [`doctor`](/docs/cli/doctor) | valide la configuration du projet et signale tous les problèmes d'un coup, sans appeler de fournisseur |
-| [`export`](/docs/cli/export) | exporte les chaînes non traduites dans un classeur Excel pour un traducteur humain |
-| [`import`](/docs/cli/import) | réimporte un classeur rempli dans les fichiers de locale |
+| [`export`](/docs/cli/export) | exporte les chaînes non traduites pour un traducteur humain, en classeur Excel ou en un fichier CSV ou TSV par locale |
+| [`import`](/docs/cli/import) | réimporte un classeur rempli ou un fichier délimité dans les fichiers de locale |
 | [`studio`](/docs/cli/studio) | démarre Verbatra Studio, le tableau de bord local de traduction |
 
 ## Installation et invocation
@@ -36,7 +36,7 @@ Il te faut Node.js `>=22.14.0`.
 
 ## Fichiers d'environnement
 
-`translate`, `watch`, `doctor` et `studio` chargent `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter. Une variable déjà définie dans ton environnement réel l'emporte toujours. Les clés d'API sont lues uniquement depuis l'environnement, jamais depuis le fichier de config ni une option : voir [Fournisseurs](/docs/providers). Les commandes en lecture seule (`check`, `diff`) et les commandes de classeur (`export`, `import`) n'appellent jamais de fournisseur et ne chargent aucun fichier `.env`.
+`translate`, `watch`, `doctor` et `studio` chargent `.env.local` puis `.env` depuis le répertoire de travail avant de s'exécuter. Une variable déjà définie dans ton environnement réel l'emporte toujours. Les clés d'API sont lues uniquement depuis l'environnement, jamais depuis le fichier de config ni une option : voir [Fournisseurs](/docs/providers). Les commandes en lecture seule (`check`, `diff`) et les commandes de passation (`export`, `import`) n'appellent jamais de fournisseur et ne chargent aucun fichier `.env`.
 
 ## Codes de sortie
 
