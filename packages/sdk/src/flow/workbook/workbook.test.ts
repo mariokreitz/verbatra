@@ -247,6 +247,22 @@ describe("exportWorkbook", () => {
     expect(row?.reviewStatus).toBe("ok");
     expect(row?.reviewReasons).toBe("");
   });
+
+  it("falls back to flat extraction for a format whose adapter defines no comparator", async () => {
+    const dir = await project(
+      { a: "Hi {first} and {second}" },
+      { de: { a: "Hallo {second} und {first}" } },
+    );
+    const result = await exportWorkbook({
+      config: cfg({ targetLocales: ["de"], format: "vue-i18n-json" }),
+      cwd: dir,
+      includeUnchanged: true,
+    });
+    const data = await readWorkbook(new Uint8Array(await readFile(result.path)));
+    const row = data.sheets[0]?.rows.find((r) => r.key === "a");
+    expect(row?.reviewStatus).toBe("review");
+    expect(row?.reviewReasons).toBe("integrity-reordered");
+  });
 });
 
 describe("importWorkbook", () => {

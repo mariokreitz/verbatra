@@ -42,6 +42,14 @@ nuevo por clave.
   pero rompe la estructura de plural o de select también se rechaza. Para estos formatos la
   comparación de marcadores de posición además distingue ramas: un marcador de posición fabricado
   dentro de una rama de plural se detecta aunque exista legítimamente en otra.
+- Tokens de llave simple fabricados: en los formatos de doble llave (i18next, ngx-translate y YAML),
+  un token con forma `{name}` es texto literal corriente y no interpolación, así que no se extrae
+  como marcador de posición ni tiene que sobrevivir a una traducción. Inventar uno se sigue
+  rechazando: un token con forma `{name}` que aparece en la candidata y nunca apareció en el origen
+  es una fabricación bajo cualquier convención de interpolación, y eso es lo que hace seguro
+  rechazarlo sin conocer los delimitadores de tu proyecto. La comprobación corre solo en esa
+  dirección, así que una candidata que elimina uno de esos tokens o cambia el texto literal que lo
+  rodea se deja pasar.
 - Degeneración: el valor no debe ser estructuralmente degenerado, como un bucle de repetición o una
   longitud que se ha disparado respecto al origen. Esto atrapa a un modelo que se derrumbó
   repitiendo un fragmento aunque todos los marcadores de posición sobrevivieran.

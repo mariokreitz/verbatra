@@ -43,6 +43,14 @@ erneut.
   Select-Struktur bricht, wird ebenfalls abgelehnt. Für diese Formate vergleicht die
   Platzhalterprüfung außerdem pro Zweig: Ein Platzhalter, der in einem Plural-Zweig erfunden
   wurde, fällt auch dann auf, wenn er in einem anderen legitim vorkommt.
+- Erfundene Einzelklammer-Token: Bei den Doppelklammer-Formaten (i18next, ngx-translate und YAML)
+  ist ein Token der Form `{name}` gewöhnlicher Literaltext und keine Interpolation. Es wird deshalb
+  nicht als Platzhalter erfasst und muss eine Übersetzung nicht überleben. Eines zu erfinden wird
+  trotzdem abgelehnt: Ein `{name}`-förmiges Token, das im Kandidaten auftaucht und in der Quelle nie
+  vorkam, ist unter jeder Interpolationskonvention eine Erfindung. Genau das macht es sicher, es
+  abzulehnen, ohne die Delimiter des Projekts zu kennen. Die Prüfung läuft nur in diese eine
+  Richtung: Ein Kandidat, der ein solches Token fallen lässt oder den umgebenden Literaltext ändert,
+  bleibt unangetastet.
 - Degeneriertheit: Der Wert darf nicht strukturell degeneriert sein, etwa eine Wiederholungsschleife
   oder eine Länge, die der Quelle davongelaufen ist. Das fängt ein Modell ab, das in das Wiederholen
   eines Fragments gekippt ist, selbst wenn jeder Platzhalter überlebt hat.

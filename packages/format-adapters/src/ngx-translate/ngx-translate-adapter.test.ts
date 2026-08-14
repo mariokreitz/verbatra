@@ -237,3 +237,25 @@ describe("ngx-translate adapter: safety", () => {
     expect(invalidIcuKeys).toEqual([]);
   });
 });
+
+describe("createNgxTranslateJsonAdapter single-brace fabrication guard", () => {
+  it("rejects a single-brace token the source never had", () => {
+    expect(adapter.comparePlaceholders?.("Order {orderId}", "Ordine {evil}")).toMatchObject({
+      matches: false,
+      extra: ["{evil}"],
+    });
+  });
+
+  it("keeps the double-brace comparison and the dropped-literal allowance", () => {
+    expect(adapter.comparePlaceholders?.("hello {{value}}", "ciao {{value}}")).toMatchObject({
+      matches: true,
+    });
+    expect(adapter.comparePlaceholders?.("hello {{value}}", "ciao")).toMatchObject({
+      matches: false,
+      missing: ["{{value}}"],
+    });
+    expect(adapter.comparePlaceholders?.("You have {count} items", "Hai articoli")).toMatchObject({
+      matches: true,
+    });
+  });
+});
