@@ -47,7 +47,7 @@ Eine Datei aus einem früheren Export mit einer breiteren `--locales`-Auswahl wi
 | `1` | der Lauf lief durch, aber ein oder mehrere Locales schlugen fehl oder blieben `partial` |
 | `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (Konfiguration, Arbeitsmappe, Format oder Lock) oder ein Verwendungsfehler |
 
-Der Vertrag entspricht [`verbatra translate`](/docs/cli/translate); eine manuelle Übergabe verzweigt in CI also genauso. Das gilt auch für `partial` gebliebene Locales: Ein Locale, das mit weiterhin fehlenden Keys geschrieben wurde, endet mit `1`, nicht mit `0`.
+Der Vertrag entspricht [`verbatra translate`](/docs/cli/translate); eine manuelle Übergabe verzweigt in CI also genauso. Das gilt auch für `partial` gebliebene Locales: Ein Locale, das mit weiterhin fehlenden Keys geschrieben wurde, endet mit `1`, nicht mit `0`. Das gilt auch für die Lock-Datei: Eine Lock-Datei, die kaputt ist oder während des Imports kaputtgeht, bricht den gesamten Lauf mit `2` ab, statt ein einzelnes fehlgeschlagenes Locale zu melden; die noch ausstehenden Locales bleiben damit unberührt. Locales, die vor dem Abbruch angewendet wurden, bleiben geschrieben: Repariere die Lock-Datei und importiere erneut.
 
 Eine leere `Translation`-Zelle lässt ein Locale nie fehlschlagen: Die Zeile wird übersprungen, ihre bisherige Lock-Baseline bleibt erhalten, und der Key wird als `unfilled` gemeldet, wann immer er weiterhin eine Übersetzung braucht, egal ob die Zeile als `new` oder als `changed` exportiert wurde. Der Import einer Arbeitsmappe, die noch niemand ausgefüllt hat, gelingt also und liefert den vollständigen Bestand ausstehender Keys zurück.
 

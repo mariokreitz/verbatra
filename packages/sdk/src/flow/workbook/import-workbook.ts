@@ -397,7 +397,9 @@ async function runSheet(
  * own {@link LocaleSummary}, so nothing is written to an unmanaged path and the configured locales
  * still import. Once the handoff has been read, every per-locale failure is isolated this way, so
  * callers should inspect {@link RunSummary.failed} and {@link RunSummary.partial} rather than
- * relying on a thrown error.
+ * relying on a thrown error. A corrupt lock-file is the one exception, because it is a single
+ * shared file rather than a per-locale one: it aborts the whole run even when it is discovered
+ * after a locale has been applied, so the locales still to come are not written at all.
  *
  * @param input - The config and the handoff path, format, and dry-run flag.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -412,7 +414,8 @@ async function runSheet(
  * cannot be combined, or a configured locale has no valid path spelling under that style.
  * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
- * unsupported version. Read once before any locale is applied.
+ * unsupported version. Read before any locale is applied, and re-read as each locale's entries are
+ * recorded, so a lock-file that turns corrupt mid-run aborts the run rather than failing one locale.
  */
 export async function importWorkbook(
   input: ImportWorkbookInput,
@@ -470,6 +473,9 @@ export async function importWorkbook(
       }
       summaries.push(summary);
     } catch (error) {
+      if (error instanceof SdkError && error.code === "LOCK_FILE_INVALID") {
+        throw error;
+      }
       summaries.push(failureSummary(sheet.locale, error));
     }
   }
