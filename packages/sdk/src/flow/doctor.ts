@@ -73,7 +73,11 @@ export interface DoctorInput {
 export interface DoctorDeps {
   /** Format-adapter registry to resolve the configured format against. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
-  /** File-system port used to probe the source locale file. Defaults to the real file system. */
+  /**
+   * File-system port. Threaded into the config loader, so it backs the glossary-file read the
+   * `config` check performs, and used to read and parse the source locale file. Defaults to the
+   * real file system.
+   */
   readonly fs?: SdkFs;
   /** Config loader. Defaults to {@link loadConfigWithMeta}. */
   readonly loadConfig?: (options: LoadConfigOptions) => Promise<LoadedConfig>;

@@ -70,6 +70,16 @@ describe("runStatus", () => {
     await expect(runStatus({ cwd: dir })).resolves.toEqual({ available: false });
   });
 
+  it("degrades a rejecting fs read to available: false rather than throwing", async () => {
+    const fs = makeFakeFs({
+      readFileBounded: async () => {
+        throw new Error("the backing store is unreachable");
+      },
+    });
+
+    await expect(runStatus({ cwd: "/anywhere" }, { fs })).resolves.toEqual({ available: false });
+  });
+
   it("never calls a provider or writes any file, accepting an injected fs", async () => {
     let writeCalled = false;
     const fs = makeFakeFs({
