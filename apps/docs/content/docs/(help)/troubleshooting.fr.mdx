@@ -122,7 +122,7 @@ sans clé pour les serveurs locaux.
 **Symptôme** : l'exécution se termine, mais certaines clés n'ont pas été traduites : elles
 apparaissent sous les `providerFailures` d'une locale, avec un avis `SUB_BATCH_FAILED` portant le
 code du fournisseur. La locale est rapportée comme `partial` quand certaines clés sont bien
-arrivées et `failed` quand aucune ne l'est, et la commande sort avec `1` dans les deux cas.
+arrivées et `failed` quand aucune n'est arrivée, et la commande sort avec `1` dans les deux cas.
 
 **Cause** : un appel fournisseur a échoué après la construction : HTTP 429 (`RATE_LIMITED`), un
 délai réseau ou de requête dépassé (`TIMEOUT`), ou HTTP 401/403 (`AUTH_FAILED`, une clé invalide ou
