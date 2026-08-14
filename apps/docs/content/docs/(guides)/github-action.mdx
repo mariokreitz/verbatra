@@ -12,17 +12,13 @@ Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything e
 
 ## Availability
 
-The action lives in its own repository, [verbatra/action](https://github.com/verbatra/action), separate from the verbatra monorepo. Reference it by repository, pinned to a commit SHA:
-
-<Callout type="warn" title="@v1 does not resolve yet">
-The action has no releases yet, so `verbatra/action@v1` does not resolve today: a workflow that uses it as-is fails with `Unable to resolve action, unable to find version v1`. Use a full commit SHA from `main`, which is what every example on this page does. `@v1` is documented below so those examples stay correct once the first release is cut.
-</Callout>
+The action lives in its own repository, [verbatra/action](https://github.com/verbatra/action), separate from the verbatra monorepo, and is listed on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/verbatra). Reference it by repository, pinned to a commit SHA:
 
 ```text
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v1` is the convenience form once that first release exists: the `v1` tag moves with each v1 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
+`verbatra/action@v1` is the convenience form: the `v1` tag moves with each v1 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
 
 It used to ship from inside the verbatra monorepo and was referenced by path. That older form no longer resolves, so point existing workflows at the repository above.
 

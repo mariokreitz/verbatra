@@ -12,17 +12,13 @@ Lance plutôt la [CLI directement](/docs/ci-and-exit-codes) quand tu veux autre 
 
 ## Disponibilité
 
-L'action vit dans son propre dépôt, [verbatra/action](https://github.com/verbatra/action), séparé du monorepo verbatra. Référence-la par dépôt, épinglée à un SHA de commit :
-
-<Callout type="warn" title="@v1 ne se résout pas encore">
-L'action n'a encore aucune version publiée, donc `verbatra/action@v1` ne se résout pas aujourd'hui : un workflow qui l'utilise tel quel échoue avec `Unable to resolve action, unable to find version v1`. Utilise un SHA de commit complet issu de `main`, ce que fait chaque exemple de cette page. `@v1` est documenté plus bas pour que ces exemples restent corrects dès que la première version sera publiée.
-</Callout>
+L'action vit dans son propre dépôt, [verbatra/action](https://github.com/verbatra/action), séparé du monorepo verbatra, et elle est publiée sur [GitHub Actions Marketplace](https://github.com/marketplace/actions/verbatra). Référence-la par dépôt, épinglée à un SHA de commit :
 
 ```text
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v1` est la forme pratique dès que cette première version existe : le tag `v1` avance avec chaque version v1, les correctifs t'arrivent donc sans toucher au workflow, au prix de ne pas savoir exactement ce qui s'exécute. Épingler un SHA reste de toute façon le choix soucieux de la sécurité, et c'est ce que font les exemples de cette page. Il n'y a pas de paquet npm ; l'action se consomme uniquement via `uses:`.
+`verbatra/action@v1` est la forme pratique : le tag `v1` avance avec chaque version v1, les correctifs t'arrivent donc sans toucher au workflow, au prix de ne pas savoir exactement ce qui s'exécute. Épingler un SHA reste de toute façon le choix soucieux de la sécurité, et c'est ce que font les exemples de cette page. Il n'y a pas de paquet npm ; l'action se consomme uniquement via `uses:`.
 
 Elle était auparavant livrée depuis le monorepo verbatra et référencée par chemin. Cette forme ancienne ne résout plus, pointe donc tes workflows existants vers le dépôt ci-dessus.
 
