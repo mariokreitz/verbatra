@@ -1,6 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import { type BoundedReadOutcome, outcomeToContent, readBounded } from "../json/bounded-read.js";
+import type { AdapterFs, BoundedReadOutcome } from "../fs-port.js";
+import { outcomeToContent, readBoundedFile } from "../json/bounded-read.js";
 import { isEnoent } from "../shell.js";
 import { extractPropertiesPlaceholders } from "./placeholders.js";
 
@@ -250,10 +251,10 @@ interface DestinationStructure {
   readonly terminator: LineTerminator;
 }
 
-async function readStructure(filePath: string): Promise<DestinationStructure> {
+async function readStructure(filePath: string, fs: AdapterFs): Promise<DestinationStructure> {
   let outcome: BoundedReadOutcome;
   try {
-    outcome = await readBounded(filePath);
+    outcome = await readBoundedFile(fs, filePath);
   } catch (error) {
     if (isEnoent(error)) {
       return { items: [], terminator: "\n" };
@@ -270,8 +271,9 @@ async function readStructure(filePath: string): Promise<DestinationStructure> {
 export async function serializePropertiesEntries(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
+  fs: AdapterFs,
 ): Promise<string> {
-  const { items, terminator } = await readStructure(filePath);
+  const { items, terminator } = await readStructure(filePath, fs);
   const emitted = new Set<string>();
   const lines: string[] = [];
   for (const item of items) {

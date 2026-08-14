@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { AdapterError } from "../errors.js";
+import { nodeAdapterFs } from "../fs-port.js";
 import { serializeJsonTree } from "../json/json-tree.js";
 import {
   buildArbWriteTree,
@@ -137,7 +138,7 @@ describe("buildArbWriteTree", () => {
       ["a", entry("a", "AA")],
       ["b", entry("b", "BB")],
     ]);
-    const tree = await buildArbWriteTree(entries, path);
+    const tree = await buildArbWriteTree(entries, path, nodeAdapterFs);
     expect([...tree.keys()]).toEqual(["@@locale", "a", "@a", "b"]);
     expect(tree.get("a")).toBe("AA");
     expect(tree.get("b")).toBe("BB");
@@ -150,7 +151,11 @@ describe("buildArbWriteTree", () => {
       path,
       '{"count": "{1} of {0}", "@count": {"placeholders": {"1": {"type": "int"}, "0": {"type": "int"}}}}',
     );
-    const tree = await buildArbWriteTree(new Map([["count", entry("count", "{1} von {0}")]]), path);
+    const tree = await buildArbWriteTree(
+      new Map([["count", entry("count", "{1} von {0}")]]),
+      path,
+      nodeAdapterFs,
+    );
     const serialized = serializeJsonTree(tree);
     expect(serialized.indexOf('"1"')).toBeLessThan(serialized.indexOf('"0"'));
     const metadata = tree.get("@count") as ReadonlyMap<string, unknown>;
@@ -160,13 +165,13 @@ describe("buildArbWriteTree", () => {
 
   it("keeps a destination message that was not translated", async () => {
     const path = await tempArb({ a: "A", b: "B" });
-    const tree = await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path);
+    const tree = await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path, nodeAdapterFs);
     expect(plain(tree)).toMatchObject({ a: "AA", b: "B" });
   });
 
   it("drops a stray non-string, non-metadata destination leaf instead of carrying it over", async () => {
     const path = await tempArb({ a: "A", revision: 3 });
-    const tree = await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path);
+    const tree = await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path, nodeAdapterFs);
     expect(plain(tree)).toEqual({ a: "AA" });
   });
 
@@ -176,20 +181,20 @@ describe("buildArbWriteTree", () => {
       ["a", entry("a", "AA")],
       ["c", entry("c", "CC")],
     ]);
-    const tree = await buildArbWriteTree(entries, path);
+    const tree = await buildArbWriteTree(entries, path, nodeAdapterFs);
     expect([...tree.keys()]).toEqual(["a", "c"]);
   });
 
   it("emits messages only when the destination is missing", async () => {
     const missing = join(await mkdtemp(join(tmpdir(), "verbatra-arbmeta-")), "absent.arb");
-    const tree = await buildArbWriteTree(new Map([["a", entry("a", "A")]]), missing);
+    const tree = await buildArbWriteTree(new Map([["a", entry("a", "A")]]), missing, nodeAdapterFs);
     expect(plain(tree)).toEqual({ a: "A" });
   });
 
   it("throws INVALID_STRUCTURE instead of silently discarding a destination that is not a JSON object", async () => {
     const path = await tempArb(["not", "an", "object"]);
     try {
-      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), path);
+      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), path, nodeAdapterFs);
       expect.unreachable("expected a throw");
     } catch (error) {
       expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");
@@ -200,7 +205,7 @@ describe("buildArbWriteTree", () => {
     const path = join(await mkdtemp(join(tmpdir(), "verbatra-arbmeta-")), "app.arb");
     await writeFile(path, '{"@@locale": "en", "a": "A", not valid json');
     try {
-      await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path);
+      await buildArbWriteTree(new Map([["a", entry("a", "AA")]]), path, nodeAdapterFs);
       expect.unreachable("expected a throw");
     } catch (error) {
       expect((error as AdapterError).code).toBe("INVALID_JSON");
@@ -210,7 +215,7 @@ describe("buildArbWriteTree", () => {
   it("throws INVALID_STRUCTURE instead of silently proceeding when the destination path is a directory", async () => {
     const dir = await mkdtemp(join(tmpdir(), "verbatra-arbmeta-"));
     try {
-      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), dir);
+      await buildArbWriteTree(new Map([["a", entry("a", "A")]]), dir, nodeAdapterFs);
       expect.unreachable("expected a throw");
     } catch (error) {
       expect((error as AdapterError).code).toBe("INVALID_STRUCTURE");

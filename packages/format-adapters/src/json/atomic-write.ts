@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, open, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 export interface AtomicWriteOps {
@@ -10,32 +9,6 @@ export interface AtomicWriteOps {
   fsyncDir(path: string): Promise<void>;
   rm(path: string): Promise<void>;
 }
-
-async function fsyncPath(path: string): Promise<void> {
-  const handle = await open(path, "r");
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
-
-async function fsyncDirBestEffort(path: string): Promise<void> {
-  try {
-    await fsyncPath(path);
-  } catch {}
-}
-
-const nodeOps: AtomicWriteOps = {
-  mkdir: async (path) => {
-    await mkdir(path, { recursive: true });
-  },
-  writeFile: (path, data) => writeFile(path, data, "utf8"),
-  fsyncFile: (path) => fsyncPath(path),
-  rename: (from, to) => rename(from, to),
-  fsyncDir: (path) => fsyncDirBestEffort(path),
-  rm: (path) => rm(path, { force: true }),
-};
 
 async function cleanup(ops: AtomicWriteOps, tmp: string): Promise<void> {
   try {
@@ -50,7 +23,7 @@ export function tempFileName(path: string): string {
 export async function atomicWriteFile(
   path: string,
   data: string,
-  ops: AtomicWriteOps = nodeOps,
+  ops: AtomicWriteOps,
 ): Promise<void> {
   const directory = dirname(path);
   const tmp = tempFileName(path);

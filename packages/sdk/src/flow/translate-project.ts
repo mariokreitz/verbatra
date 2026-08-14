@@ -492,7 +492,7 @@ export async function translate(
   );
 
   const resolver = createLocalePathResolver(cwd, config);
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
   const provider = dryRun ? undefined : selectProvider(config.provider, deps.createProvider);
 
   const source = await readSourceResource(config, resolver, fs, adapter);
