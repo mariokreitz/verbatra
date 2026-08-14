@@ -101,8 +101,10 @@ Validates the project setup and spends nothing: it constructs no provider, makes
 request, and never reads an API key value. Five checks run, each with its own `pass`, `fail`, or
 `skipped` verdict: the config loads and validates, the configured format resolves to an adapter,
 the configured provider ID resolves to a factory, the environment variable that provider reads its
-key from is set, and the source locale file exists. Every check runs even when an earlier one
-failed, so one call reports every independent problem. The API key is checked by name only.
+key from is set, and the source locale file reads. Every check runs even when an earlier one
+failed, so one call reports every independent problem. The API key is checked by name only. The
+source-file check reads and parses the file rather than only probing for it, so a directory in its
+place, an empty file, and malformed content are all reported here.
 
 Input: `{ cwd?, configPath? }`. No loaded config needed: `doctor` loads it itself, so a project
 with no config at all still gets a report rather than a thrown error. Returns a `DoctorResult`

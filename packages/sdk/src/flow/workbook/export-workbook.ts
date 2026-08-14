@@ -200,9 +200,10 @@ async function writeDelimitedFiles(
  * through the same diff, lock, and integrity checks. It writes only the handoff file and never
  * touches the locale files or the lock-file.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config, output path, locale filter, and handoff format.
  * @param deps - Optional adapter registry and file-system overrides.

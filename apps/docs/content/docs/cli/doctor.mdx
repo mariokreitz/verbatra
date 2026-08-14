@@ -30,15 +30,16 @@ verbatra doctor [flags]
 | Format adapter | the configured `format` resolves to a file adapter |
 | Provider | the configured `provider.id` resolves to a provider factory |
 | API key environment variable | the variable that provider reads its key from is set |
-| Source locale file | the source locale file exists at its resolved path |
+| Source locale file | the source locale file exists at its resolved path, is a regular file, and parses under the configured format |
 
 Every check runs even when an earlier one failed, so one run reports every independent problem. The only exception is the config itself: when it cannot be loaded, the four checks that need it report `skip` instead of a verdict they could not reach.
 
-Three details are worth knowing:
+Four details are worth knowing:
 
 - The API key is checked **by name only**. `doctor` asks whether the variable is set, never what it holds. The value is not read, not printed, and never sent anywhere. See [Providers](/docs/providers) for which variable each provider uses.
 - The `openai-compatible` provider is the exception. It falls back to a placeholder key, so a missing variable is fine. It only fails when your config names its own variable through `provider.options.apiKeyEnvVar` and that variable is unset.
-- A missing **target** locale file is not a problem: [`verbatra translate`](/docs/cli/translate) creates it. A missing **source** locale file is, because every other command fails on it.
+- A missing **target** locale file is not a problem: [`verbatra translate`](/docs/cli/translate) creates it. Target files are not checked at all.
+- The **source** locale file is read and parsed, not merely probed for. A directory standing in for it, an empty file, and malformed content all fail this check with the same message [`verbatra check`](/docs/cli/check) would give, because those are exactly the cases that make every other command fail. When the configured `format` resolves to no adapter there is nothing to parse with, so the check falls back to existence alone and says so.
 
 Like [`verbatra translate`](/docs/cli/translate), `doctor` loads `.env.local` and then `.env` from the working directory before it looks at the environment, so a key kept in a dotenv file counts as set.
 

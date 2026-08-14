@@ -112,8 +112,10 @@ Netzwerkanfrage und liest nie einen API-Key-Wert. Fünf Prüfungen laufen, jede 
 Urteil `pass`, `fail` oder `skipped`: Die Konfiguration lädt und validiert, das konfigurierte
 Format löst zu einem Adapter auf, die konfigurierte Provider-ID löst zu einer Factory auf, die
 Umgebungsvariable, aus der dieser Provider seinen Key liest, ist gesetzt, und die Quell-Locale-Datei
-existiert. Jede Prüfung läuft auch dann, wenn eine frühere fehlgeschlagen ist; ein Aufruf meldet
-also jedes unabhängige Problem. Der API-Key wird nur über den Namen geprüft.
+lässt sich lesen. Jede Prüfung läuft auch dann, wenn eine frühere fehlgeschlagen ist; ein Aufruf
+meldet also jedes unabhängige Problem. Der API-Key wird nur über den Namen geprüft. Die
+Quelldatei-Prüfung liest und parst die Datei, statt nur ihre Existenz zu sondieren: Ein Verzeichnis
+an ihrer Stelle, eine leere Datei und fehlerhafter Inhalt werden also alle hier gemeldet.
 
 Eingabe: `{ cwd?, configPath? }`. Keine geladene Konfiguration nötig: `doctor` lädt sie selbst, ein
 Projekt ganz ohne Konfiguration bekommt also trotzdem einen Bericht statt eines geworfenen Fehlers.
