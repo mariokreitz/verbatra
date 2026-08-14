@@ -18,7 +18,9 @@
  *   sheet or file names a locale that is not a configured target locale, it records this code on
  *   that locale's {@link LocaleSummary} instead.
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
- *   point that selects an adapter, before any file is read.
+ *   point that selects an adapter, before any file is read. {@link doctor} is the exception: it
+ *   reports an unresolvable format as a failed `format-adapter` check instead, since reporting that
+ *   is the command's job.
  * - `UNKNOWN_LOCALE`: a requested locale is not among the configured target locales. Thrown through
  *   the shared locale selection by {@link translate}, {@link watch}, {@link check}, {@link diff},
  *   {@link keyIntegrity}, {@link lockState}, {@link exportWorkbook}, {@link keyValue},
@@ -55,7 +57,8 @@
  * - `LOCALE_LAYOUT_INVALID`: the configured `files.pattern` and `files.localeStyle` cannot be
  *   combined, or the style has no valid path spelling for a configured locale. Thrown by
  *   {@link createLocalePathResolver}, and so by every entry point that maps a locale to a path,
- *   before any file is read and before any provider call.
+ *   before any file is read and before any provider call. {@link doctor} is the exception: it
+ *   reports the resolver's failure as a failed `source-file` check instead.
  * - `LOCALE_PATH_COLLISION`: two configured locales resolve to the same absolute path, which would
  *   make the path-to-locale direction ambiguous and let two locale workers race on one file. Thrown
  *   at the same point as `LOCALE_LAYOUT_INVALID`.

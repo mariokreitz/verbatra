@@ -1,7 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { z } from "zod";
 import type { LocaleSummary, RunSummary } from "../flow/summary.js";
-import type { SdkFs } from "../fs.js";
+import type { BoundedFileRead, SdkFs } from "../fs.js";
 import type { RunStatusFile, RunStatusLocale } from "./types.js";
 
 const RUN_STATUS_DIR_NAME = ".verbatra-local";
@@ -97,7 +97,12 @@ export async function readRunStatusFile(
   path: string,
   fs: SdkFs,
 ): Promise<RunStatusFile | undefined> {
-  const read = await fs.readFileBounded(path, MAX_RUN_STATUS_FILE_BYTES);
+  let read: BoundedFileRead;
+  try {
+    read = await fs.readFileBounded(path, MAX_RUN_STATUS_FILE_BYTES);
+  } catch {
+    return undefined;
+  }
   if (read.kind !== "ok") {
     return undefined;
   }

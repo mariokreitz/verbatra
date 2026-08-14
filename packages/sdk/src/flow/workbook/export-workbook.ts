@@ -205,6 +205,10 @@ async function writeDelimitedFiles(
  * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
  * error from a target file.
  *
+ * Writing the handoff itself is unwrapped in the same way. It is not a locale file, so a failure to
+ * create the output directory or to write the file does not become `TARGET_UNWRITABLE`; the
+ * underlying file-system error propagates as it is.
+ *
  * @param input - The config, output path, locale filter, and handoff format.
  * @param deps - Optional adapter registry and file-system overrides.
  * @returns The path written and the per-locale row counts.
@@ -218,6 +222,10 @@ async function writeDelimitedFiles(
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  * unsupported version.
  * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
+ * @throws The underlying file-system error, unwrapped, when the handoff could not be written: `out`
+ * names a directory that does not exist or is not writable, or the device is full. Branch on the
+ * Node `code`, such as `ENOENT`, rather than on the message, which can name the internal temporary
+ * file the atomic write uses.
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
