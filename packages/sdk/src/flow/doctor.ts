@@ -250,9 +250,10 @@ async function checkSourceFile(
  *
  * Five checks run: the config loads and validates, the configured format resolves to an adapter,
  * the configured provider ID resolves to a factory, the environment variable that provider reads
- * its API key from is set, and the source locale file reads. Every check runs even when an earlier
- * one failed, so one call reports every independent problem. The API key is checked by variable
- * name only: its value is never read, never returned, and never validated against a provider.
+ * its API key from is set, and the source locale file can be read. Every check runs even when an
+ * earlier one failed, so one call reports every independent problem. The API key is checked by
+ * variable name only: its value is never read, never returned, and never validated against a
+ * provider.
  *
  * The source-file check reads and parses the file rather than only probing for its existence, so a
  * directory standing in for it, an empty file, and malformed content are all reported here rather

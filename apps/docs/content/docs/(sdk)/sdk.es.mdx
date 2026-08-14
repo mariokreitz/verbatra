@@ -107,7 +107,7 @@ ninguna petición de red y nunca lee el valor de una clave de API. Se ejecutan c
 cada una con su propio veredicto `pass`, `fail` o `skipped`: la config carga y valida, el formato
 configurado resuelve a un adaptador, el ID de proveedor configurado resuelve a una fábrica, la
 variable de entorno de la que ese proveedor lee su clave está definida, y el archivo de locale
-fuente se lee. Todas las comprobaciones se ejecutan aunque una anterior haya fallado, así que una
+fuente se puede leer. Todas las comprobaciones se ejecutan aunque una anterior haya fallado, así que una
 sola llamada informa de cada problema independiente. La clave de API se comprueba solo por nombre.
 La comprobación del archivo fuente lo lee y lo parsea en lugar de solo sondear su existencia, así
 que un directorio en su lugar, un archivo vacío y contenido malformado se informan todos aquí.

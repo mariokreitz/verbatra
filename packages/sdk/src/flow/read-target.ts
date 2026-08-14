@@ -11,7 +11,7 @@ export interface ReadTargetResourceInput {
   readonly fs: SdkFs;
 }
 
-export function attributeTargetRead(error: unknown, locale: string, path: string): unknown {
+function attributeTargetRead(error: unknown, locale: string, path: string): unknown {
   if (!(error instanceof AdapterError)) {
     return error;
   }
