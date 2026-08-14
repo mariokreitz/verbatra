@@ -80,6 +80,29 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.
+
+### The "available from" callout
+
+Docs deploy on every merge, while npm publishes only at release time. Between the two
+a page can describe behavior that is on `main` but that no reader can install yet.
+Mark those pages so the gap is visible instead of silent.
+
+- Use `<AvailableFrom version="0.9.0" />` as the first line of the MDX body, directly
+  after the frontmatter. It renders a Fumadocs `Callout` and is registered in
+  `apps/docs/components/mdx.tsx`, so no import is needed.
+- Use it when a page (or a section you are adding to one) documents behavior that has
+  merged but is not yet published, and for behavior that is published but needs a
+  minimum version. The two cases share one wording, so no distinction is needed at the
+  call site.
+- The `version` is the release the behavior ships in. Get it from
+  `pnpm changeset status`, which reports the bump the pending changesets produce; do
+  not work it out by hand.
+- The copy lives in `apps/docs/messages/en.json` under `docs.availableFrom` and is
+  translated by `pnpm i18n` like every other UI string, so the same MDX line goes into
+  the `.de.mdx`, `.es.mdx`, and `.fr.mdx` siblings unchanged.
+- The wording stays true after the release ships, so nothing has to be removed on
+  release day. Dropping the callout once the version is a few releases old is
+  housekeeping, not a required step.
 - When you need Fumadocs framework guidance (frontmatter, MDX components, `meta.json`,
   i18n config), use the `read-fumadocs` skill to read the official Fumadocs docs
   rather than guessing.

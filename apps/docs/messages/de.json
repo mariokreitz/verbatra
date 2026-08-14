@@ -281,6 +281,10 @@
       "full": "llms-full.txt (vollständiger Text)",
       "heading": "Für KI-Agenten",
       "index": "llms.txt (Index)"
+    },
+    "availableFrom": {
+      "title": "Verfügbar ab {version}",
+      "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist."
     }
   }
 }
