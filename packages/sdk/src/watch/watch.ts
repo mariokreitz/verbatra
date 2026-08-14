@@ -117,7 +117,8 @@ export interface WatchController {
  * The returned promise resolves as soon as watching is established, not when translation finishes,
  * so every run outcome arrives through `onRun`. A run that throws is delivered as a failed
  * {@link WatchRunResult} rather than escaping the session, because a watcher that died on the first
- * bad save would be useless. Only startup problems, validated before any watching begins, throw.
+ * bad save would be useless. Only startup problems throw: the inputs validated before any watching
+ * begins, and a failure to construct the watcher itself.
  *
  * Rapid saves are coalesced by `debounceMs`, and runs never overlap, so an editor writing a file
  * several times in a moment produces one run rather than a queue of them.
@@ -138,6 +139,9 @@ export interface WatchController {
  * @throws {@link SdkError} `LOCALE_PATH_COLLISION`: two configured locales resolve to the same path.
  * @throws {@link SdkError} `SOURCE_UNREADABLE`: the source locale file does not exist when watching
  * starts.
+ * @throws Whatever the watcher factory raised, unwrapped, when it could not build a watcher over
+ * the source file. It is not wrapped as an {@link SdkError}. No run has started at that point, so
+ * nothing is watched and `onRun` is never called.
  *
  * @example
  * ```ts

@@ -170,6 +170,24 @@ describe("watch: startup and wiring", () => {
     expect(w.paths).toEqual([]);
   });
 
+  it("lets a watcher-factory failure escape unwrapped at startup, with no run started", async () => {
+    const r = runHarness();
+    const failing: CreateWatcher = () => {
+      throw new Error("no watcher could be built");
+    };
+    const rejection = await watch(
+      { config: baseConfig(), cwd: CWD, onRun: () => {} },
+      { fs: okFs, createWatcher: failing, runTranslate: r.run },
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(rejection).toBeInstanceOf(Error);
+    expect(rejection).not.toBeInstanceOf(SdkError);
+    expect(r.calls).toBe(0);
+  });
+
   it("refuses concurrency greater than 1 with a token budget at startup, before any watcher", async () => {
     const w = watcherHarness();
     const r = runHarness();

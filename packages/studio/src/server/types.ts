@@ -49,8 +49,11 @@ export interface StudioWatcher {
 }
 
 /**
- * Builds a {@link StudioWatcher} over a set of absolute paths. Called once during
- * {@link startStudioServer}, with the locale and lock files the loaded config resolves to.
+ * Builds a {@link StudioWatcher} over a set of absolute paths. Called once per watched entry during
+ * {@link startStudioServer}, each call receiving a one-element array: one for the source locale
+ * file, one for each configured target locale file, and one for the lock file. An implementation
+ * must therefore construct a fresh watcher on every call; one that builds a watcher only the first
+ * time observes the source file alone and never reports a target or lock-file change.
  *
  * @param paths - The absolute paths to observe.
  * @returns A watcher that is already observing.

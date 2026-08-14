@@ -38,8 +38,9 @@ export type RunStatusResult =
  * anything.
  *
  * The read is deliberately total: a missing, oversized, unparseable, schema-invalid, or
- * wrong-version file all report `available: false` rather than throwing, because stale local status
- * should never break the tool reading it. This call throws nothing.
+ * wrong-version file all report `available: false` rather than throwing, and so does an injected
+ * `deps.fs` whose read rejects, because stale or unreachable local status should never break the
+ * tool reading it. This call throws nothing.
  *
  * @param input - The optional working directory.
  * @param deps - Optional file-system override.

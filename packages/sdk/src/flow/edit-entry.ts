@@ -74,10 +74,14 @@ export type EditEntryResult =
  * and feeds the translation memory, which means a later run treats the key as up to date and
  * reuses the edited text rather than paying the provider to translate it again.
  *
- * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
- * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
- * error from a target file.
+ * Note that the target locale file surfaces the adapter's own error and code rather than a wrapped
+ * {@link SdkError}, on the write as well as on the read, because only the source read is wrapped.
+ * A malformed target file fails the read with a message naming the offending locale and the
+ * resolved path. The write raises the adapter's error too, when the entries cannot be represented
+ * in the configured format or the existing destination file cannot be read back to be updated in
+ * place, and that error is re-thrown unchanged so its own code survives for a caller that maps
+ * adapter codes to its own copy. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file on either path.
  *
  * @param input - The config, locale, key, and new value.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -93,10 +97,14 @@ export type EditEntryResult =
  * @throws {@link SdkError} `UNKNOWN_KEY`: the key is not present in the source resource.
  * @throws {@link SdkError} `LOCK_CONTENDED`: the locale's write lock could not be acquired before
  * the timeout elapsed.
- * @throws {@link SdkError} `TARGET_UNWRITABLE`: the target locale file could not be written. The
- * message names the target file and the file-system code, never the internal temporary file.
+ * @throws {@link SdkError} `TARGET_UNWRITABLE`: the target locale file could not be written because
+ * of a file-system failure. The message names the target file and the file-system code, never the
+ * internal temporary file.
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  * unsupported version.
+ * @throws `AdapterError`: the adapter itself refused the target locale file, on the read because it
+ * is malformed or on the write because the entries cannot be represented in the configured format.
+ * Its own code is preserved rather than remapped onto an {@link SdkErrorCode}.
  */
 export async function editEntry(
   input: EditEntryInput,

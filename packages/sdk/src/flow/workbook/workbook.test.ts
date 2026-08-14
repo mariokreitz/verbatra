@@ -173,6 +173,22 @@ describe("exportWorkbook", () => {
     expect(row?.currentTarget).toBe("Aa");
   });
 
+  it("lets the file-system error through unwrapped when the handoff itself cannot be written", async () => {
+    const dir = await project({ a: "A" }, { de: { a: "Aa" } });
+    const rejection = await exportWorkbook({
+      config: cfg({ targetLocales: ["de"] }),
+      cwd: dir,
+      out: join("no", "such", "dir", "out.xlsx"),
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(rejection).toBeInstanceOf(Error);
+    expect(rejection).not.toBeInstanceOf(SdkError);
+    expect(rejection).toMatchObject({ code: "ENOENT" });
+  });
+
   it("rejects an unknown requested locale with UNKNOWN_LOCALE instead of silently dropping it", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" }, fr: { a: "Af" } });
     await expect(
@@ -785,6 +801,19 @@ describe("importWorkbook", () => {
     expect(fr?.status).toBe("failed");
     expect(fr?.error?.code).toBe("WORKBOOK_SHEET_MISSING");
     expect(summary.failed).toContain("fr");
+  });
+
+  it("orders locales by the handoff, appending the locales it had nothing for", async () => {
+    const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
+    const config = cfg({ targetLocales: ["de", "fr"] });
+    const out = await exportWorkbook({ config, cwd: dir });
+    const data = await readWorkbook(new Uint8Array(await readFile(out.path)));
+    const frOnly = data.sheets.filter((sheet) => sheet.locale === "fr");
+    await writeFile(out.path, await buildWorkbook({ sheets: frOnly }));
+
+    const summary = await importWorkbook({ config, workbook: out.path, cwd: dir });
+
+    expect(summary.locales.map((l) => l.locale)).toEqual(["fr", "de"]);
   });
 
   it("reports a renamed tab as an unexpected sheet and its original locale as missing", async () => {
