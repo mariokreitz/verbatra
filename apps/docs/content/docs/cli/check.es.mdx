@@ -41,6 +41,8 @@ verbatra check --locales de,fr --json
 
 La salida `1` significa "desincronizado", no un fallo: la ejecución en sí tuvo éxito, solo que el resultado no está todo en verde.
 
+En un proyecto cuyo archivo de locale fuente todavía no está en su sitio, `check` no puede ejecutarse en absoluto: falla por completo con `SOURCE_UNREADABLE` y sale con `2`. [`verbatra doctor`](/docs/cli/doctor) valida la configuración del proyecto y sí te da un informe en ese caso.
+
 ## Relacionado
 
 - [`verbatra diff`](/docs/cli/diff) lista las claves exactas detrás de estos contadores.

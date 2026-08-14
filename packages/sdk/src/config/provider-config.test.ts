@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildProvider, providerConfigSchema } from "./provider-config.js";
+import {
+  buildProvider,
+  hasProviderFactory,
+  PROVIDER_IDS,
+  providerConfigSchema,
+} from "./provider-config.js";
 
 const validOpenAiCompatible = {
   id: "openai-compatible" as const,
@@ -58,5 +63,18 @@ describe("buildProvider: openai-compatible", () => {
     const provider = buildProvider(validOpenAiCompatible);
     expect(provider.id).toBe("openai-compatible");
     expect(provider.kind).toBe("llm");
+  });
+});
+
+describe("hasProviderFactory: membership without construction", () => {
+  it("answers true for every id the schema accepts, so the two can never drift apart", () => {
+    const ids = providerConfigSchema.options.map((option) => option.shape.id.value);
+    expect(ids.filter((id) => !hasProviderFactory(id))).toEqual([]);
+    expect(ids.sort()).toEqual([...PROVIDER_IDS].sort());
+  });
+
+  it("answers false for an id no factory is registered under", () => {
+    expect(hasProviderFactory("mistral")).toBe(false);
+    expect(hasProviderFactory("toString")).toBe(false);
   });
 });

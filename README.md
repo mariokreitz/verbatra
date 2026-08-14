@@ -66,6 +66,7 @@ It ships in three packages. `@verbatra/cli` gives you a `verbatra` command for t
 - **Project scaffolding.** `verbatra init` writes a config and a `.env.example` for your project, and gitignores the local files it must not commit.
 - **Dry runs.** `--dry-run` previews what would change without calling a provider or writing files.
 - **Read-only status and diff.** `verbatra check` counts per-locale missing, stale, and up-to-date keys and `verbatra diff` names the keys that would be added, re-translated, or are orphaned; both write nothing and exit non-zero when a locale has a missing or stale key (orphaned keys alone never do), so they slot into CI ([CLI reference](https://verbatra.kreitz-webdev.de/docs/cli)).
+- **Setup preflight.** `verbatra doctor` validates the config, the format adapter, the provider, its API key environment variable, and the source locale file in one pass and reports every problem at once, without calling a provider, writing a file, or reading a key value ([verbatra doctor](https://verbatra.kreitz-webdev.de/docs/cli/doctor)).
 - **Watch mode.** `verbatra watch` re-translates automatically on every source change.
 - **Manual translation.** `verbatra export` writes the strings that need translating to a styled Excel workbook for a human translator, and `verbatra import` reads the filled file back with the same safety checks as an automated run ([Manual translation](https://verbatra.kreitz-webdev.de/docs/manual-translation)).
 - **Integrity gate on every translation.** Every candidate value is re-checked from the value itself at the single accept/reject point every write path calls (a provider result, a workbook import, a manual edit, and any translation reused for another key, whether from the cache or from grouping keys that share source content), and one that fails a check, a dropped or altered placeholder for example, is withheld and reported rather than written.
@@ -133,6 +134,7 @@ Each provider reads its API key from one environment variable:
 | `verbatra watch` | Re-translate on every source change until interrupted | `--cwd`, `--config`, `--debounce <ms>`, `--lock-timeout <seconds>`, `--concurrency <n>`, `--no-cache`, `--json` |
 | `verbatra check` | Report per-locale missing, stale, and up-to-date counts without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
 | `verbatra diff` | List the keys per locale that would be added, re-translated, or are orphaned, without writing (read-only) | `--cwd`, `--config`, `--locales`, `--json` |
+| `verbatra doctor` | Validate the project setup and report every problem at once, without calling a provider or reading a key value (read-only) | `--cwd`, `--config`, `--json` |
 | `verbatra export` | Export untranslated strings into a styled Excel workbook for a human translator | `--out`, `--locales`, `--include-unchanged`, `--cwd`, `--config`, `--json` |
 | `verbatra import <workbook>` | Import a filled workbook back into the locale files, with the same safety checks | `--dry-run`, `--cwd`, `--config`, `--json` |
 | `verbatra studio` | Start Verbatra Studio, a local web dashboard over the project | `--port`, `--allow-spend`, `--expose-agent-tools`, `--cwd`, `--config` |
@@ -145,12 +147,12 @@ Every command follows the same contract, so a CI step can branch on the code alo
 
 | Code | Meaning |
 | --- | --- |
-| `0` | Success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
-| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), or `studio` failed while shutting its server down |
+| `0` | Success: `translate` or `import` succeeded for every locale, `check` found every locale in sync, `diff` found no pending changes, `doctor` found no setup problem, `export` wrote its workbook, `init` scaffolded the project, `watch` or `studio` stopped cleanly, or `--help` or `--version` was printed |
+| `1` | It ran, but the result is not clean: `translate` or `import` finished with at least one failed locale, `check` found drift, `diff` found a missing or changed key (orphaned keys alone never produce `1`), `doctor` found at least one failed check, or `studio` failed while shutting its server down |
 | `2` | Could not run: a whole-run error, a usage error, `init` without a resolvable provider or unable to scaffold a valid config, `watch` failing to start or to stop, or `studio` given a bad `--port` or unable to load the config, import `@verbatra/studio`, or start its server |
 | `130` | `watch` or `studio` was force-stopped by a second interrupt |
 
-A single interrupt is a clean stop and exits `0` for both `watch` and `studio`, but the two part ways if that stop itself fails: `watch` exits `2`, `studio` exits `1`. `export` has no per-locale failure mode, so it never exits `1`. One case sits outside the contract: a parse failure that is not a usage error is re-thrown and the binary does not catch it, so Node's default handling of an unhandled rejection applies instead of any of these codes.
+A single interrupt is a clean stop and exits `0` for both `watch` and `studio`, but the two part ways if that stop itself fails: `watch` exits `2`, `studio` exits `1`. `export` has no per-locale failure mode, so it never exits `1`. `doctor` reads a broken config the other way around: a config it cannot find by search, or one that fails validation, is a failed check and exit `1`, and it exits `2` only when it cannot run at all, such as an explicit `--config` path that does not exist. One case sits outside the contract: a parse failure that is not a usage error is re-thrown and the binary does not catch it, so Node's default handling of an unhandled rejection applies instead of any of these codes.
 
 ## Verbatra Studio
 

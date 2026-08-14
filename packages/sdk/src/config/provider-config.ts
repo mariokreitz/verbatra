@@ -62,6 +62,12 @@ const providerFactories: ProviderFactories = {
   "openai-compatible": (options) => createOpenAiCompatibleProvider(options),
 };
 
+export const PROVIDER_IDS = Object.keys(providerFactories) as readonly ProviderId[];
+
+export function hasProviderFactory(id: string): boolean {
+  return Object.hasOwn(providerFactories, id);
+}
+
 export function buildProvider(config: ProviderConfig): TranslationProvider {
   const create = providerFactories[config.id] as (
     options: ProviderConfig["options"],

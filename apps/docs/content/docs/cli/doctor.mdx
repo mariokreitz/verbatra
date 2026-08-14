@@ -1,0 +1,83 @@
+---
+title: verbatra doctor
+description: Validate the project setup without calling a provider or reading an API key.
+---
+Answer one question before you run anything else: is this project set up correctly? `doctor` validates the config, the format adapter, the provider, the API key variable, and the source locale file, then reports every problem it found at once. It spends nothing: no provider is constructed, no network request is made, no file is written, and no API key value is ever read.
+
+Reach for it on a fresh checkout, right after [`verbatra init`](/docs/cli/init), or whenever another command failed and you want the whole list rather than the first error. [`verbatra check`](/docs/cli/check) is the cheapest validation once a project already works, but it reads the locale files and stops at the first whole-run error, so it cannot tell you what is wrong with a project that has no source file yet.
+
+## Synopsis
+
+```bash
+verbatra doctor [flags]
+```
+
+## Flags
+
+| Flag | Argument | Default | Effect |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | current directory | resolve config and locale files from this directory |
+| `--config` | `<path>` | search for one | load this config file instead of searching for one |
+| `--json` | none | off | print one [JSON envelope](/docs/ci-and-exit-codes#json-output) on stdout carrying the report under `result`; the human-readable error line still goes to stderr |
+
+## What it checks
+
+| Check | Passes when |
+| --- | --- |
+| Configuration | a config file was found and passes validation |
+| Format adapter | the configured `format` resolves to a file adapter |
+| Provider | the configured `provider.id` resolves to a provider factory |
+| API key environment variable | the variable that provider reads its key from is set |
+| Source locale file | the source locale file exists at its resolved path |
+
+Every check runs even when an earlier one failed, so one run reports every independent problem. The only exception is the config itself: when it cannot be loaded, the four checks that need it report `skip` instead of a verdict they could not reach.
+
+Three details are worth knowing:
+
+- The API key is checked **by name only**. `doctor` asks whether the variable is set, never what it holds. The value is not read, not printed, and never sent anywhere. See [Providers](/docs/providers) for which variable each provider uses.
+- The `openai-compatible` provider is the exception. It falls back to a placeholder key, so a missing variable is fine. It only fails when your config names its own variable through `provider.options.apiKeyEnvVar` and that variable is unset.
+- A missing **target** locale file is not a problem: [`verbatra translate`](/docs/cli/translate) creates it. A missing **source** locale file is, because every other command fails on it.
+
+Like [`verbatra translate`](/docs/cli/translate), `doctor` loads `.env.local` and then `.env` from the working directory before it looks at the environment, so a key kept in a dotenv file counts as set.
+
+## Examples
+
+```bash
+# report every setup problem at once
+verbatra doctor
+
+# validate a project in another directory, with an explicit config
+verbatra doctor --cwd apps/web --config verbatra.config.ts
+
+# machine-readable report for a CI preflight step
+verbatra doctor --json
+```
+
+A run with two problems looks like this:
+
+```text
+verbatra doctor
+  [ok  ] Configuration: Loaded /app/verbatra.config.ts.
+  [ok  ] Format adapter: Format "i18next-json" resolves to an adapter.
+  [ok  ] Provider: Provider "anthropic" resolves to a factory.
+  [fail] API key environment variable: The ANTHROPIC_API_KEY environment variable is not set.
+  [fail] Source locale file: The source locale file was not found at /app/locales/en.json.
+2 problems found (run verbatra doctor again after fixing them)
+```
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | every check passed |
+| `1` | at least one check failed (the full report is still printed) |
+| `2` | could not run: a usage error, or an explicit `--config` path that does not exist |
+
+Exit `1` means "it ran, and it found problems". Exit `2` is reserved for `doctor` being unable to run at all, which is why a missing config file found by search is a failed check and exit `1`, while a `--config` path pointing at nothing is exit `2`.
+
+## Related
+
+- [`verbatra init`](/docs/cli/init) scaffolds the config and `.env.example` that `doctor` validates.
+- [`verbatra check`](/docs/cli/check) is the drift gate to run once the setup is sound.
+- [The config file](/docs/config-file) documents every key `doctor` validates.
+- [Providers](/docs/providers) lists the API key variable each provider reads.

@@ -33,6 +33,15 @@ export {
   type LocaleDiff,
 } from "./flow/diff.js";
 export {
+  type DoctorCheck,
+  type DoctorCheckId,
+  type DoctorCheckStatus,
+  type DoctorDeps,
+  type DoctorInput,
+  type DoctorResult,
+  doctor,
+} from "./flow/doctor.js";
+export {
   type EditEntryDeps,
   type EditEntryInput,
   type EditEntryResult,
