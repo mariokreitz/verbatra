@@ -45,6 +45,7 @@ export function softwareApplicationLd(args: {
   description: string;
   lang: string;
   version: string;
+  studioVersion: string;
 }): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
@@ -73,6 +74,19 @@ export function softwareApplicationLd(args: {
     ],
     softwareHelp: { "@type": "CreativeWork", url: `${SITE_URL}/docs` },
     sameAs: [GITHUB_URL, NPM_CLI_URL, NPM_SDK_URL, NPM_STUDIO_URL],
+    hasPart: {
+      "@type": "SoftwareApplication",
+      name: "verbatra Studio",
+      softwareVersion: args.studioVersion,
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Node.js >= 22.14.0",
+      url: NPM_STUDIO_URL,
+      downloadUrl: NPM_STUDIO_URL,
+      license: "https://opensource.org/licenses/MIT",
+      isAccessibleForFree: true,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      author: AUTHOR,
+    },
   };
 }
 

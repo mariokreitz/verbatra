@@ -1,6 +1,7 @@
 import defaultMdxComponents from "fumadocs-ui/mdx";
 import type { MDXComponents } from "mdx/types";
 import type { ComponentProps } from "react";
+import { AvailableFrom, type AvailableFromProps } from "@/components/available-from";
 import { DiffPanel } from "@/components/diff-panel";
 import {
   DocsHomeBody,
@@ -22,6 +23,7 @@ export function getMDXComponents(locale: Locale, components?: MDXComponents): MD
     a: ({ href, ...rest }: ComponentProps<"a">) => (
       <DefaultAnchor href={localizeHref(locale, href)} {...rest} />
     ),
+    AvailableFrom: (props: AvailableFromProps) => <AvailableFrom {...props} locale={locale} />,
     DiffPanel,
     CommandLine,
     Badge,
