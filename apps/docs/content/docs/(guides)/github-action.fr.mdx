@@ -65,7 +65,7 @@ L'action ne définit aucune sortie. Ses résultats sont les annotations, le rés
 
 ## Ce qu'une exécution te montre
 
-**Annotations.** Quand la CLI sort avec `1` (certaines locales ont échoué), chaque locale échouée devient une annotation d'erreur intitulée `verbatra: <locale>`, portant le `[CODE] message` structuré de cette locale. Quand toute l'exécution échoue avant de produire un résumé (sortie `2`), une seule annotation `verbatra` porte à la place la ligne d'erreur de la CLI.
+**Annotations.** Quand la CLI sort avec `1` (certaines locales ont échoué ou sont ressorties partielles), chaque locale échouée devient une annotation d'erreur intitulée `verbatra: <locale>`, portant le `[CODE] message` structuré de cette locale. Quand toute l'exécution échoue avant de produire un résumé (sortie `2`), une seule annotation `verbatra` porte à la place la ligne d'erreur de la CLI.
 
 **Résumé de job.** Chaque exécution ajoute un résumé Markdown à la page du job : un tableau avec une ligne par locale (statut, traduites, inchangées, orphelines, ICU invalide, retenues pour intégrité, échecs fournisseur, avis), une ligne d'agrégat et une liste des locales échouées avec leurs codes d'erreur. Un dry run est étiqueté comme tel. Un échec global reçoit un court résumé d'échec avec le code de sortie et le détail de l'erreur.
 

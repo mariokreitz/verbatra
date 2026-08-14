@@ -43,11 +43,11 @@ Un archivo que quedó de una exportación anterior con una selección `--locales
 
 | Código | Significado |
 | --- | --- |
-| `0` | todos los locales de destino tuvieron éxito |
-| `1` | la ejecución terminó pero uno o más locales fallaron |
+| `0` | todos los locales de destino quedaron completos |
+| `1` | la ejecución terminó pero uno o más locales fallaron o quedaron parciales |
 | `2` | no se pudo ejecutar: un error de toda la ejecución (configuración, libro, formato o bloqueo) o un error de uso |
 
-El contrato coincide con el de [`verbatra translate`](/docs/cli/translate), así que una entrega manual ramifica igual en CI.
+El contrato coincide con el de [`verbatra translate`](/docs/cli/translate), así que una entrega manual ramifica igual en CI. Eso incluye los locales parciales: un locale escrito con claves aún faltantes sale con `1`, no con `0`.
 
 Una celda `Translation` vacía nunca hace fallar un locale: la fila se omite, se conserva su línea base anterior del bloqueo, y la clave se informa como `unfilled` siempre que todavía necesite traducción, tanto si la fila se exportó como `new` como si se exportó como `changed`. Importar un libro que nadie ha rellenado todavía tiene por tanto éxito y devuelve el inventario completo de claves pendientes.
 

@@ -24,7 +24,9 @@ import { loadConfig, translate } from "@verbatra/sdk";
 const config = await loadConfig();
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
+console.log(
+  `${summary.succeeded.length} ok, ${summary.partial.length} partial, ${summary.failed.length} failed`,
+);
 
 if (summary.usage !== undefined) {
   console.log(`tokens: ${summary.usage.inputTokens} in, ${summary.usage.outputTokens} out`);
@@ -40,14 +42,21 @@ for (const locale of summary.locales) {
   }
 }
 
-if (summary.failed.length > 0) {
+if (summary.failed.length > 0 || summary.partial.length > 0) {
   process.exitCode = 1;
 }
 ```
 
+Ein als `partial` gemeldetes Locale ist eines, dessen Datei mit weiterhin fehlenden Keys
+geschrieben wurde. Das ist kein Erfolg: Die CLI endet darauf mit `1`, und dein eigenes Skript
+sollte es genauso behandeln, deshalb prüft die Abfrage oben `partial` neben `failed`.
+
 Übergib `dryRun: true`, um ohne Provider-Aufruf und ohne Schreiben eine Vorschau zu bekommen, und
 `prune: true` oder `generatePlurals: true`, um diese Konfigurationsoptionen für einen Lauf zu
-übersteuern. Setze `concurrency` über 1, um Locales parallel zu übersetzen (bei einem Live-Lauf
+übersteuern. Übergib `locales: ["de"]`, um den Lauf auf eine Teilmenge der konfigurierten Ziele zu
+beschränken; so arbeitest du einen ratenbegrenzten Provider Sprache für Sprache ab. Ein nicht
+konfiguriertes Locale wirft `UNKNOWN_LOCALE`, bevor irgendetwas gelesen oder ein
+kostenpflichtiger Provider-Aufruf gemacht wird. Setze `concurrency` über 1, um Locales parallel zu übersetzen (bei einem Live-Lauf
 nicht mit einem `maxTokens`-Budget erlaubt), und `cache: false`, um den
 [Translation-Memory-Cache](/docs/the-cache) zu umgehen.
 

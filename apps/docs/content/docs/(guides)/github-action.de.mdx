@@ -65,7 +65,7 @@ Die Action definiert keine Outputs. Die Ergebnisse sind die Annotationen, die Jo
 
 ## Was ein Lauf dir zeigt
 
-**Annotationen.** Wenn die CLI mit `1` endet (einige Locales schlugen fehl), wird jedes fehlgeschlagene Locale zu einer Fehler-Annotation mit dem Titel `verbatra: <locale>`, die dessen strukturierte `[CODE] message` trägt. Wenn der ganze Lauf fehlschlägt, bevor eine Zusammenfassung entsteht (Exit `2`), trägt stattdessen eine einzelne `verbatra`-Annotation die Fehlerzeile der CLI.
+**Annotationen.** Wenn die CLI mit `1` endet (einige Locales schlugen fehl oder blieben `partial`), wird jedes fehlgeschlagene Locale zu einer Fehler-Annotation mit dem Titel `verbatra: <locale>`, die dessen strukturierte `[CODE] message` trägt. Wenn der ganze Lauf fehlschlägt, bevor eine Zusammenfassung entsteht (Exit `2`), trägt stattdessen eine einzelne `verbatra`-Annotation die Fehlerzeile der CLI.
 
 **Job-Zusammenfassung.** Jeder Lauf hängt eine Markdown-Zusammenfassung an die Job-Seite an: eine Tabelle mit einer Zeile pro Locale (Status, übersetzt, unverändert, verwaist, ungültiges ICU, wegen Integrität zurückgehalten, Provider-Fehlschläge, Notices), eine Summenzeile und eine Liste fehlgeschlagener Locales mit ihren Fehlercodes. Ein Dry-Run wird als solcher gekennzeichnet. Ein Fehlschlag des gesamten Laufs bekommt eine kurze Fehlerzusammenfassung mit Exit-Code und Fehlerdetail.
 

@@ -15,13 +15,14 @@ Der Exit-Code ist der Vertrag, auf den dein CI-Schritt verzweigt:
 
 | Code | Bedeutung |
 | --- | --- |
-| `0` | Erfolg: `translate` oder `import` war für jedes Locale erfolgreich, `check` fand jedes Locale synchron, `diff` fand keine ausstehenden Änderungen, `export` schrieb seine Arbeitsmappe, `init` legte das Projekt an, `watch` oder `studio` wurde sauber beendet, oder `--help` beziehungsweise `--version` wurde ausgegeben |
-| `1` | der Lauf kam durch, aber das Ergebnis ist nicht sauber: `translate` oder `import` endete mit mindestens einem fehlgeschlagenen Locale, `check` fand ein Locale nicht synchron, `diff` fand einen fehlenden oder geänderten Key, oder `studio` scheiterte beim Herunterfahren seines Servers |
+| `0` | Erfolg: `translate` oder `import` schloss jedes Locale vollständig ab, `check` fand jedes Locale synchron, `diff` fand keine ausstehenden Änderungen, `export` schrieb seine Arbeitsmappe, `init` legte das Projekt an, `watch` oder `studio` wurde sauber beendet, oder `--help` beziehungsweise `--version` wurde ausgegeben |
+| `1` | der Lauf kam durch, aber das Ergebnis ist nicht sauber: `translate` oder `import` endete mit mindestens einem fehlgeschlagenen oder `partial` gebliebenen Locale, `check` fand ein Locale nicht synchron, `diff` fand einen fehlenden oder geänderten Key, oder `studio` scheiterte beim Herunterfahren seines Servers |
 | `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (kaputte Konfiguration, unlesbare Quelle), ein Verwendungsfehler (ein leerer oder unbekannter `--locales`-Wert, ein ungültiges `--debounce` oder `--port`), `init` ohne auflösbaren Provider oder wenn es keine gültige Konfiguration anlegen kann, ein gescheiterter Start oder Stopp von `watch`, oder `studio`, das die Konfiguration nicht laden, `@verbatra/studio` nicht importieren oder seinen Server nicht starten kann |
 | `130` | `watch` oder `studio` wurde durch einen zweiten Interrupt zwangsbeendet |
 
 Einige Randfälle, die du kennen solltest:
 
+- Ein Locale mit dem Status **`partial`** zählt als Fehlschlag. Das heißt, die Datei wurde geschrieben, aber einige Keys fehlen weiterhin, meist weil ein Provider-Sub-Batch fehlschlug oder das Integritäts-Gate eine Übersetzung abgelehnt hat. Es endet mit `1` genau wie ein fehlgeschlagenes Locale, denn ein halb übersetztes Locale auf der Platte ist kein Zustand, den eine Pipeline durchwinken sollte. Um beide auseinanderzuhalten, lies `partial` in der Zusammenfassung.
 - Ein einzelner Interrupt ist ein sauberer Stopp, und sowohl `watch` als auch `studio` enden dabei mit `0`. Geh darüber hinaus nicht davon aus, dass sich beide gleich verhalten: scheitert der Stopp selbst, endet `watch` mit `2` und `studio` mit `1`.
 - Ein fehlgeschlagener Lauf während `watch` erscheint als Datensatz im Ausgabestrom, nie als Exit-Code ungleich null.
 - `export` hat keinen Fehlermodus pro Locale: der Befehl endet mit `0` oder `2`, nie mit `1`.
@@ -41,7 +42,7 @@ verbatra diff
 
 Nimm `check`, wenn der Exit-Code alles ist, was du brauchst. Nimm `diff`, wenn du die genauen Keys hinter der Drift willst, etwa um sie als Kommentar in einen Pull Request zu posten. Verwaiste Keys (in einer Zieldatei vorhanden, aber aus der Quelle verschwunden) erscheinen in der `diff`-Ausgabe, setzen aber nie allein Exit-Code `1`.
 
-Beide nehmen `--locales de,fr`, um nur eine Teilmenge abzusichern. `--locales` ohne gültiges Locale ist ein Verwendungsfehler und endet mit `2`, ein Tippfehler kann das Gate also nie grün schalten.
+Beide nehmen `--locales de,fr`, um nur eine Teilmenge abzusichern. `--locales` ohne gültiges Locale ist ein Verwendungsfehler und endet mit `2`, ein Tippfehler kann das Gate also nie grün schalten. `translate`, `watch` und `export` nehmen dasselbe Flag; so übersetzt du gegen einen ratenbegrenzten Provider ein Locale nach dem anderen.
 
 ## JSON-Ausgabe
 
@@ -74,6 +75,7 @@ interface RunSummary {
   dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
+  partial: string[];        // locales written with keys still missing; these exit 1 too
   failed: string[];         // locales whose run failed
   usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
   budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured

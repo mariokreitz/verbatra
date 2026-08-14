@@ -227,9 +227,11 @@ Ein Provider-Fehlschlag erscheint nie als roher SDK-Fehler, der Request-Header o
 | `INVALID_RESPONSE` | Die Ausgabe war fehlerhaft, unvollständig oder scheiterte am Abgleich mit der Anfrage. |
 | `PROVIDER_REFUSED` | Das Modell hat die Antwort verweigert. |
 | `PROVIDER_BLOCKED` | Anfrage oder Antwort wurde aus Sicherheitsgründen blockiert oder gefiltert. |
-| `PROVIDER_ERROR` | Alles Unklassifizierbare, abgebildet auf eine statische, geheimnisfreie Meldung. |
+| `PROVIDER_ERROR` | Alles Unklassifizierbare. Ist der Fehlschlag ein erkennbares Transportproblem, benennt die Meldung es (Verbindung abgelehnt, Hostname nicht aufgelöst, Verbindung geschlossen, Host nicht erreichbar, TLS-Zertifikat nicht verifiziert) und sagt, was zu prüfen ist; sonst fällt sie auf eine statische, geheimnisfreie Meldung zurück. |
 
 Ein Fehlschlag betrifft nur seinen eigenen Sub-Batch: Die fehlgeschlagenen Keys werden zurückgehalten und beim nächsten Lauf wieder aufgegriffen.
+
+Bei `openai-compatible` nennt ein `PROVIDER_ERROR` zusätzlich Host und Port der konfigurierten `baseUrl`, denn ein Endpunkt, den du selbst betreibst, ist der, der tatsächlich unerreichbar wird: `The translation provider request to localhost:11434 failed: the connection was refused. Check that the endpoint is running and that the configured host and port are right, then run again.` Verwendet wird ausschließlich die Host-Komponente der URL; ein Pfad, ein Query-String oder Benutzerangaben in `baseUrl` erreichen also nie eine Meldung.
 
 ### Ausgabe-Token-Limits
 

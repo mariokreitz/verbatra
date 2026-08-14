@@ -227,9 +227,11 @@ Un fallo de proveedor nunca aflora como un error crudo del SDK, que podría llev
 | `INVALID_RESPONSE` | La salida era malformada, incompleta o falló la reconciliación contra la solicitud. |
 | `PROVIDER_REFUSED` | El modelo se negó a responder. |
 | `PROVIDER_BLOCKED` | La solicitud o la respuesta fue bloqueada o filtrada por seguridad. |
-| `PROVIDER_ERROR` | Cualquier cosa inclasificable, asignada a un mensaje estático y sin secretos. |
+| `PROVIDER_ERROR` | Cualquier cosa inclasificable. Cuando el fallo es un problema de transporte reconocible, el mensaje lo nombra (conexión rechazada, nombre de host no resuelto, conexión cerrada, host inalcanzable, certificado TLS no verificado) y dice qué comprobar; si no, recurre a un mensaje estático y sin secretos. |
 
 Un fallo solo afecta a su propio sublote: las claves fallidas se retienen y se recogen de nuevo en la siguiente ejecución.
+
+Para `openai-compatible`, un `PROVIDER_ERROR` nombra además el host y el puerto del `baseUrl` configurado, porque un endpoint que alojas tú mismo es el que de verdad se queda inalcanzable: `The translation provider request to localhost:11434 failed: the connection was refused. Check that the endpoint is running and that the configured host and port are right, then run again.` Solo se usa el componente de host de la URL, así que ninguna ruta, consulta ni información de usuario del `baseUrl` llega jamás a un mensaje.
 
 ### Límites de tokens de salida
 

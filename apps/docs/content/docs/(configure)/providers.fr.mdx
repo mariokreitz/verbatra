@@ -227,9 +227,11 @@ Un échec de fournisseur ne remonte jamais comme une erreur SDK brute, qui pourr
 | `INVALID_RESPONSE` | La sortie était malformée, incomplète, ou a échoué à la réconciliation avec la requête. |
 | `PROVIDER_REFUSED` | Le modèle a refusé de répondre. |
 | `PROVIDER_BLOCKED` | La requête ou la réponse a été bloquée ou filtrée pour raison de sécurité. |
-| `PROVIDER_ERROR` | Tout ce qui est inclassable, mappé sur un message statique sans secret. |
+| `PROVIDER_ERROR` | Tout ce qui est inclassable. Quand l'échec est un problème de transport reconnaissable, le message le nomme (connexion refusée, nom d'hôte non résolu, connexion fermée, hôte injoignable, certificat TLS non vérifié) et dit quoi vérifier ; sinon il se replie sur un message statique sans secret. |
 
 Un échec n'affecte que son propre sous-lot : les clés échouées sont retenues et reprises à l'exécution suivante.
+
+Pour `openai-compatible`, un `PROVIDER_ERROR` nomme en plus l'hôte et le port du `baseUrl` configuré, puisqu'un point d'accès que tu héberges toi-même est justement celui qui devient injoignable : `The translation provider request to localhost:11434 failed: the connection was refused. Check that the endpoint is running and that the configured host and port are right, then run again.` Seule la composante hôte de l'URL est utilisée, donc un chemin, une requête ou des informations d'utilisateur présents dans `baseUrl` n'atteignent jamais un message.
 
 ### Limites de tokens de sortie
 

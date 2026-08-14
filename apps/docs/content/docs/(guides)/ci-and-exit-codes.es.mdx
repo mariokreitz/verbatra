@@ -15,13 +15,14 @@ El código de salida es el contrato sobre el que ramifica tu paso de CI:
 
 | Código | Significado |
 | --- | --- |
-| `0` | éxito: `translate` o `import` terminó bien para cada locale, `check` encontró todos los locales sincronizados, `diff` no encontró cambios pendientes, `export` escribió su libro, `init` preparó el proyecto, `watch` o `studio` se detuvo limpiamente, o se imprimió `--help` o `--version` |
-| `1` | la ejecución llegó al final, pero el resultado no está limpio: `translate` o `import` terminó con al menos un locale fallido, `check` encontró un locale desincronizado, `diff` encontró una clave ausente o cambiada, o `studio` falló al apagar su servidor |
+| `0` | éxito: `translate` o `import` terminó cada locale completo, `check` encontró todos los locales sincronizados, `diff` no encontró cambios pendientes, `export` escribió su libro, `init` preparó el proyecto, `watch` o `studio` se detuvo limpiamente, o se imprimió `--help` o `--version` |
+| `1` | la ejecución llegó al final, pero el resultado no está limpio: `translate` o `import` terminó con al menos un locale fallido o parcial, `check` encontró un locale desincronizado, `diff` encontró una clave ausente o cambiada, o `studio` falló al apagar su servidor |
 | `2` | no se pudo ejecutar: un error de toda la ejecución (configuración mala, origen ilegible), un error de uso (un valor `--locales` vacío o desconocido, un `--debounce` o `--port` inválido), `init` sin un proveedor que pueda resolver o incapaz de componer una configuración válida, un arranque o una parada fallidos de `watch`, o `studio` incapaz de cargar la configuración, de importar `@verbatra/studio` o de arrancar su servidor |
 | `130` | `watch` o `studio` fue detenido a la fuerza por una segunda interrupción |
 
 Algunos casos límite que conviene conocer:
 
+- Un locale **parcial** cuenta como fallo. Significa que el archivo se escribió pero todavía faltan algunas claves, normalmente porque un sublote del proveedor falló o la puerta de integridad rechazó una traducción. Sale con `1` exactamente igual que un locale fallido, porque un locale a medio traducir en disco no es un estado que una canalización deba dejar pasar. Lee `partial` en el resumen para distinguir los dos casos.
 - Una sola interrupción es una parada limpia, y tanto `watch` como `studio` salen con `0` ante ella. Más allá de eso no des por hecho que se comportan igual: si la propia parada falla, `watch` sale con `2` y `studio` sale con `1`.
 - Una ejecución fallida durante `watch` aparece como un registro en el flujo de salida, nunca como un código de salida distinto de cero.
 - `export` no tiene modo de fallo por locale: sale con `0` o `2`, nunca con `1`.
@@ -41,7 +42,7 @@ verbatra diff
 
 Usa `check` cuando el código de salida es todo lo que necesitas. Usa `diff` cuando quieras las claves exactas detrás del desfase, por ejemplo, para publicarlas en un comentario del pull request. Las claves huérfanas (en un archivo de destino pero desaparecidas del origen) aparecen en la salida de `diff` pero nunca provocan por sí solas el código de salida `1`.
 
-Ambos aceptan `--locales de,fr` para bloquear un subconjunto. Pasar `--locales` sin ningún locale válido es un error de uso y sale con `2`, así que una errata nunca puede poner la puerta en verde.
+Ambos aceptan `--locales de,fr` para bloquear un subconjunto. Pasar `--locales` sin ningún locale válido es un error de uso y sale con `2`, así que una errata nunca puede poner la puerta en verde. `translate`, `watch` y `export` aceptan el mismo flag, que es como traduces un locale cada vez contra un proveedor con límite de tasa.
 
 ## Salida JSON
 
@@ -74,6 +75,7 @@ interface RunSummary {
   dryRun: boolean;          // whether this was a dry run (no provider calls, no writes)
   locales: LocaleSummary[]; // one entry per target locale, in config order
   succeeded: string[];      // locales whose run succeeded
+  partial: string[];        // locales written with keys still missing; these exit 1 too
   failed: string[];         // locales whose run failed
   usage?: UsageSummary;     // summed input/output tokens; absent when no call reported usage
   budget?: RunBudget;       // the token-budget outcome; present only when maxTokens is configured

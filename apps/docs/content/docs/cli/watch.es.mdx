@@ -16,6 +16,7 @@ verbatra watch [flags]
 | --- | --- | --- | --- |
 | `--cwd` | `<path>` | directorio actual | resuelve la configuración y los archivos de locale desde este directorio |
 | `--config` | `<path>` | busca uno | carga este archivo de configuración en lugar de buscar uno |
+| `--locales` | `<list>` | todos los locales de destino configurados | vigila y traduce solo este subconjunto separado por comas; un locale no configurado se rechaza al arrancar con `UNKNOWN_LOCALE` antes de empezar a vigilar nada, y una lista vacía es un error de uso, salida `2` |
 | `--debounce` | `<ms>` | `300` | espera estos milisegundos tras el último cambio antes de traducir; debe ser un entero positivo sin sufijo (un valor como `250ms`, `0` o `-1` es un error de uso, salida `2`) |
 | `--lock-timeout` | `<seconds>` | `600` | cuánto esperar por un bloqueo de escritura de locale que otro proceso mantiene antes de fallar; debe ser un entero positivo sin sufijo, en segundos (un valor como `60s`, `0` o `-1` es un error de uso, salida `2`) |
 | `--concurrency` | `<n>` | `1` | traduce hasta `n` locales de destino a la vez por ejecución; debe ser un entero positivo |
@@ -23,6 +24,8 @@ verbatra watch [flags]
 | `--json` | ninguno | desactivado | imprime cada ejecución como un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout, al estilo NDJSON (un objeto por línea) |
 
 Con `--json`, cada ejecución emite un registro [envoltorio](/docs/ci-and-exit-codes#salida-json) con `command: "watch"`: un registro `ok: true` que lleva el [`RunSummary`](/docs/sdk) de esa ejecución bajo `result`, o un registro `ok: false` que lleva un código de error y un mensaje. La línea de arranque, el aviso de parada y el progreso de cada ejecución van a stderr, así que el flujo de stdout se mantiene como NDJSON limpio. Una ejecución fallida es solo un registro en el flujo: ni detiene el watcher ni cambia el código de salida.
+
+`--locales de,fr` reduce cada ciclo de la sesión a un subconjunto de los destinos configurados, lo que mantiene barato un bucle de desarrollo cuando solo te importa un idioma. El subconjunto se valida una sola vez al arrancar, no en cada ejecución.
 
 `--lock-timeout` se aplica a cada ciclo: ajusta cuánto espera un locale por un [bloqueo de escritura](/docs/the-lock-file) disputado antes de que esa ejecución falle con `LOCK_CONTENDED`. Una ejecución fallida es solo un registro en el flujo, así que el watcher sigue de todas formas.
 
@@ -40,6 +43,9 @@ verbatra watch
 
 # calmer in a busy editor: wait 1s after the last change, stream NDJSON
 verbatra watch --debounce 1000 --json
+
+# keep only German current while you work
+verbatra watch --locales de
 ```
 
 ## Códigos de salida

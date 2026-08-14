@@ -24,7 +24,9 @@ import { loadConfig, translate } from "@verbatra/sdk";
 const config = await loadConfig();
 const summary = await translate({ config });
 
-console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} failed`);
+console.log(
+  `${summary.succeeded.length} ok, ${summary.partial.length} partial, ${summary.failed.length} failed`,
+);
 
 if (summary.usage !== undefined) {
   console.log(`tokens: ${summary.usage.inputTokens} in, ${summary.usage.outputTokens} out`);
@@ -40,13 +42,20 @@ for (const locale of summary.locales) {
   }
 }
 
-if (summary.failed.length > 0) {
+if (summary.failed.length > 0 || summary.partial.length > 0) {
   process.exitCode = 1;
 }
 ```
 
+Un locale `partial` es aquel cuyo archivo se escribió con claves aún faltantes. No es un éxito: la
+CLI sale con `1` ante él, y tu propio script debería tratarlo igual, que es por lo que la
+comprobación de arriba prueba `partial` junto a `failed`.
+
 Pasa `dryRun: true` para previsualizar sin llamar a un proveedor ni escribir nada, y `prune: true` o
-`generatePlurals: true` para anular esas opciones de configuración durante una ejecución. Pon
+`generatePlurals: true` para anular esas opciones de configuración durante una ejecución. Pasa
+`locales: ["de"]` para restringir la ejecución a un subconjunto de los destinos configurados, que es
+como recorres un proveedor con límite de tasa un idioma cada vez; un locale no configurado lanza
+`UNKNOWN_LOCALE` antes de leer ni gastar nada. Pon
 `concurrency` por encima de 1 para traducir locales en paralelo (no permitido con un presupuesto
 `maxTokens` en una ejecución real) y `cache: false` para omitir la
 [caché de memoria de traducción](/docs/the-cache).
