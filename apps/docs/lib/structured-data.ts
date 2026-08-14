@@ -2,7 +2,7 @@ import type { SupportedFormat } from "@verbatra/sdk";
 import { plainAnswer } from "@/lib/plain-answer";
 import { SITE_URL } from "@/lib/site";
 
-const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
+const GITHUB_URL = "https://github.com/verbatra/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";
 const NPM_STUDIO_URL = "https://www.npmjs.com/package/@verbatra/studio";

@@ -12,17 +12,17 @@ Ejecuta la [CLI directamente](/docs/ci-and-exit-codes) cuando quieras cualquier 
 
 ## Disponibilidad
 
-La acción vive en su propio repositorio, [mariokreitz/verbatra-action](https://github.com/mariokreitz/verbatra-action), separado del monorepo de verbatra. Referénciala por repositorio, fijada a un SHA de commit:
+La acción vive en su propio repositorio, [verbatra/action](https://github.com/verbatra/action), separado del monorepo de verbatra. Referénciala por repositorio, fijada a un SHA de commit:
 
 <Callout type="warn" title="@v1 todavía no se resuelve">
-La acción aún no tiene versiones publicadas, así que `mariokreitz/verbatra-action@v1` no se resuelve hoy: un flujo de trabajo que lo use tal cual falla con `Unable to resolve action, unable to find version v1`. Usa un SHA de commit completo de `main`, que es lo que hace cada ejemplo de esta página. `@v1` queda documentado más abajo para que esos ejemplos sigan siendo correctos en cuanto se publique la primera versión.
+La acción aún no tiene versiones publicadas, así que `verbatra/action@v1` no se resuelve hoy: un flujo de trabajo que lo use tal cual falla con `Unable to resolve action, unable to find version v1`. Usa un SHA de commit completo de `main`, que es lo que hace cada ejemplo de esta página. `@v1` queda documentado más abajo para que esos ejemplos sigan siendo correctos en cuanto se publique la primera versión.
 </Callout>
 
 ```text
-uses: mariokreitz/verbatra-action@<commit-sha>
+uses: verbatra/action@<commit-sha>
 ```
 
-`mariokreitz/verbatra-action@v1` es la forma cómoda en cuanto exista esa primera versión: la etiqueta `v1` se mueve con cada versión v1, así que las correcciones te llegan sin tocar el flujo de trabajo, a cambio de no saber exactamente qué se ejecuta. Fijar un SHA es la opción consciente de la seguridad en cualquier caso y es la que usan los ejemplos de esta página. No hay paquete npm; la acción solo se consume a través de `uses:`.
+`verbatra/action@v1` es la forma cómoda en cuanto exista esa primera versión: la etiqueta `v1` se mueve con cada versión v1, así que las correcciones te llegan sin tocar el flujo de trabajo, a cambio de no saber exactamente qué se ejecuta. Fijar un SHA es la opción consciente de la seguridad en cualquier caso y es la que usan los ejemplos de esta página. No hay paquete npm; la acción solo se consume a través de `uses:`.
 
 Antes se publicaba desde el monorepo de verbatra y se referenciaba por ruta. Esa forma antigua ya no resuelve, así que apunta tus flujos de trabajo existentes al repositorio de arriba.
 
@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: mariokreitz/verbatra-action@<commit-sha>
+      - uses: verbatra/action@<commit-sha>
         with:
           version: 0.7.1 # pin @verbatra/cli to an exact version
         env:

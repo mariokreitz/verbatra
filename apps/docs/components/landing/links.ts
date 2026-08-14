@@ -1,4 +1,4 @@
-export const GITHUB_URL = "https://github.com/mariokreitz/verbatra";
+export const GITHUB_URL = "https://github.com/verbatra/verbatra";
 export const GITHUB_ISSUES_URL = `${GITHUB_URL}/issues`;
 export const RELEASES_URL = `${GITHUB_URL}/releases`;
 export const NPM_CLI = "https://www.npmjs.com/package/@verbatra/cli";

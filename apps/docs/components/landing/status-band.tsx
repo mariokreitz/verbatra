@@ -37,8 +37,8 @@ const STATUS_BADGES: ReadonlyArray<StatusBadge> = [
   },
   {
     key: "coverage",
-    src: "https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg",
-    href: "https://codecov.io/gh/mariokreitz/verbatra",
+    src: "https://codecov.io/gh/verbatra/verbatra/graph/badge.svg",
+    href: "https://codecov.io/gh/verbatra/verbatra",
     altKey: "coverageAlt",
     width: 112,
   },

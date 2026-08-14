@@ -57,7 +57,7 @@ export function GET(): Response {
 
 verbatra is open source and MIT licensed. You maintain one source locale; on each run it diffs the source against a committed lock file and sends only the new or changed keys to your provider, leaving current translations untouched. Placeholder and ICU integrity are checked after every translation, and any result that breaks a placeholder is withheld. Written files round-trip in exact document order: existing keys keep their positions and new keys are appended in source order, so translated files diff cleanly. Suspicious results are flagged for review, and the local Studio dashboard (the \`verbatra studio\` command) shows project state, drift, and the review queue.
 
-- Repository: https://github.com/mariokreitz/verbatra
+- Repository: https://github.com/verbatra/verbatra
 - npm packages: @verbatra/cli (the \`verbatra\` command), @verbatra/sdk (programmatic API), @verbatra/studio (local review dashboard, loaded by \`verbatra studio\`)
 - Translation providers: Anthropic, OpenAI, Gemini, DeepL, openai-compatible (local or self-hosted)
 - i18n formats: i18next, vue-i18n, next-intl, ngx-translate, Flutter ARB, YAML, XLIFF, and Java/Spring properties

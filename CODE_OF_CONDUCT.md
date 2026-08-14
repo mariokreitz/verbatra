@@ -61,7 +61,7 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement at the
 project's private vulnerability reporting page:
-https://github.com/mariokreitz/verbatra/security/advisories/new. All
+https://github.com/verbatra/verbatra/security/advisories/new. All
 complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the

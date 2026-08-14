@@ -8,11 +8,11 @@
   "author": "Mario Kreitz",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mariokreitz/verbatra.git"
+    "url": "git+https://github.com/verbatra/verbatra.git"
   },
   "homepage": "https://verbatra.kreitz-webdev.de",
   "bugs": {
-    "url": "https://github.com/mariokreitz/verbatra/issues"
+    "url": "https://github.com/verbatra/verbatra/issues"
   },
   "packageManager": "pnpm@11.6.0",
   "engines": {

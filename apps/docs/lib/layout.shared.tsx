@@ -59,7 +59,7 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
         label: "GitHub",
         text: "GitHub",
         icon: <GithubIcon />,
-        url: "https://github.com/mariokreitz/verbatra",
+        url: "https://github.com/verbatra/verbatra",
         external: true,
       },
     ],

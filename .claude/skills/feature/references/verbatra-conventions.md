@@ -15,7 +15,7 @@ and route the issue back rather than shipping around it.
 
 ## Repository
 
-- github.com/mariokreitz/verbatra. Open source, MIT, npm scope `@verbatra`.
+- github.com/verbatra/verbatra. Open source, MIT, npm scope `@verbatra`.
 - The connected GitHub tool is read-only here: it can read issues, pull requests,
   and code, but it cannot branch, push, or open pull requests. Deliver all code by
   writing to the local mounted repository, not through GitHub.
@@ -72,7 +72,7 @@ and route the issue back rather than shipping around it.
 - `apps/docs` Fumadocs (Next.js) documentation site.
 
 The composite GitHub Action that runs the CLI in CI is not part of this monorepo.
-It lives in github.com/mariokreitz/verbatra-action and is consumed via `uses:`.
+It lives in github.com/verbatra/action and is consumed via `uses:`.
 
 ## Code principles
 

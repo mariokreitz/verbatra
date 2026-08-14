@@ -105,7 +105,7 @@ export default async function Page(props: { params: Promise<{ slug?: string[]; l
 
   const editHref = isHome
     ? null
-    : `https://github.com/mariokreitz/verbatra/blob/main/apps/docs/content/docs/${page.path}`;
+    : `https://github.com/verbatra/verbatra/blob/main/apps/docs/content/docs/${page.path}`;
 
   const jsonLd = await pageJsonLd(page, params.slug, lang);
 

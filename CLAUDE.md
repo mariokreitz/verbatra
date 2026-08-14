@@ -6,7 +6,7 @@ overrides general defaults.
 ## What this is
 
 verbatra is an i18n translation automation tool. Open source, MIT, npm scope
-`@verbatra`. Repository: github.com/mariokreitz/verbatra. It is a pnpm workspaces
+`@verbatra`. Repository: github.com/verbatra/verbatra. It is a pnpm workspaces
 monorepo orchestrated by Turborepo, published with Changesets.
 
 ## Language and style (hard rules)
@@ -110,7 +110,7 @@ Everything else is private or internal and must not be published by accident.
   Scripts: dev, build, start, typecheck, i18n.
 
 The composite GitHub Action that runs the CLI in CI is no longer part of this
-monorepo. It lives in its own repository, github.com/mariokreitz/verbatra-action,
+monorepo. It lives in its own repository, github.com/verbatra/action,
 and is consumed via `uses:`. Do not add it back here.
 
 ## Architecture rules (binding)

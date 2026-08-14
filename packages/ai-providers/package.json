@@ -8,12 +8,12 @@
   "author": "Mario Kreitz",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "url": "git+https://github.com/verbatra/verbatra.git",
     "directory": "packages/ai-providers"
   },
-  "homepage": "https://github.com/mariokreitz/verbatra/tree/main/packages/ai-providers",
+  "homepage": "https://github.com/verbatra/verbatra/tree/main/packages/ai-providers",
   "bugs": {
-    "url": "https://github.com/mariokreitz/verbatra/issues"
+    "url": "https://github.com/verbatra/verbatra/issues"
   },
   "sideEffects": false,
   "main": "./dist/index.cjs",

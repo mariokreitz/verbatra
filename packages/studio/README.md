@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/mariokreitz/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
+  <img src="https://raw.githubusercontent.com/verbatra/verbatra/main/.github/assets/verbatra-mark.png" alt="verbatra logo, a glowing V mark on a dark square" width="96" height="96" />
 </p>
 
 <h1 align="center">@verbatra/studio</h1>
@@ -10,14 +10,14 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@verbatra/studio"><img src="https://img.shields.io/npm/v/@verbatra/studio?label=%40verbatra%2Fstudio" alt="@verbatra/studio npm version" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml"><img src="https://github.com/mariokreitz/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
-  <a href="https://codecov.io/gh/mariokreitz/verbatra"><img src="https://codecov.io/gh/mariokreitz/verbatra/graph/badge.svg" alt="Coverage" /></a>
-  <a href="https://github.com/mariokreitz/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
+  <a href="https://github.com/verbatra/verbatra/actions/workflows/ci.yml"><img src="https://github.com/verbatra/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://codecov.io/gh/verbatra/verbatra"><img src="https://codecov.io/gh/verbatra/verbatra/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://github.com/verbatra/verbatra/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
 </p>
 
 ## Description
 
-`@verbatra/studio` is the dashboard behind the `verbatra studio` command: a prebuilt single-page app served by a small loopback HTTP server, showing your project's translation state live. You install it as a dev dependency next to [`@verbatra/cli`](https://github.com/mariokreitz/verbatra/tree/main/packages/cli); the CLI loads it on demand, so its absence never breaks the rest of the CLI.
+`@verbatra/studio` is the dashboard behind the `verbatra studio` command: a prebuilt single-page app served by a small loopback HTTP server, showing your project's translation state live. You install it as a dev dependency next to [`@verbatra/cli`](https://github.com/verbatra/verbatra/tree/main/packages/cli); the CLI loads it on demand, so its absence never breaks the rest of the CLI.
 
 ## Requirements
 
@@ -73,7 +73,7 @@ The package's entry point is `startStudioServer`, which binds the server to `127
 
 ## Development
 
-Notes for working on this package inside the [verbatra monorepo](https://github.com/mariokreitz/verbatra):
+Notes for working on this package inside the [verbatra monorepo](https://github.com/verbatra/verbatra):
 
 - `src/index.ts` exports `startStudioServer`, which serves the SPA from the built assets next to the compiled module (or from an injected override).
 - `src/server/` is the server implementation, covered by tests.
@@ -107,4 +107,4 @@ The dev server entry point (`src/dev/server.ts`) passes an explicit assets-root 
 
 ## License
 
-[MIT](https://github.com/mariokreitz/verbatra/blob/main/LICENSE) (c) Mario Kreitz
+[MIT](https://github.com/verbatra/verbatra/blob/main/LICENSE) (c) Mario Kreitz

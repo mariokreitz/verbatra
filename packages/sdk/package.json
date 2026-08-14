@@ -35,12 +35,12 @@
   "author": "Mario Kreitz",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mariokreitz/verbatra.git",
+    "url": "git+https://github.com/verbatra/verbatra.git",
     "directory": "packages/sdk"
   },
   "homepage": "https://verbatra.kreitz-webdev.de",
   "bugs": {
-    "url": "https://github.com/mariokreitz/verbatra/issues"
+    "url": "https://github.com/verbatra/verbatra/issues"
   },
   "sideEffects": false,
   "main": "./dist/index.cjs",
