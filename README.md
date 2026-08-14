@@ -178,7 +178,7 @@ A composite GitHub Action runs `verbatra translate --json` in CI, turns each fai
 - uses: actions/checkout@<commit-sha>
 - uses: verbatra/action@<commit-sha>
   with:
-    version: 0.7.1 # pin @verbatra/cli to an exact version
+    version: 0.8.0 # pin @verbatra/cli to an exact version
   env:
     GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 ```
