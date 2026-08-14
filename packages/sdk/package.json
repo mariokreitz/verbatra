@@ -51,7 +51,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./config-schema.json": "./dist/config-schema.json"
   },
   "files": [
     "dist"
@@ -64,7 +65,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/emit-config-schema.mjs",
     "lint": "biome check .",
     "test": "vitest run --coverage",
     "test:watch": "vitest",

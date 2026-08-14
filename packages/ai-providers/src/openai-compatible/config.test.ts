@@ -44,6 +44,25 @@ describe("openAiCompatibleConfigSchema: baseUrl", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("still accepts an uppercase scheme, which URL parsing lowercases before comparing", () => {
+    expect(
+      openAiCompatibleConfigSchema.safeParse({ ...validConfig, baseUrl: "HTTP://localhost:1234" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("names the scheme in the message, so a rejected value says what is wrong", () => {
+    const result = openAiCompatibleConfigSchema.safeParse({
+      ...validConfig,
+      baseUrl: "file:///etc/passwd",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.message)).toContain(
+      "baseUrl must use the http or https scheme.",
+    );
+  });
 });
 
 describe("openAiCompatibleConfigSchema: model and maxOutputTokens", () => {

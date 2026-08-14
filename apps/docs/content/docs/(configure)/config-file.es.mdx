@@ -53,8 +53,9 @@ Cuando escribes la configuración en TypeScript, tu editor ofrece para `options.
 | `maxBatchSize` | entero positivo | `50` | El máximo de entradas enviadas en una sola solicitud al proveedor. |
 | `maxTokens` | entero positivo | ninguno | Un presupuesto de tokens para toda la ejecución, a través de todas las llamadas al proveedor. |
 | `budgetBehavior` | `"warn"` o `"stop"` | `"warn"` | Qué pasa una vez alcanzado `maxTokens`. |
+| `$schema` | string | ninguno | Un puntero al documento JSON Schema, solo para editores. Se ignora en tiempo de ejecución. |
 
-Las claves de nivel superior desconocidas se rechazan. Por eso mismo una clave de API no puede vivir en la configuración: las claves vienen del entorno, no del archivo.
+Las claves de nivel superior desconocidas se rechazan, con `$schema` como única excepción. Por eso mismo una clave de API no puede vivir en la configuración: las claves vienen del entorno, no del archivo.
 
 ### Locales y archivos
 
@@ -134,6 +135,66 @@ verbatra busca hacia arriba desde el directorio de trabajo y usa la primera fuen
 11. `verbatra.config.ts`
 
 Para cargar un archivo explícito en lugar de buscar, pasa `--config <path>`; una ruta relativa se resuelve contra el directorio de trabajo. En el SDK, un `configOverride` en memoria tiene prioridad sobre un `configPath` explícito, que a su vez tiene prioridad sobre la búsqueda. Consulta las [Recetas del SDK](/docs/programmatic-api).
+
+## Validación en el editor
+
+`@verbatra/sdk` publica el esquema de configuración como un documento JSON Schema, generado durante la compilación a partir del mismo esquema zod con el que valida el SDK, así que nunca puede describir una forma distinta de la que realmente se ejecuta. Una vez instalado queda en:
+
+```
+node_modules/@verbatra/sdk/dist/config-schema.json
+```
+
+Apunta tu editor a él y una configuración declarativa gana autocompletado de claves, comprobación de tipos y de valores de enumeración, y un aviso inmediato ante una clave mal escrita.
+
+Hay que decirle al editor qué documento usar; nada se valida por sí solo. Hay dos formas de hacerlo.
+
+**Una clave `$schema` dentro del archivo.** `.verbatrarc.json` y `.verbatrarc` aceptan una clave `$schema` de nivel superior, que verbatra admite e ignora:
+
+```json
+{
+  "$schema": "./node_modules/@verbatra/sdk/dist/config-schema.json",
+  "sourceLocale": "en",
+  "targetLocales": ["de", "fr"],
+  "format": "i18next-json",
+  "files": { "pattern": "locales/{locale}.json" },
+  "provider": { "id": "gemini", "options": { "model": "gemini-2.5-flash", "maxOutputTokens": 4096 } }
+}
+```
+
+La clave `$schema` es una convención de los editores, no un requisito de la especificación JSON Schema: VS Code y los editores que siguen la misma convención la leen, y los demás no. `.verbatrarc` no tiene extensión, así que ahí el editor necesita además una entrada de correspondencia de archivos antes de tratar el archivo como JSON, por lo que la clave sola no basta.
+
+**Una correspondencia explícita en el editor.** En VS Code, asocia los archivos en los ajustes del espacio de trabajo, lo que también cubre la forma sin extensión:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": [".verbatrarc", ".verbatrarc.json"],
+      "url": "./node_modules/@verbatra/sdk/dist/config-schema.json"
+    }
+  ]
+}
+```
+
+Una configuración YAML (`.verbatrarc.yaml`, `.verbatrarc.yml`) lleva un comentario en vez de una clave, que lee el YAML Language Server:
+
+```yaml
+# yaml-language-server: $schema=./node_modules/@verbatra/sdk/dist/config-schema.json
+sourceLocale: en
+targetLocales: [de, fr]
+```
+
+Dos de los lugares de búsqueda no se pueden cubrir. La propiedad `"verbatra"` dentro de `package.json` no, porque `package.json` ya valida contra su propio esquema y no hay manera de asociar un segundo a una sola propiedad. Las formas ejecutables (`.verbatrarc.js`, `.verbatrarc.cjs`, `.verbatrarc.ts`, `verbatra.config.js`, `verbatra.config.cjs`, `verbatra.config.ts`) no lo necesitan: `defineConfig` les da el tipo `VerbatraConfigInput` completo, así que TypeScript ya las comprueba, y encima con el autocompletado de modelos acotado por proveedor.
+
+### Lo que el documento no puede comprobar
+
+El documento lleva cada clave, su tipo, sus valores de enumeración, qué claves son obligatorias, la regla del token `{locale}` en `files.pattern` y el rechazo de claves desconocidas. Tres reglas se aplican en tiempo de ejecución pero no tienen expresión en el borrador 2020-12 de JSON Schema, así que el editor calla sobre ellas y verbatra las reporta al cargar la configuración:
+
+- `targetLocales` no debe incluir `sourceLocale`. Comparar dos valores hermanos no tiene vocabulario en el borrador.
+- `targetLocales` no debe contener dos locales que solo difieran en mayúsculas y minúsculas.
+- `provider.options.apiKeyEnvVar` (solo en openai-compatible) no debe nombrar la variable de entorno de un proveedor alojado. Expresarlo obligaría a fijar esos nombres de variable dentro de un documento publicado, que luego se separaría del código que los posee.
+
+Esa es la lista completa. Una configuración que el editor muestra limpia todavía puede fallar por una de esas tres reglas, así que un editor en verde es una primera pasada rápida, no un sustituto de ejecutar `verbatra check`.
 
 ## El directorio de trabajo y .env
 
