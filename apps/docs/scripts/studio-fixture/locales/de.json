@@ -1,0 +1,26 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "products": "Produkte",
+    "cart": "Warenkorb",
+    "support": "Support"
+  },
+  "hero": {
+    "title": "Alles, was der Northwind-Katalog zu bieten hat",
+    "subtitle": "Browse thousands of products, and check out in your own language."
+  },
+  "checkout": {
+    "submit": "Bestellung jetzt verbindlich und kostenpflichtig abschicken",
+    "total": "Gesamt: {amount}",
+    "shipping": "Lieferadresse",
+    "promoApplied": "Promo-Code {code} angewendet",
+    "itemCount": "{count, plural, one {# Artikel} other {# Artikel}} in deinem Warenkorb"
+  },
+  "account": {
+    "signIn": "Anmelden",
+    "signOut": "Abmelden"
+  },
+  "errors": {
+    "network": "Wir konnten den Server nicht erreichen. Prüfe deine Verbindung und versuche es erneut."
+  }
+}

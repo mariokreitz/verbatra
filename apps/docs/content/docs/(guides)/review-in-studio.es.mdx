@@ -45,6 +45,12 @@ Editar no necesita ningún flag. Toca solo tus archivos locales y nunca llama a 
 
 La página Revisión lista cada entrada que las heurísticas de revisión marcaron en la ejecución más reciente de `translate` o `watch`: una fila por locale y clave, con un indicador por motivo (traducción mucho más corta o más larga que el origen, idéntica al origen, un término del glosario omitido, marcadores de posición reordenados o un lote degradado del proveedor). Hasta que se haya registrado una ejecución, la página lo dice y se queda vacía; ejecuta `verbatra translate` o `verbatra watch` para poblarla.
 
+<StudioScreenshot
+  shot="review"
+  alt="La página Revisión de Verbatra Studio con cinco entradas marcadas en los locales de, es y fr, donde cada fila muestra la clave, sus motivos de revisión y las acciones Edit, Approve y Reject."
+  caption="La cola de revisión después de una ejecución. Studio viene en claro y oscuro; cambia la captura para compararlos."
+/>
+
 Filtra por locale o por subcadena de la clave, y luego trabaja las filas:
 
 - **Edit** abre el mismo editor con puerta de integridad que la página Traducciones. Una edición aceptada quita la fila de la cola.

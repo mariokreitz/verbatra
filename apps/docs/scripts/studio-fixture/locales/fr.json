@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "home": "Accueil",
+    "products": "Produits",
+    "cart": "Panier",
+    "support": "Assistance"
+  },
+  "hero": {
+    "title": "Tout ce que le catalogue Northwind peut t'offrir",
+    "subtitle": "Parcours des milliers de produits et paie dans ta propre langue."
+  },
+  "checkout": {
+    "submit": "Passer la commande",
+    "total": "Total : {amount}",
+    "shipping": "Adresse de livraison",
+    "promoApplied": "Code promo {code} appliqué",
+    "itemCount": "{count, plural, one {# article} other {# articles}} dans ton panier"
+  },
+  "account": {
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "orders": "Tes commandes"
+  },
+  "errors": {
+    "network": "Impossible de joindre le serveur. Vérifie ta connexion et réessaie.",
+    "outOfStock": "{product} est en rupture de stock"
+  }
+}

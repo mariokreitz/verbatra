@@ -206,6 +206,13 @@
       "providers": "Proveedores",
       "formats": "Formatos",
       "contributing": "Contribuir"
+    },
+    "studio": {
+      "heading": "Observa todo el estado de la traducción, en local.",
+      "lead": "Verbatra Studio es un panel local sobre tu proyecto. Muestra en vivo la cobertura de cada locale, lista las traducciones que una ejecución marcó como dignas de una segunda mirada y te deja corregirlas ahí mismo. Editar no necesita clave de API y nunca llama a un proveedor.",
+      "alt": "La página Traducciones de Verbatra Studio: cuatro tarjetas de resumen con las claves que necesitan atención, la cobertura media, los locales sincronizados y el consumo de tokens de la última ejecución, y debajo una cuadrícula que marca cada clave como ausente o sincronizada por locale, más una tabla de cobertura por locale.",
+      "caption": "Studio viene en claro y oscuro. Cambia la captura para compararlos.",
+      "cta": "Revisa traducciones en Studio"
     }
   },
   "legal": {
@@ -285,6 +292,12 @@
     "availableFrom": {
       "title": "Disponible a partir de {version}",
       "text": "Esto necesita verbatra {version} o más reciente. Las versiones anteriores no lo tienen, así que verifica tu versión instalada con verbatra --version y actualiza si es más antigua."
+    },
+    "screenshot": {
+      "label": "Verbatra Studio",
+      "tablistLabel": "Tema de la captura",
+      "dark": "Oscuro",
+      "light": "Claro"
     }
   }
 }

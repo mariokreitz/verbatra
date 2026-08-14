@@ -298,3 +298,50 @@ this list can be trusted even after the line numbers drift:
 
 If you find yourself wanting a new lint rule or checklist item, check first
 whether one of these already covers it.
+
+## Refreshing the Studio screenshots
+
+The documentation site ships real screenshots of Verbatra Studio, in
+`apps/docs/public/screenshots/`. They are generated, not hand-made, so a Studio
+UI change makes them stale and they have to be regenerated rather than edited.
+
+The capture harness is `apps/docs/scripts/capture-studio.mjs`. It boots the
+locally built CLI against a committed fixture project, drives Chromium with
+Playwright, and writes one WebP per panel per theme.
+
+To refresh them:
+
+```
+pnpm build
+pnpm --filter @verbatra/docs exec playwright install chromium
+pnpm --filter @verbatra/docs run screenshots
+```
+
+`pnpm build` is required: the harness runs `packages/cli/dist/index.js` and
+Studio serves its dashboard from `packages/studio/dist/app`, and neither is
+committed. The browser binary is a separate step on purpose. `playwright` is
+listed in `allowBuilds` as `false` in `pnpm-workspace.yaml`, so a plain
+`pnpm install` never downloads a browser, and no CI job does either. Only the
+person refreshing the images pays that cost.
+
+The fixture is `apps/docs/scripts/studio-fixture/`, and it is committed so the
+screenshots are reproducible. It holds a small storefront project: a config with
+an inline glossary, an English source locale, and `de`, `es` and `fr` targets
+deliberately left at different levels of completeness so the coverage numbers
+are not all identical. `run-status.seed.json` is the recorded-run artifact that
+populates the Review queue; the harness copies it to
+`.verbatra-local/run-status.json` on each run, because that directory is
+gitignored. No API key is involved and no provider is ever called.
+
+Two conventions to preserve:
+
+- **Studio is captured in English only.** The alt text and captions are
+  translated in every locale, but the UI in the image stays English. Capturing
+  four locales would quadruple the asset count and the refresh cost for very
+  little gain, and English-UI screenshots under translated alt text is the
+  normal convention. Do not "fix" this by adding locale variants.
+- **Both themes, always.** Studio ships light and dark, and the docs render the
+  pair behind a toggle (`apps/docs/components/studio-screenshot.tsx`). Note that
+  the docs site itself is dark-only by design, so that toggle switches the image
+  and nothing else. Adding a shot means adding both themes and registering its
+  pixel dimensions in that component.
