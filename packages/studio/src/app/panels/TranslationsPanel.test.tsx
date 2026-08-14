@@ -844,12 +844,17 @@ describe("TranslationsPanel key explorer", () => {
   it("caps a long list and says how many keys it is hiding", async () => {
     const keys = Array.from({ length: MAX_RENDERED_KEYS + 1 }, (_, index) => `app.key${index}`);
     stubPage({
-      "status.diff": diffResult([localeDiff("de", { missing: keys })]),
+      "status.diff": answersInOrder([
+        diffResult([localeDiff("de", { missing: ["app.title"] })]),
+        diffResult([localeDiff("de", { missing: keys })]),
+      ]),
       "status.check": checkResult([{ locale: "de", missing: keys.length, stale: 0, upToDate: 0 }]),
     });
     const view = await renderAsync(<TranslationsPanel refreshToken={1} />);
-
     await switchToList(view);
+
+    view.rerender(<TranslationsPanel refreshToken={2} />);
+    await flush();
 
     expect(view.text()).toContain(
       `Showing ${MAX_RENDERED_KEYS} of ${keys.length}, refine the filter to see more.`,
