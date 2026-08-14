@@ -4,6 +4,7 @@
   "commit": false,
   "fixed": [["@verbatra/cli", "@verbatra/sdk"]],
   "linked": [],
+  "privatePackages": { "version": true, "tag": false },
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
