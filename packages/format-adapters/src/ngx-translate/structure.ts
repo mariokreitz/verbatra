@@ -1,6 +1,7 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
-import { readBounded } from "../json/bounded-read.js";
+import type { AdapterFs } from "../fs-port.js";
+import { readBoundedFile } from "../json/bounded-read.js";
 import { isJsonNode, type JsonRecord } from "../json/json-tree.js";
 import { decodePathKey } from "../json/key-encoding.js";
 import type { OrderedRecord } from "../json/ordered-json.js";
@@ -42,10 +43,10 @@ export function assertNotMixed(tree: JsonRecord): void {
   assertNoDottedNestedKey(tree);
 }
 
-async function detectStyle(filePath: string): Promise<Style> {
+async function detectStyle(filePath: string, fs: AdapterFs): Promise<Style> {
   let parsed: unknown;
   try {
-    const outcome = await readBounded(filePath);
+    const outcome = await readBoundedFile(fs, filePath);
     if (outcome.kind !== "ok") {
       return "nested";
     }
@@ -75,7 +76,8 @@ function buildFlatTree(entries: ReadonlyMap<string, TranslationEntry>): Map<stri
 export async function buildNgxWriteTree(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
+  fs: AdapterFs,
 ): Promise<OrderedRecord> {
-  const style = await detectStyle(filePath);
+  const style = await detectStyle(filePath, fs);
   return style === "flat" ? buildFlatTree(entries) : unflattenEntries(entries);
 }

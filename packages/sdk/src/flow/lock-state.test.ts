@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
-import { baseConfig, makeFakeFs, makeTempDir, writeJsonFile } from "../test-support.js";
+import {
+  baseConfig,
+  makeFakeFs,
+  makeTempDir,
+  realDiskReads,
+  writeJsonFile,
+} from "../test-support.js";
 import { lockState } from "./lock-state.js";
 
 const cfg = (overrides: Partial<VerbatraConfig> = {}): VerbatraConfig =>
@@ -138,8 +144,13 @@ describe("lockState", () => {
   it("writes nothing and never mutates the lock (read-only)", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" } });
     const fs = makeFakeFs({
-      fileExists: async () => true,
-      readFileBounded: async () => ({ kind: "ok", content: '{"version":1,"locales":{}}' }),
+      ...realDiskReads(),
+      fileExists: async (path: string) =>
+        path.endsWith("verbatra.lock.json") || realDiskReads().fileExists(path),
+      readFileBounded: async (path: string, maxBytes: number) =>
+        path.endsWith("verbatra.lock.json")
+          ? { kind: "ok" as const, content: '{"version":1,"locales":{}}' }
+          : realDiskReads().readFileBounded(path, maxBytes),
       writeFile: async () => {
         throw new Error("lockState must not write a file");
       },

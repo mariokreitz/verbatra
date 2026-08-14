@@ -65,7 +65,7 @@ export async function readLocaleFileSnapshot(
 ): Promise<LocaleFileSnapshot> {
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(input.config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(input.config.format, deps.adapterRegistry, deps.fs);
   const resource = await readTarget(cwd, input.config, adapter, fs, input.locale);
   const hashes = new Map<string, string>();
   for (const [key, entry] of resource.entries) {

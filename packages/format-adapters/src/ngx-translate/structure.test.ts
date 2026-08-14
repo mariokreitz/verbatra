@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import { AdapterError } from "../errors.js";
+import { nodeAdapterFs } from "../fs-port.js";
 import type { JsonLeaf, JsonRecord } from "../json/json-tree.js";
 import { assertNotMixed, buildNgxWriteTree } from "./structure.js";
 
@@ -115,7 +116,11 @@ describe("buildNgxWriteTree", () => {
 
   it("defaults to nested for a non-regular destination without reading it", async () => {
     const dirPath = await mkdtemp(join(tmpdir(), "verbatra-ngx-st-"));
-    const tree = await buildNgxWriteTree(new Map([["a.b", entry("a.b", "v")]]), dirPath);
+    const tree = await buildNgxWriteTree(
+      new Map([["a.b", entry("a.b", "v")]]),
+      dirPath,
+      nodeAdapterFs,
+    );
     expect(plain(tree)).toEqual({ a: { b: "v" } });
   });
 });

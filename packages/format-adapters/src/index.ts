@@ -6,6 +6,7 @@ export {
   createFlatFileAdapter,
   type FlatFileAdapterOptions,
 } from "./flat/flat-file-adapter.js";
+export { type AdapterFs, type BoundedReadOutcome, nodeAdapterFs } from "./fs-port.js";
 export { createI18nextJsonAdapter } from "./i18next/i18next-adapter.js";
 export {
   type I18nextPluralCategory,

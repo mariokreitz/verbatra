@@ -100,6 +100,21 @@ comunica a través de `onRun` y la vigilancia continúa.
 
 Ninguna de estas llama a un proveedor, escribe un archivo ni muta el bloqueo.
 
+### doctor
+
+Valida la configuración del proyecto y no gasta nada: no construye ningún proveedor, no hace
+ninguna petición de red y nunca lee el valor de una clave de API. Se ejecutan cinco comprobaciones,
+cada una con su propio veredicto `pass`, `fail` o `skipped`: la config carga y valida, el formato
+configurado resuelve a un adaptador, el ID de proveedor configurado resuelve a una fábrica, la
+variable de entorno de la que ese proveedor lee su clave está definida, y el archivo de locale
+fuente existe. Todas las comprobaciones se ejecutan aunque una anterior haya fallado, así que una
+sola llamada informa de cada problema independiente. La clave de API se comprueba solo por nombre.
+
+Entrada: `{ cwd?, configPath? }`. No necesita una config ya cargada: `doctor` la carga por sí mismo,
+así que un proyecto sin config alguna sigue obteniendo un informe en lugar de un error lanzado.
+Devuelve un `DoctorResult` cuyo `ok` es true exactamente cuando ninguna comprobación falló. Lanza
+`CONFIG_NOT_FOUND` solo para un `configPath` explícito que no existe.
+
 ### check
 
 Informa del desfase por locale como contadores: `missing` (en el origen, ausente del destino), `stale`

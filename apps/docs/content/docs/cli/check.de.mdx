@@ -41,6 +41,8 @@ verbatra check --locales de,fr --json
 
 Exit `1` heißt "nicht synchron", nicht Fehlschlag: der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht komplett grün.
 
+Auf einem Projekt, dessen Quell-Locale-Datei noch nicht vorhanden ist, kann `check` gar nicht laufen: Es scheitert als Ganzes mit `SOURCE_UNREADABLE` und endet mit `2`. [`verbatra doctor`](/docs/cli/doctor) prüft die Einrichtung selbst und liefert auch für ein solches Projekt noch einen Bericht.
+
 ## Siehe auch
 
 - [`verbatra diff`](/docs/cli/diff) listet die genauen Keys hinter diesen Zählern.

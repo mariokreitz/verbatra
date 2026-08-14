@@ -2,6 +2,7 @@ import process from "node:process";
 import {
   check,
   diff,
+  doctor,
   exportWorkbook,
   importWorkbook,
   loadConfig,
@@ -21,6 +22,7 @@ const code = await run(
     importWorkbook,
     check,
     diff,
+    doctor,
     loadConfigWithMeta,
     importStudio: () => import("@verbatra/studio"),
   },

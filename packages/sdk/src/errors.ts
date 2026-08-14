@@ -7,7 +7,9 @@
  * wraps them.
  *
  * - `CONFIG_NOT_FOUND`: no config file was found by search, or an explicit `configPath` does not
- *   exist. Thrown by {@link loadConfig} and {@link loadConfigWithMeta}.
+ *   exist. Thrown by {@link loadConfig} and {@link loadConfigWithMeta}. {@link doctor} narrows it
+ *   to the explicit-path case: a config that is only absent from the search is reported as a failed
+ *   check instead, since reporting that is the command's job.
  * - `CONFIG_INVALID`: a config was found but is unparseable or fails validation, or its glossary
  *   file could not be resolved or parsed. Thrown by {@link loadConfig} and
  *   {@link loadConfigWithMeta}. {@link importWorkbook} does not throw it: when a handoff sheet or
