@@ -11,8 +11,11 @@ import {
   writeFileIn,
   writeJsonIn,
 } from "../src/harness.js";
+import { classifyLiveRun, type RunTarget } from "../src/run-outcome.js";
 
 const provider = providerFromEnv();
+
+const TARGET: RunTarget = { locale: "de", key: "farewell" };
 
 describe.skipIf(provider === null)(`translate (live: ${provider?.id ?? "skipped"})`, () => {
   let consumer: Consumer;
@@ -21,7 +24,7 @@ describe.skipIf(provider === null)(`translate (live: ${provider?.id ?? "skipped"
     consumer = await makeConsumer();
   }, 180_000);
 
-  it("translates the missing key and leaves the project in sync", async () => {
+  it("translates the missing key and leaves the project in sync", async (ctx) => {
     if (provider === null) {
       return;
     }
@@ -41,6 +44,15 @@ describe.skipIf(provider === null)(`translate (live: ${provider?.id ?? "skipped"
     const translated = await runVerbatra(consumer, ["translate", "--json", "--cwd", dir], {
       env: { [provider.envVar]: provider.key },
     });
+    const verdict = classifyLiveRun(translated, TARGET);
+    if (verdict.kind === "failed") {
+      expect.fail(`translate did not deliver "${TARGET.key}": ${verdict.detail}`);
+    }
+    if (verdict.kind === "throttled") {
+      ctx.skip(
+        `The provider rate-limited the translate run, so the live translation path never executed: ${verdict.detail}`,
+      );
+    }
     expect(translated.exitCode).toBe(0);
 
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de.json");
