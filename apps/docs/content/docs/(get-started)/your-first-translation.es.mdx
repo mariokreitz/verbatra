@@ -61,6 +61,14 @@ export default defineConfig({
 
 ## 3. Previsualiza sin clave de API
 
+Empieza por [`verbatra doctor`](/docs/cli/doctor), la comprobación previa pensada justo para este montaje:
+
+```bash
+verbatra doctor
+```
+
+Ejecuta cinco comprobaciones: la configuración carga y valida, el formato se resuelve a un adaptador de archivo, el ID del proveedor se resuelve a un proveedor, la variable de entorno de la que ese proveedor lee su clave está definida, y el archivo de locale de origen existe y se parsea. Cada comprobación se ejecuta aunque una anterior haya fallado, así que una sola pasada reporta todos los problemas en lugar de detenerse en el primero. No construye ningún proveedor, no hace ninguna llamada de red, no escribe nada y nunca lee el valor de una clave. Además es la única comprobación que funciona antes de que exista el archivo de origen, así que ejecútala ahora y otra vez después del paso 4.
+
 Si todavía no tienes un archivo de origen, crea uno en el patrón configurado, por ejemplo `locales/en.json`:
 
 ```json
@@ -80,7 +88,7 @@ verbatra translate --dry-run
 
 Una ejecución en seco no construye ningún proveedor, así que no necesita clave de API y no puede gastar nada. Lee tus archivos, los compara e imprime el mismo resumen por locale que una ejecución real, sin enviar una sola cadena ni escribir un solo archivo. Úsala para confirmar que el formato, el patrón de archivos y los locales son correctos antes de registrarte en ningún sitio.
 
-[`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff) también prescinden del proveedor: `check` informa de los recuentos por locale, `diff` lista las claves exactas.
+[`verbatra check`](/docs/cli/check) y [`verbatra diff`](/docs/cli/diff) también prescinden del proveedor: `check` informa de los recuentos por locale, `diff` lista las claves exactas. A diferencia de `doctor`, los tres leen el archivo de origen, así que lo necesitan en su sitio primero.
 
 ## 4. Define tu clave de API
 
@@ -90,7 +98,7 @@ Las claves vienen del entorno, nunca del archivo de configuración. Cada proveed
 cp .env.example .env
 ```
 
-Luego abre `.env` y pega tu clave después de `GEMINI_API_KEY=`. `translate`, `watch` y `studio` cargan `.env.local` y luego `.env` desde el directorio de trabajo antes de una ejecución, y una variable ya definida en tu shell siempre gana. Consulta [Proveedores](/docs/providers) para ver la variable de cada proveedor.
+Luego abre `.env` y pega tu clave después de `GEMINI_API_KEY=`. `translate`, `watch`, `doctor` y `studio` cargan `.env.local` y luego `.env` desde el directorio de trabajo antes de una ejecución, y una variable ya definida en tu shell siempre gana. Consulta [Proveedores](/docs/providers) para ver la variable de cada proveedor.
 
 <Callout title="¿Aún sin clave? Gemini tiene un nivel gratuito.">
 La API de Gemini tiene un nivel realmente gratuito, lo que la convierte en la forma más barata de probar verbatra. Consigue una clave en [Google AI Studio](https://aistudio.google.com/apikey) y define `GEMINI_API_KEY`. El nivel gratuito tiene límites de solicitudes por minuto y por día, así que dosifica una primera traducción grande.

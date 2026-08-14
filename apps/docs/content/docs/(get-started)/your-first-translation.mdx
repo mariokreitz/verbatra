@@ -61,6 +61,14 @@ export default defineConfig({
 
 ## 3. Preview without an API key
 
+Start with [`verbatra doctor`](/docs/cli/doctor), the preflight for exactly this setup:
+
+```bash
+verbatra doctor
+```
+
+It runs five checks: the config loads and validates, the format resolves to a file adapter, the provider ID resolves to a provider, the environment variable that provider reads its key from is set, and the source locale file exists and parses. Every check runs even when an earlier one failed, so one run reports every problem rather than stopping at the first. It constructs no provider, makes no network request, writes nothing, and never reads a key value. It is also the only check that works before the source file exists, so run it now and again after step 4.
+
 If you do not have a source file yet, create one at the configured pattern, for example `locales/en.json`:
 
 ```json
@@ -80,7 +88,7 @@ verbatra translate --dry-run
 
 A dry run constructs no provider at all, so it needs no API key and cannot spend anything. It reads your files, diffs them, and prints the same per-locale summary a real run would, without sending a single string or writing a single file. Use it to confirm your format, file pattern, and locales are right before you sign up for anything.
 
-[`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff) are provider-free in the same way: `check` reports per-locale counts, `diff` lists the exact keys.
+[`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff) are provider-free in the same way: `check` reports per-locale counts, `diff` lists the exact keys. Unlike `doctor`, all three read the source file, so they need it in place first.
 
 ## 4. Set your API key
 
@@ -90,7 +98,7 @@ Keys come from the environment, never from the config file. Each hosted provider
 cp .env.example .env
 ```
 
-Then open `.env` and paste your key after `GEMINI_API_KEY=`. `translate`, `watch`, and `studio` load `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
+Then open `.env` and paste your key after `GEMINI_API_KEY=`. `translate`, `watch`, `doctor`, and `studio` load `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
 
 <Callout title="No key yet? Gemini has a free tier.">
 Gemini's API has a genuinely free tier, which makes it the cheapest way to try verbatra. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier has per-minute and per-day request limits, so pace a large first-time translation.

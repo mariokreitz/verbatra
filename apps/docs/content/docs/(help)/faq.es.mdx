@@ -118,8 +118,8 @@ cargada dinámicamente por el comando `studio`.
 ## ¿Dónde viven las claves de API?
 
 Solo en variables de entorno: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` o
-`DEEPL_API_KEY`, más la variable que tú nombres para `openai-compatible`. `translate`, `watch` y
-`studio` cargan `.env` y `.env.local` desde el directorio de trabajo (las variables del entorno
-real ganan). El esquema de configuración rechaza las claves desconocidas precisamente para que un
+`DEEPL_API_KEY`, más la variable que tú nombres para `openai-compatible`. `translate`, `watch`,
+`doctor` y `studio` cargan `.env` y `.env.local` desde el directorio de trabajo (las variables del
+entorno real ganan). El esquema de configuración rechaza las claves desconocidas precisamente para que un
 secreto no pueda acabar en un archivo confirmado, y los mensajes de error nombran la variable pero
 nunca un valor. Consulta [Proveedores](/docs/providers).

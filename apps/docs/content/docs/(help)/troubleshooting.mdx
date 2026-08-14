@@ -7,6 +7,11 @@ Each entry below matches a real error code or message. Whole-run failures carry 
 codes, see [CI and exit codes](/docs/ci-and-exit-codes); for the full code table, see the
 [SDK reference](/docs/sdk).
 
+Four of the entries below (`CONFIG_INVALID`, `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE`, and a missing
+API key) are exactly what [`verbatra doctor`](/docs/cli/doctor) checks. Run it before you go
+entry by entry: it reports all of them in one pass, spends nothing, and is the only preflight that
+works before the source locale file exists.
+
 ## pnpm blocks a dependency's install scripts (ERR_PNPM_IGNORED_BUILDS)
 
 **Symptom**: `pnpm add -D @verbatra/cli` prints its install summary and then exits `1`:
@@ -105,8 +110,9 @@ is not set.` (or the matching variable for your provider).
 variable is unset or empty. Error messages name the variable but never contain a key value, and
 keys are never read from the config or CLI arguments.
 
-**Fix**: set the variable the message names. `translate`, `watch`, and `studio` load `.env` and
-`.env.local` from the working directory; the SDK does not, so in your own script use
+**Fix**: set the variable the message names, then confirm it with `verbatra doctor`, which checks
+the variable by name without reading its value. `translate`, `watch`, `doctor`, and `studio` load
+`.env` and `.env.local` from the working directory; the SDK does not, so in your own script use
 `node --env-file=.env` or export the variable. `openai-compatible` only raises this when the config names an `apiKeyEnvVar` that is
 unset; without one it falls back to a keyless placeholder for local servers.
 
@@ -138,6 +144,11 @@ allowed size ...`
 
 **Cause**: `verbatra.lock.json` was hand-edited, truncated, produced by an incompatible version,
 or damaged in a merge.
+
+`translate` and `import` treat this as a whole-run error rather than a per-locale failure, and
+either can hit it partway through, because each locale reads the lock under its own write lock.
+Locales already committed before the abort keep what they wrote; the remaining ones are untouched
+and no summary is printed. Run `verbatra check` afterwards to see how far the run got.
 
 **Fix**: restore the file from version control; that keeps every baseline intact. Deleting it also
 clears the error, but loses the record of which source version each translation came from, so

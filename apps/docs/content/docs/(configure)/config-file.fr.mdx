@@ -200,7 +200,7 @@ C'est la liste complète. Une configuration que l'éditeur affiche comme propre 
 
 ## Le répertoire de travail et .env
 
-Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour `translate`, `watch` et `studio`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
+Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour `translate`, `watch`, `doctor` et `studio`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
 
 La précédence d'environnement est, du plus fort au plus faible : une variable déjà définie dans ton environnement réel, puis `.env.local`, puis `.env`. Une variable déjà présente n'est jamais écrasée.
 
