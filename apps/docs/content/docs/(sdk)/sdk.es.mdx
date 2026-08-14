@@ -35,8 +35,10 @@ archivos `.env`: en tu propio script, define tú la variable, por ejemplo con
 
 Cada punto de entrada toma un objeto de entrada cuyo primer campo es la `config` validada (de
 `loadConfig`), salvo donde se indica. La mayoría también acepta un segundo argumento opcional `deps` que
-inyecta un registro, un constructor de proveedor o un sistema de archivos para pruebas; puedes ignorarlo
-en el uso normal.
+inyecta un registro, un constructor de proveedor o un sistema de archivos; puedes ignorarlo
+en el uso normal. Consulta
+[El punto de inyección de dependencias](#el-punto-de-inyección-de-dependencias) para ver hasta dónde
+llega `deps.fs`.
 
 ## Ejecuta traducciones
 
@@ -47,8 +49,11 @@ bloqueo, enviar al proveedor las claves faltantes y modificadas, ejecutar las co
 integridad, escribir los archivos de locale y actualizar el bloqueo.
 Úsalo para scripts, pasos de build y jobs de CI.
 
-Entrada: `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+Entrada: `{ config, cwd?, locales?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
+- `locales` restringe la ejecución a un subconjunto de los locales de destino configurados, igual
+  que en `check` y `diff`. Un locale no configurado lanza `UNKNOWN_LOCALE` antes de leer o gastar
+  nada. Omítelo para cubrir todos los locales de destino.
 - `dryRun` lee, compara e informa sin construir ni llamar al proveedor y sin escribir nada.
 - `prune` elimina del archivo escrito y del bloqueo las claves huérfanas (claves de destino ausentes
   del origen). `generatePlurals` sintetiza las formas de plural CLDR que faltan (solo i18next-JSON con
@@ -82,11 +87,13 @@ anti-rebote. Dispara una ejecución inicial inmediatamente al arrancar, y luego 
 asentado. Las ejecuciones se serializan: los cambios durante una ejecución se colapsan en un único
 seguimiento.
 
-Entrada: `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+Entrada: `{ config, cwd?, locales?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 `debounceMs` es 300 por defecto. `onRun` se llama una vez por ejecución con un `WatchRunResult`:
 `{ status: "succeeded", summary }` o `{ status: "failed", error: { code, message } }`. El SDK no
 registra nada; `onRun` es la única salida. `concurrency`, `cache`, `onProgress`, `onLockWait` y
-`lockAcquireTimeoutMs` se pasan a cada ejecución y se comportan igual que en `translate`.
+`lockAcquireTimeoutMs` se pasan a cada ejecución y se comportan igual que en `translate`. `locales`
+acota cada ejecución de la sesión a ese subconjunto y se valida una sola vez al arrancar, no en cada
+ciclo.
 
 Devuelve un `WatchController` con un solo método, `stop()`, que cierra el watcher y espera la ejecución
 en curso. Tres problemas se rechazan al arrancar, antes de que el watcher exista, así que `watch` mismo
@@ -101,6 +108,8 @@ comunica a través de `onRun` y la vigilancia continúa.
 Ninguna de estas llama a un proveedor, escribe un archivo ni muta el bloqueo.
 
 ### doctor
+
+<AvailableFrom version="0.9.0" />
 
 Valida la configuración del proyecto y no gasta nada: no construye ningún proveedor, no hace
 ninguna petición de red y nunca lee el valor de una clave de API. Se ejecutan cinco comprobaciones,
@@ -302,6 +311,8 @@ resuelto desde un archivo. Úsalo cuando necesites mostrar de dónde salió la c
 
 ### readGlossaryFile
 
+<AvailableFrom version="0.9.0" />
+
 Lee un glosario respaldado por archivo directamente del disco y lo devuelve como un mapa plano de
 términos. Recibe `{ glossary }`, la `GlossaryProvenance` de `loadConfigWithMeta`, de modo que el
 archivo que lee siempre es el que nombra la configuración; no hay ningún argumento de ruta. Úsalo en
@@ -313,6 +324,8 @@ cuando el archivo falta, es demasiado grande, no es UTF-8, no es JSON válido o 
 de cadenas.
 
 ### updateGlossaryTerm
+
+<AvailableFrom version="0.9.0" />
 
 Añade, reemplaza o elimina exactamente un término de un glosario respaldado por archivo y devuelve
 el glosario tal como queda. Recibe `{ glossary, cwd?, term, translation }`, donde `translation` es
@@ -337,15 +350,52 @@ en tiempo de ejecución cualquier cadena no vacía pasa la validación.
 
 El esquema zod con el que valida `loadConfig`, exportado para que tu propia herramienta pueda validar un
 objeto de configuración igual que lo hace el SDK. Las claves desconocidas de nivel superior se rechazan,
-así que un secreto extraviado no puede esconderse en la configuración.
+así que un secreto extraviado no puede esconderse en la configuración. La única excepción es
+`$schema`, una cadena opcional que se acepta para que una configuración JSON o YAML pueda apuntar a
+un editor hacia el documento JSON Schema que el paquete publica como
+`@verbatra/sdk/config-schema.json`. Se ignora en tiempo de ejecución.
 
 ### scaffoldingMetadata
 
 Metadatos de solo lectura de los que el comando `init` de la CLI deriva sus preguntas: `providerEnv` (de
 id de proveedor a la variable de entorno de la que se lee su clave), `scaffoldModels` (un modelo de
-scaffold por defecto por proveedor LLM) y `supportedFormats` (el conjunto cerrado de ids de formato). El
+scaffold por defecto por proveedor LLM), `providerTokenLimitKeys` (la clave de opción bajo la que cada
+proveedor LLM recibe su límite de tokens de salida) y `supportedFormats` (el conjunto cerrado de ids de
+formato). Lee la clave del límite de tokens de `providerTokenLimitKeys` en lugar de suponer una:
+Anthropic la llama `maxTokens` y los demás `maxOutputTokens`, el esquema valida estrictamente las
+opciones de cada proveedor, y DeepL no tiene entrada porque no recibe límite de tokens. El
 tipo `ScaffoldableProviderId` cubre los cuatro proveedores alojados; `openai-compatible` queda excluido
 porque no tiene una única variable de entorno obligatoria.
+
+## El punto de inyección de dependencias
+
+<AvailableFrom version="0.9.0" />
+
+`deps.fs` sustituye el puerto de sistema de archivos por el que viaja la propia I/O del SDK, con el
+tipo `SdkFs`. El punto de inyección es completo: el archivo de estado de la ejecución, el archivo
+de bloqueo, el glosario de la configuración, la I/O de libros e intercambio y los propios archivos
+de locale pasan todos por él, porque los adaptadores de formato leen y escriben a través de un
+puerto construido con ese mismo objeto. Así una ejecución entera se puede mantener en memoria, que
+es como las pruebas del propio SDK evitan tocar el disco y como una aplicación anfitriona puede
+respaldar parte de un proyecto con algo que no sea un disco local.
+
+```ts
+import { translate, type SdkFs } from "@verbatra/sdk";
+
+const summary = await translate({ config }, { fs: inMemoryFs satisfies SdkFs });
+```
+
+Una implementación debe honrar dos puntos del contrato. Las lecturas están acotadas por tamaño:
+`readFileBounded` y `readBytesBounded` reciben un límite de bytes y reportan `missing` o
+`too-large` como estado en lugar de lanzar, que es lo que impide que un archivo hostil o
+accidentalmente enorme agote la memoria. Las escrituras deben ser atómicas, de modo que una caída a
+mitad de escritura nunca deje un archivo a medio escribir, y `createExclusive` debe ser atómica
+frente a otros procesos porque es la primitiva detrás del bloqueo de escritura por locale. Crear
+directorios es tarea de quien llama.
+
+Lo único que `deps.fs` no alcanza es un `deps.adapterRegistry` suministrado por quien llama. Esos
+adaptadores los construyó quien llama, así que su acceso a archivos es el que quien llama haya
+cableado en ellos. Suministrar ambos significa que quien llama es dueño de ese cableado.
 
 ## La anatomía de RunSummary
 
