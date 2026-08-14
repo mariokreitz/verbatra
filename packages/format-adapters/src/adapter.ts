@@ -88,15 +88,24 @@ export interface FormatAdapter {
   validateMessage(value: string): boolean;
 
   /**
-   * Optional branch-aware placeholder comparison for formats with plural/select sub-message structure.
-   * When present, callers use it instead of independently extracting each side's placeholders with
-   * {@link extractPlaceholders} and diffing the flat lists, since flattening a plural/select value loses
-   * which branch a placeholder came from. Absent for every non-ICU adapter, which is compared via
-   * `extractPlaceholders` plus a flat multiset check as before.
+   * Optional whole-value placeholder comparison, used by callers instead of independently extracting
+   * each side's placeholders with {@link extractPlaceholders} and diffing the flat lists. Two adapter
+   * families define one, for different reasons:
+   *
+   * - The ICU formats (next-intl and ARB) compare branch by branch, because flattening a
+   *   plural/select value loses which branch a placeholder came from.
+   * - The double-brace formats (i18next, ngx-translate, and YAML) add a one-directional
+   *   single-brace check on top of their flat multiset comparison: a `{name}`-shaped token present
+   *   in the translated value but absent from the source is reported as `extra`. Single-brace text
+   *   is ordinary literal content under these formats' default delimiters, so it is never required
+   *   to survive a translation, but inventing one is never a legitimate translation either.
+   *
+   * Absent for the remaining adapters, which are compared via `extractPlaceholders` plus a flat
+   * multiset check.
    *
    * @param sourceValue - The source value.
    * @param targetValue - The translated value to check against it.
-   * @returns The merged placeholder-integrity result across every branch. Does not throw.
+   * @returns The merged placeholder-integrity result. Does not throw.
    */
   comparePlaceholders?(sourceValue: string, targetValue: string): PlaceholderIntegrityResult;
 }

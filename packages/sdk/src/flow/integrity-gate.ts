@@ -10,7 +10,9 @@ import type { FormatAdapter } from "@verbatra/format-adapters";
  * previous translation stays intact.
  *
  * - `placeholder`: the candidate does not carry the same placeholders as the source, so
- *   interpolation would break at runtime.
+ *   interpolation would break at runtime. For the double-brace formats (i18next, ngx-translate, and
+ *   YAML) this also covers a single-brace `{name}`-shaped token the candidate invented and the
+ *   source never had, which is a fabrication whichever interpolation delimiters the project uses.
  * - `icu`: the candidate is not a valid ICU message under the configured format's adapter.
  * - `degenerate`: the candidate collapsed into runaway output rather than a translation. Two shapes
  *   are detected: the candidate is at least twelve times the length of a source of meaningful

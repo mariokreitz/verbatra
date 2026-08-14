@@ -43,6 +43,14 @@ pour cela que la barrière est rejouée par clé.
   structure plural ou select est rejetée aussi. Pour ces formats, la comparaison des placeholders
   tient aussi compte des branches : un placeholder fabriqué dans une branche plurielle est attrapé
   même s'il existe légitimement dans une autre.
+- Jetons à accolade simple fabriqués : pour les formats à double accolade (i18next, ngx-translate et
+  YAML), un jeton de la forme `{name}` est du texte littéral ordinaire et non de l'interpolation. Il
+  n'est donc pas extrait comme placeholder et n'a pas à survivre à une traduction. En inventer un
+  reste rejeté : un jeton de la forme `{name}` qui apparaît dans la candidate et n'a jamais figuré
+  dans la source est une fabrication sous n'importe quelle convention d'interpolation, et c'est ce
+  qui rend son refus sûr sans connaître les délimiteurs de ton projet. Le contrôle ne va que dans ce
+  sens, donc une candidate qui laisse tomber un tel jeton ou modifie le texte littéral qui l'entoure
+  passe sans encombre.
 - Dégénérescence : la valeur ne doit pas être structurellement dégénérée, comme une boucle de
   répétition ou une longueur qui s'est emballée par rapport à la source. Cela attrape un modèle qui
   s'est effondré en répétant un fragment même si chaque placeholder a survécu.

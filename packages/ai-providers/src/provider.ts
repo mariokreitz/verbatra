@@ -26,10 +26,11 @@ export type Tone = "formal" | "informal" | "neutral";
 export type PlaceholderExtractor = (value: string) => readonly string[];
 
 /**
- * Compares a source and translated value's placeholders directly, branch-aware, instead of
- * independently extracting each side's flat placeholder list first. Supplied by the caller (the SDK, for
- * a format whose adapter defines one, for example ICU plural/select) so it matches the entries' format;
- * ai-providers never derives it itself and never parses a specific format's message syntax.
+ * Compares a source and translated value directly instead of independently extracting each side's flat
+ * placeholder list first, which lets it express checks the flat lists cannot (branch-aware ICU
+ * comparison, or a one-directional rule). Supplied by the caller (the SDK, for a format whose adapter
+ * defines one) so it matches the entries' format; ai-providers never derives it itself and never parses
+ * a specific format's message syntax.
  */
 export type PlaceholderComparator = (
   source: string,
@@ -55,9 +56,11 @@ export interface TranslateRequest {
   /** Mandatory placeholder extractor; the output integrity check runs against it. */
   readonly extractPlaceholders: PlaceholderExtractor;
   /**
-   * Optional branch-aware placeholder comparator. When present, the output integrity check uses it
+   * Optional whole-value placeholder comparator. When present, the output integrity check uses it
    * instead of independently extracting each side's placeholders with {@link extractPlaceholders} and
-   * diffing the flat lists. Absent for a format with no plural/select sub-message structure.
+   * diffing the flat lists. Supplied for a format whose adapter defines one, whether because the
+   * comparison is branch-aware or because it adds a check the flat lists cannot express. Absent
+   * otherwise.
    */
   readonly comparePlaceholders?: PlaceholderComparator;
   /**

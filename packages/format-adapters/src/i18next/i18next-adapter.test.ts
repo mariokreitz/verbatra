@@ -20,9 +20,29 @@ afterAll(() => {
   dirs.length = 0;
 });
 
-describe("i18next JSON adapter: no ICU branch structure", () => {
-  it("does not expose comparePlaceholders (no plural/select sub-message syntax to compare)", () => {
-    expect(adapter.comparePlaceholders).toBeUndefined();
+describe("i18next JSON adapter: single-brace fabrication guard", () => {
+  it("exposes comparePlaceholders even though it has no ICU branch structure", () => {
+    expect(adapter.comparePlaceholders).toBeDefined();
+  });
+
+  it("rejects a single-brace token the source never had", () => {
+    expect(
+      adapter.comparePlaceholders?.("Order {orderId}", "Ordine {orderId} {evil}"),
+    ).toMatchObject({ matches: false, extra: ["{evil}"] });
+  });
+
+  it("leaves the double-brace comparison unchanged", () => {
+    expect(adapter.comparePlaceholders?.("Hello {{name}}", "Hallo {{name}}")).toMatchObject({
+      matches: true,
+    });
+    expect(adapter.comparePlaceholders?.("Hello {{name}}", "Hallo")).toMatchObject({
+      matches: false,
+      missing: ["{{name}}"],
+    });
+  });
+
+  it("does not extract single-brace tokens as placeholders", () => {
+    expect(adapter.extractPlaceholders("Hello {name}")).toEqual([]);
   });
 });
 

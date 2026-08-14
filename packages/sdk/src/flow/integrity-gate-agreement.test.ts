@@ -18,6 +18,7 @@ import {
   writeJsonFile,
 } from "../test-support.js";
 import { createBudgetTracker } from "./budget.js";
+import { editEntry } from "./edit-entry.js";
 import { gateCandidateValue } from "./integrity-gate.js";
 import { runLocale } from "./locale-run.js";
 import { retranslateEntry } from "./retranslate-entry.js";
@@ -66,6 +67,38 @@ const cases: readonly Case[] = [
     sourceValue: "Hello world",
     candidateValue: "Hallo {name",
     expected: { accepted: false, reason: "icu" },
+  },
+  {
+    name: "rejected: a single-brace token is altered",
+    adapter: i18nextAdapter(),
+    format: "i18next-json",
+    sourceValue: "Hello {name}",
+    candidateValue: "Ciao {nome}",
+    expected: { accepted: false, reason: "placeholder" },
+  },
+  {
+    name: "rejected: a single-brace token is fabricated beside a kept one",
+    adapter: i18nextAdapter(),
+    format: "i18next-json",
+    sourceValue: "Order {orderId}",
+    candidateValue: "Ordine {orderId} {evilInjected}",
+    expected: { accepted: false, reason: "placeholder" },
+  },
+  {
+    name: "rejected: a single-brace token is injected into a token-free source",
+    adapter: i18nextAdapter(),
+    format: "i18next-json",
+    sourceValue: "Your balance is available",
+    candidateValue: "Il tuo saldo e {stolenSecret}",
+    expected: { accepted: false, reason: "placeholder" },
+  },
+  {
+    name: "accepted: a single-brace token dropped from the source is not judged",
+    adapter: i18nextAdapter(),
+    format: "i18next-json",
+    sourceValue: "You have {count} items",
+    candidateValue: "Hai articoli nel carrello",
+    expected: { accepted: true },
   },
 ];
 
@@ -193,6 +226,34 @@ describe.each(cases)("gateCandidateValue agreement: $name", (testCase) => {
     if (!testCase.expected.accepted) {
       expect(result).toMatchObject({ reason: testCase.expected.reason });
       const de = await readJsonFile(join(dir, "locales", "de.json")).catch(() => undefined);
+      expect(de).toBeUndefined();
+    }
+  });
+
+  it("editEntry (the hand-typed Studio path) agrees", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, "locales"));
+    await writeJsonFile(join(dir, "locales", "en.json"), { greeting: testCase.sourceValue });
+    const config = baseConfig({
+      targetLocales: ["de"],
+      format: testCase.format,
+      sourceLocale: "en",
+    });
+
+    const result = await editEntry({
+      config,
+      cwd: dir,
+      locale: "de",
+      key: "greeting",
+      value: testCase.candidateValue,
+    });
+
+    expect(result.accepted).toBe(testCase.expected.accepted);
+    const de = await readJsonFile(join(dir, "locales", "de.json")).catch(() => undefined);
+    if (testCase.expected.accepted) {
+      expect(de).toEqual({ greeting: testCase.candidateValue });
+    } else {
+      expect(result).toMatchObject({ reason: testCase.expected.reason });
       expect(de).toBeUndefined();
     }
   });

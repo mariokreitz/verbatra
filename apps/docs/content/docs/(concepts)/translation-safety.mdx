@@ -38,6 +38,13 @@ keys can match without being byte-identical. That is exactly why the gate is re-
   structure is rejected too. For these formats the placeholder comparison is also branch-aware: a
   placeholder fabricated inside one plural branch is caught even if it legitimately exists in
   another.
+- Fabricated single-brace tokens: for the double-brace formats (i18next, ngx-translate, and YAML), a
+  `{name}`-shaped token is ordinary literal text rather than interpolation, so it is not extracted as
+  a placeholder and is not required to survive a translation. Inventing one is still rejected: a
+  `{name}`-shaped token that appears in the candidate and never appeared in the source is a
+  fabrication under any interpolation convention, which is what makes it safe to refuse without
+  knowing the project's delimiters. The check runs in that one direction only, so a candidate that
+  drops or changes the surrounding literal text is left alone.
 - Degeneracy: the value must not be structurally degenerate, such as a repetition loop or a length
   that has run away from the source. This catches a model that collapsed into repeating a fragment
   even when every placeholder survived.

@@ -146,6 +146,18 @@ describe("keyIntegrity", () => {
     expect(found?.icuValid).toBe(true);
   });
 
+  it("falls back to the flat multiset check for a format whose adapter defines no comparator", async () => {
+    const source = { greeting: "Hello {name} new" };
+    const dir = await project(source, { de: { greeting: "Hallo" } });
+    await withBaseline(dir, "de", { greeting: "Hello {name} old" });
+
+    const results = await keyIntegrity({ config: cfg({ format: "vue-i18n-json" }), cwd: dir });
+
+    expect(results[0]?.entries).toEqual([
+      expect.objectContaining({ key: "greeting", matches: false, missing: ["{name}"] }),
+    ]);
+  });
+
   it("computes icuValid even when the key already fails the placeholder check, never short-circuited", async () => {
     const source = { count: "{count, plural, one {# item} other {# items}}" };
     const dir = await project(source, { de: { count: "{count, plural, one {Eins" } });
