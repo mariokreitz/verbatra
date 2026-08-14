@@ -206,7 +206,7 @@ describe("export then import round-trip (no provider)", () => {
 });
 
 describe("a locale whose directory does not exist yet", () => {
-  it("imports into a nested per-locale path, creating the directory", async () => {
+  it("imports into a nested per-locale path, creating the directory, and exits 1 because overwriting every row with one value drops a placeholder and leaves the locale partial", async () => {
     const dir = await seedProject(
       "nested-locale-path",
       { ...i18nextConfig, files: { pattern: "locales/{locale}/common.json" } },
@@ -232,8 +232,13 @@ describe("a locale whose directory does not exist yet", () => {
     }
     await workbook.xlsx.writeFile(workbookPath);
 
-    const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir]);
-    expect(imported.exitCode).toBe(0);
+    const imported = await runVerbatra(consumer, ["import", workbookPath, "--cwd", dir, "--json"]);
+    expect(imported.exitCode).toBe(1);
+    const summary = JSON.parse(imported.stdout) as {
+      result: { succeeded: string[]; partial: string[]; failed: string[] };
+    };
+    expect(summary.result.partial).toEqual(["de"]);
+    expect(summary.result.failed).toEqual([]);
 
     const de = await readJsonIn<Record<string, string>>(dir, "locales/de/common.json");
     expect(de.farewell).toBe("Auf Wiedersehen");

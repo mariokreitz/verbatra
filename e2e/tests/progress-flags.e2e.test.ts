@@ -82,3 +82,44 @@ describe("translate --concurrency 2 with a token budget (no provider key)", () =
     expect(result.stderr).not.toMatch(/API_KEY/);
   });
 });
+
+describe("translate --locales (no provider)", () => {
+  it("narrows the run to the named locale and leaves the other out of the summary entirely", async () => {
+    const dir = await seedMultiLocale("locale-subset");
+    const result = await runVerbatra(
+      consumer,
+      ["translate", "--dry-run", "--locales", "fr", "--cwd", dir, "--json"],
+      { env: { ANTHROPIC_API_KEY: "" } },
+    );
+
+    expect(result.exitCode).toBe(0);
+    const envelope = JSON.parse(result.stdout) as {
+      result: { locales: { locale: string }[] };
+    };
+    expect(envelope.result.locales.map((entry) => entry.locale)).toEqual(["fr"]);
+  });
+
+  it("rejects a locale that is not a configured target, before reading or spending anything", async () => {
+    const dir = await seedMultiLocale("locale-subset-unknown");
+    const result = await runVerbatra(
+      consumer,
+      ["translate", "--dry-run", "--locales", "zz", "--cwd", dir],
+      { env: { ANTHROPIC_API_KEY: "" } },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("[UNKNOWN_LOCALE]");
+  });
+
+  it("rejects an empty --locales list as a usage error", async () => {
+    const dir = await seedMultiLocale("locale-subset-empty");
+    const result = await runVerbatra(
+      consumer,
+      ["translate", "--dry-run", "--locales", "", "--cwd", dir],
+      { env: { ANTHROPIC_API_KEY: "" } },
+    );
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("[INVALID_LOCALES]");
+  });
+});
