@@ -1,4 +1,4 @@
-import { EXCHANGE_FORMATS } from "@verbatra/sdk";
+import { EXCHANGE_FORMATS, SdkError } from "@verbatra/sdk";
 import { describe, expect, it } from "vitest";
 import { JSON_ENVELOPE_VERSION } from "./json-envelope.js";
 import { run, runImport } from "./run.js";
@@ -278,6 +278,30 @@ describe("run import: SDK delegation and rendering", () => {
 
     expect(code).toBe(2);
     expect(cap.err()).toContain("[SOURCE_INVALID]");
+  });
+
+  it("a lock-file corrupted mid-run escapes as a whole-run error and exits 2, not 1", async () => {
+    const corrupt = recordingDeps({
+      importWorkbook: async () => {
+        throw new SdkError("LOCK_FILE_INVALID", "The lock-file is not valid JSON.");
+      },
+    });
+    const corruptCap = captureStreams();
+
+    const corruptCode = await run(["import", "wb.xlsx"], corrupt.deps, corruptCap.streams);
+
+    expect(corruptCode).toBe(2);
+    expect(corruptCap.err()).toContain("[LOCK_FILE_INVALID]");
+
+    const failing = recordingDeps({
+      importWorkbook: async () =>
+        makeSummary({ locales: [makeLocale({ status: "failed" })], failed: ["de"] }),
+    });
+    const failingCap = captureStreams();
+
+    const failingCode = await run(["import", "wb.xlsx"], failing.deps, failingCap.streams);
+
+    expect(failingCode).toBe(1);
   });
 
   it("a malformed rawOpts renders a structured error and exits 2, never throws", async () => {
