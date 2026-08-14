@@ -4,6 +4,8 @@ import type {
   ConfigSource,
   DiffInput,
   DiffSummary,
+  DoctorInput,
+  DoctorResult,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -71,6 +73,21 @@ export function makeDiffSummary(overrides: Partial<DiffSummary> = {}): DiffSumma
   return { hasPendingChanges: false, locales: [], ...overrides };
 }
 
+export function makeDoctorResult(overrides: Partial<DoctorResult> = {}): DoctorResult {
+  return {
+    ok: true,
+    checks: [
+      {
+        id: "config",
+        title: "Configuration",
+        status: "pass",
+        detail: "Loaded /proj/verbatra.config.ts.",
+      },
+    ],
+    ...overrides,
+  };
+}
+
 export function makeLoadedConfig(overrides: Partial<LoadedConfig> = {}): LoadedConfig {
   return {
     config: makeConfig(),
@@ -129,6 +146,7 @@ export interface DepCalls {
   importWorkbook: ImportWorkbookInput[];
   check: CheckInput[];
   diff: DiffInput[];
+  doctor: DoctorInput[];
   loadConfigWithMeta: LoadConfigOptions[];
   importStudio: undefined[];
 }
@@ -142,6 +160,7 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     importWorkbook: [],
     check: [],
     diff: [],
+    doctor: [],
     loadConfigWithMeta: [],
     importStudio: [],
   };
@@ -173,6 +192,10 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     diff: async (input) => {
       calls.diff.push(input);
       return impl.diff ? impl.diff(input) : makeDiffSummary();
+    },
+    doctor: async (input) => {
+      calls.doctor.push(input);
+      return impl.doctor ? impl.doctor(input) : makeDoctorResult();
     },
     loadConfigWithMeta: async (options) => {
       calls.loadConfigWithMeta.push(options);

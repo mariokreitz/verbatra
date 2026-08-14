@@ -18,6 +18,7 @@ import { parsePositiveIntegerOption } from "./positive-integer-option.js";
 import {
   renderCheckHuman,
   renderDiffHuman,
+  renderDoctorHuman,
   renderError,
   renderExportHuman,
   renderHuman,
@@ -535,6 +536,32 @@ async function runDiff(rawOpts: unknown, deps: CliDeps, streams: Streams): Promi
   });
 }
 
+async function runDoctor(rawOpts: unknown, deps: CliDeps, streams: Streams): Promise<number> {
+  const context = commandContext("doctor", rawOpts, streams);
+  return withParsedOpts(
+    () => sharedCommandOptsSchema.parse(rawOpts),
+    context,
+    async (opts) => {
+      const cwd = opts.cwd ?? process.cwd();
+      try {
+        loadEnvFiles(cwd);
+        const result = await deps.doctor({
+          cwd,
+          ...(opts.config !== undefined ? { configPath: opts.config } : {}),
+        });
+        streams.out(
+          context.json
+            ? `${renderSuccessEnvelope("doctor", result)}\n`
+            : `${renderDoctorHuman(result)}\n`,
+        );
+        return result.ok ? 0 : 1;
+      } catch (error) {
+        return renderFailureExit2(error, context);
+      }
+    },
+  );
+}
+
 interface ProgramContext {
   readonly deps: CliDeps;
   readonly streams: Streams;
@@ -724,6 +751,27 @@ function registerDiffCommand(program: Command, ctx: ProgramContext): void {
     );
 }
 
+function registerDoctorCommand(program: Command, ctx: ProgramContext): void {
+  program
+    .command("doctor")
+    .description("Validate the project setup without calling a provider or reading an API key")
+    .option("--cwd <path>", "resolve config and locale files from this directory")
+    .option("--config <path>", "load this config file instead of searching for one")
+    .option("--json", "print the doctor report as JSON")
+    .action(async (opts: unknown) => {
+      ctx.setCode(await runDoctor(opts, ctx.deps, ctx.streams));
+    })
+    .addHelpText(
+      "after",
+      [
+        "",
+        "Examples:",
+        "  $ verbatra doctor         report every setup problem at once (exit 1 if any)",
+        "  $ verbatra doctor --json  machine-readable report on stdout for CI",
+      ].join("\n"),
+    );
+}
+
 function registerStudioCommand(program: Command, ctx: ProgramContext): void {
   program
     .command("studio")
@@ -809,6 +857,7 @@ function buildProgram(
   registerImportCommand(program, ctx);
   registerCheckCommand(program, ctx);
   registerDiffCommand(program, ctx);
+  registerDoctorCommand(program, ctx);
   registerStudioCommand(program, ctx);
   registerInitCommand(program, ctx);
 

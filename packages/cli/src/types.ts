@@ -3,6 +3,8 @@ import type {
   CheckSummary,
   DiffInput,
   DiffSummary,
+  DoctorInput,
+  DoctorResult,
   ExportWorkbookInput,
   ExportWorkbookResult,
   ImportWorkbookInput,
@@ -29,6 +31,7 @@ export interface CliDeps {
   importWorkbook(input: ImportWorkbookInput): Promise<RunSummary>;
   check(input: CheckInput): Promise<CheckSummary>;
   diff(input: DiffInput): Promise<DiffSummary>;
+  doctor(input: DoctorInput): Promise<DoctorResult>;
   loadConfigWithMeta(options: LoadConfigOptions): Promise<LoadedConfig>;
   importStudio(): Promise<StudioModule>;
 }

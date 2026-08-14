@@ -105,6 +105,22 @@ kommt über `onRun` an, und das Beobachten geht weiter.
 
 Keine dieser Funktionen ruft einen Provider auf, schreibt eine Datei oder verändert das Lock.
 
+### doctor
+
+Prüft die Projekteinrichtung und kostet nichts: Es konstruiert keinen Provider, stellt keine
+Netzwerkanfrage und liest nie einen API-Key-Wert. Fünf Prüfungen laufen, jede mit ihrem eigenen
+Urteil `pass`, `fail` oder `skipped`: Die Konfiguration lädt und validiert, das konfigurierte
+Format löst zu einem Adapter auf, die konfigurierte Provider-ID löst zu einer Factory auf, die
+Umgebungsvariable, aus der dieser Provider seinen Key liest, ist gesetzt, und die Quell-Locale-Datei
+existiert. Jede Prüfung läuft auch dann, wenn eine frühere fehlgeschlagen ist; ein Aufruf meldet
+also jedes unabhängige Problem. Der API-Key wird nur über den Namen geprüft.
+
+Eingabe: `{ cwd?, configPath? }`. Keine geladene Konfiguration nötig: `doctor` lädt sie selbst, ein
+Projekt ganz ohne Konfiguration bekommt also trotzdem einen Bericht statt eines geworfenen Fehlers.
+Gibt ein `DoctorResult` zurück, dessen `ok` genau dann true ist, wenn keine Prüfung fehlgeschlagen
+ist. Es wirft `CONFIG_NOT_FOUND` nur für einen explizit angegebenen `configPath`, der nicht
+existiert.
+
 ### check
 
 Meldet die Drift pro Locale als Zähler: `missing` (in der Quelle, im Ziel fehlend), `stale`
