@@ -2,12 +2,14 @@
 
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const { verbatraConfigSchema } = await import(resolve(PACKAGE_ROOT, "dist/index.js"));
+const { verbatraConfigSchema } = await import(
+  pathToFileURL(resolve(PACKAGE_ROOT, "dist/index.js")).href
+);
 
 const document = z.toJSONSchema(verbatraConfigSchema);
 const target = resolve(PACKAGE_ROOT, "dist/config-schema.json");
