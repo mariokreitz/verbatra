@@ -1,10 +1,12 @@
 import type { FormatAdapter } from "../adapter.js";
+import { type AdapterFs, nodeAdapterFs } from "../fs-port.js";
 import { icuDeriveEntry, icuInvalidKeys, icuIsValid, icuPlaceholders } from "../icu/analyze.js";
 import { compareIcuPlaceholders } from "../icu/compare.js";
 import { createJsonFileAdapter } from "../json/json-file-adapter.js";
 
-export function createNextIntlJsonAdapter(): FormatAdapter {
+export function createNextIntlJsonAdapter(fs: AdapterFs = nodeAdapterFs): FormatAdapter {
   return createJsonFileAdapter({
+    fs,
     format: "next-intl-json",
     extractPlaceholders: icuPlaceholders,
     deriveEntry: icuDeriveEntry,

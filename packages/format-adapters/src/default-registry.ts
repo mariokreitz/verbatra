@@ -1,4 +1,5 @@
 import { createArbAdapter } from "./arb/arb-adapter.js";
+import { type AdapterFs, nodeAdapterFs } from "./fs-port.js";
 import { createI18nextJsonAdapter } from "./i18next/i18next-adapter.js";
 import { createNextIntlJsonAdapter } from "./next-intl/next-intl-adapter.js";
 import { createNgxTranslateJsonAdapter } from "./ngx-translate/ngx-translate-adapter.js";
@@ -8,14 +9,14 @@ import { createVueI18nJsonAdapter } from "./vue-i18n/vue-i18n-adapter.js";
 import { createXliffAdapter } from "./xliff/xliff-adapter.js";
 import { createYamlAdapter } from "./yaml/yaml-adapter.js";
 
-export function createDefaultRegistry(): AdapterRegistry {
+export function createDefaultRegistry(fs: AdapterFs = nodeAdapterFs): AdapterRegistry {
   return new AdapterRegistry()
-    .register(createI18nextJsonAdapter())
-    .register(createVueI18nJsonAdapter())
-    .register(createNextIntlJsonAdapter())
-    .register(createNgxTranslateJsonAdapter())
-    .register(createXliffAdapter())
-    .register(createYamlAdapter())
-    .register(createArbAdapter())
-    .register(createPropertiesAdapter());
+    .register(createI18nextJsonAdapter(fs))
+    .register(createVueI18nJsonAdapter(fs))
+    .register(createNextIntlJsonAdapter(fs))
+    .register(createNgxTranslateJsonAdapter(fs))
+    .register(createXliffAdapter(fs))
+    .register(createYamlAdapter(fs))
+    .register(createArbAdapter(fs))
+    .register(createPropertiesAdapter(fs));
 }

@@ -48,11 +48,11 @@ export type BoundedBytesRead =
  * `deps.fs` option redirects that I/O, which is how the SDK's tests avoid touching disk and how an
  * embedding application can back part of a project with something other than a local disk.
  *
- * Know what the seam does and does not cover before relying on it. It carries the run-status file,
- * the lock-file, the config glossary, and workbook and interchange I/O. It does not carry the
- * locale files: those are read and written by `@verbatra/format-adapters`, which uses `node:fs`
- * directly and is given a path rather than this port. Supplying a `deps.fs` therefore does not make
- * a run fully in-memory, and a project's translations are still read from and written to real disk.
+ * The seam carries every file the SDK touches: the run-status file, the lock-file, the config
+ * glossary, workbook and interchange I/O, and the locale files themselves, which the adapters read
+ * and write through a port built from this one. The single exception is a caller-supplied
+ * `deps.adapterRegistry`: those adapters were constructed by the caller, so their file access is
+ * whatever the caller wired into them, and supplying both means the caller owns that wiring.
  *
  * Reads are size-bounded by contract so that a hostile or accidentally huge file cannot exhaust
  * memory. Writes are expected to be atomic: the default implementation writes to a temporary file

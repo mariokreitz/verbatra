@@ -1,5 +1,6 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { AdapterError } from "../errors.js";
+import type { AdapterFs } from "../fs-port.js";
 import { readFileContent } from "../json/bounded-read.js";
 import { decodeKeyToSegments, encodeSegment } from "../json/key-encoding.js";
 import { type OrderedRecord, type OrderedValue, parseOrderedJson } from "../json/ordered-json.js";
@@ -72,10 +73,11 @@ function messagesFromEntries(entries: ReadonlyMap<string, TranslationEntry>): Ma
 
 async function readDestinationPairs(
   filePath: string,
+  fs: AdapterFs,
 ): Promise<Array<[string, OrderedValue]> | null> {
   let content: string;
   try {
-    content = await readFileContent(filePath);
+    content = await readFileContent(fs, filePath);
   } catch (error) {
     if (isEnoent(error)) {
       return null;
@@ -88,9 +90,10 @@ async function readDestinationPairs(
 export async function buildArbWriteTree(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
+  fs: AdapterFs,
 ): Promise<OrderedRecord> {
   const messages = messagesFromEntries(entries);
-  const pairs = await readDestinationPairs(filePath);
+  const pairs = await readDestinationPairs(filePath, fs);
   const out = new Map<string, OrderedValue>();
   const consumed = new Set<string>();
   for (const [key, value] of pairs ?? []) {
