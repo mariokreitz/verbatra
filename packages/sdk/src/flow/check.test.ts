@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
-import { baseConfig, makeFakeFs, makeTempDir, writeJsonFile } from "../test-support.js";
+import {
+  baseConfig,
+  makeFakeFs,
+  makeTempDir,
+  realDiskReads,
+  writeJsonFile,
+} from "../test-support.js";
 import { check } from "./check.js";
 
 const cfg = (overrides: Partial<VerbatraConfig> = {}): VerbatraConfig =>
@@ -129,8 +135,7 @@ describe("check", () => {
   it("writes nothing and never touches the lock (read-only)", async () => {
     const dir = await project({ a: "A" }, { de: { a: "Aa" } });
     const fs = makeFakeFs({
-      fileExists: async () => true,
-      readFileBounded: async () => ({ kind: "missing" }),
+      ...realDiskReads(),
       writeFile: async () => {
         throw new Error("check must not write a file");
       },

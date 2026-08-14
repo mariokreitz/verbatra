@@ -1,5 +1,6 @@
 import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
+import { type AdapterFs, nodeAdapterFs } from "../fs-port.js";
 import {
   buildCanHandle,
   type ComparePlaceholders,
@@ -22,6 +23,7 @@ import { unflattenEntries } from "./unflatten.js";
 type BuildWriteTree = (
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
+  fs: AdapterFs,
 ) => OrderedRecord | Promise<OrderedRecord>;
 
 type DeriveDescriptions = (content: string) => ReadonlyMap<string, string>;
@@ -41,6 +43,7 @@ export interface TreeFileAdapterOptions {
   readonly keyMode?: KeyMode;
   readonly comparePlaceholders?: ComparePlaceholders;
   readonly deriveDescriptions?: DeriveDescriptions;
+  readonly fs?: AdapterFs;
 }
 
 function mergeDescriptions(
@@ -95,6 +98,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     comparePlaceholders,
     deriveDescriptions,
     keyMode = "literal-leaf",
+    fs = nodeAdapterFs,
   } = options;
   return {
     format,
@@ -103,7 +107,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     validateMessage: validateMessage ?? ((): boolean => true),
     ...(comparePlaceholders !== undefined ? { comparePlaceholders } : {}),
     async read(filePath, locale): Promise<ReadResult> {
-      const content = await readFileContent(filePath);
+      const content = await readFileContent(fs, filePath);
       const namespace = namespaceOf(filePath);
       const { entries, excludedLeafPaths } = toEntries(
         content,
@@ -120,7 +124,7 @@ export function createTreeFileAdapter(options: TreeFileAdapterOptions): FormatAd
     },
     async write(resource, filePath): Promise<void> {
       const tree = buildWriteTree
-        ? await buildWriteTree(resource.entries, filePath)
+        ? await buildWriteTree(resource.entries, filePath, fs)
         : unflattenEntries(resource.entries);
       await atomicWriteFile(filePath, serialize(tree));
     },

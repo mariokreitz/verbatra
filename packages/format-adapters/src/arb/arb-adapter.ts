@@ -1,4 +1,5 @@
 import type { FormatAdapter } from "../adapter.js";
+import { type AdapterFs, nodeAdapterFs } from "../fs-port.js";
 import { icuDeriveEntry, icuInvalidKeys, icuIsValid, icuPlaceholders } from "../icu/analyze.js";
 import { compareIcuPlaceholders } from "../icu/compare.js";
 import {
@@ -19,8 +20,9 @@ function parseArb(content: string): JsonRecord {
   return assertJsonRecord(stripArbMetadata(parseArbObject(content)));
 }
 
-export function createArbAdapter(): FormatAdapter {
+export function createArbAdapter(fs: AdapterFs = nodeAdapterFs): FormatAdapter {
   return createTreeFileAdapter({
+    fs,
     format: "arb",
     extensions: [".arb"],
     sniff: sniffJsonObject,

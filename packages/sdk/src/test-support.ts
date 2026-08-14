@@ -10,7 +10,7 @@ import type {
 } from "@verbatra/ai-providers";
 import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
 import type { VerbatraConfig } from "./config/schema.js";
-import type { BoundedBytesRead, BoundedFileRead, SdkFs } from "./fs.js";
+import { type BoundedBytesRead, type BoundedFileRead, defaultFs, type SdkFs } from "./fs.js";
 
 export interface StubCall {
   readonly request: TranslateRequest;
@@ -149,6 +149,19 @@ export async function readJsonFile(path: string): Promise<unknown> {
 
 export async function readTextFile(path: string): Promise<string> {
   return readFile(path, "utf8");
+}
+
+export function realDiskReads(): Pick<
+  SdkFs,
+  "fileExists" | "readFileBounded" | "readBytesBounded"
+> {
+  return {
+    fileExists: (path: string): Promise<boolean> => defaultFs.fileExists(path),
+    readFileBounded: (path: string, maxBytes: number): Promise<BoundedFileRead> =>
+      defaultFs.readFileBounded(path, maxBytes),
+    readBytesBounded: (path: string, maxBytes: number): Promise<BoundedBytesRead> =>
+      defaultFs.readBytesBounded(path, maxBytes),
+  };
 }
 
 export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {

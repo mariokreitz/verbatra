@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { contentHash, type TranslationEntry } from "@verbatra/core";
 import { describe, expect, it } from "vitest";
 import type { VerbatraConfig } from "../config/schema.js";
-import { baseConfig, makeFakeFs, makeTempDir, writeJsonFile } from "../test-support.js";
+import {
+  baseConfig,
+  makeFakeFs,
+  makeTempDir,
+  realDiskReads,
+  writeJsonFile,
+} from "../test-support.js";
 import { keyIntegrity } from "./key-integrity.js";
 
 const cfg = (overrides: Partial<VerbatraConfig> = {}): VerbatraConfig =>
@@ -255,8 +261,7 @@ describe("keyIntegrity", () => {
     await withBaseline(dir, "de", { greeting: "Hello old" });
 
     const fs = makeFakeFs({
-      fileExists: async () => true,
-      readFileBounded: async () => ({ kind: "missing" }),
+      ...realDiskReads(),
       writeFile: async () => {
         throw new Error("keyIntegrity must not write a file");
       },
@@ -264,7 +269,7 @@ describe("keyIntegrity", () => {
     const results = await keyIntegrity({ config: cfg(), cwd: dir }, { fs });
 
     expect(results[0]?.locale).toBe("de");
-    expect(results[0]?.entries).toEqual([]);
+    expect(results[0]?.entries.map((entry) => entry.key)).toEqual(["greeting"]);
   });
 
   it("defaults the working directory to process.cwd() when cwd is omitted", async () => {

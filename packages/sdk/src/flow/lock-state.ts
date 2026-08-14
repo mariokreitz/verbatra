@@ -114,7 +114,7 @@ export async function lockState(
   }
 
   const lock = await readLockFile(path, fs);
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
   const source = await readSource(config, cwd, fs, adapter);
 
   const localeStates = await Promise.all(

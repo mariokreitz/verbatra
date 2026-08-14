@@ -1,5 +1,6 @@
 import type { LocaleResource, SupportedFormat, TranslationEntry } from "@verbatra/core";
 import type { FormatAdapter, ReadResult } from "../adapter.js";
+import { type AdapterFs, nodeAdapterFs } from "../fs-port.js";
 import { atomicWriteFile } from "../json/atomic-write.js";
 import { readFileContent } from "../json/bounded-read.js";
 import {
@@ -21,10 +22,12 @@ export interface FlatFileAdapterOptions {
   readonly serializeEntries: (
     entries: ReadonlyMap<string, TranslationEntry>,
     filePath: string,
+    fs: AdapterFs,
   ) => Promise<string> | string;
   readonly extractPlaceholders: ExtractPlaceholders;
   readonly validateMessage?: ValidateMessage;
   readonly computeInvalidIcuKeys?: ComputeInvalidIcuKeys;
+  readonly fs?: AdapterFs;
 }
 
 function toEntries(
@@ -49,6 +52,7 @@ export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAd
     extractPlaceholders,
     validateMessage,
     computeInvalidIcuKeys,
+    fs = nodeAdapterFs,
   } = options;
   return {
     format,
@@ -56,7 +60,7 @@ export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAd
     extractPlaceholders,
     validateMessage: validateMessage ?? ((): boolean => true),
     async read(filePath, locale): Promise<ReadResult> {
-      const content = await readFileContent(filePath);
+      const content = await readFileContent(fs, filePath);
       const namespace = namespaceOf(filePath);
       const entries = toEntries(content, namespace, parseEntries);
       const resource: LocaleResource = { locale, namespace, format, entries };
@@ -64,7 +68,7 @@ export function createFlatFileAdapter(options: FlatFileAdapterOptions): FormatAd
       return { resource, invalidIcuKeys, excludedLeafPaths: [] };
     },
     async write(resource, filePath): Promise<void> {
-      const data = await serializeEntries(resource.entries, filePath);
+      const data = await serializeEntries(resource.entries, filePath, fs);
       await atomicWriteFile(filePath, data);
     },
   };

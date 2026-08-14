@@ -118,7 +118,7 @@ export async function retranslateEntry(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
 
   const [locale] = selectLocales(config, [input.locale]);
   /* v8 ignore next 3 -- selectLocales with a one-element requested array either throws UNKNOWN_LOCALE or returns that exact element; `locale` is never undefined here. */
