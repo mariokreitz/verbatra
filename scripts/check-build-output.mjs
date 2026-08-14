@@ -82,7 +82,31 @@ function checkStudioBundle() {
   return "the studio command survives bundling as a runtime dynamic import.";
 }
 
-const TARGETS = { dts: checkDts, "studio-bundle": checkStudioBundle };
+function checkConfigSchema() {
+  const relativePath = "packages/sdk/dist/config-schema.json";
+  const document = JSON.parse(readBuildOutput(relativePath));
+  if (typeof document.$schema !== "string") {
+    throw new Error(
+      `${relativePath} has no $schema meta key; an editor cannot validate against it. Check ` +
+        "packages/sdk/scripts/emit-config-schema.mjs.",
+    );
+  }
+  const pattern = document.properties?.files?.properties?.pattern?.pattern;
+  if (typeof pattern !== "string") {
+    throw new Error(
+      `${relativePath} carries no files.pattern regex, so the {locale} token rule did not survive ` +
+        "into the shipped document. Check that files.pattern is a field-level .regex() in " +
+        "packages/sdk/src/config/schema.ts rather than a whole-config .refine().",
+    );
+  }
+  return `the shipped config schema keeps its $schema key and the files.pattern rule (${pattern}).`;
+}
+
+const TARGETS = {
+  dts: checkDts,
+  "studio-bundle": checkStudioBundle,
+  "config-schema": checkConfigSchema,
+};
 
 function main() {
   const requested = process.argv[2];

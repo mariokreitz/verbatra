@@ -77,6 +77,7 @@ describe("the root verify script mirrors the CI build-and-test job", () => {
       "pnpm check:no-em-dash",
       "pnpm check:dts",
       "pnpm check:studio-bundle",
+      "pnpm check:config-schema",
       "pnpm typecheck:configs",
       "pnpm test:scripts",
     ]) {
@@ -99,6 +100,7 @@ describe("the root verify script mirrors the CI build-and-test job", () => {
     expect(buildIndex).toBeGreaterThanOrEqual(0);
     expect(verifySteps.indexOf("pnpm check:dts")).toBeGreaterThan(buildIndex);
     expect(verifySteps.indexOf("pnpm check:studio-bundle")).toBeGreaterThan(buildIndex);
+    expect(verifySteps.indexOf("pnpm check:config-schema")).toBeGreaterThan(buildIndex);
   });
 
   it("extracts a non-trivial command list, so the assertions cannot pass vacuously", () => {

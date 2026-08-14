@@ -53,8 +53,9 @@ When you author the config in TypeScript, your editor offers the selected provid
 | `maxBatchSize` | positive integer | `50` | The maximum entries sent in a single provider request. |
 | `maxTokens` | positive integer | none | A whole-run token budget across every provider call. |
 | `budgetBehavior` | `"warn"` or `"stop"` | `"warn"` | What happens once `maxTokens` is reached. |
+| `$schema` | string | none | A pointer to the JSON Schema document, for editors only. Ignored at runtime. |
 
-Unknown top-level keys are rejected. This is also why an API key cannot live in the config: keys come from the environment, not the file.
+Unknown top-level keys are rejected, with `$schema` as the single exception. This is also why an API key cannot live in the config: keys come from the environment, not the file.
 
 ### Locales and files
 
@@ -134,6 +135,66 @@ verbatra searches upward from the working directory and uses the first source it
 11. `verbatra.config.ts`
 
 To load one explicit file instead of searching, pass `--config <path>`; a relative path resolves against the working directory. In the SDK, an in-memory `configOverride` takes precedence over an explicit `configPath`, which takes precedence over the search. See [Programmatic API](/docs/programmatic-api).
+
+## Editor validation
+
+`@verbatra/sdk` ships the config schema as a JSON Schema document, generated at build time from the same zod schema the SDK validates with, so it can never describe a different shape than the one that runs. It installs at:
+
+```
+node_modules/@verbatra/sdk/dist/config-schema.json
+```
+
+Point an editor at it and a declarative config gets key completion, type and enum checking, and an immediate warning on a misspelled key.
+
+An editor needs to be told which document to use; nothing validates automatically. There are two ways to tell it.
+
+**An in-file `$schema` key.** `.verbatrarc.json` and `.verbatrarc` accept a top-level `$schema` key, which verbatra accepts and ignores:
+
+```json
+{
+  "$schema": "./node_modules/@verbatra/sdk/dist/config-schema.json",
+  "sourceLocale": "en",
+  "targetLocales": ["de", "fr"],
+  "format": "i18next-json",
+  "files": { "pattern": "locales/{locale}.json" },
+  "provider": { "id": "gemini", "options": { "model": "gemini-2.5-flash", "maxOutputTokens": 4096 } }
+}
+```
+
+The `$schema` key is an editor convention, not a requirement of the JSON Schema specification: VS Code and editors that follow the same convention read it, and others do not. `.verbatrarc` has no extension, so an editor also needs a file-match entry before it treats the file as JSON at all, which means the key alone is not enough there.
+
+**An explicit editor mapping.** In VS Code, map the files in your workspace settings instead, which covers the extensionless form as well:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": [".verbatrarc", ".verbatrarc.json"],
+      "url": "./node_modules/@verbatra/sdk/dist/config-schema.json"
+    }
+  ]
+}
+```
+
+A YAML config (`.verbatrarc.yaml`, `.verbatrarc.yml`) takes a comment rather than a key, read by the YAML Language Server:
+
+```yaml
+# yaml-language-server: $schema=./node_modules/@verbatra/sdk/dist/config-schema.json
+sourceLocale: en
+targetLocales: [de, fr]
+```
+
+Two of the discovery places cannot be served. The `"verbatra"` property inside `package.json` cannot, because `package.json` already validates against its own schema and there is no way to attach a second one to a single property. The executable forms (`.verbatrarc.js`, `.verbatrarc.cjs`, `.verbatrarc.ts`, `verbatra.config.js`, `verbatra.config.cjs`, `verbatra.config.ts`) do not need one: `defineConfig` gives them the full `VerbatraConfigInput` type, so TypeScript already checks them, with provider-narrowed model completion on top.
+
+### What the document cannot check
+
+The document carries every key, its type, its enum values, which keys are required, the `{locale}` token rule on `files.pattern`, and the rejection of unknown keys. Three rules are enforced at runtime but have no expression in JSON Schema draft 2020-12, so an editor stays silent about them and verbatra reports them when the config loads:
+
+- `targetLocales` must not include `sourceLocale`. Comparing two sibling values has no vocabulary in the draft.
+- `targetLocales` must not contain two locales that differ only in case.
+- `provider.options.apiKeyEnvVar` (openai-compatible only) must not name a hosted provider's environment variable. Expressing it would hard-code the hosted variable names into a shipped document, which would then drift from the code that owns them.
+
+That is the complete list. A config the editor shows as clean can still fail one of these three, so a green editor is a fast first pass, not a substitute for running `verbatra check`.
 
 ## The working directory and .env
 
