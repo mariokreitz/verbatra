@@ -75,11 +75,16 @@ Run inside `apps/docs` (or with a turbo filter from the root):
 - English source content only, and apply the root language and style rules: no emojis,
   no decorative formatting, and never the em dash (U+2014). Use a spaced hyphen, a
   colon, or parentheses.
-- Only document features that exist. The shipped CLI is `init`, `translate`, `watch`,
-  `check`, `diff`, `doctor`, `export`, `import`, and `studio`: nine commands. When a
-  command is added, sweep the periphery too (the get-started walkthrough, the FAQ, the
-  troubleshooting entries, the landing FAQ in `messages/*.json`, and the SDK page's
-  entry-point list), not just its own `cli/` page.
+- Only document features that exist, and read the shipped surface from the code rather
+  than from any list in a guidance file, this one included. The CLI commands are the
+  `.command(...)` registrations in `packages/cli/src/run.ts`, the formats are the
+  adapters `createDefaultRegistry` registers in `@verbatra/format-adapters`, and the
+  providers are the factory table in `packages/sdk/src/config/provider-config.ts`. An
+  enumeration written into guidance goes stale the day a command ships; those three
+  files cannot. This rule replaced such an enumeration twice, in the same place.
+- When a command is added, sweep the periphery too (the get-started walkthrough, the
+  FAQ, the troubleshooting entries, the landing FAQ in `messages/*.json`, and the SDK
+  page's entry-point list), not just its own `cli/` page.
 - Keep docs accurate to the current SDK and CLI surface. When a user-facing change
   lands (a CLI flag, a config key, an SDK export, provider or adapter behavior),
   update the matching page here.
