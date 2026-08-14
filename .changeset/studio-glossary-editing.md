@@ -3,7 +3,7 @@
 ---
 
 The Settings panel's glossary is editable when the project keeps its glossary in a JSON file. Terms
-can be added, retranslated, and removed in place, and the panel shows the new state as soon as a
+can be added, edited in place, and removed, and the panel shows the new state as soon as a
 write lands, with no reload. A new `glossary.write` RPC method backs it, registered unconditionally
 alongside the other local-editing methods, since changing a glossary calls no provider and spends
 nothing; it is rate limited like every other write method and is exposed as an agent tool when

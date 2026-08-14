@@ -99,7 +99,7 @@ describe("SettingsPanel", () => {
     ]);
   });
 
-  it("does not re-read on a re-render: this page reflects the session it started with", async () => {
+  it("does not re-read the configuration on a re-render, which is fixed for the session", async () => {
     stubSettings(SNAPSHOT);
 
     const view = await renderAsync(<SettingsPanel />);
