@@ -87,7 +87,7 @@ export default defineConfig({
 
 Les deux formes sont mutuellement exclusives ; il n'y a pas de fusion entre elles. Un chemin de fichier relatif se résout contre le répertoire du fichier de configuration chargé, ou contre le répertoire de travail quand la configuration est passée comme surcharge en mémoire. Le fichier doit être encodé en UTF-8 et ne pas dépasser 1 MiB, et il est lu une fois au chargement de la configuration : verbatra ne le surveille pas, donc modifie-le et redémarre pour prendre en compte une mise à jour. Un fichier absent, un JSON invalide ou une valeur qui n'est pas une carte plate de chaînes fait échouer le chargement de la configuration avec `CONFIG_INVALID`, en nommant le chemin résolu.
 
-<AvailableFrom version="0.4.0" />
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
 
 Les deux formes diffèrent aussi par qui peut les modifier. Seule la forme fichier se modifie depuis [Verbatra Studio](/docs/review-in-studio), qui réécrit ce fichier JSON terme par terme et ne touche jamais à ton module de config ; un glossaire inline y reste en lecture seule, car il vit dans du code exécutable. Préfère la forme fichier si tu veux gérer les termes depuis le tableau de bord.
 

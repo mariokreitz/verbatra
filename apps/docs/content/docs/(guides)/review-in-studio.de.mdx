@@ -92,6 +92,8 @@ Die Seite Aktivität stellt zwei Referenzansichten nebeneinander:
 
 ## Halte das Glossar unter Einstellungen aktuell
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 Einstellungen, die vierte Seite, zeigt die Konfiguration, mit der diese Sitzung gestartet wurde; starte Studio nach einer Änderung der Konfigurationsdatei neu. Das Glossar daneben verhält sich anders: es wird bei jedem Besuch frisch von der Festplatte gelesen und ist bearbeitbar, wenn das Projekt sein Glossar in einer JSON-Datei hält.
 
 Jeder Begriff trägt dann eine Aktion **Edit** und **Remove**, und unter der Liste steht ein Formular **Add a term**. Eine Änderung wird direkt in diese JSON-Datei geschrieben, immer nur ein Begriff, und das Panel zeigt den neuen Stand, sobald der Schreibvorgang durch ist, ganz ohne Neuladen. Der Rest der Datei bleibt unangetastet: Schlüsselreihenfolge und Einrückung überleben, und das Ergebnis wird an denselben Grenzen gemessen, die `loadConfig` beim Zurücklesen eines Glossars durchsetzt, sodass eine angenommene Änderung immer wieder lesbar ist.

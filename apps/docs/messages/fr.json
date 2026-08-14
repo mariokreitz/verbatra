@@ -291,7 +291,9 @@
     },
     "availableFrom": {
       "title": "Disponible à partir de {version}",
-      "text": "Ceci nécessite verbatra {version} ou plus récent. Les versions antérieures ne l'ont pas, alors vérifie ta version installée avec verbatra --version et mets à jour si elle est plus ancienne."
+      "text": "Ceci nécessite verbatra {version} ou plus récent. Les versions antérieures ne l'ont pas, alors vérifie ta version installée avec verbatra --version et mets à jour si elle est plus ancienne.",
+      "packageTitle": "Disponible à partir de {version}",
+      "packageText": "Ceci nécessite {version} ou plus récent. Les versions antérieures ne l'ont pas, alors mets à jour ce paquet si le tien est plus ancien."
     },
     "screenshot": {
       "label": "Verbatra Studio",

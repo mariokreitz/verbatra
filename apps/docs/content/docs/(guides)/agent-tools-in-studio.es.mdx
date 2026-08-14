@@ -64,7 +64,7 @@ Inspeccionan el estado del proyecto sin cambiar nada. Están marcadas como de so
 
 `verbatra_translation_editEntry` edita en el sitio el valor de un locale. Pasa por la misma puerta de integridad que cualquier otra escritura de verbatra: un valor que no supera alguna de sus comprobaciones se rechaza y no se escribe nada. Una edición aceptada escribe el archivo de locale y avanza la entrada del bloqueo de esa clave, exactamente como lo hace una edición desde el panel. Editar no necesita ningún flag de gasto; toca solo tus archivos locales y nunca llama a un proveedor.
 
-<AvailableFrom version="0.4.0" />
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
 
 `verbatra_glossary_write` añade, reemplaza o elimina un término del glosario y devuelve el glosario tal como queda. Solo funciona con un glosario respaldado por archivo: un glosario escrito en línea en la configuración, o la ausencia de glosario, se rechaza en lugar de convertirse, y ningún parámetro nombra un archivo, porque el destino sale únicamente de la configuración cargada. Igual que editar, no gasta nada y se registra sin `--allow-spend`. Está limitada a 20 escrituras por minuto deslizante.
 

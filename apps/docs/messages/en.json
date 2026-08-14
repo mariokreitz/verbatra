@@ -11,7 +11,9 @@
     },
     "availableFrom": {
       "title": "Available from {version}",
-      "text": "This needs verbatra {version} or newer. Earlier releases do not have it, so check your installed version with verbatra --version and upgrade if it is older."
+      "text": "This needs verbatra {version} or newer. Earlier releases do not have it, so check your installed version with verbatra --version and upgrade if it is older.",
+      "packageTitle": "Available from {version}",
+      "packageText": "This needs {version} or newer. Earlier releases do not have it, so upgrade that package if yours is older."
     },
     "llms": {
       "heading": "For AI agents",

@@ -291,7 +291,9 @@
     },
     "availableFrom": {
       "title": "Verfügbar ab {version}",
-      "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist."
+      "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist.",
+      "packageTitle": "Verfügbar ab {version}",
+      "packageText": "Dafür wird {version} oder neuer benötigt. Frühere Versionen haben es nicht, aktualisiere dieses Paket also, falls deines älter ist."
     },
     "screenshot": {
       "label": "Verbatra Studio",

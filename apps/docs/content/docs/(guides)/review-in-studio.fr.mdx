@@ -92,6 +92,8 @@ La page Activité met deux vues de référence côte à côte :
 
 ## Garde le glossaire à jour dans Paramètres
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
 Paramètres, la quatrième page, montre la configuration avec laquelle cette session a démarré ; redémarre Studio après avoir modifié le fichier de config. Le glossaire affiché à côté fonctionne autrement : il est relu depuis le disque à chaque visite, et il est modifiable quand le projet garde son glossaire dans un fichier JSON.
 
 Chaque terme porte alors une action **Edit** et une action **Remove**, et un formulaire **Add a term** se trouve sous la liste. Une modification est écrite directement dans ce fichier JSON, un terme à la fois, et le panneau affiche le nouvel état dès que l'écriture aboutit, sans rechargement. Le reste du fichier n'est pas touché : l'ordre des clés et l'indentation survivent, et le résultat est soumis aux mêmes limites que `loadConfig` applique en relisant un glossaire, si bien qu'une modification acceptée reste toujours relisible.

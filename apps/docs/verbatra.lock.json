@@ -2,6 +2,8 @@
   "version": 1,
   "locales": {
     "de": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",
@@ -169,6 +171,8 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "es": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",
@@ -336,6 +340,8 @@
       "legal.privacy.title": "9bc1b623f8cf6f2a"
     },
     "fr": {
+      "docs.availableFrom.packageText": "01b0afe65b2a2784",
+      "docs.availableFrom.packageTitle": "2dccce3b7a6b8c95",
       "docs.availableFrom.text": "346536ee61791eba",
       "docs.availableFrom.title": "2dccce3b7a6b8c95",
       "docs.llms.full": "5657398d7176a925",

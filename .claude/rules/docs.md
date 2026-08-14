@@ -97,8 +97,12 @@ Mark those pages so the gap is visible instead of silent.
   above the heading or paragraph that introduces the behavior when only part of a page
   is version-gated. Mark the section that introduces the behavior, not every sentence
   that mentions it.
-- The `version` is the version of the package that ships the behavior, so a Studio-only
-  change carries `@verbatra/studio`'s version, not the CLI and SDK's.
+- The `version` is the version of the package that ships the behavior. The default copy
+  names verbatra, so a bare `version` means the CLI and SDK. For anything that ships in
+  a different package, pass `pkg` as well:
+  `<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />`. That switches the callout
+  to the package-qualified wording; without it the callout would tell a reader to check
+  `verbatra --version`, which answers for the wrong package.
 - Use it when a page (or a section you are adding to one) documents behavior that has
   merged but is not yet published, and for behavior that is published but needs a
   minimum version. The two cases share one wording, so no distinction is needed at the
