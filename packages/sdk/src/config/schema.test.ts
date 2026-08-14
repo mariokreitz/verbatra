@@ -42,6 +42,50 @@ describe("verbatraConfigSchema: targetLocales case-insensitive duplicates", () =
   });
 });
 
+describe("verbatraConfigSchema: the {locale} token rule", () => {
+  it("reports the same message at the same path as the whole-config rule it replaced", () => {
+    const result = verbatraConfigSchema.safeParse(
+      baseConfig({ files: { pattern: "locales/common.json" } }),
+    );
+
+    expect(result.success).toBe(false);
+    const issue = result.error?.issues.find((i) => i.path.join(".") === "files.pattern");
+    expect(issue?.message).toBe("files.pattern must contain the {locale} token");
+  });
+
+  it("accepts a pattern that carries the token anywhere in the path", () => {
+    expect(
+      verbatraConfigSchema.safeParse(baseConfig({ files: { pattern: "{locale}/app.json" } }))
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty pattern, which satisfies neither the length nor the token rule", () => {
+    const result = verbatraConfigSchema.safeParse(baseConfig({ files: { pattern: "" } }));
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.filter((i) => i.path.join(".") === "files.pattern")).toHaveLength(
+      2,
+    );
+  });
+});
+
+describe("verbatraConfigSchema: the $schema key", () => {
+  it("accepts it, so a JSON or YAML config may point an editor at the shipped document", () => {
+    const result = verbatraConfigSchema.safeParse({
+      ...baseConfig(),
+      $schema: "./node_modules/@verbatra/sdk/dist/config-schema.json",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.$schema).toBe("./node_modules/@verbatra/sdk/dist/config-schema.json");
+  });
+
+  it("is the only extra key the strict object tolerates", () => {
+    expect(verbatraConfigSchema.safeParse({ ...baseConfig(), $schemaa: "x" }).success).toBe(false);
+  });
+});
+
 describe("verbatraConfigSchema: files.localeStyle", () => {
   it("accepts a config that omits it, which is every config written before styles existed", () => {
     const result = verbatraConfigSchema.safeParse(baseConfig());

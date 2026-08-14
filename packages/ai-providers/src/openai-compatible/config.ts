@@ -11,20 +11,13 @@ function isNotHostedProviderEnvVar(value: string): boolean {
   return !HOSTED_PROVIDER_ENV_VARS.has(value.toUpperCase());
 }
 
-function isHttpOrHttpsUrl(value: string): boolean {
-  try {
-    const { protocol } = new URL(value);
-    return protocol === "http:" || protocol === "https:";
-  } catch {
-    return false;
-  }
-}
+const HTTP_OR_HTTPS_SCHEME = /^https?:\/\//i;
 
 export const openAiCompatibleConfigSchema = z
   .object({
     baseUrl: z
       .url({ message: "baseUrl must be a valid absolute URL." })
-      .refine(isHttpOrHttpsUrl, { message: "baseUrl must use the http or https scheme." }),
+      .regex(HTTP_OR_HTTPS_SCHEME, { message: "baseUrl must use the http or https scheme." }),
     model: z.string().min(1),
     maxOutputTokens: z.number().int().positive(),
     apiKeyEnvVar: z

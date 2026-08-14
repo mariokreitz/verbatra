@@ -27,18 +27,26 @@ function findCaseInsensitiveDuplicate(locales: readonly string[]): string | unde
  * own tooling.
  *
  * The object is strict, so an unrecognized key is an error rather than being silently ignored: a
- * typo in a config file is reported instead of quietly doing nothing. Beyond the per-field checks,
- * three whole-config rules are enforced: `targetLocales` must not contain the source locale, it
- * must not contain two locales that differ only in case (they would collide on a case-insensitive
- * file system), and `files.pattern` must contain the `{locale}` token.
+ * typo in a config file is reported instead of quietly doing nothing. The one exception is the
+ * optional `$schema` key, accepted so a JSON or YAML config can point an editor at the JSON Schema
+ * document the package ships as `@verbatra/sdk/config-schema.json`.
+ *
+ * Beyond the per-field checks, two whole-config rules are enforced: `targetLocales` must not
+ * contain the source locale, and it must not contain two locales that differ only in case (they
+ * would collide on a case-insensitive file system). The `{locale}` token requirement is a
+ * per-field check on `files.pattern`.
  */
 export const verbatraConfigSchema = z
   .strictObject({
+    $schema: z.string().optional(),
     sourceLocale: z.string().min(1),
     targetLocales: z.array(z.string().min(1)).min(1),
     format: supportedFormatSchema,
     files: z.strictObject({
-      pattern: z.string().min(1),
+      pattern: z
+        .string()
+        .min(1)
+        .regex(/\{locale\}/, { message: `files.pattern must contain the ${LOCALE_TOKEN} token` }),
       localeStyle: z.enum(LOCALE_STYLES).optional(),
     }),
     provider: providerConfigSchema,
@@ -62,10 +70,6 @@ export const verbatraConfigSchema = z
       return `targetLocales must not contain case-insensitively duplicate locales: "${duplicate}"`;
     },
     path: ["targetLocales"],
-  })
-  .refine((config) => config.files.pattern.includes(LOCALE_TOKEN), {
-    message: `files.pattern must contain the ${LOCALE_TOKEN} token`,
-    path: ["files", "pattern"],
   });
 
 /**
