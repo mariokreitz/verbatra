@@ -10,7 +10,7 @@ import { Pillars } from "@/components/landing/pillars";
 import { ProvidersCloud } from "@/components/landing/providers-cloud";
 import { LandingHero } from "@/components/landing-hero";
 import { toLocale } from "@/lib/i18n";
-import { PACKAGE_VERSION } from "@/lib/site";
+import { PACKAGE_VERSION, STUDIO_VERSION } from "@/lib/site";
 import {
   type FaqItem,
   faqPageLd,
@@ -37,11 +37,17 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
   });
 
   const version = PACKAGE_VERSION;
+  const studioVersion = STUDIO_VERSION;
 
   return (
     <div className="vk-home w-full">
       <JsonLd
-        data={softwareApplicationLd({ description: t("meta.definition"), lang: locale, version })}
+        data={softwareApplicationLd({
+          description: t("meta.definition"),
+          lang: locale,
+          version,
+          studioVersion,
+        })}
       />
       <JsonLd data={faqPageLd({ items: faqItems, lang: locale })} />
       <JsonLd data={howToLd({ name: t("how.heading"), steps: howSteps, lang: locale })} />

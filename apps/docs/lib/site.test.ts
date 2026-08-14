@@ -1,5 +1,41 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { homeAlternates, homePath, localeAlternates, ogAlternateLocales, ogLocale } from "./site";
+import {
+  homeAlternates,
+  homePath,
+  localeAlternates,
+  ogAlternateLocales,
+  ogLocale,
+  PACKAGE_VERSION,
+  STUDIO_VERSION,
+} from "./site";
+
+function packageVersion(name: string): string {
+  const path = fileURLToPath(new URL(`../../../packages/${name}/package.json`, import.meta.url));
+  return JSON.parse(readFileSync(path, "utf8")).version;
+}
+
+describe("PACKAGE_VERSION", () => {
+  it("is a semver string", () => {
+    expect(PACKAGE_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it("tracks the cli package, which is version-locked with the sdk", () => {
+    expect(PACKAGE_VERSION).toBe(packageVersion("cli"));
+    expect(PACKAGE_VERSION).toBe(packageVersion("sdk"));
+  });
+});
+
+describe("STUDIO_VERSION", () => {
+  it("is a semver string", () => {
+    expect(STUDIO_VERSION).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it("tracks the studio package, which versions independently of the cli", () => {
+    expect(STUDIO_VERSION).toBe(packageVersion("studio"));
+  });
+});
 
 describe("homePath", () => {
   it("leaves the site root unprefixed for the default locale", () => {
