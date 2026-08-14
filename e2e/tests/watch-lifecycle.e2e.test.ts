@@ -12,7 +12,7 @@ import {
   writeFileIn,
   writeJsonIn,
 } from "../src/harness.js";
-import type { WatchLocaleSummary, WatchRunSummary } from "../src/watch-outcome.js";
+import type { RunLocaleSummary, RunSummary } from "../src/run-outcome.js";
 
 const SOURCE_FILE = "locales/en.json";
 const TARGET_FILE = "locales/de.json";
@@ -22,10 +22,7 @@ const RUN_RECORD_TIMEOUT_MS = 30_000;
 const UNREACHABLE_PROVIDER =
   '{ id: "openai-compatible", options: { baseUrl: "http://127.0.0.1:1", model: "e2e-unreachable", maxOutputTokens: 256 } }';
 
-function expectLocaleSummary(
-  envelope: JsonEnvelope<WatchRunSummary>,
-  locale: string,
-): WatchLocaleSummary {
+function expectLocaleSummary(envelope: JsonEnvelope<RunSummary>, locale: string): RunLocaleSummary {
   if (!envelope.ok) {
     throw new Error(`Expected a successful watch run, got ${envelope.code}: ${envelope.message}`);
   }
@@ -36,7 +33,7 @@ function expectLocaleSummary(
   return summary;
 }
 
-function expectNothingWithheld(summary: WatchLocaleSummary): void {
+function expectNothingWithheld(summary: RunLocaleSummary): void {
   expect(summary.status).toBe("succeeded");
   expect(summary.providerFailures ?? []).toEqual([]);
   expect(summary.integrityMismatches ?? []).toEqual([]);
@@ -61,7 +58,7 @@ describe("watch lifecycle (no provider key, no network)", () => {
     );
 
     const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {});
-    const stream: EnvelopeStream<WatchRunSummary> = readEnvelopeStream(watcher);
+    const stream: EnvelopeStream<RunSummary> = readEnvelopeStream(watcher);
 
     try {
       const startup = expectLocaleSummary(

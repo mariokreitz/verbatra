@@ -17,11 +17,11 @@ import {
   writeJsonIn,
 } from "../src/harness.js";
 import {
-  classifyWatchEnvelope,
+  classifyRunEnvelope,
+  type RunSummary,
+  type RunTarget,
   type SettledKeyOutcome,
-  type WatchRunSummary,
-  type WatchTarget,
-} from "../src/watch-outcome.js";
+} from "../src/run-outcome.js";
 
 const provider = providerFromEnv();
 
@@ -34,8 +34,8 @@ const DELIVERY_ATTEMPTS = 3;
 const THROTTLE_BACKOFF_MS = 20_000;
 
 async function awaitRunOutcome(
-  stream: EnvelopeStream<WatchRunSummary>,
-  target: WatchTarget,
+  stream: EnvelopeStream<RunSummary>,
+  target: RunTarget,
 ): Promise<SettledKeyOutcome> {
   const deadline = Date.now() + RUN_RECORD_TIMEOUT_MS;
   for (;;) {
@@ -45,7 +45,7 @@ async function awaitRunOutcome(
         `No watch run reported on "${target.key}" within ${RUN_RECORD_TIMEOUT_MS}ms.`,
       );
     }
-    const outcome = classifyWatchEnvelope(await stream.next({ timeoutMs: remainingMs }), target);
+    const outcome = classifyRunEnvelope(await stream.next({ timeoutMs: remainingMs }), target);
     if (outcome.kind !== "pending") {
       return outcome;
     }
@@ -53,8 +53,8 @@ async function awaitRunOutcome(
 }
 
 interface DeliveryRequest {
-  readonly stream: EnvelopeStream<WatchRunSummary>;
-  readonly target: WatchTarget;
+  readonly stream: EnvelopeStream<RunSummary>;
+  readonly target: RunTarget;
   readonly dir: string;
   readonly source: Record<string, string>;
   readonly note: (message: string) => Promise<unknown>;
@@ -107,7 +107,7 @@ describe.skipIf(provider === null)(`watch (live: ${provider?.id ?? "skipped"})`,
     const watcher: Subprocess = spawnVerbatra(consumer, ["watch", "--json", "--cwd", dir], {
       env: { [provider.envVar]: provider.key },
     });
-    const stream = readEnvelopeStream<WatchRunSummary>(watcher);
+    const stream = readEnvelopeStream<RunSummary>(watcher);
     const note = (message: string): Promise<unknown> => ctx.annotate(message);
     let throttled: string | undefined;
     let stopResult: Awaited<Subprocess> | undefined;
