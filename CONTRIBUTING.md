@@ -36,6 +36,13 @@ tasks.
 - `pnpm lint` - lint all packages (Biome)
 - `pnpm check` - run Biome lint and format checks across the repository
 - `pnpm format` - apply Biome formatting
+- `pnpm knip` - report unused files, exports, and dependencies
+
+`pnpm knip` is informational and is not part of `pnpm verify` or of any required
+check. It exits non-zero when it has findings, so read them and decide; the
+`Unused code` workflow runs it with `--no-exit-code` and reports in the step log.
+Every suppression lives in `knip.config.ts` with the structural reason for it, so
+add a new one only when the repository's layout genuinely explains the finding.
 
 Run a task for a single package with a filter, for example:
 
