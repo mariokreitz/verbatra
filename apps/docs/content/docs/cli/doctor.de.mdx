@@ -30,15 +30,16 @@ verbatra doctor [flags]
 | Format adapter | das konfigurierte `format` zu einem Datei-Adapter auflöst |
 | Provider | die konfigurierte `provider.id` zu einer Provider-Factory auflöst |
 | API key environment variable | die Variable gesetzt ist, aus der dieser Provider seinen Key liest |
-| Source locale file | die Quell-Locale-Datei unter ihrem aufgelösten Pfad existiert |
+| Source locale file | die Quell-Locale-Datei unter ihrem aufgelösten Pfad existiert, eine reguläre Datei ist und sich im konfigurierten Format parsen lässt |
 
 Jede Prüfung läuft auch dann, wenn eine frühere fehlgeschlagen ist; ein Lauf meldet also jedes unabhängige Problem. Die einzige Ausnahme ist die Konfiguration selbst: Kann sie nicht geladen werden, melden die vier Prüfungen, die sie brauchen, `skip` statt eines Urteils, das sie nicht erreichen konnten.
 
-Drei Details sind wichtig:
+Vier Details sind wichtig:
 
 - Der API-Key wird **nur über den Namen** geprüft. `doctor` fragt, ob die Variable gesetzt ist, nie was sie enthält. Der Wert wird nicht gelesen, nicht ausgegeben und nirgendwohin gesendet. Welche Variable welcher Provider nutzt, steht unter [Provider](/docs/providers).
 - Der Provider `openai-compatible` ist die Ausnahme. Er fällt auf einen Platzhalter-Key zurück, eine fehlende Variable ist also in Ordnung. Er schlägt nur fehl, wenn deine Konfiguration über `provider.options.apiKeyEnvVar` eine eigene Variable benennt und diese nicht gesetzt ist.
-- Eine fehlende **Ziel**-Locale-Datei ist kein Problem: [`verbatra translate`](/docs/cli/translate) legt sie an. Eine fehlende **Quell**-Locale-Datei schon, denn jeder andere Befehl scheitert daran.
+- Eine fehlende **Ziel**-Locale-Datei ist kein Problem: [`verbatra translate`](/docs/cli/translate) legt sie an. Ziel-Dateien werden überhaupt nicht geprüft.
+- Die **Quell**-Locale-Datei wird gelesen und geparst, nicht nur auf Existenz geprüft. Ein Verzeichnis an ihrer Stelle, eine leere Datei und fehlerhafter Inhalt lassen diese Prüfung alle mit derselben Meldung scheitern, die auch [`verbatra check`](/docs/cli/check) ausgeben würde, denn genau diese Fälle bringen jeden anderen Befehl zum Scheitern. Wenn das konfigurierte `format` zu keinem Adapter auflöst, gibt es nichts zum Parsen, also fällt die Prüfung auf die reine Existenz zurück und sagt das auch.
 
 Wie [`verbatra translate`](/docs/cli/translate) lädt `doctor` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor es die Umgebung ansieht; ein Key in einer dotenv-Datei zählt also als gesetzt.
 

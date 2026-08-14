@@ -1,5 +1,5 @@
 import { OPENAI_COMPATIBLE_ENV_VAR, PROVIDER_ENV } from "@verbatra/ai-providers";
-import type { AdapterRegistry } from "@verbatra/format-adapters";
+import type { AdapterRegistry, FormatAdapter } from "@verbatra/format-adapters";
 import {
   type ConfigSource,
   type LoadConfigOptions,
@@ -14,8 +14,9 @@ import {
 import type { VerbatraConfig } from "../config/schema.js";
 import { errorMessage, SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
-import { createLocalePathResolver } from "../locale-path/resolver.js";
+import { createLocalePathResolver, type LocalePathResolver } from "../locale-path/resolver.js";
 import { selectAdapter } from "../selection/select-adapter.js";
+import { readSourceResource } from "./source.js";
 
 /**
  * Which project-setup question a {@link DoctorCheck} answers.
@@ -24,7 +25,8 @@ import { selectAdapter } from "../selection/select-adapter.js";
  * - `format-adapter`: the configured `format` resolves to a file adapter.
  * - `provider`: the configured `provider.id` resolves to a provider factory.
  * - `api-key`: the environment variable the configured provider reads its key from is set.
- * - `source-file`: the source locale file exists at its resolved path.
+ * - `source-file`: the source locale file exists at its resolved path, is a regular file, and
+ *   parses under the configured format.
  */
 export type DoctorCheckId = "config" | "format-adapter" | "provider" | "api-key" | "source-file";
 
@@ -71,7 +73,11 @@ export interface DoctorInput {
 export interface DoctorDeps {
   /** Format-adapter registry to resolve the configured format against. Defaults to the built-in registry. */
   readonly adapterRegistry?: AdapterRegistry;
-  /** File-system port used to probe the source locale file. Defaults to the real file system. */
+  /**
+   * File-system port. Threaded into the config loader, so it backs the glossary-file read the
+   * `config` check performs, and used to read and parse the source locale file. Defaults to the
+   * real file system.
+   */
   readonly fs?: SdkFs;
   /** Config loader. Defaults to {@link loadConfigWithMeta}. */
   readonly loadConfig?: (options: LoadConfigOptions) => Promise<LoadedConfig>;
@@ -142,13 +148,23 @@ function configDetail(source: ConfigSource): string {
     : `Loaded ${source.filepath}.`;
 }
 
-function checkAdapter(config: VerbatraConfig, registry: AdapterRegistry | undefined): DoctorCheck {
+type AdapterOutcome =
+  | { readonly kind: "resolved"; readonly adapter: FormatAdapter }
+  | { readonly kind: "failed"; readonly detail: string };
+
+function resolveAdapter(config: VerbatraConfig, deps: DoctorDeps): AdapterOutcome {
   try {
-    selectAdapter(config.format, registry);
-    return verdict("format-adapter", true, `Format "${config.format}" resolves to an adapter.`);
+    const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
+    return { kind: "resolved", adapter };
   } catch (error) {
-    return verdict("format-adapter", false, errorMessage(error));
+    return { kind: "failed", detail: errorMessage(error) };
   }
+}
+
+function checkAdapter(config: VerbatraConfig, outcome: AdapterOutcome): DoctorCheck {
+  return outcome.kind === "resolved"
+    ? verdict("format-adapter", true, `Format "${config.format}" resolves to an adapter.`)
+    : verdict("format-adapter", false, outcome.detail);
 }
 
 function checkProvider(provider: ProviderConfig): DoctorCheck {
@@ -189,20 +205,46 @@ function checkApiKey(provider: ProviderConfig): DoctorCheck {
     : envVarVerdict(PROVIDER_ENV[provider.id]);
 }
 
+const NOT_PARSED_DETAIL =
+  "Its contents were not checked, because the configured format resolves to no adapter.";
+
+async function existenceOnlyVerdict(sourcePath: string, fs: SdkFs): Promise<DoctorCheck> {
+  return (await fs.fileExists(sourcePath))
+    ? verdict("source-file", true, `Found ${sourcePath}. ${NOT_PARSED_DETAIL}`)
+    : verdict("source-file", false, `The source locale file was not found at ${sourcePath}.`);
+}
+
+async function parseSourceVerdict(
+  config: VerbatraConfig,
+  resolver: LocalePathResolver,
+  fs: SdkFs,
+  adapter: FormatAdapter,
+  sourcePath: string,
+): Promise<DoctorCheck> {
+  const { resource } = await readSourceResource(config, resolver, fs, adapter);
+  const count = resource.entries.size;
+  return verdict(
+    "source-file",
+    true,
+    `Read ${sourcePath} (${count} translatable ${count === 1 ? "key" : "keys"}).`,
+  );
+}
+
 async function checkSourceFile(
   config: VerbatraConfig,
   cwd: string,
   fs: SdkFs,
+  outcome: AdapterOutcome,
 ): Promise<DoctorCheck> {
-  let sourcePath: string;
   try {
-    sourcePath = createLocalePathResolver(cwd, config).pathFor(config.sourceLocale);
+    const resolver = createLocalePathResolver(cwd, config);
+    const sourcePath = resolver.pathFor(config.sourceLocale);
+    return outcome.kind === "resolved"
+      ? await parseSourceVerdict(config, resolver, fs, outcome.adapter, sourcePath)
+      : await existenceOnlyVerdict(sourcePath, fs);
   } catch (error) {
     return verdict("source-file", false, errorMessage(error));
   }
-  return (await fs.fileExists(sourcePath))
-    ? verdict("source-file", true, `Found ${sourcePath}.`)
-    : verdict("source-file", false, `The source locale file was not found at ${sourcePath}.`);
 }
 
 /**
@@ -212,16 +254,24 @@ async function checkSourceFile(
  *
  * Five checks run: the config loads and validates, the configured format resolves to an adapter,
  * the configured provider ID resolves to a factory, the environment variable that provider reads
- * its API key from is set, and the source locale file exists. Every check runs even when an earlier
- * one failed, so one call reports every independent problem. The API key is checked by variable
- * name only: its value is never read, never returned, and never validated against a provider.
+ * its API key from is set, and the source locale file can be read. Every check runs even when an
+ * earlier one failed, so one call reports every independent problem. The API key is checked by
+ * variable name only: its value is never read, never returned, and never validated against a
+ * provider.
+ *
+ * The source-file check reads and parses the file rather than only probing for its existence, so a
+ * directory standing in for it, an empty file, and malformed content are all reported here rather
+ * than surfacing later as a whole-run failure of {@link check} or {@link translate}. The failure
+ * detail is the same message those entry points raise. When the configured format resolves to no
+ * adapter there is nothing to parse with, so the check falls back to existence alone and says so.
  *
  * The `openai-compatible` provider is the one exception on the key check. It falls back to a
  * placeholder key, so a missing variable passes unless the config names its own variable through
  * `provider.options.apiKeyEnvVar`, which then has to be set.
  *
- * A missing target locale file is not a problem and is not checked: {@link translate} creates it.
- * A missing source locale file is, because every other entry point fails on it.
+ * A target locale file is not checked at all: a missing one is not a problem, because
+ * {@link translate} creates it. The source locale file is checked, because every other entry point
+ * fails on it.
  *
  * When the config cannot be loaded the four config-dependent checks report `skipped` rather than a
  * verdict they could not reach, and {@link DoctorResult.ok} is false because the config check
@@ -257,11 +307,12 @@ export async function doctor(
     ]);
   }
   const { config, source } = outcome.loaded;
+  const adapter = resolveAdapter(config, deps);
   return toResult([
     verdict("config", true, configDetail(source)),
-    checkAdapter(config, deps.adapterRegistry),
+    checkAdapter(config, adapter),
     checkProvider(config.provider),
     checkApiKey(config.provider),
-    await checkSourceFile(config, input.cwd ?? process.cwd(), deps.fs ?? defaultFs),
+    await checkSourceFile(config, input.cwd ?? process.cwd(), deps.fs ?? defaultFs, adapter),
   ]);
 }

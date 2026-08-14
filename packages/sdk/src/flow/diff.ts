@@ -69,9 +69,10 @@ function toLocaleDiff(locale: string, diff: DiffResult): LocaleDiff {
  * since the key was last translated rather than merely that the two strings differ. Orphaned keys
  * are reported but never removed here; pruning happens only in {@link translate}.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config and the optional locale filter.
  * @param deps - Optional adapter registry and file-system overrides.

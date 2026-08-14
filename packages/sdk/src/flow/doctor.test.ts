@@ -416,9 +416,75 @@ describe("doctor: the source locale file check", () => {
     expect(detailOf(result, "source-file")).toContain("locale style");
   });
 
-  it("reads the source file through the injected file-system port", async () => {
+  it("fails when a directory sits where the source locale file should be", async () => {
+    await writeConfig(validConfig());
+    await mkdir(join(projectDir, "locales", "en.json"), { recursive: true });
+
+    const result = await doctor({ cwd: projectDir });
+
+    expect(result.ok).toBe(false);
+    expect(statusOf(result, "source-file")).toBe("fail");
+    expect(detailOf(result, "source-file")).toContain(join(projectDir, "locales", "en.json"));
+    expect(detailOf(result, "source-file")).toContain("not a regular file");
+  });
+
+  it("fails when the source locale file is empty", async () => {
+    await writeConfig(validConfig());
+    await mkdir(join(projectDir, "locales"), { recursive: true });
+    await writeFile(join(projectDir, "locales", "en.json"), "", "utf8");
+
+    const result = await doctor({ cwd: projectDir });
+
+    expect(result.ok).toBe(false);
+    expect(statusOf(result, "source-file")).toBe("fail");
+    expect(detailOf(result, "source-file")).toContain(join(projectDir, "locales", "en.json"));
+  });
+
+  it("fails when the source locale file is not valid JSON", async () => {
+    await writeConfig(validConfig());
+    await mkdir(join(projectDir, "locales"), { recursive: true });
+    await writeFile(join(projectDir, "locales", "en.json"), "{ broken", "utf8");
+
+    const result = await doctor({ cwd: projectDir });
+
+    expect(result.ok).toBe(false);
+    expect(statusOf(result, "source-file")).toBe("fail");
+    expect(detailOf(result, "source-file")).toContain("not valid JSON");
+  });
+
+  it("reports the key count it read, singular for one key and plural for more", async () => {
+    await writeConfig(validConfig());
+    await writeSourceFile();
+
+    const one = await doctor({ cwd: projectDir });
+
+    expect(detailOf(one, "source-file")).toContain("(1 translatable key)");
+
+    await writeFile(
+      join(projectDir, "locales", "en.json"),
+      JSON.stringify({ hi: "Hi", bye: "Bye" }),
+      "utf8",
+    );
+
+    const two = await doctor({ cwd: projectDir });
+
+    expect(detailOf(two, "source-file")).toContain("(2 translatable keys)");
+  });
+
+  it("falls back to an existence check when the format has no adapter to parse with", async () => {
+    await writeConfig(validConfig());
+    await writeSourceFile();
+
+    const result = await doctor({ cwd: projectDir }, { adapterRegistry: new AdapterRegistry() });
+
+    expect(statusOf(result, "source-file")).toBe("pass");
+    expect(detailOf(result, "source-file")).toContain("were not checked");
+  });
+
+  it("reads and parses the source file through the injected file-system port", async () => {
     await writeConfig(validConfig());
     const probed: string[] = [];
+    const read: string[] = [];
 
     const result = await doctor(
       { cwd: projectDir },
@@ -428,7 +494,10 @@ describe("doctor: the source locale file check", () => {
             probed.push(path);
             return true;
           },
-          readFileBounded: async () => ({ kind: "missing" }),
+          readFileBounded: async (path) => {
+            read.push(path);
+            return { kind: "ok", content: JSON.stringify({ hi: "Hi" }) };
+          },
           readBytesBounded: async () => ({ kind: "missing" }),
           writeFile: async () => {},
           writeBytes: async () => {},
@@ -440,6 +509,29 @@ describe("doctor: the source locale file check", () => {
 
     expect(statusOf(result, "source-file")).toBe("pass");
     expect(probed).toEqual([join(projectDir, "locales", "en.json")]);
+    expect(read).toEqual([join(projectDir, "locales", "en.json")]);
+  });
+
+  it("never touches real disk for the parse when a file-system port is supplied", async () => {
+    await writeConfig(validConfig());
+
+    const result = await doctor(
+      { cwd: projectDir },
+      {
+        fs: {
+          fileExists: async () => true,
+          readFileBounded: async () => ({ kind: "ok", content: "{ broken" }),
+          readBytesBounded: async () => ({ kind: "missing" }),
+          writeFile: async () => {},
+          writeBytes: async () => {},
+          createExclusive: async () => true,
+          deleteFile: async () => {},
+        },
+      },
+    );
+
+    expect(statusOf(result, "source-file")).toBe("fail");
+    expect(detailOf(result, "source-file")).toContain("not valid JSON");
   });
 });
 

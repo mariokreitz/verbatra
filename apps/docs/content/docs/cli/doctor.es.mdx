@@ -30,15 +30,16 @@ verbatra doctor [flags]
 | Format adapter | el `format` configurado resuelve a un adaptador de archivos |
 | Provider | el `provider.id` configurado resuelve a una fábrica de proveedores |
 | API key environment variable | la variable de la que ese proveedor lee su clave está definida |
-| Source locale file | el archivo de locale fuente existe en su ruta resuelta |
+| Source locale file | el archivo de locale fuente existe en su ruta resuelta, es un archivo regular y se parsea con el formato configurado |
 
 Todas las comprobaciones se ejecutan aunque una anterior haya fallado, así que una sola ejecución informa de cada problema independiente. La única excepción es la propia configuración: cuando no se puede cargar, las cuatro comprobaciones que la necesitan informan `skip` en lugar de un veredicto al que no pudieron llegar.
 
-Tres detalles importan:
+Cuatro detalles importan:
 
 - La clave de API se comprueba **solo por nombre**. `doctor` pregunta si la variable está definida, nunca qué contiene. El valor no se lee, no se imprime y no se envía a ninguna parte. Consulta [Proveedores](/docs/providers) para saber qué variable usa cada proveedor.
 - El proveedor `openai-compatible` es la excepción. Recurre a una clave de marcador de posición, así que una variable ausente no es problema. Solo falla cuando tu config nombra su propia variable con `provider.options.apiKeyEnvVar` y esa variable no está definida.
-- Un archivo de locale **destino** que falta no es un problema: [`verbatra translate`](/docs/cli/translate) lo crea. Un archivo de locale **fuente** que falta sí lo es, porque todos los demás comandos fallan por él.
+- Un archivo de locale **destino** que falta no es un problema: [`verbatra translate`](/docs/cli/translate) lo crea. Los archivos destino no se comprueban en absoluto.
+- El archivo de locale **fuente** se lee y se parsea, no solo se comprueba su existencia. Un directorio en su lugar, un archivo vacío y contenido malformado fallan esta comprobación con el mismo mensaje que daría [`verbatra check`](/docs/cli/check), porque esos son justo los casos que hacen fallar a todos los demás comandos. Cuando el `format` configurado no resuelve a ningún adaptador no hay con qué parsear, así que la comprobación vuelve a la mera existencia y lo indica.
 
 Igual que [`verbatra translate`](/docs/cli/translate), `doctor` carga `.env.local` y luego `.env` desde el directorio de trabajo antes de mirar el entorno, así que una clave guardada en un archivo dotenv cuenta como definida.
 

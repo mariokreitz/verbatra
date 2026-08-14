@@ -80,9 +80,10 @@ function toLockLocaleState(locale: string, keyCount: number, diff: DiffResult): 
  * When no lock-file exists the call returns `exists: false` rather than throwing, and does no
  * further reading.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config and the optional locale filter.
  * @param deps - Optional adapter registry and file-system overrides.

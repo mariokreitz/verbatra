@@ -47,8 +47,9 @@ export interface ReadLocaleFileSnapshotDeps {
  * watcher can start before the first translation run has written anything.
  *
  * Note that this entry point does not validate the locale against the configured targets, and that
- * a malformed target file surfaces the adapter's own parse error rather than a wrapped
- * {@link SdkError}, because no source-file contract is being asserted here.
+ * a malformed target file surfaces the adapter's own error and code rather than a wrapped
+ * {@link SdkError}, because no source-file contract is being asserted here. Its message names the
+ * offending locale and the resolved path.
  *
  * @param input - The config and the locale to snapshot.
  * @param deps - Optional adapter registry and file-system overrides.
