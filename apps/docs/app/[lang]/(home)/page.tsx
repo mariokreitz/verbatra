@@ -8,6 +8,7 @@ import { FrameworksCloud } from "@/components/landing/frameworks-cloud";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Pillars } from "@/components/landing/pillars";
 import { ProvidersCloud } from "@/components/landing/providers-cloud";
+import { StudioShowcase } from "@/components/landing/studio-showcase";
 import { LandingHero } from "@/components/landing-hero";
 import { toLocale } from "@/lib/i18n";
 import { PACKAGE_VERSION, STUDIO_VERSION } from "@/lib/site";
@@ -57,6 +58,7 @@ export default async function HomePage(props: { params: Promise<{ lang: string }
       <FrameworksCloud />
       <ProvidersCloud />
       <HowItWorks />
+      <StudioShowcase />
       <Features />
       <Faq items={faqItems} />
       <FinalCta />

@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "products": "Productos",
+    "cart": "Cart",
+    "support": "Soporte"
+  },
+  "hero": {
+    "title": "Todo lo que el catálogo de Northwind puede ofrecerte",
+    "subtitle": "Explora miles de productos y paga en tu propio idioma."
+  },
+  "checkout": {
+    "submit": "Realizar pedido",
+    "total": "Total: {amount}",
+    "shipping": "Dirección de envío"
+  },
+  "account": {
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión"
+  },
+  "errors": {}
+}

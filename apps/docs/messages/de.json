@@ -206,6 +206,13 @@
       "providers": "Anbieter",
       "formats": "Formate",
       "contributing": "Mitwirken"
+    },
+    "studio": {
+      "heading": "Behalte den gesamten Übersetzungsstand im Blick, lokal.",
+      "lead": "Verbatra Studio ist ein lokales Dashboard über deinem Projekt. Es zeigt die Abdeckung jeder Locale live, listet die Übersetzungen auf, die ein Lauf als prüfenswert markiert hat, und lässt dich sie direkt korrigieren. Das Bearbeiten braucht keinen API-Key und ruft nie einen Provider auf.",
+      "alt": "Die Seite Übersetzungen in Verbatra Studio: vier Kacheln für Keys, die Aufmerksamkeit brauchen, durchschnittliche Abdeckung, synchrone Locales und Token-Verbrauch des letzten Laufs, darunter ein Raster, das jeden Key pro Locale als fehlend oder synchron markiert, und eine Abdeckungstabelle pro Locale.",
+      "caption": "Studio gibt es hell und dunkel. Wechsle den Screenshot, um zu vergleichen.",
+      "cta": "Übersetzungen in Studio prüfen"
     }
   },
   "legal": {
@@ -285,6 +292,12 @@
     "availableFrom": {
       "title": "Verfügbar ab {version}",
       "text": "Dafür wird verbatra {version} oder neuer benötigt. Frühere Versionen haben es nicht, überprüfe daher deine installierte Version mit verbatra --version und aktualisiere, falls sie älter ist."
+    },
+    "screenshot": {
+      "label": "Verbatra Studio",
+      "tablistLabel": "Screenshot-Theme",
+      "dark": "Dunkel",
+      "light": "Hell"
     }
   }
 }
