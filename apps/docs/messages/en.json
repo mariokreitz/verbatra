@@ -178,7 +178,7 @@
         },
         "automation": {
           "question": "Can I use verbatra in scripts, CI, and GitHub Actions?",
-          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, and diff operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
+          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, diff, and doctor operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
         },
         "cost": {
           "question": "What does verbatra cost?",
