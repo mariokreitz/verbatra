@@ -45,6 +45,12 @@ Editing needs no flag. It touches only your local files and never calls a provid
 
 The Review page lists every entry the review heuristics flagged in the most recent `translate` or `watch` run: one row per locale and key, with an indicator per reason (translation far shorter or longer than the source, identical to the source, a missed glossary term, reordered placeholders, or a degraded provider batch). Until a run has been recorded, the page says so and stays empty; run `verbatra translate` or `verbatra watch` to populate it.
 
+<StudioScreenshot
+  shot="review"
+  alt="The Verbatra Studio Review page listing five flagged entries across the de, es and fr locales, each row showing the key, its review reasons, and Edit, Approve and Reject actions."
+  caption="The Review queue after a run. Studio ships in light and dark; switch the screenshot to compare."
+/>
+
 Filter by locale or key substring, then work the rows:
 
 - **Edit** opens the same integrity-gated editor as the Translations page. An accepted edit clears the row from the queue.
@@ -84,7 +90,22 @@ The Activity page puts two reference views side by side:
 - **Locale file history**: the git commit feed for your source and target locale files (shown as unavailable when the project has no git history).
 - **Last run**: the most recent run's input and output token counts and, when a token budget is configured, the budget meter and whether the ceiling was reached. This is a snapshot as of the last recorded run, timestamped, never a live counter; a provider that reports no usage (DeepL) is shown as "not reported" rather than a fabricated zero.
 
-Settings, the fourth page, shows the resolved configuration and glossary this session was started with; restart Studio after changing the config file.
+## Keep the glossary current on Settings
+
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
+Settings, the fourth page, shows the configuration this session was started with; restart Studio after changing the config file. The glossary next to it is different: it is read fresh from disk on every visit, and it is editable when the project keeps its glossary in a JSON file.
+
+Each term then carries an **Edit** and a **Remove** action, and an **Add a term** form sits under the list. A change is written straight to that JSON file, one term at a time, and the panel shows the new state as soon as the write lands, with no reload. The rest of the file is left alone: key order and indentation survive, and the result is held to the same limits `loadConfig` enforces when it reads a glossary back, so an accepted edit is always re-readable.
+
+Nothing here calls a provider or spends anything, so the actions are present with or without `--allow-spend`. What they do not do is retranslate: a glossary edit changes the terminology the next run is told to follow, never any text already written to a locale file. The glossary a running Studio hands to a provider call is still the one loaded at startup, so restart Studio for a fresh term to take effect on a retranslation from this session.
+
+Two cases stay read-only, and the panel says which one you are in:
+
+- **The glossary is written inline in `verbatra.config.ts`.** That is executable code, and Studio will not rewrite it. Move the terms into a JSON file and point the config's `glossary` at that path.
+- **The project has no glossary.** Create a JSON file of term to translation pairs and set `glossary` to that path.
+
+A value that looks like a provider API key is redacted before it ever reaches the browser, and such a term cannot be edited from here, only removed: what the panel holds is the placeholder, not the real text. Change that one in the glossary file itself.
 
 ## Next
 

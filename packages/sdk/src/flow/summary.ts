@@ -190,7 +190,13 @@ export interface LocaleSummary {
 export interface RunSummary {
   /** True when the run computed everything but wrote nothing and called no provider. */
   readonly dryRun: boolean;
-  /** The full per-locale account, in configured target order. */
+  /**
+   * The full per-locale account. A {@link translate} or {@link watch} run reports them in
+   * configured target order, whatever order a `locales` subset was given in and whatever order
+   * concurrent locales finished in. An {@link importWorkbook} run does not: it reports them in the
+   * order the handoff yielded them, then appends the configured locales the handoff had nothing
+   * for. Match an entry on its `locale` rather than on its position.
+   */
   readonly locales: readonly LocaleSummary[];
   /** Names of the locales whose status is `succeeded`. */
   readonly succeeded: readonly string[];

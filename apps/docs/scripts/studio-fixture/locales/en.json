@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "cart": "Cart",
+    "support": "Support"
+  },
+  "hero": {
+    "title": "Everything the Northwind catalogue has to offer",
+    "subtitle": "Browse thousands of products, and check out in your own language."
+  },
+  "checkout": {
+    "submit": "Place order",
+    "total": "Total: {amount}",
+    "shipping": "Shipping address",
+    "promoApplied": "Promo code {code} applied",
+    "itemCount": "{count, plural, one {# item} other {# items}} in your basket"
+  },
+  "account": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "orders": "Your orders"
+  },
+  "errors": {
+    "network": "We could not reach the server. Check your connection and try again.",
+    "outOfStock": "{product} is out of stock"
+  }
+}

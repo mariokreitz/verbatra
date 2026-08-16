@@ -200,9 +200,14 @@ async function writeDelimitedFiles(
  * through the same diff, lock, and integrity checks. It writes only the handoff file and never
  * touches the locale files or the lock-file.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
+ *
+ * Writing the handoff itself is unwrapped in the same way. It is not a locale file, so a failure to
+ * create the output directory or to write the file does not become `TARGET_UNWRITABLE`; the
+ * underlying file-system error propagates as it is.
  *
  * @param input - The config, output path, locale filter, and handoff format.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -217,6 +222,10 @@ async function writeDelimitedFiles(
  * @throws {@link SdkError} `LOCK_FILE_INVALID`: the lock-file is corrupt, oversized, or at an
  * unsupported version.
  * @throws {@link SdkError} `UNKNOWN_LOCALE`: a requested locale is not a configured target locale.
+ * @throws The underlying file-system error, unwrapped, when the handoff could not be written: `out`
+ * names a directory that does not exist or is not writable, or the device is full. Branch on the
+ * Node `code`, such as `ENOENT`, rather than on the message, which can name the internal temporary
+ * file the atomic write uses.
  */
 export async function exportWorkbook(
   input: ExportWorkbookInput,
@@ -225,7 +234,7 @@ export async function exportWorkbook(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
   const resolver = createLocalePathResolver(cwd, config);
 
   const source = await readSourceResource(config, resolver, fs, adapter);

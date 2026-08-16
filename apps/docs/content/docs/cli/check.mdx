@@ -41,6 +41,8 @@ verbatra check --locales de,fr --json
 
 Exit `1` means "out of sync", not a failure: the run itself succeeded, the result just is not all green.
 
+`check` cannot run at all on a project whose source locale file is not in place yet: it fails as a whole with `SOURCE_UNREADABLE` and exits `2`. [`verbatra doctor`](/docs/cli/doctor) validates the setup itself and still reports on that project.
+
 ## Related
 
 - [`verbatra diff`](/docs/cli/diff) lists the exact keys behind these counts.

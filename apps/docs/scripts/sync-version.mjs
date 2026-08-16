@@ -3,12 +3,20 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const cliPackageJsonPath = resolve(here, "../../../packages/cli/package.json");
 const outputPath = resolve(here, "../lib/version.generated.json");
 
-const { version } = JSON.parse(readFileSync(cliPackageJsonPath, "utf8"));
-if (typeof version !== "string" || version.length === 0) {
-  throw new Error(`No usable version in ${cliPackageJsonPath}`);
+function readVersion(packageDir) {
+  const packageJsonPath = resolve(here, `../../../packages/${packageDir}/package.json`);
+  const { version } = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+  if (typeof version !== "string" || version.length === 0) {
+    throw new Error(`No usable version in ${packageJsonPath}`);
+  }
+  return version;
 }
 
-writeFileSync(outputPath, `${JSON.stringify({ version }, null, 2)}\n`);
+const versions = {
+  version: readVersion("cli"),
+  studioVersion: readVersion("studio"),
+};
+
+writeFileSync(outputPath, `${JSON.stringify(versions, null, 2)}\n`);

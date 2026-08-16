@@ -9,10 +9,22 @@
       "title": "Not available in your language",
       "text": "This page has not been translated yet, so it is shown in English."
     },
+    "availableFrom": {
+      "title": "Available from {version}",
+      "text": "This needs verbatra {version} or newer. Earlier releases do not have it, so check your installed version with verbatra --version and upgrade if it is older.",
+      "packageTitle": "Available from {version}",
+      "packageText": "This needs {version} or newer. Earlier releases do not have it, so upgrade that package if yours is older."
+    },
     "llms": {
       "heading": "For AI agents",
       "index": "llms.txt (index)",
       "full": "llms-full.txt (full text)"
+    },
+    "screenshot": {
+      "label": "Verbatra Studio",
+      "tablistLabel": "Screenshot theme",
+      "dark": "Dark",
+      "light": "Light"
     }
   },
   "landing": {
@@ -95,6 +107,13 @@
         }
       }
     },
+    "studio": {
+      "heading": "Watch the whole translation state, locally.",
+      "lead": "Verbatra Studio is a local dashboard over your project. It shows every locale's coverage live, lists the translations a run flagged as worth a second look, and lets you fix them in place. Editing needs no API key and never calls a provider.",
+      "alt": "The Verbatra Studio Translations page: four summary tiles for keys needing attention, average coverage, locales in sync and last-run token usage, above a grid marking each key as missing or in sync per locale, and a per-locale coverage table.",
+      "caption": "Studio ships in light and dark. Switch the screenshot to compare.",
+      "cta": "Review translations in Studio"
+    },
     "why": {
       "heading": "Built for teams that ship in many languages.",
       "lead": "Every choice favors predictability: small diffs, explicit config, and nothing written that was not verified first.",
@@ -161,7 +180,7 @@
         },
         "automation": {
           "question": "Can I use verbatra in scripts, CI, and GitHub Actions?",
-          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, and diff operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
+          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, diff, and doctor operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
         },
         "cost": {
           "question": "What does verbatra cost?",

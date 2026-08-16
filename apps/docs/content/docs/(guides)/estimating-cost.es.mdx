@@ -112,10 +112,10 @@ Fíjate en dónde cae la sobrecarga fija: las reglas del sistema y el esquema su
 
 Cualquier estimación de arriba es aritmética sobre suposiciones. La cifra exacta sale de traducir un idioma de verdad y leer los tokens que informa verbatra.
 
-`translate` no tiene ninguna opción para seleccionar idiomas, así que acota la ejecución desde la configuración. Copia tu configuración, reduce `targetLocales` a un solo idioma y apunta a la copia con `--config`:
+`translate` acepta `--locales`, así que acota la ejecución a un solo idioma configurado desde la propia línea de comandos:
 
 ```bash
-verbatra translate --config verbatra.one-locale.config.ts
+verbatra translate --locales de
 ```
 
 ```

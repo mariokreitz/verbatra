@@ -4,6 +4,13 @@ export { CACHE_FILE_NAME } from "./cache/translation-memory.js";
 export type { TranslationMemory } from "./cache/types.js";
 export { defineConfig } from "./config/define-config.js";
 export {
+  type GlossaryFileDeps,
+  type GlossaryFileInput,
+  readGlossaryFile,
+  type UpdateGlossaryTermInput,
+  updateGlossaryTerm,
+} from "./config/glossary-file.js";
+export {
   type ConfigSource,
   type LoadConfigOptions,
   type LoadedConfig,
@@ -32,6 +39,15 @@ export {
   diff,
   type LocaleDiff,
 } from "./flow/diff.js";
+export {
+  type DoctorCheck,
+  type DoctorCheckId,
+  type DoctorCheckStatus,
+  type DoctorDeps,
+  type DoctorInput,
+  type DoctorResult,
+  doctor,
+} from "./flow/doctor.js";
 export {
   type EditEntryDeps,
   type EditEntryInput,

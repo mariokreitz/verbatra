@@ -8,6 +8,11 @@ mensaje. Para saber cómo los fallos se asignan a códigos de salida de la CLI, 
 [CI y códigos de salida](/docs/ci-and-exit-codes); para la tabla completa de códigos, consulta la
 [Referencia del SDK](/docs/sdk).
 
+Cuatro de las entradas de abajo (`CONFIG_INVALID`, `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE` y una
+clave de API ausente) son exactamente lo que comprueba [`verbatra doctor`](/docs/cli/doctor).
+Ejecútalo antes de ir entrada por entrada: las reporta todas en una sola pasada, no gasta nada y
+es la única comprobación previa que funciona antes de que exista el archivo de locale de origen.
+
 ## pnpm bloquea los scripts de instalación de una dependencia (ERR_PNPM_IGNORED_BUILDS)
 
 **Síntoma**: `pnpm add -D @verbatra/cli` imprime su resumen de instalación y luego sale con `1`:
@@ -111,7 +116,9 @@ is not set.` (o la variable correspondiente de tu proveedor).
 está definida o está vacía. Los mensajes de error nombran la variable pero nunca contienen el valor
 de una clave, y las claves nunca se leen de la configuración ni de los argumentos de la CLI.
 
-**Solución**: define la variable que nombra el mensaje. `translate`, `watch` y `studio` cargan
+**Solución**: define la variable que nombra el mensaje y confírmala con `verbatra doctor`, que
+comprueba la variable solo por su nombre, sin leer su valor. `translate`, `watch`, `doctor` y
+`studio` cargan
 `.env` y `.env.local` desde el directorio de trabajo; el SDK no, así que en tu propio script usa
 `node --env-file=.env` o exporta la variable. `openai-compatible` solo levanta esto cuando la configuración nombra un `apiKeyEnvVar`
 que no está definido; sin uno, recurre a un marcador sin clave para servidores locales.
@@ -146,6 +153,12 @@ allowed size ...`
 
 **Causa**: `verbatra.lock.json` fue editado a mano, truncado, producido por una versión
 incompatible o dañado en un merge.
+
+`translate` e `import` lo tratan como un error de toda la ejecución, no como el fallo de un locale
+suelto, y cualquiera de los dos puede toparse con él a mitad de camino, porque cada locale lee el
+bloqueo bajo su propio bloqueo de escritura. Los locales ya confirmados antes del aborto conservan
+lo que escribieron; el resto queda intacto y no se imprime ningún resumen. Ejecuta después
+`verbatra check` para ver hasta dónde llegó la ejecución.
 
 **Solución**: restaura el archivo desde el control de versiones; eso mantiene intacta cada línea
 base. Borrarlo también quita el error, pero pierde el registro de qué versión del origen produjo

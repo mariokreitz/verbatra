@@ -22,7 +22,7 @@ La ligne pnpm installe correctement mais sort en `1` avec `ERR_PNPM_IGNORED_BUIL
 Le SDK ne lit, ne détient ni n'accepte jamais de clé d'API. Le fournisseur lit sa clé depuis l'environnement (par exemple `ANTHROPIC_API_KEY`) au moment de sa construction. Contrairement à la CLI, le SDK ne charge pas les fichiers `.env` : dans ton propre script, définis la variable toi-même, par exemple avec `node --env-file=.env script.js`.
 </Callout>
 
-Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `config` validée (issue de `loadConfig`), sauf mention contraire. La plupart acceptent aussi un second argument optionnel `deps` qui injecte un registre, un constructeur de fournisseur ou un système de fichiers pour les tests ; tu peux l'ignorer en usage normal.
+Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `config` validée (issue de `loadConfig`), sauf mention contraire. La plupart acceptent aussi un second argument optionnel `deps` qui injecte un registre, un constructeur de fournisseur ou un système de fichiers ; tu peux l'ignorer en usage normal. Voir [Le point d'injection de dépendances](#le-point-dinjection-de-dépendances) pour ce que `deps.fs` atteint.
 
 ## Lancer des traductions
 
@@ -30,8 +30,9 @@ Chaque point d'entrée prend un objet d'entrée dont le premier champ est la `co
 
 Le flux en une passe : lire la source, comparer chaque locale cible à la ligne de base du verrou, envoyer les clés manquantes et modifiées au fournisseur, exécuter les vérifications d'intégrité, écrire les fichiers de locale et mettre à jour le verrou. Utilise-le pour les scripts, les étapes de build et les jobs CI.
 
-Entrée : `{ config, cwd?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
+Entrée : `{ config, cwd?, locales?, dryRun?, prune?, generatePlurals?, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`.
 
+- `locales` restreint l'exécution à un sous-ensemble des locales cibles configurées, exactement comme sur `check` et `diff`. Une locale non configurée lève `UNKNOWN_LOCALE` avant toute lecture et toute dépense. Omets-le pour couvrir toutes les locales cibles.
 - `dryRun` lit, compare et rapporte sans construire ni appeler le fournisseur et sans rien écrire.
 - `prune` supprime les clés orphelines (clés cibles absentes de la source) du fichier écrit et du verrou. `generatePlurals` synthétise les formes plurielles CLDR manquantes (i18next-JSON avec un fournisseur LLM uniquement). Les deux sont désactivés par défaut ; quand ils sont définis, chacun remplace l'option de config correspondante pour cette exécution.
 - `concurrency` traduit jusqu'à ce nombre de locales cibles à la fois (par défaut 1, strictement en série). Une valeur inférieure à 1 lève `CONCURRENCY_INVALID` ; sur une exécution réelle, une valeur supérieure à 1 avec `maxTokens` configuré lève `CONCURRENCY_BUDGET_CONFLICT` (un dry-run est exempté). Une erreur globale levée alors que des locales tournent déjà empêche toute autre locale d'être démarrée, et les locales en cours terminent et libèrent leurs verrous d'écriture avant que `translate` ne rejette, donc le rejet arrive après la plus lente plutôt qu'instantanément.
@@ -45,13 +46,21 @@ Renvoie un `RunSummary` (voir [son anatomie plus bas](#anatomie-du-runsummary)).
 
 Surveille le fichier de la locale source et relance `translate` à chaque changement temporisé. Il déclenche une exécution initiale immédiatement au démarrage, puis une exécution par changement stabilisé. Les exécutions sont sérialisées : les changements survenus pendant une exécution se regroupent en une seule exécution de suivi.
 
-Entrée : `{ config, cwd?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`. `debounceMs` vaut 300 par défaut. `onRun` est appelé une fois par exécution avec un `WatchRunResult` : `{ status: "succeeded", summary }` ou `{ status: "failed", error: { code, message } }`. Le SDK n'écrit aucun log ; `onRun` est la seule sortie. `concurrency`, `cache`, `onProgress`, `onLockWait` et `lockAcquireTimeoutMs` sont transmis à chaque exécution et se comportent exactement comme sur `translate`.
+Entrée : `{ config, cwd?, locales?, debounceMs?, onRun, concurrency?, cache?, onProgress?, onLockWait?, lockAcquireTimeoutMs? }`. `debounceMs` vaut 300 par défaut. `onRun` est appelé une fois par exécution avec un `WatchRunResult` : `{ status: "succeeded", summary }` ou `{ status: "failed", error: { code, message } }`. Le SDK n'écrit aucun log ; `onRun` est la seule sortie. `concurrency`, `cache`, `onProgress`, `onLockWait` et `lockAcquireTimeoutMs` sont transmis à chaque exécution et se comportent exactement comme sur `translate`. `locales` restreint chaque exécution de la session à ce sous-ensemble et est validé une seule fois au démarrage, pas à chaque cycle.
 
 Renvoie un `WatchController` avec une seule méthode, `stop()`, qui ferme la surveillance et attend l'exécution en cours. Trois problèmes sont refusés au démarrage, avant que la surveillance n'existe, donc `watch` lui-même rejette au lieu de renvoyer un contrôleur : un `concurrency` qui n'est pas un entier d'au moins 1 lève `CONCURRENCY_INVALID`, un `concurrency` supérieur à 1 face à une config qui fixe `maxTokens` lève `CONCURRENCY_BUDGET_CONFLICT` (il n'existe pas de watch en dry-run, donc le conflit de budget s'applique toujours), et un fichier source manquant lève `SOURCE_UNREADABLE`. Tout échec après le démarrage remonte via `onRun` et la surveillance continue.
 
 ## Inspecter l'état sans écrire
 
 Aucune de ces fonctions n'appelle de fournisseur, n'écrit de fichier ni ne modifie le verrou.
+
+### doctor
+
+<AvailableFrom version="0.9.0" />
+
+Valide la configuration du projet et ne dépense rien : il ne construit aucun fournisseur, ne fait aucune requête réseau et ne lit jamais la valeur d'une clé d'API. Cinq vérifications s'exécutent, chacune avec son propre verdict `pass`, `fail` ou `skipped` : la config se charge et se valide, le format configuré se résout en un adaptateur, l'ID de fournisseur configuré se résout en une fabrique, la variable d'environnement dans laquelle ce fournisseur lit sa clé est définie, et le fichier de locale source peut être lu. Chaque vérification s'exécute même si une précédente a échoué : un seul appel signale donc tous les problèmes indépendants. La clé d'API est vérifiée par son nom uniquement. La vérification du fichier source le lit et le parse au lieu de seulement sonder son existence : un répertoire à sa place, un fichier vide et un contenu malformé sont donc tous signalés ici.
+
+Entrée : `{ cwd?, configPath? }`. Aucune config déjà chargée n'est nécessaire : `doctor` la charge lui-même, donc un projet sans aucune config obtient quand même un rapport plutôt qu'une erreur levée. Renvoie un `DoctorResult` dont `ok` est vrai exactement quand aucune vérification n'a échoué. Il lève `CONFIG_NOT_FOUND` uniquement pour un `configPath` explicite qui n'existe pas.
 
 ### check
 
@@ -170,17 +179,49 @@ Lève `CONFIG_NOT_FOUND` quand rien n'est trouvé, `CONFIG_INVALID` quand une co
 
 Le même chargement, plus la provenance : renvoie `{ config, source, glossary }`, où `source` dit si la config vient d'une recherche, d'un chemin explicite ou d'une surcharge en mémoire (avec le `filepath` absolu quand il y en a un), et `glossary` note si le glossaire était absent, inline ou résolu depuis un fichier. Utilise-le quand tu dois afficher d'où vient la config.
 
+### readGlossaryFile
+
+<AvailableFrom version="0.9.0" />
+
+Lit un glossaire stocké dans un fichier directement depuis le disque et le renvoie sous forme de table plate de termes. Prend `{ glossary }`, la `GlossaryProvenance` renvoyée par `loadConfigWithMeta`, si bien que le fichier lu est toujours celui que la config nomme ; il n'y a aucun argument de chemin. Utilise-le dans un outil de longue durée qui doit montrer le glossaire tel qu'il est maintenant, et non tel qu'il était au chargement de la config.
+
+Lève `GLOSSARY_NOT_FILE_BACKED` quand le glossaire est inline ou absent, et `CONFIG_INVALID` quand le fichier est manquant, trop volumineux, non UTF-8, invalide en JSON ou n'est pas une table plate de chaînes.
+
+### updateGlossaryTerm
+
+<AvailableFrom version="0.9.0" />
+
+Ajoute, remplace ou supprime exactement un terme d'un glossaire stocké dans un fichier et renvoie le glossaire tel qu'il est désormais. Prend `{ glossary, cwd?, term, translation }`, où `translation` est le nouveau texte ou `null` pour supprimer le terme. Le reste du fichier garde son ordre de clés et son indentation, l'écriture est atomique, et tout le cycle lecture, modification, écriture se déroule sous un verrou de glossaire valable pour le projet entier : deux modifications simultanées sont donc sérialisées plutôt qu'entrelacées.
+
+Un glossaire inline est refusé avec `GLOSSARY_NOT_FILE_BACKED` plutôt que converti : il vit dans un module de config exécutable. Un terme ou une traduction vide, ainsi qu'une modification dont le résultat dépasserait la limite de 1 Mio du glossaire, sont refusés avec `CONFIG_INVALID` ; une écriture en échec donne `GLOSSARY_UNWRITABLE`.
+
 ### defineConfig
 
 Un assistant identité pour écrire un `verbatra.config.ts` typé : il renvoie son argument inchangé et n'existe que pour l'inférence de types et l'autocomplétion de l'éditeur, y compris la complétion des IDs de modèles connus du fournisseur sélectionné. La restriction de modèle ne vaut qu'à l'écriture ; à l'exécution, toute chaîne non vide passe la validation.
 
 ### verbatraConfigSchema
 
-Le schéma zod avec lequel `loadConfig` valide, exporté pour que ton propre outillage puisse valider un objet de config de la même façon que le SDK. Les clés de premier niveau inconnues sont rejetées, donc un secret égaré ne peut pas se cacher dans la config.
+Le schéma zod avec lequel `loadConfig` valide, exporté pour que ton propre outillage puisse valider un objet de config de la même façon que le SDK. Les clés de premier niveau inconnues sont rejetées, donc un secret égaré ne peut pas se cacher dans la config. La seule exception est `$schema`, une chaîne optionnelle acceptée pour qu'une config JSON ou YAML puisse pointer un éditeur vers le document JSON Schema que le paquet livre sous `@verbatra/sdk/config-schema.json`. Elle est ignorée à l'exécution.
 
 ### scaffoldingMetadata
 
-Métadonnées en lecture seule dont la commande `init` de la CLI dérive ses questions : `providerEnv` (id de fournisseur vers la variable d'environnement où sa clé est lue), `scaffoldModels` (un modèle d'échafaudage par défaut par fournisseur LLM) et `supportedFormats` (l'ensemble fermé des ids de format). Le type `ScaffoldableProviderId` couvre les quatre fournisseurs hébergés ; `openai-compatible` en est exclu parce qu'il n'a pas de variable d'environnement unique requise.
+Métadonnées en lecture seule dont la commande `init` de la CLI dérive ses questions : `providerEnv` (id de fournisseur vers la variable d'environnement où sa clé est lue), `scaffoldModels` (un modèle d'échafaudage par défaut par fournisseur LLM), `providerTokenLimitKeys` (la clé d'option sous laquelle chaque fournisseur LLM reçoit sa limite de tokens de sortie) et `supportedFormats` (l'ensemble fermé des ids de format). Lis la clé de limite de tokens dans `providerTokenLimitKeys` plutôt que d'en supposer une : Anthropic l'appelle `maxTokens` et les autres `maxOutputTokens`, le schéma valide strictement les options de chaque fournisseur, et DeepL n'a pas d'entrée car il ne prend aucune limite de tokens. Le type `ScaffoldableProviderId` couvre les quatre fournisseurs hébergés ; `openai-compatible` en est exclu parce qu'il n'a pas de variable d'environnement unique requise.
+
+## Le point d'injection de dépendances
+
+<AvailableFrom version="0.9.0" />
+
+`deps.fs` remplace le port de système de fichiers par lequel passe l'I/O propre au SDK, typé `SdkFs`. Le point d'injection est complet : le fichier d'état d'exécution, le fichier de verrouillage, le glossaire de la config, l'I/O de classeur et d'échange, ainsi que les fichiers de locale eux-mêmes y passent tous, car les adaptateurs de format lisent et écrivent via un port construit à partir du même objet. Une exécution entière peut donc être tenue en mémoire : c'est ainsi que les tests du SDK évitent de toucher au disque, et qu'une application hôte peut adosser une partie d'un projet à autre chose qu'un disque local.
+
+```ts
+import { translate, type SdkFs } from "@verbatra/sdk";
+
+const summary = await translate({ config }, { fs: inMemoryFs satisfies SdkFs });
+```
+
+Une implémentation doit respecter deux points du contrat. Les lectures sont bornées en taille : `readFileBounded` et `readBytesBounded` prennent une limite d'octets et rapportent `missing` ou `too-large` comme un état plutôt que de lever, ce qui empêche un fichier hostile ou accidentellement énorme d'épuiser la mémoire. Les écritures doivent être atomiques, pour qu'un crash en cours d'écriture ne laisse jamais un fichier à moitié écrit, et `createExclusive` doit être atomique face aux autres processus, car c'est la primitive derrière le verrou d'écriture par locale. La création de répertoires revient à l'appelant.
+
+La seule chose que `deps.fs` n'atteint pas est un `deps.adapterRegistry` fourni par l'appelant. Ces adaptateurs ont été construits par l'appelant, donc leur accès aux fichiers est celui que l'appelant y a câblé. Fournir les deux signifie que l'appelant possède ce câblage.
 
 ## Anatomie du RunSummary
 
@@ -245,6 +286,8 @@ Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable 
 | `SOURCE_INVALID` | le fichier de la locale source n'a pas pu être lu ou parsé ; enveloppe l'erreur de lecture de l'adaptateur |
 | `LOCK_FILE_INVALID` | le fichier de verrouillage est présent mais corrompu, trop volumineux ou à une version non prise en charge |
 | `LOCK_CONTENDED` | le verrou d'écriture d'une locale n'a pas pu être acquis avant son délai ; le message nomme le chemin du fichier de verrou |
+| `GLOSSARY_NOT_FILE_BACKED` | le glossaire de la config est inline ou absent : il n'y a donc aucun fichier de glossaire à lire ou à réécrire (`readGlossaryFile`, `updateGlossaryTerm`) |
+| `GLOSSARY_UNWRITABLE` | le fichier de glossaire n'a pas pu être écrit (`updateGlossaryTerm`) |
 | `LOCALE_LAYOUT_INVALID` | `files.pattern` et `files.localeStyle` ne peuvent pas être combinés, ou le style n'a pas d'écriture de chemin valide pour une locale configurée |
 | `LOCALE_PATH_COLLISION` | deux locales configurées résolvent vers le même chemin absolu |
 | `CONCURRENCY_INVALID` | `concurrency` a été défini mais n'est pas un entier d'au moins 1 ; levé avant l'exécution de toute locale |

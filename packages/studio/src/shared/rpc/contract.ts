@@ -4,8 +4,11 @@ import { STATUS_DIFF_METHOD, type StatusDiffResult, statusDiffParamsSchema } fro
 import { EDIT_ENTRY_METHOD, type EditEntryResult, editEntryParamsSchema } from "./edit-entry.js";
 import {
   GLOSSARY_GET_METHOD,
+  GLOSSARY_WRITE_METHOD,
   type GlossaryGetResult,
+  type GlossaryWriteResult,
   glossaryGetParamsSchema,
+  glossaryWriteParamsSchema,
 } from "./glossary.js";
 import { HISTORY_LIST_METHOD, type HistoryListResult, historyListParamsSchema } from "./history.js";
 import {
@@ -46,6 +49,7 @@ export const rpcParamsSchemas = {
   [STATUS_CHECK_METHOD]: statusCheckParamsSchema,
   [STATUS_DIFF_METHOD]: statusDiffParamsSchema,
   [GLOSSARY_GET_METHOD]: glossaryGetParamsSchema,
+  [GLOSSARY_WRITE_METHOD]: glossaryWriteParamsSchema,
   [LOCK_STATE_METHOD]: lockStateParamsSchema,
   [HISTORY_LIST_METHOD]: historyListParamsSchema,
   [KEY_INTEGRITY_METHOD]: keyIntegrityParamsSchema,
@@ -66,6 +70,7 @@ export interface RpcResultMap {
   readonly [STATUS_CHECK_METHOD]: StatusCheckResult;
   readonly [STATUS_DIFF_METHOD]: StatusDiffResult;
   readonly [GLOSSARY_GET_METHOD]: GlossaryGetResult;
+  readonly [GLOSSARY_WRITE_METHOD]: GlossaryWriteResult;
   readonly [LOCK_STATE_METHOD]: LockStateResult;
   readonly [HISTORY_LIST_METHOD]: HistoryListResult;
   readonly [KEY_INTEGRITY_METHOD]: KeyIntegrityResult;

@@ -8,6 +8,11 @@ ganzen Laufs tragen einen stabilen Code (`SdkError`); verzweige oder suche über
 [CI und Exit-Codes](/docs/ci-and-exit-codes); die vollständige Code-Tabelle in der
 [SDK-Referenz](/docs/sdk).
 
+Vier der Einträge unten (`CONFIG_INVALID`, `UNKNOWN_FORMAT`, `SOURCE_UNREADABLE` und ein fehlender
+API-Schlüssel) sind genau das, was [`verbatra doctor`](/docs/cli/doctor) prüft. Führe es aus,
+bevor du dich Eintrag für Eintrag durcharbeitest: es meldet alle vier in einem Durchgang, gibt
+nichts aus und ist die einzige Vorabprüfung, die schon vor der Quell-Locale-Datei funktioniert.
+
 ## pnpm blockiert die Installationsskripte einer Abhängigkeit (ERR_PNPM_IGNORED_BUILDS)
 
 **Symptom**: `pnpm add -D @verbatra/cli` gibt seine Installationszusammenfassung aus und beendet
@@ -117,7 +122,9 @@ genannte Variable ist ungesetzt oder leer. Fehlermeldungen nennen die Variable, 
 einen Schlüsselwert, und Schlüssel werden nie aus der Konfiguration oder aus CLI-Argumenten
 gelesen.
 
-**Lösung**: Setze die Variable, die die Meldung nennt. `translate`, `watch` und `studio` laden
+**Lösung**: Setze die Variable, die die Meldung nennt, und bestätige sie mit `verbatra doctor`,
+das die Variable nur dem Namen nach prüft, ohne ihren Wert zu lesen. `translate`, `watch`,
+`doctor` und `studio` laden
 `.env` und `.env.local` aus dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen
 Skript also `node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
 nur, wenn die Konfiguration ein `apiKeyEnvVar` nennt, das ungesetzt ist; ohne eines fällt es für
@@ -153,6 +160,12 @@ maximum allowed size ...`
 
 **Ursache**: `verbatra.lock.json` wurde von Hand bearbeitet, abgeschnitten, von einer
 inkompatiblen Version erzeugt oder in einem Merge beschädigt.
+
+`translate` und `import` behandeln das als Fehler des ganzen Laufs, nicht als Fehlschlag eines
+einzelnen Locales, und beide können mittendrin darauf treffen, weil jedes Locale die Lock-Datei
+unter seiner eigenen Schreibsperre liest. Locales, die vor dem Abbruch festgeschrieben wurden,
+behalten das Geschriebene; die übrigen bleiben unberührt, und es wird keine Zusammenfassung
+ausgegeben. Führe danach `verbatra check` aus, um zu sehen, wie weit der Lauf kam.
 
 **Lösung**: Stelle die Datei aus der Versionskontrolle wieder her; das hält jede Baseline intakt.
 Die Datei zu löschen beseitigt den Fehler auch, verliert aber die Aufzeichnung, aus welcher

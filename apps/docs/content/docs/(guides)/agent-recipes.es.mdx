@@ -1,0 +1,279 @@
+---
+title: Recetas para agentes y scripts
+description: "Controla verbatra desde un bucle de agente o un script de shell: qué comandos emiten JSON, cómo son de verdad los datos y cómo ramificar sobre ellos."
+---
+Un agente o un script necesita tres cosas de una CLI: una forma estable de preguntar, una respuesta parseable y una señal inequívoca de lo que ha pasado. verbatra te da las tres con `--json` y el código de salida. Esta página es la versión desarrollada de eso: datos reales capturados y recetas cortas que ejecutan, parsean, deciden y actúan.
+
+No repite el contrato. El [envoltorio `--json` y cada forma de `result`](/docs/ci-and-exit-codes#salida-json) están documentados en la guía de CI, la [vista general de la CLI](/docs/cli) enuncia la convención, y cada página de comando lleva su propia tabla de códigos de salida. Lee eso para saber qué significa un campo; lee esto para saber qué hacer con él.
+
+Si lo que quieres es un agente que maneje el panel en el navegador en lugar de un proceso en una shell, esa es otra superficie: consulta [Opera Studio con un agente del navegador](/docs/agent-tools-in-studio).
+
+Las recetas de abajo leen stdout con `jq`, porque es lo más pequeño que lee un flujo JSON desde una shell. Sirve cualquier parser de JSON; nada de la salida depende de `jq`.
+
+## Qué comandos emiten JSON
+
+| Comando | `--json` | Un registro correcto lleva |
+| --- | --- | --- |
+| [`translate`](/docs/cli/translate) | sí | un `RunSummary` |
+| [`watch`](/docs/cli/watch) | sí | un `RunSummary` por ejecución, como NDJSON |
+| [`check`](/docs/cli/check) | sí | un `CheckSummary` |
+| [`diff`](/docs/cli/diff) | sí | un `DiffSummary` |
+| [`doctor`](/docs/cli/doctor) | sí | un `DoctorResult` |
+| [`export`](/docs/cli/export) | sí | la ruta escrita y el número de filas por locale |
+| [`import`](/docs/cli/import) | sí | un `RunSummary` |
+| [`init`](/docs/cli/init) | no | |
+| [`studio`](/docs/cli/studio) | no | |
+
+`init` es un andamiaje interactivo y `studio` es un servidor de larga duración, así que ninguno de los dos tiene modo legible por máquina. Todo lo demás que un agente necesita de un proyecto se alcanza desde los otros siete.
+
+`doctor` es la incorporación más reciente a esa lista.
+
+<AvailableFrom version="0.9.0" />
+
+## En stdout solo hay envoltorios
+
+Los registros de progreso, los de espera de bloqueo y la línea de error legible por humanos van a stderr en ambos modos. Redirige stderr y stdout queda como un flujo limpio de registros JSON:
+
+```bash
+verbatra check --json 2>/dev/null
+```
+
+Conserva stderr cuando quieras un registro de lo que la ejecución estaba haciendo mientras lo hacía:
+
+```bash
+verbatra translate --json 2>run.log | jq .
+```
+
+## Tres salidas, capturadas
+
+Todo lo de abajo es salida real de un proyecto pequeño: locale de origen `en`, un locale de destino `de` y un archivo `de` que ya tiene `app.title` pero no `app.greeting`.
+
+`verbatra check --json` responde a "¿hay algo desincronizado?", en recuentos:
+
+```bash
+verbatra check --json 2>/dev/null
+```
+
+```json
+{"ok":true,"version":1,"command":"check","result":{"inSync":false,"locales":[{"locale":"de","missing":1,"stale":0,"upToDate":1,"inSync":false}]}}
+```
+
+El comando sale con `1`, porque `inSync` es false. Es la puerta más barata que existe: el código de salida por sí solo te dice si hace falta leer los datos.
+
+`verbatra diff --json` responde a lo mismo por nombre de clave en lugar de por recuento:
+
+```bash
+verbatra diff --json 2>/dev/null
+```
+
+```json
+{"ok":true,"version":1,"command":"diff","result":{"hasPendingChanges":true,"locales":[{"locale":"de","missing":["app.greeting"],"changed":[],"orphaned":[],"hasPendingChanges":true}]}}
+```
+
+También sale con `1`. Usa `diff` cuando el agente tenga que nombrar las claves (para escribir un comentario en un pull request, o para decidir si merece la pena gastar); usa `check` cuando baste un sí o un no.
+
+`verbatra translate --dry-run --json` responde a "¿qué haría una ejecución?", sin llamada al proveedor, sin clave de API y sin escribir nada. Aquí va formateado para leerlo; en el cable es una sola línea como las dos de arriba:
+
+```bash
+verbatra translate --dry-run --json 2>/dev/null | jq .
+```
+
+```json
+{
+  "ok": true,
+  "version": 1,
+  "command": "translate",
+  "result": {
+    "dryRun": true,
+    "locales": [
+      {
+        "locale": "de",
+        "status": "succeeded",
+        "translated": [
+          "app.greeting"
+        ],
+        "unchanged": [
+          "app.title"
+        ],
+        "orphaned": [],
+        "pruned": [],
+        "invalidIcuSource": [],
+        "cacheHits": [],
+        "integrityMismatches": [],
+        "providerFailures": [],
+        "budgetWithheld": [],
+        "generated": [],
+        "notices": [],
+        "needsReview": [],
+        "unfilled": [],
+        "malformedRows": [],
+        "duplicateKeys": []
+      }
+    ],
+    "succeeded": [
+      "de"
+    ],
+    "partial": [],
+    "failed": []
+  }
+}
+```
+
+Sale con `0`. Cada lista por locale está presente aunque esté vacía, así que un agente puede acceder a ella sin comprobar antes. Una ejecución real añade un objeto `usage` a cada locale y al resumen cuando el proveedor informa de consumo; una ejecución en seco nunca lo hace, porque no hace ninguna llamada. La anatomía completa de un `LocaleSummary` está en la [referencia del SDK](/docs/sdk).
+
+Cuando una ejecución no puede ni empezar, en su lugar hay un registro de error y el comando sale con `2`:
+
+```json
+{"ok":false,"version":1,"command":"check","code":"CONFIG_INVALID","message":"The verbatra configuration is invalid: provider.options.maxOutputTokens: Invalid input: expected number, received undefined"}
+```
+
+`code` es la parte estable. Ramifica sobre él, no sobre `message`.
+
+## `ok: true` no significa que todo se haya traducido
+
+Esta es la que pilla desprevenidos a los scripts. Un locale puede fallar dentro de una ejecución que sí terminó. El envoltorio sigue siendo `ok: true`, porque el comando se ejecutó y produjo un resumen; el fallo aparece en `result.failed` y `result.partial`, y el código de salida es `1`.
+
+Aquí tienes `translate` contra un endpoint de proveedor inalcanzable:
+
+```bash
+verbatra translate --json 2>/dev/null | jq -c '{ok, succeeded: .result.succeeded, partial: .result.partial, failed: .result.failed}'
+```
+
+```json
+{"ok":true,"succeeded":[],"partial":[],"failed":["de"]}
+```
+
+`ok` responde a "¿se ejecutó el comando?". `succeeded`, `partial` y `failed` responden a "¿llegó el trabajo?". El código de salida ya combina ambas cosas, y por eso un agente que solo lee el código de salida nunca se equivoca, y un agente que solo lee `ok` se equivoca el primer día malo de un proveedor.
+
+## Ramificar sobre el código de salida
+
+Tres códigos cubren cualquier comando de una sola pasada. Esta puerta lee `check`, imprime los locales desincronizados cuando los hay y trata un error de toda la ejecución como un problema de otra clase:
+
+```bash
+#!/usr/bin/env bash
+set -uo pipefail
+
+report=$(verbatra check --json 2>/dev/null)
+status=$?
+
+case $status in
+  0)
+    # in sync: nothing to do
+    echo "every locale is in sync"
+    ;;
+  1)
+    # it ran, the result is not clean: the payload says what drifted
+    echo "$report" | jq -r '.result.locales[] | select(.inSync | not) | "\(.locale): \(.missing) missing, \(.stale) stale"'
+    ;;
+  2)
+    # it could not run: the payload is an error envelope
+    echo "$report" | jq -r '"cannot run [\(.code)] \(.message)"' >&2
+    exit 2
+    ;;
+esac
+```
+
+En el mismo proyecto, las tres ramas producen:
+
+```
+de: 1 missing, 0 stale
+every locale is in sync
+cannot run [CONFIG_INVALID] The verbatra configuration is invalid: provider.options.maxOutputTokens: Invalid input: expected number, received undefined
+```
+
+No lo ejecutes con `set -e`: una salida distinta de cero es la señal que venías a buscar, no un fallo. El código `130` no aparece nunca aquí, porque solo `watch` y `studio` pueden pararse a la fuerza con una segunda interrupción. La tabla completa está en [CI y códigos de salida](/docs/ci-and-exit-codes).
+
+## `watch` es un flujo, no una única salida
+
+`watch --json` es distinto en naturaleza a los otros seis. Imprime un envoltorio por ejecución durante toda la vida del proceso, como NDJSON: un objeto JSON por línea, sin array que lo envuelva y sin terminador. Un consumidor lo lee línea a línea y sigue leyendo.
+
+En crudo, dos ejecuciones de una sesión (la segunda después de guardar el archivo de origen con un error de sintaxis):
+
+```json
+{"ok":true,"version":1,"command":"watch","result":{"dryRun":false,"locales":[{"locale":"de","status":"succeeded","translated":["app.greeting"],"unchanged":["app.title"],"orphaned":[],"pruned":[],"invalidIcuSource":[],"cacheHits":[],"integrityMismatches":[],"providerFailures":[],"budgetWithheld":[],"generated":[],"notices":[],"needsReview":[],"unfilled":[],"malformedRows":[],"duplicateKeys":[],"usage":{"inputTokens":120,"outputTokens":40}}],"succeeded":["de"],"partial":[],"failed":[],"usage":{"inputTokens":120,"outputTokens":40}}}
+{"ok":false,"version":1,"command":"watch","code":"SOURCE_INVALID","message":"The source locale file at /home/dev/app/locales/en.json could not be read: The file is not valid JSON."}
+```
+
+Los dos tipos de registro aparecen en el mismo flujo, así que reduce cada línea a los campos sobre los que actúas. `--unbuffered` hace que `jq` vacíe el buffer por línea, que es lo que convierte la tubería en algo a lo que puedes reaccionar en lugar de algo que lees al final:
+
+```bash
+verbatra watch --json 2>/dev/null \
+  | jq -c --unbuffered '{ok, code, failed: (.result.failed // null), translated: [(.result.locales // [])[].translated[]]}'
+```
+
+Tres ejecuciones de una sesión (edición, edición y luego un archivo de origen roto):
+
+```json
+{"ok":true,"code":null,"failed":[],"translated":["app.greeting"]}
+{"ok":true,"code":null,"failed":[],"translated":["app.logout"]}
+{"ok":false,"code":"SOURCE_INVALID","failed":null,"translated":[]}
+```
+
+De esa última línea se siguen dos cosas. Una ejecución fallida es un registro en el flujo, no el final de la sesión: el watcher siguió en pie y siguió traduciendo después. Y nunca cambia el código de salida, que lo decide solo la forma en que termina la sesión. Por eso un agente de larga duración trata una línea `ok: false` como un evento del que informar, no como motivo para reiniciar el proceso.
+
+## Un bucle completo: proteger, decidir, traducir, informar
+
+Todo junto. Esto corre desatendido, se niega a gastar en un trabajo demasiado grande para dejárselo a un robot e informa de lo que llegó de verdad, no de lo que se pidió:
+
+```bash
+#!/usr/bin/env bash
+set -uo pipefail
+
+# 1. Run: ask what is pending. Read-only, no provider call, no API key.
+pending=$(verbatra diff --json 2>/dev/null)
+case $? in
+  0) echo "nothing pending"; exit 0 ;;
+  2) echo "$pending" | jq -r '"cannot run [\(.code)] \(.message)"' >&2; exit 2 ;;
+esac
+
+# 2. Parse: which locales have work, and how much.
+echo "$pending" | jq -r '.result.locales[] | select(.hasPendingChanges)
+  | "\(.locale): \((.missing + .changed) | length) pending"'
+
+# 3. Decide: only spend unattended when the job is small.
+keys=$(echo "$pending" | jq '[.result.locales[] | .missing + .changed] | flatten | length')
+if [ "$keys" -gt 200 ]; then
+  echo "$keys pending keys is above the unattended limit; run this by hand" >&2
+  exit 1
+fi
+
+# 4. Act: translate, then report what landed, not what was asked for.
+summary=$(verbatra translate --json 2>/dev/null)
+status=$?
+echo "$summary" | jq -r 'if .ok | not then "run error [\(.code)] \(.message)"
+  else [ { label: "succeeded", locales: .result.succeeded },
+         { label: "partial",   locales: .result.partial   },
+         { label: "failed",    locales: .result.failed    } ]
+       | map(select(.locales | length > 0) | "\(.label): \(.locales | join(", "))")
+       | join(" | ")
+  end'
+exit $status
+```
+
+Los tres desenlaces en un proyecto con una clave pendiente en `de`:
+
+```
+de: 1 pending
+succeeded: de
+```
+
+```
+de: 1 pending
+failed: de
+```
+
+```
+nothing pending
+```
+
+El primero sale con `0`, el segundo con `1` (el endpoint del proveedor no era alcanzable) y el tercero con `0` sin gastar nada. El paso 1 usa `diff` a propósito y no `translate --dry-run`: los dos son de solo lectura y ninguno necesita clave, pero `diff` es la pregunta hecha justo para esto, y su código de salida por sí solo ya responde si hay trabajo.
+
+La clave del proveedor para el paso 4 viene del entorno, como siempre. Guárdala en el almacén de secretos de tu CI o en el entorno de tu shell y deja que el proceso la herede; la CLI no acepta ninguna clave como argumento y no lee ninguna del archivo de configuración. Qué variable lee tu proveedor está en [Proveedores](/docs/providers).
+
+## Siguiente
+
+- [CI y códigos de salida](/docs/ci-and-exit-codes): el envoltorio, la tabla de códigos de salida y cada forma de `result` al completo.
+- [Vista general de la CLI](/docs/cli): los flags compartidos y cómo el binario lee tu entorno.
+- [`verbatra doctor`](/docs/cli/doctor): la comprobación previa más barata antes de una ejecución desatendida.
+- [Opera Studio con un agente del navegador](/docs/agent-tools-in-studio): el mismo proyecto, manejado desde una pestaña autenticada del panel en lugar de una shell.
+- [El SDK](/docs/sdk): sáltate la frontera de proceso y llama a `translate`, `check` y `diff` directamente desde TypeScript.

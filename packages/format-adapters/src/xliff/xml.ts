@@ -1,7 +1,8 @@
 import type { TranslationEntry } from "@verbatra/core";
 import { DOMParser, type Document, type Element, type Node, XMLSerializer } from "@xmldom/xmldom";
 import { AdapterError } from "../errors.js";
-import { type BoundedReadOutcome, outcomeToContent, readBounded } from "../json/bounded-read.js";
+import type { AdapterFs, BoundedReadOutcome } from "../fs-port.js";
+import { outcomeToContent, readBoundedFile } from "../json/bounded-read.js";
 import { extractXliffPlaceholders } from "./placeholders.js";
 
 const ELEMENT_NODE = 1;
@@ -169,10 +170,10 @@ export function parseXliffEntries(
   return out;
 }
 
-async function readDestination(filePath: string): Promise<string> {
+async function readDestination(filePath: string, fs: AdapterFs): Promise<string> {
   let outcome: BoundedReadOutcome;
   try {
-    outcome = await readBounded(filePath);
+    outcome = await readBoundedFile(fs, filePath);
   } catch {
     throw new AdapterError("INVALID_STRUCTURE", "The destination XLIFF file does not exist.");
   }
@@ -271,8 +272,9 @@ function setTargetValue(doc: Document, parser: DOMParser, element: Element, valu
 export async function serializeXliffEntries(
   entries: ReadonlyMap<string, TranslationEntry>,
   filePath: string,
+  fs: AdapterFs,
 ): Promise<string> {
-  const { doc, root } = parseXml(await readDestination(filePath));
+  const { doc, root } = parseXml(await readDestination(filePath, fs));
   const parser = new DOMParser({ onError: onFatal });
   for (const unit of walkUnits(root)) {
     const entry = entries.get(unit.key);

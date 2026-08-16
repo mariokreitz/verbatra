@@ -120,9 +120,10 @@ function integrityEntriesFor(
  * {@link retranslateEntry} enforce at write time, and the data behind a review dashboard's
  * per-key integrity indicator.
  *
- * Note that a malformed target locale file surfaces the adapter's own parse error rather than a
- * wrapped {@link SdkError}, because only source reads are wrapped. A caller that maps SDK codes
- * should be ready for an unrecognized error from a target file.
+ * Note that a malformed target locale file surfaces the adapter's own error and code rather than a
+ * wrapped {@link SdkError}, because only source reads are wrapped. Its message names the offending
+ * locale and the resolved path. A caller that maps SDK codes should be ready for an unrecognized
+ * error from a target file.
  *
  * @param input - The config and the optional locale and key filters.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -145,7 +146,7 @@ export async function keyIntegrity(
   const config = input.config;
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(config.format, deps.adapterRegistry, deps.fs);
   const resolver = createLocalePathResolver(cwd, config);
 
   const source = await readSourceResource(config, resolver, fs, adapter);

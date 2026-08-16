@@ -19,6 +19,10 @@ const REACHABLE_CODE_COPY: Readonly<Record<string, string>> = {
   UNKNOWN_KEY: "The requested key was not found in the source resource. It may have been removed.",
   LOCK_CONTENDED:
     "This locale's write lock is held by another process. Wait a moment and try again.",
+  GLOSSARY_NOT_FILE_BACKED:
+    "This project's glossary is written inline in the config, or not configured at all, so Studio cannot change it. Move it into a JSON file the config points at.",
+  GLOSSARY_UNWRITABLE:
+    "The glossary file could not be written. Check that it still exists and that it is writable.",
   LOCALE_LAYOUT_INVALID:
     "The files pattern and locale style in the verbatra config cannot produce a path for every configured locale. Check the files section of the config.",
   LOCALE_PATH_COLLISION:

@@ -1,5 +1,194 @@
 # @verbatra/cli
 
+## 0.9.0
+
+### Minor Changes
+
+- [#178](https://github.com/verbatra/verbatra/pull/178) [`aa337dc`](https://github.com/verbatra/verbatra/commit/aa337dc0e5c0f05acee1364fa0dde01f03a03bc9) Thanks [@mariokreitz](https://github.com/mariokreitz)! - A parse failure on a target locale file now names the file. `check`, `diff`, `export`, and every
+  other read of a target file used to surface the adapter's bare message, so a corrupt locale in a
+  twenty-locale project reported only `error [INVALID_JSON] The file is not valid JSON.` and left you
+  bisecting with `--locales` to find it. The message now reads
+  `The fr locale file at /app/locales/fr.json could not be read: The file is not valid JSON.` The
+  error type, its code, and the exit code are unchanged, so anything branching on `INVALID_JSON` keeps
+  working. This covers every adapter and every adapter error code, not just malformed JSON.
+
+  `doctor`'s source locale file check now reads and parses the file instead of only probing for its
+  existence. A directory standing in for the source file, an empty file, and malformed content used
+  to pass the check while making every other command fail; each is now reported, with the same
+  message `check` would give. When the configured format resolves to no adapter there is nothing to
+  parse with, so the check falls back to existence alone and says so. The check keeps its
+  `source-file` id and its place in the report.
+
+- [#169](https://github.com/verbatra/verbatra/pull/169) [`5d7ec20`](https://github.com/verbatra/verbatra/commit/5d7ec20a4b46361db3c359e7ce792049598ae51a) Thanks [@mariokreitz](https://github.com/mariokreitz)! - `@verbatra/sdk` now ships the config schema as a JSON Schema document at
+  `@verbatra/sdk/config-schema.json` (`dist/config-schema.json`), generated at build time from the
+  same zod schema the SDK validates with. Point an editor at it, through an in-file `$schema` key or
+  an explicit editor mapping, and a `.verbatrarc.json`, `.verbatrarc`, or YAML config gets key
+  completion and validation while you type. See the config-file page for both wiring paths and for
+  the three runtime rules the document cannot express.
+
+  The config object now accepts an optional top-level `$schema` key, so an editor pointer no longer
+  trips the strict-object check. It is ignored at runtime and is the only extra key tolerated.
+
+  One behavioral detail for anyone branching on a validation issue's `code`: the `files.pattern` must
+  contain the `{locale}` token rule moved from a whole-config refinement to a field-level regex, so
+  its issue `code` changed from `custom` to `invalid_format`. The message and the `["files",
+"pattern"]` path are unchanged, and an empty `files.pattern` now reports two issues (minimum length
+  and the token rule) where it previously reported one. The same move applies to the
+  openai-compatible provider's `baseUrl` scheme guard, whose `code` changed from `custom` to
+  `invalid_format` with its message unchanged.
+
+- [#167](https://github.com/verbatra/verbatra/pull/167) [`9d3a8f8`](https://github.com/verbatra/verbatra/commit/9d3a8f850991c9bf862eb443ebc9e41e575c1639) Thanks [@mariokreitz](https://github.com/mariokreitz)! - New `verbatra doctor` command and its `doctor()` SDK entry point: a preflight that answers "is this
+  project set up correctly?" and spends nothing. It constructs no provider, makes no network request,
+  writes no file, and never reads an API key value.
+
+  Five checks run, each reporting its own verdict: the config loads and validates, the configured
+  format resolves to a file adapter, the configured provider ID resolves to a provider factory, the
+  environment variable that provider reads its key from is set, and the source locale file exists.
+  Every check runs even when an earlier one failed, so one run reports every independent problem
+  rather than stopping at the first. When the config itself cannot be loaded, the four checks that
+  need it report `skipped` instead of a verdict they could not reach.
+
+  This is the validation that was missing for a fresh project. `verbatra check` was the cheapest one
+  available, but it reads the locale files and dies with `SOURCE_UNREADABLE` before it can tell you
+  anything, so it could never validate a project whose source file is not in place yet.
+
+  Details worth knowing:
+
+  - The API key is checked by name only. `doctor` asks whether the variable is set, never what it
+    holds, so no key value is read, printed, or validated against a provider. The
+    `openai-compatible` provider is the one exception to a missing variable being a failure: it
+    falls back to a placeholder key, so an unset variable passes unless the config names its own
+    through `provider.options.apiKeyEnvVar`.
+  - A missing target locale file is not a problem, since `translate` creates it. A missing source
+    locale file is, because every other entry point fails on it.
+  - The command takes the shared `--cwd` and `--config` flags plus `--json`, which prints the report
+    in the usual envelope. It exits `0` when every check passed and `1` when any check failed, the
+    same "it ran, the result is not clean" meaning `check` and `diff` already carry. Exit `2` stays
+    reserved for `doctor` being unable to run at all, such as a `--config` path that does not exist.
+  - Like `translate`, the command loads `.env.local` and then `.env` before it looks at the
+    environment, so a key kept in a dotenv file counts as set.
+
+- [#172](https://github.com/verbatra/verbatra/pull/172) [`af21823`](https://github.com/verbatra/verbatra/commit/af21823c72dfb90967693205eacaafc971a484bd) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Two new entry points read and change a file-backed glossary: `readGlossaryFile` returns the current
+  terms straight from disk, and `updateGlossaryTerm` adds, replaces, or removes exactly one term and
+  returns the glossary as it now stands. Both take the `GlossaryProvenance` a loaded config reports
+  rather than a path, so the file they touch is always the one the config names.
+
+  Only a file-backed glossary can be changed. A glossary written inline in the config module is
+  refused with the new `GLOSSARY_NOT_FILE_BACKED` code rather than rewritten, and a failed write is
+  reported as the new `GLOSSARY_UNWRITABLE` code. A write takes a project-wide glossary lock for the
+  whole read-modify-write, replaces the file atomically, keeps the existing key order and indentation,
+  and is held to the same size and shape limits `loadConfig` enforces when it reads a glossary back.
+
+- [#166](https://github.com/verbatra/verbatra/pull/166) [`08fec43`](https://github.com/verbatra/verbatra/commit/08fec434584a61f1bf1673a7b674c055ae15833c) Thanks [@mariokreitz](https://github.com/mariokreitz)! - A lock-file that turns corrupt while an import is running now aborts the whole run, exactly as it
+  already did during `verbatra translate`. `verbatra import` exits `2` instead of `1`, and
+  `importWorkbook()` rejects with `LOCK_FILE_INVALID` where it previously resolved with the corruption
+  recorded as one failed locale per sheet.
+
+  The lock-file is one shared file, so continuing bought no partial progress: every remaining locale
+  wrote its translations to disk and then failed to record them in the lock-file, leaving the project
+  looking up to date when it was not. Locales applied before the abort stay written; fix the lock-file
+  and import again.
+
+- [#168](https://github.com/verbatra/verbatra/pull/168) [`ccd5c58`](https://github.com/verbatra/verbatra/commit/ccd5c587de4e176ba00f5b966dda48eeff4a0f82) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Supplying `deps.fs` now redirects the locale files too, so an SDK run can be fully in memory. The
+  format adapters previously read and wrote translations through `node:fs` directly, which meant a
+  custom `SdkFs` covered the run-status file, the lock-file, the glossary and workbook I/O, but never
+  the project's actual payload. Adapters now take a file-system port at construction time, and the SDK
+  builds that port from `deps.fs`.
+
+  Nothing changes for a caller that does not pass `deps.fs`: adapters keep their node-backed
+  implementation, including the fsync-and-rename atomic write. One limitation remains, and it is now
+  documented on `SdkFs`: adapters supplied through `deps.adapterRegistry` were constructed by the
+  caller, so `deps.fs` cannot reach them. Passing both means you own that wiring.
+
+- [#164](https://github.com/verbatra/verbatra/pull/164) [`7a361f9`](https://github.com/verbatra/verbatra/commit/7a361f963124c8e4e507b07e06c6dd9b22481e03) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Read this before upgrading: `verbatra translate` and `verbatra import` now exit `1` when a
+  locale comes out partial. A pipeline that passes today can start failing after this upgrade,
+  and that is the point of the change. A partial locale is one whose file was written to disk
+  with some keys still missing, so a run that reports `0 succeeded, 1 partial, 0 failed` used to
+  exit `0` and let a half-translated file through a CI gate. If your pipeline starts failing here,
+  it was already shipping incomplete translations. Re-run the affected locale (now possible with
+  `--locales`), or if you genuinely want to accept a partial result, branch on the `partial` field
+  of the `--json` summary yourself rather than on the exit code.
+
+  The exit code is `1`, not a new code: `1` already means the command ran but the result is not
+  clean, which is exactly this case. The asymmetry that hid the bug is gone too. Re-running the
+  same broken state used to exit `1`, because the failing key was then the only candidate and
+  nothing was accepted, so the worse a run went, the more likely it was to exit `0`.
+
+  Three further changes come with it:
+
+  - `translate` and `watch` accept `--locales de,fr` (SDK: `locales`), matching `check`, `diff`,
+    and `export`. Translating one locale at a time is what a rate-limited free tier needs, and it
+    is the quickest way to re-run a single locale that came out partial. An unconfigured locale
+    fails with `UNKNOWN_LOCALE` before anything is read or spent, and `watch` validates the subset
+    once at startup rather than on every run.
+  - An unwritable target locale file now fails with a structured `TARGET_UNWRITABLE` naming the
+    real target and the file-system code, instead of a raw `EACCES` quoting the internal temporary
+    file that the atomic write had already deleted. `TARGET_UNWRITABLE` is a new `SdkErrorCode`:
+    `translate` and `importWorkbook` record it on the affected locale, `editEntry` and
+    `retranslateEntry` throw it.
+  - A `PROVIDER_ERROR` from an unreachable endpoint now names the transport cause (connection
+    refused, host name not resolved, connection closed, host unreachable, untrusted TLS
+    certificate) and what to check. For `openai-compatible` it also names the host and port of the
+    configured `baseUrl`. Only the URL's host component is used, so a path, query, or embedded
+    credential in `baseUrl` can never reach a message. The error codes themselves are unchanged.
+
+- [#180](https://github.com/verbatra/verbatra/pull/180) [`131764a`](https://github.com/verbatra/verbatra/commit/131764a494528d3a84d0b358d78aa7b95df495a8) Thanks [@mariokreitz](https://github.com/mariokreitz)! - `runStatus` now absorbs a file-system read that rejects, reporting `available: false` like every
+  other unusable status file. Its documented contract was already that the read is total and that the
+  call throws nothing, and `readTranslationMemory` already guarded the same call, but the run-status
+  read did not, so an injected `deps.fs` whose read rejected escaped to the caller.
+
+  Corrections to the published documentation, with no behavior attached:
+
+  - `editEntry` and `retranslateEntry` now say that the target locale file surfaces the adapter's own
+    error on the write as well as on the read. The write raises one when the entries cannot be
+    represented in the configured format, or when the existing destination file cannot be read back to
+    be updated in place, and it is re-thrown unchanged so its code survives. The earlier wording
+    implied the target read was the only unwrapped case, which sent callers into a
+    `catch (e) { if (e instanceof SdkError) }` that missed the write path.
+  - `exportWorkbook` now documents that a failure to write the handoff itself propagates as the raw
+    file-system error rather than as `TARGET_UNWRITABLE`, which is scoped to locale files.
+  - `RunSummary.locales` no longer claims configured target order for every producer. `translate` and
+    `watch` keep that order; `importWorkbook` reports handoff order and appends the locales the
+    handoff had nothing for.
+  - `SdkErrorCode` now carves `doctor` out of the `UNKNOWN_FORMAT` and `LOCALE_LAYOUT_INVALID`
+    universals, matching the carve-outs it already documented for `CONFIG_NOT_FOUND`. `doctor` reports
+    both as failed checks rather than throwing.
+  - `watch` now documents that a failure to construct the watcher escapes unwrapped at startup.
+  - `DoctorDeps.fs` now says it is threaded into the config loader, so it backs the glossary-file read
+    as well as the source locale file.
+
+- [#163](https://github.com/verbatra/verbatra/pull/163) [`4f66427`](https://github.com/verbatra/verbatra/commit/4f66427fd4e200c8b08ad9c27fa48cc9e359a70c) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Reject a fabricated single-brace placeholder under the double-brace formats.
+
+  For `i18next-json`, `ngx-translate-json`, and `yaml`, a `{name}`-shaped token is literal
+  text rather than interpolation, so it was never extracted as a placeholder and the
+  integrity gate could not see it. A translation could therefore alter `{name}` to `{nome}`,
+  keep `{orderId}` while inventing `{evilInjected}`, or inject `{stolenSecret}` into a
+  placeholder-free source, and every one of those was accepted and written on all three write
+  paths (provider translation, workbook import, and a Studio edit). Once written, the value
+  locked against the source hash, so `check` and `diff` then reported the locale up to date.
+
+  These adapters now supply a placeholder comparator that adds a one-directional check on top
+  of their existing double-brace comparison: a `{name}`-shaped token present in the candidate
+  and absent from the source is reported as `extra`, which the gate refuses with the existing
+  `placeholder` reason. No new gate reason and no new config key. The check is deliberately
+  one-directional, because dropping such a token is undecidable without knowing the project's
+  interpolation delimiters, which verbatra has no setting for.
+
+  This is behavioural, not additive: a run that is green today can newly report integrity
+  mismatches, and those candidates are withheld rather than written. That includes results
+  from DeepL, whose entry partitioning is unchanged but whose output now goes through the same
+  comparator. A key it withholds was already carrying a placeholder its source never had.
+
+### Patch Changes
+
+- [#162](https://github.com/verbatra/verbatra/pull/162) [`3b5942d`](https://github.com/verbatra/verbatra/commit/3b5942d4db01800667b3d3c33ba5778b750f9b8f) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Republish with no code changes. The published package metadata (`repository.url`
+  and `bugs.url`) now points at github.com/verbatra/verbatra, the repository's
+  current location after the move to the verbatra organization. The previous
+  release was published shortly before that rewrite landed, so its metadata still
+  referenced the old path.
+- Updated dependencies [[`aa337dc`](https://github.com/verbatra/verbatra/commit/aa337dc0e5c0f05acee1364fa0dde01f03a03bc9), [`5d7ec20`](https://github.com/verbatra/verbatra/commit/5d7ec20a4b46361db3c359e7ce792049598ae51a), [`9d3a8f8`](https://github.com/verbatra/verbatra/commit/9d3a8f850991c9bf862eb443ebc9e41e575c1639), [`af21823`](https://github.com/verbatra/verbatra/commit/af21823c72dfb90967693205eacaafc971a484bd), [`08fec43`](https://github.com/verbatra/verbatra/commit/08fec434584a61f1bf1673a7b674c055ae15833c), [`ccd5c58`](https://github.com/verbatra/verbatra/commit/ccd5c587de4e176ba00f5b966dda48eeff4a0f82), [`7a361f9`](https://github.com/verbatra/verbatra/commit/7a361f963124c8e4e507b07e06c6dd9b22481e03), [`131764a`](https://github.com/verbatra/verbatra/commit/131764a494528d3a84d0b358d78aa7b95df495a8), [`3b5942d`](https://github.com/verbatra/verbatra/commit/3b5942d4db01800667b3d3c33ba5778b750f9b8f), [`4f66427`](https://github.com/verbatra/verbatra/commit/4f66427fd4e200c8b08ad9c27fa48cc9e359a70c)]:
+  - @verbatra/sdk@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes

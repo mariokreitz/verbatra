@@ -1,0 +1,86 @@
+---
+title: verbatra doctor
+description: Prüfe die Projekteinrichtung, ohne einen Provider aufzurufen oder einen API-Key zu lesen.
+---
+<AvailableFrom version="0.9.0" />
+
+Beantworte eine Frage, bevor du irgendetwas anderes ausführst: Ist dieses Projekt korrekt eingerichtet? `doctor` prüft die Konfiguration, den Format-Adapter, den Provider, die API-Key-Variable und die Quell-Locale-Datei und meldet dann alle gefundenen Probleme auf einmal. Es kostet nichts: kein Provider wird konstruiert, keine Netzwerkanfrage gestellt, keine Datei geschrieben, und kein API-Key-Wert wird je gelesen.
+
+Greif danach bei einem frischen Checkout, direkt nach [`verbatra init`](/docs/cli/init), oder immer dann, wenn ein anderer Befehl fehlgeschlagen ist und du die vollständige Liste statt des ersten Fehlers willst. [`verbatra check`](/docs/cli/check) ist die günstigste Prüfung, sobald ein Projekt schon funktioniert, aber es liest die Locale-Dateien und bricht beim ersten Fehler des gesamten Laufs ab, kann dir also nicht sagen, was an einem Projekt ohne Quelldatei falsch ist.
+
+## Synopsis
+
+```bash
+verbatra doctor [flags]
+```
+
+## Flags
+
+| Flag | Argument | Standard | Wirkung |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | aktuelles Verzeichnis | Konfiguration und Locale-Dateien von diesem Verzeichnis aus auflösen |
+| `--config` | `<path>` | wird gesucht | diese Konfigurationsdatei laden, statt eine zu suchen |
+| `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der den Bericht unter `result` trägt; die menschenlesbare Fehlerzeile geht weiter auf stderr |
+
+## Was geprüft wird
+
+| Prüfung | Besteht, wenn |
+| --- | --- |
+| Configuration | eine Konfigurationsdatei gefunden wurde und die Validierung besteht |
+| Format adapter | das konfigurierte `format` zu einem Datei-Adapter auflöst |
+| Provider | die konfigurierte `provider.id` zu einer Provider-Factory auflöst |
+| API key environment variable | die Variable gesetzt ist, aus der dieser Provider seinen Key liest |
+| Source locale file | die Quell-Locale-Datei unter ihrem aufgelösten Pfad existiert, eine reguläre Datei ist und sich im konfigurierten Format parsen lässt |
+
+Jede Prüfung läuft auch dann, wenn eine frühere fehlgeschlagen ist; ein Lauf meldet also jedes unabhängige Problem. Die einzige Ausnahme ist die Konfiguration selbst: Kann sie nicht geladen werden, werden die vier Prüfungen, die sie brauchen, übersprungen, statt zu einem Urteil zu kommen. Eine solche Prüfung erscheint im menschenlesbaren Bericht als `[skip]` und trägt im `--json`-Envelope `"status": "skipped"`.
+
+Vier Details sind wichtig:
+
+- Der API-Key wird **nur über den Namen** geprüft. `doctor` fragt, ob die Variable gesetzt ist, nie was sie enthält. Der Wert wird nicht gelesen, nicht ausgegeben und nirgendwohin gesendet. Welche Variable welcher Provider nutzt, steht unter [Provider](/docs/providers).
+- Der Provider `openai-compatible` ist die Ausnahme. Er fällt auf einen Platzhalter-Key zurück, eine fehlende Variable ist also in Ordnung. Er schlägt nur fehl, wenn deine Konfiguration über `provider.options.apiKeyEnvVar` eine eigene Variable benennt und diese nicht gesetzt ist.
+- Eine fehlende **Ziel**-Locale-Datei ist kein Problem: [`verbatra translate`](/docs/cli/translate) legt sie an. Ziel-Dateien werden überhaupt nicht geprüft.
+- Die **Quell**-Locale-Datei wird gelesen und geparst, nicht nur auf Existenz geprüft. Ein Verzeichnis an ihrer Stelle, eine leere Datei und fehlerhafter Inhalt lassen diese Prüfung alle mit derselben Meldung scheitern, die auch [`verbatra check`](/docs/cli/check) ausgeben würde, denn genau diese Fälle bringen jeden anderen Befehl zum Scheitern. Wenn das konfigurierte `format` zu keinem Adapter auflöst, gibt es nichts zum Parsen, also fällt die Prüfung auf die reine Existenz zurück und sagt das auch.
+
+Wie [`verbatra translate`](/docs/cli/translate) lädt `doctor` `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor es die Umgebung ansieht; ein Key in einer dotenv-Datei zählt also als gesetzt.
+
+## Beispiele
+
+```bash
+# report every setup problem at once
+verbatra doctor
+
+# validate a project in another directory, with an explicit config
+verbatra doctor --cwd apps/web --config verbatra.config.ts
+
+# machine-readable report for a CI preflight step
+verbatra doctor --json
+```
+
+Ein Lauf mit zwei Problemen sieht so aus:
+
+```text
+verbatra doctor
+  [ok  ] Configuration: Loaded /app/verbatra.config.ts.
+  [ok  ] Format adapter: Format "i18next-json" resolves to an adapter.
+  [ok  ] Provider: Provider "anthropic" resolves to a factory.
+  [fail] API key environment variable: The ANTHROPIC_API_KEY environment variable is not set.
+  [fail] Source locale file: The source locale file was not found at /app/locales/en.json.
+2 problems found (run verbatra doctor again after fixing them)
+```
+
+## Exit-Codes
+
+| Code | Bedeutung |
+| --- | --- |
+| `0` | jede Prüfung ist bestanden |
+| `1` | mindestens eine Prüfung ist fehlgeschlagen (der vollständige Bericht wird trotzdem ausgegeben) |
+| `2` | konnte nicht laufen: ein Verwendungsfehler oder ein explizit angegebener `--config`-Pfad, der nicht existiert |
+
+Exit `1` heißt "es lief, und es wurden Probleme gefunden". Exit `2` ist dafür reserviert, dass `doctor` überhaupt nicht laufen kann. Deshalb ist eine per Suche nicht gefundene Konfigurationsdatei eine fehlgeschlagene Prüfung und Exit `1`, während ein `--config`-Pfad ins Leere Exit `2` ergibt.
+
+## Siehe auch
+
+- [`verbatra init`](/docs/cli/init) erzeugt die Konfiguration und die `.env.example`, die `doctor` prüft.
+- [`verbatra check`](/docs/cli/check) ist das Drift-Gate, sobald die Einrichtung steht.
+- [Die Konfigurationsdatei](/docs/config-file) dokumentiert jeden Key, den `doctor` validiert.
+- [Provider](/docs/providers) listet die API-Key-Variable, die jeder Provider liest.

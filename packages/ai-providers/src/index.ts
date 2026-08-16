@@ -16,7 +16,7 @@ export {
   type DeepLDeps,
 } from "./deepl/deepl-provider.js";
 export type { DeepLTranslateResult } from "./deepl/types.js";
-export { PROVIDER_ENV } from "./env.js";
+export { OPENAI_COMPATIBLE_ENV_VAR, PROVIDER_ENV } from "./env.js";
 export { ProviderError, type ProviderErrorCode } from "./errors.js";
 export {
   type GeminiConfig,

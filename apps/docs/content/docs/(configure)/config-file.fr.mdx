@@ -57,6 +57,8 @@ Quand tu écris la configuration en TypeScript, ton éditeur propose pour `optio
 
 Les clés de premier niveau inconnues sont rejetées, à la seule exception de `$schema`. C'est aussi pourquoi une clé d'API ne peut pas vivre dans la configuration : les clés viennent de l'environnement, pas du fichier.
 
+<AvailableFrom version="0.9.0" />
+
 ### Locales et fichiers
 
 - **`sourceLocale`** doit être une chaîne non vide.
@@ -85,6 +87,10 @@ export default defineConfig({
 
 Les deux formes sont mutuellement exclusives ; il n'y a pas de fusion entre elles. Un chemin de fichier relatif se résout contre le répertoire du fichier de configuration chargé, ou contre le répertoire de travail quand la configuration est passée comme surcharge en mémoire. Le fichier doit être encodé en UTF-8 et ne pas dépasser 1 MiB, et il est lu une fois au chargement de la configuration : verbatra ne le surveille pas, donc modifie-le et redémarre pour prendre en compte une mise à jour. Un fichier absent, un JSON invalide ou une valeur qui n'est pas une carte plate de chaînes fait échouer le chargement de la configuration avec `CONFIG_INVALID`, en nommant le chemin résolu.
 
+<AvailableFrom version="0.4.0" pkg="@verbatra/studio" />
+
+Les deux formes diffèrent aussi par qui peut les modifier. Seule la forme fichier se modifie depuis [Verbatra Studio](/docs/review-in-studio), qui réécrit ce fichier JSON terme par terme et ne touche jamais à ton module de config ; un glossaire inline y reste en lecture seule, car il vit dans du code exécutable. Préfère la forme fichier si tu veux gérer les termes depuis le tableau de bord.
+
 La façon dont le glossaire est appliqué dépend du fournisseur : les fournisseurs LLM reçoivent la carte résolue avec la requête et ont pour instruction de traiter ses termes comme contraignants, tandis que DeepL ignore une carte de termes et applique à la place un glossaire configuré par id. Voir [Fournisseurs](/docs/providers).
 
 ### tone
@@ -112,6 +118,8 @@ Défaut `50`. Les entrées manquantes plus modifiées d'une locale sont découp�
 - `"warn"` (le défaut) signale le dépassement et laisse l'exécution continuer exactement comme si aucun budget n'était configuré.
 - `"stop"` retient chaque clé pas encore tentée pour le reste de l'exécution : les candidates restantes de la locale en cours, et entièrement les candidates de chaque locale cible suivante (leur comparaison et leur rapport d'orphelines tournent quand même ; seul l'appel fournisseur est sauté). Les clés retenues gardent leur hash de verrouillage précédent et sont retentées automatiquement à l'exécution suivante, comme un appel fournisseur échoué l'est déjà.
 
+Définir `maxTokens` contraint aussi la parallélisation d'une exécution : une exécution réelle qui le combine avec `--concurrency` supérieur à `1` est refusée avec le code de sortie `2` (`CONCURRENCY_BUDGET_CONFLICT`) avant tout appel fournisseur, car des locales concurrentes ne peuvent pas respecter un plafond de tokens de façon déterministe. Un dry run est exempté. Retire le budget ou laisse la concurrence à `1`.
+
 Sous `"warn"`, un déclenchement du budget ne change jamais le code de sortie de la commande. Sous `"stop"`, il peut le faire : une locale dont des clés ont été retenues est rapportée comme `partial` quand certaines clés sont bien arrivées et `failed` quand aucune n'est arrivée, et les deux sortent avec `1`. `budgetBehavior` sans `maxTokens` est accepté et n'a aucun effet. Face à un fournisseur sans tokens (DeepL, qui ne rapporte aucun usage à mesurer), le garde-fou se déclare inerte (`supported: false` sur le `budget` du résumé d'exécution) plutôt que de produire un faux déclenchement.
 
 <Callout title="Deux maxTokens différents">
@@ -137,6 +145,8 @@ verbatra cherche vers le haut depuis le répertoire de travail et utilise la pre
 Pour charger un fichier explicite au lieu de chercher, passe `--config <path>` ; un chemin relatif se résout contre le répertoire de travail. Dans le SDK, un `configOverride` en mémoire prime sur un `configPath` explicite, qui prime sur la recherche. Voir [API programmatique](/docs/programmatic-api).
 
 ## Validation dans l'éditeur
+
+<AvailableFrom version="0.9.0" />
 
 `@verbatra/sdk` livre le schéma de configuration sous forme de document JSON Schema, généré à la compilation depuis le schéma zod même contre lequel le SDK valide : il ne peut donc jamais décrire une forme différente de celle qui s'exécute. Une fois installé, il se trouve à :
 
@@ -198,7 +208,7 @@ C'est la liste complète. Une configuration que l'éditeur affiche comme propre 
 
 ## Le répertoire de travail et .env
 
-Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour `translate`, `watch` et `studio`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
+Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour `translate`, `watch`, `doctor` et `studio`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
 
 La précédence d'environnement est, du plus fort au plus faible : une variable déjà définie dans ton environnement réel, puis `.env.local`, puis `.env`. Une variable déjà présente n'est jamais écrasée.
 

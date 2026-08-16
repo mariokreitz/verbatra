@@ -11,6 +11,7 @@ import {
   makeTempDir,
   readJsonFile,
   readTextFile,
+  realDiskReads,
   writeJsonFile,
 } from "../test-support.js";
 import { translate } from "./translate-project.js";
@@ -257,10 +258,7 @@ describe("translate: per-locale isolation", () => {
     const dir = await project({ a: "A" }, { de: undefined, fr: undefined });
     const stub = makeStubProvider();
     const fs = makeFakeFs({
-      fileExists: (path: string) =>
-        access(path)
-          .then(() => true)
-          .catch(() => false),
+      ...realDiskReads(),
       writeFile: async (path: string, data: string) => {
         if (path.endsWith("verbatra.lock.json") && data.includes('"fr"')) {
           throw Object.assign(new Error("lock write failed"), { code: "LOCK_FILE_WRITE" });
@@ -318,12 +316,11 @@ describe("translate: error shapes and orphaned keys", () => {
     const dir = await project({ a: "A" }, { de: undefined });
     const stub = makeStubProvider();
     const fs = makeFakeFs({
-      fileExists: (path: string) =>
-        access(path)
-          .then(() => true)
-          .catch(() => false),
-      writeFile: async () => {
-        throw "raw failure";
+      ...realDiskReads(),
+      writeFile: async (path: string) => {
+        if (path.endsWith("verbatra.lock.json")) {
+          throw "raw failure";
+        }
       },
     });
     const summary = await translate(

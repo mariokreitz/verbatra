@@ -47,8 +47,9 @@ export interface ReadLocaleFileSnapshotDeps {
  * watcher can start before the first translation run has written anything.
  *
  * Note that this entry point does not validate the locale against the configured targets, and that
- * a malformed target file surfaces the adapter's own parse error rather than a wrapped
- * {@link SdkError}, because no source-file contract is being asserted here.
+ * a malformed target file surfaces the adapter's own error and code rather than a wrapped
+ * {@link SdkError}, because no source-file contract is being asserted here. Its message names the
+ * offending locale and the resolved path.
  *
  * @param input - The config and the locale to snapshot.
  * @param deps - Optional adapter registry and file-system overrides.
@@ -65,7 +66,7 @@ export async function readLocaleFileSnapshot(
 ): Promise<LocaleFileSnapshot> {
   const cwd = input.cwd ?? process.cwd();
   const fs = deps.fs ?? defaultFs;
-  const adapter = selectAdapter(input.config.format, deps.adapterRegistry);
+  const adapter = selectAdapter(input.config.format, deps.adapterRegistry, deps.fs);
   const resource = await readTarget(cwd, input.config, adapter, fs, input.locale);
   const hashes = new Map<string, string>();
   for (const [key, entry] of resource.entries) {

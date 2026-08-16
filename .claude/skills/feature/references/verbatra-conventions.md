@@ -108,9 +108,13 @@ It lives in github.com/verbatra/action and is consumed via `uses:`.
 
 ## Shipped scope (deliberately lean)
 
-- Eight formats and five providers, orchestrated by core + sdk + cli, with studio
+- The format adapters and the providers, orchestrated by core + sdk + cli, with studio
   as the optional local dashboard.
-- CLI commands implemented today: `init`, `translate`, `watch`, `check`, `diff`,
-  `export`, `import`, and `studio`.
+- Read the shipped surface from the code rather than from a list in a guidance file,
+  this one included: the formats are the adapters `createDefaultRegistry` registers in
+  `@verbatra/format-adapters`, the providers are the factory table in
+  `packages/sdk/src/config/provider-config.ts`, and the CLI commands are the
+  `.command(...)` registrations in `packages/cli/src/run.ts`. An enumeration written
+  into guidance goes stale the day a command ships; those three files cannot.
 - Do not build everything at once. Keep changes within the shipped scope unless the
   brief explicitly expands it, and flag scope expansion to the product owner.

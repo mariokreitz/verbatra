@@ -1,0 +1,86 @@
+---
+title: verbatra doctor
+description: Valida la configuración del proyecto sin llamar a un proveedor ni leer una clave de API.
+---
+<AvailableFrom version="0.9.0" />
+
+Responde una pregunta antes de ejecutar cualquier otra cosa: ¿este proyecto está bien configurado? `doctor` valida la configuración, el adaptador de formato, el proveedor, la variable de la clave de API y el archivo de locale fuente, y luego informa de todos los problemas que encontró a la vez. No gasta nada: no construye ningún proveedor, no hace ninguna petición de red, no escribe ningún archivo y nunca lee el valor de una clave de API.
+
+Úsalo en un checkout recién clonado, justo después de [`verbatra init`](/docs/cli/init), o cuando otro comando falle y quieras la lista completa en lugar del primer error. [`verbatra check`](/docs/cli/check) es la validación más barata una vez que el proyecto ya funciona, pero lee los archivos de locale y se detiene en el primer error global, así que no puede decirte qué falla en un proyecto que todavía no tiene archivo fuente.
+
+## Sinopsis
+
+```bash
+verbatra doctor [flags]
+```
+
+## Flags
+
+| Flag | Argumento | Predeterminado | Efecto |
+| --- | --- | --- | --- |
+| `--cwd` | `<path>` | directorio actual | resuelve la config y los archivos de locale desde este directorio |
+| `--config` | `<path>` | se busca uno | carga este archivo de config en lugar de buscar uno |
+| `--json` | ninguno | desactivado | imprime un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout que lleva el informe bajo `result`; la línea de error legible por humanos sigue yendo a stderr |
+
+## Qué comprueba
+
+| Comprobación | Pasa cuando |
+| --- | --- |
+| Configuration | se encontró un archivo de config y supera la validación |
+| Format adapter | el `format` configurado resuelve a un adaptador de archivos |
+| Provider | el `provider.id` configurado resuelve a una fábrica de proveedores |
+| API key environment variable | la variable de la que ese proveedor lee su clave está definida |
+| Source locale file | el archivo de locale fuente existe en su ruta resuelta, es un archivo regular y se parsea con el formato configurado |
+
+Todas las comprobaciones se ejecutan aunque una anterior haya fallado, así que una sola ejecución informa de cada problema independiente. La única excepción es la propia configuración: cuando no se puede cargar, las cuatro comprobaciones que la necesitan se omiten en lugar de llegar a un veredicto. Una comprobación así se imprime como `[skip]` en el informe legible y lleva `"status": "skipped"` en el envoltorio `--json`.
+
+Cuatro detalles importan:
+
+- La clave de API se comprueba **solo por nombre**. `doctor` pregunta si la variable está definida, nunca qué contiene. El valor no se lee, no se imprime y no se envía a ninguna parte. Consulta [Proveedores](/docs/providers) para saber qué variable usa cada proveedor.
+- El proveedor `openai-compatible` es la excepción. Recurre a una clave de marcador de posición, así que una variable ausente no es problema. Solo falla cuando tu config nombra su propia variable con `provider.options.apiKeyEnvVar` y esa variable no está definida.
+- Un archivo de locale **destino** que falta no es un problema: [`verbatra translate`](/docs/cli/translate) lo crea. Los archivos destino no se comprueban en absoluto.
+- El archivo de locale **fuente** se lee y se parsea, no solo se comprueba su existencia. Un directorio en su lugar, un archivo vacío y contenido malformado fallan esta comprobación con el mismo mensaje que daría [`verbatra check`](/docs/cli/check), porque esos son justo los casos que hacen fallar a todos los demás comandos. Cuando el `format` configurado no resuelve a ningún adaptador no hay con qué parsear, así que la comprobación vuelve a la mera existencia y lo indica.
+
+Igual que [`verbatra translate`](/docs/cli/translate), `doctor` carga `.env.local` y luego `.env` desde el directorio de trabajo antes de mirar el entorno, así que una clave guardada en un archivo dotenv cuenta como definida.
+
+## Ejemplos
+
+```bash
+# report every setup problem at once
+verbatra doctor
+
+# validate a project in another directory, with an explicit config
+verbatra doctor --cwd apps/web --config verbatra.config.ts
+
+# machine-readable report for a CI preflight step
+verbatra doctor --json
+```
+
+Una ejecución con dos problemas se ve así:
+
+```text
+verbatra doctor
+  [ok  ] Configuration: Loaded /app/verbatra.config.ts.
+  [ok  ] Format adapter: Format "i18next-json" resolves to an adapter.
+  [ok  ] Provider: Provider "anthropic" resolves to a factory.
+  [fail] API key environment variable: The ANTHROPIC_API_KEY environment variable is not set.
+  [fail] Source locale file: The source locale file was not found at /app/locales/en.json.
+2 problems found (run verbatra doctor again after fixing them)
+```
+
+## Códigos de salida
+
+| Código | Significado |
+| --- | --- |
+| `0` | todas las comprobaciones pasaron |
+| `1` | al menos una comprobación falló (el informe completo se imprime igualmente) |
+| `2` | no pudo ejecutarse: un error de uso, o una ruta `--config` explícita que no existe |
+
+La salida `1` significa "se ejecutó y encontró problemas". La salida `2` queda reservada a que `doctor` no pueda ejecutarse en absoluto, por eso un archivo de config que la búsqueda no encuentra es una comprobación fallida y salida `1`, mientras que una ruta `--config` que apunta a la nada es salida `2`.
+
+## Relacionado
+
+- [`verbatra init`](/docs/cli/init) genera la config y el `.env.example` que `doctor` valida.
+- [`verbatra check`](/docs/cli/check) es el control de deriva que ejecutas una vez que la configuración es correcta.
+- [El archivo de configuración](/docs/config-file) documenta todas las claves que `doctor` valida.
+- [Proveedores](/docs/providers) lista la variable de clave de API que lee cada proveedor.

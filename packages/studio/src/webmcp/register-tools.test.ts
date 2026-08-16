@@ -26,6 +26,7 @@ const READ_TOOLS = [
 
 const WRITE_AND_SPEND_TOOLS = [
   "translation.editEntry",
+  "glossary.write",
   "translation.retranslateEntry",
   "translation.translatePending",
 ] as const;
@@ -42,6 +43,7 @@ const UNTRUSTED_TOOLS = [
   "translation.editEntry",
   "translation.retranslateEntry",
   "translation.translatePending",
+  "glossary.write",
 ] as const;
 
 const TEXT_FREE_TOOLS = [
@@ -229,25 +231,26 @@ describe("registerAgentTools no-ops", () => {
 });
 
 describe("registerAgentTools registration set", () => {
-  it("registers the ten read tools and the write tool, but no spend tool, when spend is false", async () => {
+  it("registers the ten read tools and the two unpriced write tools, but no spend tool, when spend is false", async () => {
     const { tools } = await registerWith(SNAPSHOT_ON);
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(11);
+    expect(tools).toHaveLength(12);
     for (const name of READ_TOOLS) {
       expect(names).toContain(expectedName(name));
     }
     expect(names).toContain(expectedName("translation.editEntry"));
+    expect(names).toContain(expectedName("glossary.write"));
     for (const name of SPEND_TOOLS) {
       expect(names).not.toContain(expectedName(name));
     }
   });
 
-  it("registers all thirteen tools when spend is true", async () => {
+  it("registers all fourteen tools when spend is true", async () => {
     const { tools } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
     const names = tools.map((tool) => tool.name);
 
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(14);
     for (const name of [...READ_TOOLS, ...WRITE_AND_SPEND_TOOLS]) {
       expect(names).toContain(expectedName(name));
     }
@@ -303,15 +306,15 @@ describe("registerAgentTools registration report", () => {
   it("reports every attempted tool as registered when the surface accepts them all", async () => {
     const { registration } = await registerWith(SNAPSHOT_ON);
 
-    expect(registration.attempted).toBe(11);
-    expect(registration.registered).toHaveLength(11);
+    expect(registration.attempted).toBe(12);
+    expect(registration.registered).toHaveLength(12);
     expect(registration.failures).toEqual([]);
   });
 
   it("counts the two spend tools among the attempts once spend is granted", async () => {
     const { registration } = await registerWith(SNAPSHOT_ON_WITH_SPEND);
 
-    expect(registration.attempted).toBe(13);
+    expect(registration.attempted).toBe(14);
     expect(registration.failures).toEqual([]);
   });
 
@@ -341,8 +344,8 @@ describe("registerAgentTools failure reporting", () => {
     const registration = await registerWithContext(SNAPSHOT_ON, context);
     const registeredNames = tools.map((tool) => tool.name);
 
-    expect(registration.attempted).toBe(11);
-    expect(registration.registered).toHaveLength(10);
+    expect(registration.attempted).toBe(12);
+    expect(registration.registered).toHaveLength(11);
     expect(registration.failures).toEqual([
       { tool: refused, errorName: "SecurityError", message: "registration refused" },
     ]);
@@ -368,7 +371,7 @@ describe("registerAgentTools failure reporting", () => {
       expect(registration.failures).toEqual([
         { tool: refused, errorName: "SecurityError", message: "registration refused" },
       ]);
-      expect(registration.registered).toHaveLength(10);
+      expect(registration.registered).toHaveLength(11);
       expect(tools.map((tool) => tool.name)).toContain(expectedName("key.value"));
     } finally {
       process.off("unhandledRejection", onUnhandled);
@@ -382,16 +385,16 @@ describe("registerAgentTools failure reporting", () => {
     const second = await registerWithContext(SNAPSHOT_ON, context);
 
     expect(first.failures).toEqual([]);
-    expect(first.registered).toHaveLength(11);
+    expect(first.registered).toHaveLength(12);
     expect(second.registered).toEqual([]);
-    expect(second.failures).toHaveLength(11);
+    expect(second.failures).toHaveLength(12);
     expect(new Set(second.failures.map((failure) => failure.errorName))).toEqual(
       new Set(["InvalidStateError"]),
     );
     expect(second.failures.map((failure) => failure.tool)).toContain(
       expectedName("project.snapshot"),
     );
-    expect(tools).toHaveLength(11);
+    expect(tools).toHaveLength(12);
   });
 });
 
