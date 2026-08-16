@@ -14,6 +14,7 @@
   <a href="https://www.npmjs.com/package/@verbatra/cli"><img src="https://img.shields.io/npm/dm/@verbatra/cli?label=downloads%2Fmonth" alt="Monthly npm downloads" /></a>
   <a href="https://github.com/verbatra/verbatra/actions/workflows/ci.yml"><img src="https://github.com/verbatra/verbatra/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" /></a>
   <a href="https://codecov.io/gh/verbatra/verbatra"><img src="https://codecov.io/gh/verbatra/verbatra/graph/badge.svg" alt="Coverage" /></a>
+  <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/verbatra/verbatra?utm_source=oss&amp;utm_medium=github&amp;utm_campaign=verbatra%2Fverbatra&amp;labelColor=171717&amp;color=FF570A&amp;label=CodeRabbit%20reviews" alt="CodeRabbit pull request reviews" /></a>
   <a href="https://github.com/verbatra/action/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/verbatra/action/ci.yml?branch=main&amp;label=Action%20CI" alt="verbatra-action CI" /></a>
   <a href="https://github.com/marketplace/actions/verbatra"><img src="https://img.shields.io/github/v/release/verbatra/action?sort=semver&amp;label=marketplace&amp;color=blue" alt="verbatra action on GitHub Marketplace" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT" /></a>
@@ -247,6 +248,8 @@ The hosted documentation site at [verbatra.kreitz-webdev.de](https://verbatra.kr
 ## Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md) and our [Code of Conduct](./CODE_OF_CONDUCT.md) first.
+
+Every pull request is reviewed automatically by [CodeRabbit](https://coderabbit.ai) alongside the CI checks, so you get feedback on your changes before a maintainer picks them up.
 
 ## License
 
