@@ -1,5 +1,31 @@
 # @verbatra/sdk
 
+## 0.9.2
+
+### Patch Changes
+
+- [#193](https://github.com/verbatra/verbatra/pull/193) [`6f56c63`](https://github.com/verbatra/verbatra/commit/6f56c63f13705dc47031be3c1044c96f8fc9736d) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Fix config discovery so it actually searches upward from the working directory, as the README,
+  SDK README, and docs site already documented. `loadConfig` previously left cosmiconfig's
+  `searchStrategy` unset, which defaults to `none` (current directory only), so running verbatra
+  from a nested monorepo package directory raised `CONFIG_NOT_FOUND` instead of finding the config
+  at the repository root.
+  
+  The search now walks upward and stops at the nearest ancestor directory containing a `.git` entry
+  (or the user's home directory if none is found), so it finds a monorepo-root config without
+  wandering into an unrelated project above the repository.
+
+- [#193](https://github.com/verbatra/verbatra/pull/193) [`6f56c63`](https://github.com/verbatra/verbatra/commit/6f56c63f13705dc47031be3c1044c96f8fc9736d) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Fix a broken transitive type dependency leaking through the published `@verbatra/sdk` `.d.ts`.
+  The Gemini authoring model type was re-exported from `@google/genai`'s own `Interactions.Model`,
+  but every entry point of that package's type declarations carries an unconditional top-level
+  import of `@modelcontextprotocol/sdk/client/index.js`, an optional peer dependency it does not
+  install. A consumer running `tsc --noEmit` with `skipLibCheck: false` got `TS2307: Cannot find
+  module '@modelcontextprotocol/sdk/client/index.js'` from deep inside `@google/genai`'s own types,
+  with no fix available on their side short of installing an unrelated MCP SDK package.
+  
+  `GeminiModel` is now a hand-maintained string literal union (still open-ended via `string & {}`,
+  so unknown or newly released model IDs are still accepted), breaking the transitive dependency
+  entirely while preserving editor autocomplete for known Gemini model IDs in `defineConfig`.
+
 ## 0.9.1
 
 ### Patch Changes
