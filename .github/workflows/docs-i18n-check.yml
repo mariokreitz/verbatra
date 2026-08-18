@@ -1,0 +1,39 @@
+name: Docs i18n check
+
+# Gates pull requests that touch apps/docs translation surfaces on locale drift. Runs
+# verbatra/action in "check" mode: read-only, exits 1 when any locale has missing or
+# stale keys, needs no provider API key, so it is safe to run on fork PRs.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/docs/messages/**"
+      - "apps/docs/content/docs/**"
+      - "apps/docs/verbatra.config.ts"
+      - "apps/docs/verbatra.lock.json"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docs-i18n-check:
+    name: Docs i18n check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check docs locales for drift
+        uses: verbatra/action@f1900ddd942b146033b3a0e3b57e5040e49857e4 # v1.1.1
+        with:
+          version: "0.9.0"
+          command: "check"
+          working-directory: "apps/docs"
