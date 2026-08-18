@@ -244,7 +244,8 @@
       "docs": "Docs",
       "providers": "Providers",
       "formats": "Formats",
-      "contributing": "Contributing"
+      "contributing": "Contributing",
+      "startWithAi": "Start with AI"
     }
   },
   "legal": {
