@@ -257,7 +257,12 @@
       "providers": "Providers",
       "formats": "Formats",
       "contributing": "Contributing",
-      "startWithAi": "Start with AI"
+      "startWithAi": "Start with AI",
+      "languageSwitcher": {
+        "chooseLanguage": "Choose a language",
+        "machineTranslatedLabel": "Interface machine-translated",
+        "machineTranslatedDescription": "Navigation, buttons, and other interface text are machine-translated."
+      }
     }
   },
   "legal": {

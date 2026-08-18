@@ -1,29 +1,15 @@
 import { i18nProvider, uiTranslations } from "fumadocs-ui/i18n";
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
+import { LanguageSelectText } from "fumadocs-ui/layouts/shared/slots/language-select";
 import { getTranslations } from "next-intl/server";
 import { VMark } from "@/components/landing";
 import { GithubIcon } from "@/components/landing/github-icon";
 import { CONTRIBUTING_URL } from "@/components/landing/links";
+import { LocaleAwareLanguageSelect } from "@/components/language-select";
 import { i18n, type Locale, localizedPath } from "@/lib/i18n";
+import { LOCALE_DISPLAY_NAMES } from "@/lib/language-select-copy";
 
-const LANGUAGE_ARIA_KEY = "Choose a language(language switcher)(aria-label)";
-
-export const translations = i18n
-  .translations()
-  .extend(uiTranslations())
-  .add({
-    en: { [LANGUAGE_ARIA_KEY]: "English - choose a language" },
-    de: { [LANGUAGE_ARIA_KEY]: "Deutsch - Sprache wechseln" },
-    es: { [LANGUAGE_ARIA_KEY]: "Español - elegir idioma" },
-    fr: { [LANGUAGE_ARIA_KEY]: "Français - choisir la langue" },
-  });
-
-const LOCALE_DISPLAY_NAMES: Record<Locale, string> = {
-  en: "English",
-  de: "Deutsch",
-  es: "Español",
-  fr: "Français",
-};
+export const translations = i18n.translations().extend(uiTranslations());
 
 const localeNames = i18n.languages.map((locale) => ({
   locale,
@@ -65,5 +51,8 @@ export async function baseOptions(locale: Locale): Promise<BaseLayoutProps> {
       },
     ],
     themeSwitch: { enabled: false },
+    slots: {
+      languageSelect: { root: LocaleAwareLanguageSelect, text: LanguageSelectText },
+    },
   };
 }
