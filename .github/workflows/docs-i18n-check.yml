@@ -28,7 +28,7 @@ jobs:
           persist-credentials: false
 
       - name: Check docs locales for drift
-        uses: verbatra/action@f1900ddd942b146033b3a0e3b57e5040e49857e4 # v1.1.1
+        uses: verbatra/action@ad457e294b7f7bfbf2afa03aa17a2132f0e1f57c # v1.1.2
         with:
           version: "0.9.0"
           command: "check"
