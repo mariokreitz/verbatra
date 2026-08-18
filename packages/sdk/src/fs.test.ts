@@ -99,3 +99,32 @@ describe("defaultFs.mkdir", () => {
     await expect(defaultFs.mkdir?.(dir)).resolves.toBeUndefined();
   });
 });
+
+describe("defaultFs.readDirectory", () => {
+  it("lists files and directories, telling the two apart", async () => {
+    const dir = await makeTempDir();
+    await defaultFs.mkdir?.(join(dir, "en"));
+    await defaultFs.writeFile(join(dir, "de.json"), "{}");
+
+    const entries = [...((await defaultFs.readDirectory?.(dir)) ?? [])].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    );
+
+    expect(entries).toEqual([
+      { name: "de.json", isDirectory: false },
+      { name: "en", isDirectory: true },
+    ]);
+  });
+
+  it("reports an absent directory as empty rather than throwing", async () => {
+    const dir = await makeTempDir();
+    await expect(defaultFs.readDirectory?.(join(dir, "nope"))).resolves.toEqual([]);
+  });
+
+  it("reports a path that is a file rather than a directory as empty", async () => {
+    const dir = await makeTempDir();
+    const file = join(dir, "en.json");
+    await defaultFs.writeFile(file, "{}");
+    await expect(defaultFs.readDirectory?.(file)).resolves.toEqual([]);
+  });
+});

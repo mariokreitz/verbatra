@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { createDefaultRegistry } from "@verbatra/format-adapters";
 import { describe, expect, it } from "vitest";
 import { SdkError } from "../../errors.js";
 import { makeFakeFs, makeTempDir, makeTreeFs } from "../../test-support.js";
@@ -148,6 +149,91 @@ describe("detectProject: layouts it accepts", () => {
     expect(detection.format).toBe("i18next-json");
     expect(config.sourceLocale).toBe("en");
     expect(config.targetLocales).toEqual(["de"]);
+  });
+
+  it("resolves the format through a caller-supplied adapter registry", async () => {
+    const registry = createDefaultRegistry();
+
+    const { detection } = await detectProject({
+      cwd: ROOT,
+      fs: makeTreeFs(ROOT, {
+        "lang/en.yaml": "greeting: hi",
+        "lang/de.yaml": "greeting: hallo",
+      }),
+      env: {},
+      adapterRegistry: registry,
+    });
+
+    expect(detection.format).toBe("yaml");
+  });
+
+  it("reads the ambient environment when no env is supplied", async () => {
+    const restore = process.env.DEEPL_API_KEY;
+    process.env.DEEPL_API_KEY = "secret";
+    try {
+      const { detection } = await detectProject({
+        cwd: ROOT,
+        fs: makeTreeFs(ROOT, {
+          "package.json": I18NEXT_MANIFEST,
+          "locales/en.json": "{}",
+          "locales/de.json": "{}",
+        }),
+      });
+
+      expect(detection.providerResolved).toBe(true);
+    } finally {
+      if (restore === undefined) {
+        delete process.env.DEEPL_API_KEY;
+      } else {
+        process.env.DEEPL_API_KEY = restore;
+      }
+    }
+  });
+
+  it("names extension-less locale files as such when no format can claim them", async () => {
+    const error = await detectError({
+      "package.json": JSON.stringify({ name: "bare" }),
+      "locales/en": "{}",
+      "locales/de": "{}",
+    });
+
+    expect(error.code).toBe("PROJECT_NOT_DETECTED");
+    expect(error.message).toContain("extension-less");
+  });
+
+  it("refuses a JSON layout in a project with no package.json at all", async () => {
+    const error = await detectError({
+      "locales/en.json": "{}",
+      "locales/de.json": "{}",
+    });
+
+    expect(error.code).toBe("PROJECT_NOT_DETECTED");
+    expect(error.message).toContain("package.json");
+  });
+
+  it("skips a locale directory that holds no files at all", async () => {
+    const dir = await makeTempDir();
+    await writeFile(join(dir, "package.json"), I18NEXT_MANIFEST);
+    for (const locale of ["en", "de"]) {
+      await mkdir(join(dir, "locales", locale), { recursive: true });
+      await writeFile(join(dir, "locales", locale, "common.json"), "{}");
+    }
+    await mkdir(join(dir, "locales", "pt"), { recursive: true });
+
+    const { detection } = await detectProject({ cwd: dir, env: {} });
+
+    expect(detection.pattern).toBe("locales/{locale}/common.json");
+    expect(detection.targetLocales).toEqual(["de"]);
+  });
+
+  it("ignores a package.json that declares neither dependency block", async () => {
+    const error = await detectError({
+      "package.json": JSON.stringify({ name: "bare" }),
+      "locales/en.json": "{}",
+      "locales/de.json": "{}",
+    });
+
+    expect(error.code).toBe("PROJECT_NOT_DETECTED");
   });
 
   it("ignores files in the directory that carry no locale code", async () => {

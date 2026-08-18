@@ -75,6 +75,24 @@ describe("resolveProjectConfig: detection fallback", () => {
     expect(resolved.config.targetLocales).toEqual(["de"]);
   });
 
+  it("detects against the real file system when given only a working directory", async () => {
+    const dir = await makeTempDir();
+    await mkdir(join(dir, "messages"), { recursive: true });
+    await writeFile(
+      join(dir, "package.json"),
+      JSON.stringify({ dependencies: { "next-intl": "^4.0.0" } }),
+    );
+    await writeFile(join(dir, "messages", "en.json"), '{"greeting":"Hello"}');
+    await writeFile(join(dir, "messages", "fr.json"), "{}");
+
+    const resolved = await resolveProjectConfig({ cwd: dir });
+
+    expect(resolved.loaded).toBeUndefined();
+    expect(resolved.detection?.format).toBe("next-intl-json");
+    expect(resolved.config.files.pattern).toBe("messages/{locale}.json");
+    expect(resolved.config.targetLocales).toEqual(["fr"]);
+  });
+
   it("keeps the plain CONFIG_NOT_FOUND failure when detection is switched off", async () => {
     const error = await resolveProjectConfig({
       cwd: ROOT,
