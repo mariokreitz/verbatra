@@ -19,6 +19,10 @@ verbatra check [flags]
 | `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die geprüft wird |
 | `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der die Prüf-Zusammenfassung unter `result` trägt, oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`check` braucht außerdem keine Konfigurationsdatei. Findet die Suche keine, [leitet verbatra eine aus dem Projekt ab](/docs/config-file#ohne-konfigurationsdatei-arbeiten) und schreibt vor dem Lauf nach stderr, was sie erkannt hat; ein Drift-Gate funktioniert damit in einem Projekt, das nie konfiguriert wurde. Ein API-Schlüssel ist so oder so nicht beteiligt. Lehnt die Erkennung ab, ist das ein Fehler des gesamten Laufs, Exit `2`.
+
 Ein Key fehlt, wenn die Quelle ihn hat und das Ziel nicht; er ist veraltet, wenn sich der Quellstring seit der letzten Übersetzung geändert hat. Ein Locale ist synchron, wenn es keines von beidem hat. Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu prüfen; ein Tippfehler in einem Locale-Namen lässt ein CI-Gate also nie durch. Du willst die konkreten Key-Listen hinter den Zählern? Das ist [`verbatra diff`](/docs/cli/diff).
 
 ## Beispiele
@@ -37,7 +41,7 @@ verbatra check --locales de,fr --json
 | --- | --- |
 | `0` | synchron: kein Locale hat einen fehlenden oder veralteten Key |
 | `1` | nicht synchron: mindestens ein Locale hat einen fehlenden oder veralteten Key (der Bericht wird trotzdem ausgegeben) |
-| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (einschließlich eines Projekts, das ohne Konfigurationsdatei nicht erkannt werden konnte) oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
 
 Exit `1` heißt "nicht synchron", nicht Fehlschlag: der Lauf selbst war erfolgreich, das Ergebnis ist nur nicht komplett grün.
 

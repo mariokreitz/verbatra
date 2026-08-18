@@ -66,8 +66,50 @@ qu'un secret ne puisse pas se cacher dans un fichier commité.
 
 **Solution** : corrige le champ que le message nomme. Voir
 [Fichier de configuration](/docs/config-file) pour le schéma complet. Si le message est
-`No verbatra configuration found...` (`CONFIG_NOT_FOUND`), lance `verbatra init` ou passe
-`--config <path>`.
+`No verbatra configuration found...` (`CONFIG_NOT_FOUND`), le chemin que tu as passé à `--config`
+n'existe pas ; corrige-le, ou retire l'option et laisse verbatra chercher ou détecter.
+
+## Le projet n'a pas pu être détecté (PROJECT_NOT_DETECTED, PROJECT_AMBIGUOUS, PROJECT_LAYOUT_UNSUPPORTED)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptôme** : un projet sans fichier de configuration échoue avant la lecture de la moindre
+locale, avec `No verbatra configuration was found and no locale files could be detected...`,
+`Several directories look like locale directories: ...` ou `The locale files in <dir> do not fit a
+single path pattern...`
+
+**Cause** : sans fichier de configuration, verbatra [en déduit un depuis le projet](/docs/config-file#fonctionner-sans-fichier-de-configuration),
+et la détection décline plutôt que de deviner. `PROJECT_NOT_DETECTED` signifie qu'aucun répertoire
+candidat ne contenait un ensemble reconnaissable de fichiers de locale, que le format n'a pas pu
+être résolu (une disposition `.json` dont le `package.json` ne nomme aucune bibliothèque i18n, ou en
+nomme deux), ou qu'aucune locale détectée n'est l'anglais. `PROJECT_AMBIGUOUS` signifie que deux
+répertoires candidats portent tous deux une disposition utilisable, par exemple `locales/` et
+`public/locales/`. `PROJECT_LAYOUT_UNSUPPORTED` signifie que le répertoire a besoin de plus d'un
+motif de chemin, ce à quoi ressemblent plusieurs fichiers d'espace de noms par locale ; le message
+liste les motifs concurrents.
+
+**Solution** : lance `verbatra init` et écris le setup explicitement, c'est le remède que chacun de
+ces messages nomme. Choisis le répertoire voulu avec `--path`, et pose `--source` pour une locale
+source non anglaise. Pour le cas des espaces de noms, voir
+[Dispositions avec espaces de noms](/docs/formats#dispositions-avec-espaces-de-noms).
+
+## Aucune clé d'API de provider pour un projet détecté (PROVIDER_KEY_MISSING)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptôme** : `verbatra translate` ou `verbatra watch` dans un projet sans fichier de
+configuration échoue avec `No verbatra configuration was found and no provider API key is set, so
+there is nothing to translate with.`
+
+**Cause** : un projet détecté tire son provider des clés d'API définies. Si aucune de
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` ou `DEEPL_API_KEY` n'est présente, il n'y a
+aucun provider à appeler. `check`, `diff` et `translate --dry-run` ne sont pas concernés, parce
+qu'aucun d'eux n'appelle un provider.
+
+**Solution** : définis l'une des quatre variables (`translate` et `watch` chargent d'abord
+`.env.local` puis `.env` depuis le répertoire de travail), ou lance `verbatra init` pour créer une
+configuration qui nomme le provider que tu veux. Une configuration que tu as écrite ne déclenche
+jamais cela : elle nomme son provider délibérément.
 
 ## Aucun adaptateur pour le format (UNKNOWN_FORMAT)
 
@@ -118,8 +160,8 @@ jamais une valeur de clé, et les clés ne sont jamais lues depuis la configurat
 de la CLI.
 
 **Solution** : définis la variable que le message nomme, puis confirme-la avec `verbatra doctor`,
-qui vérifie la variable par son nom seulement, sans lire sa valeur. `translate`, `watch`,
-`doctor` et `studio` chargent
+qui vérifie la variable par son nom seulement, sans lire sa valeur. Toutes les commandes sauf
+`init` chargent
 `.env` et `.env.local` depuis le répertoire de travail ; le SDK non, donc dans ton propre script
 utilise `node --env-file=.env` ou exporte la variable. `openai-compatible` ne lève ceci que quand la
 configuration nomme un `apiKeyEnvVar` qui est absent ; sans lui, il se replie sur un placeholder

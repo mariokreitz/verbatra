@@ -58,7 +58,7 @@ L'action lance la CLI, et la CLI lit la clé d'API du fournisseur uniquement dep
 | Entrée | Requis | Défaut | Description |
 | --- | --- | --- | --- |
 | `version` | oui | - | la version de `@verbatra/cli` à lancer, par exemple `0.9.3`. Doit être une version semver exacte ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~`. Sous `v2`, elle doit aussi être `0.9.3` ou plus récente ; un épinglage plus ancien fait échouer l'étape |
-| `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config |
+| `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config, qui bascule vers la [détection de projet](/docs/config-file#fonctionner-sans-fichier-de-configuration) quand aucun fichier de config n'existe |
 | `working-directory` | non | `""` | répertoire depuis lequel résoudre la config et les fichiers de locale (correspond à `--cwd`) |
 | `dry-run` | non | `"false"` | mets `"true"` pour rapporter ce qui changerait sans appeler de fournisseur ni écrire (correspond à `--dry-run`) |
 | `node-version` | non | `"24"` | version de Node.js à installer pour lancer la CLI |

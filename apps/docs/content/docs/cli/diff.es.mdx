@@ -19,6 +19,10 @@ verbatra diff [flags]
 | `--locales` | `<list>` | todos los destinos configurados | subconjunto de locales de destino separado por comas sobre el que hacer el diff |
 | `--json` | ninguno | desactivado | imprime un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout que lleva el resumen del diff bajo `result`, o el código de error si la ejecución falla; la línea de error legible por humanos sigue yendo a stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`diff` tampoco necesita archivo de configuración. Cuando la búsqueda no encuentra ninguno, verbatra [deduce uno del proyecto](/docs/config-file#ejecutar-sin-archivo-de-configuración) y escribe en stderr lo que ha concluido antes de ejecutarse. En ningún caso hay una clave de API de por medio. Que la detección decline es un fallo de toda la ejecución, salida `2`.
+
 Un locale tiene cambios pendientes cuando tiene al menos una clave que añadir o retraducir. Las claves huérfanas se informan pero nunca cuentan como pendientes, porque una ejecución por defecto no las elimina (solo lo hace [`verbatra translate --prune`](/docs/cli/translate)). Un valor `--locales` vacío o desconocido se rechaza con salida `2` en lugar de comparar nada en silencio. Donde [`verbatra check`](/docs/cli/check) responde "cuánto se ha desfasado" con contadores, `diff` responde "qué claves" con las listas.
 
 ## Ejemplos
@@ -37,7 +41,7 @@ verbatra diff --json
 | --- | --- |
 | `0` | sin cambios pendientes: ningún locale tiene una clave que añadir o retraducir |
 | `1` | cambios pendientes: al menos un locale tiene una clave faltante o modificada (las claves huérfanas por sí solas nunca producen `1`) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso (incluido un valor `--locales` vacío o desconocido) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (incluido un proyecto que no se pudo detectar cuando no hay archivo de configuración), o un error de uso (incluido un valor `--locales` vacío o desconocido) |
 
 ## Relacionado
 

@@ -53,6 +53,8 @@ npx verbatra translate
 npx verbatra translate --prune
 ```
 
+The `init` step is optional. In a project that already has locale files, verbatra infers a config when it finds none (the locale directory, the file pattern, the format, and English as the source locale), printing what it detected to stderr before it runs. `check` and `diff` therefore need nothing configured at all, and `translate` and `watch` need only a provider API key in the environment. `doctor` and `studio` still require a config file. See [Running without a config file](https://verbatra.kreitz-webdev.de/docs/config-file#running-without-a-config-file).
+
 Gemini is shown because its API has a real free tier, so you can create a key at [Google AI Studio](https://aistudio.google.com/apikey) and try verbatra without setting up billing. `anthropic`, `openai`, and `deepl` work the same way; only the key variable and the config's `provider` block differ.
 
 Plural-category generation is opt-in too, but config/SDK only: set `generatePlurals: true` in the config. Unlike `--prune`, there is no `--generate-plurals` flag (the SDK `translate()` input accepts a per-run override).
@@ -110,7 +112,7 @@ Keys are read only from the environment, never from the config. Each provider re
 
 `openai-compatible` is not in this table: most local servers need no key at all, and when one is required it comes from `OPENAI_COMPATIBLE_API_KEY` or from whichever variable the provider's `apiKeyEnvVar` option names. See the [Providers page](https://verbatra.kreitz-webdev.de/docs/providers) for its key resolution.
 
-`verbatra init` writes a `.env.example` and makes sure your `.gitignore` covers the paths a verbatra project keeps out of version control: `.env` and `.env.local` for your keys, plus `.verbatra-local/` and `verbatra.cache.json` for the local, regenerable state a run produces. `translate`, `watch`, and `import` silently top up an existing `.gitignore` with any of those entries it is missing, so a project scaffolded before an entry existed still gets it; none of them creates a `.gitignore` that is not already there, and a failure to write one never fails the run. `translate`, `watch`, `studio`, and `doctor` load `.env.local` and then `.env` from the working directory before running; a variable already set in the real environment always wins.
+`verbatra init` writes a `.env.example` and makes sure your `.gitignore` covers the paths a verbatra project keeps out of version control: `.env` and `.env.local` for your keys, plus `.verbatra-local/` and `verbatra.cache.json` for the local, regenerable state a run produces. `translate`, `watch`, and `import` silently top up an existing `.gitignore` with any of those entries it is missing, so a project scaffolded before an entry existed still gets it; none of them creates a `.gitignore` that is not already there, and a failure to write one never fails the run. Every command except `init` loads `.env.local` and then `.env` from the working directory before running; a variable already set in the real environment always wins.
 
 ## Configuration
 

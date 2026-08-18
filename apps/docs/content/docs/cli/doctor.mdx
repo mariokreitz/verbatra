@@ -78,6 +78,10 @@ verbatra doctor
 
 Exit `1` means "it ran, and it found problems". Exit `2` is reserved for `doctor` being unable to run at all, which is why a missing config file found by search is a failed check and exit `1`, while a `--config` path pointing at nothing is exit `2`.
 
+<AvailableFrom version="0.10.0" />
+
+`doctor` is the one command that never [detects a config from the project](/docs/config-file#running-without-a-config-file). Its whole job is to validate the configuration you wrote, so validating an inferred one would tell you nothing about your setup: in a project with no config file it reports the configuration check as failed and skips the four checks that need it. Use `verbatra check` or `verbatra translate --dry-run` to see what a detected project would do.
+
 ## Related
 
 - [`verbatra init`](/docs/cli/init) scaffolds the config and `.env.example` that `doctor` validates.

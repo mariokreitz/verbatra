@@ -22,6 +22,12 @@ pnpm takes one extra step. `pnpm add -D @verbatra/cli` installs correctly but ex
 npx verbatra init --provider gemini
 ```
 
+<AvailableFrom version="0.10.0" />
+
+<Callout title="Already have locale files? This step is optional.">
+With no config anywhere, verbatra infers one from your project: it looks in the directories the i18n ecosystems conventionally use, works out the file pattern, resolves the format from the file extension or from the i18n library in your `package.json`, and treats English as the source locale. `verbatra check` and `verbatra diff` then work right now, and `verbatra translate` needs only the API key from step 4. Every run prints what it detected, so nothing is guessed behind your back. Run `init` anyway once you want to pin any of it down, or to set a glossary, a tone, or a token budget, none of which detection supplies. See [Running without a config file](/docs/config-file#running-without-a-config-file).
+</Callout>
+
 With a terminal attached, `init` prompts for anything you did not pass as a flag, each with a default:
 
 - the provider: one of `anthropic`, `openai`, `gemini`, or `deepl` (flag `--provider`, the only input without a default)
@@ -98,7 +104,7 @@ Keys come from the environment, never from the config file. Each hosted provider
 cp .env.example .env
 ```
 
-Then open `.env` and paste your key after `GEMINI_API_KEY=`. `translate`, `watch`, `doctor`, and `studio` load `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
+Then open `.env` and paste your key after `GEMINI_API_KEY=`. Every command except `init` loads `.env.local` and then `.env` from the working directory before a run, and a variable already set in your shell always wins. See [Providers](/docs/providers) for every provider's variable.
 
 <Callout title="No key yet? Gemini has a free tier.">
 Gemini's API has a genuinely free tier, which makes it the cheapest way to try verbatra. Grab a key from [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY`. The free tier has per-minute and per-day request limits, so pace a large first-time translation.

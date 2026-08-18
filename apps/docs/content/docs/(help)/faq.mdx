@@ -5,6 +5,24 @@ description: Short answers to the questions that come up most when running verba
 Quick answers, each grounded in how verbatra actually behaves. For symptom-first help with error
 messages, see [Troubleshooting](/docs/troubleshooting).
 
+## Do I need a config file?
+
+<AvailableFrom version="0.10.0" />
+
+Not to get started. With no config anywhere, verbatra infers one from the project, so `check` and
+`diff` run on a project that has never been configured and `translate` needs only a provider API
+key. Detection reads only the directories the i18n ecosystems conventionally use (`locales`,
+`src/locales`, `public/locales`, `messages`, `i18n`, `src/assets/i18n`, and a handful more),
+requires one path pattern to cover every locale-bearing file in exactly one of them, resolves the
+format from the file extension or from the i18n library in `package.json`, and uses English as the
+source locale. Every run prints what it concluded before it starts.
+
+An authored config still wins outright, and you need one for anything detection does not synthesize:
+a non-English source locale, several namespace files per locale, a glossary, a tone, `prune`,
+`generatePlurals`, or a `maxTokens` budget. Detection declines rather than guesses, so an ambiguous
+or unrecognized project is an error with a remedy, not a wrong answer. See
+[Running without a config file](/docs/config-file#running-without-a-config-file).
+
 ## How do I control cost?
 
 Four levers, all free of a provider call until you decide otherwise:
@@ -113,9 +131,8 @@ dynamically by the `studio` command.
 ## Where do API keys live?
 
 Only in environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or
-`DEEPL_API_KEY`, plus whatever variable you name for `openai-compatible`. `translate`, `watch`,
-`doctor`, and `studio` load `.env` and `.env.local` from the working directory (real environment
-variables win). The config schema rejects unknown keys precisely so a secret cannot end up in a committed
+`DEEPL_API_KEY`, plus whatever variable you name for `openai-compatible`. Every command except `init` loads
+`.env` and `.env.local` from the working directory (real environment variables win). The config schema rejects unknown keys precisely so a secret cannot end up in a committed
 file, and error messages name the variable but never a value. See [Providers](/docs/providers).
 
 ## What does verbatra doctor actually check?

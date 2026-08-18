@@ -19,6 +19,10 @@ verbatra check [flags]
 | `--locales` | `<list>` | toutes les cibles configurées | sous-ensemble de locales cibles à vérifier, séparées par des virgules |
 | `--json` | aucun | désactivé | affiche une [enveloppe JSON](/docs/ci-and-exit-codes#sortie-json) sur stdout portant le résumé de vérification sous `result`, ou le code d'erreur si l'exécution échoue ; la ligne d'erreur lisible par un humain va toujours sur stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`check` n'a pas non plus besoin d'un fichier de configuration. Quand la recherche n'en trouve aucun, verbatra [en déduit un depuis le projet](/docs/config-file#fonctionner-sans-fichier-de-configuration) et écrit sa conclusion sur stderr avant de tourner, si bien qu'un contrôle de dérive fonctionne dans un projet jamais configuré. Aucune clé d'API n'intervient dans un cas comme dans l'autre. Une détection qui décline est un échec global, sortie `2`.
+
 Une clé est manquante quand la source l'a et pas la cible ; obsolète quand la chaîne source a changé depuis sa dernière traduction. Une locale est synchronisée quand elle n'a ni l'un ni l'autre. Une valeur `--locales` vide ou inconnue est rejetée avec la sortie `2` plutôt que de ne rien vérifier en silence, donc une coquille dans un nom de locale ne laisse jamais passer un contrôle CI. Tu veux les listes de clés derrière ces comptes ? C'est [`verbatra diff`](/docs/cli/diff).
 
 ## Exemples
@@ -37,7 +41,7 @@ verbatra check --locales de,fr --json
 | --- | --- |
 | `0` | synchronisé : aucune locale n'a de clé manquante ou obsolète |
 | `1` | désynchronisé : au moins une locale a une clé manquante ou obsolète (le rapport est quand même affiché) |
-| `2` | impossible de s'exécuter : une erreur globale, ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
+| `2` | impossible de s'exécuter : une erreur globale (y compris un projet qui n'a pas pu être détecté en l'absence de fichier de configuration), ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
 
 La sortie `1` signifie "désynchronisé", pas un échec : l'exécution elle-même a réussi, le résultat n'est juste pas tout vert.
 

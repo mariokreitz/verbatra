@@ -5,6 +5,26 @@ description: Respuestas cortas a las preguntas que más surgen al ejecutar verba
 Respuestas rápidas, cada una fundada en cómo se comporta verbatra de verdad. Para ayuda a partir de
 síntomas con mensajes de error, consulta [Solución de problemas](/docs/troubleshooting).
 
+## ¿Necesito un archivo de configuración?
+
+<AvailableFrom version="0.10.0" />
+
+Para empezar, no. Sin configuración en ninguna parte, verbatra deduce una del proyecto, así que
+`check` y `diff` funcionan en un proyecto que nunca se ha configurado y `translate` solo necesita
+una clave de API de proveedor. La detección lee únicamente los directorios que los ecosistemas de
+i18n usan por convención (`locales`, `src/locales`, `public/locales`, `messages`, `i18n`,
+`src/assets/i18n` y algunos más), exige que un único patrón de ruta cubra todos los archivos con
+locale de exactamente uno de ellos, resuelve el formato por la extensión o por la biblioteca de
+i18n de `package.json`, y usa el inglés como locale de origen. Cada ejecución escribe antes lo que
+ha concluido.
+
+Una configuración escrita por ti sigue ganando siempre, y necesitas una para todo lo que la
+detección no sintetiza: un locale de origen que no sea el inglés, varios archivos de namespace por
+locale, un glosario, un tono, `prune`, `generatePlurals` o un presupuesto `maxTokens`. La detección
+declina en lugar de adivinar, así que un proyecto ambiguo o no reconocido es un error con remedio,
+no una respuesta equivocada. Mira
+[Ejecutar sin archivo de configuración](/docs/config-file#ejecutar-sin-archivo-de-configuración).
+
 ## ¿Cómo controlo el coste?
 
 Cuatro palancas, todas libres de llamadas al proveedor hasta que tú decidas lo contrario:
@@ -118,9 +138,8 @@ cargada dinámicamente por el comando `studio`.
 ## ¿Dónde viven las claves de API?
 
 Solo en variables de entorno: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` o
-`DEEPL_API_KEY`, más la variable que tú nombres para `openai-compatible`. `translate`, `watch`,
-`doctor` y `studio` cargan `.env` y `.env.local` desde el directorio de trabajo (las variables del
-entorno real ganan). El esquema de configuración rechaza las claves desconocidas precisamente para que un
+`DEEPL_API_KEY`, más la variable que tú nombres para `openai-compatible`. Todos los comandos excepto `init` cargan
+`.env` y `.env.local` desde el directorio de trabajo (las variables del entorno real ganan). El esquema de configuración rechaza las claves desconocidas precisamente para que un
 secreto no pueda acabar en un archivo confirmado, y los mensajes de error nombran la variable pero
 nunca un valor. Consulta [Proveedores](/docs/providers).
 

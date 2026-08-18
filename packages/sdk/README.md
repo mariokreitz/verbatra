@@ -49,6 +49,20 @@ console.log(
 );
 ```
 
+A config file is not a prerequisite. Swap `loadConfig` for `resolveProjectConfig` and a project with no config is detected from its locale files and the provider API keys in the environment instead of failing:
+
+```ts
+import { requireDetectedProvider, resolveProjectConfig, translate } from "@verbatra/sdk";
+
+const resolved = await resolveProjectConfig();
+
+// `detection` is defined only when nothing was found on disk.
+requireDetectedProvider(resolved); // throws PROVIDER_KEY_MISSING on a detected project with no key
+await translate({ config: resolved.config });
+```
+
+`check` and `diff` need no key at all, so skip the `requireDetectedProvider` call for those.
+
 ## Defining config
 
 `defineConfig` is an identity helper that gives you full type inference while authoring `verbatra.config.ts`:
@@ -199,6 +213,7 @@ Beyond the flows above, the SDK exports the building blocks Verbatra Studio and 
 - `editEntry` saves a manually edited translation for one key, and `retranslateEntry` re-runs the provider for one key; both run the candidate through the same integrity gate as a full run (a rejection names an `IntegrityGateReason` and writes nothing) and hold the same per-locale write lock.
 - `readLocaleFileSnapshot` and `diffLocaleSnapshots` snapshot one locale file as per-key content hashes and compare two snapshots, the primitives behind live-refresh watching.
 - `loadConfigWithMeta` is `loadConfig` plus config-source and glossary provenance.
+- `resolveProjectConfig` is `loadConfigWithMeta` with a fallback: when the search finds nothing it infers a config from the project's locale files and the provider API keys in the environment, returning `{ config, loaded, detection }` where a present `detection` means nothing was found on disk. `requireDetectedProvider` throws `PROVIDER_KEY_MISSING` for a detected project with no key, so call it before anything that spends. `detectProject` runs the detection on its own, and `formatFromDependencyNames` resolves the single format a project's dependency names imply (or `undefined` when none or more than one matches), which is how a `.json` layout is told apart from the other three JSON formats. `loadConfig` and `loadConfigWithMeta` are unchanged and still throw `CONFIG_NOT_FOUND`.
 - `readGlossaryFile` reads a file-backed glossary fresh from disk, under the same validation `loadConfig` applies, for a long-running tool that has to show the glossary as it is now rather than as it was when the config was loaded. `updateGlossaryTerm` adds, replaces, or removes exactly one term (`translation: null` removes it) and returns the glossary as it now stands, keeping the file's existing key order and indentation. Both take the `GlossaryProvenance` from `loadConfigWithMeta` rather than a path, so the file they touch is always the one the config names. A write runs under a project-wide glossary lock and replaces the file atomically. Only a file-backed glossary can be read or changed this way: a glossary written inline in the config module is refused with `GLOSSARY_NOT_FILE_BACKED` rather than rewritten, and a failed write is `GLOSSARY_UNWRITABLE`.
 
 The rest are the values a tool needs to agree with verbatra rather than restate it:

@@ -78,6 +78,10 @@ verbatra doctor
 
 Exit `1` heißt "es lief, und es wurden Probleme gefunden". Exit `2` ist dafür reserviert, dass `doctor` überhaupt nicht laufen kann. Deshalb ist eine per Suche nicht gefundene Konfigurationsdatei eine fehlgeschlagene Prüfung und Exit `1`, während ein `--config`-Pfad ins Leere Exit `2` ergibt.
 
+<AvailableFrom version="0.10.0" />
+
+`doctor` ist der eine Befehl, der nie [eine Konfiguration aus dem Projekt ableitet](/docs/config-file#ohne-konfigurationsdatei-arbeiten). Seine ganze Aufgabe ist es, die Konfiguration zu validieren, die du geschrieben hast; eine abgeleitete zu validieren würde dir über dein Setup nichts sagen. In einem Projekt ohne Konfigurationsdatei meldet er die Konfigurationsprüfung als fehlgeschlagen und überspringt die vier Prüfungen, die sie brauchen. Mit `verbatra check` oder `verbatra translate --dry-run` siehst du, was ein erkanntes Projekt tun würde.
+
 ## Siehe auch
 
 - [`verbatra init`](/docs/cli/init) erzeugt die Konfiguration und die `.env.example`, die `doctor` prüft.

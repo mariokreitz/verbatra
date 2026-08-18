@@ -69,8 +69,51 @@ damit sich kein Geheimnis in einer committeten Datei verstecken kann.
 
 **Lösung**: Korrigiere das Feld, das die Meldung nennt. Siehe
 [Konfigurationsdatei](/docs/config-file) für das vollständige Schema. Lautet die Meldung
-`No verbatra configuration found...` (`CONFIG_NOT_FOUND`), führe `verbatra init` aus oder übergib
-`--config <path>`.
+`No verbatra configuration found...` (`CONFIG_NOT_FOUND`), existiert der Pfad nicht, den du an
+`--config` übergeben hast; korrigiere ihn, oder lass das Flag weg und lass verbatra suchen oder
+erkennen.
+
+## Das Projekt konnte nicht erkannt werden (PROJECT_NOT_DETECTED, PROJECT_AMBIGUOUS, PROJECT_LAYOUT_UNSUPPORTED)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptom**: Ein Projekt ohne Konfigurationsdatei scheitert, bevor ein Locale gelesen wird, mit
+`No verbatra configuration was found and no locale files could be detected...`,
+`Several directories look like locale directories: ...` oder `The locale files in <dir> do not fit a
+single path pattern...`
+
+**Ursache**: Ohne Konfigurationsdatei [leitet verbatra eine aus dem Projekt ab](/docs/config-file#ohne-konfigurationsdatei-arbeiten),
+und die Erkennung lehnt ab, statt zu raten. `PROJECT_NOT_DETECTED` heißt, dass kein
+Kandidatenverzeichnis einen erkennbaren Satz Locale-Dateien enthielt, dass sich das Format nicht
+auflösen ließ (ein `.json`-Layout, dessen `package.json` keine oder zwei i18n-Bibliotheken nennt),
+oder dass keine erkannte Locale Englisch ist. `PROJECT_AMBIGUOUS` heißt, dass zwei
+Kandidatenverzeichnisse beide ein brauchbares Layout enthalten, etwa `locales/` und
+`public/locales/`. `PROJECT_LAYOUT_UNSUPPORTED` heißt, dass das Verzeichnis mehr als ein Pfadmuster
+braucht, so sieht es bei mehreren Namespace-Dateien pro Locale aus; die Meldung listet die
+konkurrierenden Muster.
+
+**Lösung**: Führe `verbatra init` aus und schreibe das Setup explizit auf, das ist der Ausweg, den
+jede dieser Meldungen nennt. Wähle das gewünschte Verzeichnis mit `--path` und setze `--source` für
+eine nicht-englische Quell-Locale. Zum Namespace-Fall siehe
+[Namespace-Layouts](/docs/formats#namespace-layouts).
+
+## Kein Provider-API-Schlüssel für ein erkanntes Projekt (PROVIDER_KEY_MISSING)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptom**: `verbatra translate` oder `verbatra watch` scheitert in einem Projekt ohne
+Konfigurationsdatei mit `No verbatra configuration was found and no provider API key is set, so
+there is nothing to translate with.`
+
+**Ursache**: Ein erkanntes Projekt nimmt seinen Provider aus den gesetzten API-Schlüsseln. Ist
+keiner von `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder `DEEPL_API_KEY` vorhanden,
+gibt es keinen Provider zum Aufrufen. `check`, `diff` und `translate --dry-run` sind davon nicht
+betroffen, weil keiner davon einen Provider aufruft.
+
+**Lösung**: Setze eine der vier Variablen (`translate` und `watch` laden zuerst `.env.local` und
+dann `.env` aus dem Arbeitsverzeichnis), oder führe `verbatra init` aus, um eine Konfiguration zu
+erzeugen, die den gewünschten Provider nennt. Eine selbst geschriebene Konfiguration löst das nie
+aus: Sie nennt ihren Provider bewusst.
 
 ## Kein Adapter für das Format (UNKNOWN_FORMAT)
 
@@ -123,8 +166,8 @@ einen Schlüsselwert, und Schlüssel werden nie aus der Konfiguration oder aus C
 gelesen.
 
 **Lösung**: Setze die Variable, die die Meldung nennt, und bestätige sie mit `verbatra doctor`,
-das die Variable nur dem Namen nach prüft, ohne ihren Wert zu lesen. `translate`, `watch`,
-`doctor` und `studio` laden
+das die Variable nur dem Namen nach prüft, ohne ihren Wert zu lesen. Jeder Befehl außer `init`
+lädt
 `.env` und `.env.local` aus dem Arbeitsverzeichnis; das SDK nicht, verwende in deinem eigenen
 Skript also `node --env-file=.env` oder exportiere die Variable. `openai-compatible` erzeugt diesen Fehler
 nur, wenn die Konfiguration ein `apiKeyEnvVar` nennt, das ungesetzt ist; ohne eines fällt es für

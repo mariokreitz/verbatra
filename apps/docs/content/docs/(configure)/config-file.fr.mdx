@@ -1,8 +1,8 @@
 ---
 title: Fichier de configuration
-description: Chaque clé de configuration avec son type, son défaut et ses contraintes, plus l'ordre de découverte et ce qui se passe quand la validation échoue.
+description: Chaque clé de configuration avec son type, son défaut et ses contraintes, l'ordre de découverte, comment un projet sans fichier de configuration est détecté, et ce qui se passe quand la validation échoue.
 ---
-verbatra lit un petit objet de configuration sans secret et le valide avant de faire le moindre travail. Cette page est la référence complète : chaque clé, où le fichier peut vivre, et comment une mauvaise configuration échoue.
+verbatra lit un petit objet de configuration sans secret et le valide avant de faire le moindre travail. Cette page est la référence complète : chaque clé, où le fichier peut vivre, et comment une mauvaise configuration échoue. Le fichier lui-même est optionnel : sans configuration nulle part, verbatra [en déduit une depuis le projet](#fonctionner-sans-fichier-de-configuration) plutôt que de refuser de tourner.
 
 <Callout title="Les clés viennent de l'environnement">
 Aucune clé d'API n'est jamais lue depuis ce fichier. Chaque fournisseur lit sa clé depuis une variable d'environnement, donc la configuration peut être commitée sans risque. Voir [Fournisseurs](/docs/providers).
@@ -144,6 +144,63 @@ verbatra cherche vers le haut depuis le répertoire de travail et utilise la pre
 
 Pour charger un fichier explicite au lieu de chercher, passe `--config <path>` ; un chemin relatif se résout contre le répertoire de travail. Dans le SDK, un `configOverride` en mémoire prime sur un `configPath` explicite, qui prime sur la recherche. Voir [API programmatique](/docs/programmatic-api).
 
+## Fonctionner sans fichier de configuration
+
+<AvailableFrom version="0.10.0" />
+
+Un fichier de configuration n'est plus un prérequis. Quand la recherche ci-dessus ne trouve rien, verbatra déduit une configuration du projet au lieu d'échouer, si bien que [`verbatra check`](/docs/cli/check) et [`verbatra diff`](/docs/cli/diff) tournent dans un projet jamais configuré, et que [`verbatra translate`](/docs/cli/translate) et [`verbatra watch`](/docs/cli/watch) n'ont besoin que d'une clé d'API de provider dans l'environnement. `export` et `import` sont détectés de la même façon.
+
+Une configuration que tu as écrite l'emporte toujours. La détection ne tourne que lorsque la recherche revient vide, et un `--config <path>` explicite qui n'existe pas reste une erreur `CONFIG_NOT_FOUND` plutôt qu'un glissement vers une supposition sur un autre projet.
+
+La détection n'est jamais silencieuse. Avant l'exécution de la commande, elle écrit sa conclusion sur stderr :
+
+```
+verbatra: no config file found, so the project was detected automatically.
+  files:   src/assets/i18n/{locale}.json (ngx-translate-json)
+  locales: en -> de
+  no provider API key found
+  Run "verbatra init" to write this down as a config you control.
+```
+
+Avec `--json`, la même information tient dans une seule ligne `{"event":"detection", ...}` sur stderr, ce qui garde stdout comme une [enveloppe de résultat](/docs/ci-and-exit-codes#sortie-json) propre.
+
+### Ce que la détection regarde
+
+**Répertoires.** Seuls ceux-ci sont lus, dans cet ordre :
+
+```
+locales, src/locales, public/locales, messages, src/messages, i18n, src/i18n,
+src/assets/i18n, assets/i18n, public/assets/i18n, app/locales, lang, translations,
+config/locales, lib/l10n
+```
+
+Rien en dehors de cette liste n'est jamais ouvert, et c'est pourquoi `node_modules` et la sortie de build ne sont jamais parcourus. Deux d'entre eux portant une disposition utilisable est un échec, pas une supposition.
+
+**Disposition.** Un répertoire n'est accepté que lorsqu'un seul motif de chemin couvre chaque fichier porteur de locale qu'il contient et que ce motif couvre au moins deux locales. Les deux formes que les vrais projets utilisent fonctionnent : des fichiers nommés d'après la locale (`locales/en.json`, `messages/en.json`, `lib/l10n/app_en.arb`) et un fichier d'espace de noms par répertoire de locale (`public/locales/en/common.json`). Un fichier sans code de locale, un `README.md` par exemple, est ignoré plutôt que compté contre le répertoire.
+
+**Codes de locale.** Un sous-tag de langue à deux lettres, éventuellement avec une écriture, une région, ou les deux : `en`, `de`, `pt-BR`, `zh-Hans`. Les codes de langue à trois lettres et les graphies POSIX avec tiret bas (`pt_BR`) ne sont pas reconnus, ces projets ont donc besoin d'une configuration.
+
+**Format.** `.xlf`, `.xliff`, `.yml`, `.yaml`, `.arb` et `.properties` se résolvent par l'extension du fichier. `.json` non, parce que quatre formats la partagent : il se résout par la bibliothèque i18n déclarée dans `package.json`, à savoir `i18next`, `vue-i18n`, `next-intl` ou `@ngx-translate/core`. Une disposition `.json` qui n'en nomme aucune, ou qui en nomme deux, n'est pas détectée.
+
+**Locale source.** D'abord `en` exact, puis n'importe quel `en-*`. Toute autre locale détectée devient une cible. Ce biais vers l'anglais est un choix de conception délibéré, pas un défaut neutre : les alternatives (la première par ordre alphabétique, ou la locale ayant le plus de clés) peuvent se tromper en silence, et une mauvaise locale source traduit dans le mauvais sens. Un projet dont la locale source n'est pas l'anglais n'est pas cassé, il lui faut simplement une configuration, et l'erreur le dit.
+
+**Provider.** Choisi parmi les clés d'API réellement définies, dans l'ordre fixe `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`. L'ordre est fixe et ne dépend pas de l'environnement, pour que le même projet se résolve au même provider sur chaque machine et en CI ; si plusieurs clés sont définies, la première de cet ordre l'emporte et la ligne de transparence nomme les autres. `openai-compatible` n'est jamais détecté, parce que toi seul peux fournir sa `baseUrl`. Sans aucune clé, `check` et `diff` tournent quand même et `translate --dry-run` prévisualise toujours ; `translate` et `watch` échouent avec `PROVIDER_KEY_MISSING`.
+
+### Ce que la détection ne fait pas
+
+Elle ne synthétise que les clés obligatoires : `sourceLocale`, `targetLocales`, `format`, `files.pattern` et `provider` (le modèle de scaffold par défaut du provider, avec une limite de tokens de sortie de `4096` ; DeepL ne prend ni l'un ni l'autre). Tout le reste garde son défaut : une exécution détectée n'a donc ni `glossary`, ni `tone`, ni `prune`, ni `generatePlurals`, ni budget `maxTokens`, et `files.localeStyle` vaut `"literal"`. Chacun de ces réglages suppose d'écrire une configuration : lance `verbatra init` pour poser sur disque le setup détecté et pars de là.
+
+Elle décline aussi plutôt que de deviner. Chaque refus nomme un remède, et la CLI sort avec `2` :
+
+| Code | Quand |
+| --- | --- |
+| `PROJECT_NOT_DETECTED` | aucun répertoire candidat ne contenait un ensemble reconnaissable de fichiers de locale, le format n'a pas pu être résolu, ou aucune locale détectée n'est l'anglais |
+| `PROJECT_AMBIGUOUS` | deux répertoires candidats portent tous deux une disposition utilisable, par exemple `locales/` et `public/locales/` |
+| `PROJECT_LAYOUT_UNSUPPORTED` | le répertoire a besoin de plus d'un motif de chemin, ce à quoi ressemblent plusieurs espaces de noms par locale ; verbatra fait correspondre un fichier par locale (voir [Dispositions avec espaces de noms](/docs/formats#dispositions-avec-espaces-de-noms)) |
+| `PROVIDER_KEY_MISSING` | le projet a été détecté et aucune clé d'API de provider supportée n'est définie, sur une commande qui appellerait un provider |
+
+[`verbatra doctor`](/docs/cli/doctor) reste délibérément en dehors de tout cela : il valide une configuration que tu as écrite, donc dans un projet qui n'en a pas, il rapporte sa vérification de configuration comme échouée au lieu d'en détecter une. [`verbatra studio`](/docs/cli/studio) a lui aussi besoin d'un fichier de configuration.
+
 ## Validation dans l'éditeur
 
 <AvailableFrom version="0.9.0" />
@@ -208,7 +265,7 @@ C'est la liste complète. Une configuration que l'éditeur affiche comme propre 
 
 ## Le répertoire de travail et .env
 
-Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour `translate`, `watch`, `doctor` et `studio`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
+Lance verbatra depuis la racine de ton projet, ou passe `--cwd` pointant dessus. Le répertoire de travail est l'ancre unique de tout ce que verbatra résout : la recherche de configuration y démarre et remonte, `.env.local` et `.env` y sont chargés pour toutes les commandes sauf `init`, et chaque chemin de fichier de locale se résout contre lui. Garder les trois au même endroit est ce qui fait qu'un simple `verbatra translate` fonctionne.
 
 La précédence d'environnement est, du plus fort au plus faible : une variable déjà définie dans ton environnement réel, puis `.env.local`, puis `.env`. Une variable déjà présente n'est jamais écrasée.
 
@@ -216,7 +273,7 @@ La précédence d'environnement est, du plus fort au plus faible : une variable 
 
 Le chargement de la configuration échoue avec l'un de deux codes d'erreur structurés :
 
-- **`CONFIG_NOT_FOUND`** : la recherche n'a trouvé aucune configuration à aucun des endroits ci-dessus, ou le chemin explicite `--config` n'existe pas.
+- **`CONFIG_NOT_FOUND`** : la recherche n'a trouvé aucune configuration à aucun des endroits ci-dessus, ou le chemin explicite `--config` n'existe pas. Sur les commandes qui détectent, une recherche infructueuse n'échoue pas ici : elle bascule vers la [détection](#fonctionner-sans-fichier-de-configuration), qui rapporte ses propres codes. Un chemin `--config` explicite qui n'existe pas échoue toujours, et `doctor` et `studio` ne détectent jamais.
 - **`CONFIG_INVALID`** : une configuration a été trouvée mais n'a pas pu être utilisée. Cela couvre un fichier qui ne s'analyse pas, une configuration qui échoue à la validation de schéma, et un chemin de fichier de glossaire qui n'a pas pu être résolu. Le message liste chaque problème de validation avec son chemin de clé, et une clé de premier niveau non reconnue reçoit en plus l'indice que les clés d'API sont lues depuis l'environnement, pas depuis la configuration. Une erreur brute d'analyseur ou de système de fichiers ne s'échappe jamais.
 
 La CLI rapporte l'un ou l'autre échec et sort avec le code `2`, le code de sortie des erreurs de frontière. Voir [CI et codes de sortie](/docs/ci-and-exit-codes).

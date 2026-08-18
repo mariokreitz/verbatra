@@ -34,13 +34,15 @@ Trying a command before installing? `npx @verbatra/cli <command>` (npm) or `pnpm
 ## Shared conventions
 
 - `--cwd <path>` resolves the config and locale files from that directory instead of the current one. Every command takes it.
-- `--config <path>` loads that config file instead of searching for one. Every command except `init` takes it; the search order is described in [The config file](/docs/config-file).
+- `--config <path>` loads that config file instead of searching for one. Every command except `init` takes it; the search order is described in [The config file](/docs/config-file). When the search finds nothing, `translate`, `watch`, `check`, `diff`, `export`, and `import` [detect a config from the project](/docs/config-file#running-without-a-config-file) rather than failing, and print what they detected to stderr; `doctor` and `studio` do not detect.
 - `--json` prints a machine-readable [envelope](/docs/ci-and-exit-codes#json-output) on stdout, one line per record, keeping stdout clean for piping. Branch on its `ok` field: a success carries the command's payload under `result`, and a failed run carries the same stable error code the stderr line names. The human-readable error line goes to stderr either way. `translate`, `watch`, `check`, `diff`, `doctor`, `export`, and `import` support it; `init` and `studio` do not.
 - `--help` and `--version` print and exit `0`. An unknown command or flag exits `2`.
 
 ## Environment files
 
-`translate`, `watch`, `doctor`, and `studio` load `.env.local` and then `.env` from the working directory before they run. A variable already set in your real environment always wins. API keys are read only from the environment, never from the config file or a flag: see [Providers](/docs/providers). The read-only commands (`check`, `diff`) and the handoff commands (`export`, `import`) never call a provider and load no `.env` files.
+<AvailableFrom version="0.10.0" />
+
+Every command except `init` loads `.env.local` and then `.env` from the working directory before it runs. A variable already set in your real environment always wins. API keys are read only from the environment, never from the config file or a flag: see [Providers](/docs/providers). The read-only commands (`check`, `diff`) and the handoff commands (`export`, `import`) load them too, even though they never call a provider, so the provider a detected project resolves to is the same one `translate` would use.
 
 ## Exit codes
 

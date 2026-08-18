@@ -78,6 +78,10 @@ verbatra doctor
 
 La sortie `1` signifie "il s'est exécuté et a trouvé des problèmes". La sortie `2` est réservée au cas où `doctor` ne peut pas s'exécuter du tout : c'est pourquoi un fichier de config introuvable par la recherche est une vérification en échec et la sortie `1`, alors qu'un chemin `--config` qui pointe dans le vide donne la sortie `2`.
 
+<AvailableFrom version="0.10.0" />
+
+`doctor` est la seule commande qui ne [déduit jamais une configuration depuis le projet](/docs/config-file#fonctionner-sans-fichier-de-configuration). Tout son travail consiste à valider la configuration que tu as écrite : en valider une déduite ne t'apprendrait rien sur ton setup. Dans un projet sans fichier de configuration, il rapporte sa vérification de configuration comme échouée et saute les quatre vérifications qui en dépendent. Utilise `verbatra check` ou `verbatra translate --dry-run` pour voir ce que ferait un projet détecté.
+
 ## Voir aussi
 
 - [`verbatra init`](/docs/cli/init) génère la config et le `.env.example` que `doctor` valide.

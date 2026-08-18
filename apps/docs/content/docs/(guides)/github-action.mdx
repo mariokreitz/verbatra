@@ -58,7 +58,7 @@ The action runs the CLI, and the CLI reads the provider's API key only from the 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
 | `version` | yes | - | the `@verbatra/cli` version to run, for example `0.9.3`. Must be an exact semver version; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix. Under `v2`, must also be `0.9.3` or newer; an older pin fails the step |
-| `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
+| `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search, which falls back to [project detection](/docs/config-file#running-without-a-config-file) when no config file exists |
 | `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
 | `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |
 | `node-version` | no | `"24"` | Node.js version to set up for running the CLI |

@@ -286,7 +286,9 @@ covers `verbatra.config.ts` (also `.js`/`.cjs`), the `.verbatrarc` family (`.jso
 a file path is read and validated here, so downstream code always sees a plain record.
 
 Throws `CONFIG_NOT_FOUND` when nothing is found, `CONFIG_INVALID` when a config is found but
-invalid. See [The config file](/docs/config-file) for the schema.
+invalid. See [The config file](/docs/config-file) for the schema. Its contract is unchanged by
+project detection: a function named "load config" never returns a config nobody wrote. Use
+`resolveProjectConfig` when you want the fallback.
 
 ### loadConfigWithMeta
 
@@ -294,6 +296,61 @@ The same load, plus provenance: returns `{ config, source, glossary }`, where `s
 the config came from a search hit, an explicit path, or an in-memory override (with the absolute
 `filepath` when there is one), and `glossary` records whether the glossary was absent, inline, or
 resolved from a file. Use it when you need to display where the config came from.
+
+### resolveProjectConfig
+
+<AvailableFrom version="0.10.0" />
+
+The entry point a command-line tool or CI job should call instead of `loadConfig`. It behaves
+exactly like `loadConfigWithMeta` whenever a config is present, and only when the search finds
+nothing does it infer one from the project's locale files and the provider API keys in the
+environment. Options are everything `loadConfig` takes, plus `env` (the environment to read keys
+from, default `process.env`) and `detect: false` to keep the plain `CONFIG_NOT_FOUND` failure.
+
+Returns `{ config, loaded, detection }`. `loaded` is the `LoadedConfig` provenance for a real
+config and `undefined` for a detected one; `detection` is the other way round, so a present
+`detection` is exactly the signal that nothing was found on disk. It carries `directory`,
+`pattern`, `format`, `sourceLocale`, `targetLocales`, `provider`, `providerResolved`, and
+`alsoAvailable`, which is what the CLI prints before a detected run.
+
+An explicit `configPath` is never detected around: a path that does not exist stays
+`CONFIG_NOT_FOUND`, so a typo cannot fall through to a guess at a different project. Detection
+itself throws `PROJECT_NOT_DETECTED`, `PROJECT_AMBIGUOUS`, or `PROJECT_LAYOUT_UNSUPPORTED`. See
+[Running without a config file](/docs/config-file#running-without-a-config-file) for the rules it
+applies.
+
+### requireDetectedProvider
+
+<AvailableFrom version="0.10.0" />
+
+Asserts that a `resolveProjectConfig` result can actually reach a provider, and throws
+`PROVIDER_KEY_MISSING` naming all four environment variables when it cannot. A no-op for an
+authored config, which always names a provider deliberately, and for a detected config backed by a
+key. Call it before anything that spends: `check` and `diff` need no key, `translate` and `watch`
+do.
+
+### detectProject
+
+<AvailableFrom version="0.10.0" />
+
+Detection on its own, without the config-file attempt in front of it: takes
+`{ cwd?, fs?, env?, adapterRegistry? }` and returns `{ config, detection }`. Reach for it to
+report on a project without running anything, for instance to show a user what verbatra would infer
+before they commit to it. It never calls a provider and never writes.
+
+The supplied `fs` must implement the optional `readDirectory` member of `SdkFs`, which is the one
+capability detection needs beyond a normal run; an implementation without it is refused with
+`PROJECT_NOT_DETECTED` rather than failing later.
+
+### formatFromDependencyNames
+
+<AvailableFrom version="0.10.0" />
+
+Takes an iterable of dependency names and returns the single `SupportedFormat` they imply, or
+`undefined` when none or more than one matches. Four of the eight formats share the `.json`
+extension, so the i18n package a project depends on is the only reliable signal, and both
+`verbatra init` and detection resolve a JSON format through this one function. Pass the keys of
+`dependencies` and `devDependencies` together.
 
 ### readGlossaryFile
 
@@ -370,7 +427,9 @@ and `readBytesBounded` take a byte limit and report `missing` or `too-large` as 
 throwing, which is what keeps a hostile or accidentally huge file from exhausting memory. Writes are
 expected to be atomic, so a crash mid-write never leaves a half-written file behind, and
 `createExclusive` must be atomic against other processes because it is the primitive behind the
-per-locale write lock. Directory creation is the caller's job.
+per-locale write lock. Directory creation is the caller's job. `readDirectory` is optional, like
+`mkdir`, so an existing implementation keeps compiling; only `detectProject` and
+`resolveProjectConfig` need it.
 
 The one thing `deps.fs` cannot reach is a caller-supplied `deps.adapterRegistry`. Those adapters
 were constructed by the caller, so their file access is whatever the caller wired into them.
@@ -451,7 +510,11 @@ are surfaced as data on the `RunSummary`, never thrown.
 
 | Code | When |
 | --- | --- |
-| `CONFIG_NOT_FOUND` | no config was found by search, or an explicit `configPath` does not exist (thrown by `loadConfig`) |
+| `CONFIG_NOT_FOUND` | no config was found by search, or an explicit `configPath` does not exist (thrown by `loadConfig`; `resolveProjectConfig` throws it only for the explicit path, or with `detect: false`) |
+| `PROJECT_NOT_DETECTED` | no config exists and no locale layout could be inferred: nothing recognizable, an unresolvable format, no English locale, or an `SdkFs` without `readDirectory` |
+| `PROJECT_AMBIGUOUS` | no config exists and several candidate directories hold a usable locale layout |
+| `PROJECT_LAYOUT_UNSUPPORTED` | no config exists and the detected layout needs more than one path pattern, which verbatra cannot express |
+| `PROVIDER_KEY_MISSING` | the config was detected rather than authored and no supported provider API key is set (`requireDetectedProvider`) |
 | `CONFIG_INVALID` | a config was found but is unparseable or fails validation, or its glossary file could not be resolved |
 | `UNKNOWN_FORMAT` | no adapter is registered for the configured format; thrown before any file is read |
 | `UNKNOWN_LOCALE` | a requested locale is not among the configured target locales |

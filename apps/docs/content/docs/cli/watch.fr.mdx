@@ -29,6 +29,10 @@ Avec `--json`, chaque exécution émet un enregistrement [enveloppe](/docs/ci-an
 
 `--lock-timeout` s'applique à chaque cycle : il règle combien de temps une locale attend un [verrou d'écriture](/docs/the-lock-file) disputé avant que cette exécution n'échoue avec `LOCK_CONTENDED`. Une exécution échouée n'est qu'un enregistrement sur le flux, donc la surveillance continue dans tous les cas.
 
+<AvailableFrom version="0.10.0" />
+
+Un fichier de configuration est optionnel. Quand la recherche n'en trouve aucun, verbatra [en déduit un depuis le projet](/docs/config-file#fonctionner-sans-fichier-de-configuration) et écrit sa conclusion sur stderr au démarrage, si bien que `watch` n'a besoin que d'une clé d'API de provider dans l'environnement. Sans aucune clé, une session détectée échoue avec `PROVIDER_KEY_MISSING` et sort avec le code `2` avant l'exécution initiale.
+
 `--concurrency` s'applique à l'exécution de chaque cycle. Comme le budget de tokens de chaque exécution est neuf, un `--concurrency` supérieur à `1` ne peut pas être respecté quand la config fixe un budget `maxTokens` : `watch` refuse cette combinaison au démarrage et sort avec le code `2` avant l'exécution initiale, au lieu de démarrer une session qui échoue à chaque cycle. `--no-cache` contourne le [cache de mémoire de traduction](/docs/the-cache) à chaque cycle.
 
 ## Arrêt

@@ -301,6 +301,8 @@ ruta de archivo se lee y valida aquí, así que el código posterior siempre ve 
 
 Lanza `CONFIG_NOT_FOUND` cuando no se encuentra nada, `CONFIG_INVALID` cuando se encuentra una
 configuración pero es inválida. Consulta [Archivo de configuración](/docs/config-file) para el esquema.
+La detección de proyecto no cambia su contrato: una función llamada "load config" nunca devuelve
+una configuración que nadie escribió. Usa `resolveProjectConfig` cuando quieras el respaldo.
 
 ### loadConfigWithMeta
 
@@ -308,6 +310,62 @@ La misma carga, más la procedencia: devuelve `{ config, source, glossary }`, do
 configuración vino de un acierto de búsqueda, de una ruta explícita o de una anulación en memoria (con
 el `filepath` absoluto cuando lo hay), y `glossary` registra si el glosario estaba ausente, en línea o
 resuelto desde un archivo. Úsalo cuando necesites mostrar de dónde salió la configuración.
+
+### resolveProjectConfig
+
+<AvailableFrom version="0.10.0" />
+
+El punto de entrada que una herramienta de línea de comandos o un job de CI debería llamar en lugar
+de `loadConfig`. Se comporta exactamente como `loadConfigWithMeta` siempre que haya una
+configuración presente, y solo cuando la búsqueda no encuentra nada deduce una de los archivos de
+locale del proyecto y de las claves de API de proveedor del entorno. Las opciones son todo lo que
+acepta `loadConfig`, más `env` (el entorno del que leer las claves, por defecto `process.env`) y
+`detect: false` para conservar el fallo `CONFIG_NOT_FOUND` de siempre.
+
+Devuelve `{ config, loaded, detection }`. `loaded` es la procedencia `LoadedConfig` de una
+configuración real y `undefined` para una detectada; `detection` es al revés, así que un `detection`
+presente es exactamente la señal de que no se encontró nada en disco. Lleva `directory`, `pattern`,
+`format`, `sourceLocale`, `targetLocales`, `provider`, `providerResolved` y `alsoAvailable`, que es
+lo que la CLI imprime antes de una ejecución detectada.
+
+Nunca se detecta rodeando un `configPath` explícito: una ruta que no existe sigue siendo
+`CONFIG_NOT_FOUND`, así que una errata no puede colarse hacia una suposición sobre otro proyecto. La
+detección en sí lanza `PROJECT_NOT_DETECTED`, `PROJECT_AMBIGUOUS` o `PROJECT_LAYOUT_UNSUPPORTED`.
+Mira [Ejecutar sin archivo de configuración](/docs/config-file#ejecutar-sin-archivo-de-configuración)
+para las reglas que aplica.
+
+### requireDetectedProvider
+
+<AvailableFrom version="0.10.0" />
+
+Comprueba que un resultado de `resolveProjectConfig` puede realmente alcanzar un proveedor, y lanza
+`PROVIDER_KEY_MISSING` nombrando las cuatro variables de entorno cuando no puede. Es una no-op para
+una configuración escrita a mano, que siempre nombra un proveedor deliberadamente, y para una
+configuración detectada respaldada por una clave. Llámalo antes de cualquier cosa que gaste: `check`
+y `diff` no necesitan clave, `translate` y `watch` sí.
+
+### detectProject
+
+<AvailableFrom version="0.10.0" />
+
+La detección por sí sola, sin el intento previo de cargar un archivo de configuración: recibe
+`{ cwd?, fs?, env?, adapterRegistry? }` y devuelve `{ config, detection }`. Úsalo para informar
+sobre un proyecto sin ejecutar nada, por ejemplo para enseñarle a alguien qué deduciría verbatra
+antes de que se comprometa. Nunca llama a un proveedor y nunca escribe.
+
+El `fs` suministrado debe implementar el miembro opcional `readDirectory` de `SdkFs`, la única
+capacidad que la detección necesita más allá de una ejecución normal; una implementación sin él se
+rechaza con `PROJECT_NOT_DETECTED` en lugar de fallar más tarde.
+
+### formatFromDependencyNames
+
+<AvailableFrom version="0.10.0" />
+
+Recibe un iterable de nombres de dependencias y devuelve el único `SupportedFormat` que implican, o
+`undefined` cuando no coincide ninguno o coincide más de uno. Cuatro de los ocho formatos comparten
+la extensión `.json`, así que el paquete de i18n del que depende un proyecto es la única señal
+fiable, y tanto `verbatra init` como la detección resuelven un formato JSON a través de esta única
+función. Pasa juntas las claves de `dependencies` y `devDependencies`.
 
 ### readGlossaryFile
 
@@ -391,7 +449,9 @@ Una implementación debe honrar dos puntos del contrato. Las lecturas están aco
 accidentalmente enorme agote la memoria. Las escrituras deben ser atómicas, de modo que una caída a
 mitad de escritura nunca deje un archivo a medio escribir, y `createExclusive` debe ser atómica
 frente a otros procesos porque es la primitiva detrás del bloqueo de escritura por locale. Crear
-directorios es tarea de quien llama.
+directorios es tarea de quien llama. `readDirectory` es opcional, como `mkdir`, así que una
+implementación existente sigue compilando; solo `detectProject` y `resolveProjectConfig` lo
+necesitan.
 
 Lo único que `deps.fs` no alcanza es un `deps.adapterRegistry` suministrado por quien llama. Esos
 adaptadores los construyó quien llama, así que su acceso a archivos es el que quien llama haya
@@ -472,7 +532,11 @@ proveedor y los hallazgos de integridad se comunican como datos en el `RunSummar
 
 | Código | Cuándo |
 | --- | --- |
-| `CONFIG_NOT_FOUND` | la búsqueda no encontró ninguna configuración, o un `configPath` explícito no existe (lanzado por `loadConfig`) |
+| `CONFIG_NOT_FOUND` | la búsqueda no encontró ninguna configuración, o un `configPath` explícito no existe (lanzado por `loadConfig`; `resolveProjectConfig` solo lo lanza para la ruta explícita, o con `detect: false`) |
+| `PROJECT_NOT_DETECTED` | no hay configuración y no se pudo deducir ningún diseño de locales: nada reconocible, un formato irresoluble, ningún locale en inglés, o un `SdkFs` sin `readDirectory` |
+| `PROJECT_AMBIGUOUS` | no hay configuración y varios directorios candidatos contienen un diseño de locales usable |
+| `PROJECT_LAYOUT_UNSUPPORTED` | no hay configuración y el diseño detectado necesita más de un patrón de ruta, algo que verbatra no puede expresar |
+| `PROVIDER_KEY_MISSING` | la configuración se detectó en lugar de escribirse y no hay ninguna clave de API de proveedor soportada puesta (`requireDetectedProvider`) |
 | `CONFIG_INVALID` | se encontró una configuración pero no se puede parsear o falla la validación, o su archivo de glosario no se pudo resolver |
 | `UNKNOWN_FORMAT` | no hay adaptador registrado para el formato configurado; se lanza antes de leer ningún archivo |
 | `UNKNOWN_LOCALE` | un locale solicitado no está entre los locales de destino configurados |

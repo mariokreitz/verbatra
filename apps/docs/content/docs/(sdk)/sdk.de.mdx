@@ -310,7 +310,10 @@ Suche beginnt bei `cwd` und deckt `verbatra.config.ts` (auch `.js`/`.cjs`), die
 gelesen und validiert, sodass nachgelagerter Code immer einen einfachen Record sieht.
 
 Wirft `CONFIG_NOT_FOUND`, wenn nichts gefunden wird, `CONFIG_INVALID`, wenn eine Konfiguration
-gefunden, aber ungültig ist. Das Schema steht in [Konfigurationsdatei](/docs/config-file).
+gefunden, aber ungültig ist. Das Schema steht in [Konfigurationsdatei](/docs/config-file). Die
+Projekterkennung ändert diesen Vertrag nicht: Eine Funktion namens "load config" gibt nie eine
+Konfiguration zurück, die niemand geschrieben hat. Willst du den Fallback, nimm
+`resolveProjectConfig`.
 
 ### loadConfigWithMeta
 
@@ -319,6 +322,62 @@ die Konfiguration aus einem Suchtreffer, einem expliziten Pfad oder einer Übers
 Speicher kam (mit dem absoluten `filepath`, wenn es einen gibt), und `glossary` festhält, ob das
 Glossar fehlte, inline war oder aus einer Datei aufgelöst wurde. Nutze es, wenn du anzeigen musst,
 woher die Konfiguration kam.
+
+### resolveProjectConfig
+
+<AvailableFrom version="0.10.0" />
+
+Der Einstiegspunkt, den ein Kommandozeilenwerkzeug oder ein CI-Job statt `loadConfig` aufrufen
+sollte. Er verhält sich exakt wie `loadConfigWithMeta`, solange eine Konfiguration vorhanden ist,
+und leitet nur dann eine aus den Locale-Dateien des Projekts und den Provider-API-Schlüsseln in der
+Umgebung ab, wenn die Suche nichts findet. Die Optionen sind alles, was `loadConfig` nimmt, plus
+`env` (die Umgebung, aus der Schlüssel gelesen werden, Default `process.env`) und `detect: false`,
+um den einfachen `CONFIG_NOT_FOUND`-Fehlschlag beizubehalten.
+
+Liefert `{ config, loaded, detection }`. `loaded` ist die `LoadedConfig`-Provenienz für eine echte
+Konfiguration und `undefined` für eine abgeleitete; `detection` ist es umgekehrt, ein vorhandenes
+`detection` ist also genau das Signal, dass auf der Platte nichts gefunden wurde. Es trägt
+`directory`, `pattern`, `format`, `sourceLocale`, `targetLocales`, `provider`, `providerResolved`
+und `alsoAvailable`, also genau das, was die CLI vor einem erkannten Lauf ausgibt.
+
+Um einen expliziten `configPath` wird nie herum erkannt: Ein Pfad, der nicht existiert, bleibt
+`CONFIG_NOT_FOUND`, ein Tippfehler kann also nicht zu einer Vermutung über ein anderes Projekt
+durchrutschen. Die Erkennung selbst wirft `PROJECT_NOT_DETECTED`, `PROJECT_AMBIGUOUS` oder
+`PROJECT_LAYOUT_UNSUPPORTED`. Die Regeln stehen in
+[Ohne Konfigurationsdatei arbeiten](/docs/config-file#ohne-konfigurationsdatei-arbeiten).
+
+### requireDetectedProvider
+
+<AvailableFrom version="0.10.0" />
+
+Stellt sicher, dass ein `resolveProjectConfig`-Ergebnis wirklich einen Provider erreichen kann, und
+wirft sonst `PROVIDER_KEY_MISSING` unter Nennung aller vier Umgebungsvariablen. Für eine selbst
+geschriebene Konfiguration ist das eine No-op, denn sie nennt ihren Provider immer bewusst, ebenso
+für eine erkannte Konfiguration, hinter der ein Schlüssel steht. Rufe es vor allem auf, was Geld
+kostet: `check` und `diff` brauchen keinen Schlüssel, `translate` und `watch` schon.
+
+### detectProject
+
+<AvailableFrom version="0.10.0" />
+
+Die Erkennung für sich allein, ohne den vorgelagerten Versuch, eine Konfigurationsdatei zu laden:
+nimmt `{ cwd?, fs?, env?, adapterRegistry? }` und liefert `{ config, detection }`. Greif dazu, um
+über ein Projekt zu berichten, ohne etwas auszuführen, etwa um jemandem zu zeigen, was verbatra
+ableiten würde, bevor er sich darauf einlässt. Es ruft nie einen Provider auf und schreibt nie.
+
+Das übergebene `fs` muss das optionale `readDirectory` von `SdkFs` implementieren, die eine
+Fähigkeit, die die Erkennung über einen normalen Lauf hinaus braucht; eine Implementierung ohne sie
+wird mit `PROJECT_NOT_DETECTED` abgelehnt, statt später zu scheitern.
+
+### formatFromDependencyNames
+
+<AvailableFrom version="0.10.0" />
+
+Nimmt ein Iterable von Dependency-Namen und liefert das eine `SupportedFormat`, das sie implizieren,
+oder `undefined`, wenn keines oder mehr als eines passt. Vier der acht Formate teilen sich die
+Endung `.json`, deshalb ist das i18n-Paket, von dem ein Projekt abhängt, das einzige verlässliche
+Signal, und sowohl `verbatra init` als auch die Erkennung lösen ein JSON-Format über diese eine
+Funktion auf. Übergib die Keys von `dependencies` und `devDependencies` zusammen.
 
 ### readGlossaryFile
 
@@ -404,7 +463,9 @@ Zwei Vertragspunkte muss eine Implementierung einhalten. Lesevorgänge sind grö
 davon ab, den Speicher zu erschöpfen. Schreibvorgänge müssen atomar sein, damit ein Absturz
 mitten im Schreiben nie eine halb geschriebene Datei hinterlässt, und `createExclusive` muss atomar
 gegenüber anderen Prozessen sein, weil es das Primitiv hinter der Schreibsperre pro Locale ist. Das
-Anlegen von Verzeichnissen ist Sache des Aufrufers.
+Anlegen von Verzeichnissen ist Sache des Aufrufers. `readDirectory` ist wie `mkdir` optional, eine
+bestehende Implementierung kompiliert also weiter; nur `detectProject` und `resolveProjectConfig`
+brauchen es.
 
 Das Einzige, was `deps.fs` nicht erreicht, ist eine vom Aufrufer übergebene `deps.adapterRegistry`.
 Diese Adapter hat der Aufrufer konstruiert, ihr Dateizugriff ist also genau das, was der Aufrufer
@@ -490,7 +551,11 @@ geworfen.
 
 | Code | Wann |
 | --- | --- |
-| `CONFIG_NOT_FOUND` | die Suche fand keine Konfiguration, oder ein explizites `configPath` existiert nicht (geworfen von `loadConfig`) |
+| `CONFIG_NOT_FOUND` | die Suche fand keine Konfiguration, oder ein explizites `configPath` existiert nicht (geworfen von `loadConfig`; `resolveProjectConfig` wirft es nur für den expliziten Pfad oder mit `detect: false`) |
+| `PROJECT_NOT_DETECTED` | es gibt keine Konfiguration und kein Locale-Layout ließ sich ableiten: nichts Erkennbares, ein nicht auflösbares Format, keine englische Locale oder ein `SdkFs` ohne `readDirectory` |
+| `PROJECT_AMBIGUOUS` | es gibt keine Konfiguration und mehrere Kandidatenverzeichnisse enthalten ein brauchbares Locale-Layout |
+| `PROJECT_LAYOUT_UNSUPPORTED` | es gibt keine Konfiguration und das erkannte Layout braucht mehr als ein Pfadmuster, was verbatra nicht ausdrücken kann |
+| `PROVIDER_KEY_MISSING` | die Konfiguration wurde abgeleitet statt geschrieben und es ist kein unterstützter Provider-API-Schlüssel gesetzt (`requireDetectedProvider`) |
 | `CONFIG_INVALID` | eine Konfiguration wurde gefunden, ist aber nicht parsebar oder fällt durch die Validierung, oder ihre Glossardatei konnte nicht aufgelöst werden |
 | `UNKNOWN_FORMAT` | für das konfigurierte Format ist kein Adapter registriert; geworfen, bevor irgendeine Datei gelesen wird |
 | `UNKNOWN_LOCALE` | ein angefragtes Locale gehört nicht zu den konfigurierten Ziel-Locales |

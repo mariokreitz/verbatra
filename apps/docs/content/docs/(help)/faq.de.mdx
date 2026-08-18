@@ -5,6 +5,26 @@ description: Kurze Antworten auf die Fragen, die beim Einsatz von verbatra am h�
 Schnelle Antworten, jede darin verankert, wie verbatra sich tatsächlich verhält. Für
 symptomorientierte Hilfe bei Fehlermeldungen siehe [Fehlerbehebung](/docs/troubleshooting).
 
+## Brauche ich eine Konfigurationsdatei?
+
+<AvailableFrom version="0.10.0" />
+
+Für den Anfang nicht. Gibt es nirgends eine Konfiguration, leitet verbatra eine aus dem Projekt ab,
+`check` und `diff` laufen also in einem Projekt, das nie konfiguriert wurde, und `translate` braucht
+nur einen Provider-API-Schlüssel. Die Erkennung liest nur die Verzeichnisse, die die
+i18n-Ökosysteme üblicherweise verwenden (`locales`, `src/locales`, `public/locales`, `messages`,
+`i18n`, `src/assets/i18n` und eine Handvoll weitere), verlangt, dass ein einziges Pfadmuster jede
+Locale-tragende Datei in genau einem davon abdeckt, löst das Format über die Dateiendung oder die
+i18n-Bibliothek in der `package.json` auf und nimmt Englisch als Quell-Locale. Jeder Lauf schreibt
+vorab, was er erkannt hat.
+
+Eine selbst geschriebene Konfiguration gewinnt weiterhin eindeutig, und du brauchst eine für alles,
+was die Erkennung nicht synthetisiert: eine nicht-englische Quell-Locale, mehrere Namespace-Dateien
+pro Locale, ein Glossar, einen Ton, `prune`, `generatePlurals` oder ein `maxTokens`-Budget. Die
+Erkennung lehnt ab, statt zu raten, ein mehrdeutiges oder unbekanntes Projekt ist also ein Fehler
+mit Ausweg, keine falsche Antwort. Siehe
+[Ohne Konfigurationsdatei arbeiten](/docs/config-file#ohne-konfigurationsdatei-arbeiten).
+
 ## Wie kontrolliere ich die Kosten?
 
 Vier Hebel, alle ohne Provider-Aufruf, bis du dich anders entscheidest:
@@ -116,9 +136,8 @@ separate, optionale Installation, dynamisch geladen vom `studio`-Befehl.
 ## Wo leben API-Schlüssel?
 
 Nur in Umgebungsvariablen: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` oder
-`DEEPL_API_KEY`, plus die Variable, die du für `openai-compatible` benennst. `translate`, `watch`,
-`doctor` und `studio` laden `.env` und `.env.local` aus dem Arbeitsverzeichnis (echte
-Umgebungsvariablen gewinnen). Das Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis
+`DEEPL_API_KEY`, plus die Variable, die du für `openai-compatible` benennst. Jeder Befehl außer `init` lädt
+`.env` und `.env.local` aus dem Arbeitsverzeichnis (echte Umgebungsvariablen gewinnen). Das Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis
 nicht in einer committeten Datei landen kann, und Fehlermeldungen nennen die Variable, aber nie
 einen Wert. Siehe [Provider](/docs/providers).
 

@@ -19,6 +19,10 @@ verbatra check [flags]
 | `--locales` | `<list>` | todos los destinos configurados | subconjunto de locales de destino separado por comas a comprobar |
 | `--json` | ninguno | desactivado | imprime un [envoltorio JSON](/docs/ci-and-exit-codes#salida-json) en stdout que lleva el resumen de la comprobación bajo `result`, o el código de error si la ejecución falla; la línea de error legible por humanos sigue yendo a stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`check` tampoco necesita archivo de configuración. Cuando la búsqueda no encuentra ninguno, verbatra [deduce uno del proyecto](/docs/config-file#ejecutar-sin-archivo-de-configuración) y escribe en stderr lo que ha concluido antes de ejecutarse, así que una puerta de drift funciona en un proyecto que nunca se ha configurado. En ningún caso hay una clave de API de por medio. Que la detección decline es un fallo de toda la ejecución, salida `2`.
+
 Una clave falta cuando el origen la tiene y el destino no; está obsoleta cuando la cadena de origen cambió desde la última vez que se tradujo. Un locale está sincronizado cuando no tiene ni lo uno ni lo otro. Un valor `--locales` vacío o desconocido se rechaza con salida `2` en lugar de comprobar nada en silencio, así que una errata en un nombre de locale nunca deja pasar una puerta de CI. ¿Quieres las listas de claves detrás de los contadores? Eso es [`verbatra diff`](/docs/cli/diff).
 
 ## Ejemplos
@@ -37,7 +41,7 @@ verbatra check --locales de,fr --json
 | --- | --- |
 | `0` | sincronizado: ningún locale tiene una clave faltante u obsoleta |
 | `1` | desincronizado: al menos un locale tiene una clave faltante u obsoleta (el informe se imprime igualmente) |
-| `2` | no se pudo ejecutar: un error de toda la ejecución, o un error de uso (incluido un valor `--locales` vacío o desconocido) |
+| `2` | no se pudo ejecutar: un error de toda la ejecución (incluido un proyecto que no se pudo detectar cuando no hay archivo de configuración), o un error de uso (incluido un valor `--locales` vacío o desconocido) |
 
 La salida `1` significa "desincronizado", no un fallo: la ejecución en sí tuvo éxito, solo que el resultado no está todo en verde.
 

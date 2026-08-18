@@ -22,6 +22,12 @@ pnpm demande une étape de plus. `pnpm add -D @verbatra/cli` installe correcteme
 npx verbatra init --provider gemini
 ```
 
+<AvailableFrom version="0.10.0" />
+
+<Callout title="Tu as déjà des fichiers de locale ? Cette étape est optionnelle.">
+Sans configuration nulle part, verbatra en déduit une depuis ton projet : il regarde dans les répertoires que les écosystèmes i18n utilisent par convention, déduit le motif de fichiers, résout le format via l'extension ou via la bibliothèque i18n de ton `package.json`, et prend l'anglais comme locale source. `verbatra check` et `verbatra diff` fonctionnent donc tout de suite, et `verbatra translate` n'a besoin que de la clé d'API de l'étape 4. Chaque exécution écrit ce qu'elle a détecté, rien ne se joue dans ton dos. Lance quand même `init` dès que tu veux figer tout cela, ou pour poser un glossaire, un ton ou un budget de tokens, que la détection ne fournit pas. Voir [Fonctionner sans fichier de configuration](/docs/config-file#fonctionner-sans-fichier-de-configuration).
+</Callout>
+
 Avec un terminal attaché, `init` demande tout ce que tu n'as pas passé en option, chaque question avec une valeur par défaut :
 
 - le fournisseur : `anthropic`, `openai`, `gemini` ou `deepl` (option `--provider`, la seule entrée sans défaut)
@@ -98,7 +104,7 @@ Les clés viennent de l'environnement, jamais du fichier de configuration. Chaqu
 cp .env.example .env
 ```
 
-Puis ouvre `.env` et colle ta clé après `GEMINI_API_KEY=`. `translate`, `watch`, `doctor` et `studio` chargent `.env.local` puis `.env` depuis le répertoire de travail avant une exécution, et une variable déjà définie dans ton shell gagne toujours. Voir [Fournisseurs](/docs/providers) pour la variable de chaque fournisseur.
+Puis ouvre `.env` et colle ta clé après `GEMINI_API_KEY=`. Toutes les commandes sauf `init` chargent `.env.local` puis `.env` depuis le répertoire de travail avant une exécution, et une variable déjà définie dans ton shell gagne toujours. Voir [Fournisseurs](/docs/providers) pour la variable de chaque fournisseur.
 
 <Callout title="Pas encore de clé ? Gemini a une offre gratuite.">
 L'API de Gemini a une offre réellement gratuite, ce qui en fait la façon la moins chère d'essayer verbatra. Récupère une clé sur [Google AI Studio](https://aistudio.google.com/apikey) et définis `GEMINI_API_KEY`. L'offre gratuite a des limites de requêtes par minute et par jour, donc étale une grosse première traduction.

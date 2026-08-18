@@ -188,6 +188,37 @@ console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} fa
 etwas zu schreiben. Was Übersetzerinnen bearbeiten dürfen und wie Zeilen validiert werden, steht
 in [Menschliche Übersetzung](/docs/manual-translation).
 
+## Auf Erkennung zurückfallen, wenn es keine Konfiguration gibt
+
+<AvailableFrom version="0.10.0" />
+
+`resolveProjectConfig` ist `loadConfigWithMeta` mit einer Ergänzung: Findet die Suche nichts, leitet
+es eine Konfiguration aus den Locale-Dateien des Projekts und den Provider-API-Schlüsseln in der
+Umgebung ab. Nimm es in einem Werkzeug, das auf einem Projekt arbeiten muss, das es nicht selbst
+eingerichtet hat. Ein vorhandenes `detection` ist das Signal, dass auf der Platte nichts gefunden
+wurde, und `requireDetectedProvider` ist der eine Aufruf vor allem, was Geld kostet.
+
+```ts
+import { requireDetectedProvider, resolveProjectConfig, translate } from "@verbatra/sdk";
+
+const resolved = await resolveProjectConfig();
+
+if (resolved.detection !== undefined) {
+  const { pattern, format, sourceLocale, targetLocales } = resolved.detection;
+  console.error(`detected ${pattern} (${format}): ${sourceLocale} -> ${targetLocales.join(", ")}`);
+}
+
+requireDetectedProvider(resolved); // wirft PROVIDER_KEY_MISSING bei einem erkannten Projekt ohne Schlüssel
+await translate({ config: resolved.config });
+```
+
+Für `check` und `diff` lässt du den `requireDetectedProvider`-Aufruf weg: Sie erreichen nie einen
+Provider und laufen deshalb auf einem erkannten Projekt ganz ohne gesetzten Schlüssel. Mit
+`detect: false` behältst du stattdessen den einfachen `CONFIG_NOT_FOUND`-Fehlschlag. `loadConfig`
+und `loadConfigWithMeta` sind unverändert und werfen bei einer erfolglosen Suche weiterhin
+`CONFIG_NOT_FOUND`. Was die Erkennung ableitet und was nicht, steht in
+[Ohne Konfigurationsdatei arbeiten](/docs/config-file#ohne-konfigurationsdatei-arbeiten).
+
 ## Eine Konfiguration ohne Datei
 
 `loadConfig` akzeptiert ein `configOverride` im Speicher, validiert genau wie eine geladene Datei;

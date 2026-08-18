@@ -19,6 +19,10 @@ verbatra diff [flags]
 | `--locales` | `<list>` | toutes les cibles configurées | sous-ensemble de locales cibles à comparer, séparées par des virgules |
 | `--json` | aucun | désactivé | affiche une [enveloppe JSON](/docs/ci-and-exit-codes#sortie-json) sur stdout portant le résumé de comparaison sous `result`, ou le code d'erreur si l'exécution échoue ; la ligne d'erreur lisible par un humain va toujours sur stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`diff` n'a pas non plus besoin d'un fichier de configuration. Quand la recherche n'en trouve aucun, verbatra [en déduit un depuis le projet](/docs/config-file#fonctionner-sans-fichier-de-configuration) et écrit sa conclusion sur stderr avant de tourner. Aucune clé d'API n'intervient dans un cas comme dans l'autre. Une détection qui décline est un échec global, sortie `2`.
+
 Une locale a des changements en attente quand elle a au moins une clé à ajouter ou à retraduire. Les clés orphelines sont signalées mais ne comptent jamais comme en attente, parce qu'une exécution par défaut ne les supprime pas (seul [`verbatra translate --prune`](/docs/cli/translate) le fait). Une valeur `--locales` vide ou inconnue est rejetée avec la sortie `2` plutôt que de ne rien comparer en silence. Là où [`verbatra check`](/docs/cli/check) répond "combien a dérivé" avec des comptes, `diff` répond "quelles clés" avec les listes.
 
 ## Exemples
@@ -37,7 +41,7 @@ verbatra diff --json
 | --- | --- |
 | `0` | aucun changement en attente : aucune locale n'a de clé à ajouter ou à retraduire |
 | `1` | changements en attente : au moins une locale a une clé manquante ou modifiée (les clés orphelines seules ne produisent jamais `1`) |
-| `2` | impossible de s'exécuter : une erreur globale, ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
+| `2` | impossible de s'exécuter : une erreur globale (y compris un projet qui n'a pas pu être détecté en l'absence de fichier de configuration), ou une erreur d'utilisation (y compris une valeur `--locales` vide ou inconnue) |
 
 ## Voir aussi
 

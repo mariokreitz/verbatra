@@ -26,6 +26,12 @@ locale), an unresolvable format, or no English locale is reported with a specifi
 code and a remedy instead of a best guess, because a `check` that silently reports
 on the wrong files is worse than one that asks for a config.
 
+One related behavior change: every command that loads a config now reads `.env.local`
+and `.env` first, where previously only `translate`, `watch`, `doctor`, and `studio`
+did. Detection reads provider API keys from the environment, so without this a
+`check` run reported no provider key for a project whose key lives in `.env` while
+`translate` on that same project worked.
+
 New SDK exports: `resolveProjectConfig`, `requireDetectedProvider`, `detectProject`,
 `selectProviderFromEnv`, `formatFromDependencyNames`, `FORMAT_BY_DEPENDENCY`,
 `PROVIDER_DETECTION_ORDER`, `CANDIDATE_DIRECTORIES`, and the `DirectoryEntry` type.

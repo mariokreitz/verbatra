@@ -187,6 +187,37 @@ Pasa `dryRun: true` a `importWorkbook` para validar un archivo devuelto sin escr
 [Traducción humana](/docs/manual-translation) para saber qué pueden editar los traductores y cómo se
 validan las filas.
 
+## Caer en la detección cuando no hay configuración
+
+<AvailableFrom version="0.10.0" />
+
+`resolveProjectConfig` es `loadConfigWithMeta` con un añadido: cuando la búsqueda no encuentra nada,
+deduce una configuración de los archivos de locale del proyecto y de las claves de API de proveedor
+del entorno. Úsalo en una herramienta que tiene que funcionar sobre un proyecto que no configuró
+ella. Un `detection` presente es la señal de que no se encontró nada en disco, y
+`requireDetectedProvider` es la única llamada que hacer antes de gastar nada.
+
+```ts
+import { requireDetectedProvider, resolveProjectConfig, translate } from "@verbatra/sdk";
+
+const resolved = await resolveProjectConfig();
+
+if (resolved.detection !== undefined) {
+  const { pattern, format, sourceLocale, targetLocales } = resolved.detection;
+  console.error(`detected ${pattern} (${format}): ${sourceLocale} -> ${targetLocales.join(", ")}`);
+}
+
+requireDetectedProvider(resolved); // lanza PROVIDER_KEY_MISSING en un proyecto detectado sin clave
+await translate({ config: resolved.config });
+```
+
+Sáltate la llamada a `requireDetectedProvider` para `check` y `diff`: nunca alcanzan un proveedor,
+así que se ejecutan sobre un proyecto detectado sin ninguna clave puesta. Pasa `detect: false` para
+conservar el fallo `CONFIG_NOT_FOUND` de siempre. `loadConfig` y `loadConfigWithMeta` no cambian y
+siguen lanzando `CONFIG_NOT_FOUND` cuando la búsqueda no encuentra nada. Mira
+[Ejecutar sin archivo de configuración](/docs/config-file#ejecutar-sin-archivo-de-configuración)
+para saber qué deduce y qué no la detección.
+
 ## Una configuración sin archivo
 
 `loadConfig` acepta un `configOverride` en memoria, validado exactamente igual que un archivo cargado,

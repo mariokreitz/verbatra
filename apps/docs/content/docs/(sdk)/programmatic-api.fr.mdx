@@ -153,6 +153,28 @@ console.log(`${summary.succeeded.length} locales ok, ${summary.failed.length} fa
 
 Passe `dryRun: true` à `importWorkbook` pour valider un fichier renvoyé sans rien écrire. Voir [Traduction humaine](/docs/manual-translation) pour ce que les traducteurs peuvent modifier et comment les lignes sont validées.
 
+## Basculer vers la détection quand il n'y a pas de config
+
+<AvailableFrom version="0.10.0" />
+
+`resolveProjectConfig` est `loadConfigWithMeta` avec un ajout : quand la recherche ne trouve rien, il déduit une config depuis les fichiers de locale du projet et les clés d'API de provider présentes dans l'environnement. Utilise-le dans un outil qui doit fonctionner sur un projet qu'il n'a pas configuré. Un `detection` présent est le signal que rien n'a été trouvé sur disque, et `requireDetectedProvider` est le seul appel à faire avant de dépenser quoi que ce soit.
+
+```ts
+import { requireDetectedProvider, resolveProjectConfig, translate } from "@verbatra/sdk";
+
+const resolved = await resolveProjectConfig();
+
+if (resolved.detection !== undefined) {
+  const { pattern, format, sourceLocale, targetLocales } = resolved.detection;
+  console.error(`detected ${pattern} (${format}): ${sourceLocale} -> ${targetLocales.join(", ")}`);
+}
+
+requireDetectedProvider(resolved); // lève PROVIDER_KEY_MISSING sur un projet détecté sans clé
+await translate({ config: resolved.config });
+```
+
+Pour `check` et `diff`, saute l'appel à `requireDetectedProvider` : ils n'atteignent jamais un provider, donc ils tournent sur un projet détecté sans aucune clé définie. Passe `detect: false` pour conserver l'échec `CONFIG_NOT_FOUND` habituel. `loadConfig` et `loadConfigWithMeta` sont inchangés et lèvent toujours `CONFIG_NOT_FOUND` quand la recherche ne trouve rien. Voir [Fonctionner sans fichier de configuration](/docs/config-file#fonctionner-sans-fichier-de-configuration) pour ce que la détection déduit et ce qu'elle ne déduit pas.
+
 ## Une config sans fichier
 
 `loadConfig` accepte un `configOverride` en mémoire, validé exactement comme un fichier chargé, donc tu peux piloter verbatra entièrement depuis le code, sans fichier de config sur disque.

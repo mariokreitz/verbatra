@@ -5,6 +5,26 @@ description: Des réponses courtes aux questions qui reviennent le plus en utili
 Des réponses rapides, chacune ancrée dans le comportement réel de verbatra. Pour une aide qui part
 des symptômes et des messages d'erreur, voir [Dépannage](/docs/troubleshooting).
 
+## Ai-je besoin d'un fichier de configuration ?
+
+<AvailableFrom version="0.10.0" />
+
+Pas pour démarrer. Sans configuration nulle part, verbatra en déduit une depuis le projet : `check`
+et `diff` tournent donc dans un projet jamais configuré, et `translate` n'a besoin que d'une clé
+d'API de provider. La détection ne lit que les répertoires que les écosystèmes i18n utilisent par
+convention (`locales`, `src/locales`, `public/locales`, `messages`, `i18n`, `src/assets/i18n` et
+quelques autres), exige qu'un seul motif de chemin couvre chaque fichier porteur de locale dans
+exactement l'un d'eux, résout le format via l'extension ou via la bibliothèque i18n de
+`package.json`, et prend l'anglais comme locale source. Chaque exécution écrit d'abord sa
+conclusion.
+
+Une configuration que tu as écrite l'emporte toujours, et il t'en faut une pour tout ce que la
+détection ne synthétise pas : une locale source non anglaise, plusieurs fichiers d'espace de noms
+par locale, un glossaire, un ton, `prune`, `generatePlurals` ou un budget `maxTokens`. La détection
+décline plutôt que de deviner : un projet ambigu ou non reconnu est donc une erreur avec un remède,
+pas une mauvaise réponse. Voir
+[Fonctionner sans fichier de configuration](/docs/config-file#fonctionner-sans-fichier-de-configuration).
+
 ## Comment je contrôle le coût ?
 
 Quatre leviers, tous sans appel fournisseur tant que tu n'en décides pas autrement :
@@ -121,7 +141,7 @@ dynamiquement par la commande `studio`.
 
 Uniquement dans des variables d'environnement : `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
 `GEMINI_API_KEY` ou `DEEPL_API_KEY`, plus la variable que tu nommes pour `openai-compatible`.
-`translate`, `watch`, `doctor` et `studio` chargent `.env` et `.env.local` depuis le répertoire de
+Toutes les commandes sauf `init` chargent `.env` et `.env.local` depuis le répertoire de
 travail (les vraies variables d'environnement gagnent). Le schéma de configuration rejette les clés
 inconnues précisément pour qu'un secret ne puisse pas finir dans un fichier commité, et les
 messages d'erreur nomment la variable mais jamais une valeur. Voir [Fournisseurs](/docs/providers).

@@ -183,6 +183,37 @@ Pass `dryRun: true` to `importWorkbook` to validate a returned file without writ
 [Manual translation](/docs/manual-translation) for what translators may edit and how rows are
 validated.
 
+## Fall back to detection when there is no config
+
+<AvailableFrom version="0.10.0" />
+
+`resolveProjectConfig` is `loadConfigWithMeta` with one addition: when the search finds nothing, it
+infers a config from the project's locale files and the provider API keys in the environment. Use
+it in a tool that has to work on a project it did not set up. A present `detection` is the signal
+that nothing was found on disk, and `requireDetectedProvider` is the one call to make before you
+spend anything.
+
+```ts
+import { requireDetectedProvider, resolveProjectConfig, translate } from "@verbatra/sdk";
+
+const resolved = await resolveProjectConfig();
+
+if (resolved.detection !== undefined) {
+  const { pattern, format, sourceLocale, targetLocales } = resolved.detection;
+  console.error(`detected ${pattern} (${format}): ${sourceLocale} -> ${targetLocales.join(", ")}`);
+}
+
+requireDetectedProvider(resolved); // throws PROVIDER_KEY_MISSING on a detected project with no key
+await translate({ config: resolved.config });
+```
+
+Skip the `requireDetectedProvider` call for `check` and `diff`: they never reach a provider, so they
+run on a detected project with no key set at all. Pass `detect: false` to keep the plain
+`CONFIG_NOT_FOUND` failure instead. `loadConfig` and `loadConfigWithMeta` are unchanged and still
+throw `CONFIG_NOT_FOUND` on a search miss. See
+[Running without a config file](/docs/config-file#running-without-a-config-file) for what detection
+does and does not infer.
+
 ## A config without a file
 
 `loadConfig` accepts an in-memory `configOverride`, validated exactly like a loaded file, so you

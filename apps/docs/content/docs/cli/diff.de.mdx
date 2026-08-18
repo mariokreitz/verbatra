@@ -19,6 +19,10 @@ verbatra diff [flags]
 | `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die verglichen wird |
 | `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der die Diff-Zusammenfassung unter `result` trägt, oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`diff` braucht außerdem keine Konfigurationsdatei. Findet die Suche keine, [leitet verbatra eine aus dem Projekt ab](/docs/config-file#ohne-konfigurationsdatei-arbeiten) und schreibt vor dem Lauf nach stderr, was sie erkannt hat. Ein API-Schlüssel ist so oder so nicht beteiligt. Lehnt die Erkennung ab, ist das ein Fehler des gesamten Laufs, Exit `2`.
+
 Ein Locale hat ausstehende Änderungen, wenn es mindestens einen Key zum Hinzufügen oder Neuübersetzen hat. Verwaiste Keys werden gemeldet, zählen aber nie als ausstehend, weil ein Standardlauf sie nicht entfernt (das tut nur [`verbatra translate --prune`](/docs/cli/translate)). Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu vergleichen. Während [`verbatra check`](/docs/cli/check) die Frage "wie viel hat gedriftet" mit Zählern beantwortet, beantwortet `diff` die Frage "welche Keys" mit den Listen selbst.
 
 ## Beispiele
@@ -37,7 +41,7 @@ verbatra diff --json
 | --- | --- |
 | `0` | keine ausstehenden Änderungen: kein Locale hat einen Key zum Hinzufügen oder Neuübersetzen |
 | `1` | ausstehende Änderungen: mindestens ein Locale hat einen fehlenden oder geänderten Key (verwaiste Keys allein erzeugen nie `1`) |
-| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
+| `2` | konnte nicht laufen: ein Fehler des gesamten Laufs (einschließlich eines Projekts, das ohne Konfigurationsdatei nicht erkannt werden konnte) oder ein Verwendungsfehler (einschließlich eines leeren oder unbekannten `--locales`-Werts) |
 
 ## Siehe auch
 

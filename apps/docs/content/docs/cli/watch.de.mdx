@@ -29,6 +29,10 @@ Mit `--json` erzeugt jeder Lauf einen [Envelope](/docs/ci-and-exit-codes#json-au
 
 `--lock-timeout` gilt für jeden Zyklus: Es stellt ein, wie lange ein Locale auf eine umkämpfte [Schreibsperre](/docs/the-lock-file) wartet, bevor dieser Lauf mit `LOCK_CONTENDED` scheitert. Ein fehlgeschlagener Lauf ist nur ein Datensatz im Strom, der Watcher läuft also so oder so weiter.
 
+<AvailableFrom version="0.10.0" />
+
+Eine Konfigurationsdatei ist optional. Findet die Suche keine, [leitet verbatra eine aus dem Projekt ab](/docs/config-file#ohne-konfigurationsdatei-arbeiten) und schreibt beim Start nach stderr, was sie erkannt hat; `watch` braucht damit nur einen Provider-API-Schlüssel in der Umgebung. Ist kein Schlüssel gesetzt, scheitert eine erkannte Sitzung mit `PROVIDER_KEY_MISSING` und endet vor dem initialen Lauf mit Exit `2`.
+
 `--concurrency` gilt für den Lauf jedes Zyklus. Da das Token-Budget jedes Laufs frisch ist, lässt sich ein `--concurrency` über `1` nicht einhalten, wenn die Konfiguration ein `maxTokens`-Budget setzt: `watch` lehnt diese Kombination beim Start ab und beendet sich vor dem initialen Lauf mit Exit `2`, statt eine Sitzung zu starten, die in jedem Zyklus fehlschlägt. `--no-cache` umgeht den [Translation-Memory-Cache](/docs/the-cache) bei jedem Zyklus.
 
 ## Stoppen

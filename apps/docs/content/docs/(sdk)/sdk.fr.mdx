@@ -173,11 +173,41 @@ Entrée : `{ config, workbook, cwd?, dryRun?, format? }`. Avec `csv` ou `tsv`, `
 
 Trouve, charge et valide la config du projet, en renvoyant une `VerbatraConfig`. Options : `{ cwd?, configPath?, configOverride? }`, avec la précédence `configOverride` (valider un objet en mémoire) sur `configPath` (charger un fichier explicite) sur la recherche. La recherche démarre à `cwd` et couvre `verbatra.config.ts` (aussi `.js`/`.cjs`), la famille `.verbatrarc` (`.json`, `.yaml`, `.yml`, `.js`, `.cjs`, `.ts`) et une propriété `"verbatra"` dans `package.json`. Un `glossary` donné comme chemin de fichier est lu et validé ici, donc le code en aval voit toujours un simple enregistrement.
 
-Lève `CONFIG_NOT_FOUND` quand rien n'est trouvé, `CONFIG_INVALID` quand une config est trouvée mais invalide. Voir [Le fichier de configuration](/docs/config-file) pour le schéma.
+Lève `CONFIG_NOT_FOUND` quand rien n'est trouvé, `CONFIG_INVALID` quand une config est trouvée mais invalide. Voir [Le fichier de configuration](/docs/config-file) pour le schéma. La détection de projet ne change rien à ce contrat : une fonction nommée "load config" ne renvoie jamais une config que personne n'a écrite. Prends `resolveProjectConfig` quand tu veux le repli.
 
 ### loadConfigWithMeta
 
 Le même chargement, plus la provenance : renvoie `{ config, source, glossary }`, où `source` dit si la config vient d'une recherche, d'un chemin explicite ou d'une surcharge en mémoire (avec le `filepath` absolu quand il y en a un), et `glossary` note si le glossaire était absent, inline ou résolu depuis un fichier. Utilise-le quand tu dois afficher d'où vient la config.
+
+### resolveProjectConfig
+
+<AvailableFrom version="0.10.0" />
+
+Le point d'entrée qu'un outil en ligne de commande ou un job de CI devrait appeler à la place de `loadConfig`. Il se comporte exactement comme `loadConfigWithMeta` dès qu'une config est présente, et ce n'est que lorsque la recherche ne trouve rien qu'il en déduit une depuis les fichiers de locale du projet et les clés d'API de provider présentes dans l'environnement. Les options sont tout ce que prend `loadConfig`, plus `env` (l'environnement où lire les clés, par défaut `process.env`) et `detect: false` pour conserver l'échec `CONFIG_NOT_FOUND` habituel.
+
+Renvoie `{ config, loaded, detection }`. `loaded` est la provenance `LoadedConfig` d'une vraie config et `undefined` pour une config détectée ; `detection` est l'inverse, donc un `detection` présent est exactement le signal que rien n'a été trouvé sur disque. Il porte `directory`, `pattern`, `format`, `sourceLocale`, `targetLocales`, `provider`, `providerResolved` et `alsoAvailable`, ce que la CLI affiche avant une exécution détectée.
+
+On ne détecte jamais autour d'un `configPath` explicite : un chemin qui n'existe pas reste `CONFIG_NOT_FOUND`, donc une coquille ne peut pas glisser vers une supposition sur un autre projet. La détection elle-même lève `PROJECT_NOT_DETECTED`, `PROJECT_AMBIGUOUS` ou `PROJECT_LAYOUT_UNSUPPORTED`. Voir [Fonctionner sans fichier de configuration](/docs/config-file#fonctionner-sans-fichier-de-configuration) pour les règles qu'elle applique.
+
+### requireDetectedProvider
+
+<AvailableFrom version="0.10.0" />
+
+Vérifie qu'un résultat de `resolveProjectConfig` peut réellement atteindre un provider, et lève `PROVIDER_KEY_MISSING` en nommant les quatre variables d'environnement quand ce n'est pas le cas. C'est une no-op pour une config écrite à la main, qui nomme toujours un provider délibérément, et pour une config détectée adossée à une clé. Appelle-le avant tout ce qui dépense : `check` et `diff` n'ont besoin d'aucune clé, `translate` et `watch` si.
+
+### detectProject
+
+<AvailableFrom version="0.10.0" />
+
+La détection seule, sans la tentative de chargement d'un fichier de config en amont : prend `{ cwd?, fs?, env?, adapterRegistry? }` et renvoie `{ config, detection }`. Sers-t'en pour rapporter l'état d'un projet sans rien exécuter, par exemple pour montrer à quelqu'un ce que verbatra déduirait avant qu'il s'y engage. Elle n'appelle jamais un provider et n'écrit jamais.
+
+Le `fs` fourni doit implémenter le membre optionnel `readDirectory` de `SdkFs`, la seule capacité dont la détection a besoin au-delà d'une exécution normale ; une implémentation qui ne l'a pas est refusée avec `PROJECT_NOT_DETECTED` plutôt que d'échouer plus tard.
+
+### formatFromDependencyNames
+
+<AvailableFrom version="0.10.0" />
+
+Prend un itérable de noms de dépendances et renvoie l'unique `SupportedFormat` qu'ils impliquent, ou `undefined` quand aucun ou plus d'un ne correspond. Quatre des huit formats partagent l'extension `.json`, donc le paquet i18n dont un projet dépend est le seul signal fiable, et `verbatra init` comme la détection résolvent un format JSON via cette unique fonction. Passe ensemble les clés de `dependencies` et de `devDependencies`.
 
 ### readGlossaryFile
 
@@ -219,7 +249,7 @@ import { translate, type SdkFs } from "@verbatra/sdk";
 const summary = await translate({ config }, { fs: inMemoryFs satisfies SdkFs });
 ```
 
-Une implémentation doit respecter deux points du contrat. Les lectures sont bornées en taille : `readFileBounded` et `readBytesBounded` prennent une limite d'octets et rapportent `missing` ou `too-large` comme un état plutôt que de lever, ce qui empêche un fichier hostile ou accidentellement énorme d'épuiser la mémoire. Les écritures doivent être atomiques, pour qu'un crash en cours d'écriture ne laisse jamais un fichier à moitié écrit, et `createExclusive` doit être atomique face aux autres processus, car c'est la primitive derrière le verrou d'écriture par locale. La création de répertoires revient à l'appelant.
+Une implémentation doit respecter deux points du contrat. Les lectures sont bornées en taille : `readFileBounded` et `readBytesBounded` prennent une limite d'octets et rapportent `missing` ou `too-large` comme un état plutôt que de lever, ce qui empêche un fichier hostile ou accidentellement énorme d'épuiser la mémoire. Les écritures doivent être atomiques, pour qu'un crash en cours d'écriture ne laisse jamais un fichier à moitié écrit, et `createExclusive` doit être atomique face aux autres processus, car c'est la primitive derrière le verrou d'écriture par locale. La création de répertoires revient à l'appelant. `readDirectory` est optionnel, comme `mkdir`, donc une implémentation existante continue de compiler ; seuls `detectProject` et `resolveProjectConfig` en ont besoin.
 
 La seule chose que `deps.fs` n'atteint pas est un `deps.adapterRegistry` fourni par l'appelant. Ces adaptateurs ont été construits par l'appelant, donc leur accès aux fichiers est celui que l'appelant y a câblé. Fournir les deux signifie que l'appelant possède ce câblage.
 
@@ -276,7 +306,11 @@ Les échecs globaux lèvent une `SdkError` : une seule classe, un `code` stable 
 
 | Code | Quand |
 | --- | --- |
-| `CONFIG_NOT_FOUND` | aucune config trouvée par la recherche, ou un `configPath` explicite n'existe pas (levé par `loadConfig`) |
+| `CONFIG_NOT_FOUND` | aucune config trouvée par la recherche, ou un `configPath` explicite n'existe pas (levé par `loadConfig` ; `resolveProjectConfig` ne le lève que pour le chemin explicite, ou avec `detect: false`) |
+| `PROJECT_NOT_DETECTED` | aucune config n'existe et aucune disposition de locales n'a pu être déduite : rien de reconnaissable, un format non résoluble, aucune locale anglaise, ou un `SdkFs` sans `readDirectory` |
+| `PROJECT_AMBIGUOUS` | aucune config n'existe et plusieurs répertoires candidats portent une disposition de locales utilisable |
+| `PROJECT_LAYOUT_UNSUPPORTED` | aucune config n'existe et la disposition détectée a besoin de plus d'un motif de chemin, ce que verbatra ne peut pas exprimer |
+| `PROVIDER_KEY_MISSING` | la config a été détectée plutôt qu'écrite et aucune clé d'API de provider supportée n'est définie (`requireDetectedProvider`) |
 | `CONFIG_INVALID` | une config a été trouvée mais est imparsable ou échoue la validation, ou son fichier de glossaire n'a pas pu être résolu |
 | `UNKNOWN_FORMAT` | aucun adaptateur n'est enregistré pour le format configuré ; levé avant toute lecture de fichier |
 | `UNKNOWN_LOCALE` | une locale demandée n'est pas parmi les locales cibles configurées |

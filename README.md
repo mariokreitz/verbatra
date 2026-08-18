@@ -39,6 +39,8 @@ export GEMINI_API_KEY=your-key-here
 npx verbatra translate
 ```
 
+Step 2 is optional. A project that already has locale files needs no config at all: with none found, verbatra infers one (the locale directory, the file pattern, the format, and English as the source locale) and prints what it detected before it runs, so `npx verbatra check` and `npx verbatra diff` work immediately and `npx verbatra translate` needs only the key from step 3. Run `init` when you want that written down, or to set anything detection does not infer. See [Running without a config file](https://verbatra.kreitz-webdev.de/docs/config-file#running-without-a-config-file).
+
 Gemini is the cheapest way to try verbatra: its API has a real free tier, so you can create a key at [Google AI Studio](https://aistudio.google.com/apikey) without setting up billing. Pass `anthropic`, `openai`, or `deepl` to `--provider` instead if you prefer one of those; switching later means editing one `id` in your config.
 
 `npx` runs the locally installed binary whichever package manager put it there, so `yarn add -D @verbatra/cli` covers step 1 just as well, and yarn users can also run `yarn verbatra ...`.

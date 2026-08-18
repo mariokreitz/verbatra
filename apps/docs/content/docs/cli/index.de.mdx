@@ -34,13 +34,15 @@ Willst du einen Befehl vor der Installation ausprobieren? `npx @verbatra/cli <co
 ## Gemeinsame Konventionen
 
 - `--cwd <path>` löst die Konfiguration und die Locale-Dateien von diesem Verzeichnis statt vom aktuellen aus auf. Jeder Befehl nimmt es.
-- `--config <path>` lädt diese Konfigurationsdatei, statt eine zu suchen. Jeder Befehl außer `init` nimmt es; die Suchreihenfolge steht in [Konfigurationsdatei](/docs/config-file).
+- `--config <path>` lädt diese Konfigurationsdatei, statt eine zu suchen. Jeder Befehl außer `init` nimmt es; die Suchreihenfolge steht in [Konfigurationsdatei](/docs/config-file). Findet die Suche nichts, [leiten `translate`, `watch`, `check`, `diff`, `export` und `import` eine Konfiguration aus dem Projekt ab](/docs/config-file#ohne-konfigurationsdatei-arbeiten), statt fehlzuschlagen, und schreiben nach stderr, was sie erkannt haben; `doctor` und `studio` erkennen nicht.
 - `--json` gibt einen maschinenlesbaren [Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout aus, eine Zeile pro Datensatz, und hält stdout sauber zum Weiterleiten. Verzweige auf sein `ok`-Feld: ein Erfolg trägt die Daten des Befehls unter `result`, ein fehlgeschlagener Lauf trägt denselben stabilen Fehlercode, den auch die stderr-Zeile nennt. Die menschenlesbare Fehlerzeile geht in beiden Fällen auf stderr. `translate`, `watch`, `check`, `diff`, `doctor`, `export` und `import` unterstützen es; `init` und `studio` nicht.
 - `--help` und `--version` geben aus und enden mit `0`. Ein unbekannter Befehl oder ein unbekanntes Flag endet mit `2`.
 
 ## Umgebungsdateien
 
-`translate`, `watch`, `doctor` und `studio` laden `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor sie laufen. Eine bereits in deiner echten Umgebung gesetzte Variable gewinnt immer. API-Keys werden nur aus der Umgebung gelesen, nie aus der Konfigurationsdatei oder einem Flag: siehe [Provider](/docs/providers). Die schreibgeschützten Befehle (`check`, `diff`) und die Übergabe-Befehle (`export`, `import`) rufen nie einen Provider auf und laden keine `.env`-Dateien.
+<AvailableFrom version="0.10.0" />
+
+Jeder Befehl außer `init` lädt `.env.local` und dann `.env` aus dem Arbeitsverzeichnis, bevor er läuft. Eine bereits in deiner echten Umgebung gesetzte Variable gewinnt immer. API-Keys werden nur aus der Umgebung gelesen, nie aus der Konfigurationsdatei oder einem Flag: siehe [Provider](/docs/providers). Die schreibgeschützten Befehle (`check`, `diff`) und die Übergabe-Befehle (`export`, `import`) laden sie ebenfalls, obwohl sie nie einen Provider aufrufen, damit ein erkanntes Projekt denselben Provider auflöst, den auch `translate` nehmen würde.
 
 ## Exit-Codes
 

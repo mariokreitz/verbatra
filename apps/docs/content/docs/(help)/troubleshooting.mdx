@@ -63,8 +63,48 @@ environment, not the config`: the schema is strict precisely so a secret cannot 
 committed file.
 
 **Fix**: correct the field the message names. See [The config file](/docs/config-file) for the
-full schema. If the message is `No verbatra configuration found...` (`CONFIG_NOT_FOUND`), run
-`verbatra init` or pass `--config <path>`.
+full schema. If the message is `No verbatra configuration found...` (`CONFIG_NOT_FOUND`), the path
+you passed to `--config` does not exist; fix it, or drop the flag and let verbatra search or detect.
+
+## The project could not be detected (PROJECT_NOT_DETECTED, PROJECT_AMBIGUOUS, PROJECT_LAYOUT_UNSUPPORTED)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptom**: a project with no config file fails before any locale is read, with
+`No verbatra configuration was found and no locale files could be detected...`,
+`Several directories look like locale directories: ...`, or `The locale files in <dir> do not fit a
+single path pattern...`
+
+**Cause**: with no config file, verbatra [detects one from the project](/docs/config-file#running-without-a-config-file),
+and detection declines rather than guesses. `PROJECT_NOT_DETECTED` means no candidate directory held
+a recognizable set of locale files, the format could not be resolved (a `.json` layout whose
+`package.json` names no single i18n library, or two of them), or no detected locale is English.
+`PROJECT_AMBIGUOUS` means two candidate directories both hold a usable layout, `locales/` and
+`public/locales/` for example. `PROJECT_LAYOUT_UNSUPPORTED` means the directory needs more than one
+path pattern, which is what several namespace files per locale looks like; the message lists the
+competing patterns.
+
+**Fix**: run `verbatra init` and write the setup down explicitly, which is the remedy every one of
+these messages names. Pick the directory you want with `--path`, and set `--source` for a
+non-English source locale. For the namespace case, see
+[Namespace layouts](/docs/formats#namespace-layouts).
+
+## No provider API key for a detected project (PROVIDER_KEY_MISSING)
+
+<AvailableFrom version="0.10.0" />
+
+**Symptom**: `verbatra translate` or `verbatra watch` in a project with no config file fails with
+`No verbatra configuration was found and no provider API key is set, so there is nothing to
+translate with.`
+
+**Cause**: a detected project takes its provider from the API keys that are set. With none of
+`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPL_API_KEY` present, there is no
+provider to call. `check`, `diff`, and `translate --dry-run` are unaffected, because none of them
+calls a provider.
+
+**Fix**: set one of the four variables (`translate` and `watch` load `.env.local` and then `.env`
+from the working directory first), or run `verbatra init` to create a config that names the provider
+you want. A config you wrote never raises this: it names its provider deliberately.
 
 ## No adapter for the format (UNKNOWN_FORMAT)
 
@@ -111,7 +151,7 @@ variable is unset or empty. Error messages name the variable but never contain a
 keys are never read from the config or CLI arguments.
 
 **Fix**: set the variable the message names, then confirm it with `verbatra doctor`, which checks
-the variable by name without reading its value. `translate`, `watch`, `doctor`, and `studio` load
+the variable by name without reading its value. Every command except `init` loads
 `.env` and `.env.local` from the working directory; the SDK does not, so in your own script use
 `node --env-file=.env` or export the variable. `openai-compatible` only raises this when the config names an `apiKeyEnvVar` that is
 unset; without one it falls back to a keyless placeholder for local servers.
