@@ -15,5 +15,6 @@ exact packages installed alongside the SDK build that is actually running, resol
 running code's own location rather than from the config file's location. A config file's import
 now consistently resolves to the pinned SDK and CLI in effect, even when an unrelated, differently
 versioned copy of either package also happens to be installed near the config file. A package that
-is not installed anywhere reachable from the running SDK is left unaliased, so the import fails
-with the ordinary module-not-found error instead of resolving to the wrong version silently.
+is not installed anywhere reachable from the running SDK is left unaliased, so the import falls
+back to jiti's ordinary bare-specifier resolution from the config file's own location, exactly as
+before this fix, instead of resolving to the wrong version silently.
