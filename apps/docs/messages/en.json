@@ -205,23 +205,23 @@
           "cliReference": "CLI reference",
           "sdk": "SDK",
           "studio": "Studio",
-          "githubAction": "GitHub Action"
+          "githubAction": "GitHub Action",
+          "llmsIndex": "llms.txt (index)",
+          "llmsFull": "llms-full.txt (full text)"
         },
         "learn": {
           "title": "Learn",
           "howItWorks": "How it works",
           "providers": "Providers",
           "formats": "Formats",
-          "lockFile": "The lock file"
+          "lockFile": "The lock file",
+          "configFile": "Config file"
         },
-        "project": {
-          "title": "Project",
-          "configFile": "Config file",
+        "community": {
+          "title": "Community",
           "codeOfConduct": "Code of conduct",
           "security": "Security policy",
-          "releases": "Release notes",
-          "llmsIndex": "llms.txt (index)",
-          "llmsFull": "llms-full.txt (full text)"
+          "releases": "Release notes"
         },
         "legal": {
           "title": "Legal",
