@@ -3,22 +3,13 @@ export type { SupportedFormat } from "@verbatra/core";
 export { CACHE_FILE_NAME } from "./cache/translation-memory.js";
 export type { TranslationMemory } from "./cache/types.js";
 export { defineConfig } from "./config/define-config.js";
+export { formatFromDependencyNames } from "./config/detect/dependency-format.js";
 export {
-  FORMAT_BY_DEPENDENCY,
-  formatFromDependencyNames,
-} from "./config/detect/dependency-format.js";
-export {
-  CANDIDATE_DIRECTORIES,
   type DetectedProject,
   type DetectProjectOptions,
   detectProject,
   type ProjectDetection,
 } from "./config/detect/detect-project.js";
-export {
-  PROVIDER_DETECTION_ORDER,
-  type ProviderSelection,
-  selectProviderFromEnv,
-} from "./config/detect/select-provider.js";
 export {
   type GlossaryFileDeps,
   type GlossaryFileInput,
