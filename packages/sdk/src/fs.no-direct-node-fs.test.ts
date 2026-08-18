@@ -6,9 +6,15 @@ const SRC_ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 const SEAM_OWNER = "fs.ts";
 const COSMICONFIG_LOADER_READS_REAL_DISK = "config/load-config.ts";
+const MODULE_ALIAS_RESOLVER_READS_REAL_DISK = "config/module-aliases.ts";
 const TEST_ONLY_HELPERS = "test-support.ts";
 
-const ALLOWED = new Set([SEAM_OWNER, COSMICONFIG_LOADER_READS_REAL_DISK, TEST_ONLY_HELPERS]);
+const ALLOWED = new Set([
+  SEAM_OWNER,
+  COSMICONFIG_LOADER_READS_REAL_DISK,
+  MODULE_ALIAS_RESOLVER_READS_REAL_DISK,
+  TEST_ONLY_HELPERS,
+]);
 
 const MODULE_SPECIFIER = /\b(?:from|import)\b\s*\(?\s*["']([^"']+)["']/g;
 const NODE_FS_SPECIFIER = /^(?:node:)?fs(?:\/promises)?$/;
