@@ -6,6 +6,7 @@ import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
 import { errorMessage, SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
+import { resolveSelfPackageAliases } from "./module-aliases.js";
 import { type GlossaryProvenance, resolveGlossary } from "./resolve-glossary.js";
 import { type VerbatraConfig, type VerbatraConfigInput, verbatraConfigSchema } from "./schema.js";
 
@@ -202,6 +203,11 @@ async function loadExplicitWithMeta(
  * A glossary given as a path is read and validated here, so the returned config always carries a
  * resolved term map.
  *
+ * A `verbatra.config.ts` file is transpiled and loaded through jiti. When it imports `@verbatra/sdk`
+ * or `@verbatra/cli`, those bare specifiers are aliased to the package that is actually running this
+ * function, so the import resolves to the running version even when a different, conflicting version
+ * of either package also happens to be reachable from the config file's own location.
+ *
  * @param options - Where and how to look for the config.
  * @returns The validated config with its config-source and glossary provenance.
  *
@@ -224,7 +230,7 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
 
   const explorer = cosmiconfig(MODULE_NAME, {
     searchPlaces: SEARCH_PLACES,
-    loaders: { ".ts": TypeScriptLoader() },
+    loaders: { ".ts": TypeScriptLoader({ alias: resolveSelfPackageAliases() }) },
     searchStrategy: "global",
     stopDir,
   });
