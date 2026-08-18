@@ -19,7 +19,7 @@ verbatra diff [flags]
 | `--locales` | `<list>` | alle konfigurierten Ziele | kommagetrennte Teilmenge der Ziel-Locales, die verglichen wird |
 | `--json` | keins | aus | einen [JSON-Envelope](/docs/ci-and-exit-codes#json-ausgabe) auf stdout ausgeben, der die Diff-Zusammenfassung unter `result` trägt, oder bei einem fehlgeschlagenen Lauf den Fehlercode; die menschenlesbare Fehlerzeile geht weiter auf stderr |
 
-Ein Locale hat ausstehende Änderungen, wenn es mindestens einen Key zum Hinzufügen oder Neuübersetzen hat. Verwaiste Keys werden gemeldet, zählen aber nie als ausstehend, weil ein Standardlauf sie nicht entfernt (das tut nur [`verbatra translate --prune`](/docs/cli/translate)). Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu vergleichen. Wo [`verbatra check`](/docs/cli/check) mit Zählern beantwortet, "wie viel gedriftet ist", beantwortet `diff` mit den Listen, "welche Keys".
+Ein Locale hat ausstehende Änderungen, wenn es mindestens einen Key zum Hinzufügen oder Neuübersetzen hat. Verwaiste Keys werden gemeldet, zählen aber nie als ausstehend, weil ein Standardlauf sie nicht entfernt (das tut nur [`verbatra translate --prune`](/docs/cli/translate)). Ein leerer oder unbekannter `--locales`-Wert wird mit Exit `2` abgelehnt, statt stillschweigend nichts zu vergleichen. Während [`verbatra check`](/docs/cli/check) die Frage "wie viel hat gedriftet" mit Zählern beantwortet, beantwortet `diff` die Frage "welche Keys" mit den Listen selbst.
 
 ## Beispiele
 
