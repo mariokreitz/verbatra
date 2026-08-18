@@ -170,28 +170,28 @@
           "cliReference": "Referencia de la CLI",
           "sdk": "SDK",
           "studio": "Studio",
-          "githubAction": "GitHub Action"
+          "githubAction": "GitHub Action",
+          "llmsIndex": "llms.txt (índice)",
+          "llmsFull": "llms-full.txt (texto completo)"
         },
         "learn": {
           "title": "Aprende",
           "howItWorks": "Cómo funciona",
           "providers": "Proveedores",
           "formats": "Formatos",
-          "lockFile": "El archivo de bloqueo"
-        },
-        "project": {
-          "title": "Proyecto",
-          "configFile": "Archivo de configuración",
-          "codeOfConduct": "Código de conducta",
-          "security": "Política de seguridad",
-          "releases": "Notas de la versión",
-          "llmsFull": "llms-full.txt (texto completo)",
-          "llmsIndex": "llms.txt (índice)"
+          "lockFile": "El archivo de bloqueo",
+          "configFile": "Archivo de configuración"
         },
         "legal": {
           "title": "Legal",
           "privacy": "Política de privacidad",
           "imprint": "Aviso legal"
+        },
+        "community": {
+          "title": "Comunidad",
+          "codeOfConduct": "Código de conducta",
+          "security": "Política de seguridad",
+          "releases": "Notas de la versión"
         }
       },
       "legalLine": "Código abierto bajo la licencia MIT · © 2026 Mario Kreitz",
