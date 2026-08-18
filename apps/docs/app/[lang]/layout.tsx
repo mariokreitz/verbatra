@@ -11,7 +11,7 @@ import { LocaleAwareFrameworkProvider } from "@/lib/framework-provider";
 import { i18n, toLocale } from "@/lib/i18n";
 import { i18nConfig } from "@/lib/layout.shared";
 import { homeAlternates, ogAlternateLocales, ogLocale, SITE_URL } from "@/lib/site";
-import { AUTHOR_NAME, SEO_KEYWORDS, websiteLd } from "@/lib/structured-data";
+import { AUTHOR_NAME, organizationLd, SEO_KEYWORDS, websiteLd } from "@/lib/structured-data";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
@@ -104,6 +104,7 @@ export default async function Layout({
       </head>
       <body className="flex flex-col min-h-screen">
         <JsonLd data={websiteLd({ lang: locale })} />
+        <JsonLd data={organizationLd()} />
         <NextIntlClientProvider locale={locale} messages={messages}>
           <LocaleAwareFrameworkProvider>
             <RootProvider theme={{ enabled: false }} i18n={i18nConfig(locale)}>
