@@ -18,7 +18,9 @@ L'action vit dans son propre dépôt, [verbatra/action](https://github.com/verba
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v1` est la forme pratique : le tag `v1` avance avec chaque version v1, les correctifs t'arrivent donc sans toucher au workflow, au prix de ne pas savoir exactement ce qui s'exécute. Épingler un SHA reste de toute façon le choix soucieux de la sécurité, et c'est ce que font les exemples de cette page. Il n'y a pas de paquet npm ; l'action se consomme uniquement via `uses:`.
+`verbatra/action@v2` est la forme pratique et le choix par défaut recommandé : le tag `v2` avance avec chaque version v2, les correctifs t'arrivent donc sans toucher au workflow, au prix de ne pas savoir exactement ce qui s'exécute. Épingler un SHA reste de toute façon le choix soucieux de la sécurité, et c'est ce que font les exemples de cette page. Il n'y a pas de paquet npm ; l'action se consomme uniquement via `uses:`.
+
+`v1` résout encore pour les workflows qui n'ont pas été mis à jour, mais elle est dépassée : elle n'impose aucun minimum sur l'entrée `version` et continue de créer un lien symbolique des paquets CLI épinglés dans le `node_modules` de ton dépôt à chaque exécution, une écriture que `v2` supprime entièrement. Pointe les workflows nouveaux comme existants vers `v2`.
 
 Elle était auparavant livrée depuis le monorepo verbatra et référencée par chemin. Cette forme ancienne ne résout plus, pointe donc tes workflows existants vers le dépôt ci-dessus.
 
@@ -38,9 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: verbatra/action@<commit-sha>
+      - uses: verbatra/action@<commit-sha> # a v2 release; see Availability above
         with:
-          version: 0.9.0 # pin @verbatra/cli to an exact version
+          version: 0.9.3 # pin @verbatra/cli to an exact version, 0.9.3 or newer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -55,7 +57,7 @@ L'action lance la CLI, et la CLI lit la clé d'API du fournisseur uniquement dep
 
 | Entrée | Requis | Défaut | Description |
 | --- | --- | --- | --- |
-| `version` | oui | - | la version de `@verbatra/cli` à lancer. Doit être une version semver exacte comme `0.9.0` ou `0.9.1-next.0` ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~` |
+| `version` | oui | - | la version de `@verbatra/cli` à lancer, par exemple `0.9.3`. Doit être une version semver exacte ; l'étape échoue immédiatement sur un dist-tag comme `latest`, une plage ou un préfixe `^`/`~`. Sous `v2`, elle doit aussi être `0.9.3` ou plus récente ; un épinglage plus ancien fait échouer l'étape |
 | `config-path` | non | `""` | fichier de config explicite à charger (correspond à `--config`) ; vide utilise la recherche normale de config |
 | `working-directory` | non | `""` | répertoire depuis lequel résoudre la config et les fichiers de locale (correspond à `--cwd`) |
 | `dry-run` | non | `"false"` | mets `"true"` pour rapporter ce qui changerait sans appeler de fournisseur ni écrire (correspond à `--dry-run`) |

@@ -18,7 +18,9 @@ Die Action lebt in einem eigenen Repository, [verbatra/action](https://github.co
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v1` ist die bequeme Variante: der `v1`-Tag wandert mit jedem v1-Release mit, Fixes erreichen dich also ohne Änderung am Workflow, dafür weißt du nicht genau, was läuft. Ein SHA-Pin ist ohnehin die sicherheitsbewusste Wahl und wird in den Beispielen auf dieser Seite verwendet. Es gibt kein npm-Paket; die Action wird nur über `uses:` eingebunden.
+`verbatra/action@v2` ist die bequeme Variante und die empfohlene Standardwahl: der `v2`-Tag wandert mit jedem v2-Release mit, Fixes erreichen dich also ohne Änderung am Workflow, dafür weißt du nicht genau, was läuft. Ein SHA-Pin ist ohnehin die sicherheitsbewusste Wahl und wird in den Beispielen auf dieser Seite verwendet. Es gibt kein npm-Paket; die Action wird nur über `uses:` eingebunden.
+
+`v1` löst weiterhin auf für Workflows, die noch nicht aktualisiert haben, ist aber veraltet: er kennt kein Minimum für die Eingabe `version` und verlinkt die gepinnten CLI-Pakete bei jedem Lauf weiterhin per Symlink in dein Repository-`node_modules`, ein Schreibzugriff, den `v2` vollständig entfernt. Richte neue wie bestehende Workflows auf `v2` aus.
 
 Früher wurde sie aus dem verbatra-Monorepo ausgeliefert und per Pfad referenziert. Diese ältere Form löst nicht mehr auf, richte bestehende Workflows also auf das Repository oben aus.
 
@@ -38,9 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: verbatra/action@<commit-sha>
+      - uses: verbatra/action@<commit-sha> # a v2 release; see Availability above
         with:
-          version: 0.9.0 # pin @verbatra/cli to an exact version
+          version: 0.9.3 # pin @verbatra/cli to an exact version, 0.9.3 or newer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -55,7 +57,7 @@ Die Action führt die CLI aus, und die CLI liest den API-Key des Providers nur a
 
 | Eingabe | Erforderlich | Standard | Beschreibung |
 | --- | --- | --- | --- |
-| `version` | ja | - | die auszuführende `@verbatra/cli`-Version. Muss eine exakte Semver-Version wie `0.9.0` oder `0.9.1-next.0` sein; der Schritt schlägt sofort fehl bei einem Dist-Tag wie `latest`, einem Bereich oder einem `^`/`~`-Präfix |
+| `version` | ja | - | die auszuführende `@verbatra/cli`-Version, zum Beispiel `0.9.3`. Muss eine exakte Semver-Version sein; der Schritt schlägt sofort fehl bei einem Dist-Tag wie `latest`, einem Bereich oder einem `^`/`~`-Präfix. Unter `v2` muss sie zudem `0.9.3` oder neuer sein; ein älterer Pin lässt den Schritt fehlschlagen |
 | `config-path` | nein | `""` | explizit zu ladende Konfigurationsdatei (entspricht `--config`); leer nutzt die normale Konfigurationssuche |
 | `working-directory` | nein | `""` | Verzeichnis, gegen das Konfiguration und Locale-Dateien aufgelöst werden (entspricht `--cwd`) |
 | `dry-run` | nein | `"false"` | auf `"true"` setzen, um zu melden, was sich ändern würde, ohne einen Provider aufzurufen oder zu schreiben (entspricht `--dry-run`) |
