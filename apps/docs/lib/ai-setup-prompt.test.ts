@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AI_SETUP_PROMPT } from "./ai-setup-prompt";
 
 const MDX_PATH = fileURLToPath(
-  new URL("../content/docs/(guides)/start-with-ai.mdx", import.meta.url),
+  new URL("../content/docs/(get-started)/start-with-ai.mdx", import.meta.url),
 );
 const TEXT_FENCE = /```text\n([\s\S]*?)```/;
 

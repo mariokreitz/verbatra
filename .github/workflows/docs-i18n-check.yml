@@ -1,9 +1,5 @@
 name: Docs i18n check
 
-# Gates pull requests that touch apps/docs translation surfaces on locale drift. Runs
-# verbatra/action in "check" mode: read-only, exits 1 when any locale has missing or
-# stale keys, needs no provider API key, so it is safe to run on fork PRs.
-
 on:
   pull_request:
     branches: [main]
