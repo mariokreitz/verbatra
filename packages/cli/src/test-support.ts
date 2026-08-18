@@ -139,7 +139,7 @@ export function parseEnvelope(line: string): ParsedEnvelope {
 }
 
 export interface DepCalls {
-  loadConfig: LoadConfigOptions[];
+  resolveConfig: LoadConfigOptions[];
   translate: TranslateInput[];
   watch: WatchInput[];
   exportWorkbook: ExportWorkbookInput[];
@@ -153,7 +153,7 @@ export interface DepCalls {
 
 export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; calls: DepCalls } {
   const calls: DepCalls = {
-    loadConfig: [],
+    resolveConfig: [],
     translate: [],
     watch: [],
     exportWorkbook: [],
@@ -165,9 +165,11 @@ export function recordingDeps(impl: Partial<CliDeps> = {}): { deps: CliDeps; cal
     importStudio: [],
   };
   const deps: CliDeps = {
-    loadConfig: async (options) => {
-      calls.loadConfig.push(options);
-      return impl.loadConfig ? impl.loadConfig(options) : makeConfig();
+    resolveConfig: async (options) => {
+      calls.resolveConfig.push(options);
+      return impl.resolveConfig
+        ? impl.resolveConfig(options)
+        : { config: makeConfig(), loaded: makeLoadedConfig(), detection: undefined };
     },
     translate: async (input) => {
       calls.translate.push(input);

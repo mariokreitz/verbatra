@@ -109,7 +109,7 @@ describe("run export: SDK delegation and rendering", () => {
 
   it("a whole-run error renders to stderr and exits 2", async () => {
     const { deps } = recordingDeps({
-      loadConfig: async () => {
+      resolveConfig: async () => {
         throw Object.assign(new Error("no config"), { code: "CONFIG_NOT_FOUND" });
       },
     });
@@ -313,6 +313,6 @@ describe("run import: SDK delegation and rendering", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).not.toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.resolveConfig).toHaveLength(0);
   });
 });

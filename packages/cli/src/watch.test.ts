@@ -189,7 +189,7 @@ describe("run watch: --debounce validation", () => {
       expect(code).toBe(2);
       expect(cap.err()).toContain("[INVALID_DEBOUNCE]");
       expect(cap.out()).toBe("");
-      expect(calls.loadConfig).toHaveLength(0);
+      expect(calls.resolveConfig).toHaveLength(0);
       expect(calls.watch).toHaveLength(0);
     },
   );
@@ -235,7 +235,7 @@ describe("run watch: --concurrency", () => {
       expect(code).toBe(2);
       expect(cap.err()).toContain("[INVALID_CONCURRENCY]");
       expect(cap.out()).toBe("");
-      expect(calls.loadConfig).toHaveLength(0);
+      expect(calls.resolveConfig).toHaveLength(0);
       expect(calls.watch).toHaveLength(0);
     },
   );
@@ -287,7 +287,7 @@ describe("run watch: shutdown and exit codes", () => {
 
   it("a loadConfig failure before watching exits 2 with the structured error", async () => {
     const { deps } = recordingDeps({
-      loadConfig: () => Promise.reject(new SdkError("CONFIG_INVALID", "bad config")),
+      resolveConfig: () => Promise.reject(new SdkError("CONFIG_INVALID", "bad config")),
     });
     const cap = captureStreams();
 

@@ -10,9 +10,9 @@ import type {
   ImportWorkbookInput,
   LoadConfigOptions,
   LoadedConfig,
+  ResolvedProjectConfig,
   RunSummary,
   TranslateInput,
-  VerbatraConfig,
   WatchController,
   WatchInput,
 } from "@verbatra/sdk";
@@ -24,7 +24,7 @@ export interface Streams {
 }
 
 export interface CliDeps {
-  loadConfig(options: LoadConfigOptions): Promise<VerbatraConfig>;
+  resolveConfig(options: LoadConfigOptions): Promise<ResolvedProjectConfig>;
   translate(input: TranslateInput): Promise<RunSummary>;
   watch(input: WatchInput): Promise<WatchController>;
   exportWorkbook(input: ExportWorkbookInput): Promise<ExportWorkbookResult>;

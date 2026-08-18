@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import {
+  formatFromDependencyNames,
   type ScaffoldableProviderId,
   type SupportedFormat,
   scaffoldingMetadata,
@@ -14,12 +15,6 @@ import type { InitOpts, Streams } from "./types.js";
 
 const PROVIDER_IDS = Object.keys(scaffoldingMetadata.providerEnv) as ScaffoldableProviderId[];
 
-const FORMAT_BY_DEP: ReadonlyArray<readonly [string, SupportedFormat]> = [
-  ["i18next", "i18next-json"],
-  ["vue-i18n", "vue-i18n-json"],
-  ["next-intl", "next-intl-json"],
-  ["@ngx-translate/core", "ngx-translate-json"],
-];
 const DEFAULT_FORMAT: SupportedFormat = "i18next-json";
 
 export const DEFAULT_MODEL = scaffoldingMetadata.scaffoldModels;
@@ -61,13 +56,10 @@ function readDependencyNames(cwd: string): Set<string> {
 }
 
 function detectFormat(cwd: string): { format: string; detected: boolean } {
-  const deps = readDependencyNames(cwd);
-  const matches = FORMAT_BY_DEP.filter(([dep]) => deps.has(dep)).map(([, format]) => format);
-  const [first, second] = matches;
-  if (first !== undefined && second === undefined) {
-    return { format: first, detected: true };
-  }
-  return { format: DEFAULT_FORMAT, detected: false };
+  const match = formatFromDependencyNames(readDependencyNames(cwd));
+  return match === undefined
+    ? { format: DEFAULT_FORMAT, detected: false }
+    : { format: match, detected: true };
 }
 
 function buildProviderOptions(id: ScaffoldableProviderId): Record<string, unknown> {

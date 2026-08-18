@@ -67,7 +67,7 @@ describe("run doctor: SDK delegation, rendering, and exit codes", () => {
 
     await run(["doctor", "--cwd", "/proj"], deps, captureStreams().streams);
 
-    expect(calls.loadConfig).toEqual([]);
+    expect(calls.resolveConfig).toEqual([]);
     expect(calls.loadConfigWithMeta).toEqual([]);
   });
 

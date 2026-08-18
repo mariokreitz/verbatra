@@ -8,6 +8,7 @@ import type {
   LocaleSummary,
   LockWaitEvent,
   ProgressEvent,
+  ProjectDetection,
   RunBudget,
   RunSummary,
   UsageSummary,
@@ -25,6 +26,26 @@ export function toRenderableError(error: unknown): RenderableError {
     return { code: typeof code === "string" ? code : "CLI_ERROR", message: error.message };
   }
   return { code: "CLI_ERROR", message: String(error) };
+}
+
+export function renderDetection(detection: ProjectDetection, json: boolean): string {
+  if (json) {
+    return JSON.stringify({ event: "detection", ...detection });
+  }
+  const provider = detection.providerResolved
+    ? `provider ${detection.provider}`
+    : "no provider API key found";
+  const runnersUp =
+    detection.alsoAvailable.length > 0
+      ? ` (keys were also set for ${detection.alsoAvailable.join(", ")})`
+      : "";
+  return [
+    "verbatra: no config file found, so the project was detected automatically.",
+    `  files:   ${detection.pattern} (${detection.format})`,
+    `  locales: ${detection.sourceLocale} -> ${detection.targetLocales.join(", ")}`,
+    `  ${provider}${runnersUp}`,
+    '  Run "verbatra init" to write this down as a config you control.',
+  ].join("\n");
 }
 
 export function renderHuman(summary: RunSummary, command = "translate"): string {

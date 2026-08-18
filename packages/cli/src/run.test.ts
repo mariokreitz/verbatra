@@ -30,7 +30,7 @@ describe("run translate: SDK delegation and rendering", () => {
       succeeded: ["de"],
     });
     const { deps, calls } = recordingDeps({
-      loadConfig: async () => cfg,
+      resolveConfig: async () => ({ config: cfg, loaded: undefined, detection: undefined }),
       translate: async () => summary,
     });
     const cap = captureStreams();
@@ -52,7 +52,7 @@ describe("run translate: SDK delegation and rendering", () => {
 
     await run(["translate", "--config", "ci.json", "--cwd", "/proj"], deps, cap.streams);
 
-    expect(calls.loadConfig[0]).toEqual({ cwd: "/proj", configPath: "ci.json" });
+    expect(calls.resolveConfig[0]).toEqual({ cwd: "/proj", configPath: "ci.json" });
     expect(calls.translate[0]?.cwd).toBe("/proj");
   });
 
@@ -62,8 +62,8 @@ describe("run translate: SDK delegation and rendering", () => {
 
     await run(["translate"], deps, cap.streams);
 
-    expect(calls.loadConfig[0]).toEqual({ cwd: process.cwd() });
-    expect(calls.loadConfig[0]).not.toHaveProperty("configPath");
+    expect(calls.resolveConfig[0]).toEqual({ cwd: process.cwd() });
+    expect(calls.resolveConfig[0]).not.toHaveProperty("configPath");
   });
 
   it("--dry-run passes dryRun:true and does a single translate call", async () => {
@@ -480,7 +480,7 @@ describe("run translate: exit codes", () => {
 
   it("under --json a whole-run error emits one error envelope on stdout and still exits 2", async () => {
     const { deps } = recordingDeps({
-      loadConfig: async () => {
+      resolveConfig: async () => {
         throw new SdkError("CONFIG_INVALID", "bad config");
       },
     });
@@ -502,7 +502,7 @@ describe("run translate: exit codes", () => {
   it("under --json the stderr line is byte-identical to the non-json run's", async () => {
     const failing = (): { deps: CliDeps } =>
       recordingDeps({
-        loadConfig: async () => {
+        resolveConfig: async () => {
           throw new SdkError("CONFIG_INVALID", "bad config");
         },
       });
@@ -535,7 +535,7 @@ describe("run translate: exit codes", () => {
   it("names the failing command in the envelope for every command that takes --json", async () => {
     const failing = (): { deps: CliDeps } =>
       recordingDeps({
-        loadConfig: async () => {
+        resolveConfig: async () => {
           throw new SdkError("CONFIG_NOT_FOUND", "no config");
         },
       });
@@ -561,7 +561,7 @@ describe("run translate: exit codes", () => {
 
   it("writes nothing to stdout on failure without --json", async () => {
     const { deps } = recordingDeps({
-      loadConfig: async () => {
+      resolveConfig: async () => {
         throw new SdkError("CONFIG_INVALID", "bad config");
       },
     });
@@ -607,7 +607,7 @@ describe("run: shared whole-run error helper (withWholeRunErrors)", () => {
 
   it("maps a whole-run SdkError thrown by loadConfig to 2 with clean stdout (export)", async () => {
     const { deps } = recordingDeps({
-      loadConfig: async () => {
+      resolveConfig: async () => {
         throw new SdkError("CONFIG_INVALID", "bad config");
       },
     });
@@ -843,7 +843,7 @@ describe("run: .env loading is wired before the SDK flow", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).not.toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.resolveConfig).toHaveLength(0);
   });
 
   it("watch: a non-ENOENT .env read error (EISDIR) exits 2 with a structured error, no unhandled throw", async () => {
@@ -858,7 +858,7 @@ describe("run: .env loading is wired before the SDK flow", () => {
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).not.toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.resolveConfig).toHaveLength(0);
   });
 });
 
@@ -872,7 +872,7 @@ describe("run translate: rawOpts is zod-validated inside the error scaffold", ()
     expect(code).toBe(2);
     expect(cap.out()).toBe("");
     expect(cap.err()).not.toBe("");
-    expect(calls.loadConfig).toHaveLength(0);
+    expect(calls.resolveConfig).toHaveLength(0);
   });
 });
 

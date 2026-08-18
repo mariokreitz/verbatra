@@ -5,8 +5,8 @@ import {
   doctor,
   exportWorkbook,
   importWorkbook,
-  loadConfig,
   loadConfigWithMeta,
+  resolveProjectConfig,
   translate,
   watch,
 } from "@verbatra/sdk";
@@ -15,7 +15,7 @@ import { run } from "./run.js";
 const code = await run(
   process.argv.slice(2),
   {
-    loadConfig,
+    resolveConfig: resolveProjectConfig,
     translate,
     watch,
     exportWorkbook,

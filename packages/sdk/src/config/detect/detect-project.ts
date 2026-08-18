@@ -24,6 +24,8 @@ export const CANDIDATE_DIRECTORIES: readonly string[] = [
   "i18n",
   "src/i18n",
   "src/assets/i18n",
+  "assets/i18n",
+  "public/assets/i18n",
   "app/locales",
   "lang",
   "translations",

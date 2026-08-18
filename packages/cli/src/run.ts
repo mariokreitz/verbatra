@@ -4,7 +4,9 @@ import {
   type ExchangeFormat,
   type LockWaitEvent,
   type ProgressEvent,
+  requireDetectedProvider,
   type TranslateInput,
+  type VerbatraConfig,
 } from "@verbatra/sdk";
 import { Command, CommanderError } from "commander";
 import { z } from "zod";
@@ -17,6 +19,7 @@ import { readPackageManifest } from "./package-manifest.js";
 import { parsePositiveIntegerOption } from "./positive-integer-option.js";
 import {
   renderCheckHuman,
+  renderDetection,
   renderDiffHuman,
   renderDoctorHuman,
   renderError,
@@ -196,17 +199,39 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
   };
 }
 
+interface RunConfigOptions {
+  /** Runs before the config is resolved, for side effects such as loading .env files. */
+  readonly beforeLoad?: () => void;
+  /** Refuse a detected project that has no provider API key. Set for commands that spend money. */
+  readonly requireProvider?: boolean;
+}
+
+async function resolveConfigReporting(
+  deps: CliDeps,
+  context: CommandContext,
+  loadOpts: { cwd: string; configPath?: string },
+  options: RunConfigOptions,
+): Promise<VerbatraConfig> {
+  const resolved = await deps.resolveConfig(loadOpts);
+  if (resolved.detection !== undefined) {
+    context.streams.err(`${renderDetection(resolved.detection, context.json)}\n`);
+  }
+  if (options.requireProvider === true) {
+    requireDetectedProvider(resolved);
+  }
+  return resolved.config;
+}
+
 async function withWholeRunErrors(
   deps: CliDeps,
   context: CommandContext,
   loadOpts: { cwd: string; configPath?: string },
-  body: (config: Awaited<ReturnType<CliDeps["loadConfig"]>>) => Promise<number>,
-  beforeLoad?: () => void,
+  body: (config: VerbatraConfig) => Promise<number>,
+  options: RunConfigOptions = {},
 ): Promise<number> {
   try {
-    beforeLoad?.();
-    const config = await deps.loadConfig(loadOpts);
-    return await body(config);
+    options.beforeLoad?.();
+    return await body(await resolveConfigReporting(deps, context, loadOpts, options));
   } catch (error) {
     return renderFailureExit2(error, context);
   }
@@ -331,7 +356,12 @@ export async function runTranslate(
           );
           return runExitCode(summary);
         },
-        () => loadEnvFiles(cwd),
+        {
+          beforeLoad: () => {
+            loadEnvFiles(cwd);
+          },
+          requireProvider: opts.dryRun !== true,
+        },
       );
     },
   );
@@ -369,11 +399,14 @@ async function runWatchCommand(
     async (opts) => {
       const cwd = opts.cwd ?? process.cwd();
       appendMissingGitignoreEntries(cwd);
-      let config: Awaited<ReturnType<CliDeps["loadConfig"]>>;
+      let config: VerbatraConfig;
       try {
         loadEnvFiles(cwd);
-        config = await deps.loadConfig(
+        config = await resolveConfigReporting(
+          deps,
+          context,
           loadOptions(opts.config !== undefined ? { config: opts.config } : {}, cwd),
+          { requireProvider: true },
         );
       } catch (error) {
         return renderFailureExit2(error, context);
