@@ -27,8 +27,15 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { labelKey: "cols.product.sdk", href: "/docs/sdk" },
       { labelKey: "cols.product.studio", href: "/docs/cli/studio" },
       { labelKey: "cols.product.githubAction", href: "/docs/github-action" },
-      { labelKey: "cols.product.llmsIndex", href: "/llms.txt" },
-      { labelKey: "cols.product.llmsFull", href: "/llms-full.txt" },
+    ],
+  },
+  {
+    col: "agents",
+    titleKey: "cols.agents.title",
+    links: [
+      { labelKey: "cols.agents.llmsIndex", href: "/llms.txt" },
+      { labelKey: "cols.agents.llmsFull", href: "/llms-full.txt" },
+      { labelKey: "cols.agents.aiTxt", href: "/.well-known/ai.txt" },
     ],
   },
   {
@@ -136,8 +143,8 @@ export async function FullFooter(): Promise<ReactNode> {
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-16">
-        <div className="grid gap-x-8 gap-y-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
-          <div>
+        <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
+          <div className="sm:col-span-2 md:col-span-3 lg:col-span-1">
             <span className="inline-flex items-center gap-2.5">
               <VMark size={30} />
               <span

@@ -205,9 +205,13 @@
           "cliReference": "CLI reference",
           "sdk": "SDK",
           "studio": "Studio",
-          "githubAction": "GitHub Action",
+          "githubAction": "GitHub Action"
+        },
+        "agents": {
+          "title": "For AI agents",
           "llmsIndex": "llms.txt (index)",
-          "llmsFull": "llms-full.txt (full text)"
+          "llmsFull": "llms-full.txt (full text)",
+          "aiTxt": "ai.txt (usage policy)"
         },
         "learn": {
           "title": "Learn",
