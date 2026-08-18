@@ -121,3 +121,80 @@ Nur in Umgebungsvariablen: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KE
 Umgebungsvariablen gewinnen). Das Konfigurationsschema lehnt unbekannte Keys genau deshalb ab, damit ein Geheimnis
 nicht in einer committeten Datei landen kann, und Fehlermeldungen nennen die Variable, aber nie
 einen Wert. Siehe [Provider](/docs/providers).
+
+## Was prüft verbatra doctor eigentlich?
+
+<AvailableFrom version="0.9.0" />
+
+Fünf Dinge, alle ohne Provider-Aufruf, ohne Netzwerk-Request und ohne einen API-Schlüssel-Wert zu
+lesen: Die Konfiguration lädt und besteht die Validierung, das konfigurierte `format` löst sich zu
+einem Datei-Adapter auf, die konfigurierte `provider.id` löst sich zu einer Provider-Factory auf,
+die Umgebungsvariable, aus der dieser Provider seinen Schlüssel liest, ist gesetzt (nur dem Namen
+nach geprüft, nie am Wert), und die Quell-Locale-Datei existiert, ist eine reguläre Datei und
+lässt sich unter diesem Format parsen. Jeder Check läuft auch dann, wenn ein früherer
+fehlgeschlagen ist, ein Lauf meldet also jedes unabhängige Problem auf einmal; die Ausnahme ist
+die Konfiguration selbst: Schlägt sie beim Laden fehl, werden die vier Checks übersprungen, die
+sie brauchen.
+
+```bash
+verbatra doctor
+```
+
+Greife darauf zurück bei einem frischen Checkout, direkt nach `verbatra init`, oder wann immer ein
+anderer Befehl fehlgeschlagen ist und du die ganze Liste statt nur des ersten Fehlers willst.
+Siehe [`verbatra doctor`](/docs/cli/doctor) für die vollständige Check-Tabelle und die Exit-Codes.
+
+## Kann ein KI-Agent verbatra für mich einrichten oder bedienen?
+
+Drei verschiedene Oberflächen für drei verschiedene Aufgaben. [verbatra mit einem KI-Agenten
+einrichten](/docs/start-with-ai) ist ein copy-pasteable Prompt für Claude Code, Cursor oder jeden
+Coding-Agenten, der dein Projekt lesen und Shell-Befehle ausführen kann: Er inspiziert ein
+bestehendes i18n-Setup, installiert die CLI, erstellt eine passende Konfiguration, führt `doctor`,
+`check`, `diff` und `translate --dry-run` aus, um die Arbeit zu zeigen, und stoppt dann, um einen
+Menschen um Bestätigung zu bitten, bevor er je wirklich einen Provider aufruft. [Rezepte für
+Agenten und Skripte](/docs/agent-recipes) ist die Referenz, um deine eigene Agenten-Schleife auf
+demselben `--json`-Envelope und denselben Exit-Codes aufzubauen, die diese Befehle nutzen. [Studio
+mit einem Browser-Agenten bedienen](/docs/agent-tools-in-studio) ist noch mal eine andere
+Oberfläche: ein Opt-in-Flag `--expose-agent-tools` auf `verbatra studio`, das WebMCP-Tools
+registriert, damit ein KI-Agent im Browser ein bereits eingerichtetes Projekt von einem offenen,
+authentifizierten Dashboard-Tab aus bedienen kann; es ist ausdrücklich nicht für die
+Ersteinrichtung gedacht.
+
+Keine der drei gibt einem Agenten die Möglichkeit, ohne einen Menschen im Loop Geld auszugeben.
+`translate` selbst hat kein eigenes Ausgaben-Gate, jede agentenfähige Oberfläche legt also einen
+Bestätigungsschritt oder das `--allow-spend`-Flag zwischen den Agenten und einen echten
+Provider-Aufruf.
+
+## Veröffentlicht diese Seite etwas für KI-Agenten und Crawler?
+
+Ja, drei statische Dateien, zur Build-Zeit generiert und immer auf Englisch, egal welche Locale du
+gerade ansiehst:
+
+- [`/llms.txt`](/llms.txt): ein kuratierter Index mit Titel und Beschreibung jeder Doc-Seite,
+  gruppiert wie die Sidebar, als Markdown-Links.
+- [`/llms-full.txt`](/llms-full.txt): die komplette Dokumentation in einer Datei, der gerenderte
+  Inhalt jeder Seite der Reihe nach aneinandergehängt, für einen Agenten, der Inhalte direkt
+  einliest, statt Links zu folgen.
+- [`/.well-known/ai.txt`](/.well-known/ai.txt): eine Nutzungsrichtlinie, die KI-Crawlern sagt,
+  dass dieses Projekt MIT-lizenziert ist und Crawlen, Indexieren und Zitieren dieser Inhalte
+  willkommen ist.
+
+Alle drei sind aus der Footer-Spalte für KI-Agenten verlinkt.
+
+## Ist der Inhalt dieser Seite KI-übersetzt?
+
+Zwei verschiedene Dinge, auf zwei verschiedene Arten übersetzt. Der UI-Rahmen
+(Navigationsbeschriftungen, Buttons, der Footer, der Landingpage-Text, die Landing-FAQ) lebt in
+`messages/en.json` und ihren `de`-, `es`- und `fr`-Geschwistern; die werden mit verbatra selbst
+maschinell übersetzt, gegen das Format `next-intl-json`, über den Gemini-Provider, ausgeführt von
+`pnpm i18n`. Das Projekt nutzt hier sein eigenes Tool (Dogfooding). Die Doku-Prosa, die du gerade
+liest, jeder Guide und jede Referenzseite einschließlich dieser hier, ist locale-suffigiertes MDX
+(`page.mdx`, `page.de.mdx`, `page.es.mdx`, `page.fr.mdx`), von Hand gepflegt von den
+Projekt-Maintainern: `pnpm i18n` übersetzt nur JSON-, XLIFF-, YAML-, ARB- und Properties-Dateien,
+nie Markdown, es rührt diese Seiten also nie an.
+
+Wenn dir im Deutschen, Spanischen oder Französischen etwas seltsam vorkommt, hängt der richtige
+Weg davon ab, um welche Hälfte es geht: Öffne ein Issue für UI-Texte, denn die werden an der
+englischen Quelle korrigiert und maschinell neu übersetzt; schick einen Pull Request für
+Doku-Prosa, denn die ist von Hand gepflegt, und eine Korrektur von einem Muttersprachler landet
+direkt in der Datei.

@@ -184,7 +184,11 @@
         },
         "automation": {
           "question": "Can I use verbatra in scripts, CI, and GitHub Actions?",
-          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, diff, and doctor operations for your own tooling. Commands return CI-friendly exit codes and support --json output, and an official GitHub Action runs verbatra in your workflow."
+          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, diff, doctor, export, and import operations for your own tooling. Commands return CI-friendly exit codes and support --json output, export and import round-trip a styled Excel workbook for a translator handoff, and an official GitHub Action runs verbatra in your workflow."
+        },
+        "agents": {
+          "question": "Can an AI coding agent set up verbatra for me?",
+          "answer": "Yes. The Set up with an AI agent guide is a copy-pasteable prompt for Claude Code, Cursor, and other coding agents: paste it in and the agent inspects your project, scaffolds a matching config, and previews a dry run, then stops to ask you to confirm before it ever spends against a real provider."
         },
         "cost": {
           "question": "What does verbatra cost?",
@@ -193,6 +197,10 @@
         "production": {
           "question": "Is verbatra production-ready?",
           "answer": "It is young and actively developed, so pin a version and read the <releases>changelog</releases> when you upgrade. The safety model is already solid: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks rather than writing it. Teams run it in CI today; pin versions and you are on stable ground."
+        },
+        "translations": {
+          "question": "Is this site's non-English content AI-translated?",
+          "answer": "Partly, by design. The UI text (navigation, buttons, footer, this FAQ) is machine-translated into German, Spanish, and French using verbatra itself, the same way any project would dogfood it. The documentation prose (the guides and reference pages) is hand-translated by the maintainers, not machine-translated wholesale."
         }
       }
     },

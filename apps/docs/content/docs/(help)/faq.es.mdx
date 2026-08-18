@@ -123,3 +123,78 @@ Solo en variables de entorno: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API
 entorno real ganan). El esquema de configuración rechaza las claves desconocidas precisamente para que un
 secreto no pueda acabar en un archivo confirmado, y los mensajes de error nombran la variable pero
 nunca un valor. Consulta [Proveedores](/docs/providers).
+
+## ¿Qué comprueba realmente verbatra doctor?
+
+<AvailableFrom version="0.9.0" />
+
+Cinco cosas, todas sin llamar al proveedor, sin petición de red y sin leer el valor de una clave
+de API: la configuración carga y pasa la validación, el `format` configurado se resuelve a un
+adaptador de archivo, el `provider.id` configurado se resuelve a una factory de proveedor, la
+variable de entorno de la que ese proveedor lee su clave está definida (comprobada solo por
+nombre, nunca por valor), y el archivo de la locale de origen existe, es un archivo regular y se
+parsea bajo ese formato. Cada comprobación se ejecuta incluso si una anterior falló, así que una
+sola ejecución informa de todos los problemas independientes a la vez; la excepción es la propia
+configuración: si falla al cargar, se omiten las cuatro comprobaciones que la necesitan.
+
+```bash
+verbatra doctor
+```
+
+Recurre a él en un checkout recién hecho, justo después de `verbatra init`, o cuando otro comando
+haya fallado y quieras la lista completa en lugar de solo el primer error. Consulta
+[`verbatra doctor`](/docs/cli/doctor) para ver la tabla completa de comprobaciones y los códigos
+de salida.
+
+## ¿Puede un agente de IA configurar o manejar verbatra por mí?
+
+Tres superficies distintas para tres trabajos distintos. [Configura verbatra con un agente de
+IA](/docs/start-with-ai) es un prompt listo para copiar y pegar en Claude Code, Cursor o cualquier
+agente de código que pueda leer tu proyecto y ejecutar comandos de shell: inspecciona una
+configuración de i18n existente, instala la CLI, genera una configuración a medida, ejecuta
+`doctor`, `check`, `diff` y `translate --dry-run` para mostrar el trabajo, y luego se detiene y te
+pide confirmación antes de llamar de verdad a un proveedor. [Recetas para agentes y
+scripts](/docs/agent-recipes) es la referencia para construir tu propio bucle de agente sobre el
+mismo envoltorio `--json` y los mismos códigos de salida que usan esos comandos. [Opera Studio con
+un agente del navegador](/docs/agent-tools-in-studio) es otra superficie distinta: un flag
+opcional `--expose-agent-tools` en `verbatra studio` que registra herramientas WebMCP para que un
+agente de IA en el navegador pueda manejar un proyecto ya configurado desde una pestaña abierta y
+autenticada del panel; no está pensado para la configuración inicial.
+
+Ninguna de las tres le da a un agente la manera de gastar sin un humano en el bucle. `translate`
+en sí no tiene ninguna barrera de gasto propia, así que cada superficie orientada a agentes coloca
+un paso de confirmación, o el flag `--allow-spend`, entre el agente y una llamada real al
+proveedor.
+
+## ¿Este sitio publica algo para agentes de IA y rastreadores?
+
+Sí, tres archivos estáticos, generados en tiempo de build y siempre en inglés, sin importar qué
+locale estés viendo:
+
+- [`/llms.txt`](/llms.txt): un índice curado con el título y la descripción de cada página de la
+  documentación, agrupado igual que la barra lateral, como enlaces en Markdown.
+- [`/llms-full.txt`](/llms-full.txt): toda la documentación en un solo archivo, el contenido
+  renderizado de cada página concatenado en orden, para un agente que ingiere el contenido
+  directamente en lugar de seguir enlaces.
+- [`/.well-known/ai.txt`](/.well-known/ai.txt): una política de uso que le dice a los
+  rastreadores de IA que este proyecto tiene licencia MIT y que rastrear, indexar y citar este
+  contenido es bienvenido.
+
+Los tres están enlazados desde la columna del pie de página para agentes de IA.
+
+## ¿El contenido de este sitio está traducido por IA?
+
+Dos cosas distintas, traducidas de dos maneras distintas. El texto de la interfaz (etiquetas de
+navegación, botones, el pie de página, el texto de la landing, las preguntas frecuentes de la
+landing) vive en `messages/en.json` y sus hermanos `de`, `es` y `fr`; esos se traducen
+automáticamente con verbatra mismo, contra el formato `next-intl-json`, a través del proveedor
+Gemini, ejecutado por `pnpm i18n`. Es el propio proyecto usando su propia herramienta (dogfooding).
+La prosa de la documentación que estás leyendo ahora mismo, cada guía y cada página de referencia
+incluida esta, es MDX con sufijo de locale (`page.mdx`, `page.de.mdx`, `page.es.mdx`,
+`page.fr.mdx`), mantenido a mano por los mantenedores del proyecto: `pnpm i18n` solo traduce
+archivos JSON, XLIFF, YAML, ARB y properties, nunca Markdown, así que nunca toca estas páginas.
+
+Si algo en alemán, español o francés suena raro, el camino correcto depende de a cuál de las dos
+mitades pertenece: abre un issue para el texto de la interfaz, porque se corrige en la fuente en
+inglés y se retraduce automáticamente; envía un pull request para la prosa de la documentación,
+porque se mantiene a mano y una corrección de un hablante nativo va directa al archivo.
