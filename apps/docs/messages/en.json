@@ -154,6 +154,10 @@
       "ctaDocs": "Read the docs",
       "ctaIssue": "open an issue",
       "items": {
+        "formats": {
+          "question": "Which formats and frameworks does verbatra support?",
+          "answer": "JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, Flutter ARB, and Java/Spring .properties files. That covers React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring, and Flutter. verbatra reads the files you already have; there is no verbatra-specific format to migrate to."
+        },
         "incremental": {
           "question": "How does verbatra avoid re-translating everything on every run?",
           "answer": "It keeps a committed lock file that records what was already translated. Each run diffs your source locale against that lock and sends only the new or changed keys to your provider. Unchanged keys are never touched, so a typical run costs a handful of strings, not your whole catalog."
@@ -162,45 +166,13 @@
           "question": "Which translation providers can I use?",
           "answer": "Five, behind one interface: Anthropic, OpenAI, and Gemini (LLMs), DeepL (machine translation), and openai-compatible, which points verbatra at a local or self-hosted server like Ollama, LM Studio, or vLLM. You pick one by id in your config and can switch later by editing that one line. Gemini has a real free tier, and a local model costs nothing per call."
         },
-        "formats": {
-          "question": "Which formats and frameworks does verbatra support?",
-          "answer": "JSON for i18next, vue-i18n, next-intl, and ngx-translate, plus XLIFF, YAML, Flutter ARB, and Java/Spring .properties files. That covers React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring, and Flutter. verbatra reads the files you already have; there is no verbatra-specific format to migrate to."
-        },
-        "studio": {
-          "question": "What is Verbatra Studio?",
-          "answer": "A local web dashboard over your project that shows every locale's status live, surfaces a review queue of flagged entries, and lets you fix translations in place. Start it with verbatra studio (install @verbatra/studio first). Editing your own locale files works out of the box; calling a provider from the UI is opt-in behind --allow-spend. It runs on 127.0.0.1 only and never leaves your machine."
-        },
         "safety": {
           "question": "What stops a bad translation from breaking my app?",
           "answer": "Every result passes a placeholder and ICU integrity check before it is written. A translation that drops, invents, or reorders a placeholder, or produces invalid ICU message syntax, is withheld rather than saved to your locale file. The same gate applies to edits and retranslations made in Verbatra Studio."
         },
-        "keys": {
-          "question": "Where do my API keys live, and is my content sent anywhere I do not control?",
-          "answer": "Keys are read only from environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, DEEPL_API_KEY), never from the config file, CLI arguments, or logs. Only the strings you are translating are sent, and only to the provider you chose. If you use the openai-compatible provider with a local model, nothing leaves your machine or network at all."
-        },
-        "preview": {
-          "question": "Can I preview a run before it writes anything?",
-          "answer": "Yes. A dry run reports exactly which keys would be sent and written without touching your files, and verbatra check and verbatra diff report per-locale drift without calling a provider. Watch mode does the opposite: it keeps translating as your source locale changes."
-        },
-        "automation": {
-          "question": "Can I use verbatra in scripts, CI, and GitHub Actions?",
-          "answer": "Yes. The CLI is a thin wrapper over @verbatra/sdk, which exposes the same translate, watch, check, diff, doctor, export, and import operations for your own tooling. Commands return CI-friendly exit codes and support --json output, export and import round-trip a styled Excel workbook for a translator handoff, and an official GitHub Action runs verbatra in your workflow."
-        },
-        "agents": {
-          "question": "Can an AI coding agent set up verbatra for me?",
-          "answer": "Yes. The Set up with an AI agent guide is a copy-pasteable prompt for Claude Code, Cursor, and other coding agents: paste it in and the agent inspects your project, scaffolds a matching config, and previews a dry run, then stops to ask you to confirm before it ever spends against a real provider."
-        },
         "cost": {
           "question": "What does verbatra cost?",
           "answer": "verbatra itself is free and open source under the MIT license. The only cost is your provider's usage, which you control: it translates only what changed, and you can run it for free on Gemini's free tier or a local OpenAI-compatible model."
-        },
-        "production": {
-          "question": "Is verbatra production-ready?",
-          "answer": "It is young and actively developed, so pin a version and read the <releases>changelog</releases> when you upgrade. The safety model is already solid: every run diffs against a committed lock file, checks placeholder and ICU integrity on each result, and withholds anything that breaks rather than writing it. Teams run it in CI today; pin versions and you are on stable ground."
-        },
-        "translations": {
-          "question": "Is this site's non-English content AI-translated?",
-          "answer": "Yes, all of it, through two mechanisms. UI text (navigation, buttons, footer, this FAQ) is machine-translated into German, Spanish, and French using verbatra itself, automatically whenever the English source changes. Documentation prose (the guides and reference pages) is also AI-translated, just as a separate manual step, since verbatra only translates JSON-family formats, not Markdown."
         }
       }
     },
