@@ -7,6 +7,9 @@ const config = {
   poweredByHeader: false,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
+  outputFileTracingIncludes: {
+    "/*": ["../../node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/esm/**/*"],
+  },
   experimental: {
     optimizePackageImports: ["@icons-pack/react-simple-icons", "motion"],
   },
