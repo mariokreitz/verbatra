@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
@@ -47,8 +47,8 @@ export interface LoadConfigOptions {
 export type ConfigSource =
   | {
       /**
-       * `search` means cosmiconfig found the file by walking up from the working directory;
-       * `explicit` means the caller named it through `configPath`.
+       * `search` means cosmiconfig found the file by walking up from the working directory, up to
+       * the nearest `.git` directory; `explicit` means the caller named it through `configPath`.
        */
       readonly kind: "search" | "explicit";
       /** The absolute path of the config file that was loaded. */
@@ -67,6 +67,20 @@ export interface LoadedConfig {
   readonly source: ConfigSource;
   /** Where the glossary came from, if the config declared one. */
   readonly glossary: GlossaryProvenance;
+}
+
+function findSearchStopDir(startDir: string): string | undefined {
+  let dir = resolve(startDir);
+  while (true) {
+    if (existsSync(join(dir, ".git"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return undefined;
+    }
+    dir = parent;
+  }
 }
 
 function formatIssues(error: z.ZodError): string {
@@ -137,8 +151,11 @@ async function loadExplicitWithMeta(
  *
  * Resolution order is: an explicit `configOverride`, then an explicit `configPath`, then a
  * cosmiconfig search upward from `cwd` across `verbatra.config.ts`, the `.verbatrarc` family, and a
- * `verbatra` property in `package.json`. A `configPath` that does not exist is an error rather than
- * a fallback to searching, so a typo in a path never silently loads a different project's config.
+ * `verbatra` property in `package.json`. The upward search stops at the nearest ancestor directory
+ * containing a `.git` entry, or at the user's home directory if none is found, so a nested workspace
+ * package finds a config at its monorepo root without wandering above it. A `configPath` that does
+ * not exist is an error rather than a fallback to searching, so a typo in a path never silently loads
+ * a different project's config.
  *
  * A glossary given as a path is read and validated here, so the returned config always carries a
  * resolved term map.
@@ -160,9 +177,14 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
     return { config, source: { kind: "override" }, glossary };
   }
 
+  const cwd = options.cwd ?? process.cwd();
+  const stopDir = findSearchStopDir(cwd);
+
   const explorer = cosmiconfig(MODULE_NAME, {
     searchPlaces: SEARCH_PLACES,
     loaders: { ".ts": TypeScriptLoader() },
+    searchStrategy: "global",
+    ...(stopDir !== undefined ? { stopDir } : {}),
   });
 
   if (options.configPath !== undefined) {
@@ -171,7 +193,7 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
 
   let result: Awaited<ReturnType<typeof explorer.search>>;
   try {
-    result = await explorer.search(options.cwd);
+    result = await explorer.search(cwd);
   } catch (error) {
     const detail = errorMessage(error);
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
@@ -194,7 +216,8 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
  * pass the result to {@link translate}, {@link check}, {@link diff}, or any other entry point.
  *
  * Resolution order is an explicit `configOverride`, then an explicit `configPath`, then a
- * cosmiconfig search upward from `cwd`. A glossary declared as a file path is read and validated
+ * cosmiconfig search upward from `cwd`, stopping at the nearest ancestor `.git` directory (or the
+ * user's home directory if none is found). A glossary declared as a file path is read and validated
  * here, so the returned {@link VerbatraConfig} always carries a resolved term map.
  *
  * Reach for {@link loadConfigWithMeta} when you also need to know which file was loaded.
