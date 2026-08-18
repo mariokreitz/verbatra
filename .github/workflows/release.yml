@@ -102,7 +102,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
     outputs:
       published: ${{ steps.changesets.outputs.published }}
-      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+      publishedPackages: ${{ steps.changesets.outputs.published-packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,13 +152,17 @@ jobs:
       # workflow if a prerelease published in this run holds the latest tag.
       - name: Create Version Packages PR or publish
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        uses: changesets/action@22ccf9aa43179fe9e27dc62e575971d28cce197c # v2.0.0
         with:
-          version: pnpm changeset version
-          publish: pnpm exec changeset publish
-          createGithubReleases: true
+          version-script: pnpm changeset version
+          publish-script: pnpm exec changeset publish
+          create-github-releases: true
+          # v2 reads the token from this input only: the GITHUB_TOKEN env var and the credentials
+          # actions/checkout would persist are no longer substitutes, and this job checks out with
+          # persist-credentials: false. Left at the default push mode, so the release commit and tags
+          # go through the GitHub API rather than the Git CLI, which needs no local git credentials.
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ""
           NPM_CONFIG_PROVENANCE: "true"
 
