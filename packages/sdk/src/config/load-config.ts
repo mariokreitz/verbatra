@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
 import type { z } from "zod";
@@ -47,8 +48,8 @@ export interface LoadConfigOptions {
 export type ConfigSource =
   | {
       /**
-       * `search` means cosmiconfig found the file by walking up from the working directory;
-       * `explicit` means the caller named it through `configPath`.
+       * `search` means cosmiconfig found the file by walking up from the working directory, up to
+       * the nearest `.git` directory; `explicit` means the caller named it through `configPath`.
        */
       readonly kind: "search" | "explicit";
       /** The absolute path of the config file that was loaded. */
@@ -67,6 +68,57 @@ export interface LoadedConfig {
   readonly source: ConfigSource;
   /** Where the glossary came from, if the config declared one. */
   readonly glossary: GlossaryProvenance;
+}
+
+function isAncestorOrSelf(ancestor: string, startDir: string): boolean {
+  const target = resolve(ancestor);
+  let dir = resolve(startDir);
+  while (true) {
+    if (dir === target) {
+      return true;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return false;
+    }
+    dir = parent;
+  }
+}
+
+function findSearchStopDir(startDir: string): string {
+  let dir = resolve(startDir);
+  while (true) {
+    if (existsSync(join(dir, ".git"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+
+  const home = resolve(homedir());
+  return isAncestorOrSelf(home, startDir) ? home : resolve(startDir);
+}
+
+function collectSearchChain(startDir: string, stopDir: string): ReadonlySet<string> {
+  const stop = resolve(stopDir);
+  const chain = new Set<string>();
+  let dir = resolve(startDir);
+  while (dir !== stop) {
+    chain.add(dir);
+    const parent = dirname(dir);
+    /* v8 ignore next 3 -- findSearchStopDir only ever returns a `.git` ancestor, the home
+    directory when it is a real ancestor of startDir, or startDir itself, so stop is always
+    reached before the filesystem root; this guard is purely defensive against future misuse. */
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  chain.add(stop);
+  return chain;
 }
 
 function formatIssues(error: z.ZodError): string {
@@ -137,8 +189,15 @@ async function loadExplicitWithMeta(
  *
  * Resolution order is: an explicit `configOverride`, then an explicit `configPath`, then a
  * cosmiconfig search upward from `cwd` across `verbatra.config.ts`, the `.verbatrarc` family, and a
- * `verbatra` property in `package.json`. A `configPath` that does not exist is an error rather than
- * a fallback to searching, so a typo in a path never silently loads a different project's config.
+ * `verbatra` property in `package.json`. The upward search stops at the nearest ancestor directory
+ * containing a `.git` entry; if none is found, it stops at the user's home directory when that is an
+ * ancestor of `cwd`, and otherwise it does not search above `cwd` at all, so a nested workspace
+ * package finds a config at its monorepo root without wandering above it, and a project outside the
+ * home directory tree (a CI checkout, for instance) never triggers an unbounded walk to the
+ * filesystem root. A config file outside that directory chain, including cosmiconfig's own OS-level
+ * global config directory, is never used, even though the underlying search strategy checks it; it is
+ * treated the same as no config found. A `configPath` that does not exist is an error rather than a
+ * fallback to searching, so a typo in a path never silently loads a different project's config.
  *
  * A glossary given as a path is read and validated here, so the returned config always carries a
  * resolved term map.
@@ -160,9 +219,14 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
     return { config, source: { kind: "override" }, glossary };
   }
 
+  const cwd = options.cwd ?? process.cwd();
+  const stopDir = findSearchStopDir(cwd);
+
   const explorer = cosmiconfig(MODULE_NAME, {
     searchPlaces: SEARCH_PLACES,
     loaders: { ".ts": TypeScriptLoader() },
+    searchStrategy: "global",
+    stopDir,
   });
 
   if (options.configPath !== undefined) {
@@ -171,10 +235,17 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
 
   let result: Awaited<ReturnType<typeof explorer.search>>;
   try {
-    result = await explorer.search(options.cwd);
+    result = await explorer.search(cwd);
   } catch (error) {
     const detail = errorMessage(error);
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
+  }
+
+  if (result !== null && result.isEmpty !== true) {
+    const resultDir = dirname(resolve(result.filepath));
+    if (!collectSearchChain(cwd, stopDir).has(resultDir)) {
+      result = null;
+    }
   }
 
   if (result === null || result.isEmpty === true) {
@@ -194,8 +265,10 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
  * pass the result to {@link translate}, {@link check}, {@link diff}, or any other entry point.
  *
  * Resolution order is an explicit `configOverride`, then an explicit `configPath`, then a
- * cosmiconfig search upward from `cwd`. A glossary declared as a file path is read and validated
- * here, so the returned {@link VerbatraConfig} always carries a resolved term map.
+ * cosmiconfig search upward from `cwd`, stopping at the nearest ancestor `.git` directory, or
+ * failing that, the user's home directory when it is an ancestor of `cwd`, or failing that, `cwd`
+ * itself. A glossary declared as a file path is read and validated here, so the returned
+ * {@link VerbatraConfig} always carries a resolved term map.
  *
  * Reach for {@link loadConfigWithMeta} when you also need to know which file was loaded.
  *

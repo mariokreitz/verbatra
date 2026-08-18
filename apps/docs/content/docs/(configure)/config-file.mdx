@@ -128,7 +128,7 @@ The top-level `maxTokens` is the whole-run budget described here. The Anthropic 
 
 ## Discovery order
 
-verbatra searches upward from the working directory and uses the first source it finds. Multiple present sources are not an error; the first match wins. The search order is:
+verbatra searches upward from the working directory and uses the first source it finds. The search stops at the nearest ancestor directory containing a `.git` entry (or at your home directory if none is found), so it will not wander above your repository into an unrelated config. Multiple present sources are not an error; the first match wins. The search order is:
 
 1. `package.json` (a `"verbatra"` property)
 2. `.verbatrarc`

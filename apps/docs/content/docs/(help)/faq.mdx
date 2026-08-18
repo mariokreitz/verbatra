@@ -78,7 +78,9 @@ Review queue. See [Translation safety](/docs/translation-safety).
 ## Does verbatra work in a monorepo?
 
 Yes. The config search starts in the current working directory and walks upward, so running from a
-package directory finds that package's config. From anywhere else, pass `--cwd <dir>` (every
+package directory finds that package's config. The search stops at the nearest ancestor `.git`
+directory, so it finds a config at your monorepo root without crossing into an unrelated project
+above it. From anywhere else, pass `--cwd <dir>` (every
 command supports it) or point at a specific file with `--config <path>`. In the SDK, the same
 knobs are `cwd` and `configPath` on `loadConfig`. The `files.pattern` and the lock file resolve
 against the working directory.
