@@ -7,6 +7,18 @@
       "skillPath": "plugins/aceternity-ui/skills/aceternity-ui/SKILL.md",
       "computedHash": "aff2a7ca612cb7641dd18ac00f38d18cd12d0f76a53ef6e7f01f89760008f18e"
     },
+    "autofix": {
+      "source": "coderabbitai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/autofix/SKILL.md",
+      "computedHash": "421f9102c20fb1c91d87a10ca9bee2e91c7e632e644dfdd3dc013e53865df6c1"
+    },
+    "code-review": {
+      "source": "coderabbitai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review/SKILL.md",
+      "computedHash": "6d117c3f8797e0c770c6b00a646a07028f3440b5d8042e8f841e88ed1116788f"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",
