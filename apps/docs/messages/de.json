@@ -48,7 +48,7 @@
       "pnpmNoteLink": "Fehlerbehebung",
       "copyPromptAria": "Kopiere die Einrichtungsaufforderung für den KI-Agenten",
       "aiTabLabel": "KI",
-      "aiCaption": "Dies ist eine gekürzte Vorschau. Lies die vollständige Aufforderung und die Einrichtung-Anleitung auf",
+      "aiCaption": "Dies ist eine gekürzte Vorschau. Lies die vollständige Aufforderung und die Einrichtungsanleitung auf",
       "aiCaptionLink": "der Einrichtungsanleitung"
     },
     "compat": {
@@ -197,6 +197,7 @@
       "startWithAi": "Mit KI starten",
       "languageSwitcher": {
         "chooseLanguage": "Wähle eine Sprache",
+        "triggerAriaSuffix": "Sprache wechseln",
         "machineTranslatedLabel": "Maschinell übersetzt",
         "machineTranslatedDescription": "Die Oberfläche und die Dokumentationsseiten für diese Sprache werden mit KI übersetzt."
       }

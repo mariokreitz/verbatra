@@ -7,7 +7,7 @@ import type { LanguageSelectProps } from "fumadocs-ui/layouts/shared/slots/langu
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId } from "react";
 import { i18n, isLocale } from "@/lib/i18n";
-import { LOCALE_SWITCHER_ARIA_LABELS } from "@/lib/language-select-copy";
+import { LOCALE_DISPLAY_NAMES } from "@/lib/language-select-copy";
 import { cn } from "@/lib/utils";
 
 function SparkleIcon({ className }: { className?: string }): ReactNode {
@@ -57,7 +57,7 @@ export function LocaleAwareLanguageSelect({
     context.locale !== undefined && isLocale(context.locale)
       ? context.locale
       : i18n.defaultLanguage;
-  const ariaLabel = LOCALE_SWITCHER_ARIA_LABELS[currentLocale];
+  const ariaLabel = `${LOCALE_DISPLAY_NAMES[currentLocale]} - ${t("triggerAriaSuffix")}`;
   const machineTranslatedDescription = t("machineTranslatedDescription");
 
   return (
@@ -83,9 +83,10 @@ export function LocaleAwareLanguageSelect({
               type="button"
               title={isMachineTranslated ? t("machineTranslatedLabel") : undefined}
               aria-describedby={isMachineTranslated ? descriptionId : undefined}
+              aria-current={item.locale === currentLocale ? "true" : undefined}
               className={cn(
                 "px-2 py-1.5 text-start text-sm rounded-lg transition-colors",
-                item.locale === context.locale
+                item.locale === currentLocale
                   ? "bg-fd-primary/10 text-fd-primary"
                   : "text-fd-muted-foreground hover:bg-fd-accent hover:text-fd-accent-foreground",
               )}

@@ -197,6 +197,7 @@
       "startWithAi": "Commencer avec l'IA",
       "languageSwitcher": {
         "chooseLanguage": "Choisis une langue",
+        "triggerAriaSuffix": "choisir la langue",
         "machineTranslatedLabel": "Traduction automatique",
         "machineTranslatedDescription": "L'interface et les pages de documentation pour cette langue sont traduites avec l'IA."
       }

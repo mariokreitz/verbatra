@@ -6,10 +6,3 @@ export const LOCALE_DISPLAY_NAMES: Record<Locale, string> = {
   es: "Español",
   fr: "Français",
 };
-
-export const LOCALE_SWITCHER_ARIA_LABELS: Record<Locale, string> = {
-  en: "English - choose a language",
-  de: "Deutsch - Sprache wechseln",
-  es: "Español - elegir idioma",
-  fr: "Français - choisir la langue",
-};
