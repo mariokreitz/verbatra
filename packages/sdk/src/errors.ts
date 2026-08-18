@@ -17,6 +17,21 @@
  *   exceed the glossary file size limit. {@link importWorkbook} does not throw it: when a handoff
  *   sheet or file names a locale that is not a configured target locale, it records this code on
  *   that locale's {@link LocaleSummary} instead.
+ * - `PROJECT_NOT_DETECTED`: no config file exists and the project's locale layout could not be
+ *   inferred, because no candidate directory held a recognizable set of locale files, the format
+ *   could not be resolved, no detected locale is English, or the supplied file system cannot list
+ *   directories. Thrown by {@link detectProject} and by {@link resolveProjectConfig}.
+ * - `PROJECT_AMBIGUOUS`: no config file exists and more than one candidate directory holds a usable
+ *   locale layout, so detection would have to guess which one the project means. Thrown by
+ *   {@link detectProject} and by {@link resolveProjectConfig}.
+ * - `PROJECT_LAYOUT_UNSUPPORTED`: no config file exists and the detected directory needs more than
+ *   one path pattern, which is what several namespaces per locale looks like. verbatra maps one file
+ *   per locale, so the layout cannot be expressed at all. Thrown by {@link detectProject} and by
+ *   {@link resolveProjectConfig}.
+ * - `PROVIDER_KEY_MISSING`: a detected project reached a command that calls the provider, but no
+ *   supported provider API key is set in the environment. Never thrown for a project with a config
+ *   file, and never thrown by the read-only commands, which call no provider. Thrown by
+ *   {@link requireDetectedProvider}.
  * - `UNKNOWN_FORMAT`: no adapter is registered for the configured format. Thrown by every entry
  *   point that selects an adapter, before any file is read. {@link doctor} is the exception: it
  *   reports an unresolvable format as a failed `format-adapter` check instead, since reporting that
@@ -80,6 +95,10 @@
 export type SdkErrorCode =
   | "CONFIG_NOT_FOUND"
   | "CONFIG_INVALID"
+  | "PROJECT_NOT_DETECTED"
+  | "PROJECT_AMBIGUOUS"
+  | "PROJECT_LAYOUT_UNSUPPORTED"
+  | "PROVIDER_KEY_MISSING"
   | "UNKNOWN_FORMAT"
   | "UNKNOWN_LOCALE"
   | "UNKNOWN_KEY"

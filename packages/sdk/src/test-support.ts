@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import type {
   ProviderNotice,
   TranslateRequest,
@@ -10,7 +10,13 @@ import type {
 } from "@verbatra/ai-providers";
 import { checkPlaceholders, type PlaceholderIntegrityResult } from "@verbatra/core";
 import type { VerbatraConfig } from "./config/schema.js";
-import { type BoundedBytesRead, type BoundedFileRead, defaultFs, type SdkFs } from "./fs.js";
+import {
+  type BoundedBytesRead,
+  type BoundedFileRead,
+  type DirectoryEntry,
+  defaultFs,
+  type SdkFs,
+} from "./fs.js";
 
 export interface StubCall {
   readonly request: TranslateRequest;
@@ -162,6 +168,52 @@ export function realDiskReads(): Pick<
     readBytesBounded: (path: string, maxBytes: number): Promise<BoundedBytesRead> =>
       defaultFs.readBytesBounded(path, maxBytes),
   };
+}
+
+function relativeTo(root: string, path: string): string | undefined {
+  const rel = relative(root, path).split("\\").join("/");
+  return rel.startsWith("..") || isAbsolute(rel) ? undefined : rel;
+}
+
+function childrenOf(paths: readonly string[], directory: string): Map<string, boolean> {
+  const prefix = directory === "" ? "" : `${directory}/`;
+  const children = new Map<string, boolean>();
+  for (const path of paths) {
+    if (!path.startsWith(prefix)) {
+      continue;
+    }
+    const [name, ...rest] = path.slice(prefix.length).split("/");
+    if (name !== undefined && name !== "") {
+      children.set(name, rest.length > 0);
+    }
+  }
+  return children;
+}
+
+/**
+ * An in-memory {@link SdkFs} backed by a flat map of POSIX-relative file paths to contents. Only the
+ * read side is implemented, which is all project detection uses.
+ */
+export function makeTreeFs(root: string, files: Readonly<Record<string, string>>): SdkFs {
+  const paths = Object.keys(files);
+  const contentOf = (path: string): string | undefined => {
+    const rel = relativeTo(root, path);
+    return rel === undefined ? undefined : files[rel];
+  };
+  return makeFakeFs({
+    fileExists: async (path: string): Promise<boolean> => contentOf(path) !== undefined,
+    readFileBounded: async (path: string): Promise<BoundedFileRead> => {
+      const content = contentOf(path);
+      return content === undefined ? { kind: "missing" } : { kind: "ok", content };
+    },
+    readDirectory: async (path: string): Promise<readonly DirectoryEntry[]> => {
+      const rel = relativeTo(root, path);
+      if (rel === undefined) {
+        return [];
+      }
+      return [...childrenOf(paths, rel)].map(([name, isDirectory]) => ({ name, isDirectory }));
+    },
+  });
 }
 
 export function makeFakeFs(overrides: Partial<SdkFs> = {}): SdkFs {

@@ -3,12 +3,12 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
-import type { z } from "zod";
 import { errorMessage, SdkError } from "../errors.js";
 import { defaultFs, type SdkFs } from "../fs.js";
 import { resolveSelfPackageAliases } from "./module-aliases.js";
+import { parseConfig } from "./parse-config.js";
 import { type GlossaryProvenance, resolveGlossary } from "./resolve-glossary.js";
-import { type VerbatraConfig, type VerbatraConfigInput, verbatraConfigSchema } from "./schema.js";
+import type { VerbatraConfig, VerbatraConfigInput } from "./schema.js";
 
 const MODULE_NAME = "verbatra";
 
@@ -120,29 +120,6 @@ function collectSearchChain(startDir: string, stopDir: string): ReadonlySet<stri
   }
   chain.add(stop);
   return chain;
-}
-
-function formatIssues(error: z.ZodError): string {
-  return error.issues
-    .map((issue) => {
-      const path = issue.path.join(".");
-      const base = path.length > 0 ? `${path}: ${issue.message}` : issue.message;
-      return issue.code === "unrecognized_keys"
-        ? `${base} (API keys are read from the environment, not the config)`
-        : base;
-    })
-    .join("; ");
-}
-
-function parseConfig(input: unknown): VerbatraConfigInput {
-  const parsed = verbatraConfigSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new SdkError(
-      "CONFIG_INVALID",
-      `The verbatra configuration is invalid: ${formatIssues(parsed.error)}`,
-    );
-  }
-  return parsed.data;
 }
 
 async function finalizeConfig(

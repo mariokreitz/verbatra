@@ -4,6 +4,22 @@ export { CACHE_FILE_NAME } from "./cache/translation-memory.js";
 export type { TranslationMemory } from "./cache/types.js";
 export { defineConfig } from "./config/define-config.js";
 export {
+  FORMAT_BY_DEPENDENCY,
+  formatFromDependencyNames,
+} from "./config/detect/dependency-format.js";
+export {
+  CANDIDATE_DIRECTORIES,
+  type DetectedProject,
+  type DetectProjectOptions,
+  detectProject,
+  type ProjectDetection,
+} from "./config/detect/detect-project.js";
+export {
+  PROVIDER_DETECTION_ORDER,
+  type ProviderSelection,
+  selectProviderFromEnv,
+} from "./config/detect/select-provider.js";
+export {
   type GlossaryFileDeps,
   type GlossaryFileInput,
   readGlossaryFile,
@@ -19,6 +35,12 @@ export {
 } from "./config/load-config.js";
 export type { ProviderConfig, ProviderId } from "./config/provider-config.js";
 export type { GlossaryProvenance } from "./config/resolve-glossary.js";
+export {
+  type ResolvedProjectConfig,
+  type ResolveProjectConfigOptions,
+  requireDetectedProvider,
+  resolveProjectConfig,
+} from "./config/resolve-project-config.js";
 export {
   type VerbatraConfig,
   type VerbatraConfigInput,
@@ -131,7 +153,7 @@ export {
   type ImportWorkbookInput,
   importWorkbook,
 } from "./flow/workbook/import-workbook.js";
-export type { SdkFs } from "./fs.js";
+export type { DirectoryEntry, SdkFs } from "./fs.js";
 export {
   createLocalePathResolver,
   type LocalePathResolver,

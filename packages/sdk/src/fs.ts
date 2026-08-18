@@ -1,5 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { access, type FileHandle, mkdir, open, rename, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  type FileHandle,
+  mkdir,
+  open,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 /**
@@ -44,6 +53,19 @@ export type BoundedBytesRead =
     };
 
 /**
+ * One entry of a directory listing, as reported by {@link SdkFs.readDirectory}. Only the two kinds
+ * project detection has to tell apart are distinguished. Anything that is neither a regular file nor
+ * a directory is omitted from the listing, symbolic links included, so a listing can never lead a
+ * caller into a link cycle.
+ */
+export interface DirectoryEntry {
+  /** The entry's own name, without any directory part. */
+  readonly name: string;
+  /** True when the entry is a directory, false when it is a regular file. */
+  readonly isDirectory: boolean;
+}
+
+/**
  * The file-system port the SDK's own I/O goes through. Supplying your own implementation as a
  * `deps.fs` option redirects that I/O, which is how the SDK's tests avoid touching disk and how an
  * embedding application can back part of a project with something other than a local disk.
@@ -80,6 +102,16 @@ export interface SdkFs {
   deleteFile(path: string): Promise<void>;
   /** Creates a directory and any missing parents. Optional; omit it if the backing store has no directories. */
   mkdir?(path: string): Promise<void>;
+  /**
+   * Lists a directory's immediate children, without recursing. A path that does not exist, is not a
+   * directory, or cannot be read yields an empty list rather than throwing, so a caller probing for
+   * a directory that may not be there treats absence as an ordinary result.
+   *
+   * Optional, like {@link SdkFs.mkdir}, so an existing implementation keeps satisfying this
+   * interface. Only project detection needs it: {@link resolveProjectConfig} reports
+   * `DETECTION_UNSUPPORTED` when the file system it was given does not implement it.
+   */
+  readDirectory?(path: string): Promise<readonly DirectoryEntry[]>;
 }
 
 async function readBoundedUtf8(handle: FileHandle, size: number): Promise<string> {
@@ -150,6 +182,17 @@ async function readBoundedBytes(path: string, maxBytes: number): Promise<Bounded
   }
 }
 
+async function readDirectory(path: string): Promise<readonly DirectoryEntry[]> {
+  try {
+    const entries = await readdir(path, { withFileTypes: true, encoding: "utf8" });
+    return entries
+      .filter((entry) => entry.isFile() || entry.isDirectory())
+      .map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() }));
+  } catch {
+    return [];
+  }
+}
+
 export function tempFileName(path: string): string {
   return join(dirname(path), `.${basename(path)}.tmp-${process.pid}-${Date.now()}-${randomUUID()}`);
 }
@@ -206,4 +249,5 @@ export const defaultFs: SdkFs = {
   mkdir: async (path: string): Promise<void> => {
     await mkdir(path, { recursive: true });
   },
+  readDirectory: (path: string): Promise<readonly DirectoryEntry[]> => readDirectory(path),
 };
