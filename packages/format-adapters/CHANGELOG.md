@@ -1,5 +1,19 @@
 # @verbatra/format-adapters
 
+## 0.4.1
+
+### Patch Changes
+
+- [#185](https://github.com/verbatra/verbatra/pull/185) [`8dcf89d`](https://github.com/verbatra/verbatra/commit/8dcf89dc82e7716ec3d1b2bc5d8c8cff43974c19) Thanks [@dependabot](https://github.com/apps/dependabot)! - Refresh the bundled Anthropic (`@anthropic-ai/sdk`, 0.116.0 to 0.117.1), Gemini (`@google/genai`,
+  2.16.0 to 2.17.1), and `@xmldom/xmldom` (0.9.10 to 0.9.11) packages pinned in the `bundled` pnpm
+  catalog. `@verbatra/sdk` bundles `@verbatra/ai-providers` and `@verbatra/format-adapters` into its
+  published dist, so these exact versions ship to every consumer of `@verbatra/sdk` and
+  `@verbatra/cli`.
+  
+  All three are routine patch and minor upstream releases with no consumer-facing breaking change.
+  `@verbatra/cli` is version-locked with `@verbatra/sdk` and picks up the same bump; its own behavior
+  is unchanged.
+
 ## 0.4.0
 
 ### Minor Changes

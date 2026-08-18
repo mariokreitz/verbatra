@@ -1,5 +1,13 @@
 # @verbatra/cli
 
+## 0.9.1
+
+### Patch Changes
+
+- [#191](https://github.com/verbatra/verbatra/pull/191) [`251430e`](https://github.com/verbatra/verbatra/commit/251430e359b4795bd0e96627408518c573348519) Thanks [@mariokreitz](https://github.com/mariokreitz)! - Fix the README install and quick-start commands. The `verbatra studio` setup snippet now installs `@verbatra/cli` alongside `@verbatra/studio`, and the "try before installing" example now uses the working `npx @verbatra/cli --help` (or `pnpm dlx @verbatra/cli --help`) instead of the broken `npx verbatra` cold-run, which fails with a registry 404 for an unrelated package.
+- Updated dependencies [[`8dcf89d`](https://github.com/verbatra/verbatra/commit/8dcf89dc82e7716ec3d1b2bc5d8c8cff43974c19), [`2914739`](https://github.com/verbatra/verbatra/commit/2914739774c745859de1176167fac53e383a8b35)]:
+  - @verbatra/sdk@0.9.1
+
 ## 0.9.0
 
 ### Minor Changes
