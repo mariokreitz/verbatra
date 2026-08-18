@@ -27,6 +27,10 @@ npx verbatra translate       # or: pnpm verbatra translate, yarn verbatra transl
 
 You need Node.js `>=22.14.0`.
 
+<Callout title="Trying a command before installing? Use the scoped package name.">
+  `npx verbatra ...` only resolves once `@verbatra/cli` is installed locally; without that, npx tries to fetch a separate, unrelated package literally named `verbatra` and fails with a 404. To try a command first without adding it to `package.json`, run `npx @verbatra/cli --help` instead (or `pnpm dlx @verbatra/cli --help`, `yarn dlx @verbatra/cli --help`).
+</Callout>
+
 ## Shared conventions
 
 - `--cwd <path>` resolves the config and locale files from that directory instead of the current one. Every command takes it.

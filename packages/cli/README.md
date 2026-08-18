@@ -35,6 +35,8 @@ yarn add -D @verbatra/cli
 
 A dev-dependency install puts the `verbatra` binary in `node_modules/.bin`, not on your PATH, so invoke it with `npx verbatra ...`, which runs the locally installed binary whichever package manager put it there. Yarn users can also run `yarn verbatra ...`.
 
+`npx verbatra ...` only resolves once `@verbatra/cli` is installed locally. Without an install, npx instead tries to fetch a separate, unrelated package literally named `verbatra` from the registry, which fails with a 404. To try a command first without adding it to `package.json`, run `npx @verbatra/cli --help` instead (or `pnpm dlx @verbatra/cli --help`, `yarn dlx @verbatra/cli --help`).
+
 ## Quick start
 
 ```bash

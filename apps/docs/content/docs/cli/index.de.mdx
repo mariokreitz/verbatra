@@ -27,6 +27,10 @@ npx verbatra translate       # or: pnpm verbatra translate, yarn verbatra transl
 
 Du brauchst Node.js `>=22.14.0`.
 
+<Callout title="Willst du einen Befehl vor der Installation ausprobieren? Nutze den scoped Paketnamen.">
+  `npx verbatra ...` funktioniert nur, wenn `@verbatra/cli` bereits lokal installiert ist; ohne Installation versucht npx, ein anderes, unabhängiges Paket namens `verbatra` zu laden, und scheitert mit einem 404. Um einen Befehl auszuprobieren, ohne ihn zu `package.json` hinzuzufügen, nutze stattdessen `npx @verbatra/cli --help` (oder `pnpm dlx @verbatra/cli --help`, `yarn dlx @verbatra/cli --help`).
+</Callout>
+
 ## Gemeinsame Konventionen
 
 - `--cwd <path>` löst die Konfiguration und die Locale-Dateien von diesem Verzeichnis statt vom aktuellen aus auf. Jeder Befehl nimmt es.
