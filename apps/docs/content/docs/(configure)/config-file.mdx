@@ -1,8 +1,8 @@
 ---
 title: Config file
-description: Every config key with its type, default, and constraints, plus the discovery order and what happens when validation fails.
+description: Every config key with its type, default, and constraints, the discovery order, how a project with no config file is detected, and what happens when validation fails.
 ---
-verbatra reads one small, non-secret config object and validates it before it does any work. This page is the full reference: every key, where the file can live, and how a bad config fails.
+verbatra reads one small, non-secret config object and validates it before it does any work. This page is the full reference: every key, where the file can live, and how a bad config fails. The file itself is optional: with no config anywhere, verbatra [detects one from the project](#running-without-a-config-file) rather than refusing to run.
 
 <Callout title="Keys come from the environment">
 No API key is ever read from this file. Each provider reads its key from an environment variable, so the config stays safe to commit. See [Providers](/docs/providers).
@@ -144,6 +144,63 @@ verbatra searches upward from the working directory and uses the first source it
 
 To load one explicit file instead of searching, pass `--config <path>`; a relative path resolves against the working directory. In the SDK, an in-memory `configOverride` takes precedence over an explicit `configPath`, which takes precedence over the search. See [Programmatic API](/docs/programmatic-api).
 
+## Running without a config file
+
+<AvailableFrom version="0.10.0" />
+
+A config file is no longer a prerequisite. When the search above finds nothing, verbatra infers a configuration from the project instead of failing, so [`verbatra check`](/docs/cli/check) and [`verbatra diff`](/docs/cli/diff) run in a project that has never been configured, and [`verbatra translate`](/docs/cli/translate) and [`verbatra watch`](/docs/cli/watch) need only a provider API key in the environment. `export` and `import` are detected the same way.
+
+An authored config wins outright. Detection runs only when the search comes up empty, and an explicit `--config <path>` that does not exist stays a `CONFIG_NOT_FOUND` error rather than falling through to a guess at a different project.
+
+Detection is never silent. Before the command runs, it prints what it concluded to stderr:
+
+```
+verbatra: no config file found, so the project was detected automatically.
+  files:   src/assets/i18n/{locale}.json (ngx-translate-json)
+  locales: en -> de
+  no provider API key found
+  Run "verbatra init" to write this down as a config you control.
+```
+
+Under `--json` the same information is one `{"event":"detection", ...}` line on stderr, so stdout stays a clean [result envelope](/docs/ci-and-exit-codes#json-output).
+
+### What detection looks at
+
+**Directories.** Only these are read, in this order:
+
+```
+locales, src/locales, public/locales, messages, src/messages, i18n, src/i18n,
+src/assets/i18n, assets/i18n, public/assets/i18n, app/locales, lang, translations,
+config/locales, lib/l10n
+```
+
+Nothing outside that list is ever opened, which is why `node_modules` and build output are never walked. Two of them holding a usable layout is a failure, not a best guess.
+
+**Layout.** A directory is accepted only when one path pattern covers every locale-bearing file in it and that pattern covers at least two locales. Both shapes real projects use work: files named after the locale (`locales/en.json`, `messages/en.json`, `lib/l10n/app_en.arb`) and one namespace file per locale directory (`public/locales/en/common.json`). A file carrying no locale code, a `README.md` for instance, is ignored rather than counted against the directory.
+
+**Locale codes.** A two-letter language subtag, optionally with a script, a region, or both: `en`, `de`, `pt-BR`, `zh-Hans`. Three-letter language codes and POSIX underscore spellings (`pt_BR`) are not recognized, so those projects need a config.
+
+**Format.** `.xlf`, `.xliff`, `.yml`, `.yaml`, `.arb`, and `.properties` are resolved from the file extension. `.json` cannot be, because four formats share it, so it is resolved from the i18n library in `package.json`: `i18next`, `vue-i18n`, `next-intl`, or `@ngx-translate/core`. A `.json` layout naming none of them, or two of them, is not detected.
+
+**Source locale.** Exact `en` first, then any `en-*`. Every other detected locale becomes a target. This bias toward English is a deliberate design choice, not a neutral default: the alternatives (alphabetically first, or the locale with the most keys) can be silently wrong, and a wrong source locale translates in the wrong direction. A project whose source locale is not English is not broken, it simply needs a config, and the error says so.
+
+**Provider.** Chosen from the API keys that are actually set, in the fixed order `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPL_API_KEY`. The order is fixed rather than dependent on the environment, so the same project resolves to the same provider on every machine and in CI; when several keys are set the first in that order wins and the transparency line names the others. `openai-compatible` is never detected, because only you can supply its `baseUrl`. With no key set at all, `check` and `diff` still run and `translate --dry-run` still previews; `translate` and `watch` fail with `PROVIDER_KEY_MISSING`.
+
+### What detection does not do
+
+It synthesizes only the required keys: `sourceLocale`, `targetLocales`, `format`, `files.pattern`, and `provider` (the provider's default scaffold model, with an output token limit of `4096`; DeepL takes neither). Everything else stays at its default, so a detected run has no `glossary`, no `tone`, no `prune`, no `generatePlurals`, and no `maxTokens` budget, and `files.localeStyle` is `"literal"`. Any of those means writing a config: run `verbatra init` to put the detected setup on disk and edit from there.
+
+It also declines rather than guesses. Each refusal names a remedy, and the CLI exits `2`:
+
+| Code | When |
+| --- | --- |
+| `PROJECT_NOT_DETECTED` | no candidate directory held a recognizable set of locale files, the format could not be resolved, or no detected locale is English |
+| `PROJECT_AMBIGUOUS` | two candidate directories both hold a usable layout, for example `locales/` and `public/locales/` |
+| `PROJECT_LAYOUT_UNSUPPORTED` | the directory needs more than one path pattern, which is what several namespaces per locale looks like; verbatra maps one file per locale (see [Namespace layouts](/docs/formats#namespace-layouts)) |
+| `PROVIDER_KEY_MISSING` | the project was detected and no supported provider API key is set, on a command that would call a provider |
+
+[`verbatra doctor`](/docs/cli/doctor) is deliberately outside all of this: it validates a config you wrote, so in a project with none it reports its config check as failed rather than detecting one. [`verbatra studio`](/docs/cli/studio) needs a config file too.
+
 ## Editor validation
 
 <AvailableFrom version="0.9.0" />
@@ -216,7 +273,7 @@ Environment precedence is, highest first: a variable already set in your real en
 
 Config loading fails with one of two structured error codes:
 
-- **`CONFIG_NOT_FOUND`**: the search found no config in any of the places above, or the explicit `--config` path does not exist.
+- **`CONFIG_NOT_FOUND`**: the search found no config in any of the places above, or the explicit `--config` path does not exist. On the commands that detect, a search that finds nothing does not fail here: it falls through to [detection](#running-without-a-config-file), which reports its own codes. An explicit `--config` path that does not exist still fails, and `doctor` and `studio` never detect.
 - **`CONFIG_INVALID`**: a config was found but could not be used. This covers a file that fails to parse, a config that fails schema validation, and a glossary file path that could not be resolved. The message lists every validation issue with its key path, and an unrecognized top-level key gains the hint that API keys are read from the environment, not the config. A raw parser or file-system error never escapes.
 
 The CLI reports either failure and exits with code `2`, the boundary-error exit code. See [CI and exit codes](/docs/ci-and-exit-codes).

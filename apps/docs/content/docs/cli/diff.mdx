@@ -19,6 +19,10 @@ verbatra diff [flags]
 | `--locales` | `<list>` | all configured targets | comma-separated subset of target locales to diff |
 | `--json` | none | off | print one [JSON envelope](/docs/ci-and-exit-codes#json-output) on stdout carrying the diff summary under `result`, or the error code on a failed run; the human-readable error line still goes to stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`diff` also needs no config file. When the search finds none, verbatra [detects one from the project](/docs/config-file#running-without-a-config-file) and prints what it concluded to stderr before it runs. No API key is involved either way. Detection declining is a whole-run failure, exit `2`.
+
 A locale has pending changes when it has at least one key to add or re-translate. Orphaned keys are reported but never count as pending, because a default run does not remove them (only [`verbatra translate --prune`](/docs/cli/translate) does). An empty or unknown `--locales` value is rejected with exit `2` rather than silently diffing nothing. Where [`verbatra check`](/docs/cli/check) answers "how much has drifted" with counts, `diff` answers "which keys" with the lists.
 
 ## Examples
@@ -37,7 +41,7 @@ verbatra diff --json
 | --- | --- |
 | `0` | no pending changes: no locale has a key to add or re-translate |
 | `1` | pending changes: at least one locale has a missing or changed key (orphaned keys alone never produce `1`) |
-| `2` | could not run: a whole-run error, or a usage error (including an empty or unknown `--locales` value) |
+| `2` | could not run: a whole-run error (including a project that could not be detected when there is no config file), or a usage error (including an empty or unknown `--locales` value) |
 
 ## Related
 

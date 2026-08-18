@@ -200,8 +200,6 @@ function loadOptions(opts: SharedOpts, cwd: string): { cwd: string; configPath?:
 }
 
 interface RunConfigOptions {
-  /** Runs before the config is resolved, for side effects such as loading .env files. */
-  readonly beforeLoad?: () => void;
   /** Refuse a detected project that has no provider API key. Set for commands that spend money. */
   readonly requireProvider?: boolean;
 }
@@ -212,6 +210,7 @@ async function resolveConfigReporting(
   loadOpts: { cwd: string; configPath?: string },
   options: RunConfigOptions,
 ): Promise<VerbatraConfig> {
+  loadEnvFiles(loadOpts.cwd);
   const resolved = await deps.resolveConfig(loadOpts);
   if (resolved.detection !== undefined) {
     context.streams.err(`${renderDetection(resolved.detection, context.json)}\n`);
@@ -230,7 +229,6 @@ async function withWholeRunErrors(
   options: RunConfigOptions = {},
 ): Promise<number> {
   try {
-    options.beforeLoad?.();
     return await body(await resolveConfigReporting(deps, context, loadOpts, options));
   } catch (error) {
     return renderFailureExit2(error, context);
@@ -356,12 +354,7 @@ export async function runTranslate(
           );
           return runExitCode(summary);
         },
-        {
-          beforeLoad: () => {
-            loadEnvFiles(cwd);
-          },
-          requireProvider: opts.dryRun !== true,
-        },
+        { requireProvider: opts.dryRun !== true },
       );
     },
   );
@@ -401,7 +394,6 @@ async function runWatchCommand(
       appendMissingGitignoreEntries(cwd);
       let config: VerbatraConfig;
       try {
-        loadEnvFiles(cwd);
         config = await resolveConfigReporting(
           deps,
           context,

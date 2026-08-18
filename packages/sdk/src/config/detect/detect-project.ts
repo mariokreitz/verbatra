@@ -5,7 +5,7 @@ import { SdkError } from "../../errors.js";
 import { defaultFs, type SdkFs } from "../../fs.js";
 import type { ScaffoldableProviderId } from "../../scaffolding.js";
 import { parseConfig } from "../parse-config.js";
-import type { VerbatraConfigInput } from "../schema.js";
+import type { VerbatraConfig, VerbatraConfigInput } from "../schema.js";
 import { formatFromDependencyNames } from "./dependency-format.js";
 import { type DetectionFs, type DirectoryScan, scanDirectory } from "./scan-directory.js";
 import { buildDetectedProviderConfig, selectProviderFromEnv } from "./select-provider.js";
@@ -60,8 +60,12 @@ export interface ProjectDetection {
 
 /** A config detection synthesized, together with the reasoning behind it. */
 export interface DetectedProject {
-  /** The synthesized config, already validated against {@link verbatraConfigSchema}. */
-  readonly config: VerbatraConfigInput;
+  /**
+   * The synthesized config, already validated against {@link verbatraConfigSchema}. It is the
+   * resolved shape rather than the authored one because detection never produces a glossary, so
+   * there is nothing left for a caller to resolve.
+   */
+  readonly config: VerbatraConfig;
   /** What detection concluded, for reporting to the user. */
   readonly detection: ProjectDetection;
 }
@@ -173,6 +177,10 @@ async function resolveFormat(
   );
 }
 
+function toResolvedConfig({ glossary: _glossary, ...config }: VerbatraConfigInput): VerbatraConfig {
+  return config;
+}
+
 function chooseSourceLocale(locales: readonly string[]): string {
   const exact = locales.find((locale) => locale.toLowerCase() === "en");
   const regional = locales.find((locale) => locale.toLowerCase().startsWith("en-"));
@@ -224,13 +232,15 @@ export async function detectProject(options: DetectProjectOptions = {}): Promise
   const provider = selectProviderFromEnv(options.env ?? process.env);
 
   return {
-    config: parseConfig({
-      sourceLocale,
-      targetLocales,
-      format,
-      files: { pattern: layout.pattern },
-      provider: buildDetectedProviderConfig(provider.id),
-    }),
+    config: toResolvedConfig(
+      parseConfig({
+        sourceLocale,
+        targetLocales,
+        format,
+        files: { pattern: layout.pattern },
+        provider: buildDetectedProviderConfig(provider.id),
+      }),
+    ),
     detection: {
       directory: layout.directory,
       pattern: layout.pattern,

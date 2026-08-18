@@ -19,6 +19,10 @@ verbatra check [flags]
 | `--locales` | `<list>` | all configured targets | comma-separated subset of target locales to check |
 | `--json` | none | off | print one [JSON envelope](/docs/ci-and-exit-codes#json-output) on stdout carrying the check summary under `result`, or the error code on a failed run; the human-readable error line still goes to stderr |
 
+<AvailableFrom version="0.10.0" />
+
+`check` also needs no config file. When the search finds none, verbatra [detects one from the project](/docs/config-file#running-without-a-config-file) and prints what it concluded to stderr before it runs, so a drift gate works on a project that has never been configured. No API key is involved either way. Detection declining is a whole-run failure, exit `2`.
+
 A key is missing when the source has it and the target does not; stale when the source string changed since it was last translated. A locale is in sync when it has neither. An empty or unknown `--locales` value is rejected with exit `2` rather than silently checking nothing, so a typo in a locale name never lets a CI gate pass. Want the actual key lists behind the counts? That is [`verbatra diff`](/docs/cli/diff).
 
 ## Examples
@@ -37,7 +41,7 @@ verbatra check --locales de,fr --json
 | --- | --- |
 | `0` | in sync: no locale has a missing or stale key |
 | `1` | out of sync: at least one locale has a missing or stale key (the report is still printed) |
-| `2` | could not run: a whole-run error, or a usage error (including an empty or unknown `--locales` value) |
+| `2` | could not run: a whole-run error (including a project that could not be detected when there is no config file), or a usage error (including an empty or unknown `--locales` value) |
 
 Exit `1` means "out of sync", not a failure: the run itself succeeded, the result just is not all green.
 

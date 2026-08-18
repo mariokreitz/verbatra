@@ -108,9 +108,7 @@ export async function resolveProjectConfig(
   }
 
   const detected = await detectProject(detectOptions(options));
-  const { glossary, ...config } = detected.config;
-  void glossary;
-  return { config, loaded: undefined, detection: detected.detection };
+  return { config: detected.config, loaded: undefined, detection: detected.detection };
 }
 
 /**
