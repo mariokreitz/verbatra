@@ -30,6 +30,12 @@ const AUTHOR = {
   url: "https://github.com/mariokreitz",
 } as const;
 
+const ORGANIZATION = {
+  "@type": "Organization",
+  name: "verbatra",
+  url: SITE_URL,
+} as const;
+
 export const SEO_KEYWORDS = [
   "i18n",
   "internationalization",
@@ -98,7 +104,15 @@ export function websiteLd(args: { lang: string }): Record<string, unknown> {
     url: SITE_URL,
     inLanguage: args.lang,
     author: AUTHOR,
-    publisher: { "@type": "Organization", name: "verbatra", url: SITE_URL },
+    publisher: ORGANIZATION,
+  };
+}
+
+export function organizationLd(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    ...ORGANIZATION,
+    sameAs: [GITHUB_URL],
   };
 }
 
@@ -172,7 +186,7 @@ export function techArticleLd(args: {
     url: new URL(args.path, SITE_URL).href,
     inLanguage: args.lang,
     author: AUTHOR,
-    publisher: { "@type": "Organization", name: "verbatra", url: SITE_URL },
+    publisher: ORGANIZATION,
     isPartOf: { "@type": "WebSite", name: "verbatra documentation", url: `${SITE_URL}/docs` },
   };
 }
