@@ -144,7 +144,7 @@ export async function FullFooter(): Promise<ReactNode> {
 
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-16">
         <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
-          <div className="sm:col-span-2 md:col-span-3 lg:col-span-1">
+          <div>
             <span className="inline-flex items-center gap-2.5">
               <VMark size={30} />
               <span
