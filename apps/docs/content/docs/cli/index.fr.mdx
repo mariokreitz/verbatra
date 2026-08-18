@@ -18,14 +18,18 @@ description: "La commande verbatra : ses neuf sous-commandes, les options partag
 
 ## Installation et invocation
 
-Installe `@verbatra/cli` comme dépendance de développement et lance le binaire via ton gestionnaire de paquets :
+Installe `@verbatra/cli` comme dépendance de développement, puis lance le binaire via ton gestionnaire de paquets :
 
-```bash
-npm install --save-dev @verbatra/cli
-npx verbatra translate       # or: pnpm verbatra translate, yarn verbatra translate
-```
+| Gestionnaire de paquets | Installation | Lancement |
+| --- | --- | --- |
+| npm | `npm install --save-dev @verbatra/cli` | `npx verbatra <command>` |
+| pnpm | `pnpm add -D @verbatra/cli` | `pnpm verbatra <command>` (ou `pnpm exec verbatra <command>`) |
+| yarn | `yarn add -D @verbatra/cli` | `yarn verbatra <command>` |
+| bun | `bun add -d @verbatra/cli` | `bun run verbatra <command>` |
 
 Il te faut Node.js `>=22.14.0`.
+
+Tu veux essayer une commande avant d'installer ? `npx @verbatra/cli <command>` (npm) ou `pnpm dlx @verbatra/cli <command>` (pnpm) fonctionnent tous les deux sans installation locale préalable.
 
 ## Conventions partagées
 

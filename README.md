@@ -43,6 +43,8 @@ Gemini is the cheapest way to try verbatra: its API has a real free tier, so you
 
 `npx` runs the locally installed binary whichever package manager put it there, so `yarn add -D @verbatra/cli` covers step 1 just as well, and yarn users can also run `yarn verbatra ...`.
 
+Want to try a command before installing? Use the scoped package name: `npx @verbatra/cli --help` (or `pnpm dlx @verbatra/cli --help`).
+
 pnpm needs one extra step. `pnpm add -D @verbatra/cli` installs correctly but exits `1` with `ERR_PNPM_IGNORED_BUILDS`, because pnpm does not run the install scripts of third-party dependencies (here the Gemini SDK and its `protobufjs`) until you allow or decline them, and it leaves an unanswered `pnpm-workspace.yaml` behind that makes every later pnpm command in the project fail the same way. Answer it once with `pnpm approve-builds`, or put this in `pnpm-workspace.yaml` before installing:
 
 ```yaml

@@ -58,7 +58,7 @@ pnpm and yarn work too. With pnpm, if it exits with `ERR_PNPM_IGNORED_BUILDS`, r
 
 Run `verbatra init` with explicit flags for what you found in step 1:
 
-verbatra init --provider <anthropic|openai|gemini|deepl> --source <source-locale> \
+npx verbatra init --provider <anthropic|openai|gemini|deepl> --source <source-locale> \
   --targets <comma-separated-target-locales> --path <pattern-with-{locale}> --yes
 
 Ask the human which provider to use unless it is already obvious from the project
@@ -85,7 +85,7 @@ their direction rather than guessing which namespace to wire up.
 
 ## 4. Run doctor and fix until clean
 
-verbatra doctor
+npx verbatra doctor
 
 `doctor` validates the config, the format, the provider id, and the source file,
 with no network call and no key read. Fix whatever it reports by editing
@@ -107,9 +107,9 @@ Leave the value blank and tell the human to fill it in themselves, directly in
 
 Run all three and read what they report:
 
-verbatra check --json
-verbatra diff --json
-verbatra translate --dry-run --json
+npx verbatra check --json
+npx verbatra diff --json
+npx verbatra translate --dry-run --json
 
 None of the three calls a provider, needs a key, or writes a file. `check` gives
 per-locale counts, `diff` names the exact keys, and `translate --dry-run` gives the
@@ -138,7 +138,7 @@ keys to be removed from target files. It deletes existing target entries.
 
 ## 8. Only after explicit confirmation: translate for real
 
-verbatra translate --json
+npx verbatra translate --json
 
 Report the result from the summary's `succeeded`, `partial`, and `failed` lists. A
 `partial` or `failed` locale was still written with whatever did succeed; nothing

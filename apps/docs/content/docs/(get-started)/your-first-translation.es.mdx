@@ -12,14 +12,14 @@ verbatra es una dependencia de desarrollo:
 npm install --save-dev @verbatra/cli
 ```
 
-pnpm y yarn también funcionan. El paquete incluye el binario `verbatra`; ejecútalo a través de tu gestor de paquetes (`npx verbatra ...`, `pnpm verbatra ...` o `yarn verbatra ...`). Los bloques de código de abajo usan el nombre a secas.
+pnpm y yarn también funcionan: `pnpm add -D @verbatra/cli` y luego `pnpm verbatra ...`, o `yarn add -D @verbatra/cli` y luego `yarn verbatra ...`. Los bloques de código de abajo usan `npx`, en línea con el `npm install` de arriba.
 
 pnpm pide un paso más. `pnpm add -D @verbatra/cli` instala bien, pero sale con `1` y `ERR_PNPM_IGNORED_BUILDS`, y deja un `pnpm-workspace.yaml` sin responder con el que cualquier comando pnpm posterior del proyecto falla igual. Ejecuta `pnpm approve-builds` una vez y no apruebes ninguna de las dos entradas, o consulta la [Solución de problemas](/docs/troubleshooting) para la solución no interactiva.
 
 ## 2. Genera una configuración
 
 ```bash
-verbatra init --provider gemini
+npx verbatra init --provider gemini
 ```
 
 Con una terminal conectada, `init` pregunta por todo lo que no pasaste como opción, cada cosa con un valor por defecto:
@@ -64,7 +64,7 @@ export default defineConfig({
 Empieza por [`verbatra doctor`](/docs/cli/doctor), la comprobación previa pensada justo para este montaje:
 
 ```bash
-verbatra doctor
+npx verbatra doctor
 ```
 
 Ejecuta cinco comprobaciones: la configuración carga y valida, el formato se resuelve a un adaptador de archivo, el ID del proveedor se resuelve a un proveedor, la variable de entorno de la que ese proveedor lee su clave está definida, y el archivo de locale de origen existe y se parsea. Cada comprobación se ejecuta aunque una anterior haya fallado, así que una sola pasada reporta todos los problemas en lugar de detenerse en el primero. No construye ningún proveedor, no hace ninguna llamada de red, no escribe nada y nunca lee el valor de una clave. Además es la única comprobación que funciona antes de que exista el archivo de origen, así que ejecútala ahora y otra vez después del paso 4.
@@ -83,7 +83,7 @@ Si todavía no tienes un archivo de origen, crea uno en el patrón configurado, 
 Ahora previsualiza la ejecución:
 
 ```bash
-verbatra translate --dry-run
+npx verbatra translate --dry-run
 ```
 
 Una ejecución en seco no construye ningún proveedor, así que no necesita clave de API y no puede gastar nada. Lee tus archivos, los compara e imprime el mismo resumen por locale que una ejecución real, sin enviar una sola cadena ni escribir un solo archivo. Úsala para confirmar que el formato, el patrón de archivos y los locales son correctos antes de registrarte en ningún sitio.
@@ -109,7 +109,7 @@ La API de Gemini tiene un nivel realmente gratuito, lo que la convierte en la fo
 Con la clave ya puesta, ejecuta el mismo comando de verdad:
 
 ```bash
-verbatra translate
+npx verbatra translate
 ```
 
 verbatra lee el locale de origen, ve que todas las claves faltan en `de`, las envía al proveedor en lotes, pasa cada resultado por la puerta de integridad, y escribe `locales/de.json`. La ejecución termina con un resumen por locale: claves traducidas, claves sin cambios, claves huérfanas y cualquier aviso. El código de salida es `0` cuando todos los locales quedaron completos y `1` cuando uno falló o quedó parcial (escrito, pero con claves aún faltantes); añade `--json` para un resumen legible por máquina.
