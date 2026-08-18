@@ -46,6 +46,8 @@ Verbatra Studio requires @verbatra/studio. Install it with: pnpm add -D @verbatr
 
 Ese comando de pnpm instala bien, pero sale con `1` y `ERR_PNPM_IGNORED_BUILDS`, y deja un `pnpm-workspace.yaml` sin responder con el que los comandos pnpm posteriores fallan igual; la solución de una sola vez está en la [Solución de problemas](/docs/troubleshooting). npm y yarn instalan el paquete sin eso.
 
+Studio se ejecuta a través de la CLI, así que instálalo junto con `@verbatra/cli`: `npm install --save-dev @verbatra/cli @verbatra/studio`, luego `npx verbatra studio`. Consulta [Instala e invoca](/docs/cli).
+
 ## Ejemplos
 
 ```bash

@@ -36,7 +36,7 @@ yarn add -D @verbatra/cli @verbatra/studio
 ## Quick start
 
 ```bash
-verbatra studio
+npx verbatra studio
 # Verbatra Studio running at http://127.0.0.1:5849/?token=...
 ```
 

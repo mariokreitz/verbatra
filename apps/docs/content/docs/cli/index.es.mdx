@@ -18,18 +18,18 @@ description: "El comando verbatra: sus nueve subcomandos, los flags compartidos,
 
 ## Instala e invoca
 
-Instala `@verbatra/cli` como dependencia de desarrollo y ejecuta el binario a través de tu gestor de paquetes:
+Instala `@verbatra/cli` como dependencia de desarrollo y luego ejecuta el binario a través de tu gestor de paquetes:
 
-```bash
-npm install --save-dev @verbatra/cli
-npx verbatra translate       # or: pnpm verbatra translate, yarn verbatra translate
-```
+| Gestor de paquetes | Instalación | Ejecución |
+| --- | --- | --- |
+| npm | `npm install --save-dev @verbatra/cli` | `npx verbatra <command>` |
+| pnpm | `pnpm add -D @verbatra/cli` | `pnpm verbatra <command>` (o `pnpm exec verbatra <command>`) |
+| yarn | `yarn add -D @verbatra/cli` | `yarn verbatra <command>` |
+| bun | `bun add -d @verbatra/cli` | `bun run verbatra <command>` |
 
 Necesitas Node.js `>=22.14.0`.
 
-<Callout title="¿Quieres probar un comando antes de instalar? Usa el nombre de paquete con scope.">
-  `npx verbatra ...` solo funciona una vez que `@verbatra/cli` está instalado localmente; sin eso, npx intenta obtener un paquete distinto y no relacionado llamado literalmente `verbatra`, y falla con un 404. Para probar un comando sin añadirlo a `package.json`, usa `npx @verbatra/cli --help` en su lugar (o `pnpm dlx @verbatra/cli --help`, `yarn dlx @verbatra/cli --help`).
-</Callout>
+¿Quieres probar un comando antes de instalar? `npx @verbatra/cli <command>` (npm) o `pnpm dlx @verbatra/cli <command>` (pnpm) funcionan sin una instalación local previa.
 
 ## Convenciones compartidas
 

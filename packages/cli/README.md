@@ -35,7 +35,7 @@ yarn add -D @verbatra/cli
 
 A dev-dependency install puts the `verbatra` binary in `node_modules/.bin`, not on your PATH, so invoke it with `npx verbatra ...`, which runs the locally installed binary whichever package manager put it there. Yarn users can also run `yarn verbatra ...`.
 
-`npx verbatra ...` only resolves once `@verbatra/cli` is installed locally. Without an install, npx instead tries to fetch a separate, unrelated package literally named `verbatra` from the registry, which fails with a 404. To try a command first without adding it to `package.json`, run `npx @verbatra/cli --help` instead (or `pnpm dlx @verbatra/cli --help`, `yarn dlx @verbatra/cli --help`).
+Want to try a command before installing? Use the scoped package name: `npx @verbatra/cli --help` (or `pnpm dlx @verbatra/cli --help`).
 
 ## Quick start
 
@@ -80,7 +80,7 @@ Run `verbatra <command> --help` for the same reference at the terminal.
 `verbatra studio` serves a local dashboard over the project: translation status and diff, a needs-review queue with in-place editing, a locale-file activity feed with the last run's token usage, and the resolved config with a file-backed glossary you can edit in place, refreshed live as your locale files change. Local editing is always on and runs through the same integrity gate a translate run applies to every candidate value; actions that spend provider budget (retranslate, translate pending) exist only with `--allow-spend` or `VERBATRA_STUDIO_ALLOW_SPEND`. `--expose-agent-tools` (or `VERBATRA_STUDIO_AGENT_TOOLS`) additionally registers Studio's RPC methods as WebMCP agent tools in the browser; it is off by default and confers no authority the open, authenticated tab does not already hold. The server binds to `127.0.0.1` only and gates every request behind a Host and Origin check, the bootstrap token from the printed URL, and a session cookie. The dashboard itself ships as [`@verbatra/studio`](https://github.com/verbatra/verbatra/tree/main/packages/studio); install it alongside the CLI:
 
 ```bash
-npm install --save-dev @verbatra/studio
+npm install --save-dev @verbatra/cli @verbatra/studio
 npx verbatra studio
 ```
 
