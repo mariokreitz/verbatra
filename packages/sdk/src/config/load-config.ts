@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { cosmiconfig } from "cosmiconfig";
 import { TypeScriptLoader } from "cosmiconfig-typescript-loader";
@@ -69,7 +70,7 @@ export interface LoadedConfig {
   readonly glossary: GlossaryProvenance;
 }
 
-function findSearchStopDir(startDir: string): string | undefined {
+function findSearchStopDir(startDir: string): string {
   let dir = resolve(startDir);
   while (true) {
     if (existsSync(join(dir, ".git"))) {
@@ -77,10 +78,26 @@ function findSearchStopDir(startDir: string): string | undefined {
     }
     const parent = dirname(dir);
     if (parent === dir) {
-      return undefined;
+      return homedir();
     }
     dir = parent;
   }
+}
+
+function collectSearchChain(startDir: string, stopDir: string): ReadonlySet<string> {
+  const stop = resolve(stopDir);
+  const chain = new Set<string>();
+  let dir = resolve(startDir);
+  while (dir !== stop) {
+    chain.add(dir);
+    const parent = dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  chain.add(stop);
+  return chain;
 }
 
 function formatIssues(error: z.ZodError): string {
@@ -153,9 +170,11 @@ async function loadExplicitWithMeta(
  * cosmiconfig search upward from `cwd` across `verbatra.config.ts`, the `.verbatrarc` family, and a
  * `verbatra` property in `package.json`. The upward search stops at the nearest ancestor directory
  * containing a `.git` entry, or at the user's home directory if none is found, so a nested workspace
- * package finds a config at its monorepo root without wandering above it. A `configPath` that does
- * not exist is an error rather than a fallback to searching, so a typo in a path never silently loads
- * a different project's config.
+ * package finds a config at its monorepo root without wandering above it. A config file outside that
+ * directory chain, including cosmiconfig's own OS-level global config directory, is never used, even
+ * though the underlying search strategy checks it; it is treated the same as no config found. A
+ * `configPath` that does not exist is an error rather than a fallback to searching, so a typo in a
+ * path never silently loads a different project's config.
  *
  * A glossary given as a path is read and validated here, so the returned config always carries a
  * resolved term map.
@@ -184,7 +203,7 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
     searchPlaces: SEARCH_PLACES,
     loaders: { ".ts": TypeScriptLoader() },
     searchStrategy: "global",
-    ...(stopDir !== undefined ? { stopDir } : {}),
+    stopDir,
   });
 
   if (options.configPath !== undefined) {
@@ -197,6 +216,13 @@ export async function loadConfigWithMeta(options: LoadConfigOptions = {}): Promi
   } catch (error) {
     const detail = errorMessage(error);
     throw new SdkError("CONFIG_INVALID", `Failed to load the verbatra configuration: ${detail}`);
+  }
+
+  if (result !== null && result.isEmpty !== true) {
+    const resultDir = dirname(resolve(result.filepath));
+    if (!collectSearchChain(cwd, stopDir).has(resultDir)) {
+      result = null;
+    }
   }
 
   if (result === null || result.isEmpty === true) {
