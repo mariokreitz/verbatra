@@ -383,18 +383,81 @@ describe("init (no provider)", () => {
 });
 
 describe("config errors (no provider)", () => {
-  it("exits 2 with a config-not-found error when no config file is present", async () => {
+  it("exits 2 when there is neither a config file nor a detectable project", async () => {
     const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-noconfig-"));
     const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
     expect(result.exitCode).toBe(2);
 
     expectSingleJsonDocument(result.stdout);
     const envelope = expectErrorEnvelope(parseEnvelope(result.stdout), "check");
-    expect(envelope.code).toBe("CONFIG_NOT_FOUND");
-    expect(envelope.message).toContain("No verbatra configuration found");
+    expect(envelope.code).toBe("PROJECT_NOT_DETECTED");
+    expect(envelope.message).toContain("no locale files could be detected");
 
-    expect(result.stderr).toMatch(/\[CONFIG_NOT_FOUND\]/);
-    expect(result.stderr).toContain("No verbatra configuration found");
+    expect(result.stderr).toMatch(/\[PROJECT_NOT_DETECTED\]/);
+    expect(result.stderr).toContain("verbatra init");
+  });
+
+  it("exits 2 with a config-not-found error when an explicit --config path is missing", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-badconfigpath-"));
+    const result = await runVerbatra(consumer, [
+      "check",
+      "--json",
+      "--cwd",
+      dir,
+      "--config",
+      "nope.config.ts",
+    ]);
+    expect(result.exitCode).toBe(2);
+
+    const envelope = expectErrorEnvelope(parseEnvelope(result.stdout), "check");
+    expect(envelope.code).toBe("CONFIG_NOT_FOUND");
+  });
+});
+
+const NO_PROVIDER_KEYS: Readonly<Record<string, string>> = {
+  ANTHROPIC_API_KEY: "",
+  OPENAI_API_KEY: "",
+  GEMINI_API_KEY: "",
+  DEEPL_API_KEY: "",
+};
+
+describe("zero-config project detection", () => {
+  it("checks a project that has no config file at all", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-detect-"));
+    await writeJsonIn(dir, "package.json", { name: "detect-me", dependencies: { i18next: "^25" } });
+    await mkdir(join(dir, "locales"), { recursive: true });
+    await writeJsonIn(dir, join("locales", "en.json"), { greeting: "Hello", farewell: "Bye" });
+    await writeJsonIn(dir, join("locales", "de.json"), { greeting: "Hallo" });
+
+    const result = await runVerbatra(consumer, ["check", "--json", "--cwd", dir]);
+
+    expect(result.exitCode).toBe(1);
+    const summary = expectSuccessPayload<CheckSummaryJson>(result.stdout, "check");
+    expect(summary.inSync).toBe(false);
+    expect(summary.locales).toEqual([expect.objectContaining({ locale: "de", missing: 1 })]);
+
+    const notice = JSON.parse(result.stderr.trim()) as Record<string, unknown>;
+    expect(notice.event).toBe("detection");
+    expect(notice.format).toBe("i18next-json");
+    expect(notice.pattern).toBe("locales/{locale}.json");
+    expect(notice.sourceLocale).toBe("en");
+  });
+
+  it("refuses to translate a detected project when no provider API key is set", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "verbatra-e2e-detect-nokey-"));
+    await writeJsonIn(dir, "package.json", { name: "detect-me", dependencies: { i18next: "^25" } });
+    await mkdir(join(dir, "locales"), { recursive: true });
+    await writeJsonIn(dir, join("locales", "en.json"), { greeting: "Hello" });
+    await writeJsonIn(dir, join("locales", "de.json"), {});
+
+    const result = await runVerbatra(consumer, ["translate", "--json", "--cwd", dir], {
+      env: NO_PROVIDER_KEYS,
+    });
+
+    expect(result.exitCode).toBe(2);
+    const envelope = expectErrorEnvelope(parseEnvelope(result.stdout), "translate");
+    expect(envelope.code).toBe("PROVIDER_KEY_MISSING");
+    expect(envelope.message).toContain("ANTHROPIC_API_KEY");
   });
 });
 
