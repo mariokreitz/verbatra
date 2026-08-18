@@ -3,6 +3,7 @@ import { plainAnswer } from "@/lib/plain-answer";
 import { SITE_URL } from "@/lib/site";
 
 const GITHUB_URL = "https://github.com/verbatra/verbatra";
+const GITHUB_ORG_URL = "https://github.com/verbatra";
 const NPM_CLI_URL = "https://www.npmjs.com/package/@verbatra/cli";
 const NPM_SDK_URL = "https://www.npmjs.com/package/@verbatra/sdk";
 const NPM_STUDIO_URL = "https://www.npmjs.com/package/@verbatra/studio";
@@ -29,6 +30,17 @@ const AUTHOR = {
   name: AUTHOR_NAME,
   url: "https://github.com/mariokreitz",
 } as const;
+
+const ORGANIZATION_ID = `${SITE_URL}/#organization`;
+
+const ORGANIZATION = {
+  "@type": "Organization",
+  "@id": ORGANIZATION_ID,
+  name: "verbatra",
+  url: SITE_URL,
+} as const;
+
+const ORGANIZATION_REF = { "@id": ORGANIZATION_ID } as const;
 
 export const SEO_KEYWORDS = [
   "i18n",
@@ -98,7 +110,15 @@ export function websiteLd(args: { lang: string }): Record<string, unknown> {
     url: SITE_URL,
     inLanguage: args.lang,
     author: AUTHOR,
-    publisher: { "@type": "Organization", name: "verbatra", url: SITE_URL },
+    publisher: ORGANIZATION_REF,
+  };
+}
+
+export function organizationLd(): Record<string, unknown> {
+  return {
+    "@context": "https://schema.org",
+    ...ORGANIZATION,
+    sameAs: [GITHUB_ORG_URL],
   };
 }
 
@@ -172,7 +192,7 @@ export function techArticleLd(args: {
     url: new URL(args.path, SITE_URL).href,
     inLanguage: args.lang,
     author: AUTHOR,
-    publisher: { "@type": "Organization", name: "verbatra", url: SITE_URL },
+    publisher: ORGANIZATION_REF,
     isPartOf: { "@type": "WebSite", name: "verbatra documentation", url: `${SITE_URL}/docs` },
   };
 }
