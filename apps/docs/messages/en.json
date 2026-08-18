@@ -72,8 +72,12 @@
       "copy": "copy",
       "copied": "copied",
       "copyAria": "Copy install command",
+      "copyPromptAria": "Copy the AI agent setup prompt",
       "pnpmNote": "pnpm installs correctly but exits 1 with ERR_PNPM_IGNORED_BUILDS, because it gates a dependency's install scripts. Run pnpm approve-builds once, or see",
-      "pnpmNoteLink": "Troubleshooting"
+      "pnpmNoteLink": "Troubleshooting",
+      "aiTabLabel": "AI",
+      "aiCaption": "This is a truncated preview. Read the full prompt and setup walkthrough on",
+      "aiCaptionLink": "the setup guide"
     },
     "compat": {
       "heading": "One tool, every framework.",
