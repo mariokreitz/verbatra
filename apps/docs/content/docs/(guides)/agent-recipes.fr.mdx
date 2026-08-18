@@ -119,7 +119,7 @@ verbatra translate --dry-run --json 2>/dev/null | jq .
 }
 ```
 
-Sortie `0`. Chaque liste par locale est présente même vide : un agent peut donc y accéder sans sonder d'abord. Une exécution réelle ajoute un objet `usage` à chaque locale et au résumé quand le fournisseur remonte une consommation ; une exécution à blanc jamais, puisqu'elle ne fait aucun appel. L'anatomie complète d'un `LocaleSummary` est dans la [référence SDK](/docs/sdk).
+Sortie `0`. Chaque liste par locale est présente même vide : un agent peut donc y accéder sans sonder d'abord. Une exécution réelle ajoute un objet `usage` à chaque locale et au résumé quand le fournisseur remonte une consommation ; un dry run jamais, puisqu'il ne fait aucun appel. L'anatomie complète d'un `LocaleSummary` est dans la [référence SDK](/docs/sdk).
 
 Quand une exécution ne peut pas avoir lieu du tout, les données sont remplacées par un enregistrement d'erreur et la commande sort avec `2` :
 
@@ -275,5 +275,6 @@ La clé de fournisseur de l'étape 4 vient de l'environnement, comme toujours. R
 - [CI et codes de sortie](/docs/ci-and-exit-codes) : l'enveloppe, le tableau des codes de sortie et chaque forme de `result` en entier.
 - [Aperçu de la CLI](/docs/cli) : les options partagées et la façon dont le binaire lit ton environnement.
 - [`verbatra doctor`](/docs/cli/doctor) : la vérification préalable la moins chère avant une exécution sans surveillance.
+- [Configure verbatra avec un agent IA](/docs/start-with-ai) : un prompt prêt à copier-coller qui utilise ces mêmes commandes pour adopter verbatra dans un projet existant, protégé par une confirmation humaine.
 - [Piloter Studio avec un agent de navigateur](/docs/agent-tools-in-studio) : le même projet, piloté depuis un onglet authentifié du tableau de bord plutôt que depuis un shell.
 - [Le SDK](/docs/sdk) : saute la frontière de processus et appelle `translate`, `check` et `diff` directement depuis TypeScript.

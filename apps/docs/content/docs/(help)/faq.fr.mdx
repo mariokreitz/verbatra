@@ -125,3 +125,80 @@ Uniquement dans des variables d'environnement : `ANTHROPIC_API_KEY`, `OPENAI_API
 travail (les vraies variables d'environnement gagnent). Le schéma de configuration rejette les clés
 inconnues précisément pour qu'un secret ne puisse pas finir dans un fichier commité, et les
 messages d'erreur nomment la variable mais jamais une valeur. Voir [Fournisseurs](/docs/providers).
+
+## Que vérifie réellement verbatra doctor ?
+
+<AvailableFrom version="0.9.0" />
+
+Cinq choses, toutes sans appel au fournisseur, sans requête réseau et sans lire la valeur d'une
+clé d'API : la configuration se charge et passe la validation, le `format` configuré se résout en
+un adaptateur de fichier, le `provider.id` configuré se résout en une factory de fournisseur, la
+variable d'environnement dont ce fournisseur lit sa clé est définie (vérifiée seulement par son
+nom, jamais par sa valeur), et le fichier de la locale source existe, est un fichier normal et se
+parse sous ce format. Chaque vérification s'exécute même si une précédente a échoué, une exécution
+rapporte donc tous les problèmes indépendants à la fois ; l'exception est la configuration
+elle-même : si elle échoue au chargement, les quatre vérifications qui en ont besoin sont sautées.
+
+```bash
+verbatra doctor
+```
+
+Utilise-le sur un checkout tout frais, juste après `verbatra init`, ou chaque fois qu'une autre
+commande a échoué et que tu veux la liste complète plutôt que la première erreur seulement. Voir
+[`verbatra doctor`](/docs/cli/doctor) pour le tableau complet des vérifications et les codes de
+sortie.
+
+## Un agent IA peut-il configurer ou piloter verbatra à ma place ?
+
+Trois surfaces différentes pour trois tâches différentes. [Configure verbatra avec un agent
+IA](/docs/start-with-ai) est un prompt prêt à copier-coller pour Claude Code, Cursor ou tout agent
+de code capable de lire ton projet et d'exécuter des commandes shell : il inspecte une
+configuration i18n existante, installe la CLI, génère une configuration adaptée, exécute
+`doctor`, `check`, `diff` et `translate --dry-run` pour montrer le travail, puis s'arrête pour
+demander confirmation à un humain avant d'appeler pour de vrai un fournisseur. [Recettes pour
+agents et scripts](/docs/agent-recipes) est la référence pour construire ta propre boucle d'agent
+sur la même enveloppe `--json` et les mêmes codes de sortie qu'utilisent ces commandes. [Piloter
+Studio avec un agent de navigateur](/docs/agent-tools-in-studio) est encore une autre surface : un
+flag optionnel `--expose-agent-tools` sur `verbatra studio` qui enregistre des outils WebMCP pour
+qu'un agent IA dans le navigateur puisse piloter un projet déjà configuré depuis un onglet ouvert
+et authentifié du tableau de bord ; ce n'est explicitement pas pour la configuration initiale.
+
+Aucune des trois ne donne à un agent le moyen de dépenser sans un humain dans la boucle.
+`translate` lui-même n'a aucune barrière de dépense propre, donc chaque surface orientée agent
+place une étape de confirmation, ou le flag `--allow-spend`, entre l'agent et un véritable appel
+au fournisseur.
+
+## Ce site publie-t-il quelque chose pour les agents IA et les robots d'indexation ?
+
+Oui, trois fichiers statiques, générés au moment du build et toujours en anglais, quelle que soit
+la locale que tu consultes :
+
+- [`/llms.txt`](/llms.txt) : un index organisé avec le titre et la description de chaque page de
+  documentation, groupé comme la barre latérale, sous forme de liens Markdown.
+- [`/llms-full.txt`](/llms-full.txt) : toute la documentation dans un seul fichier, le contenu
+  rendu de chaque page concaténé dans l'ordre, pour un agent qui ingère le contenu directement
+  plutôt que de suivre des liens.
+- [`/.well-known/ai.txt`](/.well-known/ai.txt) : une politique d'usage qui indique aux robots
+  d'indexation IA que ce projet est sous licence MIT et que crawler, indexer et citer ce contenu
+  est bienvenu.
+
+Les trois sont accessibles depuis la colonne du pied de page dédiée aux agents IA.
+
+## Le contenu de ce site est-il traduit par IA ?
+
+Oui, les deux moitiés, par deux mécanismes différents. Le texte de l'interface (libellés de
+navigation, boutons, le pied de page, le texte de la landing page, la FAQ de la landing page) vit
+dans `messages/en.json` et ses fichiers frères `de`, `es` et `fr` ; ceux-ci sont traduits
+automatiquement avec verbatra lui-même, contre le format `next-intl-json`, via le fournisseur
+Gemini, exécuté par `pnpm i18n` dès que la source anglaise change. C'est le projet qui utilise ici
+son propre outil (dogfooding). La prose de la documentation que tu lis en ce moment, chaque guide
+et chaque page de référence y compris celle-ci, est du MDX à suffixe de locale (`page.mdx`,
+`page.de.mdx`, `page.es.mdx`, `page.fr.mdx`) et elle aussi traduite par IA, mais en dehors de cette
+chaîne automatisée : `pnpm i18n` ne traduit que les fichiers JSON, XLIFF, YAML, ARB et properties,
+jamais le Markdown, donc il ne touche jamais ces pages. Traduire une page de documentation est une
+étape séparée et manuelle à chaque changement de la source anglaise.
+
+Si quelque chose sonne bizarre en allemand, en espagnol ou en français, ouvre une issue dans les
+deux cas : le texte de l'interface est corrigé à la source anglaise puis retraduit automatiquement
+par `pnpm i18n` ; pour la prose de la documentation, modifie le fichier MDX directement et envoie
+une pull request.

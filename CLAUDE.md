@@ -105,7 +105,8 @@ Everything else is private or internal and must not be published by accident.
   for the Excel handoff, and config loading.
 - `@verbatra/cli` (public): the `verbatra` binary (bin maps `verbatra` to
   `dist/index.js`). Thin wrapper over the SDK. Commands: `init`, `translate`, `watch`,
-  `check`, `diff`, `export`, `import`, `studio`. Deps: `@verbatra/sdk`, commander, zod.
+  `check`, `diff`, `export`, `import`, `doctor`, `studio`. Deps: `@verbatra/sdk`,
+  commander, zod.
 - `apps/docs` (`@verbatra/docs`, private): Fumadocs (Next.js) documentation site.
   Scripts: dev, build, start, typecheck, i18n.
 

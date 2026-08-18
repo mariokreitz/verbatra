@@ -30,6 +30,15 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
     ],
   },
   {
+    col: "agents",
+    titleKey: "cols.agents.title",
+    links: [
+      { labelKey: "cols.agents.llmsIndex", href: "/llms.txt" },
+      { labelKey: "cols.agents.llmsFull", href: "/llms-full.txt" },
+      { labelKey: "cols.agents.aiTxt", href: "/.well-known/ai.txt" },
+    ],
+  },
+  {
     col: "learn",
     titleKey: "cols.learn.title",
     links: [
@@ -37,20 +46,16 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { labelKey: "cols.learn.providers", href: "/docs/providers" },
       { labelKey: "cols.learn.formats", href: "/docs/formats" },
       { labelKey: "cols.learn.lockFile", href: "/docs/the-lock-file" },
+      { labelKey: "cols.learn.configFile", href: "/docs/config-file" },
     ],
   },
   {
-    col: "project",
-    titleKey: "cols.project.title",
+    col: "community",
+    titleKey: "cols.community.title",
     links: [
-      { labelKey: "cols.project.configFile", href: "/docs/config-file" },
-      { labelKey: "cols.project.codeOfConduct", href: CODE_OF_CONDUCT_URL, external: true },
-      { labelKey: "cols.project.security", href: SECURITY_URL, external: true },
-      { labelKey: "cols.project.releases", href: RELEASES_URL, external: true },
-      { labelKey: "cols.project.llmsIndex", href: "/llms.txt" },
-      { labelKey: "cols.project.llmsFull", href: "/llms-full.txt" },
-      { literal: "GitHub", href: GITHUB_URL, external: true },
-      { literal: "@verbatra/cli", href: NPM_CLI, external: true },
+      { labelKey: "cols.community.codeOfConduct", href: CODE_OF_CONDUCT_URL, external: true },
+      { labelKey: "cols.community.security", href: SECURITY_URL, external: true },
+      { labelKey: "cols.community.releases", href: RELEASES_URL, external: true },
       { literal: "@verbatra/sdk", href: NPM_SDK, external: true },
       { literal: "@verbatra/studio", href: NPM_STUDIO, external: true },
     ],
@@ -138,7 +143,7 @@ export async function FullFooter(): Promise<ReactNode> {
       </div>
 
       <div className="relative z-10 mx-auto max-w-6xl px-6 py-16">
-        <div className="grid gap-x-8 gap-y-12 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+        <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
           <div>
             <span className="inline-flex items-center gap-2.5">
               <VMark size={30} />

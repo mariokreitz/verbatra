@@ -55,7 +55,7 @@ Filtre par locale ou par sous-chaîne de clé, puis traite les lignes :
 
 - **Edit** ouvre le même éditeur à contrôle d'intégrité que la page Traductions. Une modification acceptée retire la ligne de la file.
 - **Approve** écarte la ligne comme "vue, très bien telle quelle".
-- **Reject** écarte la ligne aussi ; associe-le à une modification ou une retraduction quand la valeur doit vraiment changer.
+- **Reject** écarte la ligne aussi ; associe-la à une modification ou une retraduction quand la valeur doit vraiment changer.
 
 Approve et Reject ne valent que pour la session : ils masquent la ligne pour le reste de cette session de navigateur (y compris à travers les rafraîchissements en direct) mais n'écrivent rien sur le disque. Les façons durables d'effacer un signalement sont de corriger la valeur ou de relancer une traduction.
 
@@ -105,7 +105,7 @@ Deux cas restent en lecture seule, et le panneau dit lequel te concerne :
 - **Le glossaire est écrit inline dans `verbatra.config.ts`.** C'est du code exécutable, et Studio ne le réécrit pas. Déplace les termes dans un fichier JSON et fais pointer la clé `glossary` de la config vers ce chemin.
 - **Le projet n'a pas de glossaire.** Crée un fichier JSON de paires terme et traduction, puis mets `glossary` sur ce chemin.
 
-Une valeur qui ressemble à une clé d'API fournisseur est masquée avant même d'atteindre le navigateur, et un tel terme ne peut pas être modifié ici, seulement supprimé : ce que le panneau détient est le remplaçant, pas le texte réel. Modifie celui-là directement dans le fichier de glossaire.
+Une valeur qui ressemble à une clé d'API fournisseur est masquée avant même d'atteindre le navigateur, et un tel terme ne peut pas être modifié ici, seulement supprimé : ce que le panneau détient est un espace réservé, pas le texte réel. Modifie celui-là directement dans le fichier de glossaire.
 
 ## Et ensuite
 

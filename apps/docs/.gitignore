@@ -18,3 +18,10 @@ verbatra.cache.json
 # resync noise into unrelated pull requests. Nothing user-facing depended on the committed value:
 # the sync runs before `next build`, so the deployed site always showed the correct version.
 lib/version.generated.json
+
+# next dev regenerates these on every run (Next.js 16's agent-guidance files,
+# see node_modules/next/dist/server/lib/generate-agent-files.js). This app has
+# its own CLAUDE.md content at the repo root; the generated copy here is
+# Next.js's own dev-server noise, not project content, so it is not committed.
+AGENTS.md
+CLAUDE.md

@@ -115,3 +115,72 @@ Only in environment variables: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_AP
 `doctor`, and `studio` load `.env` and `.env.local` from the working directory (real environment
 variables win). The config schema rejects unknown keys precisely so a secret cannot end up in a committed
 file, and error messages name the variable but never a value. See [Providers](/docs/providers).
+
+## What does verbatra doctor actually check?
+
+<AvailableFrom version="0.9.0" />
+
+Five things, all without a provider call, a network request, or reading an API key value: the
+config loads and passes validation, the configured `format` resolves to a file adapter, the
+configured `provider.id` resolves to a provider factory, the API key environment variable that
+provider reads is set (checked by name only, never by value), and the source locale file exists,
+is a regular file, and parses under that format. Every check runs even after an earlier one fails,
+so one run reports every independent problem at once; the exception is the config itself, where a
+failure to load skips the four checks that need it.
+
+```bash
+verbatra doctor
+```
+
+Reach for it on a fresh checkout, right after `verbatra init`, or whenever another command failed
+and you want the whole list instead of just the first error. See [`verbatra doctor`](/docs/cli/doctor)
+for the full check table and exit codes.
+
+## Can an AI agent set up or operate verbatra for me?
+
+Three different surfaces for three different jobs. [Set up verbatra with an AI agent](/docs/start-with-ai)
+is a copy-pasteable prompt for Claude Code, Cursor, or any coding agent that can read your project
+and run shell commands: it inspects an existing i18n setup, installs the CLI, scaffolds a config,
+runs `doctor`, `check`, `diff`, and `translate --dry-run` to preview the work, then stops and asks
+a human to confirm before it ever calls a provider for real. [Recipes for agents and scripts](/docs/agent-recipes)
+is the reference for building your own agent loop on top of the same `--json` envelope and exit
+codes those commands use. [Operate Studio with a browser agent](/docs/agent-tools-in-studio) is a
+different surface again: an opt-in `--expose-agent-tools` flag on `verbatra studio` that registers
+WebMCP tools so a browser AI agent can drive an already-set-up project from an open, authenticated
+dashboard tab; it is explicitly not for initial project setup.
+
+None of the three gives an agent a way to spend without a human in the loop. `translate` itself has
+no spend gate of its own, so every agent-facing surface puts a confirmation step, or the
+`--allow-spend` flag, between the agent and a real provider call.
+
+## Does this site publish anything for AI agents and crawlers?
+
+Yes, three static files, generated at build time and always in English regardless of which locale
+you are browsing:
+
+- [`/llms.txt`](/llms.txt): a curated index of every doc page's title and description, grouped the
+  way the sidebar is, as Markdown links.
+- [`/llms-full.txt`](/llms-full.txt): the entire documentation in one file, each page's rendered
+  content concatenated in order, for an agent that ingests content directly instead of following
+  links.
+- [`/.well-known/ai.txt`](/.well-known/ai.txt): a usage policy telling AI crawlers this project is
+  MIT licensed and that crawling, indexing, and citing this content is welcome.
+
+All three are linked from the footer's "For AI agents" column.
+
+## Is this site's content translated by AI?
+
+Yes, both halves, through two different mechanisms. The UI chrome (navigation labels, buttons,
+the footer, the landing page copy, the landing FAQ) lives in `messages/en.json` and its `de`,
+`es`, and `fr` siblings; those are machine-translated with verbatra itself, against the
+`next-intl-json` format, through the Gemini provider, run by `pnpm i18n` automatically whenever
+the English source changes. It is this project dogfooding its own tool. The documentation prose
+you are reading right now, every guide and reference page including this one, is locale-suffixed
+MDX (`page.mdx`, `page.de.mdx`, `page.es.mdx`, `page.fr.mdx`) that is also AI-translated, but
+outside that automated pipeline: `pnpm i18n` only translates JSON, XLIFF, YAML, ARB, and
+properties files, never Markdown, so it never touches these pages. Translating a doc page is a
+separate, manual step whenever the English source changes.
+
+If something in German, Spanish, or French reads oddly, open an issue either way: for UI copy it
+gets corrected at the English source and machine-retranslated by `pnpm i18n`; for doc prose, edit
+the MDX file directly and send a pull request.

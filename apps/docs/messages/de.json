@@ -16,14 +16,14 @@
     },
     "pillars": {
       "heading": "Ein Tool für den gesamten Übersetzungsablauf.",
-      "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzer und die Automatisierung, um jede Locale synchron zu halten.",
+      "lead": "verbatra ist mehr als KI-Übersetzung. Es deckt maschinelle Übersetzung ab, die du steuerst, eine saubere Excel-Übergabe für menschliche Übersetzerinnen und die Automatisierung, um jede Locale synchron zu halten.",
       "ai": {
         "title": "KI-Übersetzung",
         "body": "Übersetze nur das, was sich geändert hat, über den Anbieter deiner Wahl: Anthropic, OpenAI, Gemini, DeepL oder jeden OpenAI-kompatiblen Server, den du selbst betreibst. Eine festgeschriebene Lock-Datei hält jeden Lauf inkrementell, und die Integrität von Platzhaltern und ICU wird überprüft, bevor etwas geschrieben wird."
       },
       "excel": {
         "title": "Excel-Übergabe",
-        "body": "Führe verbatra export aus, um eine gestylte .xlsx-Arbeitsmappe zu erzeugen, gib sie an ein Übersetzungsbüro oder interne Übersetzer, und verbatra import liest ihre Änderungen zurück in deine Locale-Dateien. Kombiniere maschinelle Übersetzung mit professioneller menschlicher Arbeit."
+        "body": "Führe verbatra export aus, um eine gestylte .xlsx-Arbeitsmappe zu erzeugen, gib sie an ein Übersetzungsbüro oder interne Übersetzerinnen, und verbatra import liest ihre Änderungen zurück in deine Locale-Dateien. Kombiniere maschinelle Übersetzung mit professioneller menschlicher Arbeit."
       },
       "automation": {
         "title": "Automatisierung",
@@ -45,7 +45,11 @@
       "copied": "kopiert",
       "copyAria": "Installationsbefehl kopieren",
       "pnpmNote": "pnpm installiert korrekt, beendet sich aber mit 1 und ERR_PNPM_IGNORED_BUILDS, weil es die Installationsskripte einer Abhängigkeit sperrt. Führe einmal pnpm approve-builds aus, oder siehe",
-      "pnpmNoteLink": "Fehlerbehebung"
+      "pnpmNoteLink": "Fehlerbehebung",
+      "copyPromptAria": "Kopiere die Einrichtungsaufforderung für den KI-Agenten",
+      "aiTabLabel": "KI",
+      "aiCaption": "Dies ist eine gekürzte Vorschau. Lies die vollständige Aufforderung und die Einrichtungsanleitung auf",
+      "aiCaptionLink": "der Einrichtungsanleitung"
     },
     "compat": {
       "heading": "Ein Werkzeug, jedes Framework.",
@@ -127,33 +131,13 @@
           "question": "Welche Formate und Frameworks unterstützt verbatra?",
           "answer": "JSON für i18next, vue-i18n, next-intl und ngx-translate, sowie XLIFF, YAML, Flutter ARB und Java/Spring .properties-Dateien. Das deckt React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring und Flutter ab. verbatra liest die Dateien, die du bereits hast; es gibt kein verbatra-spezifisches Format, zu dem du migrieren musst."
         },
-        "studio": {
-          "question": "Was ist Verbatra Studio?",
-          "answer": "Ein lokales Web-Dashboard über deinem Projekt, das den Status jeder Locale live anzeigt, eine Review-Warteschlange markierter Einträge bereithält und dich Übersetzungen direkt korrigieren lässt. Starte es mit verbatra studio (installiere zuerst @verbatra/studio). Das Bearbeiten deiner eigenen Locale-Dateien funktioniert von Haus aus; ein Anbieter-Aufruf aus der Oberfläche ist optional und liegt hinter --allow-spend. Es läuft nur auf 127.0.0.1 und verlässt deinen Rechner nie."
-        },
         "safety": {
           "question": "Was verhindert, dass eine schlechte Übersetzung meine App kaputtmacht?",
           "answer": "Jedes Ergebnis durchläuft eine Prüfung der Platzhalter- und ICU-Integrität, bevor es geschrieben wird. Eine Übersetzung, die einen Platzhalter weglässt, erfindet oder umsortiert oder ungültige ICU-Nachrichtensyntax erzeugt, wird zurückgehalten, statt in deine Locale-Datei gespeichert zu werden. Dieselbe Prüfung gilt für Bearbeitungen und Neuübersetzungen in Verbatra Studio."
         },
-        "keys": {
-          "question": "Wo liegen meine API-Schlüssel, und werden meine Inhalte irgendwohin gesendet, das ich nicht kontrolliere?",
-          "answer": "Schlüssel werden nur aus Umgebungsvariablen gelesen (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, DEEPL_API_KEY), nie aus der Konfigurationsdatei, aus CLI-Argumenten oder aus Logs. Gesendet werden nur die Strings, die du gerade übersetzt, und nur an den Anbieter, den du gewählt hast. Wenn du den openai-compatible-Anbieter mit einem lokalen Modell nutzt, verlässt überhaupt nichts deinen Rechner oder dein Netzwerk."
-        },
-        "preview": {
-          "question": "Kann ich einen Lauf in der Vorschau ansehen, bevor er etwas schreibt?",
-          "answer": "Ja. Ein Probelauf meldet genau, welche Schlüssel gesendet und geschrieben würden, ohne deine Dateien anzufassen, und verbatra check und verbatra diff melden die Abweichung pro Locale, ohne einen Anbieter aufzurufen. Der Watch-Modus macht das Gegenteil: Er übersetzt weiter, während sich deine Quell-Locale ändert."
-        },
-        "automation": {
-          "question": "Kann ich verbatra in Skripten, CI und GitHub Actions nutzen?",
-          "answer": "Ja. Das CLI ist ein dünner Wrapper um @verbatra/sdk, das dieselben translate-, watch-, check-, diff- und doctor-Operationen für dein eigenes Werkzeug bereitstellt. Die Befehle liefern CI-freundliche Exit-Codes und unterstützen --json-Ausgabe, und eine offizielle GitHub Action führt verbatra in deinem Workflow aus."
-        },
         "cost": {
           "question": "Was kostet verbatra?",
           "answer": "verbatra selbst ist kostenlos und quelloffen unter der MIT-Lizenz. Der einzige Kostenfaktor ist die Nutzung deines Anbieters, die du steuerst: Es übersetzt nur, was sich geändert hat, und du kannst es kostenlos auf Geminis kostenlosem Tarif oder einem lokalen OpenAI-kompatiblen Modell betreiben."
-        },
-        "production": {
-          "question": "Ist verbatra produktionsreif?",
-          "answer": "Es ist jung und wird aktiv entwickelt, also pinne eine Version und lies das <releases>Changelog</releases>, wenn du ein Upgrade machst. Das Sicherheitsmodell ist bereits solide: Jeder Lauf gleicht mit einer festgeschriebenen Lock-Datei ab, überprüft bei jedem Ergebnis die Integrität von Platzhaltern und ICU und hält alles zurück, was kaputtgeht, anstatt es zu schreiben. Teams verwenden es heute in CI; pinne Versionen und du bist auf sicherem Terrain."
         }
       }
     },
@@ -177,21 +161,25 @@
           "howItWorks": "So funktioniert es",
           "providers": "Anbieter",
           "formats": "Formate",
-          "lockFile": "Die Lock-Datei"
-        },
-        "project": {
-          "title": "Projekt",
-          "configFile": "Konfigurationsdatei",
-          "codeOfConduct": "Verhaltenskodex",
-          "security": "Sicherheitsrichtlinie",
-          "releases": "Versionshinweise",
-          "llmsFull": "llms-full.txt (vollständiger Text)",
-          "llmsIndex": "llms.txt (Index)"
+          "lockFile": "Die Lock-Datei",
+          "configFile": "Konfigurationsdatei"
         },
         "legal": {
           "title": "Rechtliches",
           "privacy": "Datenschutzerklärung",
           "imprint": "Impressum"
+        },
+        "community": {
+          "title": "Community",
+          "codeOfConduct": "Verhaltenskodex",
+          "security": "Sicherheitsrichtlinie",
+          "releases": "Release-Notes"
+        },
+        "agents": {
+          "title": "Für KI-Agenten",
+          "llmsIndex": "llms.txt (Index)",
+          "llmsFull": "llms-full.txt (vollständiger Text)",
+          "aiTxt": "ai.txt (Nutzungsrichtlinie)"
         }
       },
       "legalLine": "Quelloffen unter der MIT-Lizenz · © 2026 Mario Kreitz",
@@ -205,7 +193,14 @@
       "docs": "Docs",
       "providers": "Anbieter",
       "formats": "Formate",
-      "contributing": "Mitwirken"
+      "contributing": "Mitwirken",
+      "startWithAi": "Mit KI starten",
+      "languageSwitcher": {
+        "chooseLanguage": "Wähle eine Sprache",
+        "triggerAriaSuffix": "Sprache wechseln",
+        "machineTranslatedLabel": "Maschinell übersetzt",
+        "machineTranslatedDescription": "Die Oberfläche und die Dokumentationsseiten für diese Sprache werden mit KI übersetzt."
+      }
     },
     "studio": {
       "heading": "Behalte den gesamten Übersetzungsstand im Blick, lokal.",

@@ -4,6 +4,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 const config = {
   reactStrictMode: true,
+  poweredByHeader: false,
   output: "standalone",
   outputFileTracingRoot: path.join(import.meta.dirname, "../.."),
   experimental: {

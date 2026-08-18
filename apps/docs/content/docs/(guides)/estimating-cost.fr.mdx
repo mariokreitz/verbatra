@@ -1,14 +1,14 @@
 ---
 title: Estimer le coût
-description: "Dimensionne une exécution de traduction avant de dépenser : compte les clés avec une exécution à blanc, convertis-les en requêtes et en tokens, puis chiffre-les avec les tarifs de ton fournisseur."
+description: "Dimensionne une exécution de traduction avant de dépenser : compte les clés avec un dry run, convertis-les en requêtes et en tokens, puis chiffre-les avec les tarifs de ton fournisseur."
 ---
 Avant de pointer un outil d'IA vers un vrai fichier de langue, tu veux un ordre de grandeur de ce qu'il va dépenser. Cette page te donne une méthode plutôt qu'une liste de prix : verbatra ne suit pas les tarifs des fournisseurs, et les tarifs changent. Ce qui dure, c'est donc de savoir quelles unités te sont facturées et comment les compter. Chaque nombre ci-dessous est une hypothèse que tu remplaces par la tienne.
 
-La version courte pour un projet typique : quelques centaines de clés vers quelques langues sur un modèle bon marché coûte des centimes, pas des euros, et l'exécution suivante ne coûte presque rien parce que verbatra n'envoie que ce qui a changé.
+La version courte pour un projet typique : quelques centaines de clés vers quelques langues sur un modèle bon marché coûte des centimes, pas des dollars, et l'exécution suivante ne coûte presque rien parce que verbatra n'envoie que ce qui a changé.
 
-## Étape 1 : dimensionner le travail avec une exécution à blanc
+## Étape 1 : dimensionner le travail avec un dry run
 
-Une exécution à blanc est la réponse que l'outil lui-même apporte à la question "combien de travail y a-t-il". Elle calcule exactement quelles clés seraient envoyées, sans construire de fournisseur, sans lire de clé d'API, sans appel réseau et sans rien écrire :
+Un dry run est la réponse que l'outil lui-même apporte à la question "combien de travail y a-t-il". Il calcule exactement quelles clés seraient envoyées, sans construire de fournisseur, sans lire de clé d'API, sans appel réseau et sans rien écrire :
 
 ```bash
 verbatra translate --dry-run
@@ -22,11 +22,11 @@ verbatra translate (dry run)
 3 succeeded, 0 partial, 0 failed (dry run: nothing written)
 ```
 
-Lors d'une exécution à blanc, le compte `translated` est le nombre de clés qui **seraient** envoyées au fournisseur : les clés absentes du fichier cible, plus les clés dont le texte source a changé depuis la référence du fichier de verrouillage, moins celles ignorées pour cause d'ICU invalide. Ce compte est l'entrée de tout ce qui suit.
+Lors d'un dry run, le compte `translated` est le nombre de clés qui **seraient** envoyées au fournisseur : les clés absentes du fichier cible, plus les clés dont le texte source a changé depuis la référence du fichier de verrouillage, moins celles ignorées pour cause d'ICU invalide. Ce compte est l'entrée de tout ce qui suit.
 
-Traite-le comme une **borne supérieure**, pour deux raisons. Une exécution à blanc ne lit jamais [le cache](/docs/the-cache) : les clés qu'une exécution réelle servirait depuis la mémoire de traduction sont donc comptées ici. Et une exécution à blanc ne déduplique pas : lors d'une exécution réelle, les clés dont le texte source est identique sont regroupées et un seul représentant est envoyé, si bien qu'un fichier avec des chaînes répétées facture moins de clés que ce que montre l'exécution à blanc.
+Traite-le comme une **borne supérieure**, pour deux raisons. Un dry run ne lit jamais [le cache](/docs/the-cache) : les clés qu'une exécution réelle servirait depuis la mémoire de traduction sont donc comptées ici. Et un dry run ne déduplique pas : lors d'une exécution réelle, les clés dont le texte source est identique sont regroupées et un seul représentant est envoyé, si bien qu'un fichier avec des chaînes répétées facture moins de clés que ce que montre le dry run.
 
-Une exécution à blanc rapporte des comptes, pas des tokens ni de l'argent. Transformer le compte en montant, c'est tout le reste de cette page. Voir [`verbatra translate`](/docs/cli/translate) pour la liste complète des options.
+Un dry run rapporte des comptes, pas des tokens ni de l'argent. Transformer le compte en montant, c'est tout le reste de cette page. Voir [`verbatra translate`](/docs/cli/translate) pour la liste complète des options.
 
 ## Étape 2 : compter les requêtes
 
@@ -74,7 +74,7 @@ Remplace chaque hypothèse de ce bloc par tes propres nombres.
 
 **Hypothèses**
 
-- 400 clés à traduire par langue (le compte de l'exécution à blanc ci-dessus), 3 langues cibles
+- 400 clés à traduire par langue (le compte du dry run ci-dessus), 3 langues cibles
 - valeur source moyenne de 40 caractères, nom de clé moyen de 20 caractères
 - pas de `description`, `meaning`, glossaire ni ton
 - `maxBatchSize` à sa valeur par défaut de `50`
@@ -137,7 +137,7 @@ DeepL est une API de traduction automatique, pas un LLM facturé au token : il n
 
 - L'unité facturable, ce sont les **caractères source**. Pour le projet d'exemple, cela fait 400 clés x 40 caractères = 16 000 caractères par langue, 48 000 sur trois.
 - verbatra n'envoie à DeepL que le texte source. Il n'y a ni règles système, ni noms de clés, ni enveloppe JSON dans la charge facturée : il n'y a donc aucune constante par requête à amortir.
-- DeepL retient les chaînes portant des espaces réservés ou de la syntaxe ICU plutôt que de les risquer : les caractères réellement envoyés peuvent donc être inférieurs au total brut.
+- DeepL retient les chaînes portant des `placeholders` ou de la syntaxe ICU plutôt que de les risquer : les caractères réellement envoyés peuvent donc être inférieurs au total brut.
 - DeepL ne rapporte aucun usage de tokens : un budget `maxTokens` configuré est donc signalé comme non pris en charge, au lieu de sembler fonctionner.
 
 ## Pourquoi la deuxième exécution est presque gratuite

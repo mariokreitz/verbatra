@@ -44,8 +44,12 @@
       "copy": "copier",
       "copied": "copié",
       "copyAria": "Copier la commande d'installation",
-      "pnpmNote": "pnpm installe correctement mais sort en 1 avec ERR_PNPM_IGNORED_BUILDS, car il bloque les scripts d'installation d'une dépendance. Lance pnpm approve-builds une fois, ou consulte le",
-      "pnpmNoteLink": "Dépannage"
+      "copyPromptAria": "Copier le prompt de configuration pour l'agent IA",
+      "pnpmNote": "pnpm installe correctement mais sort avec le code 1 et ERR_PNPM_IGNORED_BUILDS, car il bloque les scripts d'installation d'une dépendance. Lance pnpm approve-builds une fois, ou consulte le",
+      "pnpmNoteLink": "Dépannage",
+      "aiTabLabel": "IA",
+      "aiCaption": "Ceci est un aperçu tronqué. Lis le prompt complet et le guide de configuration sur",
+      "aiCaptionLink": "le guide de configuration"
     },
     "compat": {
       "heading": "Un seul outil, tous les frameworks.",
@@ -127,33 +131,13 @@
           "question": "Quels formats et frameworks verbatra prend-il en charge ?",
           "answer": "JSON pour i18next, vue-i18n, next-intl et ngx-translate, ainsi que les fichiers XLIFF, YAML, Flutter ARB et Java/Spring .properties. Cela couvre React, Next.js, Vue, Nuxt, Angular, SvelteKit, Astro, Node.js, Spring et Flutter. verbatra lit les fichiers que tu as déjà ; il n'y a pas de format spécifique à verbatra vers lequel migrer."
         },
-        "studio": {
-          "question": "Qu'est-ce que Verbatra Studio ?",
-          "answer": "Un tableau de bord web local au-dessus de ton projet qui montre en direct l'état de chaque locale, rassemble une file de relecture des entrées signalées et te laisse corriger les traductions sur place. Lance-le avec verbatra studio (installe d'abord @verbatra/studio). Éditer tes propres fichiers de locale fonctionne d'emblée ; appeler un fournisseur depuis l'interface est optionnel, derrière --allow-spend. Il tourne uniquement sur 127.0.0.1 et ne quitte jamais ta machine."
-        },
         "safety": {
           "question": "Qu'est-ce qui empêche une mauvaise traduction de casser mon app ?",
           "answer": "Chaque résultat passe une vérification d'intégrité des placeholders et de l'ICU avant d'être écrit. Une traduction qui supprime, invente ou réordonne un placeholder, ou produit une syntaxe de message ICU invalide, est retenue plutôt qu'enregistrée dans ton fichier de locale. La même vérification s'applique aux modifications et aux re-traductions faites dans Verbatra Studio."
         },
-        "keys": {
-          "question": "Où sont mes clés d'API, et mon contenu est-il envoyé quelque part que je ne contrôle pas ?",
-          "answer": "Les clés sont lues seulement depuis les variables d'environnement (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, DEEPL_API_KEY), jamais depuis le fichier de config, les arguments du CLI ou les journaux. Seules les chaînes que tu traduis sont envoyées, et seulement au fournisseur que tu as choisi. Si tu utilises le fournisseur openai-compatible avec un modèle local, rien ne quitte ta machine ni ton réseau."
-        },
-        "preview": {
-          "question": "Puis-je prévisualiser une exécution avant qu'elle n'écrive quoi que ce soit ?",
-          "answer": "Oui. Une exécution à blanc rapporte exactement quelles clés seraient envoyées et écrites sans toucher à tes fichiers, et verbatra check et verbatra diff rapportent l'écart par locale sans appeler de fournisseur. Le mode watch fait l'inverse : il continue à traduire au fur et à mesure que ta locale source change."
-        },
-        "automation": {
-          "question": "Puis-je utiliser verbatra dans des scripts, en CI et dans GitHub Actions ?",
-          "answer": "Oui. Le CLI est un fin wrapper autour de @verbatra/sdk, qui expose les mêmes opérations translate, watch, check, diff et doctor pour tes propres outils. Les commandes renvoient des codes de sortie compatibles CI et prennent en charge la sortie --json, et une GitHub Action officielle exécute verbatra dans ton workflow."
-        },
         "cost": {
           "question": "Combien coûte verbatra ?",
           "answer": "verbatra lui-même est gratuit et open source sous la licence MIT. Le seul coût est l'usage de ton fournisseur, que tu contrôles : il traduit seulement ce qui a changé, et tu peux le faire tourner gratuitement sur le palier gratuit de Gemini ou sur un modèle local compatible OpenAI."
-        },
-        "production": {
-          "question": "verbatra est-il prêt pour la production ?",
-          "answer": "Il est jeune et activement développé, alors fige une version et lis le <releases>changelog</releases> lorsque tu mets à jour. Le modèle de sécurité est déjà solide : chaque exécution se compare à un fichier de verrouillage validé, vérifie l'intégrité des placeholders et de l'ICU sur chaque résultat, et retient tout ce qui pose problème plutôt que de l'écrire. Les équipes l'exécutent en CI aujourd'hui ; fige les versions et tu es sur un terrain stable."
         }
       }
     },
@@ -177,21 +161,25 @@
           "howItWorks": "Comment ça marche",
           "providers": "Fournisseurs",
           "formats": "Formats",
-          "lockFile": "Le fichier de verrouillage"
-        },
-        "project": {
-          "title": "Projet",
-          "configFile": "Fichier de config",
-          "codeOfConduct": "Code de conduite",
-          "security": "Politique de sécurité",
-          "releases": "Notes de version",
-          "llmsFull": "llms-full.txt (texte intégral)",
-          "llmsIndex": "llms.txt (index)"
+          "lockFile": "Le fichier de verrouillage",
+          "configFile": "Fichier de configuration"
         },
         "legal": {
           "title": "Informations légales",
           "privacy": "Politique de confidentialité",
           "imprint": "Mentions légales"
+        },
+        "community": {
+          "title": "Communauté",
+          "codeOfConduct": "Code de conduite",
+          "security": "Politique de sécurité",
+          "releases": "Notes de version"
+        },
+        "agents": {
+          "title": "Pour les agents IA",
+          "llmsIndex": "llms.txt (index)",
+          "llmsFull": "llms-full.txt (texte intégral)",
+          "aiTxt": "ai.txt (politique d'utilisation)"
         }
       },
       "legalLine": "Open source sous la licence MIT · © 2026 Mario Kreitz",
@@ -205,7 +193,14 @@
       "docs": "Docs",
       "providers": "Fournisseurs",
       "formats": "Formats",
-      "contributing": "Contribuer"
+      "contributing": "Contribuer",
+      "startWithAi": "Commencer avec l'IA",
+      "languageSwitcher": {
+        "chooseLanguage": "Choisis une langue",
+        "triggerAriaSuffix": "choisir la langue",
+        "machineTranslatedLabel": "Traduction automatique",
+        "machineTranslatedDescription": "L'interface et les pages de documentation pour cette langue sont traduites avec l'IA."
+      }
     },
     "studio": {
       "heading": "Garde tout l'état de la traduction sous les yeux, en local.",
