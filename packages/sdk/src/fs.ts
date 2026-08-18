@@ -109,7 +109,7 @@ export interface SdkFs {
    *
    * Optional, like {@link SdkFs.mkdir}, so an existing implementation keeps satisfying this
    * interface. Only project detection needs it: {@link resolveProjectConfig} reports
-   * `DETECTION_UNSUPPORTED` when the file system it was given does not implement it.
+   * `PROJECT_NOT_DETECTED` when the file system it was given does not implement it.
    */
   readDirectory?(path: string): Promise<readonly DirectoryEntry[]>;
 }
