@@ -200,7 +200,7 @@
         },
         "translations": {
           "question": "Is this site's non-English content AI-translated?",
-          "answer": "Partly, by design. The UI text (navigation, buttons, footer, this FAQ) is machine-translated into German, Spanish, and French using verbatra itself, the same way any project would dogfood it. The documentation prose (the guides and reference pages) is hand-translated by the maintainers, not machine-translated wholesale."
+          "answer": "Yes, all of it, through two mechanisms. UI text (navigation, buttons, footer, this FAQ) is machine-translated into German, Spanish, and French using verbatra itself, automatically whenever the English source changes. Documentation prose (the guides and reference pages) is also AI-translated, just as a separate manual step, since verbatra only translates JSON-family formats, not Markdown."
         }
       }
     },
@@ -260,8 +260,8 @@
       "startWithAi": "Start with AI",
       "languageSwitcher": {
         "chooseLanguage": "Choose a language",
-        "machineTranslatedLabel": "Interface machine-translated",
-        "machineTranslatedDescription": "Navigation, buttons, and other interface text are machine-translated."
+        "machineTranslatedLabel": "Machine-translated",
+        "machineTranslatedDescription": "Interface and documentation pages for this language are translated with AI."
       }
     }
   },

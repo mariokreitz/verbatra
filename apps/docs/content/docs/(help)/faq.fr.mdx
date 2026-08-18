@@ -186,19 +186,19 @@ Les trois sont accessibles depuis la colonne du pied de page dédiée aux agents
 
 ## Le contenu de ce site est-il traduit par IA ?
 
-Deux choses différentes, traduites de deux façons différentes. Le texte de l'interface (libellés
-de navigation, boutons, le pied de page, le texte de la landing page, la FAQ de la landing page)
-vit dans `messages/en.json` et ses fichiers frères `de`, `es` et `fr` ; ceux-ci sont traduits
+Oui, les deux moitiés, par deux mécanismes différents. Le texte de l'interface (libellés de
+navigation, boutons, le pied de page, le texte de la landing page, la FAQ de la landing page) vit
+dans `messages/en.json` et ses fichiers frères `de`, `es` et `fr` ; ceux-ci sont traduits
 automatiquement avec verbatra lui-même, contre le format `next-intl-json`, via le fournisseur
-Gemini, exécuté par `pnpm i18n`. C'est le projet qui utilise ici son propre outil (dogfooding). La
-prose de la documentation que tu lis en ce moment, chaque guide et chaque page de référence y
-compris celle-ci, est du MDX à suffixe de locale (`page.mdx`, `page.de.mdx`, `page.es.mdx`,
-`page.fr.mdx`), maintenu à la main par les mainteneurs du projet : `pnpm i18n` ne traduit que les
-fichiers JSON, XLIFF, YAML, ARB et properties, jamais le Markdown, donc il ne touche jamais ces
-pages.
+Gemini, exécuté par `pnpm i18n` dès que la source anglaise change. C'est le projet qui utilise ici
+son propre outil (dogfooding). La prose de la documentation que tu lis en ce moment, chaque guide
+et chaque page de référence y compris celle-ci, est du MDX à suffixe de locale (`page.mdx`,
+`page.de.mdx`, `page.es.mdx`, `page.fr.mdx`) et elle aussi traduite par IA, mais en dehors de cette
+chaîne automatisée : `pnpm i18n` ne traduit que les fichiers JSON, XLIFF, YAML, ARB et properties,
+jamais le Markdown, donc il ne touche jamais ces pages. Traduire une page de documentation est une
+étape séparée et manuelle à chaque changement de la source anglaise.
 
-Si quelque chose sonne bizarre en allemand, en espagnol ou en français, la bonne marche à suivre
-dépend de la moitié concernée : ouvre une issue pour le texte de l'interface, car il est corrigé à
-la source anglaise puis retraduit automatiquement ; envoie une pull request pour la prose de la
-documentation, car elle est maintenue à la main, et une correction faite par un locuteur natif va
-directement dans le fichier.
+Si quelque chose sonne bizarre en allemand, en espagnol ou en français, ouvre une issue dans les
+deux cas : le texte de l'interface est corrigé à la source anglaise puis retraduit automatiquement
+par `pnpm i18n` ; pour la prose de la documentation, modifie le fichier MDX directement et envoie
+une pull request.

@@ -183,18 +183,19 @@ Alle drei sind aus der Footer-Spalte für KI-Agenten verlinkt.
 
 ## Ist der Inhalt dieser Seite KI-übersetzt?
 
-Zwei verschiedene Dinge, auf zwei verschiedene Arten übersetzt. Der UI-Rahmen
-(Navigationsbeschriftungen, Buttons, der Footer, der Landingpage-Text, die Landing-FAQ) lebt in
-`messages/en.json` und ihren `de`-, `es`- und `fr`-Geschwistern; die werden mit verbatra selbst
-maschinell übersetzt, gegen das Format `next-intl-json`, über den Gemini-Provider, ausgeführt von
-`pnpm i18n`. Das Projekt nutzt hier sein eigenes Tool (Dogfooding). Die Doku-Prosa, die du gerade
-liest, jeder Guide und jede Referenzseite einschließlich dieser hier, ist locale-suffigiertes MDX
-(`page.mdx`, `page.de.mdx`, `page.es.mdx`, `page.fr.mdx`), von Hand gepflegt von den
-Projekt-Maintainern: `pnpm i18n` übersetzt nur JSON-, XLIFF-, YAML-, ARB- und Properties-Dateien,
-nie Markdown, es rührt diese Seiten also nie an.
+Ja, beide Hälften, auf zwei verschiedenen Wegen. Der UI-Rahmen (Navigationsbeschriftungen, Buttons,
+der Footer, der Landingpage-Text, die Landing-FAQ) lebt in `messages/en.json` und ihren `de`-,
+`es`- und `fr`-Geschwistern; die werden mit verbatra selbst maschinell übersetzt, gegen das Format
+`next-intl-json`, über den Gemini-Provider, ausgeführt von `pnpm i18n`, automatisch immer dann,
+wenn sich die englische Quelle ändert. Das Projekt nutzt hier sein eigenes Tool (Dogfooding). Die
+Doku-Prosa, die du gerade liest, jeder Guide und jede Referenzseite einschließlich dieser hier, ist
+locale-suffigiertes MDX (`page.mdx`, `page.de.mdx`, `page.es.mdx`, `page.fr.mdx`) und ebenfalls
+KI-übersetzt, nur außerhalb dieser automatisierten Pipeline: `pnpm i18n` übersetzt nur JSON-,
+XLIFF-, YAML-, ARB- und Properties-Dateien, nie Markdown, es rührt diese Seiten also nie an. Eine
+Doku-Seite zu übersetzen ist ein eigener, manueller Schritt, sobald sich die englische Quelle
+ändert.
 
-Wenn dir im Deutschen, Spanischen oder Französischen etwas seltsam vorkommt, hängt der richtige
-Weg davon ab, um welche Hälfte es geht: Öffne ein Issue für UI-Texte, denn die werden an der
-englischen Quelle korrigiert und maschinell neu übersetzt; schick einen Pull Request für
-Doku-Prosa, denn die ist von Hand gepflegt, und eine Korrektur von einem Muttersprachler landet
-direkt in der Datei.
+Wenn dir im Deutschen, Spanischen oder Französischen etwas seltsam vorkommt, eröffne in beiden
+Fällen ein Issue: UI-Texte werden an der englischen Quelle korrigiert und von `pnpm i18n`
+maschinell neu übersetzt; bei Doku-Prosa bearbeite die MDX-Datei direkt und schick einen Pull
+Request.

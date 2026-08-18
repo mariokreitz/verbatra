@@ -184,17 +184,18 @@ Los tres están enlazados desde la columna del pie de página para agentes de IA
 
 ## ¿El contenido de este sitio está traducido por IA?
 
-Dos cosas distintas, traducidas de dos maneras distintas. El texto de la interfaz (etiquetas de
+Sí, las dos mitades, por dos mecanismos distintos. El texto de la interfaz (etiquetas de
 navegación, botones, el pie de página, el texto de la landing, las preguntas frecuentes de la
 landing) vive en `messages/en.json` y sus hermanos `de`, `es` y `fr`; esos se traducen
 automáticamente con verbatra mismo, contra el formato `next-intl-json`, a través del proveedor
-Gemini, ejecutado por `pnpm i18n`. Es el propio proyecto usando su propia herramienta (dogfooding).
-La prosa de la documentación que estás leyendo ahora mismo, cada guía y cada página de referencia
-incluida esta, es MDX con sufijo de locale (`page.mdx`, `page.de.mdx`, `page.es.mdx`,
-`page.fr.mdx`), mantenido a mano por los mantenedores del proyecto: `pnpm i18n` solo traduce
-archivos JSON, XLIFF, YAML, ARB y properties, nunca Markdown, así que nunca toca estas páginas.
+Gemini, ejecutado por `pnpm i18n` cada vez que cambia la fuente en inglés. Es el propio proyecto
+usando su propia herramienta (dogfooding). La prosa de la documentación que estás leyendo ahora
+mismo, cada guía y cada página de referencia incluida esta, es MDX con sufijo de locale
+(`page.mdx`, `page.de.mdx`, `page.es.mdx`, `page.fr.mdx`) y también está traducida con IA, solo
+que fuera de esa canalización automatizada: `pnpm i18n` solo traduce archivos JSON, XLIFF, YAML,
+ARB y properties, nunca Markdown, así que nunca toca estas páginas. Traducir una página de
+documentación es un paso aparte y manual cada vez que cambia la fuente en inglés.
 
-Si algo en alemán, español o francés suena raro, el camino correcto depende de a cuál de las dos
-mitades pertenece: abre un issue para el texto de la interfaz, porque se corrige en la fuente en
-inglés y se retraduce automáticamente; envía un pull request para la prosa de la documentación,
-porque se mantiene a mano y una corrección de un hablante nativo va directa al archivo.
+Si algo en alemán, español o francés suena raro, abre un issue en cualquiera de los dos casos: el
+texto de la interfaz se corrige en la fuente en inglés y `pnpm i18n` lo retraduce automáticamente;
+para la prosa de la documentación, edita el archivo MDX directamente y envía un pull request.
