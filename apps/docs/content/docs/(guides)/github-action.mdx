@@ -18,7 +18,9 @@ The action lives in its own repository, [verbatra/action](https://github.com/ver
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v1` is the convenience form: the `v1` tag moves with each v1 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
+`verbatra/action@v2` is the convenience form and the recommended default: the `v2` tag moves with each v2 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
+
+`v1` still resolves for workflows that have not upgraded, but it is legacy: it carries no minimum on the `version` input and still symlinks the pinned CLI packages into your repository's `node_modules` on every run, a write that `v2` removes entirely. Point new and existing workflows at `v2`.
 
 It used to ship from inside the verbatra monorepo and was referenced by path. That older form no longer resolves, so point existing workflows at the repository above.
 
@@ -38,9 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: verbatra/action@<commit-sha>
+      - uses: verbatra/action@<commit-sha> # a v2 release; see Availability above
         with:
-          version: 0.9.0 # pin @verbatra/cli to an exact version
+          version: 0.9.3 # pin @verbatra/cli to an exact version, 0.9.3 or newer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -55,7 +57,7 @@ The action runs the CLI, and the CLI reads the provider's API key only from the 
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | - | the `@verbatra/cli` version to run. Must be an exact semver version such as `0.9.0` or `0.9.1-next.0`; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix |
+| `version` | yes | - | the `@verbatra/cli` version to run, for example `0.9.3`. Must be an exact semver version; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix. Under `v2`, must also be `0.9.3` or newer; an older pin fails the step |
 | `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
 | `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
 | `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |
