@@ -6,7 +6,7 @@ This guide shows how to make CI fail when translations drift out of sync, and ho
 
 verbatra is a dev dependency, so the commands you run locally run the same in CI. The usual split:
 
-- **Gate a pull request** with [`verbatra check`](/docs/cli/check) or [`verbatra diff`](/docs/cli/diff). Both are read-only: no provider call, no API key needed, exit `1` on drift.
+- **Gate a pull request** with [`verbatra check`](/docs/cli/check) or [`verbatra diff`](/docs/cli/diff), either directly (this page) or through the [GitHub Action](/docs/github-action) with `command: check` or `command: diff`. Both are read-only: no provider call, no API key needed, exit `1` on drift.
 - **Translate on a push** with [`verbatra translate`](/docs/cli/translate), either directly (this page) or through the [GitHub Action](/docs/github-action).
 - **Preflight either one** with [`verbatra doctor`](/docs/cli/doctor). It is the cheapest step of all: it validates the config, the format, the provider, the key variable, and the source file, never calls a provider, and never reads a key value. It also still reports on a project whose locale files are not in place yet, where the other commands can only fail as a whole.
 
@@ -174,6 +174,16 @@ jobs:
       - run: pnpm exec verbatra check
 ```
 
+The [GitHub Action](/docs/github-action) runs the same gate without an install step: keep the checkout and replace the rest with the action, set to `command: check` (or `command: diff`):
+
+```yaml
+      - uses: actions/checkout@<commit-sha>
+      - uses: verbatra/action@<commit-sha> # pins the actively maintained v1 line
+        with:
+          version: 0.9.3
+          command: check
+```
+
 To translate in CI instead, swap the last step for `translate` and pass the provider key from your secret store as the environment variable your provider expects (see [Providers](/docs/providers)):
 
 ```yaml
@@ -182,7 +192,7 @@ To translate in CI instead, swap the last step for `translate` and pass the prov
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-If you would rather not write this job yourself, the [GitHub Action](/docs/github-action) wraps the translate variant with annotations and a job summary.
+If you would rather not write these jobs yourself, the [GitHub Action](/docs/github-action) wraps `translate`, `check`, and `diff` alike, and adds annotations and a job summary on top.
 
 ## Frozen installs and keys
 
