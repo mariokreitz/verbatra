@@ -28,8 +28,8 @@ jobs:
           persist-credentials: false
 
       - name: Check docs locales for drift
-        uses: verbatra/action@e0e40abda1ead8c8d9a51a7f3983e740f9be3feb # v1.1.3
+        uses: verbatra/action@0221b030d517d8af621fb6b812fcfd17a1f940ee # v1.2.0
         with:
-          version: "0.9.0"
+          version: "0.9.3"
           command: "check"
           working-directory: "apps/docs"
