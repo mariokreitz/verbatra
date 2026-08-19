@@ -6,7 +6,7 @@ Esta guía muestra cómo hacer que CI falle cuando las traducciones se desincron
 
 verbatra es una dependencia de desarrollo, así que los comandos que ejecutas en local se ejecutan igual en CI. El reparto habitual:
 
-- **Bloquea un pull request** con [`verbatra check`](/docs/cli/check) o [`verbatra diff`](/docs/cli/diff). Ambos son de solo lectura: sin llamada al proveedor, sin clave API, salida `1` si hay desfase.
+- **Bloquea un pull request** con [`verbatra check`](/docs/cli/check) o [`verbatra diff`](/docs/cli/diff), ya sea directamente (esta página) o a través de la [GitHub Action](/docs/github-action) con `command: check` o `command: diff`. Ambos son de solo lectura: sin llamada al proveedor, sin clave API, salida `1` si hay desfase.
 - **Traduce en cada push** con [`verbatra translate`](/docs/cli/translate), ya sea directamente (esta página) o a través de la [GitHub Action](/docs/github-action).
 - **Haz una comprobación previa de ambos** con [`verbatra doctor`](/docs/cli/doctor). Es el paso más barato de todos: valida la configuración, el formato, el proveedor, la variable de la clave y el archivo fuente, nunca llama a un proveedor y nunca lee el valor de una clave. Además sigue dando un informe en un proyecto cuyos archivos de locale todavía no están en su sitio, donde los demás comandos solo pueden fallar por completo.
 
@@ -174,6 +174,16 @@ jobs:
       - run: pnpm exec verbatra check
 ```
 
+La [GitHub Action](/docs/github-action) ejecuta la misma puerta sin ningún paso de instalación: conserva el checkout y sustituye el resto por la acción, con `command: check` (o `command: diff`):
+
+```yaml
+      - uses: actions/checkout@<commit-sha>
+      - uses: verbatra/action@<commit-sha> # fija la línea v1 mantenida activamente
+        with:
+          version: 0.9.3
+          command: check
+```
+
 Para traducir en CI en su lugar, cambia el último paso por `translate` y pasa la clave del proveedor desde tu almacén de secretos como la variable de entorno que tu proveedor espera (consulta [Proveedores](/docs/providers)):
 
 ```yaml
@@ -182,7 +192,7 @@ Para traducir en CI en su lugar, cambia el último paso por `translate` y pasa l
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-Si prefieres no escribir este job tú mismo, la [GitHub Action](/docs/github-action) envuelve la variante de translate con anotaciones y un resumen del job.
+Si prefieres no escribir estos jobs tú mismo, la [GitHub Action](/docs/github-action) envuelve `translate`, `check` y `diff` por igual, y añade anotaciones y un resumen del job.
 
 ## Instalaciones congeladas y claves
 

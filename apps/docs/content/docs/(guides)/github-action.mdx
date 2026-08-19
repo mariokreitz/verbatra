@@ -1,26 +1,26 @@
 ---
 title: GitHub Action
-description: "Run verbatra translate in GitHub Actions with the composite action: inputs, secret wiring, annotations, and the job summary."
+description: "Run verbatra in GitHub Actions with the composite action: inputs, secret wiring, annotations, and the job summary."
 ---
-verbatra ships a composite GitHub Action that runs `verbatra translate --json` in CI, turns failures into annotations on the run, writes a job summary table, and exits with the CLI's exit code. This page covers wiring it in and what it shows you.
+verbatra ships a composite GitHub Action that runs the verbatra CLI with `--json` in CI, turns failures into annotations on the run, writes a job summary table, and exits with the CLI's exit code. It runs `translate` by default; set the `command` input to run a read-only `check` or `diff` gate instead. This page covers wiring it in and what it shows you.
 
 ## When to use it over a raw CLI step
 
-The action is the translate step with the reporting already built: per-locale error annotations, a summary table on the run page, and exit-code propagation that never swallows a failure. Prefer it when your job is "translate on push and show me what happened".
+The action is a translate, check, or diff step with the reporting already built: per-locale error annotations, a summary table on the run page, and exit-code propagation that never swallows a failure. Prefer it when your job is "run verbatra and show me what happened", including gating a pull request with a read-only `check` or `diff`.
 
-Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything else: a read-only `check` or `diff` gate, custom flags such as `--prune`, or your own handling of the JSON output. The action always runs `translate --json` and nothing else; it never runs `init`, `watch`, or `check`.
+Run the [CLI directly](/docs/ci-and-exit-codes) instead when you want anything else: custom flags such as `--prune`, your own handling of the JSON output, or a command the action does not support. The `command` input accepts only `translate` (the default), `check`, or `diff`; the action never runs `init` or `watch`.
 
 ## Availability
 
-The action lives in its own repository, [verbatra/action](https://github.com/verbatra/action), separate from the verbatra monorepo, and is listed on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/verbatra). Reference it by repository, pinned to a commit SHA:
+The action lives in its own repository, [verbatra/action](https://github.com/verbatra/action), separate from the verbatra monorepo, and is listed on the [GitHub Actions Marketplace](https://github.com/marketplace/actions/verbatra). There is no npm package; the action is consumed only through `uses:`.
+
+Reference it by repository, pinned to a commit SHA:
 
 ```text
 uses: verbatra/action@<commit-sha>
 ```
 
-`verbatra/action@v2` is the convenience form and the recommended default: the `v2` tag moves with each v2 release, so fixes reach you without a workflow edit, at the cost of not knowing exactly what runs. SHA pinning is the security-conscious choice either way, and is what the examples on this page use. There is no npm package; the action is consumed only through `uses:`.
-
-`v1` still resolves for workflows that have not upgraded, but it is legacy: it carries no minimum on the `version` input and still symlinks the pinned CLI packages into your repository's `node_modules` on every run, a write that `v2` removes entirely. Point new and existing workflows at `v2`.
+`verbatra/action@v1` is the convenience form and the recommended default: the `v1` tag is the actively maintained, continuously updated line, moving with each release, so fixes and features reach you without a workflow edit. SHA pinning is the security-conscious choice either way, and is what the examples on this page use.
 
 It used to ship from inside the verbatra monorepo and was referenced by path. That older form no longer resolves, so point existing workflows at the repository above.
 
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@<commit-sha>
-      - uses: verbatra/action@<commit-sha> # a v2 release; see Availability above
+      - uses: verbatra/action@<commit-sha> # pins the actively maintained v1 line
         with:
           version: 0.9.3 # pin @verbatra/cli to an exact version, 0.9.3 or newer
         env:
@@ -51,31 +51,48 @@ The action fetches and runs `@verbatra/cli` at exactly the version you pin, so t
 
 ### Secret wiring
 
-The action runs the CLI, and the CLI reads the provider's API key only from the environment. Pass the key from your repository secrets under the variable your provider expects (see [Providers](/docs/providers)): `ANTHROPIC_API_KEY` above, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPL_API_KEY`. There is no key input; a key never travels as an action input or CLI argument.
+The action runs the CLI, and the CLI reads the provider's API key only from the environment. This applies to the default `translate` command: pass the key from your repository secrets under the variable your provider expects (see [Providers](/docs/providers)): `ANTHROPIC_API_KEY` above, `OPENAI_API_KEY`, `GEMINI_API_KEY`, or `DEEPL_API_KEY`. The read-only `check` and `diff` commands call no provider, so they need no key at all, which is what lets them run as a gate on a fork pull request where secrets are unavailable. There is no key input; a key never travels as an action input or CLI argument.
 
 ## Inputs
 
 | Input | Required | Default | Description |
 | --- | --- | --- | --- |
-| `version` | yes | - | the `@verbatra/cli` version to run, for example `0.9.3`. Must be an exact semver version; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix. Under `v2`, must also be `0.9.3` or newer; an older pin fails the step |
-| `config-path` | no | `""` | explicit config file to load (maps to `--config`); empty uses the normal config search |
-| `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`) |
-| `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`) |
+| `version` | yes | - | the `@verbatra/cli` version to run, for example `0.9.3`. Must be an exact semver version; the step fails immediately on a dist-tag such as `latest`, a range, or a `^`/`~` prefix. Must also be `0.9.3` or newer; an older pin fails the step |
+| `command` | no | `"translate"` | which verbatra command to run: `translate` (writes translations), `check` (read-only, exits `1` when any locale has missing or stale keys), or `diff` (read-only, exits `1` when any locale has pending changes). The read-only commands need no provider API key, so they work as a CI gate on a fork pull request. Anything outside this set fails the step |
+| `config-path` | no | `""` | explicit config file to load (maps to `--config`). Leaving it empty requires a recognized config file directly inside `working-directory`; the step fails before installing the CLI when none is found there. See [Config discovery](#config-discovery). |
+| `working-directory` | no | `""` | directory to resolve config and locale files against (maps to `--cwd`). Config lookup is strict: it looks only directly inside this directory, never a parent directory or the repository root. See [Config discovery](#config-discovery). |
+| `dry-run` | no | `"false"` | set to `"true"` to report what would change without calling a provider or writing (maps to `--dry-run`). Applies only when `command` is `translate`; combining it with `check` or `diff` fails the step, since those commands are already read-only |
 | `node-version` | no | `"24"` | Node.js version to set up for running the CLI |
 
 The action defines no outputs. Its results are the annotations, the job summary, and the exit code.
 
+## Config discovery
+
+When `config-path` is left empty the action requires a recognized verbatra config file to exist directly inside the resolved `working-directory`. If none is found there, the step fails before installing the CLI, naming the exact directory it checked.
+
+The lookup is strict: it never walks up into a parent directory or the repository root, even when an ancestor holds a valid config. Consider a monorepo where the app to translate lives at `apps/docs`:
+
+```yaml
+      with:
+        version: 0.9.3
+        working-directory: apps/docs
+```
+
+Here `apps/docs` is the root a config must exist in; a recognized config file directly inside `apps/docs` is required. A config at the outer repository root does not satisfy the check, even though it is an ancestor of `apps/docs`.
+
+Set `config-path` to point at a config file outside this convention. A relative `config-path` still resolves against `working-directory`; an absolute `config-path` is used as-is. Once a config is confirmed, the action always passes it to the CLI explicitly with `--config <resolved-path>`.
+
 ## What a run shows you
 
-**Annotations.** When the CLI exits `1` (some locales failed or came out partial), each failed locale becomes one error annotation titled `verbatra: <locale>`, carrying that locale's structured `[CODE] message`. When the whole run fails before producing a summary (exit `2`), a single `verbatra` annotation carries the CLI's error line instead.
+**Annotations.** Under the default `translate` command, when the CLI exits `1` (some locales failed or came out partial), each failed locale becomes one error annotation titled `verbatra: <locale>`, carrying that locale's structured `[CODE] message`. Under `check`, a drifted locale is annotated `verbatra check: <locale>` instead; under `diff`, a locale with pending changes is annotated `verbatra diff: <locale>`. When the whole run fails before producing a summary (exit `2`), a single `verbatra` annotation carries the CLI's error line instead, whatever the command.
 
-**Job summary.** Every run appends a Markdown summary to the job page: a table with one row per locale (status, translated, unchanged, orphaned, invalid ICU, integrity withheld, provider failures, notices), an aggregate line, and a list of failed locales with their error codes. A dry run is labeled as such. A whole-run failure gets a short failure summary with the exit code and error detail.
+**Job summary.** Every run appends a Markdown summary to the job page, shaped to the command that ran. Under `translate`, it is a table with one row per locale (status, translated, unchanged, orphaned, invalid ICU, integrity withheld, provider failures, notices), an aggregate line, and a list of failed locales with their error codes; a dry run is labeled as such. Under `check`, it reports missing and stale key counts per locale. Under `diff`, it reports missing and changed keys per locale, plus orphaned keys called out separately, since those never fail the step on their own. A whole-run failure gets a short failure summary with the exit code and error detail, whatever the command.
 
 **Exit behavior.** The action captures the CLI's stdout and exit code without bailing early, emits the annotations and summary, and only then exits with the CLI's own code. So the step fails on `1` or `2`, but never before you can see why. The [exit codes](/docs/ci-and-exit-codes) page spells out what each code means. If the internal exit-code wiring ever breaks, the action fails with `2` rather than reporting a false success.
 
 ## Persisting translations
 
-Without `dry-run`, `translate` writes updated locale files into the runner's checkout, and the action stops there: it does not commit. To keep the changes, add your own step that commits and pushes or opens a pull request. When you only want CI to flag missing or stale translations without writing anything, set `dry-run: "true"` (or gate with `verbatra check` and skip the action entirely).
+Without `dry-run`, the default `translate` command writes updated locale files into the runner's checkout, and the action stops there: it does not commit. To keep the changes, add your own step that commits and pushes or opens a pull request. When you only want CI to flag missing or stale translations without writing anything, set `dry-run: "true"` under `translate`, or set `command: check` (or `command: diff`) to run a read-only gate instead.
 
 ## Security
 
