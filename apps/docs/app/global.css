@@ -153,6 +153,7 @@ h6 {
   --v-status-new: var(--v-glow);
   --v-status-changed: var(--v-pink);
   --v-status-unchanged: #6f6f86;
+  --v-danger: hsl(0 78% 70%);
 
   --surface-bg: var(--color-fd-background);
   --surface-card: var(--color-fd-card);
@@ -164,6 +165,9 @@ h6 {
   --text-muted: var(--color-fd-muted-foreground);
   --text-faint: hsl(240 13% 58%);
   --text-link: var(--color-fd-primary);
+  --text-danger: var(--v-danger);
+  --text-success: var(--v-glow);
+  --border-danger: color-mix(in srgb, var(--v-danger) 55%, transparent);
   --accent: var(--v-glow);
   --accent-fill: var(--v-purple);
   --accent-fill-fg: hsl(290 60% 98%);

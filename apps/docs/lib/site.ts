@@ -7,7 +7,7 @@ export const PACKAGE_VERSION = versionData.version;
 
 export const STUDIO_VERSION = versionData.studioVersion;
 
-export const LEGAL_LAST_UPDATED = "2026-07-02";
+export const LEGAL_LAST_UPDATED = "2026-08-20";
 
 export function localeAlternates(locale: Locale, path: string) {
   const languages: Record<string, string> = {};

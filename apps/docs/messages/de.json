@@ -167,7 +167,8 @@
         "legal": {
           "title": "Rechtliches",
           "privacy": "Datenschutzerklärung",
-          "imprint": "Impressum"
+          "imprint": "Impressum",
+          "contact": "Kontakt"
         },
         "community": {
           "title": "Community",
@@ -258,6 +259,10 @@
       "s10": {
         "heading": "10. Änderungen dieser Erklärung",
         "body": "Wir können diese Datenschutzerklärung aktualisieren, wenn sich die Seite weiterentwickelt oder sich rechtliche Anforderungen ändern. Das untenstehende Datum spiegelt die jüngste Überarbeitung wider."
+      },
+      "s11": {
+        "heading": "11. Kontaktformular",
+        "body": "Wenn du das <contact>Kontaktformular</contact> nutzt, verarbeiten wir den von dir übermittelten Namen, die E-Mail-Adresse und die Nachricht, um deine Anfrage zu beantworten. Es sind zwei Drittverarbeiter gemäß Art. 28 DSGVO involviert: Resend, das die Benachrichtigungs-E-Mail an <email>mario.kreitz@web.de</email> zustellt und Daten in den Vereinigten Staaten verarbeitet, wobei Standardvertragsklauseln die Übermittlung regeln, und Arcjet, das die IP-Adresse und Header der Anfrage (nicht den Nachrichteninhalt) über seine Cloud API verarbeitet, um das Formular vor Bots und Missbrauch zu schützen; diese Daten werden für eine Dauer aufbewahrt, die durch unseren Arcjet-Plan festgelegt ist, derzeit bis zu einer Stunde im kostenlosen Tarif. Die Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (unser berechtigtes Interesse, das Formular sicher zu betreiben und auf Anfragen zu antworten). Deine Einsendung und die daraus resultierende Benachrichtigungs-E-Mail werden nur so lange aufbewahrt, wie es zur Bearbeitung der Anfrage erforderlich ist, und werden nirgendwo außerhalb des Posteingangs des Betreibers gespeichert; die eigenen Zustellprotokolle von Resend folgen den Standardaufbewahrungsfristen von Resend."
       }
     },
     "imprint": {
@@ -266,7 +271,38 @@
         "description": "Rechtliche Angaben (Impressum) für die verbatra-Dokumentationsseite."
       },
       "intro": "Dieses Impressum wird, wie nach deutschem Recht erforderlich, auf Deutsch bereitgestellt.",
-      "lastUpdatedLabel": "Zuletzt aktualisiert"
+      "lastUpdatedLabel": "Zuletzt aktualisiert",
+      "contactLinkNote": "Für eine schnelle elektronische Antwort kannst du auch unser <link>Online-Kontaktformular</link> nutzen."
+    },
+    "contact": {
+      "meta": {
+        "title": "Kontakt",
+        "description": "Nimm Kontakt mit dem Betreiber der verbatra Dokumentationsseite auf."
+      },
+      "title": "Kontakt",
+      "intro": "Nutze dieses Formular, um den Seitenbetreiber direkt zu erreichen. Dies ist ein zweiter, direkter elektronischer Kontaktkanal neben der E-Mail-Adresse im Impressum.",
+      "form": {
+        "nameLabel": "Name",
+        "namePlaceholder": "Dein Name",
+        "emailLabel": "E-Mail",
+        "emailPlaceholder": "du@example.com",
+        "messageLabel": "Nachricht",
+        "messagePlaceholder": "Deine Nachricht",
+        "submit": "Nachricht senden",
+        "submitting": "Wird gesendet ...",
+        "successTitle": "Nachricht gesendet",
+        "successBody": "Danke für deine Nachricht. Wir melden uns so schnell wie möglich bei dir.",
+        "errorTitle": "Es ist etwas schiefgelaufen",
+        "errorBody": "Wir konnten deine Nachricht nicht senden. Bitte versuche es in einem Moment erneut.",
+        "rateLimitedBody": "Du hast in letzter Zeit zu viele Nachrichten gesendet. Bitte versuche es später erneut.",
+        "validationErrorBody": "Bitte korrigiere die markierten Felder und versuche es erneut.",
+        "errors": {
+          "required": "Dieses Feld ist erforderlich.",
+          "invalid_email": "Gib eine gültige E-Mail-Adresse ein.",
+          "too_short": "Deine Nachricht muss mindestens 10 Zeichen lang sein.",
+          "too_long": "Das Feld ist zu lang."
+        }
+      }
     }
   },
   "docs": {

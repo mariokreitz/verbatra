@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import { toLocale } from "@/lib/i18n";
 import { LEGAL_LAST_UPDATED, localeAlternates } from "@/lib/site";
+
+const linkTags = {
+  link: (chunks: ReactNode) => <a href="/contact">{chunks}</a>,
+};
 
 const ODR = "https://ec.europa.eu/consumers/odr/";
 
@@ -45,6 +50,7 @@ export default async function ImprintPage(props: { params: Promise<{ lang: strin
         <br />
         E-Mail: <a href="mailto:mario.kreitz@web.de">mario.kreitz@web.de</a>
       </p>
+      <p>{t.rich("contactLinkNote", linkTags)}</p>
 
       <h2>Verantwortlich f&uuml;r den Inhalt nach &sect; 18 Abs. 2 MStV</h2>
       <p>

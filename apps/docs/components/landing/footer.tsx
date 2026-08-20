@@ -67,6 +67,7 @@ const FOOTER_COLS: ReadonlyArray<FooterCol> = [
       { literal: "MIT License", href: `${GITHUB_URL}/blob/main/LICENSE`, external: true },
       { labelKey: "cols.legal.privacy", href: "/privacy" },
       { labelKey: "cols.legal.imprint", href: "/imprint" },
+      { labelKey: "cols.legal.contact", href: "/contact" },
     ],
   },
 ];

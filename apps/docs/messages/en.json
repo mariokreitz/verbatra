@@ -214,7 +214,8 @@
         "legal": {
           "title": "Legal",
           "privacy": "Privacy policy",
-          "imprint": "Imprint"
+          "imprint": "Imprint",
+          "contact": "Contact"
         }
       },
       "legalLine": "Open-source under the MIT License · © 2026 Mario Kreitz",
@@ -286,6 +287,10 @@
       "s10": {
         "heading": "10. Changes to this policy",
         "body": "We may update this privacy policy as the site evolves or as legal requirements change. The date below reflects the most recent revision."
+      },
+      "s11": {
+        "heading": "11. Contact form",
+        "body": "When you use the <contact>contact form</contact>, we process the name, email address, and message you submit in order to respond to your inquiry. Two third-party processors are involved under Art. 28 GDPR: Resend, which delivers the notification email to <email>mario.kreitz@web.de</email> and processes data in the United States, with Standard Contractual Clauses governing the transfer, and Arcjet, which processes the request's IP address and headers (not the message content) through its Cloud API to protect the form against bots and abuse; this data is retained for a period set by our Arcjet plan, currently up to one hour on the free tier. The legal basis is Art. 6(1)(f) GDPR (our legitimate interest in operating the form securely and responding to inquiries). Your submission and the resulting notification email are retained only as long as necessary to handle the inquiry and are not stored anywhere beyond the operator's inbox; Resend's own delivery logs follow Resend's standard retention."
       }
     },
     "imprint": {
@@ -294,7 +299,38 @@
         "description": "Legal disclosure (Impressum) for the verbatra documentation site."
       },
       "intro": "This legal notice (Impressum) is provided in German as required by German law.",
-      "lastUpdatedLabel": "Last updated"
+      "lastUpdatedLabel": "Last updated",
+      "contactLinkNote": "For a fast electronic response, you can also use our <link>online contact form</link>."
+    },
+    "contact": {
+      "meta": {
+        "title": "Contact",
+        "description": "Get in touch with the verbatra documentation site operator."
+      },
+      "title": "Contact",
+      "intro": "Use this form to reach the site operator directly. This is a second, direct electronic contact channel alongside the email address in the Imprint.",
+      "form": {
+        "nameLabel": "Name",
+        "namePlaceholder": "Your name",
+        "emailLabel": "Email",
+        "emailPlaceholder": "you@example.com",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Your message",
+        "submit": "Send message",
+        "submitting": "Sending...",
+        "successTitle": "Message sent",
+        "successBody": "Thanks for reaching out. We will get back to you as soon as possible.",
+        "errorTitle": "Something went wrong",
+        "errorBody": "We could not send your message. Please try again in a moment.",
+        "rateLimitedBody": "You have sent too many messages recently. Please try again later.",
+        "validationErrorBody": "Please fix the highlighted fields and try again.",
+        "errors": {
+          "required": "This field is required.",
+          "invalid_email": "Enter a valid email address.",
+          "too_short": "Your message must be at least 10 characters long.",
+          "too_long": "This field is too long."
+        }
+      }
     }
   }
 }
