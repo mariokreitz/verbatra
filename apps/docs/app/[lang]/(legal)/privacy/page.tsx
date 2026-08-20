@@ -10,13 +10,14 @@ const GITHUB_PRIVACY =
   "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement";
 const CONTACT_MAILTO = "mailto:mario.kreitz@web.de";
 
-const SECTION_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10"] as const;
+const SECTION_KEYS = ["s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "s11"] as const;
 
 const linkTags = {
   email: (chunks: ReactNode) => <a href={CONTACT_MAILTO}>{chunks}</a>,
   umami: (chunks: ReactNode) => <a href={UMAMI_DOCS}>{chunks}</a>,
   repo: (chunks: ReactNode) => <a href={GITHUB_REPO}>{chunks}</a>,
   ghprivacy: (chunks: ReactNode) => <a href={GITHUB_PRIVACY}>{chunks}</a>,
+  contact: (chunks: ReactNode) => <a href="/contact">{chunks}</a>,
   strong: (chunks: ReactNode) => <strong>{chunks}</strong>,
 };
 

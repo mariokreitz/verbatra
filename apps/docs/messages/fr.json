@@ -167,7 +167,8 @@
         "legal": {
           "title": "Informations légales",
           "privacy": "Politique de confidentialité",
-          "imprint": "Mentions légales"
+          "imprint": "Mentions légales",
+          "contact": "Contact"
         },
         "community": {
           "title": "Communauté",
@@ -258,6 +259,10 @@
       "s10": {
         "heading": "10. Modifications de cette politique",
         "body": "Nous pouvons mettre à jour cette politique de confidentialité à mesure que le site évolue ou que les exigences légales changent. La date ci-dessous reflète la révision la plus récente."
+      },
+      "s11": {
+        "heading": "11. Formulaire de contact",
+        "body": "Quand tu utilises le <contact>formulaire de contact</contact>, nous traitons le nom, l'adresse e-mail et le message que tu soumets afin de répondre à ta demande. Deux sous-traitants tiers sont impliqués en vertu de l'Art. 28 RGPD : Resend, qui livre l'e-mail de notification à <email>mario.kreitz@web.de</email> et traite les données aux États-Unis, avec des Clauses Contractuelles Types régissant le transfert, et Arcjet, qui analyse les métadonnées de requête pour protéger le formulaire contre les robots et les abus. La base légale est l'Art. 6(1)(f) RGPD (notre intérêt légitime à exploiter le formulaire en toute sécurité et à répondre aux demandes). Ta soumission et l'e-mail de notification qui en résulte ne sont conservés que le temps nécessaire pour traiter la demande et ne sont stockés nulle part au-delà de la boîte de réception de l'opérateur ; les journaux de livraison propres à Resend suivent la rétention standard de Resend."
       }
     },
     "imprint": {
@@ -266,7 +271,38 @@
         "description": "Informations légales (Impressum) pour le site de documentation de verbatra."
       },
       "intro": "Ces mentions légales (Impressum) sont fournies en allemand, comme l'exige la loi allemande.",
-      "lastUpdatedLabel": "Dernière mise à jour"
+      "lastUpdatedLabel": "Dernière mise à jour",
+      "contactLinkNote": "Pour une réponse électronique rapide, tu peux aussi utiliser notre <link>formulaire de contact en ligne</link>."
+    },
+    "contact": {
+      "meta": {
+        "title": "Contact",
+        "description": "Contacte l'opérateur du site de documentation verbatra."
+      },
+      "title": "Contact",
+      "intro": "Utilise ce formulaire pour contacter directement l'opérateur du site. C'est un second canal de contact électronique direct, en plus de l'adresse e-mail indiquée dans les mentions légales.",
+      "form": {
+        "nameLabel": "Nom",
+        "namePlaceholder": "Ton nom",
+        "emailLabel": "E-mail",
+        "emailPlaceholder": "toi@exemple.com",
+        "messageLabel": "Message",
+        "messagePlaceholder": "Comment pouvons-nous t'aider ?",
+        "submit": "Envoie le message",
+        "submitting": "Envoi en cours...",
+        "successTitle": "Message envoyé",
+        "successBody": "Merci de nous avoir contactés. Nous reviendrons vers toi dès que possible.",
+        "errorTitle": "Quelque chose s'est mal passé",
+        "errorBody": "Nous n'avons pas pu envoyer ton message. Merci de réessayer dans un instant.",
+        "rateLimitedBody": "Tu as envoyé trop de messages récemment. Merci de réessayer plus tard.",
+        "validationErrorBody": "Merci de corriger les champs en surbrillance et de réessayer.",
+        "errors": {
+          "required": "Ce champ est requis.",
+          "invalid_email": "Merci de saisir une adresse e-mail valide.",
+          "too_short": "Ton message doit contenir au minimum 10 caractères.",
+          "too_long": "Ce champ est trop long."
+        }
+      }
     }
   },
   "docs": {

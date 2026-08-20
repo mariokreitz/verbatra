@@ -167,7 +167,8 @@
         "legal": {
           "title": "Legal",
           "privacy": "Política de privacidad",
-          "imprint": "Aviso legal"
+          "imprint": "Aviso legal",
+          "contact": "Contacto"
         },
         "community": {
           "title": "Comunidad",
@@ -258,6 +259,10 @@
       "s10": {
         "heading": "10. Cambios en esta política",
         "body": "Podemos actualizar esta política de privacidad a medida que el sitio evoluciona o cambian los requisitos legales. La fecha que aparece abajo refleja la revisión más reciente."
+      },
+      "s11": {
+        "heading": "11. Formulario de contacto",
+        "body": "Cuando usas el <contact>formulario de contacto</contact>, procesamos el nombre, la dirección de correo electrónico y el mensaje que envías para responder a tu consulta. Hay dos procesadores externos involucrados según el Art. 28 del RGPD: Resend, que envía el correo electrónico de notificación a <email>mario.kreitz@web.de</email> y procesa datos en los Estados Unidos, con Cláusulas Contractuales Estándar que rigen la transferencia, y Arcjet, que analiza los metadatos de la solicitud para proteger el formulario contra bots y abusos. La base legal es el Art. 6(1)(f) del RGPD (nuestro interés legítimo en operar el formulario de forma segura y responder a las consultas). Tu envío y el correo electrónico de notificación resultante se retienen solo el tiempo necesario para gestionar la consulta y no se almacenan en ningún lugar más allá de la bandeja de entrada del operador; los registros de entrega propios de Resend siguen la retención estándar de Resend."
       }
     },
     "imprint": {
@@ -266,7 +271,38 @@
         "description": "Información legal (Impressum) del sitio de documentación de verbatra."
       },
       "intro": "Este aviso legal (Impressum) se proporciona en alemán tal como exige la ley alemana.",
-      "lastUpdatedLabel": "Última actualización"
+      "lastUpdatedLabel": "Última actualización",
+      "contactLinkNote": "Para una respuesta electrónica rápida, también puedes usar nuestro <link>formulario de contacto en línea</link>."
+    },
+    "contact": {
+      "meta": {
+        "title": "Contacto",
+        "description": "Ponte en contacto con el operador del sitio de documentación de verbatra."
+      },
+      "title": "Contacto",
+      "intro": "Utiliza este formulario para contactar directamente con el operador del sitio. Este es un segundo canal de contacto electrónico directo, además de la dirección de correo electrónico que figura en el Aviso legal.",
+      "form": {
+        "nameLabel": "Nombre",
+        "namePlaceholder": "Tu nombre",
+        "emailLabel": "Correo electrónico",
+        "emailPlaceholder": "tucorreo@ejemplo.com",
+        "messageLabel": "Mensaje",
+        "messagePlaceholder": "¿Cómo podemos ayudarte?",
+        "submit": "Enviar mensaje",
+        "submitting": "Enviando...",
+        "successTitle": "Mensaje enviado",
+        "successBody": "Gracias por contactarnos. Te responderemos lo antes posible.",
+        "errorTitle": "Algo salió mal",
+        "errorBody": "No pudimos enviar tu mensaje. Por favor, inténtalo de nuevo en un momento.",
+        "rateLimitedBody": "Has enviado demasiados mensajes recientemente. Por favor, inténtalo de nuevo más tarde.",
+        "validationErrorBody": "Por favor, corrige los campos resaltados e inténtalo de nuevo.",
+        "errors": {
+          "required": "Este campo es obligatorio.",
+          "invalid_email": "Introduce una dirección de correo electrónico válida.",
+          "too_short": "Tu mensaje debe tener al menos 10 caracteres.",
+          "too_long": "Este campo es demasiado largo."
+        }
+      }
     }
   },
   "docs": {
