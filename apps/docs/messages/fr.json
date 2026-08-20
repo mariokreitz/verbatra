@@ -287,7 +287,7 @@
         "emailLabel": "E-mail",
         "emailPlaceholder": "toi@exemple.com",
         "messageLabel": "Message",
-        "messagePlaceholder": "Comment pouvons-nous t'aider ?",
+        "messagePlaceholder": "Ton message",
         "submit": "Envoie le message",
         "submitting": "Envoi en cours...",
         "successTitle": "Message envoyé",

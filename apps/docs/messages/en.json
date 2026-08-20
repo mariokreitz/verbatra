@@ -315,7 +315,7 @@
         "emailLabel": "Email",
         "emailPlaceholder": "you@example.com",
         "messageLabel": "Message",
-        "messagePlaceholder": "How can we help?",
+        "messagePlaceholder": "Your message",
         "submit": "Send message",
         "submitting": "Sending...",
         "successTitle": "Message sent",

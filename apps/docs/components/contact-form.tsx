@@ -17,7 +17,7 @@ type ContactResponseBody =
   | { status: "error" };
 
 const INPUT_CLASS =
-  "rounded-lg border border-fd-border bg-fd-background px-3 py-2 text-sm text-fd-foreground outline-none transition-colors focus-visible:border-fd-primary";
+  "rounded-[10px] border border-fd-border bg-fd-background px-3 py-2 text-sm text-fd-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] aria-invalid:border-[color:var(--border-danger)]";
 
 async function submitContactForm(formData: FormData): Promise<ContactResponseBody> {
   const response = await fetch("/api/contact", {
@@ -43,16 +43,20 @@ function StatusMessage({
 }): ReactNode {
   if (state === "success") {
     return (
-      <p>
+      <p className="text-[color:var(--text-success)]">
         <strong>{t("successTitle")}</strong> {t("successBody")}
       </p>
     );
   }
-  if (state === "rate_limited") return <p>{t("rateLimitedBody")}</p>;
-  if (state === "error" && hasFieldErrors) return <p>{t("validationErrorBody")}</p>;
+  if (state === "rate_limited") {
+    return <p className="text-[color:var(--text-danger)]">{t("rateLimitedBody")}</p>;
+  }
+  if (state === "error" && hasFieldErrors) {
+    return <p className="text-[color:var(--text-danger)]">{t("validationErrorBody")}</p>;
+  }
   if (state === "error") {
     return (
-      <p>
+      <p className="text-[color:var(--text-danger)]">
         <strong>{t("errorTitle")}</strong> {t("errorBody")}
       </p>
     );
@@ -100,7 +104,7 @@ function Field({
         <input {...sharedProps} type={type} maxLength={maxLength} />
       )}
       {errorText && (
-        <p id={errorId} className="text-sm text-red-500">
+        <p id={errorId} className="text-sm text-[color:var(--text-danger)]">
           {errorText}
         </p>
       )}
@@ -142,7 +146,7 @@ export function ContactForm(): ReactNode {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} className="not-prose flex flex-col gap-5">
       <Field
         id={nameId}
         name="name"

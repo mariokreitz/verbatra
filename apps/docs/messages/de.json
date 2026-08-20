@@ -287,7 +287,7 @@
         "emailLabel": "E-Mail",
         "emailPlaceholder": "du@example.com",
         "messageLabel": "Nachricht",
-        "messagePlaceholder": "Wie können wir dir helfen?",
+        "messagePlaceholder": "Deine Nachricht",
         "submit": "Nachricht senden",
         "submitting": "Wird gesendet ...",
         "successTitle": "Nachricht gesendet",
